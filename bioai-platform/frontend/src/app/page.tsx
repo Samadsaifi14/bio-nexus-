@@ -48,7 +48,6 @@ export default function Home() {
             <span className="text-xl font-bold text-gray-900">Bio Nexus</span>
           </div>
           <div className="flex items-center gap-4">
-            <a href="/auth" className="text-sm text-gray-600 hover:text-green-600 transition font-medium">Sign in</a>
             <span className="text-sm text-gray-500">Coming Soon</span>
           </div>
         </div>

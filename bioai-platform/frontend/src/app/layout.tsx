@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
-import { Providers } from './providers';
 
 export const metadata: Metadata = {
   title: 'Bio Nexus — One interface for every bioinformatics tool',
@@ -16,9 +15,7 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className="font-sans antialiased">
-        <Providers>
-          {children}
-        </Providers>
+        {children}
         <Toaster position="bottom-right" />
       </body>
     </html>

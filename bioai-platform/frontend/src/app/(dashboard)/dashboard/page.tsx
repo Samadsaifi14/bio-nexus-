@@ -15,7 +15,7 @@ export default function DashboardHome() {
 
       <div className="grid md:grid-cols-2 gap-6 mb-8">
         <button
-          onClick={() => router.push('/dashboard/analyze')}
+          onClick={() => router.push('/analyze')}
           className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-8 text-left text-white hover:from-green-600 hover:to-emerald-700 transition shadow-sm"
         >
           <Play className="w-10 h-10 mb-4" />
@@ -24,7 +24,7 @@ export default function DashboardHome() {
         </button>
 
         <button
-          onClick={() => router.push('/dashboard/history')}
+          onClick={() => router.push('/history')}
           className="bg-white rounded-2xl border border-gray-200 p-8 text-left hover:border-green-300 hover:shadow-sm transition"
         >
           <Dna className="w-10 h-10 text-green-600 mb-4" />

@@ -22,10 +22,20 @@ export default function JobProgress({ stepsCompleted, status }: JobProgressProps
   const isComplete = status === 'complete';
   const isFailed = status === 'failed';
   const stepSet = new Set(stepsCompleted);
+  const pct = stepsCompleted.length === 0 ? 0 : Math.round((stepsCompleted.length / STEPS.length) * 100);
 
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6">
-      <h3 className="text-sm font-semibold text-gray-900 mb-4">Pipeline progress</h3>
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-sm font-semibold text-gray-900">Pipeline progress</h3>
+        <span className="text-xs text-gray-500">{pct}%</span>
+      </div>
+      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5">
+        <div
+          className={`h-1.5 rounded-full transition-all duration-500 ${isFailed ? 'bg-red-500' : 'bg-green-600'}`}
+          style={{ width: `${pct}%` }}
+        />
+      </div>
       <div className="space-y-3">
         {STEPS.map((step) => {
           const done = stepSet.has(step.name);

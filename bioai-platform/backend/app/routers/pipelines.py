@@ -1,11 +1,9 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from app.services.validators import validate_fasta, ValidationResult
-from app.pipeline.engine import PipelineEngine
 from app.pipeline.definitions.protein_analysis import get_pipeline_definition
 from app.services.supabase import get_supabase
 from app.services.rate_limit import check_daily_limit
-from app.workers.celery_app import celery_app
 from app.workers.pipeline_worker import run_pipeline_sync
 from datetime import datetime, timezone
 import uuid
@@ -35,22 +33,18 @@ async def run_pipeline(req: PipelineRunRequest):
         "id": job_id,
         "tool": "pipeline",
         "query_preview": seq[:100],
-        "status": "pending",
+        "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],
         "context_json": None,
         "created_at": datetime.now(timezone.utc).isoformat(),
     }).execute()
 
-    if celery_app is not None:
-        from app.workers.pipeline_worker import run_pipeline_job
-        run_pipeline_job.delay(job_id, seq, req.database, req.max_hits)
-    else:
-        import threading
-        t = threading.Thread(target=run_pipeline_sync, args=(job_id, seq, req.database, req.max_hits), daemon=True)
-        t.start()
+    import threading
+    t = threading.Thread(target=run_pipeline_sync, args=(job_id, seq, req.database, req.max_hits), daemon=True)
+    t.start()
 
-    return {"job_id": job_id, "status": "pending"}
+    return {"job_id": job_id, "status": "queued"}
 
 
 @router.get("/definitions")

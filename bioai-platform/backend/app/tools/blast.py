@@ -31,10 +31,11 @@ class BlastTool(BaseTool):
         return {"hits": parsed, "count": len(parsed), "source": "EBI BLAST", "database": database}
 
     async def _submit(self, sequence: str, program: str, database: str) -> str:
+        stype = "protein" if program == "blastp" else "dna"
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.EBI_BASE_URL}/run",
-                data={"email": "user@bio-nexus.app", "sequence": sequence, "program": program, "database": database},
+                data={"email": "user@example.com", "sequence": sequence, "program": program, "database": database, "stype": stype},
             )
             resp.raise_for_status()
             return resp.text.strip()

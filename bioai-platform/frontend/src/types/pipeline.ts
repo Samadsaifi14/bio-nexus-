@@ -15,7 +15,7 @@ export interface JobStatus {
   id: string;
   tool: string;
   query_preview: string;
-  status: 'pending' | 'running' | 'complete' | 'failed';
+  status: 'queued' | 'pending' | 'running' | 'complete' | 'failed';
   pipeline_type: PipelineType;
   steps_completed: string[];
   context_json: AssembledContext | null;

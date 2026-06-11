@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import { User, BarChart3, Bell, Key, Shield, Loader2, Save, ExternalLink, Trash2 } from 'lucide-react';
-import { useAuth } from '@/contexts/auth';
 
 interface UsageStats {
   jobsToday: number;
@@ -13,7 +12,6 @@ interface UsageStats {
 }
 
 export default function SettingsPage() {
-  const { user, getToken } = useAuth();
   const [institution, setInstitution] = useState('');
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -25,34 +23,26 @@ export default function SettingsPage() {
   const [deleteRequested, setDeleteRequested] = useState(false);
 
   useEffect(() => {
-    if (!user) return;
     const fetchData = async () => {
       try {
-        const token = await getToken();
-        const [countRes, jobsRes, profileRes] = await Promise.all([
-          axios.get('/api/backend/api/jobs/count', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/backend/api/jobs', { headers: { Authorization: `Bearer ${token}` } }),
-          axios.get('/api/backend/api/profile', { headers: { Authorization: `Bearer ${token}` } }),
+        const [countRes, jobsRes] = await Promise.all([
+          axios.get('/api/backend/api/jobs/count'),
+          axios.get('/api/backend/api/jobs'),
         ]);
         setStats({
           jobsToday: countRes.data.count || 0,
           jobsTotal: (jobsRes.data.jobs || []).length,
           tokensUsed: 0,
         });
-        if (profileRes.data) {
-          setFullName(profileRes.data.full_name || '');
-          setInstitution(profileRes.data.institution || '');
-        }
       } catch {}
     };
     fetchData();
-  }, [user]);
+  }, []);
 
   const handleSave = async () => {
     setSaving(true);
     try {
-      const token = await getToken();
-      await axios.put('/api/backend/api/profile', { full_name: fullName, institution }, { headers: { Authorization: `Bearer ${token}` } });
+      await axios.put('/api/backend/api/profile', { full_name: fullName, institution });
       toast.success('Settings saved');
     } catch {
       toast.error('Failed to save settings');
@@ -60,8 +50,6 @@ export default function SettingsPage() {
       setSaving(false);
     }
   };
-
-  if (!user) return null;
 
   return (
     <div className="max-w-3xl">
@@ -77,7 +65,7 @@ export default function SettingsPage() {
           <div className="space-y-4">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-              <input type="email" value={user.email || ''} disabled className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm" />
+              <input type="email" disabled className="w-full px-4 py-2.5 rounded-xl border border-gray-200 bg-gray-50 text-gray-500 text-sm" placeholder="Sign in to see your email" />
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>

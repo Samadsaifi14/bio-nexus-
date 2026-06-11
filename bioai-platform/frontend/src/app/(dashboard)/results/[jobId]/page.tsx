@@ -59,7 +59,7 @@ export default function ResultsPage() {
     );
   }
 
-  if (job.status === 'running' || job.status === 'pending') {
+  if (job.status === 'running' || job.status === 'pending' || job.status === 'queued') {
     return (
       <div className="flex items-center justify-center py-20">
         <div className="text-center">

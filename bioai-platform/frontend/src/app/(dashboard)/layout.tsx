@@ -2,44 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname, useRouter } from 'next/navigation';
-import { Dna, Database, History, Settings, LogOut, Loader2, Sparkles, Play } from 'lucide-react';
-import { useAuth } from '@/contexts/auth';
+import { usePathname } from 'next/navigation';
+import { Dna, History, Settings, Sparkles, Play } from 'lucide-react';
 import { getJobCount } from '@/lib/api';
 
 const navItems = [
-  { href: '/dashboard/analyze', label: 'Analyze', icon: Play },
+  { href: '/analyze', label: 'Analyze', icon: Play },
   { href: '/dashboard', label: 'Dashboard', icon: Sparkles },
-  { href: '/dashboard/history', label: 'History', icon: History },
-  { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/history', label: 'History', icon: History },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
-  const router = useRouter();
-  const { user, loading, signOut } = useAuth();
   const [usage, setUsage] = useState({ count: 0, limit: 10, remaining: 10 });
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace('/auth');
-    }
-  }, [user, loading, router]);
-
-  useEffect(() => {
-    if (!user) return;
     getJobCount().then(setUsage).catch(() => {});
-  }, [user, pathname]);
-
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white">
-        <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
-      </div>
-    );
-  }
-
-  if (!user) return null;
+  }, [pathname]);
 
   const usagePct = usage.limit > 0 ? ((usage.limit - usage.remaining) / usage.limit) * 100 : 0;
 
@@ -50,7 +30,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <Dna className="w-7 h-7 text-green-600" />
           <span className="text-lg font-bold text-gray-900">Bio Nexus</span>
         </div>
-
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => {
             const active = pathname === item.href || pathname.startsWith(item.href + '/');
@@ -58,11 +37,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <Link
                 key={item.href}
                 href={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                  active
-                    ? 'bg-green-50 text-green-700'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'
-                }`}
+                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${active ? 'bg-green-50 text-green-700' : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900'}`}
               >
                 <item.icon className="w-5 h-5" />
                 {item.label}
@@ -70,7 +45,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
-
         <div className="p-4 border-t border-gray-200 space-y-4">
           <div>
             <div className="text-xs text-gray-500 mb-2">Free tier</div>
@@ -81,27 +55,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               <div className="h-full bg-green-500 rounded-full transition-all" style={{ width: `${usagePct}%` }} />
             </div>
           </div>
-
-          <div className="pt-3 border-t border-gray-100">
-            <div className="flex items-center gap-3 mb-3">
-              <div className="w-8 h-8 bg-green-100 rounded-full flex items-center justify-center text-sm font-medium text-green-700">
-                {user.email?.charAt(0).toUpperCase()}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-medium text-gray-900 truncate">{user.email}</p>
-              </div>
-            </div>
-            <button
-              onClick={signOut}
-              className="w-full flex items-center gap-2 px-3 py-2 text-sm text-gray-600 hover:bg-gray-50 rounded-lg transition"
-            >
-              <LogOut className="w-4 h-4" />
-              Sign out
-            </button>
-          </div>
         </div>
       </aside>
-
       <main className="flex-1 overflow-auto">
         <div className="max-w-5xl mx-auto px-6 py-8">
           {children}

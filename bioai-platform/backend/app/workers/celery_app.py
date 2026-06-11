@@ -18,5 +18,10 @@ try:
         task_acks_late=True,
         worker_prefetch_multiplier=1,
     )
-except ImportError:
+
+    import redis
+    r = redis.from_url(settings.REDIS_URL)
+    r.ping()
+    r.close()
+except Exception:
     celery_app = None

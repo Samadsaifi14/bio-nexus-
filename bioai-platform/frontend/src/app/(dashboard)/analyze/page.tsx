@@ -60,7 +60,7 @@ export default function AnalyzePage() {
               setPollInterval(null);
               if (data.status === 'complete') {
                 toast.success('Pipeline complete!');
-                router.push(`/dashboard/results/${result.job_id}`);
+                router.push(`/results/${result.job_id}`);
               } else {
                 toast.error(data.error || 'Pipeline failed');
               }

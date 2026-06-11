@@ -1,0 +1,32 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.env
+venv/
+.venv/
+
+# --- Node ---
+node_modules/
+.next/
+npm-debug.log*
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Env files (keep .example, ignore actual keys) ---
+.env.local
+.env.production
+backend/.env
+
+# --- Runtime artifacts ---
+dump.rdb
+*.rdb

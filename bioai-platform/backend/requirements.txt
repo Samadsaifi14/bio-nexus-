@@ -1,0 +1,12 @@
+fastapi
+uvicorn
+slowapi
+redis
+httpx
+biopython
+litellm
+python-dotenv
+supabase
+reportlab
+celery
+pydantic[email]

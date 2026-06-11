@@ -8,7 +8,7 @@ import type { JobStatus } from '@/types/pipeline';
 import AIInterpretation from '@/components/results/AIInterpretation';
 import BlastPanel from '@/components/results/BlastPanel';
 import UniprotPanel from '@/components/results/UniprotPanel';
-import StructureViewer from '@/components/results/StructureViewer';
+import AlphaFoldViewer from '@/components/AlphaFoldViewer';
 
 export default function ResultsPage() {
   const params = useParams();
@@ -136,8 +136,11 @@ export default function ResultsPage() {
         )}
       </div>
 
-      {context.alphafold && (
-        <StructureViewer data={context.alphafold} />
+      {context.alphafold && context.alphafold.structure_available && (
+        <AlphaFoldViewer
+          pdbUrl={context.alphafold.pdb_url}
+          uniprotId={context.alphafold.uniprot_accession}
+        />
       )}
     </div>
   );

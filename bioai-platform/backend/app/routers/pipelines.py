@@ -13,8 +13,8 @@ router = APIRouter()
 
 class PipelineRunRequest(BaseModel):
     sequence: str
-    pipeline_type: str = "protein_analysis"
-    database: str = "uniprotkb_swissprot"
+    pipeline_type: str = "blast"
+    database: str = "nr"
     max_hits: int = 10
 
 
@@ -24,7 +24,8 @@ async def run_pipeline(req: PipelineRunRequest):
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)
 
-    seq = str(validation.sequences[0].seq).upper().replace(" ", "")
+    seq = str(validation.sequences[0].seq).upper()
+    clean = "".join(c for c in seq if c.isalpha())
 
     job_id = str(uuid.uuid4())
     supabase = get_supabase()
@@ -32,16 +33,21 @@ async def run_pipeline(req: PipelineRunRequest):
     supabase.table("jobs").insert({
         "id": job_id,
         "tool": "pipeline",
-        "query_preview": seq[:100],
+        "query_preview": clean[:100],
         "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],
         "context_json": None,
+        "progress_pct": 0,
+        "current_step_label": "Queued",
         "created_at": datetime.now(timezone.utc).isoformat(),
+        "completed_at": None,
+        "error_message": None,
+        "share_token": None,
     }).execute()
 
     import threading
-    t = threading.Thread(target=run_pipeline_sync, args=(job_id, seq, req.database, req.max_hits), daemon=True)
+    t = threading.Thread(target=run_pipeline_sync, args=(job_id, clean, req.database, req.max_hits), daemon=True)
     t.start()
 
     return {"job_id": job_id, "status": "queued"}

@@ -2,13 +2,24 @@
 
 import { useState } from 'react';
 
-const SAMPLE = `>sp|P04637|P53_HUMAN Cellular tumor antigen p53
+const SAMPLES = [
+  {
+    label: 'p53 (human)',
+    seq: `>sp|P04637|P53_HUMAN Cellular tumor antigen p53
 MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGP
 DEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYPQGLNGTVNLPGRNSFEV
 RVCACPHERCTEGRAVKLFSPKELNCEMAQDIINNKFNLNLLPETIPNTIICFVESQPPQGD
 SVTTCFSWRGEGNEMYLHTEKEYKALKSTLSEKYMATCLLLSPKKKSLFPEALKLCNQKYS
 EEFLLLDEALLSGCFAELACALHLAPAEGRYSGGFNHELYNMMTQQQQHQHHLQMQQHHQQ
-HHQQHHQQHHQQQQQQQQQQQQQQQQQH`;
+HHQQHHQQHHQQQQQQQQQQQQQQQQQH`,
+  },
+  {
+    label: 'Insulin (human)',
+    seq: `>sp|P01308|INS_HUMAN Insulin
+MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAED
+LQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
+  },
+];
 
 interface SequenceInputProps {
   value: string;
@@ -36,13 +47,16 @@ export default function SequenceInput({ value, onChange, onSubmit, loading }: Se
       />
       <div className="flex items-center justify-between mt-4">
         <div className="flex items-center gap-4">
-          <button
-            type="button"
-            onClick={() => onChange(SAMPLE)}
-            className="text-sm text-green-600 hover:text-green-700 underline"
-          >
-            Load sample (p53)
-          </button>
+          {SAMPLES.map((s) => (
+            <button
+              key={s.label}
+              type="button"
+              onClick={() => onChange(s.seq)}
+              className="text-sm text-green-600 hover:text-green-700 underline"
+            >
+              Load {s.label}
+            </button>
+          ))}
           <span className="text-xs text-gray-400">
             {value ? `${aaCount} aa` : '0 aa'}
           </span>

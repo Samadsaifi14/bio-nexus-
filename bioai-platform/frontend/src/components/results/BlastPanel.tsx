@@ -3,11 +3,25 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import type { BlastHitSummary } from '@/types/pipeline';
+import AlignmentView from './AlignmentView';
 
 interface BlastPanelProps {
   hits: BlastHitSummary[];
   count: number;
   source?: string;
+}
+
+function confidenceBand(evalue: number): { label: string; color: string; bg: string } {
+  if (evalue < 1e-50) return { label: 'Very High', color: 'text-teal-700', bg: 'bg-teal-50' };
+  if (evalue < 1e-10) return { label: 'High', color: 'text-blue-700', bg: 'bg-blue-50' };
+  if (evalue < 1e-3) return { label: 'Moderate', color: 'text-amber-700', bg: 'bg-amber-50' };
+  return { label: 'Low', color: 'text-gray-500', bg: 'bg-gray-100' };
+}
+
+function formatEvalue(evalue: number): string {
+  if (evalue === 0) return '0.0';
+  if (evalue < 0.0001) return evalue.toExponential(1);
+  return evalue.toFixed(4);
 }
 
 export default function BlastPanel({ hits, count, source }: BlastPanelProps) {
@@ -22,34 +36,50 @@ export default function BlastPanel({ hits, count, source }: BlastPanelProps) {
         </h2>
       </div>
       <div className="divide-y divide-gray-100">
-        {hits.map((hit, i) => (
-          <div key={i}>
-            <button
-              onClick={() => setExpanded(expanded === i ? null : i)}
-              className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
-            >
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-3">
-                  <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">{hit.accession}</span>
-                  <span className="text-sm text-gray-700 truncate">{hit.description}</span>
+        {hits.map((hit, i) => {
+          const band = confidenceBand(hit.evalue);
+          const isExpanded = expanded === i;
+          return (
+            <div key={hit.accession}>
+              <button
+                onClick={() => setExpanded(isExpanded ? null : i)}
+                className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">{hit.accession}</span>
+                    <span className="text-sm text-gray-700 truncate">{hit.description}</span>
+                  </div>
+                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                    <span>
+                      E-value:{' '}
+                      <strong className={band.color}>{formatEvalue(hit.evalue)}</strong>
+                      <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${band.bg} ${band.color}`}>
+                        {band.label}
+                      </span>
+                    </span>
+                    <span>Identity: <strong className="text-gray-900">{hit.identity_pct}%</strong></span>
+                    <span>Score: <strong className="text-gray-900">{hit.bit_score}</strong></span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
-                  <span>E-value: <strong className="text-gray-900">{hit.evalue.toExponential(1)}</strong></span>
-                  <span>Identity: <strong className="text-gray-900">{hit.identity_pct}%</strong></span>
-                  <span>Score: <strong className="text-gray-900">{hit.bit_score}</strong></span>
+                {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+              </button>
+              {isExpanded && (
+                <div className="px-6 pb-4">
+                  <AlignmentView hit={hit} />
+                  <a
+                    href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="mt-2 inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
+                  >
+                    View on NCBI <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
                 </div>
-              </div>
-              {expanded === i ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
-            </button>
-            {expanded === i && (
-              <div className="px-6 pb-4 border-t border-gray-100">
-                <a href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm text-green-600 hover:text-green-700">
-                  View on NCBI <ExternalLink className="w-3.5 h-3.5" />
-                </a>
-              </div>
-            )}
-          </div>
-        ))}
+              )}
+            </div>
+          );
+        })}
       </div>
     </div>
   );

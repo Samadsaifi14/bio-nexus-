@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { JobStatus, PipelineDefinition, AssembledContext, BlastSummary, UniprotSummary, AlphaFoldResult } from '@/types/pipeline';
+import type { JobStatus, PipelineDefinition, AssembledContext, BlastSummary, UniprotSummary, AlphaFoldResult, SequenceResult, SequenceValidation, SequenceSearchResponse } from '@/types/pipeline';
 
 const api = axios.create({
   baseURL: '/api/backend',
@@ -55,4 +55,26 @@ export function createJobPollingUrl(jobId: string): string {
 
 export function createInterpretStreamUrl(): string {
   return '/api/backend/api/ai/interpret/stream';
+}
+
+export async function fetchSequence(accession: string, dbPreference?: string): Promise<SequenceResult> {
+  const res = await api.post('/api/sequences/fetch', {
+    accession,
+    db_preference: dbPreference,
+  });
+  return res.data;
+}
+
+export async function validateSequence(sequence: string): Promise<SequenceValidation> {
+  const res = await api.post('/api/sequences/validate', { sequence });
+  return res.data;
+}
+
+export async function searchSequences(query: string, db: string = 'protein', maxResults: number = 10): Promise<SequenceSearchResponse> {
+  const res = await api.post('/api/sequences/search', {
+    query,
+    db,
+    max_results: maxResults,
+  });
+  return res.data;
 }

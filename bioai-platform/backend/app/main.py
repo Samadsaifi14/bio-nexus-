@@ -1,3 +1,4 @@
+import os
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -7,7 +8,7 @@ from fastapi.responses import JSONResponse
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
-from app.routers import pipelines, results, ai, jobs, export, share, waitlist, profile
+from app.routers import pipelines, results, ai, jobs, export, share, waitlist, profile, sequences
 from app.services.cache import init_redis
 from app.tools.registration import register_all_tools
 
@@ -17,9 +18,15 @@ app = FastAPI(title="Bio Nexus API", version="0.1.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
+PROD_ORIGIN = os.getenv("CORS_ORIGIN", "https://bio-nexus.vercel.app")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        PROD_ORIGIN,
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -33,6 +40,7 @@ app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(share.router, prefix="/api/share", tags=["share"])
 app.include_router(waitlist.router, prefix="/api/waitlist", tags=["waitlist"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
+app.include_router(sequences.router, prefix="/api/sequences", tags=["sequences"])
 
 
 @app.on_event("startup")

@@ -1,12 +1,35 @@
+"""
+Background job executor for bioinformatics pipelines.
+
+For the prototype, uses asyncio.create_task (not Celery) —
+sufficient for single-instance. Raw responses are stored
+to R2/local before any parsing occurs.
+"""
+
 import asyncio
 import logging
-from typing import List
+import os
+from typing import Optional
 
 import httpx
 
 from app.config import settings
+from app.integrations.ncbi import blast as ncbi_blast
+from app.integrations.ncbi.parser import parse_blast_xml
+from app.core.storage import store_raw_response, store_result
+from app.data.demo_results import get_demo_result
 
 logger = logging.getLogger(__name__)
+
+DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+
+STEP_STATUSES = [
+    "submitted_to_ncbi",
+    "polling_ncbi",
+    "parsing",
+    "interpreting",
+    "complete",
+]
 
 
 def _supa_headers() -> dict:
@@ -29,43 +52,175 @@ async def _patch_job(job_id: str, payload: dict) -> None:
         logger.error(f"[{job_id}] Supabase PATCH exception: {e}")
 
 
-async def _on_step_complete(job_id: str, steps_completed: List[str], pct: int) -> None:
-    await _patch_job(job_id, {"status": "running", "steps_completed": steps_completed, "progress_pct": pct})
-    logger.info(f"[{job_id}] Progress: {steps_completed} ({pct}%)")
+async def _set_step(job_id: str, step: str, progress_pct: int) -> None:
+    await _patch_job(job_id, {
+        "status": step,
+        "steps_completed": [step],
+        "progress_pct": progress_pct,
+        "current_step_label": _step_label(step),
+    })
+    logger.info(f"[{job_id}] Step: {step}")
 
 
-async def _run_async(job_id: str, sequence: str, database: str, max_hits: int) -> None:
-    from app.pipeline.engine import PipelineEngine
+def _step_label(step: str) -> str:
+    labels = {
+        "submitted_to_ncbi": "Submitted to NCBI BLAST",
+        "polling_ncbi": "NCBI is searching — this can take a minute",
+        "parsing": "Reading results",
+        "interpreting": "Writing your explanation",
+        "complete": "Complete",
+    }
+    return labels.get(step, step)
 
-    await _patch_job(job_id, {"status": "running", "steps_completed": []})
+
+def _matches_demo(sequence: str) -> Optional[dict]:
+    from app.data.demo_results import DEMO_SEQUENCES
+    seq_clean = "".join(c for c in sequence if c.isalpha()).upper()
+    for key, info in DEMO_SEQUENCES.items():
+        demo_clean = "".join(c for c in info["sequence"] if c.isalpha()).upper()
+        if seq_clean == demo_clean:
+            return info
+    return None
+
+
+async def execute_blast_job(job_id: str, sequence: str) -> None:
+    await _set_step(job_id, "submitted_to_ncbi", 10)
 
     try:
-        engine = PipelineEngine()
-        context_dict = await engine.execute(
-            job_id=job_id,
-            sequence=sequence,
-            database=database,
-            max_hits=max_hits,
-            progress_callback=_on_step_complete,
-        )
+        sequence_clean = "".join(c for c in sequence if c.isalpha()).upper()
+        seq_for_blast = sequence_clean if len(sequence_clean) > 20 else sequence_clean
+
+        demo_info = _matches_demo(sequence)
+        if DEMO_MODE and demo_info:
+            logger.info(f"[{job_id}] Demo mode: using cached result for {demo_info['name']}")
+            await _set_step(job_id, "polling_ncbi", 30)
+            await asyncio.sleep(1)
+            await _set_step(job_id, "parsing", 50)
+            demo_result = get_demo_result(sequence)
+            parsed = demo_result if demo_result else {"error": "Demo result not found", "hits": []}
+            await _set_step(job_id, "interpreting", 70)
+        else:
+            if DEMO_MODE:
+                demo_label = _matches_demo(sequence)
+                if not demo_label:
+                    logger.info(f"[{job_id}] Demo mode ON but sequence doesn't match known demo sequences — falling through to real NCBI call")
+            await _set_step(job_id, "polling_ncbi", 30)
+
+            submit_result = await ncbi_blast.submit_blast(seq_for_blast)
+            if "error" in submit_result:
+                raise RuntimeError(f"NCBI submission failed: {submit_result['error']}")
+
+            rid = submit_result["rid"]
+            poll_interval = min(submit_result["estimated_seconds"] / 2, 15)
+            max_polls = 40
+
+            for attempt in range(max_polls):
+                await asyncio.sleep(poll_interval)
+                status_result = await ncbi_blast.check_status(rid)
+                status = status_result["status"]
+                if status == "READY":
+                    break
+                if status in ("ERROR", "FAILED"):
+                    raise RuntimeError(f"NCBI BLAST failed with status: {status}")
+            else:
+                raise RuntimeError("NCBI BLAST timed out")
+
+            await _set_step(job_id, "parsing", 50)
+
+            results = await ncbi_blast.fetch_results(rid)
+            if "error" in results:
+                raise RuntimeError(f"NCBI fetch failed: {results['error']}")
+
+            raw_xml = results["raw"]
+            await store_raw_response(job_id, "blast", "ncbi_blast", raw_xml, "xml")
+
+            parsed = parse_blast_xml(raw_xml)
+            if "error" in parsed:
+                raise RuntimeError(f"BLAST XML parse error: {parsed['error']}")
+
+            await _set_step(job_id, "interpreting", 70)
+
+        await store_result(job_id, "blast_hits", parsed, "json")
+
+        top_hit = parsed["hits"][0] if parsed.get("hits") else None
+        context = {
+            "query": {
+                "sequence": sequence,
+                "length": len(sequence_clean),
+            },
+            "blast": {
+                "count": len(parsed.get("hits", [])),
+                "source": "demo" if (DEMO_MODE and demo_info) else "ncbi",
+                "database": parsed.get("database", "nr"),
+                "top_hit": {
+                    "accession": top_hit["accession"],
+                    "description": top_hit["description"],
+                    "evalue": top_hit["evalue"],
+                    "identity_pct": top_hit["identity_pct"],
+                    "bit_score": top_hit["bit_score"],
+                    "alignment_length": top_hit.get("alignment_length", 0),
+                } if top_hit else None,
+                "hits": [
+                    {
+                        "accession": h["accession"],
+                        "description": h["description"],
+                        "evalue": h["evalue"],
+                        "identity_pct": h["identity_pct"],
+                        "bit_score": h["bit_score"],
+                    }
+                    for h in parsed.get("hits", [])[:10]
+                ],
+            },
+        }
+
+        if top_hit and not (DEMO_MODE and demo_info):
+            try:
+                from app.tools.uniprot import UniprotTool
+                uniprot = UniprotTool()
+                uniprot_result = await uniprot.run({"accession": top_hit["accession"]})
+                if "error" not in uniprot_result:
+                    context["uniprot"] = {
+                        "accession": uniprot_result.get("accession", ""),
+                        "full_name": uniprot_result.get("full_name", ""),
+                        "organism": uniprot_result.get("organism", ""),
+                        "gene_names": uniprot_result.get("gene_names", []),
+                        "functions": uniprot_result.get("functions", []),
+                        "keywords": uniprot_result.get("keywords", []),
+                        "subcellular_locations": uniprot_result.get("subcellular_locations", []),
+                        "pdb_ids": uniprot_result.get("pdb_ids", []),
+                        "features": [
+                            f for f in (uniprot_result.get("features", []) or [])
+                            if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS")
+                        ],
+                        "go_terms": uniprot_result.get("go_terms", []),
+                        "sequence_length": uniprot_result.get("sequence_length", 0),
+                    }
+            except Exception as e:
+                logger.warning(f"[{job_id}] UniProt fetch failed (non-fatal): {e}")
+
         await _patch_job(job_id, {
             "status": "complete",
-            "context_json": context_dict,
-            "steps_completed": ["blast", "uniprot", "alphafold"],
+            "context_json": context,
+            "steps_completed": STEP_STATUSES,
             "progress_pct": 100,
+            "current_step_label": "Complete",
         })
-        logger.info(f"[{job_id}] Pipeline complete")
+
+        logger.info(f"[{job_id}] Pipeline complete (demo={DEMO_MODE})")
+
     except Exception as exc:
         logger.error(f"[{job_id}] Pipeline failed: {exc}", exc_info=True)
-        await _patch_job(job_id, {"status": "failed"})
-        raise
+        await _patch_job(job_id, {
+            "status": "failed",
+            "error_message": str(exc),
+        })
 
 
-def run_pipeline_sync(job_id: str, sequence: str, database: str = "uniprotkb_swissprot", max_hits: int = 10) -> None:
+def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10) -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(_run_async(job_id, sequence, database, max_hits))
+        loop.run_until_complete(execute_blast_job(job_id, sequence))
     finally:
         loop.close()
         asyncio.set_event_loop(None)

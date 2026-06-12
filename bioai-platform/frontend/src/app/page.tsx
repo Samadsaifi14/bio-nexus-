@@ -1,42 +1,9 @@
 'use client';
 
-import { useState } from 'react';
-import toast from 'react-hot-toast';
-import { Dna, Zap, Brain, Database, ChevronRight, Check } from 'lucide-react';
+import Link from 'next/link';
+import { Dna, Zap, Brain, Database, ChevronRight } from 'lucide-react';
 
 export default function Home() {
-  const [email, setEmail] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email) return;
-
-    setLoading(true);
-    try {
-      const res = await fetch('/api/backend/api/waitlist', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email }),
-      });
-
-      if (res.status === 409) {
-        toast.error('You\'re already on the list!');
-        setSubmitted(true);
-        return;
-      }
-
-      if (!res.ok) throw new Error('Failed');
-
-      setSubmitted(true);
-      toast.success('You\'re on the list!');
-    } catch {
-      toast.error('Something went wrong. Try again.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="min-h-screen">
@@ -48,7 +15,7 @@ export default function Home() {
             <span className="text-xl font-bold text-gray-900">Bio Nexus</span>
           </div>
           <div className="flex items-center gap-4">
-            <span className="text-sm text-gray-500">Coming Soon</span>
+            <Link href="/auth" className="text-sm text-gray-600 hover:text-gray-900 font-medium">Sign in</Link>
           </div>
         </div>
       </nav>
@@ -65,38 +32,15 @@ export default function Home() {
           </p>
         </div>
 
-        {/* Waitlist form */}
-        <div className="mt-12 max-w-md">
-          {submitted ? (
-            <div className="bg-green-50 border border-green-200 rounded-xl p-6">
-              <div className="flex items-center gap-3">
-                <Check className="w-6 h-6 text-green-600" />
-                <div>
-                  <p className="font-semibold text-green-900">You're on the list!</p>
-                  <p className="text-sm text-green-700">We'll reach out when the beta is ready.</p>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="flex gap-3">
-              <input
-                type="email"
-                placeholder="you@institution.ac.in"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                required
-                className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition text-gray-900 placeholder:text-gray-400"
-              />
-              <button
-                type="submit"
-                disabled={loading}
-                className="px-6 py-3 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2"
-              >
-                {loading ? 'Joining...' : 'Join Waitlist'}
-                {!loading && <ChevronRight className="w-4 h-4" />}
-              </button>
-            </form>
-          )}
+        {/* CTA */}
+        <div className="mt-12">
+          <Link
+            href="/auth"
+            className="inline-flex items-center gap-2 px-8 py-4 bg-green-600 text-white font-semibold rounded-xl hover:bg-green-700 transition text-lg"
+          >
+            Start analyzing
+            <ChevronRight className="w-5 h-5" />
+          </Link>
           <p className="mt-3 text-sm text-gray-500">Free for academic researchers. No spam, ever.</p>
         </div>
       </section>

@@ -2,8 +2,9 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
-import { Dna, History, Settings, Sparkles, Play } from 'lucide-react';
+import { usePathname, useRouter } from 'next/navigation';
+import { Dna, History, Settings, Sparkles, Play, LogOut, Loader2 } from 'lucide-react';
+import { useAuth } from '@/contexts/auth';
 import { getJobCount } from '@/lib/api';
 
 const navItems = [
@@ -15,11 +16,28 @@ const navItems = [
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, loading: authLoading, signOut } = useAuth();
   const [usage, setUsage] = useState({ count: 0, limit: 10, remaining: 10 });
 
   useEffect(() => {
     getJobCount().then(setUsage).catch(() => {});
   }, [pathname]);
+
+  useEffect(() => {
+    if (authLoading) return;
+    if (!user) {
+      router.replace('/auth');
+    }
+  }, [user, authLoading, router]);
+
+  if (authLoading || !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+      </div>
+    );
+  }
 
   const usagePct = usage.limit > 0 ? ((usage.limit - usage.remaining) / usage.limit) * 100 : 0;
 
@@ -46,6 +64,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           })}
         </nav>
         <div className="p-4 border-t border-gray-200 space-y-4">
+          <div className="flex items-center justify-between text-xs text-gray-500">
+            <span className="truncate">{user.email}</span>
+            <button onClick={signOut} className="p-1 hover:text-red-500 transition" title="Sign out">
+              <LogOut className="w-4 h-4" />
+            </button>
+          </div>
           <div>
             <div className="text-xs text-gray-500 mb-2">Free tier</div>
             <div className="text-sm font-medium text-gray-700">

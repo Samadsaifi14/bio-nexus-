@@ -7,7 +7,7 @@ def detect_sequence_type(seq: str) -> str:
     clean = seq.upper().replace("-", "").replace(".", "").replace(" ", "")
     if not clean:
         return "unknown"
-    protein_chars = set("ACDEFGHIKLMNPQRSTVWY")
+    protein_chars = set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")
     dna_chars = set("ACGTN")
     rna_chars = set("ACGUN")
     seq_set = set(clean)
@@ -91,7 +91,7 @@ def validate_sequence(sequence: str) -> dict:
     if result["length"] < 6:
         result["issues"] = [f"Sequence too short: {result['length']} residues"]
         return result
-    valid_protein = set("ACDEFGHIKLMNPQRSTVWY")
+    valid_protein = set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")
     extra = set(clean) - valid_protein
     if extra and result["sequence_type"] == "protein":
         invalid_chars = [c for c in sorted(extra) if c not in "BZX"]

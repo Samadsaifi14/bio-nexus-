@@ -26,7 +26,7 @@ def validate_fasta(text: str, tool: str = "blast") -> ValidationResult:
             seq_str = str(rec.seq)
             if len(seq_str) < 6:
                 return ValidationResult(valid=False, error=f"Sequence too short: {len(seq_str)} residues")
-            if not set(seq_str.upper()).issubset(set("ACDEFGHIKLMNPQRSTVWY")):
+            if not set(seq_str.upper()).issubset(set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")):
                 return ValidationResult(valid=False, error="Invalid amino acid characters found")
         return ValidationResult(sequences=records)
 
@@ -34,7 +34,7 @@ def validate_fasta(text: str, tool: str = "blast") -> ValidationResult:
     clean = "".join(c for c in text if c.isalpha()).upper()
     if len(clean) < 6:
         return ValidationResult(valid=False, error=f"Sequence too short: {len(clean)} residues")
-    if not set(clean).issubset(set("ACDEFGHIKLMNPQRSTVWY")):
+    if not set(clean).issubset(set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")):
         return ValidationResult(valid=False, error="Invalid amino acid characters found")
 
     from Bio.Seq import Seq

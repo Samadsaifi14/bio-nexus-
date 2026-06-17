@@ -7,33 +7,38 @@ import toast from 'react-hot-toast';
 import { runPipeline, fetchSequence, validateSequence } from '@/lib/api';
 import type { SequenceResult, SequenceValidation, SequenceType } from '@/types/pipeline';
 
-const SAMPLES = [
-  {
-    label: 'p53 (human)',
-    seq: `>sp|P04637|P53_HUMAN Cellular tumor antigen p53
-MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGP
-DEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYPQGLNGTVNLPGRNSFEV
-RVCACPHERCTEGRAVKLFSPKELNCEMAQDIINNKFNLNLLPETIPNTIICFVESQPPQGD
-SVTTCFSWRGEGNEMYLHTEKEYKALKSTLSEKYMATCLLLSPKKKSLFPEALKLCNQKYS
-EEFLLLDEALLSGCFAELACALHLAPAEGRYSGGFNHELYNMMTQQQQHQHHLQMQQHHQQ
-HHQQHHQQHHQQQQQQQQQQQQQQQQQH`,
-  },
-  {
-    label: 'Insulin (human)',
-    seq: `>sp|P01308|INS_HUMAN Insulin
-MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAED
-LQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
-  },
-];
+  const SAMPLES = [
+    {
+      label: 'p53 (human)',
+      seq: `>P53_HUMAN Cellular tumor antigen p53 [Homo sapiens]
+MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD`,
+    },
+    {
+      label: 'Insulin (human)',
+      seq: `>INS_HUMAN Insulin [Homo sapiens]
+MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
+    },
+  ];
+
+function stripFastaHeader(text: string): string {
+  return text.split('\n').filter(l => !l.startsWith('>')).join('\n');
+}
+
+const PROTEIN_CODES = new Set('ACDEFGHIKLMNPQRSTVWYUBZXOJ');
 
 function detectSequenceType(seq: string): SequenceType {
-  const clean = seq.replace(/[^A-Za-z]/g, '').toUpperCase();
+  const body = stripFastaHeader(seq);
+  const clean = body.replace(/[^A-Za-z]/g, '').toUpperCase();
   if (!clean) return 'unknown';
-  const protein = new Set('ACDEFGHIKLMNPQRSTVWY');
-  const extra = new Set(clean.split('').filter(c => !protein.has(c)));
-  if (extra.size === 0) return 'protein';
-  if (extra.size === 1 && (extra.has('N') || extra.has('B') || extra.has('Z') || extra.has('X'))) return 'protein';
-  return 'dna';
+  const seqSet = new Set(clean);
+  const allLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+  const nonProtein = [...seqSet].filter(c => !PROTEIN_CODES.has(c));
+  if (nonProtein.length === 0) return 'protein';
+  const inNucleic = nonProtein.every(c => 'ACGUTN'.includes(c));
+  if (inNucleic && seqSet.has('U') && !seqSet.has('T')) return 'rna';
+  if (inNucleic && seqSet.isSubsetOf(new Set('ACGTN'))) return 'dna';
+  if (nonProtein.every(c => 'ACGUTN'.includes(c))) return 'rna';
+  return 'unknown';
 }
 
 export default function BlastWizardPage() {
@@ -52,10 +57,10 @@ export default function BlastWizardPage() {
 
   useEffect(() => {
     if (inputMode === 'paste') {
-      const clean = rawInput.split('\n').filter(l => !l.startsWith('>')).join('');
-      const alpha = clean.replace(/[^A-Za-z]/g, '');
+      const body = stripFastaHeader(rawInput);
+      const alpha = body.replace(/[^A-Za-z]/g, '');
       setAaCount(alpha.length);
-      if (alpha.length > 0) setDetectedType(detectSequenceType(alpha));
+      if (alpha.length > 0) setDetectedType(detectSequenceType(rawInput));
     }
   }, [rawInput, inputMode]);
 
@@ -92,13 +97,14 @@ export default function BlastWizardPage() {
       return;
     }
 
-    const clean = seq.replace(/[^A-Za-z]/g, '');
+    const body = stripFastaHeader(seq);
+    const clean = body.replace(/[^A-Za-z]/g, '');
     if (clean.length < 6) {
       toast.error('Sequence must be at least 6 amino acids');
       return;
     }
 
-    const invalid = clean.split('').filter(c => !'ACDEFGHIKLMNPQRSTVWY'.includes(c.toUpperCase()));
+    const invalid = clean.split('').filter(c => !PROTEIN_CODES.has(c.toUpperCase()));
     if (invalid.length > 0) {
       const unique = Array.from(new Set(invalid.map(c => c.toUpperCase())));
       toast.error(`Invalid character(s) in sequence: ${unique.join(', ')}`);

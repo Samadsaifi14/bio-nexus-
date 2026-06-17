@@ -105,6 +105,10 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
             poll_interval = min(submit_result["estimated_seconds"] / 2, 15)
             max_polls = 40
 
+            await _patch_job(job_id, {
+                "context_json": {"ncbi_rid": rid, "poll_interval": poll_interval},
+            })
+
             for attempt in range(max_polls):
                 await asyncio.sleep(poll_interval)
                 status_result = await ncbi_blast.check_status(rid)

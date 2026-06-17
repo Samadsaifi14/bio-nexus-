@@ -52,6 +52,27 @@ def detect_source_from_accession(accession: str) -> str:
     return "ncbi"
 
 
+async def map_refseq_to_uniprot(refseq_id: str) -> str | None:
+    import httpx
+    url = "https://rest.uniprot.org/idmapping/uniprotkb/search"
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.post(url, json={
+                "from": "RefSeq_Protein",
+                "to": "UniProtKB",
+                "ids": refseq_id,
+            })
+            if resp.status_code != 200:
+                return None
+            data = resp.json()
+            results = data.get("results") or []
+            if results:
+                return results[0].get("to", {}).get("primaryAccession", "")
+    except Exception:
+        pass
+    return None
+
+
 def validate_sequence(sequence: str) -> dict:
     result = {
         "valid": False,

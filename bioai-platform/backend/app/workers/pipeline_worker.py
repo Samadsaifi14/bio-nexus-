@@ -173,8 +173,16 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
         if top_hit:
             try:
                 from app.tools.uniprot import UniprotTool
+                from app.services.sequence_utils import map_refseq_to_uniprot, detect_source_from_accession
                 uniprot = UniprotTool()
-                uniprot_result = await uniprot.run({"accession": top_hit["accession"]})
+                accession = demo_info.get("uniprot_accession", top_hit["accession"]) if (DEMO_MODE and demo_info) else top_hit["accession"]
+                source = detect_source_from_accession(accession)
+                if source == "ncbi":
+                    mapped = await map_refseq_to_uniprot(accession)
+                    if mapped:
+                        logger.info(f"[{job_id}] Mapped RefSeq {accession} -> UniProt {mapped}")
+                        accession = mapped
+                uniprot_result = await uniprot.run({"accession": accession})
                 if "error" not in uniprot_result:
                     context["uniprot"] = {
                         "accession": uniprot_result.get("accession", ""),

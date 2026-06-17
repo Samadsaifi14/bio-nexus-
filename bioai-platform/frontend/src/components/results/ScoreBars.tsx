@@ -13,9 +13,13 @@ function confidenceColor(evalue: number): string {
   return '#94A3B8';
 }
 
-function formatEvalue(evalue: number): string {
-  if (evalue === 0) return '0.0';
-  if (evalue < 0.0001) return evalue.toExponential(1);
+function formatEvalue(evalue: number, evalue_raw?: string): string {
+  if (evalue === 0) {
+    const raw = evalue_raw?.trim();
+    if (raw && raw !== '0') return raw;
+    return '≈ 0';
+  }
+  if (evalue < 0.0001) return evalue.toExponential(2);
   return evalue.toFixed(4);
 }
 
@@ -44,7 +48,7 @@ export default function ScoreBars({ hits }: ScoreBarsProps) {
                 />
               </div>
               <span className="w-20 text-right text-xs text-gray-500 font-mono shrink-0">
-                {formatEvalue(hit.evalue)}
+                {formatEvalue(hit.evalue, hit.evalue_raw)}
               </span>
             </div>
           );

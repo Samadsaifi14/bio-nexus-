@@ -13,7 +13,7 @@ import UniprotPanel from '@/components/results/UniprotPanel';
 import AlphaFoldViewer from '@/components/AlphaFoldViewer';
 
 const STATUS_ORDER: JobStepStatus[] = [
-  'queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'complete',
+  'queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'fetching_alphafold', 'complete',
 ];
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -238,7 +238,7 @@ export default function JobPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Analysis Results</h1>
           <p className="text-sm text-gray-500">
-            Query: {context.query.sequence.slice(0, 80)}... ({context.query.length} aa)
+            Query: {context.query?.sequence?.slice(0, 80) ?? ''}... ({context.query?.length ?? '?'} aa)
           </p>
         </div>
         <button
@@ -281,7 +281,7 @@ export default function JobPage() {
             <BlastPanel
               hits={context.blast.hits}
               count={context.blast.count}
-              source={context.blast.source}
+              source={context.blast?.source ?? 'NCBI BLAST'}
             />
             {context.uniprot && <UniprotPanel data={context.uniprot} />}
           </div>
@@ -299,7 +299,7 @@ export default function JobPage() {
             <button
               onClick={() => {
                 const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
-                  .concat((context.blast?.hits || []).map((h: any) => [h.accession, `"${h.description}"`, h.evalue, h.identity_pct, h.bit_score].join(',')))
+                  .concat((context.blast?.hits || []).map((h: any) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
                   .join('\n');
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);

@@ -18,9 +18,13 @@ function confidenceBand(evalue: number): { label: string; color: string; bg: str
   return { label: 'Low', color: 'text-gray-500', bg: 'bg-gray-100' };
 }
 
-function formatEvalue(evalue: number): string {
-  if (evalue === 0) return '0.0';
-  if (evalue < 0.0001) return evalue.toExponential(1);
+function formatEvalue(evalue: number, evalue_raw?: string): string {
+  if (evalue === 0) {
+    const raw = evalue_raw?.trim();
+    if (raw && raw !== '0') return raw;
+    return '≈ 0';
+  }
+  if (evalue < 0.0001) return evalue.toExponential(2);
   return evalue.toFixed(4);
 }
 
@@ -53,7 +57,7 @@ export default function BlastPanel({ hits, count, source }: BlastPanelProps) {
                   <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
                     <span>
                       E-value:{' '}
-                      <strong className={band.color}>{formatEvalue(hit.evalue)}</strong>
+                      <strong className={band.color}>{formatEvalue(hit.evalue, hit.evalue_raw)}</strong>
                       <span className={`ml-1 px-1.5 py-0.5 rounded-full text-xs ${band.bg} ${band.color}`}>
                         {band.label}
                       </span>

@@ -58,7 +58,7 @@ export interface PipelineDefinition {
   default_max_hits: number;
 }
 
-export type JobStepStatus = 'queued' | 'submitted_to_ncbi' | 'polling_ncbi' | 'parsing' | 'interpreting' | 'complete' | 'failed';
+export type JobStepStatus = 'queued' | 'submitted_to_ncbi' | 'polling_ncbi' | 'parsing' | 'interpreting' | 'fetching_alphafold' | 'complete' | 'failed';
 
 export const STEP_LABELS: Record<JobStepStatus, string> = {
   queued: 'Queued',
@@ -66,6 +66,7 @@ export const STEP_LABELS: Record<JobStepStatus, string> = {
   polling_ncbi: 'NCBI is searching — this can take a minute',
   parsing: 'Reading results',
   interpreting: 'Writing your explanation',
+  fetching_alphafold: 'Fetching AlphaFold structure',
   complete: 'Complete',
   failed: 'Failed',
 };
@@ -116,6 +117,7 @@ export interface BlastHitSummary {
   accession: string;
   description: string;
   evalue: number;
+  evalue_raw?: string;
   identity_pct: number;
   bit_score: number;
   alignment_length?: number;

@@ -28,6 +28,7 @@ STEP_STATUSES = [
     "polling_ncbi",
     "parsing",
     "interpreting",
+    "fetching_alphafold",
     "complete",
 ]
 
@@ -52,26 +53,6 @@ async def _patch_job(job_id: str, payload: dict) -> None:
         logger.error(f"[{job_id}] Supabase PATCH exception: {e}")
 
 
-async def _set_step(job_id: str, step: str, progress_pct: int) -> None:
-    await _patch_job(job_id, {
-        "status": step,
-        "steps_completed": [step],
-        "progress_pct": progress_pct,
-    })
-    logger.info(f"[{job_id}] Step: {step}")
-
-
-def _step_label(step: str) -> str:
-    labels = {
-        "submitted_to_ncbi": "Submitted to NCBI BLAST",
-        "polling_ncbi": "NCBI is searching — this can take a minute",
-        "parsing": "Reading results",
-        "interpreting": "Writing your explanation",
-        "complete": "Complete",
-    }
-    return labels.get(step, step)
-
-
 def _matches_demo(sequence: str) -> Optional[dict]:
     from app.data.demo_results import DEMO_SEQUENCES
     seq_clean = "".join(c for c in sequence if c.isalpha()).upper()
@@ -83,7 +64,18 @@ def _matches_demo(sequence: str) -> Optional[dict]:
 
 
 async def execute_blast_job(job_id: str, sequence: str) -> None:
-    await _set_step(job_id, "submitted_to_ncbi", 10)
+    steps_completed: list[str] = []
+
+    async def _set_step(step: str, progress_pct: int) -> None:
+        steps_completed.append(step)
+        await _patch_job(job_id, {
+            "status": step,
+            "steps_completed": steps_completed,
+            "progress_pct": progress_pct,
+        })
+        logger.info(f"[{job_id}] Step: {step}")
+
+    await _set_step("submitted_to_ncbi", 10)
 
     try:
         sequence_clean = "".join(c for c in sequence if c.isalpha()).upper()
@@ -92,18 +84,18 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
         demo_info = _matches_demo(sequence)
         if DEMO_MODE and demo_info:
             logger.info(f"[{job_id}] Demo mode: using cached result for {demo_info['name']}")
-            await _set_step(job_id, "polling_ncbi", 30)
+            await _set_step("polling_ncbi", 30)
             await asyncio.sleep(1)
-            await _set_step(job_id, "parsing", 50)
+            await _set_step("parsing", 50)
             demo_result = get_demo_result(sequence)
             parsed = demo_result if demo_result else {"error": "Demo result not found", "hits": []}
-            await _set_step(job_id, "interpreting", 70)
+            await _set_step("interpreting", 70)
         else:
             if DEMO_MODE:
                 demo_label = _matches_demo(sequence)
                 if not demo_label:
                     logger.info(f"[{job_id}] Demo mode ON but sequence doesn't match known demo sequences — falling through to real NCBI call")
-            await _set_step(job_id, "polling_ncbi", 30)
+            await _set_step("polling_ncbi", 30)
 
             submit_result = await ncbi_blast.submit_blast(seq_for_blast)
             if "error" in submit_result:
@@ -124,7 +116,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
             else:
                 raise RuntimeError("NCBI BLAST timed out")
 
-            await _set_step(job_id, "parsing", 50)
+            await _set_step("parsing", 50)
 
             results = await ncbi_blast.fetch_results(rid)
             if "error" in results:
@@ -137,7 +129,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
             if "error" in parsed:
                 raise RuntimeError(f"BLAST XML parse error: {parsed['error']}")
 
-            await _set_step(job_id, "interpreting", 70)
+            await _set_step("interpreting", 70)
 
         await store_result(job_id, "blast_hits", parsed, "json")
 
@@ -155,6 +147,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
                     "accession": top_hit["accession"],
                     "description": top_hit["description"],
                     "evalue": top_hit["evalue"],
+                    "evalue_raw": top_hit.get("evalue_raw", str(top_hit["evalue"])),
                     "identity_pct": top_hit["identity_pct"],
                     "bit_score": top_hit["bit_score"],
                     "alignment_length": top_hit.get("alignment_length", 0),
@@ -164,6 +157,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
                         "accession": h["accession"],
                         "description": h["description"],
                         "evalue": h["evalue"],
+                        "evalue_raw": h.get("evalue_raw", str(h["evalue"])),
                         "identity_pct": h["identity_pct"],
                         "bit_score": h["bit_score"],
                     }
@@ -172,7 +166,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
             },
         }
 
-        if top_hit and not (DEMO_MODE and demo_info):
+        if top_hit:
             try:
                 from app.tools.uniprot import UniprotTool
                 uniprot = UniprotTool()
@@ -197,10 +191,24 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
             except Exception as e:
                 logger.warning(f"[{job_id}] UniProt fetch failed (non-fatal): {e}")
 
+        alphafold_data = None
+        uniprot_id = context.get("uniprot", {}).get("accession")
+        if uniprot_id:
+            try:
+                await _set_step("fetching_alphafold", 85)
+                from app.tools.alphafold import AlphaFoldTool
+                af_result = await AlphaFoldTool().run({"uniprot_accession": uniprot_id})
+                alphafold_data = af_result
+            except Exception as e:
+                logger.warning(f"[{job_id}] AlphaFold fetch failed for {uniprot_id}: {e}")
+                alphafold_data = {"structure_available": False, "message": str(e)}
+
+        context["alphafold"] = alphafold_data
+
         await _patch_job(job_id, {
             "status": "complete",
             "context_json": context,
-            "steps_completed": STEP_STATUSES,
+            "steps_completed": steps_completed,
             "progress_pct": 100,
         })
 

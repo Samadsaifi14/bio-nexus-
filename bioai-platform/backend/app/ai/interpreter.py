@@ -22,6 +22,7 @@ async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[
             temperature=0.3,
             max_tokens=2000,
             stream=True,
+            timeout=25,
             api_key=llm_client.api_key,
         )
         async for chunk in response:

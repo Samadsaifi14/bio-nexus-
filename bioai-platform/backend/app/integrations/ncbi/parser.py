@@ -63,6 +63,7 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
         "score": top_hsp.get("score", 0) if top_hsp else 0,
         "bit_score": top_hsp.get("bit_score", 0) if top_hsp else 0,
         "evalue": top_hsp.get("evalue", 0) if top_hsp else 0,
+        "evalue_raw": top_hsp.get("evalue_raw", "0") if top_hsp else "0",
         "identity": top_hsp.get("identity", 0) if top_hsp else 0,
         "identity_pct": top_hsp.get("identity_pct", 0) if top_hsp else 0,
         "positive": top_hsp.get("positive", 0) if top_hsp else 0,
@@ -81,7 +82,8 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
 def _parse_hsp(hsp_el: ET.Element) -> dict:
     score = int(_text(hsp_el, "Hsp_score") or 0)
     bit_score = float(_text(hsp_el, "Hsp_bit-score") or 0)
-    evalue = float(_text(hsp_el, "Hsp_evalue") or 0)
+    evalue_raw = _text(hsp_el, "Hsp_evalue") or "0"
+    evalue = float(evalue_raw)
     identity = int(_text(hsp_el, "Hsp_identity") or 0)
     positive = int(_text(hsp_el, "Hsp_positive") or 0)
     gaps = int(_text(hsp_el, "Hsp_gaps") or 0)
@@ -100,6 +102,7 @@ def _parse_hsp(hsp_el: ET.Element) -> dict:
         "score": score,
         "bit_score": bit_score,
         "evalue": evalue,
+        "evalue_raw": evalue_raw,
         "identity": identity,
         "identity_pct": identity_pct,
         "positive": positive,

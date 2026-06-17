@@ -59,7 +59,7 @@ export default function SettingsPage() {
       <div className="space-y-8">
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
-            <User className="w-5 h-5 text-green-600" />
+            <User className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Account</h2>
           </div>
           <div className="space-y-4">
@@ -70,14 +70,14 @@ export default function SettingsPage() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Priya Sharma" className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition text-sm text-gray-900" />
+                <input type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} placeholder="e.g. Priya Sharma" className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition text-sm text-gray-900" />
               </div>
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">Institution</label>
-                <input type="text" value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="e.g. IIT Bombay" className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition text-sm text-gray-900" />
+                <input type="text" value={institution} onChange={(e) => setInstitution(e.target.value)} placeholder="e.g. IIT Bombay" className="w-full px-4 py-2.5 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition text-sm text-gray-900" />
               </div>
             </div>
-            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-green-600 text-white text-sm font-medium rounded-xl hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2">
+            <button onClick={handleSave} disabled={saving} className="px-5 py-2.5 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2">
               {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
               Save changes
             </button>
@@ -86,7 +86,7 @@ export default function SettingsPage() {
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
-            <BarChart3 className="w-5 h-5 text-green-600" />
+            <BarChart3 className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Usage</h2>
           </div>
           <div className="grid grid-cols-3 gap-4">
@@ -107,7 +107,7 @@ export default function SettingsPage() {
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Bell className="w-5 h-5 text-green-600" />
+            <Bell className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
           </div>
           {[
@@ -121,7 +121,7 @@ export default function SettingsPage() {
               </div>
               <button
                 onClick={() => setNotifications((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
-                className={`relative w-11 h-6 rounded-full transition ${notifications[item.key] ? 'bg-green-600' : 'bg-gray-300'}`}
+                className={`relative w-11 h-6 rounded-full transition ${notifications[item.key] ? 'bg-teal-600' : 'bg-gray-300'}`}
               >
                 <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifications[item.key] ? 'translate-x-5' : ''}`} />
               </button>
@@ -131,7 +131,7 @@ export default function SettingsPage() {
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Key className="w-5 h-5 text-green-600" />
+            <Key className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">API Access</h2>
           </div>
           <div className="bg-gray-50 rounded-xl p-6 text-center">
@@ -143,7 +143,7 @@ export default function SettingsPage() {
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
-            <Shield className="w-5 h-5 text-green-600" />
+            <Shield className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Data & Privacy</h2>
           </div>
           <div className="space-y-3 text-sm text-gray-600">

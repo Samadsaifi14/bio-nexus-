@@ -23,7 +23,7 @@ export default function StructureViewer({ data }: StructureViewerProps) {
         <h3 className="font-semibold text-gray-900">AlphaFold Structure</h3>
         {data.confidence && (
           <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${
-            data.confidence > 90 ? 'bg-green-50 text-green-700' :
+            data.confidence > 90 ? 'bg-teal-50 text-teal-700' :
             data.confidence > 70 ? 'bg-yellow-50 text-yellow-700' :
             'bg-red-50 text-red-700'
           }`}>
@@ -46,7 +46,7 @@ export default function StructureViewer({ data }: StructureViewerProps) {
           href={data.pdb_url}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1"
+          className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1"
         >
           Download PDB file <ExternalLink className="w-3.5 h-3.5" />
         </a>

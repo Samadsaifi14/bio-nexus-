@@ -6,6 +6,7 @@ from pydantic import BaseModel
 from app.ai.interpreter import interpret_stream
 from app.ai.llm_client import llm_client
 from app.services.rate_limit import check_daily_limit
+from app.models.responses import InterpretResponse
 
 router = APIRouter()
 
@@ -15,7 +16,7 @@ class InterpretRequest(BaseModel):
     context: dict = {}
 
 
-@router.post("/interpret", dependencies=[Depends(check_daily_limit)])
+@router.post("/interpret", response_model=InterpretResponse, dependencies=[Depends(check_daily_limit)])
 async def interpret_full_context(req: InterpretRequest):
     if not llm_client.has_api_key():
         raise HTTPException(status_code=502, detail="GROQ_API_KEY is not configured")

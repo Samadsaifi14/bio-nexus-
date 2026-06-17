@@ -26,15 +26,15 @@ export default function SharedResultPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white">
-        <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
+        <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
       </div>
     );
   }
 
   if (error || !job) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-green-50 to-white">
+      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center max-w-sm">
           <Dna className="w-12 h-12 text-gray-200 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Not Found</h2>
@@ -47,10 +47,10 @@ export default function SharedResultPage() {
   const context = job.context_json;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-green-50 to-white">
+    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
-          <Dna className="w-7 h-7 text-green-600" />
+          <Dna className="w-7 h-7 text-teal-600" />
           <span className="text-lg font-bold text-gray-900">Bio Nexus — Shared Result</span>
         </div>
 

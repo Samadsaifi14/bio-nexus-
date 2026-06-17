@@ -17,6 +17,9 @@ class Settings:
     DAILY_LIMIT: int = 10
     DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "groq/llama-3.3-70b-versatile")
     PRO_MODEL: str = os.getenv("PRO_MODEL", "claude-sonnet-4-20250514")
+    NCBI_EMAIL: str = os.getenv("NCBI_EMAIL", "bioflow@example.com")
+    DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bio-nexus.vercel.app")
 
 
 settings = Settings()

@@ -105,7 +105,7 @@ export default function SequenceRetrieval() {
               key={m.id}
               onClick={() => { setMode(m.id); setResult(null); setValidation(null); setSearchResults(null); setError(null); }}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                mode === m.id ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                mode === m.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
               }`}
             >
               {m.label}
@@ -124,12 +124,12 @@ export default function SequenceRetrieval() {
               mode === 'name' ? 'e.g. p53, BRCA1, TP53 human' :
               'Paste FASTA or raw sequence...'
             }
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition text-sm"
+            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition text-sm"
           />
           <button
             onClick={handleSearch}
             disabled={loading || !input.trim()}
-            className="px-6 py-3 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
           >
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             {loading ? 'Searching...' : 'Search'}
@@ -148,7 +148,7 @@ export default function SequenceRetrieval() {
         <div className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-4">
             {validation.valid ? (
-              <CheckCircle className="w-5 h-5 text-green-500" />
+              <CheckCircle className="w-5 h-5 text-teal-500" />
             ) : (
               <AlertCircle className="w-5 h-5 text-red-500" />
             )}
@@ -196,12 +196,12 @@ export default function SequenceRetrieval() {
                 <button
                   key={i}
                   onClick={() => handleSelectAccession(r.accession)}
-                  className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-green-300 hover:bg-green-50 transition"
+                  className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition"
                 >
                   <div className="flex items-center justify-between">
                     <div>
                       <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono text-green-700">{r.accession}</code>
+                        <code className="text-sm font-mono text-teal-700">{r.accession}</code>
                         <ArrowRight className="w-3 h-3 text-gray-300" />
                       </div>
                       <p className="text-sm text-gray-700 mt-1 line-clamp-1">{r.title}</p>
@@ -224,7 +224,7 @@ export default function SequenceRetrieval() {
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <code className="text-lg font-mono font-bold text-green-700">{result.accession}</code>
+                  <code className="text-lg font-mono font-bold text-teal-700">{result.accession}</code>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${seqTypeColor(result.sequence_type)}`}>
                     {result.sequence_type}
                   </span>
@@ -246,7 +246,7 @@ export default function SequenceRetrieval() {
                 <span className="text-xs font-medium text-gray-500">Sequence</span>
                 <button
                   onClick={copySequence}
-                  className="text-xs text-green-600 hover:text-green-700 font-medium"
+                  className="text-xs text-teal-600 hover:text-teal-700 font-medium"
                 >
                   {copied ? 'Copied!' : 'Copy'}
                 </button>

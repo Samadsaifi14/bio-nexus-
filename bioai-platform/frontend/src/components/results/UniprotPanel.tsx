@@ -14,11 +14,11 @@ export default function UniprotPanel({ data }: UniprotPanelProps) {
         <div>
           <h3 className="font-medium text-gray-900">{data.full_name}</h3>
           <div className="flex items-center gap-3 mt-1">
-            <span className="font-mono text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded">{data.accession}</span>
+            <span className="font-mono text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded">{data.accession}</span>
             <span className="text-sm text-gray-500">{data.organism}</span>
           </div>
         </div>
-        <a href={`https://www.uniprot.org/uniprotkb/${data.accession}`} target="_blank" rel="noopener noreferrer" className="text-sm text-green-600 hover:text-green-700 flex items-center gap-1">
+        <a href={`https://www.uniprot.org/uniprotkb/${data.accession}`} target="_blank" rel="noopener noreferrer" className="text-sm text-teal-600 hover:text-teal-700 flex items-center gap-1">
           UniProt <ExternalLink className="w-3.5 h-3.5" />
         </a>
       </div>

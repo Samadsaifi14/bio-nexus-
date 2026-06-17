@@ -43,7 +43,7 @@ export default function SequenceInput({ value, onChange, onSubmit, loading }: Se
         value={value}
         onChange={(e) => onChange(e.target.value)}
         placeholder=">sp|P04637|P53_HUMAN&#10;MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQ..."
-        className="w-full h-40 px-4 py-3 rounded-xl border border-gray-300 focus:border-green-500 focus:ring-2 focus:ring-green-200 outline-none transition font-mono text-sm text-gray-900 resize-none"
+        className="w-full h-40 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition font-mono text-sm text-gray-900 resize-none"
       />
       <div className="flex items-center justify-between mt-4">
         <div className="flex items-center gap-4">
@@ -52,7 +52,7 @@ export default function SequenceInput({ value, onChange, onSubmit, loading }: Se
               key={s.label}
               type="button"
               onClick={() => onChange(s.seq)}
-              className="text-sm text-green-600 hover:text-green-700 underline"
+              className="text-sm text-teal-600 hover:text-teal-700 underline"
             >
               Load {s.label}
             </button>
@@ -64,7 +64,7 @@ export default function SequenceInput({ value, onChange, onSubmit, loading }: Se
         <button
           onClick={onSubmit}
           disabled={loading || !value.trim()}
-          className="px-6 py-2.5 bg-green-600 text-white font-medium rounded-xl hover:bg-green-700 transition disabled:opacity-50"
+          className="px-6 py-2.5 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
         >
           {loading ? 'Running pipeline...' : 'Run Pipeline'}
         </button>

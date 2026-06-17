@@ -1,6 +1,8 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
+from typing import Any, Optional
 from app.services.supabase import get_supabase
+from app.models.responses import ProfileUpdateResponse
 
 router = APIRouter()
 
@@ -16,7 +18,7 @@ async def get_profile(user_id: str = ""):
         return result.data[0]
     return {"error": "Profile not found"}
 
-@router.put("")
+@router.put("", response_model=ProfileUpdateResponse)
 async def update_profile(profile: ProfileUpdate, user_id: str = ""):
     supabase = get_supabase()
     data = {}

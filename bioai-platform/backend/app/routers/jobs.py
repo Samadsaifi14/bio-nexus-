@@ -2,11 +2,12 @@ from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 from datetime import datetime, timezone
 from app.services.supabase import get_supabase
+from app.models.responses import JobCountResponse, JobDeleteResponse
 
 router = APIRouter()
 
 
-@router.get("/count")
+@router.get("/count", response_model=JobCountResponse)
 async def job_count(user_id: str = ""):
     supabase = get_supabase()
     today = datetime.now(timezone.utc).date().isoformat()
@@ -31,7 +32,7 @@ async def get_job(job_id: str):
     return result.data[0]
 
 
-@router.delete("/{job_id}")
+@router.delete("/{job_id}", response_model=JobDeleteResponse)
 async def delete_job(job_id: str):
     supabase = get_supabase()
     supabase.table("jobs").delete().eq("id", job_id).execute()

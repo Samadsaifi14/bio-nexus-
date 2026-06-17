@@ -4,7 +4,7 @@ import { useState, useRef, useCallback } from 'react';
 import { Brain, Loader2 } from 'lucide-react';
 import type { AssembledContext } from '@/types/pipeline';
 import type { StreamEvent } from '@/types/results';
-import { createInterpretStreamUrl } from '@/lib/api';
+import { interpretStream } from '@/lib/api';
 
 function addCitationLinks(text: string): string {
   return text.replace(
@@ -24,7 +24,7 @@ function renderInlineMarkdown(text: string): React.ReactNode {
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     parts.push(
-      <a key={match.index} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-green-600 hover:text-green-700 underline">{match[1]}</a>
+      <a key={match.index} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-700 underline">{match[1]}</a>
     );
     lastIndex = regex.lastIndex;
   }
@@ -86,11 +86,7 @@ export default function AIInterpretation({ context, pipelineType }: AIInterpreta
     setError(null);
 
     try {
-      const response = await fetch(createInterpretStreamUrl(), {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ pipeline_type: pipelineType, context }),
-      });
+      const response = await interpretStream({ pipeline_type: pipelineType, context });
 
       if (!response.ok) throw new Error('Failed to start interpretation');
 
@@ -132,19 +128,19 @@ export default function AIInterpretation({ context, pipelineType }: AIInterpreta
   }, [context, pipelineType, loading]);
 
   return (
-    <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl border border-green-200 p-6">
+    <div className="bg-gradient-to-br from-teal-50 to-teal-50 rounded-2xl border border-teal-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-green-600" />
+          <Brain className="w-5 h-5 text-teal-600" />
           <h2 className="font-semibold text-gray-900">AI Interpretation</h2>
           {model && model !== 'fallback-static' && (
-            <span className="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">
               Llama 3.3 70B
             </span>
           )}
         </div>
         {!text && !loading && (
-          <button onClick={handleInterpret} className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition">
+          <button onClick={handleInterpret} className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
             Interpret results
           </button>
         )}

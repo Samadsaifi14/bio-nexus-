@@ -2,17 +2,11 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-
-interface Job {
-  id: string;
-  pipeline_type: string | null;
-  status: "queued" | "running" | "complete" | "failed";
-  created_at: string;
-  context_json: object | null;
-}
+import { getJobs } from "@/lib/api";
+import type { JobStatus } from "@/types/pipeline";
 
 const STATUS_STYLES: Record<string, string> = {
-  complete: "bg-green-100 text-green-800",
+  complete: "bg-teal-100 text-teal-800",
   running:  "bg-blue-100 text-blue-800",
   queued:   "bg-yellow-100 text-yellow-800",
   failed:   "bg-red-100 text-red-800",
@@ -20,17 +14,13 @@ const STATUS_STYLES: Record<string, string> = {
 
 export default function HistoryPage() {
   const router = useRouter();
-  const [jobs, setJobs] = useState<Job[]>([]);
+  const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    fetch("/api/backend/jobs")
-      .then((r) => {
-        if (!r.ok) throw new Error(`HTTP ${r.status}`);
-        return r.json();
-      })
-      .then((data) => setJobs(Array.isArray(data) ? data : (data.jobs ?? [])))
+    getJobs()
+      .then(setJobs)
       .catch((e: Error) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
@@ -38,7 +28,7 @@ export default function HistoryPage() {
   if (loading) {
     return (
       <div className="p-6 flex items-center gap-2 text-gray-500 text-sm">
-        <span className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-green-500" />
+        <span className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-teal-500" />
         Loading history...
       </div>
     );
@@ -56,7 +46,7 @@ export default function HistoryPage() {
     return (
       <div className="p-6 text-sm text-gray-500">
         No analyses yet.{" "}
-        <a href="/analyze" className="text-green-600 hover:underline">
+        <a href="/analyze" className="text-teal-600 hover:underline">
           Run your first sequence
         </a>
       </div>

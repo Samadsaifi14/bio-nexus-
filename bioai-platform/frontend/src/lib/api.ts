@@ -53,8 +53,16 @@ export function createJobPollingUrl(jobId: string): string {
   return `/api/backend/api/jobs/${jobId}`;
 }
 
-export function createInterpretStreamUrl(): string {
-  return '/api/backend/api/ai/interpret/stream';
+export async function interpretStream(payload: {
+  pipeline_type: string;
+  context: unknown;
+}): Promise<Response> {
+  const res = await fetch('/api/backend/api/ai/interpret/stream', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload),
+  });
+  return res;
 }
 
 export async function fetchSequence(accession: string, dbPreference?: string): Promise<SequenceResult> {

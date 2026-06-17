@@ -2,6 +2,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import httpx
 from app.config import settings
+from app.models.responses import WaitlistResponse
 
 router = APIRouter()
 
@@ -10,7 +11,7 @@ class WaitlistEntry(BaseModel):
     email: str
 
 
-@router.post("")
+@router.post("", response_model=WaitlistResponse)
 async def join_waitlist(entry: WaitlistEntry):
     url = f"{settings.SUPABASE_URL}/rest/v1/waitlist"
     headers = {

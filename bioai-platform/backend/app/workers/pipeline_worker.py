@@ -8,7 +8,6 @@ to R2/local before any parsing occurs.
 
 import asyncio
 import logging
-import os
 from typing import Optional
 
 import httpx
@@ -21,7 +20,7 @@ from app.data.demo_results import get_demo_result
 
 logger = logging.getLogger(__name__)
 
-DEMO_MODE = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
+DEMO_MODE = settings.DEMO_MODE
 
 STEP_STATUSES = [
     "submitted_to_ncbi",
@@ -63,7 +62,7 @@ def _matches_demo(sequence: str) -> Optional[dict]:
     return None
 
 
-async def execute_blast_job(job_id: str, sequence: str) -> None:
+async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10) -> None:
     steps_completed: list[str] = []
 
     async def _set_step(step: str, progress_pct: int) -> None:
@@ -97,7 +96,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
                     logger.info(f"[{job_id}] Demo mode ON but sequence doesn't match known demo sequences — falling through to real NCBI call")
             await _set_step("polling_ncbi", 30)
 
-            submit_result = await ncbi_blast.submit_blast(seq_for_blast)
+            submit_result = await ncbi_blast.submit_blast(seq_for_blast, database=database)
             if "error" in submit_result:
                 raise RuntimeError(f"NCBI submission failed: {submit_result['error']}")
 
@@ -165,7 +164,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
                         "identity_pct": h["identity_pct"],
                         "bit_score": h["bit_score"],
                     }
-                    for h in parsed.get("hits", [])[:10]
+                    for h in parsed.get("hits", [])[:max_hits]
                 ],
             },
         }
@@ -242,7 +241,7 @@ def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(execute_blast_job(job_id, sequence))
+        loop.run_until_complete(execute_blast_job(job_id, sequence, database=database, max_hits=max_hits))
     except Exception:
         logger.exception(f"[{job_id}] FATAL: unhandled exception in background thread")
         try:

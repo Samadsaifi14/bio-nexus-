@@ -11,6 +11,7 @@ import BlastPanel from '@/components/results/BlastPanel';
 import ScoreBars from '@/components/results/ScoreBars';
 import UniprotPanel from '@/components/results/UniprotPanel';
 import AlphaFoldViewer from '@/components/AlphaFoldViewer';
+import { getJob } from '@/lib/api';
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'fetching_alphafold', 'complete',
@@ -39,20 +40,15 @@ export default function JobPage() {
         return;
       }
       try {
-        const res = await fetch(`/api/backend/api/jobs/${jobId}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (!cancelled) {
-            setPollError(null);
-            setJob(data);
-            const terminal = ['complete', 'failed'];
-            if (terminal.includes(data.status)) {
-              setLoading(false);
-              return;
-            }
+        const data = await getJob(jobId);
+        if (!cancelled) {
+          setPollError(null);
+          setJob(data);
+          const terminal = ['complete', 'failed'];
+          if (terminal.includes(data.status)) {
+            setLoading(false);
+            return;
           }
-        } else {
-          setPollError(`Server returned ${res.status}`);
         }
       } catch {
         if (!cancelled) setPollError('Connection lost — retrying...');

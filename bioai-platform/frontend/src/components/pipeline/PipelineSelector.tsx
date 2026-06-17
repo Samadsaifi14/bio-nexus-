@@ -41,18 +41,18 @@ export default function PipelineSelector({ onSelect }: PipelineSelectorProps) {
               }}
               className={`w-full text-left p-5 rounded-2xl border-2 transition ${
                 active
-                  ? 'border-green-500 bg-green-50 shadow-sm'
-                  : 'border-gray-200 bg-white hover:border-green-300 hover:shadow-sm'
+                  ? 'border-teal-500 bg-teal-50 shadow-sm'
+                  : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-sm'
               }`}
             >
               <div className="flex items-start gap-4">
-                <div className={`p-3 rounded-xl ${active ? 'bg-green-100' : 'bg-gray-100'}`}>
-                  <p.icon className={`w-6 h-6 ${active ? 'text-green-600' : 'text-gray-500'}`} />
+                <div className={`p-3 rounded-xl ${active ? 'bg-teal-100' : 'bg-gray-100'}`}>
+                  <p.icon className={`w-6 h-6 ${active ? 'text-teal-600' : 'text-gray-500'}`} />
                 </div>
                 <div className="flex-1">
                   <div className="flex items-center gap-2">
-                    <h3 className={`font-semibold ${active ? 'text-green-900' : 'text-gray-900'}`}>{p.name}</h3>
-                    <ChevronRight className={`w-4 h-4 ${active ? 'text-green-600' : 'text-gray-300'}`} />
+                    <h3 className={`font-semibold ${active ? 'text-teal-900' : 'text-gray-900'}`}>{p.name}</h3>
+                    <ChevronRight className={`w-4 h-4 ${active ? 'text-teal-600' : 'text-gray-300'}`} />
                   </div>
                   <p className="text-sm text-gray-500 mt-1">{p.description}</p>
                 </div>

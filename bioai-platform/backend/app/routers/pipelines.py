@@ -1,10 +1,11 @@
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
-from app.services.validators import validate_fasta, ValidationResult
+from app.services.validators import validate_fasta
 from app.pipeline.definitions.protein_analysis import get_pipeline_definition
 from app.services.supabase import get_supabase
 from app.services.rate_limit import check_daily_limit
 from app.workers.pipeline_worker import run_pipeline_sync
+from app.models.responses import PipelineRunResponse, PipelineDefinitionResponse
 from datetime import datetime, timezone
 import uuid
 
@@ -18,7 +19,7 @@ class PipelineRunRequest(BaseModel):
     max_hits: int = 10
 
 
-@router.post("/run", dependencies=[Depends(check_daily_limit)])
+@router.post("/run", response_model=PipelineRunResponse, dependencies=[Depends(check_daily_limit)])
 async def run_pipeline(req: PipelineRunRequest):
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
@@ -52,7 +53,7 @@ async def run_pipeline(req: PipelineRunRequest):
     return {"job_id": job_id, "status": "queued"}
 
 
-@router.get("/definitions")
+@router.get("/definitions", response_model=PipelineDefinitionResponse)
 async def list_pipeline_definitions():
     return {"pipelines": [get_pipeline_definition()]}
 

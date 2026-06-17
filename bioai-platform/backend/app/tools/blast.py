@@ -35,7 +35,7 @@ class BlastTool(BaseTool):
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.EBI_BASE_URL}/run",
-                data={"email": "user@example.com", "sequence": sequence, "program": program, "database": database, "stype": stype},
+                data={"email": settings.NCBI_EMAIL, "sequence": sequence, "program": program, "database": database, "stype": stype},
             )
             resp.raise_for_status()
             return resp.text.strip()

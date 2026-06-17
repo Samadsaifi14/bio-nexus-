@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2, CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle2, XCircle } from 'lucide-react';
 
 interface Step {
   name: string;
@@ -32,7 +32,7 @@ export default function JobProgress({ stepsCompleted, status }: JobProgressProps
       </div>
       <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5">
         <div
-          className={`h-1.5 rounded-full transition-all duration-500 ${isFailed ? 'bg-red-500' : 'bg-green-600'}`}
+          className={`h-1.5 rounded-full transition-all duration-500 ${isFailed ? 'bg-error' : 'bg-accent'}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -43,15 +43,15 @@ export default function JobProgress({ stepsCompleted, status }: JobProgressProps
           return (
             <div key={step.name} className="flex items-center gap-3">
               {done ? (
-                <CheckCircle2 className="w-5 h-5 text-green-600 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-teal-600 shrink-0" />
               ) : isFailed ? (
                 <XCircle className="w-5 h-5 text-red-500 shrink-0" />
               ) : active ? (
-                <Loader2 className="w-5 h-5 text-green-600 animate-spin shrink-0" />
+                <div className="w-5 h-5 rounded-full bg-accent animate-pulse shrink-0" />
               ) : (
                 <div className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
               )}
-              <span className={`text-sm ${done ? 'text-gray-900 font-medium' : active ? 'text-green-700' : 'text-gray-400'}`}>
+              <span className={`text-sm ${done ? 'text-gray-900 font-medium' : active ? 'text-teal-700' : 'text-gray-400'}`}>
                 {step.label}
               </span>
             </div>
@@ -59,7 +59,7 @@ export default function JobProgress({ stepsCompleted, status }: JobProgressProps
         })}
       </div>
       {isComplete && (
-        <p className="text-xs text-green-600 mt-3 font-medium">All steps complete</p>
+        <p className="text-xs text-accent mt-3 font-medium">All steps complete</p>
       )}
       {isFailed && (
         <p className="text-xs text-red-500 mt-3 font-medium">Pipeline failed</p>

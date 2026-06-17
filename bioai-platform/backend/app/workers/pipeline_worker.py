@@ -57,7 +57,6 @@ async def _set_step(job_id: str, step: str, progress_pct: int) -> None:
         "status": step,
         "steps_completed": [step],
         "progress_pct": progress_pct,
-        "current_step_label": _step_label(step),
     })
     logger.info(f"[{job_id}] Step: {step}")
 
@@ -203,7 +202,6 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
             "context_json": context,
             "steps_completed": STEP_STATUSES,
             "progress_pct": 100,
-            "current_step_label": "Complete",
         })
 
         logger.info(f"[{job_id}] Pipeline complete (demo={DEMO_MODE})")
@@ -212,7 +210,7 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
         logger.error(f"[{job_id}] Pipeline failed: {exc}", exc_info=True)
         await _patch_job(job_id, {
             "status": "failed",
-            "error_message": str(exc),
+            "error": str(exc),
         })
 
 

@@ -39,10 +39,9 @@ async def run_pipeline(req: PipelineRunRequest):
         "steps_completed": [],
         "context_json": None,
         "progress_pct": 0,
-        "current_step_label": "Queued",
         "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None,
-        "error_message": None,
+        "error": None,
         "share_token": None,
     }).execute()
 

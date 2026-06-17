@@ -1,15 +1,42 @@
+import base64
+import json
 import logging
 from datetime import date
 
 import httpx
-from fastapi import HTTPException
+from fastapi import HTTPException, Request
 
 from app.config import settings
 
 logger = logging.getLogger(__name__)
 
 
-async def check_daily_limit(user_id: str = "anonymous") -> None:
+def _extract_user_id(request: Request) -> str | None:
+    auth = request.headers.get("Authorization", "")
+    if not auth.startswith("Bearer "):
+        return None
+    token = auth[7:]
+    parts = token.split(".")
+    if len(parts) != 3:
+        return None
+    try:
+        payload = parts[1]
+        padding = 4 - len(payload) % 4
+        if padding != 4:
+            payload += "=" * padding
+        decoded = base64.urlsafe_b64decode(payload)
+        claims = json.loads(decoded)
+        return claims.get("sub")
+    except Exception:
+        return None
+
+
+async def check_daily_limit(request: Request) -> None:
+    user_id = _extract_user_id(request)
+    if not user_id:
+        logger.info("Rate limit check skipped: no authenticated user session")
+        return
+
     try:
         today = date.today().isoformat()
         url = (

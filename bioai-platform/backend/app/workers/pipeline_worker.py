@@ -222,16 +222,21 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
         })
 
 
+async def _set_job_failed(job_id: str, message: str) -> None:
+    await _patch_job(job_id, {"status": "failed", "error": message})
+
+
 def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10) -> None:
-    import sys
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(execute_blast_job(job_id, sequence))
     except Exception:
-        sys.stderr.write(f"[{job_id}] FATAL: unhandled exception in background thread\n")
-        sys.stderr.flush()
-        raise
+        logger.exception(f"[{job_id}] FATAL: unhandled exception in background thread")
+        try:
+            loop.run_until_complete(_set_job_failed(job_id, "Internal pipeline error"))
+        except Exception:
+            pass
     finally:
         loop.close()
         asyncio.set_event_loop(None)

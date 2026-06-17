@@ -32,7 +32,7 @@ function detectSequenceType(seq: string): SequenceType {
   if (!clean) return 'unknown';
   const seqSet = new Set(clean);
   const allLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const nonProtein = [...seqSet].filter(c => !PROTEIN_CODES.has(c));
+  const nonProtein = Array.from(seqSet).filter(c => !PROTEIN_CODES.has(c));
   if (nonProtein.length === 0) return 'protein';
   const inNucleic = nonProtein.every(c => 'ACGUTN'.includes(c));
   if (inNucleic && seqSet.has('U') && !seqSet.has('T')) return 'rna';

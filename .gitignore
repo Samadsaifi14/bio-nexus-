@@ -30,3 +30,5 @@ backend/.env
 # --- Runtime artifacts ---
 dump.rdb
 *.rdb
+
+.vercel

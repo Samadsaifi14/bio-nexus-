@@ -63,7 +63,8 @@ async def _fail_stuck_jobs():
             "Prefer": "return=minimal",
         }
         url = f"{settings.SUPABASE_URL}/rest/v1/jobs"
-        select_url = f"{url}?select=id&status=in.({','.join(NON_TERMINAL_STATUSES)})"
+        quoted = ",".join(f'"{s}"' for s in NON_TERMINAL_STATUSES)
+        select_url = f"{url}?select=id&status=in.({quoted})"
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(select_url, headers=headers)
             if resp.status_code != 200:

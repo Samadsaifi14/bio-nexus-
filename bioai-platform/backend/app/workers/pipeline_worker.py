@@ -75,9 +75,9 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
         })
         logger.info(f"[{job_id}] Step: {step}")
 
-    await _set_step("submitted_to_ncbi", 10)
-
     try:
+        await _set_step("submitted_to_ncbi", 10)
+
         sequence_clean = "".join(c for c in sequence if c.isalpha()).upper()
         seq_for_blast = sequence_clean if len(sequence_clean) > 20 else sequence_clean
 
@@ -223,10 +223,15 @@ async def execute_blast_job(job_id: str, sequence: str) -> None:
 
 
 def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10) -> None:
+    import sys
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(execute_blast_job(job_id, sequence))
+    except Exception:
+        sys.stderr.write(f"[{job_id}] FATAL: unhandled exception in background thread\n")
+        sys.stderr.flush()
+        raise
     finally:
         loop.close()
         asyncio.set_event_loop(None)

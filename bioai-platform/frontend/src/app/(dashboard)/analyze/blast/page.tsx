@@ -64,6 +64,15 @@ export default function BlastWizardPage() {
     }
   }, [rawInput, inputMode]);
 
+  useEffect(() => {
+    const stored = sessionStorage.getItem('blast_sequence');
+    if (stored) {
+      sessionStorage.removeItem('blast_sequence');
+      setRawInput(stored);
+      setInputMode('paste');
+    }
+  }, []);
+
   const handleFetchAccession = async () => {
     if (!rawInput.trim()) return;
     setAccessionLoading(true);

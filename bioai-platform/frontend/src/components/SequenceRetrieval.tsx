@@ -1,13 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import { Search, Dna, Loader2, CheckCircle, AlertCircle, BookOpen, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { Search, Dna, Loader2, CheckCircle, AlertCircle, BookOpen, ArrowRight, Beaker } from 'lucide-react';
 import { fetchSequence, validateSequence, searchSequences } from '@/lib/api';
 import type { SequenceResult, SequenceValidation, SequenceSearchResult } from '@/types/pipeline';
 
 type InputMode = 'accession' | 'sequence' | 'name';
 
 export default function SequenceRetrieval() {
+  const router = useRouter();
   const [mode, setMode] = useState<InputMode>('accession');
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -319,6 +321,16 @@ export default function SequenceRetrieval() {
               <BookOpen className="w-3 h-3" />
               <span>Source: {result.db_source} {result.from_cache && '(cached)'}</span>
             </div>
+            <button
+              onClick={() => {
+                sessionStorage.setItem('blast_sequence', `>${result.accession}\n${result.sequence}`);
+                router.push('/analyze/blast');
+              }}
+              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition"
+            >
+              <Beaker className="w-4 h-4" />
+              Analyze with BLAST
+            </button>
           </div>
         </div>
       )}

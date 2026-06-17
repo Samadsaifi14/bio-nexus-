@@ -45,9 +45,8 @@ def detect_source_from_accession(accession: str) -> str:
     acc = accession.strip().upper()
     if acc.startswith(("NP_", "XP_", "YP_", "WP_", "AP_", "NM_", "XM_", "NR_", "XR_")):
         return "ncbi"
-    if acc.startswith(("P", "Q", "O", "A0", "A1", "B0", "B1", "C0", "C1")):
-        if len(acc) >= 6 and acc[1:].isdigit():
-            return "uniprot"
+    if acc[0] in "PQO" or acc[:2] in ("A0", "A1", "B0", "B1", "C0", "C1"):
+        return "uniprot"
     if acc.startswith("UPI"):
         return "uniparc"
     return "ncbi"

@@ -26,25 +26,29 @@ export default function DNAHelix({ className }: { className?: string }) {
     const matCyan = new THREE.MeshStandardMaterial({
       color:             new THREE.Color('#00F5D4'),
       emissive:          new THREE.Color('#00F5D4'),
-      emissiveIntensity: 0.85,
-      roughness:         0.08,
-      metalness:         0.9,
+      emissiveIntensity: 0.25,
+      roughness:         0.3,
+      metalness:         0.6,
+      transparent:       true,
+      opacity:           0.30,
     });
     const matPurple = new THREE.MeshStandardMaterial({
       color:             new THREE.Color('#8B5CF6'),
       emissive:          new THREE.Color('#8B5CF6'),
-      emissiveIntensity: 0.85,
-      roughness:         0.08,
-      metalness:         0.9,
+      emissiveIntensity: 0.25,
+      roughness:         0.3,
+      metalness:         0.6,
+      transparent:       true,
+      opacity:           0.30,
     });
     const matAmber = new THREE.MeshStandardMaterial({
       color:             new THREE.Color('#F59E0B'),
       emissive:          new THREE.Color('#F59E0B'),
-      emissiveIntensity: 0.45,
-      roughness:         0.4,
-      metalness:         0.5,
+      emissiveIntensity: 0.15,
+      roughness:         0.5,
+      metalness:         0.3,
       transparent:       true,
-      opacity:           0.75,
+      opacity:           0.40,
     });
 
     const group = new THREE.Group();
@@ -115,10 +119,10 @@ export default function DNAHelix({ className }: { className?: string }) {
     pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
     pGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
     const pMat = new THREE.PointsMaterial({
-      size: 0.055,
+      size: 0.04,
       vertexColors: true,
       transparent: true,
-      opacity: 0.55,
+      opacity: 0.20,
       sizeAttenuation: true,
     });
     const particles = new THREE.Points(pGeo, pMat);
@@ -126,15 +130,15 @@ export default function DNAHelix({ className }: { className?: string }) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
-    const l1 = new THREE.PointLight('#00F5D4', 3.5, 25);
+    const l1 = new THREE.PointLight('#00F5D4', 1.2, 25);
     l1.position.set(4, 4, 5);
     scene.add(l1);
 
-    const l2 = new THREE.PointLight('#8B5CF6', 3.5, 25);
+    const l2 = new THREE.PointLight('#8B5CF6', 1.2, 25);
     l2.position.set(-4, -4, 5);
     scene.add(l2);
 
-    const l3 = new THREE.PointLight('#F59E0B', 1.5, 18);
+    const l3 = new THREE.PointLight('#F59E0B', 0.6, 18);
     l3.position.set(0, 0, 7);
     scene.add(l3);
 

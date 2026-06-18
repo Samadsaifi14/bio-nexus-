@@ -117,3 +117,52 @@ export async function searchSequences(query: string, db: string = 'protein', max
   });
   return res.data;
 }
+
+export type AlignmentResult = {
+  job_id: string;
+  aln_fasta: string;
+  aln_clustal: string;
+  phylotree: string;
+  stype: string;
+};
+
+export async function runAlignment(sequence: string, stype: string = 'protein'): Promise<AlignmentResult> {
+  const res = await api.post('/api/alignment/run', { sequence, stype });
+  return res.data;
+}
+
+export type StructureResult = {
+  source: string;
+  pdb_id?: string;
+  title?: string;
+  method?: string;
+  resolution?: number;
+  deposited?: string;
+  pdb_url?: string;
+  cif_url?: string;
+  uniprot_accession?: string;
+  confidence?: number;
+  model_created_date?: string;
+};
+
+export async function fetchStructure(query: string): Promise<StructureResult> {
+  const res = await api.post('/api/structures/fetch', { query });
+  return res.data;
+}
+
+export async function searchStructures(query: string): Promise<{ results: { pdb_id: string; score: number }[]; count: number }> {
+  const res = await api.post('/api/structures/search', { query });
+  return res.data;
+}
+
+export type PathwayResult = {
+  pathway_id: string;
+  name: string;
+  species: string;
+  url: string;
+};
+
+export async function searchPathways(query: string, species: string = 'Homo sapiens'): Promise<{ results: PathwayResult[]; count: number }> {
+  const res = await api.post('/api/pathways/search', { query, species });
+  return res.data;
+}

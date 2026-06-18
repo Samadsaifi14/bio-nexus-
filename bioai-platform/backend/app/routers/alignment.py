@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import xml.etree.ElementTree as ET
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -12,8 +13,7 @@ router = APIRouter()
 
 EBI_BASE = "https://www.ebi.ac.uk/Tools/services/rest/clustalo"
 POLL_INTERVAL = 2
-MAX_POLLS = 60
-RESULT_RETRIES = 5
+MAX_POLLS = 120
 
 
 class AlignRequest(BaseModel):
@@ -21,16 +21,53 @@ class AlignRequest(BaseModel):
     stype: str = Field("protein", description="Sequence type: protein or dna")
 
 
+async def _get_available_types(client: httpx.AsyncClient, job_id: str) -> list[str]:
+    """Query EBI for available result types for this job."""
+    try:
+        resp = await client.get(f"{EBI_BASE}/result/{job_id}/", headers={"Accept": "text/plain, application/xml"})
+        if resp.status_code == 200:
+            text = resp.text.strip()
+            # Try parsing as XML first
+            if text.startswith("<"):
+                root = ET.fromstring(text)
+                found = [t.text for t in root.iter() if t.text and t.tag == "type"]
+                if found:
+                    return found
+            # Fall back to plain text (one type per line)
+            lines = [line.strip() for line in text.splitlines() if line.strip()]
+            if lines:
+                return lines
+    except Exception:
+        pass
+    return []
+
+
+async def _fetch_result(client: httpx.AsyncClient, job_id: str, type_name: str) -> str | None:
+    """Try to fetch a specific result type from EBI."""
+    for attempt in range(3):
+        try:
+            resp = await client.get(
+                f"{EBI_BASE}/result/{job_id}/{type_name}",
+                headers={"Accept": "text/plain"},
+            )
+            if resp.status_code == 200:
+                return resp.text
+        except Exception:
+            pass
+        if attempt < 2:
+            await asyncio.sleep(1)
+    return None
+
+
 @router.post("/run")
 async def run_alignment(req: AlignRequest):
     email = settings.NCBI_EMAIL or "bioflow@example.com"
-    headers = {"Accept": "text/plain"}
 
     async with httpx.AsyncClient(timeout=30) as client:
         submit_resp = await client.post(
             f"{EBI_BASE}/run",
             data={"email": email, "stype": req.stype, "sequence": req.sequence},
-            headers=headers,
+            headers={"Accept": "text/plain"},
         )
         if submit_resp.status_code != 200:
             detail = submit_resp.text[:200] if submit_resp.text else "EBI alignment submission failed"
@@ -40,8 +77,12 @@ async def run_alignment(req: AlignRequest):
 
         for _ in range(MAX_POLLS):
             await asyncio.sleep(POLL_INTERVAL)
-            status_resp = await client.get(f"{EBI_BASE}/status/{job_id}", headers=headers)
-            status = status_resp.text.strip()
+            try:
+                status_resp = await client.get(f"{EBI_BASE}/status/{job_id}")
+                status = status_resp.text.strip()
+            except Exception as e:
+                logger.warning(f"EBI status poll failed: {e}")
+                continue
             logger.info(f"EBI alignment status ({job_id}): {status}")
             if status == "FINISHED":
                 break
@@ -50,43 +91,36 @@ async def run_alignment(req: AlignRequest):
         else:
             raise HTTPException(status_code=504, detail="EBI alignment timed out")
 
-        # Small delay after FINISHED before fetching results
         await asyncio.sleep(1)
 
-        # Fetch results with retry — EBI sometimes needs a moment after FINISHED
-        for attempt in range(RESULT_RETRIES):
-            fasta_resp = await client.get(f"{EBI_BASE}/result/{job_id}/aln-fasta", headers=headers)
-            if fasta_resp.status_code == 200:
-                break
-            if attempt < RESULT_RETRIES - 1:
-                await asyncio.sleep(1)
-        else:
-            detail = fasta_resp.text[:200] if fasta_resp.text else "unknown"
-            raise HTTPException(status_code=502, detail=f"Failed to fetch alignment result: {detail}")
+        # Get available result types from EBI
+        available = await _get_available_types(client, job_id)
+        logger.info(f"Available result types for {job_id}: {available}")
 
-        fasta = fasta_resp.text
+        if not available:
+            raise HTTPException(status_code=502, detail="No result types available from EBI")
 
-        # Fetch optional results (Clustal, tree) — best-effort
-        clustal = ""
-        try:
-            c_resp = await client.get(f"{EBI_BASE}/result/{job_id}/aln-clustal", headers=headers)
-            if c_resp.status_code == 200:
-                clustal = c_resp.text
-        except Exception:
-            pass
+        # Find the best alignment type (FASTA-like), then Clustal, then tree
+        fasta_type = next((t for t in available if "fasta" in t.lower()), available[0])
+        clustal_type = next((t for t in available if "clustal" in t.lower()), None)
+        tree_type = next((t for t in available if "phylotree" in t.lower() or "guide" in t.lower() or "tree" in t.lower()), None)
 
-        tree = ""
-        try:
-            t_resp = await client.get(f"{EBI_BASE}/result/{job_id}/phylotree", headers=headers)
-            if t_resp.status_code == 200:
-                tree = t_resp.text
-        except Exception:
-            pass
+        fasta_text = await _fetch_result(client, job_id, fasta_type)
+        if fasta_text is None:
+            raise HTTPException(status_code=502, detail=f"Failed to fetch result type '{fasta_type}' from EBI")
+
+        clustal_text = None
+        if clustal_type:
+            clustal_text = await _fetch_result(client, job_id, clustal_type)
+
+        tree_text = None
+        if tree_type:
+            tree_text = await _fetch_result(client, job_id, tree_type)
 
     return {
         "job_id": job_id,
-        "aln_fasta": fasta,
-        "aln_clustal": clustal,
-        "phylotree": tree,
+        "aln_fasta": fasta_text,
+        "aln_clustal": clustal_text or "",
+        "phylotree": tree_text or "",
         "stype": req.stype,
     }

@@ -59,6 +59,11 @@ export default function StructurePage() {
             Fetch
           </button>
         </div>
+        <div className="flex gap-3 mt-3">
+          <button onClick={() => { setQuery('1TIM'); setError(null); setResult(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">1TIM (triosephosphate isomerase)</button>
+          <button onClick={() => { setQuery('4HHB'); setError(null); setResult(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">4HHB (hemoglobin)</button>
+          <button onClick={() => { setQuery('P04637'); setError(null); setResult(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">P04637 (p53, UniProt)</button>
+        </div>
       </motion.div>
 
       {error && <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}

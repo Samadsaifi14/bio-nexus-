@@ -57,6 +57,11 @@ export default function PathwayPage() {
             Search
           </button>
         </div>
+        <div className="flex gap-3 mt-3">
+          <button onClick={() => { setQuery('TP53'); setError(null); setResults(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">TP53 (p53)</button>
+          <button onClick={() => { setQuery('BRCA1'); setError(null); setResults(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">BRCA1</button>
+          <button onClick={() => { setQuery('EGFR'); setError(null); setResults(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">EGFR</button>
+        </div>
       </motion.div>
 
       {error && <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}

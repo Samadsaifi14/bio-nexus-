@@ -3,35 +3,66 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Beaker, Copy, Check } from 'lucide-react';
+import { ArrowLeft, Copy, Check } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
+
+const COMPLEMENT: Record<string, string> = {
+  A: 'T', T: 'A', C: 'G', G: 'C',
+  U: 'A', R: 'Y', Y: 'R', S: 'S', W: 'W', K: 'M', M: 'K',
+  B: 'V', V: 'B', D: 'H', H: 'D', N: 'N',
+};
+
+const SAMPLE_DNA = 'ATGGCCCTGTGGATGCGCCTCCTGCCCCTGCTGGCGCTGCTGGCCCTCTGGGGACCTGACCCAGCC';
+
+const TOOLS = [
+  { id: 'revcomp' as const, label: 'Reverse Complement' },
+  { id: 'reverse' as const, label: 'Reverse' },
+  { id: 'complement' as const, label: 'Complement' },
+  { id: 'gc' as const, label: 'GC Content' },
+  { id: 'fasta' as const, label: '→ FASTA' },
+];
 
 export default function ToolsPage() {
   const router = useRouter();
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
-  const [tool, setTool] = useState<'reverse' | 'gc' | 'fasta'>('reverse');
+  const [tool, setTool] = useState<string>('revcomp');
   const [copied, setCopied] = useState(false);
 
   const process = () => {
     const raw = input.replace(/[^A-Za-z]/g, '').toUpperCase();
     if (!raw) return;
     switch (tool) {
+      case 'revcomp':
+        setOutput(raw.split('').reverse().map(c => COMPLEMENT[c] || c).join(''));
+        break;
       case 'reverse':
         setOutput(raw.split('').reverse().join(''));
         break;
+      case 'complement':
+        setOutput(raw.split('').map(c => COMPLEMENT[c] || c).join(''));
+        break;
       case 'gc': {
         const gc = raw.replace(/[^CG]/g, '').length;
+        const at = raw.replace(/[^AT]/g, '').length;
         const total = raw.length;
-        setOutput(`GC content: ${(gc / total * 100).toFixed(1)}% (${gc}/${total})`);
+        const other = total - gc - at;
+        setOutput(
+          `GC content: ${(gc / total * 100).toFixed(1)}%  (${gc}/${total})\n` +
+          `AT content: ${(at / total * 100).toFixed(1)}%  (${at}/${total})\n` +
+          `Length: ${total} bp\n` +
+          (other > 0 ? `Other: ${other} (ambiguous bases)\n` : '') +
+          `GC skew (G-C)/(G+C): ${raw.includes('G') || raw.includes('C') ? ((raw.replace(/[^G]/g, '').length - raw.replace(/[^C]/g, '').length) / (raw.replace(/[^GC]/g, '').length || 1) * 100).toFixed(1) : 0}%`
+        );
         break;
       }
       case 'fasta': {
+        const name = raw.slice(0, 20);
         const lines = [];
         for (let i = 0; i < raw.length; i += 60) {
           lines.push(raw.slice(i, i + 60));
         }
-        setOutput(`>sequence\n${lines.join('\n')}`);
+        setOutput(`>${name}\n${lines.join('\n')}`);
         break;
       }
     }
@@ -56,7 +87,7 @@ export default function ToolsPage() {
 
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6 space-y-4">
         <div className="flex gap-2 flex-wrap">
-          {([{ id: 'reverse', label: 'Reverse' }, { id: 'gc', label: 'GC Content' }, { id: 'fasta', label: '→ FASTA' }] as const).map((t) => (
+          {TOOLS.map((t) => (
             <button key={t.id} onClick={() => { setTool(t.id); setOutput(''); }} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tool === t.id ? 'btn-primary' : 'glass-card text-text-secondary'}`}>
               {t.label}
             </button>
@@ -66,13 +97,22 @@ export default function ToolsPage() {
         <textarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste raw sequence..."
+          placeholder="Paste raw DNA or protein sequence..."
           className="w-full h-32 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm resize-none bg-surface-1 text-text-primary"
         />
 
-        <button onClick={process} disabled={!input.trim()} className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
-          Process
-        </button>
+        <div className="flex gap-3">
+          <button
+            onClick={() => { setInput(SAMPLE_DNA); setOutput(''); }}
+            className="text-sm text-accent-cyan hover:text-accent-cyan/80 underline"
+          >
+            Load sample
+          </button>
+          <div className="flex-1" />
+          <button onClick={process} disabled={!input.trim()} className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
+            Process
+          </button>
+        </div>
       </motion.div>
 
       {output && (

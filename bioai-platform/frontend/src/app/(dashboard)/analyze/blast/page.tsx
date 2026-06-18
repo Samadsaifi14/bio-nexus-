@@ -285,10 +285,20 @@ export default function BlastWizardPage() {
                     onChange={(e) => setAdvancedDb(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
                   >
-                    <option value="nr">nr (non-redundant)</option>
-                    <option value="swissprot">Swiss-Prot</option>
-                    <option value="pdbaa">PDB</option>
-                    <option value="refseq_protein">RefSeq</option>
+                    {detectedType === 'protein' ? (
+                      <>
+                        <option value="nr">nr (non-redundant)</option>
+                        <option value="swissprot">Swiss-Prot</option>
+                        <option value="pdbaa">PDB</option>
+                        <option value="refseq_protein">RefSeq</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="nt">nt (nucleotide)</option>
+                        <option value="refseq_rna">RefSeq RNA</option>
+                        <option value="refseq_genomic">RefSeq Genomic</option>
+                      </>
+                    )}
                   </select>
                 </div>
                 <div>
@@ -298,9 +308,14 @@ export default function BlastWizardPage() {
                     onChange={(e) => setAdvancedProgram(e.target.value)}
                     className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
                   >
-                    <option value="blastp">blastp</option>
-                    <option value="blastn">blastn</option>
-                    <option value="blastx">blastx</option>
+                    {detectedType === 'protein' ? (
+                      <option value="blastp">blastp</option>
+                    ) : (
+                      <>
+                        <option value="blastn">blastn</option>
+                        <option value="blastx">blastx</option>
+                      </>
+                    )}
                   </select>
                 </div>
               </div>

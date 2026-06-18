@@ -11,12 +11,12 @@ const config: Config = {
     extend: {
       colors: {
         base: {
-          DEFAULT: '#0A0E14',
-          surface: '#11161F',
-          elevated: '#1A212E',
+          DEFAULT: 'var(--bg-base)',
+          surface: 'var(--bg-surface)',
+          elevated: 'var(--bg-elevated)',
         },
         border: {
-          subtle: '#232B3A',
+          subtle: 'var(--border-subtle)',
         },
         accent: {
           DEFAULT: '#2DD4BF',
@@ -24,9 +24,9 @@ const config: Config = {
           glow: 'rgba(45, 212, 191, 0.15)',
         },
         text: {
-          primary: '#E6EDF3',
-          secondary: '#8B97A8',
-          tertiary: '#5C6878',
+          primary: 'var(--text-primary)',
+          secondary: 'var(--text-secondary)',
+          tertiary: 'var(--text-tertiary)',
         },
         confidence: {
           veryHigh: '#2DD4BF',
@@ -35,7 +35,7 @@ const config: Config = {
           low: '#94A3B8',
         },
         error: {
-          DEFAULT: '#F87171',
+          DEFAULT: 'var(--error)',
         },
       },
       fontFamily: {

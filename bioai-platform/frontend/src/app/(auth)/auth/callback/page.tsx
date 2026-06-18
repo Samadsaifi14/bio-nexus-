@@ -18,13 +18,13 @@ export default function AuthCallback() {
       return;
     }
 
-    getSupabase().auth.exchangeCodeForSession(code).then(({ error }: { error?: any }) => {
+    getSupabase().auth.exchangeCodeForSession(code).then(({ error }: { error?: { message: string } | null }) => {
       if (error) {
         setError(error.message);
         return;
       }
       router.replace('/analyze');
-    }).catch((e: any) => {
+    }).catch((e: Error) => {
       setError(e.message || 'Unknown error');
     });
   }, [router]);

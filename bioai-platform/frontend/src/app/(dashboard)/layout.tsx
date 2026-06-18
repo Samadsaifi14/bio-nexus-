@@ -6,7 +6,8 @@ import { usePathname } from 'next/navigation';
 import { Dna, FileText, Settings, Play, LogOut, Loader2, Search, User } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { getJobCount } from '@/lib/api';
-import GuestBanner from '@/components/GuestBanner';
+import { GuestBanner } from '@/components/GuestBanner';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const navItems = [
   { href: '/analyze', label: 'Analyze', icon: Play },
@@ -56,6 +57,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             );
           })}
         </nav>
+        <div className="px-4 py-2 border-t border-gray-200">
+          <ThemeToggle />
+        </div>
         <div className="p-4 border-t border-gray-200 space-y-4">
           <div className="flex items-center justify-between text-xs text-gray-500">
             {isGuest ? (

@@ -18,7 +18,7 @@ interface JobProgressProps {
   status: string;
 }
 
-export default function JobProgress({ stepsCompleted, status }: JobProgressProps) {
+export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
   const isComplete = status === 'complete';
   const isFailed = status === 'failed';
   const stepSet = new Set(stepsCompleted);

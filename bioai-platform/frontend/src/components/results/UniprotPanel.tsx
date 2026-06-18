@@ -7,7 +7,7 @@ interface UniprotPanelProps {
   data: UniprotSummary;
 }
 
-export default function UniprotPanel({ data }: UniprotPanelProps) {
+export function UniprotPanel({ data }: UniprotPanelProps) {
   return (
     <div className="bg-white rounded-2xl border border-gray-200 p-6">
       <div className="flex items-start justify-between mb-4">

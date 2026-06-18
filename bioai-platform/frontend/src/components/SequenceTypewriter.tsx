@@ -18,7 +18,7 @@ const SEQUENCES = [
   },
 ];
 
-export default function SequenceTypewriter() {
+export function SequenceTypewriter() {
   const [current, setCurrent] = useState(0);
   const [typing, setTyping] = useState(true);
   const [displayed, setDisplayed] = useState('');

@@ -2,7 +2,12 @@
 
 import { type ReactNode } from 'react';
 import { AuthProvider } from '@/contexts/auth';
+import { ThemeProvider } from '@/contexts/theme';
 
 export function Providers({ children }: { children: ReactNode }) {
-  return <AuthProvider>{children}</AuthProvider>;
+  return (
+    <ThemeProvider>
+      <AuthProvider>{children}</AuthProvider>
+    </ThemeProvider>
+  );
 }

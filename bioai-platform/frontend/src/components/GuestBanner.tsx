@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { X, User } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 
-export default function GuestBanner() {
+export function GuestBanner() {
   const { isGuest, signIn } = useAuth();
   const [dismissed, setDismissed] = useState(false);
 

@@ -5,10 +5,10 @@ import { useParams } from 'next/navigation';
 import { Dna, Loader2 } from 'lucide-react';
 import type { JobStatus } from '@/types/pipeline';
 import { getSharedResult } from '@/lib/api';
-import AIInterpretation from '@/components/results/AIInterpretation';
-import BlastPanel from '@/components/results/BlastPanel';
-import UniprotPanel from '@/components/results/UniprotPanel';
-import AlphaFoldViewer from '@/components/AlphaFoldViewer';
+import { AIInterpretation } from '@/components/results/AIInterpretation';
+import { BlastPanel } from '@/components/results/BlastPanel';
+import { UniprotPanel } from '@/components/results/UniprotPanel';
+import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 
 export default function SharedResultPage() {
   const params = useParams();

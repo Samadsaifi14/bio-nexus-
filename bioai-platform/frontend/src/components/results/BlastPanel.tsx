@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import type { BlastHitSummary } from '@/types/pipeline';
-import AlignmentView from './AlignmentView';
+import { AlignmentView } from './AlignmentView';
 
 interface BlastPanelProps {
   hits: BlastHitSummary[];
@@ -28,7 +28,7 @@ function formatEvalue(evalue: number, evalue_raw?: string): string {
   return evalue.toFixed(4);
 }
 
-export default function BlastPanel({ hits, count, source }: BlastPanelProps) {
+export function BlastPanel({ hits, count, source }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
   return (

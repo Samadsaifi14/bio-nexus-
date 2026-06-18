@@ -4,11 +4,12 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { Search, Dna, Loader2, CheckCircle, AlertCircle, BookOpen, ArrowRight, Beaker } from 'lucide-react';
 import { fetchSequence, validateSequence, searchSequences } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import type { SequenceResult, SequenceValidation, SequenceSearchResult } from '@/types/pipeline';
 
 type InputMode = 'accession' | 'sequence' | 'name';
 
-export default function SequenceRetrieval() {
+export function SequenceRetrieval() {
   const router = useRouter();
   const [mode, setMode] = useState<InputMode>('accession');
   const [input, setInput] = useState('');
@@ -46,8 +47,8 @@ export default function SequenceRetrieval() {
           setSearchResults(res.results);
         }
       }
-    } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Request failed');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }
@@ -63,8 +64,8 @@ export default function SequenceRetrieval() {
       const res = await fetchSequence(accession);
       if (res.error) setError(res.error);
       else setResult(res);
-    } catch (err: any) {
-      setError(err.response?.data?.detail || err.message || 'Request failed');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err));
     } finally {
       setLoading(false);
     }

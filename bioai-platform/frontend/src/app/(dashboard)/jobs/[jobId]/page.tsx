@@ -6,11 +6,11 @@ import { Loader2, Dna, AlertCircle, Copy, Download, Search, Clock, WifiOff } fro
 import toast from 'react-hot-toast';
 import type { JobStatus, JobStepStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
-import AIInterpretation from '@/components/results/AIInterpretation';
-import BlastPanel from '@/components/results/BlastPanel';
-import ScoreBars from '@/components/results/ScoreBars';
-import UniprotPanel from '@/components/results/UniprotPanel';
-import AlphaFoldViewer from '@/components/AlphaFoldViewer';
+import { AIInterpretation } from '@/components/results/AIInterpretation';
+import { BlastPanel } from '@/components/results/BlastPanel';
+import { ScoreBars } from '@/components/results/ScoreBars';
+import { UniprotPanel } from '@/components/results/UniprotPanel';
+import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { getJob } from '@/lib/api';
 
 const STATUS_ORDER: JobStepStatus[] = [
@@ -295,7 +295,7 @@ export default function JobPage() {
             <button
               onClick={() => {
                 const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
-                  .concat((context.blast?.hits || []).map((h: any) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
+                  .concat((context.blast?.hits || []).map((h: import('@/types/pipeline').BlastHitSummary) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
                   .join('\n');
                 const blob = new Blob([csv], { type: 'text/csv' });
                 const url = URL.createObjectURL(blob);

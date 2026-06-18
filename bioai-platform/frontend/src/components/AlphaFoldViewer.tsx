@@ -2,9 +2,34 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+interface MoleViewer {
+  setStyle: (sel: Record<string, unknown>, style: Record<string, unknown>) => void;
+  removeAllSurfaces: () => void;
+  addSurface: (type: unknown, opts: Record<string, unknown>) => void;
+  render: () => void;
+  clear: () => void;
+  addModel: (data: string, format: string) => void;
+  zoomTo: () => void;
+  spin: (axis: string | boolean, speed?: number) => void;
+  resize: () => void;
+}
+
+interface MoleAtom {
+  b: number;
+  elem?: string;
+  x?: number;
+  y?: number;
+  z?: number;
+  serial?: number;
+  resn?: string;
+  resi?: number;
+  chain?: string;
+  [key: string]: unknown;
+}
+
 declare global {
   interface Window {
-    $3Dmol: any;
+    $3Dmol: Record<string, unknown> & { createViewer: (el: HTMLElement, opts: Record<string, unknown>) => MoleViewer; SurfaceType: Record<string, unknown> };
   }
 }
 
@@ -60,14 +85,14 @@ interface AlphaFoldViewerProps {
   backgroundColor?: string;
 }
 
-export default function AlphaFoldViewer({
+export function AlphaFoldViewer({
   pdbUrl,
   uniprotId,
   height = 420,
   backgroundColor = '#0d1117',
 }: AlphaFoldViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const viewerRef = useRef<any>(null);
+  const viewerRef = useRef<MoleViewer | null>(null);
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -84,20 +109,20 @@ export default function AlphaFoldViewer({
 
     switch (mode) {
       case 'confidence':
-        viewer.setStyle({}, { cartoon: { colorfunc: (atom: any) => plddtColor(atom.b) } });
+        viewer.setStyle({}, { cartoon: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
         break;
       case 'spectrum':
         viewer.setStyle({}, { cartoon: { color: 'spectrum' } });
         break;
       case 'surface':
-        viewer.setStyle({}, { cartoon: { colorfunc: (atom: any) => plddtColor(atom.b) } });
+        viewer.setStyle({}, { cartoon: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
         viewer.addSurface($3Dmol.SurfaceType.VDW, {
           opacity: 0.85,
-          colorfunc: (atom: any) => plddtColor(atom.b),
+          colorfunc: (atom: MoleAtom) => plddtColor(atom.b),
         });
         break;
       case 'stick':
-        viewer.setStyle({}, { stick: { colorfunc: (atom: any) => plddtColor(atom.b) } });
+        viewer.setStyle({}, { stick: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
         break;
     }
 

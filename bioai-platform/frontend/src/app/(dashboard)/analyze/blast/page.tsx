@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { ArrowLeft, Dna, Search, ChevronRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { runPipeline, fetchSequence, validateSequence } from '@/lib/api';
+import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
 import type { SequenceResult, SequenceValidation, SequenceType } from '@/types/pipeline';
 
   const SAMPLES = [
@@ -86,8 +87,8 @@ export default function BlastWizardPage() {
         setDetectedType(res.sequence_type);
         toast.success('Sequence retrieved');
       }
-    } catch (err: any) {
-      toast.error(err.response?.data?.detail || 'Failed to fetch sequence');
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Failed to fetch sequence'));
     } finally {
       setAccessionLoading(false);
     }
@@ -129,16 +130,12 @@ export default function BlastWizardPage() {
     try {
       const result = await runPipeline(seq, 'blast', advancedDb || 'nr', 100);
       router.push(`/jobs/${result.job_id}`);
-    } catch (err: any) {
-      const detail = err.response?.data?.detail;
-      if (err.response?.status === 429) {
-        toast.error(
-          typeof detail === 'object'
-            ? detail.message || 'Daily limit reached. Resets at midnight.'
-            : 'Daily limit reached. Resets at midnight.',
-        );
+    } catch (err: unknown) {
+      if (extractErrorStatus(err) === 429) {
+        const msg = extractErrorMessage(err);
+        toast.error(msg || 'Daily limit reached. Resets at midnight.');
       } else {
-        toast.error(detail || 'Failed to start analysis');
+        toast.error(extractErrorMessage(err, 'Failed to start analysis'));
       }
     } finally {
       setSubmitting(false);

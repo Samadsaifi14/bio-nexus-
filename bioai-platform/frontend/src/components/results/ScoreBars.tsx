@@ -23,7 +23,7 @@ function formatEvalue(evalue: number, evalue_raw?: string): string {
   return evalue.toFixed(4);
 }
 
-export default function ScoreBars({ hits }: ScoreBarsProps) {
+export function ScoreBars({ hits }: ScoreBarsProps) {
   if (hits.length === 0) return null;
 
   const maxScore = hits[0]?.bit_score || 1;

@@ -23,7 +23,7 @@ interface PipelineSelectorProps {
   onSelect: (pipelineId: string) => void;
 }
 
-export default function PipelineSelector({ onSelect }: PipelineSelectorProps) {
+export function PipelineSelector({ onSelect }: PipelineSelectorProps) {
   const [selected, setSelected] = useState<string | null>(null);
 
   return (

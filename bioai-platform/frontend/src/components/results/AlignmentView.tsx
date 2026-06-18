@@ -61,7 +61,7 @@ function renderLine(label: string, seq: string, start: number, isMidline: boolea
   );
 }
 
-export default function AlignmentView({ hit }: AlignmentViewProps) {
+export function AlignmentView({ hit }: AlignmentViewProps) {
   const [showAll, setShowAll] = useState(false);
 
   if (!hit.query_alignment || !hit.hit_alignment) {

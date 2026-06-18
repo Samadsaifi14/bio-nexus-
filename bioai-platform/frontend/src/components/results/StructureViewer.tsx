@@ -7,7 +7,7 @@ interface StructureViewerProps {
   data: AlphaFoldResult;
 }
 
-export default function StructureViewer({ data }: StructureViewerProps) {
+export function StructureViewer({ data }: StructureViewerProps) {
   if (!data.structure_available) {
     return (
       <div className="bg-white rounded-2xl border border-gray-200 p-6">

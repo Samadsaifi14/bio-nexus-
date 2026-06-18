@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { Dna, Zap, Brain, Database, ChevronRight, ArrowRight } from 'lucide-react';
-import SequenceTypewriter from '@/components/SequenceTypewriter';
+import { SequenceTypewriter } from '@/components/SequenceTypewriter';
 
 export default function Home() {
   return (

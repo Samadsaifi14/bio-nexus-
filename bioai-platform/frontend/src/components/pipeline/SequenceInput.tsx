@@ -28,7 +28,7 @@ interface SequenceInputProps {
   loading: boolean;
 }
 
-export default function SequenceInput({ value, onChange, onSubmit, loading }: SequenceInputProps) {
+export function SequenceInput({ value, onChange, onSubmit, loading }: SequenceInputProps) {
   const aaCount = value
     .split('\n')
     .filter((l) => !l.startsWith('>'))

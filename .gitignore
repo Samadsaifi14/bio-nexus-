@@ -32,3 +32,5 @@ dump.rdb
 *.rdb
 
 .vercel
+
+tsconfig.tsbuildinfo

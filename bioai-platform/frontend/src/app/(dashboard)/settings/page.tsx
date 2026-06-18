@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { User, BarChart3, Bell, Key, Shield, Loader2, Save, ExternalLink, Trash2 } from 'lucide-react';
+import { User, BarChart3, Bell, Key, Shield, Loader2, Save, ExternalLink, Trash2, Sun, Moon } from 'lucide-react';
+import { useTheme } from '@/contexts/theme';
 
 interface UsageStats {
   jobsToday: number;
@@ -12,6 +13,7 @@ interface UsageStats {
 }
 
 export default function SettingsPage() {
+  const { theme, toggle } = useTheme();
   const [institution, setInstitution] = useState('');
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
@@ -127,6 +129,26 @@ export default function SettingsPage() {
               </button>
             </div>
           ))}
+        </section>
+
+        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+          <div className="flex items-center gap-2 mb-6">
+            <Sun className="w-5 h-5 text-teal-600" />
+            <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
+          </div>
+          <div className="flex items-center justify-between">
+            <div>
+              <p className="text-sm font-medium text-gray-900">Theme</p>
+              <p className="text-xs text-gray-500">Switch between light and dark mode</p>
+            </div>
+            <button
+              onClick={toggle}
+              className="flex items-center gap-2 px-4 py-2 rounded-xl border border-gray-200 text-sm font-medium text-gray-700 hover:bg-gray-50 transition"
+            >
+              {theme === 'dark' ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
+              {theme === 'dark' ? 'Light mode' : 'Dark mode'}
+            </button>
+          </div>
         </section>
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">

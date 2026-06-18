@@ -3,6 +3,20 @@
 @tailwind utilities;
 
 :root {
+  --bg-base: #FFFFFF;
+  --bg-surface: #F9FAFB;
+  --bg-elevated: #FFFFFF;
+  --border-subtle: #E5E7EB;
+  --accent: #2DD4BF;
+  --accent-bright: #14B8A6;
+  --accent-glow: rgba(45, 212, 191, 0.15);
+  --text-primary: #111827;
+  --text-secondary: #6B7280;
+  --text-tertiary: #9CA3AF;
+  --error: #EF4444;
+}
+
+.dark {
   --bg-base: #0A0E14;
   --bg-surface: #11161F;
   --bg-elevated: #1A212E;
@@ -17,16 +31,41 @@
 }
 
 body {
-  background-color: var(--bg-base);
+  background-color: var(--bg-surface);
   color: var(--text-primary);
   min-height: 100vh;
+  transition: background-color 0.15s ease, color 0.15s ease;
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-  .glow-accent {
-    box-shadow: 0 0 20px var(--accent-glow);
-  }
+  .text-balance { text-wrap: balance; }
+  .glow-accent { box-shadow: 0 0 20px var(--accent-glow); }
 }
+
+.dark .bg-white { background-color: var(--bg-elevated); }
+.dark .bg-gray-50 { background-color: var(--bg-surface); }
+.dark .bg-gray-100 { background-color: var(--bg-surface); }
+.dark .bg-gray-200 { background-color: var(--bg-surface); }
+.dark .divide-gray-100 > * + * { border-color: var(--border-subtle); }
+.dark .text-gray-900 { color: var(--text-primary); }
+.dark .text-gray-800 { color: var(--text-primary); }
+.dark .text-gray-700 { color: var(--text-secondary); }
+.dark .text-gray-600 { color: var(--text-secondary); }
+.dark .text-gray-500 { color: var(--text-tertiary); }
+.dark .text-gray-400 { color: var(--text-tertiary); }
+.dark .text-gray-300 { color: var(--text-tertiary); }
+.dark .border-gray-200 { border-color: var(--border-subtle); }
+.dark .border-gray-100 { border-color: var(--border-subtle); }
+.dark .border-gray-300 { border-color: var(--border-subtle); }
+.dark .hover\:bg-gray-50:hover { background-color: var(--bg-surface); }
+.dark .bg-teal-50 { background-color: rgba(45, 212, 191, 0.08); }
+.dark .hover\:border-teal-300:hover { border-color: var(--accent); }
+.dark .text-teal-700 { color: var(--accent-bright); }
+.dark .bg-amber-50 { background-color: rgba(251, 191, 36, 0.1); }
+.dark .text-amber-700 { color: #FBBF24; }
+.dark .border-amber-200 { border-color: rgba(251, 191, 36, 0.2); }
+.dark .bg-red-50 { background-color: rgba(248, 113, 113, 0.1); }
+.dark .text-red-700 { color: var(--error); }
+.dark .text-red-900 { color: var(--error); }
+.dark .border-red-200 { border-color: rgba(248, 113, 113, 0.2); }
+.dark .bg-gradient-to-br { background-image: none; background-color: var(--bg-elevated); }

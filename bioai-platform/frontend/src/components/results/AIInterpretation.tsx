@@ -5,6 +5,7 @@ import { Brain, Loader2 } from 'lucide-react';
 import type { AssembledContext } from '@/types/pipeline';
 import type { StreamEvent } from '@/types/results';
 import { interpretStream } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 
 function addCitationLinks(text: string): string {
   return text.replace(
@@ -69,7 +70,7 @@ interface AIInterpretationProps {
   pipelineType: string;
 }
 
-export default function AIInterpretation({ context, pipelineType }: AIInterpretationProps) {
+export function AIInterpretation({ context, pipelineType }: AIInterpretationProps) {
   const [text, setText] = useState('');
   const [model, setModel] = useState('');
   const [loading, setLoading] = useState(false);
@@ -118,9 +119,9 @@ export default function AIInterpretation({ context, pipelineType }: AIInterpreta
           }
         }
       }
-    } catch (err: any) {
-      if (err.name !== 'AbortError') {
-        setError(err.message || 'Interpretation failed');
+    } catch (err: unknown) {
+      if (!(err instanceof Error) || err.name !== 'AbortError') {
+        setError(extractErrorMessage(err, 'Interpretation failed'));
       }
     } finally {
       setLoading(false);

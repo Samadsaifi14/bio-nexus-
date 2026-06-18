@@ -1,6 +1,8 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import type { BlastHitSummary } from '@/types/pipeline';
+import { fadeUp, cardHover } from '@/lib/animations';
 
 interface ScoreBarsProps {
   hits: BlastHitSummary[];
@@ -29,7 +31,7 @@ export function ScoreBars({ hits }: ScoreBarsProps) {
   const maxScore = hits[0]?.bit_score || 1;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Score Distribution</h2>
       <div className="space-y-2">
         {hits.slice(0, 15).map((hit, i) => {
@@ -54,6 +56,6 @@ export function ScoreBars({ hits }: ScoreBarsProps) {
           );
         })}
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1,7 +1,9 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import type { AlphaFoldResult } from '@/types/pipeline';
+import { fadeUp, cardHover } from '@/lib/animations';
 
 interface StructureViewerProps {
   data: AlphaFoldResult;
@@ -10,15 +12,15 @@ interface StructureViewerProps {
 export function StructureViewer({ data }: StructureViewerProps) {
   if (!data.structure_available) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+      <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
         <h3 className="font-semibold text-gray-900 mb-2">AlphaFold Structure</h3>
         <p className="text-sm text-gray-500">No AlphaFold prediction available for this protein.</p>
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="font-semibold text-gray-900">AlphaFold Structure</h3>
         {data.confidence && (
@@ -55,6 +57,6 @@ export function StructureViewer({ data }: StructureViewerProps) {
       {data.model_created_date && (
         <p className="text-xs text-gray-400 mt-1">Model created: {data.model_created_date}</p>
       )}
-    </div>
+    </motion.div>
   );
 }

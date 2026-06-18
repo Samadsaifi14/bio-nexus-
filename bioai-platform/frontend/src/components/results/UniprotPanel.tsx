@@ -1,7 +1,9 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { ExternalLink } from 'lucide-react';
 import type { UniprotSummary } from '@/types/pipeline';
+import { fadeUp, cardHover } from '@/lib/animations';
 
 interface UniprotPanelProps {
   data: UniprotSummary;
@@ -9,7 +11,7 @@ interface UniprotPanelProps {
 
 export function UniprotPanel({ data }: UniprotPanelProps) {
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="font-medium text-gray-900">{data.full_name}</h3>
@@ -68,6 +70,6 @@ export function UniprotPanel({ data }: UniprotPanelProps) {
           </div>
         </div>
       )}
-    </div>
+    </motion.div>
   );
 }

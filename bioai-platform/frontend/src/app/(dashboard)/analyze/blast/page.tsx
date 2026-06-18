@@ -7,6 +7,8 @@ import toast from 'react-hot-toast';
 import { runPipeline, fetchSequence, validateSequence } from '@/lib/api';
 import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
 import type { SequenceResult, SequenceValidation, SequenceType } from '@/types/pipeline';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
   const SAMPLES = [
     {
@@ -155,7 +157,7 @@ export default function BlastWizardPage() {
         Choose a different operation
       </button>
 
-      <div className="flex items-center gap-3 mb-8">
+      <motion.div variants={fadeUp} initial="hidden" animate="visible" className="flex items-center gap-3 mb-8">
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -169,10 +171,10 @@ export default function BlastWizardPage() {
             {s < 3 && <ChevronRight className="w-4 h-4 text-gray-300" />}
           </div>
         ))}
-      </div>
+      </motion.div>
 
       {step === 2 && (
-        <div className="space-y-6">
+        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Enter your sequence</h2>
             <p className="text-sm text-gray-500">
@@ -198,7 +200,7 @@ export default function BlastWizardPage() {
           </div>
 
           {inputMode === 'paste' ? (
-            <div className="bg-white rounded-2xl border border-gray-200 p-5">
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl border border-gray-200 p-5">
               <textarea
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
@@ -206,7 +208,7 @@ export default function BlastWizardPage() {
                 className="w-full h-40 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition font-mono text-sm text-gray-900 resize-none"
               />
               <div className="flex items-center justify-between mt-4">
-                <div className="flex items-center gap-3">
+                <motion.div variants={fadeUp} initial="hidden" animate="visible" className="flex items-center gap-3">
                   {SAMPLES.map((s) => (
                     <button
                       key={s.label}
@@ -217,7 +219,7 @@ export default function BlastWizardPage() {
                       Load {s.label}
                     </button>
                   ))}
-                </div>
+                </motion.div>
                 {detectedType && (
                   <div className="flex items-center gap-2">
                     <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
@@ -231,9 +233,9 @@ export default function BlastWizardPage() {
                   </div>
                 )}
               </div>
-            </div>
+            </motion.div>
           ) : (
-            <div className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+            <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -264,7 +266,7 @@ export default function BlastWizardPage() {
                   <p className="text-xs text-teal-600 mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
                 </div>
               )}
-            </div>
+            </motion.div>
           )}
 
           <div className="border-t border-gray-200 pt-4">
@@ -306,7 +308,8 @@ export default function BlastWizardPage() {
           </div>
 
           <div className="flex justify-end">
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
               onClick={() => setStep(3)}
               disabled={
                 (inputMode === 'paste' && !rawInput.trim()) ||
@@ -316,19 +319,19 @@ export default function BlastWizardPage() {
             >
               Continue
               <ChevronRight className="w-4 h-4" />
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       )}
 
       {step === 3 && (
-        <div className="space-y-6">
+        <motion.div variants={fadeUp} initial="hidden" animate="visible" className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-gray-900 mb-1">Confirm and run</h2>
             <p className="text-sm text-gray-500">Review your analysis settings before submitting.</p>
           </div>
 
-          <div className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
+          <motion.div variants={fadeUp} initial="hidden" animate="visible" className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
               <Search className="w-5 h-5 text-teal-600" />
               <div>
@@ -362,7 +365,7 @@ export default function BlastWizardPage() {
             <div className="pt-2 text-xs text-gray-500">
               <p>BLAST searches against NCBI nr typically take 30s–5min. Your results will be saved and you can return to them later.</p>
             </div>
-          </div>
+          </motion.div>
 
           <div className="flex items-center justify-between">
             <button
@@ -371,7 +374,8 @@ export default function BlastWizardPage() {
             >
               &larr; Change input
             </button>
-            <button
+            <motion.button
+              whileHover={{ scale: 1.02 }}
               onClick={handleSubmit}
               disabled={submitting}
               className="px-8 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
@@ -381,9 +385,9 @@ export default function BlastWizardPage() {
               ) : (
                 'Run Analysis'
               )}
-            </button>
+            </motion.button>
           </div>
-        </div>
+        </motion.div>
       )}
     </div>
   );

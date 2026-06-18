@@ -1,9 +1,11 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
+import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
 interface BlastPanelProps {
   hits: BlastHitSummary[];
@@ -32,19 +34,19 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
       <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
         <h2 className="font-semibold text-gray-900">
           BLAST Hits
           <span className="text-xs text-gray-400 ml-2 font-normal">({count} found{source ? ` via ${source}` : ''})</span>
         </h2>
       </div>
-      <div className="divide-y divide-gray-100">
+      <motion.div variants={stagger} className="divide-y divide-gray-100">
         {hits.map((hit, i) => {
           const band = confidenceBand(hit.evalue);
           const isExpanded = expanded === i;
           return (
-            <div key={hit.accession}>
+            <motion.div key={hit.accession} variants={fadeUp}>
               <button
                 onClick={() => setExpanded(isExpanded ? null : i)}
                 className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
@@ -81,10 +83,10 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
                   </a>
                 </div>
               )}
-            </div>
+            </motion.div>
           );
         })}
-      </div>
-    </div>
+      </motion.div>
+    </motion.div>
   );
 }

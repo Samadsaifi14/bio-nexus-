@@ -2,6 +2,8 @@
 
 import { useRouter } from 'next/navigation';
 import { Dna, Layout, Search, Globe, GitBranch, Beaker } from 'lucide-react';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
 const operations = [
   {
@@ -59,13 +61,14 @@ export default function AnalyzePage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-gray-900 mb-1">What do you want to do?</h1>
-      <p className="text-gray-500 mb-8">Choose an operation to get started with your analysis.</p>
+      <motion.h1 variants={fadeUp} className="text-2xl font-bold text-gray-900 mb-1">What do you want to do?</motion.h1>
+      <motion.p variants={fadeUp} className="text-gray-500 mb-8">Choose an operation to get started with your analysis.</motion.p>
 
-      <div className="grid md:grid-cols-2 gap-4">
+      <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: '-40px' }} className="grid md:grid-cols-2 gap-4">
         {operations.map((op) => {
           const Icon = op.icon;
           return (
+            <motion.div variants={fadeUp} whileHover={op.active ? cardHover : undefined}>
             <button
               key={op.id}
               onClick={() => op.active && router.push(`/analyze/${op.id}`)}
@@ -97,9 +100,10 @@ export default function AnalyzePage() {
                 </div>
               </div>
             </button>
+            </motion.div>
           );
         })}
-      </div>
+      </motion.div>
     </div>
   );
 }

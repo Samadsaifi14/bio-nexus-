@@ -3,6 +3,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { User, BarChart3, Bell, Key, Shield, Loader2, Save, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/contexts/theme';
 
@@ -50,11 +52,11 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-3xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-2">Settings</h1>
-      <p className="text-gray-600 mb-8">Manage your account and preferences</p>
+      <motion.h1 variants={fadeUp} className="text-2xl font-bold text-gray-900 mb-2">Settings</motion.h1>
+      <motion.p variants={fadeUp} className="text-gray-600 mb-8">Manage your account and preferences</motion.p>
 
-      <div className="space-y-8">
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+      <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: '-40px' }} className="space-y-8">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <User className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Account</h2>
@@ -79,9 +81,9 @@ export default function SettingsPage() {
               Save changes
             </button>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <BarChart3 className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Usage</h2>
@@ -100,9 +102,9 @@ export default function SettingsPage() {
               <p className="text-xs text-gray-500 mt-1">Current plan</p>
             </div>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <Bell className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
@@ -112,9 +114,9 @@ export default function SettingsPage() {
             <h3 className="text-sm font-medium text-gray-900 mb-1">Coming in a future update</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">Email notifications for completed analyses and weekly summaries.</p>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <Sun className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Appearance</h2>
@@ -132,9 +134,9 @@ export default function SettingsPage() {
               {theme === 'dark' ? 'Light mode' : 'Dark mode'}
             </button>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <Key className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">API Access</h2>
@@ -144,9 +146,9 @@ export default function SettingsPage() {
             <h3 className="text-sm font-medium text-gray-900 mb-1">Coming in Phase 2</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">Programmatic API access for running pipelines from your scripts.</p>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-2 mb-6">
             <Shield className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Data & Privacy</h2>
@@ -156,9 +158,9 @@ export default function SettingsPage() {
             <p>Cached query results are stored for 24 hours for performance. They are keyed by input hash, not your user ID.</p>
             <p>All AI outputs are labeled "AI-assisted research analysis — not for clinical or diagnostic use."</p>
           </div>
-        </section>
+        </motion.section>
 
-        <section className="bg-white rounded-2xl border border-gray-200 p-6 opacity-60">
+        <motion.section variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-6 opacity-60">
           <div className="flex items-center gap-2 mb-6">
             <Shield className="w-5 h-5 text-gray-400" />
             <h2 className="text-lg font-semibold text-gray-400">Danger Zone</h2>
@@ -168,8 +170,8 @@ export default function SettingsPage() {
             <h3 className="text-sm font-medium text-gray-900 mb-1">Coming in a future update</h3>
             <p className="text-xs text-gray-500 max-w-sm mx-auto">Account deletion and data export will be available here.</p>
           </div>
-        </section>
-      </div>
+        </motion.section>
+      </motion.div>
     </div>
   );
 }

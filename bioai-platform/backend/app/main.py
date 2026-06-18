@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
 
-app = FastAPI(title="Bio Nexus API", version="0.1.0")
+app = FastAPI(title="Bio Nexus API", version="0.2.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 

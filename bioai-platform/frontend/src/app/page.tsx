@@ -71,8 +71,7 @@ export default function LandingPage() {
         style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
       >
         <span className="font-display text-sm font-semibold tracking-widest uppercase">
-          Bio<span className="text-gradient">Flow</span>
-          <span className="text-accent-cyan">_</span>AI
+          Bio <span className="text-gradient">Nexus</span>
         </span>
 
         <div className="flex items-center gap-6">
@@ -159,7 +158,7 @@ export default function LandingPage() {
             transition={{ delay: 0.6 }}
             className="text-text-secondary text-lg max-w-[520px] mx-auto mb-10 leading-relaxed"
           >
-            BioFlow AI unifies NCBI, UniProt, PDB, and KEGG into a single plain-language
+            BioNexus unifies NCBI, UniProt, PDB, and KEGG into a single plain-language
             interface — with AI-interpreted visual results, instantly.
           </motion.p>
 
@@ -353,7 +352,7 @@ export default function LandingPage() {
             Free to start. No API keys required to run your first analysis.
           </p>
           <Link href="/dashboard" className="btn-primary text-base px-8 py-4">
-            Open BioFlow AI
+            Open Bio Nexus
             <ArrowRight size={17} />
           </Link>
         </motion.div>
@@ -361,7 +360,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-glass-border py-8 px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="font-mono text-xs text-text-muted">
-          BioFlow AI · Built at Jamia Millia Islamia
+          Bio Nexus · Built at Jamia Millia Islamia
         </span>
         <div className="flex items-center gap-6">
           <Link href="/auth" className="text-xs text-text-muted hover:text-text-primary transition-colors">

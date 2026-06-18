@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { Loader2, Dna, FileText, AlertCircle, Clock, CheckCircle, XCircle } from 'lucide-react';
 import { getJobs } from '@/lib/api';
 import type { JobStatus } from '@/types/pipeline';
@@ -66,7 +68,7 @@ export default function JobsPage() {
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-gray-900">Your Jobs</h1>
+        <motion.h1 variants={fadeUp} className="text-2xl font-bold text-gray-900">Your Jobs</motion.h1>
         <Link
           href="/analyze"
           className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition"
@@ -75,6 +77,7 @@ export default function JobsPage() {
         </Link>
       </div>
 
+      <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: '-40px' }}>
       {jobs.map((job) => {
         const Icon = STATUS_ICONS[job.status] || Clock;
         const color = STATUS_COLORS[job.status] || 'text-gray-400';
@@ -82,8 +85,8 @@ export default function JobsPage() {
         const isComplete = job.status === 'complete';
 
         return (
+          <motion.div key={job.id} variants={fadeUp} whileHover={cardHover}>
           <Link
-            key={job.id}
             href={`/jobs/${job.id}`}
             className="block bg-white rounded-2xl border border-gray-200 p-5 hover:border-teal-300 hover:shadow-sm transition"
           >
@@ -112,8 +115,10 @@ export default function JobsPage() {
               </div>
             </div>
           </Link>
+          </motion.div>
         );
       })}
+      </motion.div>
     </div>
   );
 }

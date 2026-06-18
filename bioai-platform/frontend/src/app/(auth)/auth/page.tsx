@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Dna, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { motion } from 'framer-motion';
+import { fadeUp } from '@/lib/animations';
 
 export default function AuthPage() {
   const { user, loading, signIn, isGuest } = useAuth();
@@ -32,7 +34,7 @@ export default function AuthPage() {
       <div className="absolute top-4 right-4">
         <ThemeToggle compact />
       </div>
-      <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
           <Dna className="w-8 h-8 text-teal-600" />
           <span className="text-xl font-bold text-gray-900">Bio Nexus</span>
@@ -76,7 +78,7 @@ export default function AuthPage() {
           Free for academic researchers. No spam, ever.<br />
           Guest results are saved for 24 hours.
         </p>
-      </div>
+      </motion.div>
     </div>
   );
 }

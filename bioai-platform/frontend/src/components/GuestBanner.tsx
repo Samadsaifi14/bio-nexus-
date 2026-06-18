@@ -1,7 +1,9 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { X, User } from 'lucide-react';
+import { fadeUp } from '@/lib/animations';
 import { useAuth } from '@/contexts/auth';
 
 export function GuestBanner() {
@@ -11,7 +13,7 @@ export function GuestBanner() {
   if (!isGuest || dismissed) return null;
 
   return (
-    <div className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start justify-between gap-4">
+    <motion.div variants={fadeUp} className="mb-6 bg-amber-50 border border-amber-200 rounded-xl p-4 flex items-start justify-between gap-4">
       <div className="flex items-start gap-3">
         <User className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
         <div>
@@ -35,6 +37,6 @@ export function GuestBanner() {
       >
         <X className="w-4 h-4 text-amber-500" />
       </button>
-    </div>
+    </motion.div>
   );
 }

@@ -66,8 +66,7 @@ function SidebarContent({
               exit="hidden"
               className="font-display text-sm font-semibold overflow-hidden whitespace-nowrap"
             >
-              Bio<span className="text-gradient">Flow</span>
-              <span className="text-accent-cyan">_</span>AI
+              Bio <span className="text-gradient">Nexus</span>
             </motion.span>
           )}
         </AnimatePresence>

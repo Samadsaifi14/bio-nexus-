@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { getJobs } from "@/lib/api";
 import type { JobStatus } from "@/types/pipeline";
+import { motion } from "framer-motion";
+import { fadeUp, stagger, fadeIn } from "@/lib/animations";
 
 const STATUS_STYLES: Record<string, string> = {
   complete: "bg-teal-100 text-teal-800",
@@ -56,7 +58,7 @@ export default function HistoryPage() {
   return (
     <div className="p-6 max-w-4xl">
       <h1 className="text-xl font-semibold mb-5">Analysis history</h1>
-      <div className="rounded-xl border border-gray-200 overflow-hidden">
+      <motion.div variants={fadeIn} initial="hidden" animate="show" className="rounded-xl border border-gray-200 overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="bg-gray-50 border-b border-gray-200">
@@ -66,10 +68,11 @@ export default function HistoryPage() {
               <th className="px-4 py-3 text-left font-medium text-gray-600 hidden sm:table-cell">Created</th>
             </tr>
           </thead>
-          <tbody>
+          <motion.tbody variants={stagger} initial="hidden" animate="show">
             {jobs.map((job) => (
-              <tr
+              <motion.tr
                 key={job.id}
+                variants={fadeUp}
                 onClick={() => router.push(`/results/${job.id}`)}
                 className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors last:border-0"
               >
@@ -87,11 +90,11 @@ export default function HistoryPage() {
                 <td className="px-4 py-3 text-gray-400 text-xs hidden sm:table-cell">
                   {new Date(job.created_at).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
                 </td>
-              </tr>
+              </motion.tr>
             ))}
-          </tbody>
+          </motion.tbody>
         </table>
-      </div>
+      </motion.div>
     </div>
   );
 }

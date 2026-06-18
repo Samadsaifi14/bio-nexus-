@@ -1,6 +1,8 @@
 'use client';
 
+import { motion } from 'framer-motion';
 import { CheckCircle2, XCircle } from 'lucide-react';
+import { fadeUp, fadeIn } from '@/lib/animations';
 
 interface Step {
   name: string;
@@ -25,7 +27,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
   const pct = stepsCompleted.length === 0 ? 0 : Math.round((stepsCompleted.length / STEPS.length) * 100);
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <h3 className="text-sm font-semibold text-gray-900">Pipeline progress</h3>
         <span className="text-xs text-gray-500">{pct}%</span>
@@ -41,7 +43,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
           const done = stepSet.has(step.name);
           const active = status === 'running' && (step.name === stepsCompleted[stepsCompleted.length - 1] || (!done && stepsCompleted.length === 0 && step.name === STEPS[0].name));
           return (
-            <div key={step.name} className="flex items-center gap-3">
+            <motion.div key={step.name} variants={fadeIn} className="flex items-center gap-3">
               {done ? (
                 <CheckCircle2 className="w-5 h-5 text-teal-600 shrink-0" />
               ) : isFailed ? (
@@ -54,7 +56,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
               <span className={`text-sm ${done ? 'text-gray-900 font-medium' : active ? 'text-teal-700' : 'text-gray-400'}`}>
                 {step.label}
               </span>
-            </div>
+            </motion.div>
           );
         })}
       </div>
@@ -64,6 +66,6 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
       {isFailed && (
         <p className="text-xs text-red-500 mt-3 font-medium">Pipeline failed</p>
       )}
-    </div>
+    </motion.div>
   );
 }

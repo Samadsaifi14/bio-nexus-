@@ -10,6 +10,8 @@ import { AIInterpretation } from '@/components/results/AIInterpretation';
 import { BlastPanel } from '@/components/results/BlastPanel';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger } from '@/lib/animations';
 
 export default function SharedResultPage() {
   const params = useParams();
@@ -69,27 +71,31 @@ export default function SharedResultPage() {
             <p className="text-sm text-gray-500">This result is from an older version and cannot be displayed in full.</p>
           </div>
         ) : (
-          <div className="space-y-6">
-            <div>
+          <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+            <motion.div variants={fadeUp}>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Analysis Results</h1>
               <p className="text-sm text-gray-500">
                 Query: {context.query.sequence.slice(0, 80)}... ({context.query.length} aa)
               </p>
-            </div>
+            </motion.div>
 
-            <AIInterpretation context={context} pipelineType={job.pipeline_type} />
+            <motion.div variants={fadeUp}>
+              <AIInterpretation context={context} pipelineType={job.pipeline_type} />
+            </motion.div>
 
-            <div className="grid lg:grid-cols-2 gap-6">
+            <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-6">
               {context.blast?.hits && context.blast.hits.length > 0 && (
                 <BlastPanel hits={context.blast.hits} count={context.blast.count} source={context.blast.source} />
               )}
               {context.uniprot && <UniprotPanel data={context.uniprot} />}
-            </div>
+            </motion.div>
 
             {context.alphafold?.structure_available && (
-              <AlphaFoldViewer pdbUrl={context.alphafold.pdb_url} uniprotId={context.alphafold.uniprot_accession} />
+              <motion.div variants={fadeUp}>
+                <AlphaFoldViewer pdbUrl={context.alphafold.pdb_url} uniprotId={context.alphafold.uniprot_accession} />
+              </motion.div>
             )}
-          </div>
+          </motion.div>
         )}
       </div>
     </div>

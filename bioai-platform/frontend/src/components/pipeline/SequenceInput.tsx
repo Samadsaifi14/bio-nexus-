@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
+import { fadeUp } from '@/lib/animations';
 
 const SAMPLES = [
   {
@@ -35,7 +37,7 @@ export function SequenceInput({ value, onChange, onSubmit, loading }: SequenceIn
     .join('').length;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
       <label className="block text-sm font-medium text-gray-700 mb-2">
         Enter protein sequence (FASTA or plain)
       </label>
@@ -69,6 +71,6 @@ export function SequenceInput({ value, onChange, onSubmit, loading }: SequenceIn
           {loading ? 'Running pipeline...' : 'Run Pipeline'}
         </button>
       </div>
-    </div>
+    </motion.div>
   );
 }

@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
 import { Search, Dna, Loader2, CheckCircle, AlertCircle, BookOpen, ArrowRight, Beaker } from 'lucide-react';
+import { fadeUp, stagger } from '@/lib/animations';
 import { fetchSequence, validateSequence, searchSequences } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { SequenceResult, SequenceValidation, SequenceSearchResult } from '@/types/pipeline';
@@ -89,8 +91,8 @@ export function SequenceRetrieval() {
   };
 
   return (
-    <div className="space-y-6">
-      <div className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div initial="hidden" animate="show" variants={stagger} className="space-y-6">
+      <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Sequence Retrieval</h2>
         <p className="text-sm text-gray-500 mb-6">
           Look up a sequence by accession number, paste raw sequence data, or search by gene/protein name
@@ -136,17 +138,17 @@ export function SequenceRetrieval() {
             {loading ? 'Searching...' : 'Search'}
           </button>
         </div>
-      </div>
+      </motion.div>
 
       {error && (
-        <div className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
+        <motion.div variants={fadeUp} className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
           <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
           <p className="text-sm text-red-700">{error}</p>
-        </div>
+        </motion.div>
       )}
 
       {validation && mode === 'sequence' && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
           <div className="flex items-center gap-3 mb-4">
             {validation.valid ? (
               <CheckCircle className="w-5 h-5 text-teal-500" />
@@ -183,44 +185,45 @@ export function SequenceRetrieval() {
               ))}
             </div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {searchResults && mode === 'name' && (
-        <div className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
           <h3 className="font-semibold text-gray-900 mb-4">Search Results ({searchResults.length})</h3>
           {searchResults.length === 0 ? (
             <p className="text-sm text-gray-500">No results found</p>
           ) : (
-            <div className="space-y-2">
+            <motion.div initial="hidden" animate="show" variants={stagger} className="space-y-2">
               {searchResults.map((r, i) => (
-                <button
-                  key={i}
-                  onClick={() => handleSelectAccession(r.accession)}
-                  className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <code className="text-sm font-mono text-teal-700">{r.accession}</code>
-                        <ArrowRight className="w-3 h-3 text-gray-300" />
+                <motion.div key={i} variants={fadeUp}>
+                  <button
+                    onClick={() => handleSelectAccession(r.accession)}
+                    className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <code className="text-sm font-mono text-teal-700">{r.accession}</code>
+                          <ArrowRight className="w-3 h-3 text-gray-300" />
+                        </div>
+                        <p className="text-sm text-gray-700 mt-1 line-clamp-1">{r.title}</p>
                       </div>
-                      <p className="text-sm text-gray-700 mt-1 line-clamp-1">{r.title}</p>
+                      <div className="text-right text-xs text-gray-500">
+                        <div>{r.organism}</div>
+                        <div>{r.length} aa</div>
+                      </div>
                     </div>
-                    <div className="text-right text-xs text-gray-500">
-                      <div>{r.organism}</div>
-                      <div>{r.length} aa</div>
-                    </div>
-                  </div>
-                </button>
+                  </button>
+                </motion.div>
               ))}
-            </div>
+            </motion.div>
           )}
-        </div>
+        </motion.div>
       )}
 
       {result && mode === 'accession' && (
-        <div className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+        <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
           <div className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
@@ -333,8 +336,8 @@ export function SequenceRetrieval() {
               Analyze with BLAST
             </button>
           </div>
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

@@ -12,6 +12,8 @@ import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { getJob } from '@/lib/api';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'fetching_alphafold', 'complete',
@@ -61,18 +63,18 @@ export default function JobPage() {
 
   if (loading && !job && !timedOut) {
     return (
-      <div className="flex items-center justify-center py-20">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-center justify-center py-20">
         <div className="text-center">
           <Loader2 className="w-8 h-8 text-teal-500 animate-spin mx-auto mb-4" />
           <p className="text-sm text-gray-500">Loading job...</p>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (!job && timedOut) {
     return (
-      <div className="max-w-xl mx-auto py-12">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="max-w-xl mx-auto py-12">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
           <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Still processing</h3>
@@ -87,17 +89,17 @@ export default function JobPage() {
             Refresh
           </button>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
   if (!job) {
     return (
-      <div className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-200 p-16 text-center">
         <Dna className="w-16 h-16 text-gray-200 mx-auto mb-6" />
         <h3 className="text-xl font-semibold text-gray-900 mb-2">Job not found</h3>
         <p className="text-sm text-gray-500">This job does not exist or has been deleted.</p>
-      </div>
+      </motion.div>
     );
   }
 
@@ -106,7 +108,7 @@ export default function JobPage() {
 
   if (isActive) {
     return (
-      <div className="max-w-xl mx-auto py-12">
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="max-w-xl mx-auto py-12">
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
           {pollError ? (
             <div className="mb-6">
@@ -162,7 +164,7 @@ export default function JobPage() {
             </p>
           </div>
         </div>
-      </div>
+      </motion.div>
     );
   }
 
@@ -229,8 +231,8 @@ export default function JobPage() {
   const hasHits = context.blast && context.blast.hits && context.blast.hits.length > 0;
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
+    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={fadeUp} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-1">Analysis Results</h1>
           <p className="text-sm text-gray-500">
@@ -243,12 +245,14 @@ export default function JobPage() {
         >
           Share
         </button>
-      </div>
+      </motion.div>
 
-      <AIInterpretation context={context} pipelineType={job.pipeline_type} />
+      <motion.div variants={fadeUp} whileHover={cardHover}>
+        <AIInterpretation context={context} pipelineType={job.pipeline_type} />
+      </motion.div>
 
       {!hasHits ? (
-        <div className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
+        <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-10 text-center">
           <Search className="w-12 h-12 text-gray-200 mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-gray-900 mb-2">No significant similarity found</h3>
           <p className="text-sm text-gray-500 max-w-md mx-auto">
@@ -270,25 +274,31 @@ export default function JobPage() {
           >
             New Analysis
           </button>
-        </div>
+        </motion.div>
       ) : (
         <>
-          <div className="grid lg:grid-cols-2 gap-6">
-            <BlastPanel
-              hits={context.blast.hits}
-              count={context.blast.count}
-              source={context.blast?.source ?? 'NCBI BLAST'}
-            />
-            {context.uniprot && <UniprotPanel data={context.uniprot} />}
-          </div>
+          <motion.div variants={fadeUp} whileHover={cardHover}>
+            <div className="grid lg:grid-cols-2 gap-6">
+              <BlastPanel
+                hits={context.blast.hits}
+                count={context.blast.count}
+                source={context.blast?.source ?? 'NCBI BLAST'}
+              />
+              {context.uniprot && <UniprotPanel data={context.uniprot} />}
+            </div>
+          </motion.div>
 
-          <ScoreBars hits={context.blast.hits} />
+          <motion.div variants={fadeUp} whileHover={cardHover}>
+            <ScoreBars hits={context.blast.hits} />
+          </motion.div>
 
           {context.alphafold && context.alphafold.structure_available && (
-            <AlphaFoldViewer
-              pdbUrl={context.alphafold.pdb_url}
-              uniprotId={context.alphafold.uniprot_accession}
-            />
+            <motion.div variants={fadeUp} whileHover={cardHover}>
+              <AlphaFoldViewer
+                pdbUrl={context.alphafold.pdb_url}
+                uniprotId={context.alphafold.uniprot_accession}
+              />
+            </motion.div>
           )}
 
           <div className="flex items-center gap-3 pt-2">
@@ -314,6 +324,6 @@ export default function JobPage() {
           </div>
         </>
       )}
-    </div>
+    </motion.div>
   );
 }

@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { Brain, Loader2 } from 'lucide-react';
 import type { AssembledContext } from '@/types/pipeline';
 import type { StreamEvent } from '@/types/results';
 import { interpretStream } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
+import { fadeUp, fadeIn, cardHover } from '@/lib/animations';
 
 function addCitationLinks(text: string): string {
   return text.replace(
@@ -129,7 +131,7 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
   }, [context, pipelineType, loading]);
 
   return (
-    <div className="bg-gradient-to-br from-teal-50 to-teal-50 rounded-2xl border border-teal-200 p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-gradient-to-br from-teal-50 to-teal-50 rounded-2xl border border-teal-200 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <Brain className="w-5 h-5 text-teal-600" />
@@ -141,9 +143,9 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
           )}
         </div>
         {!text && !loading && (
-          <button onClick={handleInterpret} className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+          <motion.button variants={fadeIn} onClick={handleInterpret} className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
             Interpret results
-          </button>
+          </motion.button>
         )}
         {loading && (
           <button onClick={() => abortRef.current?.abort()} className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition">
@@ -159,10 +161,10 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
       )}
 
       {text ? (
-        <div>
+        <motion.div variants={fadeIn}>
           {renderMarkdown(text)}
           {model && <div className="mt-3 text-xs text-gray-400">Model: {model}</div>}
-        </div>
+        </motion.div>
       ) : loading ? (
         <div className="flex items-center gap-2 text-sm text-gray-500">
           <Loader2 className="w-4 h-4 animate-spin" />
@@ -171,6 +173,6 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
       ) : (
         <p className="text-sm text-gray-500">Click to get an AI explanation combining BLAST, UniProt, and AlphaFold data</p>
       )}
-    </div>
+    </motion.div>
   );
 }

@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Dna, Search, ChevronRight, Loader2, AlertCircle, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Dna, Search, ChevronRight, LoaderCircle, CircleCheck } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { runPipeline, fetchSequence, validateSequence } from '@/lib/api';
+import { runPipeline, fetchSequence } from '@/lib/api';
 import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
-import type { SequenceResult, SequenceValidation, SequenceType } from '@/types/pipeline';
+import type { SequenceResult, SequenceType } from '@/types/pipeline';
 import { motion } from 'framer-motion';
-import { fadeUp, stagger, cardHover } from '@/lib/animations';
+import { fadeUp, cardHover } from '@/lib/animations';
 
   const SAMPLES = [
     {
@@ -39,7 +39,7 @@ function detectSequenceType(seq: string): SequenceType {
   if (nonProtein.length === 0) return 'protein';
   const inNucleic = nonProtein.every(c => 'ACGUTN'.includes(c));
   if (inNucleic && seqSet.has('U') && !seqSet.has('T')) return 'rna';
-  if (inNucleic && seqSet.isSubsetOf(new Set('ACGTN'))) return 'dna';
+  if (inNucleic && Array.from(seqSet).every(c => 'ACGTN'.includes(c))) return 'dna';
   if (nonProtein.every(c => 'ACGUTN'.includes(c))) return 'rna';
   return 'unknown';
 }
@@ -250,7 +250,7 @@ export default function BlastWizardPage() {
                   disabled={accessionLoading || !rawInput.trim()}
                   className="px-5 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
                 >
-                  {accessionLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  {accessionLoading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                   Fetch
                 </button>
               </div>
@@ -258,7 +258,7 @@ export default function BlastWizardPage() {
               {accessionResult && (
                 <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl">
                   <div className="flex items-center gap-2 mb-2">
-                    <CheckCircle className="w-4 h-4 text-teal-600" />
+                    <CircleCheck className="w-4 h-4 text-teal-600" />
                     <code className="text-sm font-mono font-semibold text-teal-800">{accessionResult.accession}</code>
                     <span className="text-xs bg-teal-200 text-teal-700 px-2 py-0.5 rounded-full">{accessionResult.sequence_type}</span>
                   </div>
@@ -381,7 +381,7 @@ export default function BlastWizardPage() {
               className="px-8 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
             >
               {submitting ? (
-                <><Loader2 className="w-4 h-4 animate-spin" /> Submitting...</>
+                <><LoaderCircle className="w-4 h-4 animate-spin" /> Submitting...</>
               ) : (
                 'Run Analysis'
               )}

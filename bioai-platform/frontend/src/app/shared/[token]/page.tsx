@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Dna, Loader2 } from 'lucide-react';
+import { Dna, LoaderCircle } from 'lucide-react';
 import type { JobStatus } from '@/types/pipeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { getSharedResult } from '@/lib/api';
@@ -33,7 +33,7 @@ export default function SharedResultPage() {
         <div className="absolute top-4 right-4">
           <ThemeToggle compact />
         </div>
-        <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
+        <LoaderCircle className="w-8 h-8 text-teal-600 animate-spin" />
       </div>
     );
   }

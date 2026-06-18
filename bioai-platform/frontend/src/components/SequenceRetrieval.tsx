@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Search, Dna, Loader2, CheckCircle, AlertCircle, BookOpen, ArrowRight, Beaker } from 'lucide-react';
+import { Search, Dna, LoaderCircle, CheckCircle, AlertCircle, BookOpen, ArrowRight, Beaker } from 'lucide-react';
 import { fadeUp, stagger } from '@/lib/animations';
 import { fetchSequence, validateSequence, searchSequences } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
@@ -134,7 +134,7 @@ export function SequenceRetrieval() {
             disabled={loading || !input.trim()}
             className="px-6 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
           >
-            {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             {loading ? 'Searching...' : 'Search'}
           </button>
         </div>

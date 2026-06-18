@@ -8,20 +8,20 @@ import { runPipeline, fetchSequence } from '@/lib/api';
 import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
 import type { SequenceResult, SequenceType } from '@/types/pipeline';
 import { motion } from 'framer-motion';
-import { fadeUp, cardHover } from '@/lib/animations';
+import { fadeUp } from '@/lib/animations';
 
-  const SAMPLES = [
-    {
-      label: 'p53 (human)',
-      seq: `>P53_HUMAN Cellular tumor antigen p53 [Homo sapiens]
+const SAMPLES = [
+  {
+    label: 'p53 (human)',
+    seq: `>P53_HUMAN Cellular tumor antigen p53 [Homo sapiens]
 MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD`,
-    },
-    {
-      label: 'Insulin (human)',
-      seq: `>INS_HUMAN Insulin [Homo sapiens]
+  },
+  {
+    label: 'Insulin (human)',
+    seq: `>INS_HUMAN Insulin [Homo sapiens]
 MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
-    },
-  ];
+  },
+];
 
 function stripFastaHeader(text: string): string {
   return text.split('\n').filter(l => !l.startsWith('>')).join('\n');
@@ -151,7 +151,7 @@ export default function BlastWizardPage() {
     <div className="max-w-2xl">
       <button
         onClick={() => router.push('/analyze')}
-        className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 mb-6"
+        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4" />
         Choose a different operation
@@ -161,14 +161,14 @@ export default function BlastWizardPage() {
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              s < step ? 'bg-teal-500 text-white' : s === step ? 'bg-teal-500 text-white' : 'bg-gray-100 text-gray-400'
+              s < step ? 'bg-accent-cyan text-white' : s === step ? 'bg-accent-cyan text-white' : 'bg-surface-1 text-text-muted'
             }`}>
               {s < step ? '✓' : s}
             </div>
-            <span className={`text-sm ${s === step ? 'font-medium text-gray-900' : 'text-gray-400'}`}>
+            <span className={`text-sm ${s === step ? 'font-medium text-text-primary' : 'text-text-muted'}`}>
               {s === 1 ? 'Choose' : s === 2 ? 'Input' : 'Confirm'}
             </span>
-            {s < 3 && <ChevronRight className="w-4 h-4 text-gray-300" />}
+            {s < 3 && <ChevronRight className="w-4 h-4 text-text-muted" />}
           </div>
         ))}
       </motion.div>
@@ -176,8 +176,8 @@ export default function BlastWizardPage() {
       {step === 2 && (
         <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Enter your sequence</h2>
-            <p className="text-sm text-gray-500">
+            <h2 className="text-lg font-semibold text-text-primary mb-1">Enter your sequence</h2>
+            <p className="text-sm text-text-secondary">
               Paste a protein or DNA sequence, or fetch it by accession number.
             </p>
           </div>
@@ -191,7 +191,7 @@ export default function BlastWizardPage() {
                 key={tab.id}
                 onClick={() => { setInputMode(tab.id); setAccessionResult(null); }}
                 className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                  inputMode === tab.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                  inputMode === tab.id ? 'btn-primary' : 'glass-card text-text-secondary'
                 }`}
               >
                 {tab.label}
@@ -200,12 +200,12 @@ export default function BlastWizardPage() {
           </div>
 
           {inputMode === 'paste' ? (
-            <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-200 p-5">
+            <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5">
               <textarea
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
                 placeholder="Paste a FASTA or raw sequence here..."
-                className="w-full h-40 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition font-mono text-sm text-gray-900 resize-none"
+                className="w-full h-40 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm text-text-primary bg-surface-1 resize-none"
               />
               <div className="flex items-center justify-between mt-4">
                 <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-center gap-3">
@@ -214,7 +214,7 @@ export default function BlastWizardPage() {
                       key={s.label}
                       type="button"
                       onClick={() => setRawInput(s.seq)}
-                      className="text-sm text-teal-600 hover:text-teal-700 underline"
+                      className="text-sm text-accent-cyan hover:text-accent-cyan/80 underline"
                     >
                       Load {s.label}
                     </button>
@@ -222,20 +222,20 @@ export default function BlastWizardPage() {
                 </motion.div>
                 {detectedType && (
                   <div className="flex items-center gap-2">
-                    <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${
+                    <span className={`badge text-[10px] ${
                       detectedType === 'protein'
-                        ? 'text-blue-600 bg-blue-50'
-                        : 'text-purple-600 bg-purple-50'
+                        ? 'bg-accent-cyan/10 text-accent-cyan'
+                        : 'bg-accent-purple/10 text-accent-purple'
                     }`}>
                       {detectedType}
                     </span>
-                    <span className="text-xs text-gray-400">{aaCount} aa</span>
+                    <span className="text-xs text-text-muted">{aaCount} aa</span>
                   </div>
                 )}
               </div>
             </motion.div>
           ) : (
-            <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-200 p-5 space-y-4">
+            <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 space-y-4">
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -243,12 +243,12 @@ export default function BlastWizardPage() {
                   onChange={(e) => setRawInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleFetchAccession()}
                   placeholder="e.g. NP_000509.1, P04637, 1TIM"
-                  className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition text-sm font-mono"
+                  className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary"
                 />
                 <button
                   onClick={handleFetchAccession}
                   disabled={accessionLoading || !rawInput.trim()}
-                  className="px-5 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
+                  className="btn-primary px-5 py-3 flex items-center gap-2 disabled:opacity-50"
                 >
                   {accessionLoading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                   Fetch
@@ -256,34 +256,34 @@ export default function BlastWizardPage() {
               </div>
 
               {accessionResult && (
-                <div className="p-4 bg-teal-50 border border-teal-200 rounded-xl">
+                <div className="glass p-4 border border-accent-cyan/20">
                   <div className="flex items-center gap-2 mb-2">
-                    <CircleCheck className="w-4 h-4 text-teal-600" />
-                    <code className="text-sm font-mono font-semibold text-teal-800">{accessionResult.accession}</code>
-                    <span className="text-xs bg-teal-200 text-teal-700 px-2 py-0.5 rounded-full">{accessionResult.sequence_type}</span>
+                    <CircleCheck className="w-4 h-4 text-accent-cyan" />
+                    <code className="text-sm font-mono font-semibold text-accent-cyan">{accessionResult.accession}</code>
+                    <span className="badge text-[10px] bg-accent-cyan/10 text-accent-cyan">{accessionResult.sequence_type}</span>
                   </div>
-                  <p className="text-sm text-teal-700">{accessionResult.description}</p>
-                  <p className="text-xs text-teal-600 mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
+                  <p className="text-sm text-text-secondary">{accessionResult.description}</p>
+                  <p className="text-xs text-text-muted mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
                 </div>
               )}
             </motion.div>
           )}
 
-          <div className="border-t border-gray-200 pt-4">
+          <div className="border-t border-glass-border pt-4">
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
-              className="text-sm text-gray-500 hover:text-gray-700"
+              className="text-sm text-text-secondary hover:text-text-primary transition"
             >
               {showAdvanced ? 'Hide' : 'Show'} advanced settings
             </button>
             {showAdvanced && (
-              <div className="mt-3 grid grid-cols-2 gap-4 p-4 bg-gray-50 rounded-xl">
+              <div className="mt-3 grid grid-cols-2 gap-4 glass p-4">
                 <div>
-                  <label className="text-xs font-medium text-gray-500 block mb-1">Database</label>
+                  <label className="text-xs font-medium text-text-secondary block mb-1">Database</label>
                   <select
                     value={advancedDb}
                     onChange={(e) => setAdvancedDb(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm"
+                    className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
                   >
                     <option value="nr">nr (non-redundant)</option>
                     <option value="swissprot">Swiss-Prot</option>
@@ -292,11 +292,11 @@ export default function BlastWizardPage() {
                   </select>
                 </div>
                 <div>
-                  <label className="text-xs font-medium text-gray-500 block mb-1">Program</label>
+                  <label className="text-xs font-medium text-text-secondary block mb-1">Program</label>
                   <select
                     value={advancedProgram || programLabel}
                     onChange={(e) => setAdvancedProgram(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-gray-300 text-sm"
+                    className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
                   >
                     <option value="blastp">blastp</option>
                     <option value="blastn">blastn</option>
@@ -315,7 +315,7 @@ export default function BlastWizardPage() {
                 (inputMode === 'paste' && !rawInput.trim()) ||
                 (inputMode === 'accession' && !accessionResult)
               }
-              className="px-6 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
+              className="btn-primary px-6 py-3 flex items-center gap-2 disabled:opacity-50"
             >
               Continue
               <ChevronRight className="w-4 h-4" />
@@ -327,16 +327,16 @@ export default function BlastWizardPage() {
       {step === 3 && (
         <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-6">
           <div>
-            <h2 className="text-lg font-semibold text-gray-900 mb-1">Confirm and run</h2>
-            <p className="text-sm text-gray-500">Review your analysis settings before submitting.</p>
+            <h2 className="text-lg font-semibold text-text-primary mb-1">Confirm and run</h2>
+            <p className="text-sm text-text-secondary">Review your analysis settings before submitting.</p>
           </div>
 
-          <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-200 p-6 space-y-4">
-            <div className="flex items-center gap-3 pb-4 border-b border-gray-100">
-              <Search className="w-5 h-5 text-teal-600" />
+          <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-6 space-y-4">
+            <div className="flex items-center gap-3 pb-4 border-b border-glass-border">
+              <Search className="w-5 h-5 text-accent-cyan" />
               <div>
-                <p className="font-medium text-gray-900">BLAST Search</p>
-                <p className="text-sm text-gray-500">
+                <p className="font-medium text-text-primary">BLAST Search</p>
+                <p className="text-sm text-text-secondary">
                   We'll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
                   <strong>{aaCount || accessionResult?.length}</strong>-{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
                   {detectedType} against the <strong>{advancedDb || dbLabel}</strong> database.
@@ -346,23 +346,23 @@ export default function BlastWizardPage() {
 
             {inputMode === 'paste' ? (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Sequence</p>
-                <pre className="font-mono text-xs text-gray-700 bg-gray-50 rounded-xl p-4 max-h-24 overflow-auto whitespace-pre-wrap break-all">
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sequence</p>
+                <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-24 overflow-auto whitespace-pre-wrap break-all">
                   {rawInput.slice(0, 300)}{rawInput.length > 300 ? '...' : ''}
                 </pre>
               </div>
             ) : accessionResult && (
               <div>
-                <p className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Sequence</p>
-                <div className="p-4 bg-gray-50 rounded-xl">
-                  <code className="text-sm font-mono text-teal-700">{accessionResult.accession}</code>
-                  <p className="text-sm text-gray-700 mt-1">{accessionResult.description}</p>
-                  <p className="text-xs text-gray-500 mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sequence</p>
+                <div className="glass p-4">
+                  <code className="text-sm font-mono text-accent-cyan">{accessionResult.accession}</code>
+                  <p className="text-sm text-text-secondary mt-1">{accessionResult.description}</p>
+                  <p className="text-xs text-text-muted mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
                 </div>
               </div>
             )}
 
-            <div className="pt-2 text-xs text-gray-500">
+            <div className="pt-2 text-xs text-text-muted">
               <p>BLAST searches against NCBI nr typically take 30s–5min. Your results will be saved and you can return to them later.</p>
             </div>
           </motion.div>
@@ -370,7 +370,7 @@ export default function BlastWizardPage() {
           <div className="flex items-center justify-between">
             <button
               onClick={() => setStep(2)}
-              className="text-sm text-gray-500 hover:text-gray-700 underline"
+              className="text-sm text-text-secondary hover:text-text-primary underline transition"
             >
               &larr; Change input
             </button>
@@ -378,7 +378,7 @@ export default function BlastWizardPage() {
               whileHover={{ scale: 1.02 }}
               onClick={handleSubmit}
               disabled={submitting}
-              className="px-8 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
+              className="btn-primary px-8 py-3 flex items-center gap-2 disabled:opacity-50"
             >
               {submitting ? (
                 <><LoaderCircle className="w-4 h-4 animate-spin" /> Submitting...</>

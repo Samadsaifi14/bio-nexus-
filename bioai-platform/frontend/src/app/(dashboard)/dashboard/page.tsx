@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
-import { Loader2, Dna, Play, Clock, CheckCircle, XCircle, FileText, TrendingUp, BarChart3 } from 'lucide-react';
+import { LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle, TrendingUp, BarChart3 } from 'lucide-react';
 import { getJobs, getJobCount } from '@/lib/api';
 import { useAuth } from '@/contexts/auth';
 import type { JobStatus } from '@/types/pipeline';
@@ -16,8 +16,8 @@ const STATUS_ICONS: Record<string, typeof Clock> = {
 };
 
 const STATUS_COLORS: Record<string, string> = {
-  queued: 'text-gray-400', submitted_to_ncbi: 'text-teal-500', polling_ncbi: 'text-teal-500',
-  parsing: 'text-teal-500', interpreting: 'text-teal-500', complete: 'text-teal-600', failed: 'text-red-500',
+  queued: 'text-text-muted', submitted_to_ncbi: 'text-accent-cyan', polling_ncbi: 'text-accent-cyan',
+  parsing: 'text-accent-cyan', interpreting: 'text-accent-cyan', complete: 'text-accent-cyan', failed: 'text-error',
 };
 
 export default function DashboardPage() {
@@ -40,7 +40,7 @@ export default function DashboardPage() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-20">
-        <Loader2 className="w-8 h-8 text-teal-500 animate-spin" />
+        <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
       </div>
     );
   }
@@ -48,10 +48,10 @@ export default function DashboardPage() {
   return (
     <div className="space-y-8">
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-text-primary">
           {isGuest ? 'Welcome to Bio Nexus' : `Welcome back${user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name.split(' ')[0]}` : ''}`}
         </h1>
-        <p className="text-sm text-gray-500 mt-1">
+        <p className="text-sm text-text-secondary mt-1">
           {isGuest ? 'You\'re using as a guest. ' : ''}
           {usage.remaining} of {usage.limit} daily analyses remaining
         </p>
@@ -59,26 +59,26 @@ export default function DashboardPage() {
 
       <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: BarChart3, label: 'Total Jobs', value: jobs.length, color: 'text-teal-600', bg: 'bg-teal-50' },
-          { icon: CheckCircle, label: 'Completed', value: completedCount, color: 'text-teal-600', bg: 'bg-teal-50' },
-          { icon: TrendingUp, label: 'Today', value: usage.count, color: 'text-blue-600', bg: 'bg-blue-50' },
-          { icon: XCircle, label: 'Failed', value: failedCount, color: 'text-red-500', bg: 'bg-red-50' },
+          { icon: BarChart3, label: 'Total Jobs', value: jobs.length, color: 'text-accent-cyan', bg: 'bg-accent-cyan/10' },
+          { icon: CheckCircle, label: 'Completed', value: completedCount, color: 'text-accent-cyan', bg: 'bg-accent-cyan/10' },
+          { icon: TrendingUp, label: 'Today', value: usage.count, color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
+          { icon: XCircle, label: 'Failed', value: failedCount, color: 'text-error', bg: 'bg-error/10' },
         ].map((s) => (
-          <motion.div key={s.label} variants={fadeUp} whileHover={cardHover} className="bg-white rounded-xl border border-gray-200 p-4">
+          <motion.div key={s.label} variants={fadeUp} whileHover={cardHover} className="glass-card p-4">
             <div className={`w-8 h-8 ${s.bg} rounded-lg flex items-center justify-center mb-2`}>
               <s.icon className={`w-4 h-4 ${s.color}`} />
             </div>
-            <div className="text-2xl font-bold text-gray-900">{s.value}</div>
-            <div className="text-xs text-gray-500">{s.label}</div>
+            <div className="text-2xl font-bold text-text-primary">{s.value}</div>
+            <div className="text-xs text-text-muted">{s.label}</div>
           </motion.div>
         ))}
       </motion.div>
 
       <div>
         <motion.div variants={fadeUp} className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Activity</h2>
+          <h2 className="text-lg font-semibold text-text-primary">Recent Activity</h2>
           {jobs.length > 0 && (
-            <Link href="/jobs" className="text-sm text-teal-600 hover:text-teal-700 font-medium">
+            <Link href="/jobs" className="text-sm text-accent-cyan hover:text-accent-cyan/80 font-medium transition">
               View all
             </Link>
           )}
@@ -88,25 +88,28 @@ export default function DashboardPage() {
           <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-3">
             {recentJobs.map((job) => {
               const Icon = STATUS_ICONS[job.status] || Clock;
-              const color = STATUS_COLORS[job.status] || 'text-gray-400';
+              const color = STATUS_COLORS[job.status] || 'text-text-muted';
               const label = job.current_step_label || STEP_LABELS[job.status as keyof typeof STEP_LABELS] || job.status;
               return (
                 <motion.div key={job.id} variants={fadeUp}>
                   <Link
                     href={`/jobs/${job.id}`}
-                    className="block bg-white rounded-xl border border-gray-200 p-4 hover:border-teal-300 hover:shadow-sm transition"
+                    className="block glass-card p-4 hover:bg-surface-2 transition"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${job.status === 'complete' ? 'bg-teal-50' : job.status === 'failed' ? 'bg-red-50' : 'bg-gray-50'}`}>
+                      <div className={`w-8 h-8 rounded-lg flex items-center justify-center ${
+                        job.status === 'complete' ? 'bg-accent-cyan/10' :
+                        job.status === 'failed' ? 'bg-error/10' : 'bg-surface-1'
+                      }`}>
                         <Icon className={`w-4 h-4 ${color}`} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-gray-900 truncate">{label}</p>
+                        <p className="text-sm font-medium text-text-primary truncate">{label}</p>
                         {job.context_json?.query?.sequence && (
-                          <p className="text-xs text-gray-500 truncate mt-0.5">{job.context_json.query.sequence.slice(0, 80)}...</p>
+                          <p className="text-xs text-text-muted truncate mt-0.5">{job.context_json.query.sequence.slice(0, 80)}...</p>
                         )}
                       </div>
-                      <div className="text-xs text-gray-400 shrink-0">
+                      <div className="text-xs text-text-muted shrink-0">
                         {new Date(job.created_at || Date.now()).toLocaleDateString()}
                       </div>
                     </div>
@@ -116,13 +119,13 @@ export default function DashboardPage() {
             })}
           </motion.div>
         ) : (
-          <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 p-12 text-center">
-            <Dna className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Run your first analysis</h3>
-            <p className="text-sm text-gray-500 mb-6">Submit a protein sequence to BLAST, get annotations, structure data, and AI-powered interpretation.</p>
+          <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-12 text-center">
+            <Dna className="w-12 h-12 text-text-muted mx-auto mb-4" />
+            <h3 className="text-lg font-semibold text-text-primary mb-2">Run your first analysis</h3>
+            <p className="text-sm text-text-secondary mb-6">Submit a protein sequence to BLAST, get annotations, structure data, and AI-powered interpretation.</p>
             <Link
               href="/analyze"
-              className="inline-flex items-center gap-2 px-6 py-3 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition"
+              className="inline-flex items-center gap-2 px-6 py-3 btn-primary text-sm"
             >
               <Play className="w-4 h-4" />
               Start Analysis

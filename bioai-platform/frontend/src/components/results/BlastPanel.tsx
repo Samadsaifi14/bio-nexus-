@@ -14,10 +14,10 @@ interface BlastPanelProps {
 }
 
 function confidenceBand(evalue: number): { label: string; color: string; bg: string } {
-  if (evalue < 1e-50) return { label: 'Very High', color: 'text-teal-700', bg: 'bg-teal-50' };
-  if (evalue < 1e-10) return { label: 'High', color: 'text-blue-700', bg: 'bg-blue-50' };
-  if (evalue < 1e-3) return { label: 'Moderate', color: 'text-amber-700', bg: 'bg-amber-50' };
-  return { label: 'Low', color: 'text-gray-500', bg: 'bg-gray-100' };
+  if (evalue < 1e-50) return { label: 'Very High', color: 'text-accent-cyan', bg: 'bg-accent-cyan/10' };
+  if (evalue < 1e-10) return { label: 'High', color: 'text-accent-purple', bg: 'bg-accent-purple/10' };
+  if (evalue < 1e-3) return { label: 'Moderate', color: 'text-accent-amber', bg: 'bg-accent-amber/10' };
+  return { label: 'Low', color: 'text-text-muted', bg: 'bg-surface-1' };
 }
 
 function formatEvalue(evalue: number, evalue_raw?: string): string {
@@ -34,14 +34,14 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
 
   return (
-    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
-      <div className="px-6 py-4 border-b border-gray-100 bg-gray-50 flex items-center justify-between">
-        <h2 className="font-semibold text-gray-900">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card overflow-hidden">
+      <div className="px-6 py-4 border-b border-glass-border bg-surface-1 flex items-center justify-between">
+        <h2 className="font-semibold text-text-primary">
           BLAST Hits
-          <span className="text-xs text-gray-400 ml-2 font-normal">({count} found{source ? ` via ${source}` : ''})</span>
+          <span className="text-xs text-text-muted ml-2 font-normal">({count} found{source ? ` via ${source}` : ''})</span>
         </h2>
       </div>
-      <motion.div variants={stagger} className="divide-y divide-gray-100">
+      <motion.div variants={stagger} className="divide-y divide-glass-border">
         {hits.map((hit, i) => {
           const band = confidenceBand(hit.evalue);
           const isExpanded = expanded === i;
@@ -49,14 +49,14 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
             <motion.div key={hit.accession} variants={fadeUp}>
               <button
                 onClick={() => setExpanded(isExpanded ? null : i)}
-                className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-gray-50 transition"
+                className="w-full px-6 py-4 flex items-center justify-between text-left hover:bg-surface-1 transition"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-3">
-                    <span className="text-xs font-mono bg-gray-100 px-2 py-0.5 rounded text-gray-600">{hit.accession}</span>
-                    <span className="text-sm text-gray-700 truncate">{hit.description}</span>
+                    <span className="text-xs font-mono bg-surface-1 px-2 py-0.5 rounded text-text-secondary">{hit.accession}</span>
+                    <span className="text-sm text-text-primary truncate">{hit.description}</span>
                   </div>
-                  <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+                  <div className="flex items-center gap-4 mt-2 text-xs text-text-muted">
                     <span>
                       E-value:{' '}
                       <strong className={band.color}>{formatEvalue(hit.evalue, hit.evalue_raw)}</strong>
@@ -64,11 +64,11 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
                         {band.label}
                       </span>
                     </span>
-                    <span>Identity: <strong className="text-gray-900">{hit.identity_pct}%</strong></span>
-                    <span>Score: <strong className="text-gray-900">{hit.bit_score}</strong></span>
+                    <span>Identity: <strong className="text-text-primary">{hit.identity_pct}%</strong></span>
+                    <span>Score: <strong className="text-text-primary">{hit.bit_score}</strong></span>
                   </div>
                 </div>
-                {isExpanded ? <ChevronUp className="w-5 h-5 text-gray-400" /> : <ChevronDown className="w-5 h-5 text-gray-400" />}
+                {isExpanded ? <ChevronUp className="w-5 h-5 text-text-muted" /> : <ChevronDown className="w-5 h-5 text-text-muted" />}
               </button>
               {isExpanded && (
                 <div className="px-6 pb-4">
@@ -77,7 +77,7 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
                     href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-sm text-teal-600 hover:text-teal-700"
+                    className="mt-2 inline-flex items-center gap-1 text-sm text-accent-cyan hover:text-accent-cyan/80 transition"
                   >
                     View on NCBI <ExternalLink className="w-3.5 h-3.5" />
                   </a>

@@ -1,17 +1,18 @@
-"use client";
+'use client';
 
-import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
-import { getJobs } from "@/lib/api";
-import type { JobStatus } from "@/types/pipeline";
-import { motion } from "framer-motion";
-import { fadeUp, stagger, fadeIn } from "@/lib/animations";
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { getJobs } from '@/lib/api';
+import type { JobStatus } from '@/types/pipeline';
+import { motion } from 'framer-motion';
+import { fadeUp, stagger } from '@/lib/animations';
+import { LoaderCircle, FileText, Dna } from 'lucide-react';
 
 const STATUS_STYLES: Record<string, string> = {
-  complete: "bg-teal-100 text-teal-800",
-  running:  "bg-blue-100 text-blue-800",
-  queued:   "bg-yellow-100 text-yellow-800",
-  failed:   "bg-red-100 text-red-800",
+  complete: 'badge bg-accent-cyan/10 text-accent-cyan',
+  running:  'badge bg-accent-purple/10 text-accent-purple',
+  queued:   'badge bg-accent-amber/10 text-accent-amber',
+  failed:   'badge bg-error/10 text-error',
 };
 
 export default function HistoryPage() {
@@ -29,26 +30,28 @@ export default function HistoryPage() {
 
   if (loading) {
     return (
-      <div className="p-6 flex items-center gap-2 text-gray-500 text-sm">
-        <span className="animate-spin rounded-full h-4 w-4 border-2 border-gray-300 border-t-teal-500" />
-        Loading history...
+      <div className="flex items-center justify-center py-20">
+        <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
       </div>
     );
   }
 
   if (error) {
     return (
-      <div className="p-6 text-red-500 text-sm">
-        Failed to load history: {error}
+      <div className="glass-card p-6 text-center">
+        <p className="text-sm text-error">Failed to load history: {error}</p>
       </div>
     );
   }
 
   if (jobs.length === 0) {
     return (
-      <div className="p-6 text-sm text-gray-500">
-        No analyses yet.{" "}
-        <a href="/analyze" className="text-teal-600 hover:underline">
+      <div className="glass-card p-16 text-center">
+        <FileText className="w-16 h-16 text-text-muted mx-auto mb-6" />
+        <h3 className="text-xl font-semibold text-text-primary mb-2">No history yet</h3>
+        <p className="text-sm text-text-secondary mb-6">Run your first analysis to see results here.</p>
+        <a href="/analyze" className="btn-primary px-6 py-3 inline-flex items-center gap-2 text-sm">
+          <Dna className="w-4 h-4" />
           Run your first sequence
         </a>
       </div>
@@ -56,16 +59,16 @@ export default function HistoryPage() {
   }
 
   return (
-    <div className="p-6 max-w-4xl">
-      <h1 className="text-xl font-semibold mb-5">Analysis history</h1>
-      <motion.div variants={fadeIn} initial="hidden" animate="show" className="rounded-xl border border-gray-200 overflow-hidden">
+    <div className="max-w-4xl">
+      <motion.h1 variants={fadeUp} className="text-2xl font-bold text-text-primary mb-6">Analysis history</motion.h1>
+      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
-            <tr className="bg-gray-50 border-b border-gray-200">
-              <th className="px-4 py-3 text-left font-medium text-gray-600 w-28">Job ID</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600">Pipeline</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 w-28">Status</th>
-              <th className="px-4 py-3 text-left font-medium text-gray-600 hidden sm:table-cell">Created</th>
+            <tr className="border-b border-glass-border bg-surface-1">
+              <th className="px-4 py-3 text-left font-medium text-text-muted w-28">Job ID</th>
+              <th className="px-4 py-3 text-left font-medium text-text-muted">Pipeline</th>
+              <th className="px-4 py-3 text-left font-medium text-text-muted w-28">Status</th>
+              <th className="px-4 py-3 text-left font-medium text-text-muted hidden sm:table-cell">Created</th>
             </tr>
           </thead>
           <motion.tbody variants={stagger} initial="hidden" animate="show">
@@ -74,21 +77,21 @@ export default function HistoryPage() {
                 key={job.id}
                 variants={fadeUp}
                 onClick={() => router.push(`/results/${job.id}`)}
-                className="border-b border-gray-100 hover:bg-gray-50 cursor-pointer transition-colors last:border-0"
+                className="border-b border-glass-border hover:bg-surface-1 cursor-pointer transition-colors last:border-0"
               >
-                <td className="px-4 py-3 font-mono text-xs text-gray-400">
+                <td className="px-4 py-3 font-mono text-xs text-text-muted">
                   {job.id.slice(0, 8)}...
                 </td>
-                <td className="px-4 py-3 text-gray-700 capitalize">
-                  {(job.pipeline_type ?? "protein_analysis").replace(/_/g, " ")}
+                <td className="px-4 py-3 text-text-secondary capitalize">
+                  {(job.pipeline_type ?? 'protein_analysis').replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_STYLES[job.status] ?? "bg-gray-100 text-gray-600"}`}>
+                  <span className={STATUS_STYLES[job.status] ?? 'badge bg-surface-2 text-text-muted text-[10px]'}>
                     {job.status}
                   </span>
                 </td>
-                <td className="px-4 py-3 text-gray-400 text-xs hidden sm:table-cell">
-                  {new Date(job.created_at).toLocaleString("en-IN", { dateStyle: "short", timeStyle: "short" })}
+                <td className="px-4 py-3 text-text-muted text-xs hidden sm:table-cell">
+                  {new Date(job.created_at).toLocaleString('en-IN', { dateStyle: 'short', timeStyle: 'short' })}
                 </td>
               </motion.tr>
             ))}

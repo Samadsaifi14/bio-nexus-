@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import { getSupabase } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -52,7 +52,7 @@ export default function AuthCallback() {
         <ThemeToggle compact />
       </div>
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="text-center">
-        <Loader2 className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-4" />
+        <LoaderCircle className="w-8 h-8 text-teal-600 animate-spin mx-auto mb-4" />
         <p className="text-sm text-gray-500">Completing sign in...</p>
       </motion.div>
     </div>

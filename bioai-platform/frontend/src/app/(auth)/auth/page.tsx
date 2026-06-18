@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dna, Loader2 } from 'lucide-react';
+import { Dna, LoaderCircle } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
@@ -24,7 +24,7 @@ export default function AuthPage() {
         <div className="absolute top-4 right-4">
           <ThemeToggle compact />
         </div>
-        <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
+        <LoaderCircle className="w-8 h-8 text-teal-600 animate-spin" />
       </div>
     );
   }

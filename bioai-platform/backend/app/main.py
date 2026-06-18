@@ -9,7 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
-from app.routers import pipelines, results, ai, jobs, export, share, waitlist, profile, sequences
+from app.routers import pipelines, results, ai, jobs, export, share, waitlist, profile, sequences, uniprot
 from app.services.cache import init_redis
 from app.tools.registration import register_all_tools
 
@@ -44,6 +44,7 @@ app.include_router(share.router, prefix="/api/share", tags=["share"])
 app.include_router(waitlist.router, prefix="/api/waitlist", tags=["waitlist"])
 app.include_router(profile.router, prefix="/api/profile", tags=["profile"])
 app.include_router(sequences.router, prefix="/api/sequences", tags=["sequences"])
+app.include_router(uniprot.router, prefix="/api/uniprot", tags=["uniprot"])
 
 TERMINAL_STATUSES = {"complete", "failed"}
 NON_TERMINAL_STATUSES = {

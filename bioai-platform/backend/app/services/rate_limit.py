@@ -11,7 +11,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 
-def _extract_user_id(request: Request) -> str | None:
+def _extract_user_id_from_request(request: Request) -> str | None:
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
         return None
@@ -32,7 +32,7 @@ def _extract_user_id(request: Request) -> str | None:
 
 
 async def check_daily_limit(request: Request) -> None:
-    user_id = _extract_user_id(request)
+    user_id = _extract_user_id_from_request(request)
     if not user_id:
         logger.info("Rate limit check skipped: no authenticated user session")
         return

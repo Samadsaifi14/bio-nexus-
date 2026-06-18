@@ -4,6 +4,7 @@ from app.services.validators import validate_fasta
 from app.pipeline.definitions.protein_analysis import get_pipeline_definition
 from app.services.supabase import get_supabase
 from app.services.rate_limit import check_daily_limit
+from app.services.auth import get_user_id
 from app.workers.pipeline_worker import run_pipeline_sync
 from app.models.responses import PipelineRunResponse, PipelineDefinitionResponse
 from datetime import datetime, timezone
@@ -20,7 +21,7 @@ class PipelineRunRequest(BaseModel):
 
 
 @router.post("/run", response_model=PipelineRunResponse, dependencies=[Depends(check_daily_limit)])
-async def run_pipeline(req: PipelineRunRequest):
+async def run_pipeline(req: PipelineRunRequest, user_id: str | None = Depends(get_user_id)):
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)
@@ -33,6 +34,7 @@ async def run_pipeline(req: PipelineRunRequest):
 
     supabase.table("jobs").insert({
         "id": job_id,
+        "user_id": user_id,
         "tool": "pipeline",
         "query_preview": clean[:100],
         "status": "queued",

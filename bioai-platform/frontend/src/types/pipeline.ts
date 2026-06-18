@@ -144,6 +144,7 @@ export interface UniprotSummary {
   features: UniprotFeature[];
   go_terms: string[];
   sequence_length: number;
+  sequence: string;
 }
 
 export interface UniprotFeature {

@@ -19,8 +19,8 @@ const operations = [
     name: 'UniProt Lookup',
     description: 'Retrieve detailed annotations, functions, and features for a known protein.',
     icon: Globe,
-    active: false,
-    badge: 'Coming in Phase 1',
+    active: true,
+    badge: null,
   },
   {
     id: 'msa',

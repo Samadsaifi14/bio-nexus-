@@ -1,8 +1,22 @@
 import axios from 'axios';
 import type { JobStatus, PipelineDefinition, AssembledContext, BlastSummary, UniprotSummary, AlphaFoldResult, SequenceResult, SequenceValidation, SequenceSearchResponse } from '@/types/pipeline';
+import { getSupabase } from './supabase';
 
 const api = axios.create({
   baseURL: '/api/backend',
+});
+
+api.interceptors.request.use(async (config) => {
+  try {
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  } catch {
+    // Session fetch failed silently — requests will be anonymous
+  }
+  return config;
 });
 
 export async function runPipeline(
@@ -78,6 +92,23 @@ export async function validateSequence(sequence: string): Promise<SequenceValida
   return res.data;
 }
 
+export async function searchUniprot(query: string, maxResults: number = 20): Promise<{ results: UniprotSearchResult[]; count: number }> {
+  const res = await api.post('/api/uniprot/search', { query, max_results: maxResults });
+  return res.data;
+}
+
+export async function getUniprotDetail(accession: string): Promise<UniprotSummary> {
+  const res = await api.post('/api/uniprot/detail', { accession });
+  return res.data;
+}
+
+export type UniprotSearchResult = {
+  accession: string;
+  name: string;
+  gene_names: string[];
+  organism: string;
+  length: number;
+};
 export async function searchSequences(query: string, db: string = 'protein', maxResults: number = 10): Promise<SequenceSearchResponse> {
   const res = await api.post('/api/sequences/search', {
     query,

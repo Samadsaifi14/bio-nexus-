@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { searchUniprot, getUniprotDetail } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import type { UniprotSummary } from '@/types/pipeline';
 
 type SearchResult = {
@@ -34,8 +35,8 @@ export default function UniprotLookupPage() {
     try {
       const res = await searchUniprot(query.trim());
       setResults(res.results);
-    } catch {
-      setError('Search failed');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, 'Search failed'));
     } finally {
       setLoading(false);
     }
@@ -48,8 +49,8 @@ export default function UniprotLookupPage() {
     try {
       const res = await getUniprotDetail(accession);
       setDetail(res);
-    } catch {
-      setError('Failed to fetch details');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, 'Failed to fetch details'));
     } finally {
       setDetailLoading(false);
     }

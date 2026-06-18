@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, LoaderCircle, ChevronRight } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { runAlignment } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import type { AlignmentResult } from '@/lib/api';
 
 const SAMPLE_PAIR = `>Protein_A
@@ -29,8 +30,8 @@ export default function AlignmentPage() {
     try {
       const res = await runAlignment(input, stype);
       setResult(res);
-    } catch {
-      setError('Alignment failed — check your sequences and try again.');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, 'Alignment failed'));
     } finally {
       setLoading(false);
     }

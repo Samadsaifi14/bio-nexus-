@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, LoaderCircle, ExternalLink, GitBranch } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { searchPathways } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import type { PathwayResult } from '@/lib/api';
 
 export default function PathwayPage() {
@@ -23,8 +24,8 @@ export default function PathwayPage() {
     try {
       const res = await searchPathways(query.trim());
       setResults(res.results);
-    } catch {
-      setError('Pathway search failed');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, 'Pathway search failed'));
     } finally {
       setLoading(false);
     }

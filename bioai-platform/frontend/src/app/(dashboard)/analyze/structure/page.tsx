@@ -6,6 +6,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, LoaderCircle, ExternalLink, Dna } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { fetchStructure } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
 import type { StructureResult } from '@/lib/api';
 
 export default function StructurePage() {
@@ -23,8 +24,8 @@ export default function StructurePage() {
     try {
       const res = await fetchStructure(query.trim());
       setResult(res);
-    } catch {
-      setError('Structure not found in PDB or AlphaFold');
+    } catch (err: unknown) {
+      setError(extractErrorMessage(err, 'Structure not found'));
     } finally {
       setLoading(false);
     }

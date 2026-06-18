@@ -4,6 +4,7 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dna, Loader2 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function AuthPage() {
   const { user, loading, signIn, isGuest } = useAuth();
@@ -18,6 +19,9 @@ export default function AuthPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle compact />
+        </div>
         <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
       </div>
     );
@@ -25,6 +29,9 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
+      <div className="absolute top-4 right-4">
+        <ThemeToggle compact />
+      </div>
       <div className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
           <Dna className="w-8 h-8 text-teal-600" />

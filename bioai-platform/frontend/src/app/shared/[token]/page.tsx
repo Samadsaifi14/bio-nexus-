@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Dna, Loader2 } from 'lucide-react';
 import type { JobStatus } from '@/types/pipeline';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { getSharedResult } from '@/lib/api';
 import { AIInterpretation } from '@/components/results/AIInterpretation';
 import { BlastPanel } from '@/components/results/BlastPanel';
@@ -27,6 +28,9 @@ export default function SharedResultPage() {
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle compact />
+        </div>
         <Loader2 className="w-8 h-8 text-teal-600 animate-spin" />
       </div>
     );
@@ -35,6 +39,9 @@ export default function SharedResultPage() {
   if (error || !job) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
+        <div className="absolute top-4 right-4">
+          <ThemeToggle compact />
+        </div>
         <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center max-w-sm">
           <Dna className="w-12 h-12 text-gray-200 mx-auto mb-4" />
           <h2 className="text-lg font-semibold text-gray-900 mb-2">Not Found</h2>
@@ -48,6 +55,9 @@ export default function SharedResultPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
+      <div className="absolute top-4 right-4 z-10">
+        <ThemeToggle compact />
+      </div>
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
           <Dna className="w-7 h-7 text-teal-600" />

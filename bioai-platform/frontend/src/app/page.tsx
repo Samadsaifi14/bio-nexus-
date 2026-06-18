@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { Dna, Zap, Brain, Database, ChevronRight, ArrowRight } from 'lucide-react';
 import { SequenceTypewriter } from '@/components/SequenceTypewriter';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 export default function Home() {
   return (
@@ -13,7 +14,8 @@ export default function Home() {
             <Dna className="w-8 h-8 text-teal-600" />
             <span className="text-xl font-bold text-gray-900 font-display">Bio Nexus</span>
           </div>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-2">
+            <ThemeToggle compact />
             <Link href="/auth" className="text-sm text-gray-600 hover:text-gray-900 font-medium">
               Sign in
             </Link>

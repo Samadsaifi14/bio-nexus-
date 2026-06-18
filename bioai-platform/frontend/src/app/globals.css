@@ -12,8 +12,8 @@
   --bg-surface-3: #151528;
 
   --accent-cyan:   #00F5D4;
-  --accent-purple: #8B5CF6;
-  --accent-amber:  #F59E0B;
+  --accent-purple:    #8B5CF6;
+  --accent-amber:     #F59E0B;
 
   --accent-cyan-10:   rgba(0, 245, 212, 0.10);
   --accent-cyan-20:   rgba(0, 245, 212, 0.20);
@@ -66,6 +66,17 @@
     font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--text-primary);
+  }
+
+  input, textarea, select {
+    background-color: var(--bg-surface-1);
+    color: var(--text-primary);
+    border-color: var(--glass-border);
+  }
+
+  input::placeholder, textarea::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
   }
 
   code, pre, kbd, samp {
@@ -375,6 +386,7 @@
 .bg-purple-50 { background-color: rgba(167, 139, 250, 0.08) !important; }
 .text-purple-600 { color: #A78BFA !important; }
 
+.focus\:border-teal-500:focus { border-color: var(--accent-cyan) !important; }
 .focus\:ring-teal-200 { --tw-ring-color: var(--accent-cyan-20) !important; }
 .shadow-sm { box-shadow: 0 1px 3px rgba(0, 0, 0, 0.4) !important; }
 .shadow-md,

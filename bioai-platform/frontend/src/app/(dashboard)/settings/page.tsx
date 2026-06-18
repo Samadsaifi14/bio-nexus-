@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
 import toast from 'react-hot-toast';
-import { User, BarChart3, Bell, Key, Shield, Loader2, Save, ExternalLink, Trash2, Sun, Moon } from 'lucide-react';
+import { User, BarChart3, Bell, Key, Shield, Loader2, Save, Sun, Moon } from 'lucide-react';
 import { useTheme } from '@/contexts/theme';
 
 interface UsageStats {
@@ -18,11 +18,6 @@ export default function SettingsPage() {
   const [fullName, setFullName] = useState('');
   const [saving, setSaving] = useState(false);
   const [stats, setStats] = useState<UsageStats>({ jobsToday: 0, jobsTotal: 0, tokensUsed: 0 });
-  const [notifications, setNotifications] = useState({
-    emailOnComplete: true,
-    emailOnWeekly: false,
-  });
-  const [deleteRequested, setDeleteRequested] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -112,23 +107,11 @@ export default function SettingsPage() {
             <Bell className="w-5 h-5 text-teal-600" />
             <h2 className="text-lg font-semibold text-gray-900">Notifications</h2>
           </div>
-          {[
-            { key: 'emailOnComplete' as const, label: 'Email when analysis completes', desc: 'Get notified when a pipeline job finishes' },
-            { key: 'emailOnWeekly' as const, label: 'Weekly usage summary', desc: 'Receive a weekly email with your usage stats' },
-          ].map((item) => (
-            <div key={item.key} className="flex items-center justify-between py-2">
-              <div>
-                <p className="text-sm font-medium text-gray-900">{item.label}</p>
-                <p className="text-xs text-gray-500">{item.desc}</p>
-              </div>
-              <button
-                onClick={() => setNotifications((prev) => ({ ...prev, [item.key]: !prev[item.key] }))}
-                className={`relative w-11 h-6 rounded-full transition ${notifications[item.key] ? 'bg-teal-600' : 'bg-gray-300'}`}
-              >
-                <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform ${notifications[item.key] ? 'translate-x-5' : ''}`} />
-              </button>
-            </div>
-          ))}
+          <div className="bg-gray-50 rounded-xl p-6 text-center">
+            <Bell className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-medium text-gray-900 mb-1">Coming in a future update</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">Email notifications for completed analyses and weekly summaries.</p>
+          </div>
         </section>
 
         <section className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -175,26 +158,16 @@ export default function SettingsPage() {
           </div>
         </section>
 
-        <section className="bg-white rounded-2xl border border-red-200 p-6">
+        <section className="bg-white rounded-2xl border border-gray-200 p-6 opacity-60">
           <div className="flex items-center gap-2 mb-6">
-            <Trash2 className="w-5 h-5 text-red-600" />
-            <h2 className="text-lg font-semibold text-red-900">Danger Zone</h2>
+            <Shield className="w-5 h-5 text-gray-400" />
+            <h2 className="text-lg font-semibold text-gray-400">Danger Zone</h2>
           </div>
-          {deleteRequested ? (
-            <div className="bg-red-50 rounded-xl p-4 text-sm text-red-700">
-              Deletion request submitted. We will process it within 48 hours.
-            </div>
-          ) : (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-900">Request account deletion</p>
-                <p className="text-xs text-gray-500">This will remove all your data within 30 days</p>
-              </div>
-              <button onClick={() => { setDeleteRequested(true); toast.success('Deletion request submitted'); }} className="px-4 py-2 text-sm font-medium text-red-600 bg-red-50 hover:bg-red-100 rounded-lg transition">
-                Request deletion
-              </button>
-            </div>
-          )}
+          <div className="bg-gray-50 rounded-xl p-6 text-center">
+            <Shield className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <h3 className="text-sm font-medium text-gray-900 mb-1">Coming in a future update</h3>
+            <p className="text-xs text-gray-500 max-w-sm mx-auto">Account deletion and data export will be available here.</p>
+          </div>
         </section>
       </div>
     </div>

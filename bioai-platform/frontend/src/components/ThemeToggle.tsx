@@ -28,3 +28,5 @@ export function ThemeToggle({ compact = false }: { compact?: boolean }) {
     </button>
   );
 }
+
+export default ThemeToggle;

@@ -1,6 +1,5 @@
 import asyncio
 import logging
-import xml.etree.ElementTree as ET
 
 import httpx
 from fastapi import APIRouter, HTTPException
@@ -15,35 +14,17 @@ EBI_BASE = "https://www.ebi.ac.uk/Tools/services/rest/clustalo"
 POLL_INTERVAL = 2
 MAX_POLLS = 120
 
+# Valid result type names for Clustal Omega (confirmed via live API testing)
+# `fa` = FASTA alignment, `out` = stdout log, `phylotree` = Newick tree
+TREE_TYPES = ["phylotree"]
+
 
 class AlignRequest(BaseModel):
     sequence: str = Field(..., min_length=1, description="Two or more sequences in FASTA format")
     stype: str = Field("protein", description="Sequence type: protein or dna")
 
 
-async def _get_available_types(client: httpx.AsyncClient, job_id: str) -> list[str]:
-    """Query EBI for available result types for this job."""
-    try:
-        resp = await client.get(f"{EBI_BASE}/result/{job_id}/", headers={"Accept": "text/plain, application/xml"})
-        if resp.status_code == 200:
-            text = resp.text.strip()
-            # Try parsing as XML first
-            if text.startswith("<"):
-                root = ET.fromstring(text)
-                found = [t.text for t in root.iter() if t.text and t.tag == "type"]
-                if found:
-                    return found
-            # Fall back to plain text (one type per line)
-            lines = [line.strip() for line in text.splitlines() if line.strip()]
-            if lines:
-                return lines
-    except Exception:
-        pass
-    return []
-
-
 async def _fetch_result(client: httpx.AsyncClient, job_id: str, type_name: str) -> str | None:
-    """Try to fetch a specific result type from EBI."""
     for attempt in range(3):
         try:
             resp = await client.get(
@@ -93,34 +74,22 @@ async def run_alignment(req: AlignRequest):
 
         await asyncio.sleep(1)
 
-        # Get available result types from EBI
-        available = await _get_available_types(client, job_id)
-        logger.info(f"Available result types for {job_id}: {available}")
-
-        if not available:
-            raise HTTPException(status_code=502, detail="No result types available from EBI")
-
-        # Find the best alignment type (FASTA-like), then Clustal, then tree
-        fasta_type = next((t for t in available if "fasta" in t.lower()), available[0])
-        clustal_type = next((t for t in available if "clustal" in t.lower()), None)
-        tree_type = next((t for t in available if "phylotree" in t.lower() or "guide" in t.lower() or "tree" in t.lower()), None)
-
-        fasta_text = await _fetch_result(client, job_id, fasta_type)
+        # Fetch FASTA alignment (result type `fa` — NOT `aln-fasta`)
+        fasta_text = await _fetch_result(client, job_id, "fa")
         if fasta_text is None:
-            raise HTTPException(status_code=502, detail=f"Failed to fetch result type '{fasta_type}' from EBI")
+            raise HTTPException(status_code=502, detail="Failed to fetch alignment result from EBI")
 
-        clustal_text = None
-        if clustal_type:
-            clustal_text = await _fetch_result(client, job_id, clustal_type)
-
+        # Try phylogenetic tree (best-effort)
         tree_text = None
-        if tree_type:
-            tree_text = await _fetch_result(client, job_id, tree_type)
+        for t in TREE_TYPES:
+            tree_text = await _fetch_result(client, job_id, t)
+            if tree_text:
+                break
 
     return {
         "job_id": job_id,
         "aln_fasta": fasta_text,
-        "aln_clustal": clustal_text or "",
+        "aln_clustal": "",
         "phylotree": tree_text or "",
         "stype": req.stype,
     }

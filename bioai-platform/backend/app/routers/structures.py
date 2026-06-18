@@ -21,7 +21,7 @@ def _is_pdb_id(q: str) -> bool:
 
 
 async def _fetch_pdb(client: httpx.AsyncClient, pdb_id: str) -> dict | None:
-    resp = await client.get(f"{PDB_BASE}/{pdb_id}")
+    resp = await client.get(f"{PDB_BASE}/entry/{pdb_id}")
     if resp.status_code != 200:
         return None
     data = resp.json()
@@ -62,13 +62,18 @@ async def _resolve_pdb_via_rcsb_uniprot(client: httpx.AsyncClient, accession: st
             "type": "terminal",
             "service": "text",
             "parameters": {
-                "attribute": "rcsb_entry_info.associated_rcsb_entry_container_identifiers.entry_id",
-                "operator": "in",
+                "attribute": "rcsb_polymer_entity_container_identifiers.reference_sequence_identifiers.database_accession",
+                "operator": "exact_match",
                 "value": accession,
             },
         },
         "return_type": "entry",
-        "rows": 50,
+        "request_options": {
+            "paginate": {
+                "start": 0,
+                "rows": 50,
+            },
+        },
     }
     resp = await client.post(RCSB_SEARCH, json=payload, timeout=15)
     if resp.status_code != 200:
@@ -126,7 +131,12 @@ async def search_pdb(req: StructureSearchRequest):
             "parameters": {"value": req.query},
         },
         "return_type": "entry",
-        "rows": 20,
+        "request_options": {
+            "paginate": {
+                "start": 0,
+                "rows": 20,
+            },
+        },
     }
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(RCSB_SEARCH, json=payload)

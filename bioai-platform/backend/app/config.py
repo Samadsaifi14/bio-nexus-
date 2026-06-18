@@ -19,7 +19,7 @@ class Settings:
     PRO_MODEL: str = os.getenv("PRO_MODEL", "claude-sonnet-4-20250514")
     NCBI_EMAIL: str = os.getenv("NCBI_EMAIL", "bioflow@example.com")
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
-    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bio-nexus.vercel.app")
+    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bioai-platform.vercel.app")
 
 
 settings = Settings()

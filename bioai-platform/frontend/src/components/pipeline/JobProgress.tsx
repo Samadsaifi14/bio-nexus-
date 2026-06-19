@@ -10,9 +10,12 @@ interface Step {
 }
 
 const STEPS: Step[] = [
-  { name: 'blast', label: 'BLAST search' },
-  { name: 'uniprot', label: 'UniProt annotations' },
-  { name: 'alphafold', label: 'AlphaFold structure' },
+  { name: 'submitted_to_ncbi', label: 'Submitted to NCBI BLAST' },
+  { name: 'polling_ncbi',      label: 'NCBI is searching' },
+  { name: 'parsing',           label: 'Reading results' },
+  { name: 'interpreting',      label: 'Writing your explanation' },
+  { name: 'fetching_alphafold', label: 'Fetching AlphaFold structure' },
+  { name: 'complete',          label: 'Complete' },
 ];
 
 interface JobProgressProps {
@@ -25,6 +28,8 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
   const isFailed = status === 'failed';
   const stepSet = new Set(stepsCompleted);
   const pct = stepsCompleted.length === 0 ? 0 : Math.round((stepsCompleted.length / STEPS.length) * 100);
+
+  const nextPendingIndex = stepsCompleted.length;
 
   return (
     <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
@@ -39,9 +44,9 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
         />
       </div>
       <div className="space-y-3">
-        {STEPS.map((step) => {
+        {STEPS.map((step, i) => {
           const done = stepSet.has(step.name);
-          const active = status === 'running' && (step.name === stepsCompleted[stepsCompleted.length - 1] || (!done && stepsCompleted.length === 0 && step.name === STEPS[0].name));
+          const active = status === 'running' && !done && i === nextPendingIndex;
           return (
             <motion.div key={step.name} variants={fadeIn} className="flex items-center gap-3">
               {done ? (

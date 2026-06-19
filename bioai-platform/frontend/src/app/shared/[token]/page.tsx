@@ -8,6 +8,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { getSharedResult } from '@/lib/api';
 import { AIInterpretation } from '@/components/results/AIInterpretation';
 import { BlastPanel } from '@/components/results/BlastPanel';
+import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { motion } from 'framer-motion';
@@ -89,6 +90,12 @@ export default function SharedResultPage() {
               )}
               {context.uniprot && <UniprotPanel data={context.uniprot} />}
             </motion.div>
+
+            {context.blast?.hits && context.blast.hits.length > 0 && (
+              <motion.div variants={fadeUp}>
+                <ScoreBars hits={context.blast.hits} />
+              </motion.div>
+            )}
 
             {context.alphafold?.structure_available && (
               <motion.div variants={fadeUp}>

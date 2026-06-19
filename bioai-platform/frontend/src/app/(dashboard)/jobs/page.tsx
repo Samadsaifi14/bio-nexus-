@@ -36,7 +36,7 @@ export default function JobsPage() {
   useEffect(() => {
     getJobs()
       .then(setJobs)
-      .catch(() => {})
+      .catch((err) => { console.error(err); })
       .finally(() => setLoading(false));
   }, []);
 

@@ -5,7 +5,7 @@ import type { BlastHitSummary } from '@/types/pipeline';
 import { fadeUp, cardHover } from '@/lib/animations';
 
 interface ScoreBarsProps {
-  hits: BlastHitSummary[];
+  hits: BlastHitSummary[] | undefined | null;
 }
 
 function confidenceColor(evalue: number): string {
@@ -26,7 +26,7 @@ function formatEvalue(evalue: number, evalue_raw?: string): string {
 }
 
 export function ScoreBars({ hits }: ScoreBarsProps) {
-  if (hits.length === 0) return null;
+  if (!hits || hits.length === 0) return null;
 
   const maxScore = hits[0]?.bit_score || 1;
 

@@ -28,9 +28,10 @@ interface SequenceInputProps {
   onChange: (value: string) => void;
   onSubmit: () => void;
   loading: boolean;
+  error?: string | null;
 }
 
-export function SequenceInput({ value, onChange, onSubmit, loading }: SequenceInputProps) {
+export function SequenceInput({ value, onChange, onSubmit, loading, error }: SequenceInputProps) {
   const aaCount = value
     .split('\n')
     .filter((l) => !l.startsWith('>'))
@@ -47,6 +48,9 @@ export function SequenceInput({ value, onChange, onSubmit, loading }: SequenceIn
         placeholder=">sp|P04637|P53_HUMAN&#10;MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQ..."
         className="w-full h-40 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition font-mono text-sm text-gray-900 resize-none"
       />
+      {error && (
+        <p className="mt-2 text-sm text-red-600">{error}</p>
+      )}
       <div className="flex items-center justify-between mt-4">
         <div className="flex items-center gap-4">
           {SAMPLES.map((s) => (

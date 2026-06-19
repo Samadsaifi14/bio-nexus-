@@ -8,6 +8,7 @@ import {
   LayoutDashboard,
   FlaskConical,
   Clock,
+  History,
   Search,
   Settings,
   ChevronRight,
@@ -17,12 +18,14 @@ import {
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
   { href: '/analyze',   icon: FlaskConical,    label: 'Analyze'    },
   { href: '/retrieve',  icon: Search,          label: 'Retrieve'   },
   { href: '/jobs',      icon: Clock,           label: 'Jobs'       },
+  { href: '/history',   icon: History,         label: 'History'    },
   { href: '/settings',  icon: Settings,        label: 'Settings'   },
 ] as const;
 
@@ -296,7 +299,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto relative">
           <div className="absolute inset-0 bg-grid pointer-events-none opacity-[0.025]" />
           <div className="relative z-10 max-w-content mx-auto px-6 py-8">
-            {children}
+            <ErrorBoundary>{children}</ErrorBoundary>
           </div>
         </main>
       </div>

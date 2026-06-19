@@ -25,11 +25,12 @@ export default function DashboardPage() {
   const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [usage, setUsage] = useState({ count: 0, limit: 10, remaining: 10 });
   const [loading, setLoading] = useState(true);
+  const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([getJobs(), getJobCount()])
-      .then(([j, u]) => { setJobs(j); setUsage(u); })
-      .catch(() => {})
+      .then(([j, u]) => { setJobs(j); setUsage(u); setFetchError(null); })
+      .catch((err) => { setFetchError('Failed to load data — check your connection'); console.error(err); })
       .finally(() => setLoading(false));
   }, []);
 
@@ -47,6 +48,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-8">
+      {fetchError && (
+        <div className="glass-card p-4 border border-accent-amber/20 bg-accent-amber/5">
+          <p className="text-sm text-accent-amber">{fetchError}</p>
+        </div>
+      )}
       <div>
         <h1 className="text-2xl font-bold text-text-primary">
           {isGuest ? 'Welcome to Bio Nexus' : `Welcome back${user?.user_metadata?.full_name ? `, ${user.user_metadata.full_name.split(' ')[0]}` : ''}`}

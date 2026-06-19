@@ -6,10 +6,11 @@ import type { UniprotSummary } from '@/types/pipeline';
 import { fadeUp, cardHover } from '@/lib/animations';
 
 interface UniprotPanelProps {
-  data: UniprotSummary;
+  data: UniprotSummary | null;
 }
 
 export function UniprotPanel({ data }: UniprotPanelProps) {
+  if (!data) return null;
   return (
     <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-6">
       <div className="flex items-start justify-between mb-4">

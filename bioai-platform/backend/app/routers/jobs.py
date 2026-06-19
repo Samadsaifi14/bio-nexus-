@@ -31,19 +31,25 @@ async def list_jobs(user_id: str | None = Depends(get_user_id)):
 
 
 @router.get("/{job_id}")
-async def get_job(job_id: str):
+async def get_job(job_id: str, user_id: str | None = Depends(get_user_id)):
     supabase = get_supabase()
     result = supabase.table("jobs").select("*").eq("id", job_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Job not found")
-    return result.data[0]
+    job = result.data[0]
+    if user_id and job.get("user_id") and job["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    return job
 
 
 @router.delete("/{job_id}", response_model=JobDeleteResponse)
 async def delete_job(job_id: str, user_id: str | None = Depends(get_user_id)):
     supabase = get_supabase()
-    query = supabase.table("jobs").delete().eq("id", job_id)
-    if user_id:
-        query = query.eq("user_id", user_id)
-    query.execute()
+    result = supabase.table("jobs").select("id,user_id").eq("id", job_id).execute()
+    if not result.data:
+        raise HTTPException(status_code=404, detail="Job not found")
+    job = result.data[0]
+    if user_id and job.get("user_id") and job["user_id"] != user_id:
+        raise HTTPException(status_code=403, detail="Access denied")
+    supabase.table("jobs").delete().eq("id", job_id).execute()
     return {"status": "deleted"}

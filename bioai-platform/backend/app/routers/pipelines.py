@@ -15,7 +15,7 @@ router = APIRouter()
 
 class PipelineRunRequest(BaseModel):
     sequence: str
-    pipeline_type: str = "blast"
+    pipeline_type: str = "protein_analysis"
     database: str = "nr"
     max_hits: int = 10
 

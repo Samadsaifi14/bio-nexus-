@@ -1,9 +1,10 @@
 import axios from 'axios';
-import type { JobStatus, PipelineDefinition, AssembledContext, BlastSummary, UniprotSummary, AlphaFoldResult, SequenceResult, SequenceValidation, SequenceSearchResponse } from '@/types/pipeline';
+import type { JobStatus, UniprotSummary, SequenceResult, SequenceValidation, SequenceSearchResponse } from '@/types/pipeline';
 import { getSupabase } from './supabase';
 
 const api = axios.create({
   baseURL: '/api/backend',
+  timeout: 30_000,
 });
 
 api.interceptors.request.use(async (config) => {
@@ -34,11 +35,6 @@ export async function runPipeline(
   return res.data;
 }
 
-export async function getPipelineDefinitions(): Promise<PipelineDefinition[]> {
-  const res = await api.get('/api/pipelines/definitions');
-  return res.data.pipelines;
-}
-
 export async function getJob(jobId: string): Promise<JobStatus> {
   const res = await api.get(`/api/jobs/${jobId}`);
   return res.data;
@@ -47,10 +43,6 @@ export async function getJob(jobId: string): Promise<JobStatus> {
 export async function getJobs(): Promise<JobStatus[]> {
   const res = await api.get('/api/jobs');
   return res.data.jobs || [];
-}
-
-export async function deleteJob(jobId: string): Promise<void> {
-  await api.delete(`/api/jobs/${jobId}`);
 }
 
 export async function getJobCount(): Promise<{ count: number; limit: number; remaining: number }> {
@@ -63,17 +55,19 @@ export async function getSharedResult(token: string): Promise<JobStatus> {
   return res.data;
 }
 
-export function createJobPollingUrl(jobId: string): string {
-  return `/api/backend/api/jobs/${jobId}`;
-}
-
 export async function interpretStream(payload: {
   pipeline_type: string;
   context: unknown;
 }): Promise<Response> {
+  const supabase = getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
   const res = await fetch('/api/backend/api/ai/interpret/stream', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers,
     body: JSON.stringify(payload),
   });
   return res;
@@ -150,6 +144,7 @@ export async function fetchStructure(query: string): Promise<StructureResult> {
   return res.data;
 }
 
+/** @deprecated Unused — search is handled by fetchStructure */
 export async function searchStructures(query: string): Promise<{ results: { pdb_id: string; score: number }[]; count: number }> {
   const res = await api.post('/api/structures/search', { query });
   return res.data;

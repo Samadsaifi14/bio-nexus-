@@ -8,7 +8,7 @@ import { AlignmentView } from './AlignmentView';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
 interface BlastPanelProps {
-  hits: BlastHitSummary[];
+  hits: BlastHitSummary[] | undefined | null;
   count: number;
   source?: string;
 }
@@ -32,6 +32,7 @@ function formatEvalue(evalue: number, evalue_raw?: string): string {
 
 export function BlastPanel({ hits, count, source }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
+  const safeHits = hits ?? [];
 
   return (
     <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card overflow-hidden">
@@ -42,7 +43,9 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
         </h2>
       </div>
       <motion.div variants={stagger} className="divide-y divide-glass-border">
-        {hits.map((hit, i) => {
+        {safeHits.length === 0 ? (
+          <div className="px-6 py-8 text-center text-sm text-text-muted">No hits to display</div>
+        ) : safeHits.map((hit, i) => {
           const band = confidenceBand(hit.evalue);
           const isExpanded = expanded === i;
           return (

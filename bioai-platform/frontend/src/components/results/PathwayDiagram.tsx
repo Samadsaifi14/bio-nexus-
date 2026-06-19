@@ -34,6 +34,24 @@ declare global {
   }
 }
 
+const ISOLATION_CSS = (id: string) => `
+#${id} {
+  color-scheme: light;
+  background: #fff;
+  color: #1a1a2e;
+}
+#${id} * {
+  color: revert !important;
+  background-color: revert !important;
+  background-image: revert !important;
+  font-family: revert !important;
+  font-size: revert !important;
+  font-weight: revert !important;
+  line-height: revert !important;
+  text-align: revert !important;
+}
+`;
+
 export default function PathwayDiagram({ stId, geneName, height = 400 }: Props) {
   const containerId = useRef(`diagram-${stId}-${Math.random().toString(36).slice(2, 8)}`).current;
   const [loaded, setLoaded] = useState(false);
@@ -43,6 +61,10 @@ export default function PathwayDiagram({ stId, geneName, height = 400 }: Props) 
   const initCalled = useRef(false);
 
   useEffect(() => {
+    const style = document.createElement('style');
+    style.textContent = ISOLATION_CSS(containerId);
+    document.head.appendChild(style);
+
     if (initCalled.current) return;
     initCalled.current = true;
 
@@ -64,6 +86,7 @@ export default function PathwayDiagram({ stId, geneName, height = 400 }: Props) 
     };
 
     return () => {
+      style.remove();
       if (diagramRef.current) {
         diagramRef.current.resetHighlight();
         diagramRef.current.resetSelection();

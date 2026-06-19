@@ -58,7 +58,7 @@ export interface PipelineDefinition {
   default_max_hits: number;
 }
 
-export type JobStepStatus = 'queued' | 'submitted_to_ncbi' | 'polling_ncbi' | 'parsing' | 'interpreting' | 'fetching_alphafold' | 'complete' | 'failed';
+export type JobStepStatus = 'queued' | 'submitted_to_ncbi' | 'polling_ncbi' | 'parsing' | 'interpreting' | 'pathway_enrichment' | 'fetching_alphafold' | 'complete' | 'failed';
 
 export const STEP_LABELS: Record<JobStepStatus, string> = {
   queued: 'Queued',
@@ -66,6 +66,7 @@ export const STEP_LABELS: Record<JobStepStatus, string> = {
   polling_ncbi: 'NCBI is searching — this can take a minute',
   parsing: 'Reading results',
   interpreting: 'Writing your explanation',
+  pathway_enrichment: 'Running pathway enrichment',
   fetching_alphafold: 'Fetching AlphaFold structure',
   complete: 'Complete',
   failed: 'Failed',
@@ -88,6 +89,20 @@ export interface JobStatus {
   share_token: string | null;
 }
 
+export interface PathwayEnrichmentPathway {
+  stId: string;
+  name: string;
+  species: string;
+  entitiesFound: number;
+  entitiesTotal: number;
+  entitiesFDR: number;
+}
+
+export interface PathwayEnrichment {
+  token: string;
+  pathways: PathwayEnrichmentPathway[];
+}
+
 export interface AssembledContext {
   query: {
     sequence: string;
@@ -96,6 +111,7 @@ export interface AssembledContext {
   blast: BlastSummary;
   uniprot: UniprotSummary | null;
   alphafold: AlphaFoldResult | null;
+  pathway_enrichment?: PathwayEnrichment | null;
 }
 
 export interface BlastSummary {

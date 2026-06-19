@@ -27,6 +27,7 @@ STEP_STATUSES = [
     "polling_ncbi",
     "parsing",
     "interpreting",
+    "pathway_enrichment",
     "fetching_alphafold",
     "complete",
 ]
@@ -201,6 +202,33 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
                     }
             except Exception as e:
                 logger.warning(f"[{job_id}] UniProt fetch failed (non-fatal): {e}")
+
+        pathway_enrichment_result = None
+        try:
+            gene_names = []
+            if context.get("uniprot", {}).get("gene_names"):
+                gene_names = context["uniprot"]["gene_names"][:20]
+            if not gene_names:
+                for hit in parsed.get("hits", [])[:10]:
+                    words = (hit.get("description", "") or "").replace("(", " ").replace(")", " ").split()
+                    for w in words:
+                        if w.isupper() and len(w) >= 2 and not w.startswith("OS="):
+                            gene_names.append(w)
+                            break
+            if gene_names:
+                from app.services.pathway_enrichment import run_enrichment
+                pathway_enrichment_result = await run_enrichment(gene_names)
+                if pathway_enrichment_result:
+                    logger.info(f"[{job_id}] Pathway enrichment found {len(pathway_enrichment_result['pathways'])} pathways")
+        except Exception as e:
+            logger.warning(f"[{job_id}] Pathway enrichment failed (non-fatal): {e}")
+
+        context["pathway_enrichment"] = pathway_enrichment_result
+
+        if pathway_enrichment_result:
+            await _set_step("pathway_enrichment", 80)
+        else:
+            logger.info(f"[{job_id}] Skipping pathway_enrichment step (no enrichment data)")
 
         alphafold_data = None
         uniprot_id = context.get("uniprot", {}).get("accession")

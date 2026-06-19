@@ -161,3 +161,46 @@ export async function searchPathways(query: string, species: string = 'Homo sapi
   const res = await api.post('/api/pathways/search', { query, species });
   return res.data;
 }
+
+export type PathwayDetail = {
+  pathway_id: string;
+  name: string;
+  species: string;
+  description: string;
+  url: string;
+};
+
+export async function fetchPathwayDetail(pathwayId: string): Promise<PathwayDetail> {
+  const res = await api.post('/api/pathways/detail', { pathway_id: pathwayId });
+  return res.data;
+}
+
+export type KEGGPathwayResult = {
+  pathway_id: string;
+  name: string;
+  organism: string;
+  url: string;
+  image_url: string;
+};
+
+export async function searchKEGGPathways(query: string): Promise<{ results: KEGGPathwayResult[]; count: number }> {
+  const res = await api.post('/api/pathways/kegg/search', { query });
+  return res.data;
+}
+
+export type EnrichmentResult = {
+  token: string;
+  pathways: Array<{
+    stId: string;
+    name: string;
+    species: string;
+    entitiesFound: number;
+    entitiesTotal: number;
+    entitiesFDR: number;
+  }>;
+};
+
+export async function runEnrichment(identifiers: string[]): Promise<EnrichmentResult> {
+  const res = await api.post('/api/pathways/enrichment', { identifiers });
+  return res.data;
+}

@@ -11,6 +11,7 @@ import { BlastPanel } from '@/components/results/BlastPanel';
 import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
+import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
 
@@ -100,6 +101,12 @@ export default function SharedResultPage() {
             {context.alphafold?.structure_available && (
               <motion.div variants={fadeUp}>
                 <AlphaFoldViewer pdbUrl={context.alphafold.pdb_url} uniprotId={context.alphafold.uniprot_accession} />
+              </motion.div>
+            )}
+
+            {context.pathway_enrichment && (
+              <motion.div variants={fadeUp}>
+                <PathwayEnrichment data={context.pathway_enrichment} />
               </motion.div>
             )}
           </motion.div>

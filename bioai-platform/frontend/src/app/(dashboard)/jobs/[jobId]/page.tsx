@@ -11,6 +11,7 @@ import { BlastPanel } from '@/components/results/BlastPanel';
 import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
+import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { getJob } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
@@ -299,6 +300,12 @@ export default function JobPage() {
                 pdbUrl={context.alphafold.pdb_url}
                 uniprotId={context.alphafold.uniprot_accession}
               />
+            </motion.div>
+          )}
+
+          {context.pathway_enrichment && (
+            <motion.div variants={fadeUp} whileHover={cardHover}>
+              <PathwayEnrichment data={context.pathway_enrichment} />
             </motion.div>
           )}
 

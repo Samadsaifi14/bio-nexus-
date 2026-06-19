@@ -97,41 +97,57 @@ async def pathway_detail(req: PathwayDetailRequest):
 
 @router.post("/kegg/search")
 async def kegg_search(req: KEGGSearchRequest):
-    query = req.query.strip().upper()
+    query = req.query.strip()
     results = []
     seen = set()
+    q_upper = query.upper()
 
     async with httpx.AsyncClient(timeout=15) as client:
-        gene_resp = await client.get(f"https://rest.kegg.jp/find/genes/{query}+human")
-        if gene_resp.status_code == 200:
-            gene_lines = gene_resp.text.strip().split("\n")
-            for line in gene_lines:
-                if not line.startswith("hsa:"):
+        find_resp = await client.get(f"https://rest.kegg.jp/find/hsa/{query}")
+        kegg_gene_id = None
+        if find_resp.status_code == 200:
+            for line in find_resp.text.strip().split("\n"):
+                parts = line.split("\t", 1)
+                if len(parts) != 2:
                     continue
-                kegg_gene_id = line.split("\t")[0]
-                link_resp = await client.get(f"https://rest.kegg.jp/link/pathway/{kegg_gene_id}")
-                if link_resp.status_code == 200:
-                    for link_line in link_resp.text.strip().split("\n"):
-                        if link_line.startswith("path:"):
-                            pid = link_line.split("\t")[0].replace("path:", "")
-                            if pid not in seen:
-                                seen.add(pid)
-                                name_resp = await client.get(f"https://rest.kegg.jp/list/pathway/hsa")
-                                name_map = {}
-                                if name_resp.status_code == 200:
-                                    for nl in name_resp.text.strip().split("\n"):
-                                        parts = nl.split("\t", 1)
-                                        if len(parts) == 2:
-                                            name_map[parts[0]] = parts[1]
-                                name = name_map.get(pid, "").split(" - ")[0] if pid in name_map else ""
-                                results.append({
-                                    "pathway_id": pid,
-                                    "name": name,
-                                    "organism": "Homo sapiens",
-                                    "url": f"https://www.kegg.jp/entry/{pid}",
-                                    "image_url": f"https://rest.kegg.jp/get/{pid}/image",
-                                })
-                                break  # First gene match only, but may hit multiple pathways
+                gene_id = parts[0]
+                after_tab = parts[1]
+                symbols_part = after_tab.split(";")[0]
+                symbols = [s.strip().upper() for s in symbols_part.split(",")]
+                if q_upper in symbols:
+                    kegg_gene_id = gene_id
+                    break
+
+        if kegg_gene_id:
+            gene_resp = await client.get(f"https://rest.kegg.jp/get/{kegg_gene_id}")
+            if gene_resp.status_code == 200:
+                in_pathway = False
+                for line in gene_resp.text.split("\n"):
+                    if line.startswith("PATHWAY"):
+                        in_pathway = True
+                    elif in_pathway:
+                        s = line.strip()
+                        if s == "":
+                            continue
+                        if not line.startswith(" "):
+                            in_pathway = False
+                            continue
+                    if not in_pathway:
+                        continue
+                    rest = line[9:] if line.startswith("PATHWAY") else line.strip()
+                    rest = rest.strip()
+                    parts = rest.split(None, 1)
+                    if len(parts) == 2:
+                        pid, pname = parts
+                        if pid not in seen:
+                            seen.add(pid)
+                            results.append({
+                                "pathway_id": pid,
+                                "name": pname,
+                                "organism": "Homo sapiens",
+                                "url": f"https://www.kegg.jp/entry/{pid}",
+                                "image_url": f"https://rest.kegg.jp/get/{pid}/image",
+                            })
 
         if not results:
             text_resp = await client.get(f"https://rest.kegg.jp/find/pathway/{query}")
@@ -139,7 +155,7 @@ async def kegg_search(req: KEGGSearchRequest):
                 for line in text_resp.text.strip().split("\n"):
                     parts = line.split("\t", 1)
                     if len(parts) == 2:
-                        pid = parts[0].replace("path:", "")
+                        pid = parts[0]
                         name = parts[1].split(" - ")[0]
                         organism = parts[1].split(" - ")[-1] if " - " in parts[1] else ""
                         if pid not in seen:
@@ -147,7 +163,7 @@ async def kegg_search(req: KEGGSearchRequest):
                             results.append({
                                 "pathway_id": pid,
                                 "name": name,
-                                "organism": organism,
+                                "organism": organism if organism != name else "Homo sapiens",
                                 "url": f"https://www.kegg.jp/entry/{pid}",
                                 "image_url": f"https://rest.kegg.jp/get/{pid}/image",
                             })

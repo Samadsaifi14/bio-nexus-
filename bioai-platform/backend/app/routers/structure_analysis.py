@@ -169,16 +169,14 @@ async def compare_structures(pdb_id: str, chain: str = Query(default="A"),
         r = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
         if r.status_code != 200:
             raise HTTPException(404, f"PDB file not found: {pdb_id}")
-        pdb_text = _extract_chain(r.text, chain)
-        if not pdb_text.strip():
-            raise HTTPException(404, f"Chain {chain} not found in {pdb_id}")
+        pdb_text = r.text
 
     # 2. Submit to Foldseek
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         submit = await client.post(
             f"{FOLDSEEK_BASE}/ticket",
-            files={"q": (f"{pdb_id}_{chain}.pdb", pdb_text)},
-            data={"mode": "tmalign", "database[]": ["pdb100"]},
+            files={"q": (f"{pdb_id}.pdb", pdb_text.encode())},
+            data=[("mode", "tmalign"), ("database[]", "pdb100")],
         )
         if submit.status_code != 200:
             raise HTTPException(502, f"Foldseek submission failed (HTTP {submit.status_code})")
@@ -187,12 +185,12 @@ async def compare_structures(pdb_id: str, chain: str = Query(default="A"),
             raise HTTPException(502, "Foldseek returned no ticket ID")
 
     # 3. Poll for results (up to ~120s)
-    async with httpx.AsyncClient(timeout=10) as client:
+    async with httpx.AsyncClient(timeout=30) as client:
         for _ in range(60):
             await asyncio.sleep(2)
             status = await client.get(f"{FOLDSEEK_BASE}/ticket/{ticket}")
             if status.status_code != 200:
-                break  # try reading results anyway
+                continue
             s = status.json().get("status")
             if s == "COMPLETE":
                 break

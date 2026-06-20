@@ -179,29 +179,27 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
             raise HTTPException(404, f"PDB file not found: {pdb_id}")
         pdb_bytes = r.content
 
-    # 2. Submit to Foldseek (manual multipart to avoid httpx async encoding bug)
-    boundary = "----FSSearch" + secrets.token_hex(8)
-    def _part(name: str, value: bytes, filename: str | None = None) -> bytes:
-        b = b"--" + boundary.encode() + b"\r\n"
-        if filename:
-            b += f'Content-Disposition: form-data; name="{name}"; filename="{filename}"\r\nContent-Type: application/octet-stream\r\n\r\n'.encode()
-        else:
-            b += f'Content-Disposition: form-data; name="{name}"\r\n\r\n'.encode()
-        return b + value + b"\r\n"
-    body_bytes = _part("mode", b"tmalign") + _part("database[]", b"pdb100") + _part("q", pdb_bytes, f"{pdb_id}.pdb")
-    body_bytes += b"--" + boundary.encode() + b"--"
-    async with httpx.AsyncClient(timeout=30) as client:
-        submit = await client.post(
-            f"{FOLDSEEK_BASE}/ticket",
-            content=body_bytes,
-            headers={"Content-Type": f"multipart/form-data; boundary={boundary}"},
-        )
-        if submit.status_code != 200:
-            raise HTTPException(502, f"Foldseek submission failed (HTTP {submit.status_code})")
-        body = submit.json()
-        ticket = body.get("id")
-        if not ticket:
-            raise HTTPException(502, f"Foldseek returned no ticket ID: {body}")
+    # 2. Submit to Foldseek (sync client, blocking call in thread pool)
+    import functools, json as _json
+    def _submit():
+        client = httpx.Client(timeout=30)
+        try:
+            resp = client.post(
+                f"{FOLDSEEK_BASE}/ticket",
+                files={"q": (f"{pdb_id}.pdb", pdb_bytes, "application/octet-stream")},
+                data={"mode": "tmalign", "database[]": "pdb100"},
+            )
+            return resp.status_code, resp.text
+        finally:
+            client.close()
+    loop = asyncio.get_event_loop()
+    status, resp_text = await loop.run_in_executor(None, _submit)
+    if status != 200:
+        raise HTTPException(502, f"Foldseek submission failed (HTTP {status}): {resp_text[:500]}")
+    resp_json = _json.loads(resp_text)
+    ticket = resp_json.get("id")
+    if not ticket:
+        raise HTTPException(502, f"Foldseek returned no ticket ID: {resp_text[:500]}")
 
     # 3. Poll for results (up to ~120s) then fetch
     async with httpx.AsyncClient(timeout=120) as client:

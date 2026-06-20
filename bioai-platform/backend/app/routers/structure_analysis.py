@@ -236,32 +236,34 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     seen: set[str] = set()
     results: list[StructureMatch] = []
     for db_entry in entries:
-        target = db_entry.get("target", "")
-        raw = target.replace("pdb_", "").replace("PDB_", "")
-        match_pdb   = raw[:4].upper()
-        match_chain = raw[4:] if len(raw) > 4 else ""
+        for aln in db_entry.get("alignments", []):
+            target = aln.get("target", "")
+            raw = target.replace("pdb_", "").replace("PDB_", "")
+            match_pdb   = raw[:4].upper()
+            match_chain = raw[4:] if len(raw) > 4 else ""
 
-        if match_pdb == pdb_id and (not match_chain or match_chain == chain):
-            continue
-        if match_pdb in seen:
-            continue
-        seen.add(match_pdb)
+            if not match_pdb or (match_pdb == pdb_id and (not match_chain or match_chain == chain)):
+                continue
+            if match_pdb in seen:
+                continue
+            seen.add(match_pdb)
 
-        tm = db_entry.get("score", 0) / 100.0  # Foldseek: score = qTMscore * 100
-        results.append(StructureMatch(
-            pdb_id=match_pdb,
-            chain=match_chain,
-            description=target,
-            tm_score=round(tm, 4),
-            rmsd=0,
-            seq_identity=db_entry.get("seqId", 0),
-            aligned_length=db_entry.get("alnLength", 0),
-        ))
+            tm = aln.get("score", 0) / 100.0
+            results.append(StructureMatch(
+                pdb_id=match_pdb,
+                chain=match_chain,
+                description=target,
+                tm_score=round(tm, 4),
+                rmsd=0,
+                seq_identity=aln.get("seqId", 0),
+                aligned_length=aln.get("alnLength", 0),
+            ))
+            if len(results) >= max_results:
+                break
         if len(results) >= max_results:
             break
 
-    return {
-        "query": f"{pdb_id}:{chain}",
-        "matches": sorted(results, key=lambda x: x.tm_score, reverse=True),
-        "raw": data,
-    }
+    if not results:
+        raise HTTPException(404, "No structurally similar proteins found")
+    results.sort(key=lambda x: x.tm_score, reverse=True)
+    return {"query": f"{pdb_id}:{chain}", "matches": results}

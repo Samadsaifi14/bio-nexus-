@@ -224,22 +224,44 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
         else:
             raise HTTPException(504, "Foldseek job did not complete in time")
 
-    # 5. Parse alignments
+    # 5. Parse alignments (each alignment is [dict] — list wrapping one dict)
     entries = data if isinstance(data, list) else data.get("results", [])
-    if not entries:
-        raise HTTPException(502, "No Foldseek results, raw keys: " + _json.dumps(list(data.keys())[:10]))
+    seen: set[str] = set()
+    results: list[StructureMatch] = []
+    for db_entry in entries:
+        for aln in db_entry.get("alignments", []):
+            entry = aln[0] if isinstance(aln, list) else aln
+            target = entry.get("target", "")
+            raw_target = target.replace("pdb_", "").replace("PDB_", "")
+            # Parse target like "1vwt-assembly1.cif.gz_A" → PDB 1VWT chain A
+            import re
+            m = re.match(r'^(\w{4})', raw_target)
+            match_pdb = m.group(1).upper() if m else ""
+            match_chain = ""
+            if "_" in raw_target:
+                match_chain = raw_target.split("_")[-1][:1].upper()
 
-    # Debug: check first alignment
-    e0 = entries[0]
-    alns = e0.get("alignments", [])
-    if alns:
-        a0 = alns[0]
-        return {
-            "query": f"{pdb_id}:{chain}",
-            "_a0_type": type(a0).__name__,
-            "_a0_keys": list(a0.keys())[:15] if isinstance(a0, dict) else "not a dict",
-            "_a0_content": str(a0)[:300],
-            "_alns_types": list(set(type(x).__name__ for x in alns)),
-            "_alns_len": len(alns),
-        }
-    return {"query": f"{pdb_id}:{chain}", "_debug": "no alignments"}
+            if not match_pdb or (match_pdb == pdb_id and (not match_chain or match_chain == chain)):
+                continue
+            if match_pdb in seen:
+                continue
+            seen.add(match_pdb)
+
+            results.append(StructureMatch(
+                pdb_id=match_pdb,
+                chain=match_chain,
+                description=target,
+                tm_score=round(entry.get("score", 0) / 100.0, 4),
+                rmsd=0,
+                seq_identity=entry.get("seqId", 0),
+                aligned_length=entry.get("alnLength", 0),
+            ))
+            if len(results) >= max_results:
+                break
+        if len(results) >= max_results:
+            break
+
+    if not results:
+        raise HTTPException(404, "No structurally similar proteins found")
+    results.sort(key=lambda x: x.tm_score, reverse=True)
+    return {"query": f"{pdb_id}:{chain}", "matches": results}

@@ -229,17 +229,17 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     if not entries:
         raise HTTPException(502, "No Foldseek results, raw keys: " + _json.dumps(list(data.keys())[:10]))
 
-    # Debug: show first entry structure
+    # Debug: check first alignment
     e0 = entries[0]
-    if isinstance(e0, list):
-        raise HTTPException(502, f"First entry is list len={len(e0)}, first: {str(e0[0])[:200]}")
-    e0_has_align = "alignments" in (e0 if isinstance(e0, dict) else {})
-    e0_has_target = "target" in (e0 if isinstance(e0, dict) else {})
-    return {
-        "query": f"{pdb_id}:{chain}",
-        "_debug_has_align": e0_has_align,
-        "_debug_has_target": e0_has_target,
-        "_debug_e0_keys": list(e0.keys())[:15] if isinstance(e0, dict) else type(e0).__name__,
-        "_debug_entries": len(entries),
-        "_debug_e0_type": type(e0).__name__,
-    }
+    alns = e0.get("alignments", [])
+    if alns:
+        a0 = alns[0]
+        return {
+            "query": f"{pdb_id}:{chain}",
+            "_a0_type": type(a0).__name__,
+            "_a0_keys": list(a0.keys())[:15] if isinstance(a0, dict) else "not a dict",
+            "_a0_content": str(a0)[:300],
+            "_alns_types": list(set(type(x).__name__ for x in alns)),
+            "_alns_len": len(alns),
+        }
+    return {"query": f"{pdb_id}:{chain}", "_debug": "no alignments"}

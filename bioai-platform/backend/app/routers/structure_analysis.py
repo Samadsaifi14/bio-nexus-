@@ -169,7 +169,8 @@ async def compare_structures(pdb_id: str, chain: str = Query(default="A"),
     except HTTPException:
         raise
     except Exception as e:
-        raise HTTPException(500, f"Foldseek error: {type(e).__name__}: {e}")
+        import traceback
+        raise HTTPException(500, f"Foldseek error: {type(e).__name__}: {e}\n{traceback.format_exc()[:2000]}")
 
 async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     # 1. Fetch PDB file from RCSB

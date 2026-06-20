@@ -20,7 +20,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string; chain?
     setLoading(true);
     setError(null);
     fetch(`/api/backend/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`)
-      .then(r => { if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.json(); })
+      .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(setPoints)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

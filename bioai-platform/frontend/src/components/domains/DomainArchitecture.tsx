@@ -23,7 +23,7 @@ export function DomainArchitecture({ accession }: { accession: string }) {
     setLoading(true);
     setError(null);
     fetch(`/api/backend/api/domains/${accession}`)
-      .then(r => { if (!r.ok) throw new Error(`InterPro returned ${r.status}`); return r.json(); })
+      .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

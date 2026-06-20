@@ -20,7 +20,7 @@ export function StringDBViewer({ geneName }: { geneName: string }) {
     setLoading(true);
     setError(null);
     fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12`)
-      .then(r => { if (!r.ok) throw new Error(`STRING-DB returned ${r.status}`); return r.json(); })
+      .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(setData)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));

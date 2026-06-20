@@ -27,7 +27,13 @@ export function PrimerDesigner() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sequence, product_size_min: productMin, product_size_max: productMax, opt_tm: optTm }),
       });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.detail); }
+      if (!res.ok) {
+        const d = await res.json();
+        const msg = Array.isArray(d.detail)
+          ? d.detail.map((e: any) => e.msg || String(e)).join("; ")
+          : typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
+        throw new Error(msg || res.statusText);
+      }
       setPairs(await res.json());
       setSelectedPair(0);
     } catch (e: any) { setError(e.message); }

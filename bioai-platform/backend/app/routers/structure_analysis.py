@@ -1,3 +1,4 @@
+import asyncio
 import io
 import math
 import httpx
@@ -126,7 +127,9 @@ async def secondary_structure(identifier: str):
 
     return {"identifier": identifier, "method": "Chou-Fasman (predicted)", "residues": ss_list}
 
-# ── Structure Comparison (TM-Align via PDBeFold) ──────────
+# ── Structure Comparison (Foldseek) ────────────────────────
+
+FOLDSEEK_BASE = "https://search.foldseek.com/api"
 
 class StructureMatch(BaseModel):
     pdb_id: str
@@ -137,34 +140,105 @@ class StructureMatch(BaseModel):
     seq_identity: float
     aligned_length: int
 
+def _extract_chain(pdb_text: str, chain_id: str) -> str:
+    """Extract a single chain from a PDB file as a valid minimal PDB."""
+    lines: list[str] = []
+    for line in pdb_text.splitlines():
+        if len(line) < 22:
+            continue
+        if line.startswith(("ATOM", "HETATM", "TER")):
+            if line[21] == chain_id:
+                lines.append(line)
+        elif line.startswith(("END", "ENDMDL")):
+            break
+        elif line.startswith(("HEADER", "TITLE", "COMPND", "SOURCE",
+                               "KEYWDS", "EXPDTA", "REMARK", "DBREF",
+                               "SEQRES", "MODEL")):
+            lines.append(line)
+    if lines and not lines[-1].startswith("END"):
+        lines.append("END")
+    return "\n".join(lines)
+
 @router.get("/compare/{pdb_id}")
-async def compare_structures(pdb_id: str, chain: str = Query(default="A"), max_results: int = Query(default=10)):
+async def compare_structures(pdb_id: str, chain: str = Query(default="A"),
+                              max_results: int = Query(default=10, le=50)):
     pdb_id = pdb_id.upper()
 
-    fold_url = "https://www.ebi.ac.uk/msd-srv/ssm/rest/v1/compare"
-    payload = {
-        "queryId":    f"{pdb_id.lower()}:{chain}",
-        "dbId":       "pdb",
-        "mode":       "normal",
-        "nResults":   max_results,
-    }
-
-    async with httpx.AsyncClient(timeout=60) as client:
-        r = await client.post(fold_url, json=payload)
+    # 1. Fetch PDB file from RCSB
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
         if r.status_code != 200:
-            raise HTTPException(502, f"PDBeFold returned {r.status_code}: {r.text[:200]}")
-        data = r.json()
+            raise HTTPException(404, f"PDB file not found: {pdb_id}")
+        pdb_text = _extract_chain(r.text, chain)
+        if not pdb_text.strip():
+            raise HTTPException(404, f"Chain {chain} not found in {pdb_id}")
 
+    # 2. Submit to Foldseek
+    async with httpx.AsyncClient(timeout=10) as client:
+        submit = await client.post(
+            f"{FOLDSEEK_BASE}/ticket",
+            files={"q": (f"{pdb_id}_{chain}.pdb", pdb_text)},
+            data={"mode": "tmalign", "database[]": ["pdb100"]},
+        )
+        if submit.status_code != 200:
+            raise HTTPException(502, f"Foldseek submission failed (HTTP {submit.status_code})")
+        ticket = submit.json().get("id")
+        if not ticket:
+            raise HTTPException(502, "Foldseek returned no ticket ID")
+
+    # 3. Poll for results (up to ~120s)
+    async with httpx.AsyncClient(timeout=10) as client:
+        for _ in range(60):
+            await asyncio.sleep(2)
+            status = await client.get(f"{FOLDSEEK_BASE}/ticket/{ticket}")
+            if status.status_code != 200:
+                break  # try reading results anyway
+            s = status.json().get("status")
+            if s == "COMPLETE":
+                break
+            if s == "ERROR":
+                raise HTTPException(502, "Foldseek job failed")
+
+        # 4. Fetch results
+        result_resp = await client.get(f"{FOLDSEEK_BASE}/result/{ticket}/0")
+        if result_resp.status_code == 404:
+            raise HTTPException(504, "Foldseek job did not complete in time")
+        if result_resp.status_code != 200:
+            raise HTTPException(502, f"Foldseek returned {result_resp.status_code}")
+        data = result_resp.json()
+
+    # 5. Parse alignments
+    seen: set[str] = set()
     results: list[StructureMatch] = []
-    for hit in data.get("hits", []):
-        results.append(StructureMatch(
-            pdb_id         = hit.get("pdbId", "").upper(),
-            chain          = hit.get("chainId", ""),
-            description    = hit.get("description", ""),
-            tm_score       = hit.get("tmScore", 0),
-            rmsd           = hit.get("rmsd", 0),
-            seq_identity   = hit.get("seqIdentity", 0),
-            aligned_length = hit.get("nAlign", 0),
-        ))
+    for db_entry in data.get("results", []):
+        for aln in db_entry.get("alignments", []):
+            target = aln.get("target", "")
+            raw = target.replace("pdb_", "").replace("PDB_", "")
+            match_pdb   = raw[:4].upper()
+            match_chain = raw[4:] if len(raw) > 4 else ""
+
+            if match_pdb == pdb_id and (not match_chain or match_chain == chain):
+                continue
+            if match_pdb in seen:
+                continue
+            seen.add(match_pdb)
+
+            tm = aln.get("score", 0) / 100.0  # Foldseek: score = qTMscore * 100
+            results.append(StructureMatch(
+                pdb_id=match_pdb,
+                chain=match_chain,
+                description=target,
+                tm_score=round(tm, 4),
+                rmsd=0,
+                seq_identity=aln.get("seqId", 0),
+                aligned_length=aln.get("alnLength", 0),
+            ))
+            if len(results) >= max_results:
+                break
+        if len(results) >= max_results:
+            break
+
+    if not results:
+        raise HTTPException(404, "No structurally similar proteins found")
     results.sort(key=lambda x: x.tm_score, reverse=True)
     return {"query": f"{pdb_id}:{chain}", "matches": results}

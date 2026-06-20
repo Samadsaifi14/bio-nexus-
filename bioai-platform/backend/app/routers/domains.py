@@ -37,8 +37,13 @@ async def get_domains(accession: str):
         entry = result.get("metadata", {})
         db    = entry.get("source_database", "").upper()
         acc   = entry.get("accession", "")
-        name  = entry.get("name", {})
-        name_str = name if isinstance(name, str) else name.get("name", acc)
+        name_raw = entry.get("name")
+        if isinstance(name_raw, str):
+            name_str = name_raw
+        elif isinstance(name_raw, dict):
+            name_str = name_raw.get("name", acc)
+        else:
+            name_str = acc
 
         for protein in result.get("proteins", []):
             if protein.get("accession", "").upper() != accession.upper():

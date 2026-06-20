@@ -3,6 +3,7 @@ uvicorn
 slowapi
 redis
 httpx
+aiohttp
 biopython
 litellm
 python-dotenv

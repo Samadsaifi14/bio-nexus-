@@ -179,30 +179,21 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
             raise HTTPException(404, f"PDB file not found: {pdb_id}")
         pdb_bytes = r.content
 
-    # 2. Submit to Foldseek (sync client, blocking call in thread pool)
-    import functools, json as _json
-    def _submit():
-        client = httpx.Client(timeout=30)
-        try:
-            resp = client.post(
-                f"{FOLDSEEK_BASE}/ticket",
-                files={"q": (f"{pdb_id}.pdb", pdb_bytes, "application/octet-stream")},
-                data={"mode": "tmalign", "database[]": "pdb100"},
-            )
-            return resp.status_code, resp.text, str(dict(resp.headers))
-        finally:
-            client.close()
-    loop = asyncio.get_event_loop()
-    status, resp_text, resp_headers = await loop.run_in_executor(None, _submit)
-    if status != 200:
-        raise HTTPException(502, f"Foldseek submission failed (HTTP {status}): {resp_text[:500]}")
-    try:
-        resp_json = _json.loads(resp_text)
-    except Exception as e:
-        raise HTTPException(502, f"Foldseek bad JSON (HTTP {status}): {resp_text[:500]}")
+    # 2. Submit to Foldseek (via aiohttp, handles async multipart natively)
+    import aiohttp, json as _json
+    async with aiohttp.ClientSession() as session:
+        form = aiohttp.FormData()
+        form.add_field("q", pdb_bytes, filename=f"{pdb_id}.pdb", content_type="application/octet-stream")
+        form.add_field("mode", "tmalign")
+        form.add_field("database[]", "pdb100")
+        async with session.post(f"{FOLDSEEK_BASE}/ticket", data=form) as resp:
+            resp_text = await resp.text()
+            if resp.status != 200:
+                raise HTTPException(502, f"Foldseek submission failed (HTTP {resp.status}): {resp_text[:500]}")
+            resp_json = _json.loads(resp_text)
     ticket = resp_json.get("id") if isinstance(resp_json, dict) else None
     if not ticket:
-        raise HTTPException(502, f"Foldseek returned type={type(resp_json).__name__}, no id: {resp_text[:500]} | headers: {resp_headers[:300]}")
+        raise HTTPException(502, f"Foldseek returned type={type(resp_json).__name__}, no id: {resp_text[:500]}")
 
     # 3. Poll for results (up to ~120s) then fetch
     async with httpx.AsyncClient(timeout=120) as client:

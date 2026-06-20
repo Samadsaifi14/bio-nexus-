@@ -95,7 +95,7 @@ class NCBIService:
                         "accession": str(docsum.get("AccessionVersion", "")),
                         "title": str(docsum.get("Title", "")),
                         "organism": str(docsum.get("Organism", "")),
-                        "length": int(str(docsum.get("Length", "0"))),
+                        "length": int(docsum.get("Length", 0) or 0),
                     })
             return {"results": results, "count": len(results), "query": term}
         except Exception as e:

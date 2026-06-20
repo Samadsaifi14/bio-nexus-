@@ -15,6 +15,11 @@ import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { getJob } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
+import { DomainArchitecture } from '@/components/domains/DomainArchitecture';
+import { StringDBViewer } from '@/components/interactions/StringDBViewer';
+import { SecondaryStructureViewer } from '@/components/structure/SecondaryStructure';
+import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
+import { StructureComparison } from '@/components/structure/StructureComparison';
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'fetching_alphafold', 'complete',
@@ -29,6 +34,7 @@ export default function JobPage() {
   const [loading, setLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const [activeAnalysisTab, setActiveAnalysisTab] = useState<string | null>(null);
   const startRef = useRef(Date.now());
 
   useEffect(() => {
@@ -330,6 +336,56 @@ export default function JobPage() {
               Download CSV
             </button>
           </div>
+
+          {/* Advanced Analysis section */}
+          {(() => {
+            const uniprotAcc = context.uniprot?.accession;
+            const geneName = context.uniprot?.gene_names?.[0] ?? null;
+            const pdbId = context.uniprot?.pdb_ids?.[0] ?? null;
+
+            const analysisTabs: { id: string; label: string; available: boolean; component: React.ReactNode }[] = [
+              { id: "doms", label: "Domains",     available: !!uniprotAcc, component: uniprotAcc ? <DomainArchitecture accession={uniprotAcc} /> : null },
+              { id: "net",  label: "Interactions", available: !!geneName,   component: geneName ? <StringDBViewer geneName={geneName} /> : null },
+              { id: "ss",   label: "2° Structure", available: !!uniprotAcc, component: uniprotAcc ? <SecondaryStructureViewer identifier={uniprotAcc} /> : null },
+              { id: "rama", label: "Ramachandran", available: !!pdbId,     component: pdbId ? <RamachandranPlot pdbId={pdbId} /> : null },
+              { id: "comp", label: "Comparison",   available: !!pdbId,     component: pdbId ? <StructureComparison pdbId={pdbId} /> : null },
+            ];
+
+            const available = analysisTabs.filter(t => t.available);
+            if (available.length === 0) return null;
+
+            return (
+              <motion.div variants={fadeUp} className="glass-card p-5">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-semibold text-text-primary">Advanced Analysis</h3>
+                  <div className="flex gap-2 flex-wrap">
+                    {available.map(tab => (
+                      <button key={tab.id}
+                        onClick={() => setActiveAnalysisTab(activeAnalysisTab === tab.id ? null : tab.id)}
+                        className={`px-3 py-1 rounded-full text-xs border transition ${
+                          activeAnalysisTab === tab.id
+                            ? "border-accent-cyan bg-accent-cyan/10 text-accent-cyan"
+                            : "border-glass-border text-text-muted hover:border-white/20"
+                        }`}>
+                        {tab.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                {activeAnalysisTab && (
+                  <motion.div
+                    key={activeAnalysisTab}
+                    initial={{ opacity: 0, y: 8 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="border-t border-glass-border pt-4"
+                  >
+                    {analysisTabs.find(t => t.id === activeAnalysisTab)?.component}
+                  </motion.div>
+                )}
+              </motion.div>
+            );
+          })()}
         </>
       )}
     </motion.div>

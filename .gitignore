@@ -26,6 +26,7 @@ Thumbs.db
 .env.local
 .env.production
 backend/.env
+.env.deploy
 
 # --- Runtime artifacts ---
 dump.rdb

@@ -22,12 +22,15 @@ async def job_count(user_id: str | None = Depends(get_user_id)):
 
 @router.get("")
 async def list_jobs(user_id: str | None = Depends(get_user_id)):
-    supabase = get_supabase()
-    query = supabase.table("jobs").select("*").order("created_at", desc=True).limit(50)
-    if user_id:
-        query = query.eq("user_id", user_id)
-    result = query.execute()
-    return {"jobs": result.data or []}
+    try:
+        supabase = get_supabase()
+        query = supabase.table("jobs").select("*").order("created_at", desc=True).limit(50)
+        if user_id:
+            query = query.eq("user_id", user_id)
+        result = query.execute()
+        return {"jobs": result.data or []}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Jobs list error: {type(e).__name__}: {e}")
 
 
 @router.get("/{job_id}")

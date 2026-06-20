@@ -1,14 +1,18 @@
 import os
-from dotenv import load_dotenv
+from dotenv import load_dotenv, dotenv_values
 
 load_dotenv()
+# Read .env values directly (override HF Space secrets that may be stale)
+_env_file = dotenv_values()
+_env_supabase_url = _env_file.get("SUPABASE_URL")
+_env_supabase_key = _env_file.get("SUPABASE_SERVICE_ROLE_KEY")
 
 
 class Settings:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
-    SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
-    SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    SUPABASE_URL: str = _env_supabase_url or os.getenv("SUPABASE_URL", "")
+    SUPABASE_SERVICE_ROLE_KEY: str = _env_supabase_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
     EBI_BASE_URL: str = "https://www.ebi.ac.uk/Tools/services/rest/ncbiblast"

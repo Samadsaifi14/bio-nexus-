@@ -10,3 +10,4 @@ supabase
 reportlab
 celery
 pydantic[email]
+primer3-py>=2.0.3

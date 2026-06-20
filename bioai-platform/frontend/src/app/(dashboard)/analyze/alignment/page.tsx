@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LoaderCircle } from 'lucide-react';
@@ -8,6 +8,23 @@ import { fadeUp } from '@/lib/animations';
 import { runAlignment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { AlignmentResult } from '@/lib/api';
+import { PhyloTreeViewer } from '@/components/phylo/PhyloTreeViewer';
+import { ConservationTrack } from '@/components/alignment/ConservationTrack';
+
+function parseAlignedFasta(fasta: string): string[] {
+  const seqs: string[] = [];
+  let current = '';
+  for (const line of fasta.split('\n')) {
+    if (line.startsWith('>')) {
+      if (current) seqs.push(current);
+      current = '';
+    } else if (current !== undefined) {
+      current += line.trim();
+    }
+  }
+  if (current) seqs.push(current);
+  return seqs;
+}
 
 const SAMPLE_PROTEIN = `>p53_human
 MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD
@@ -160,25 +177,31 @@ export default function AlignmentPage() {
         </motion.div>
       )}
 
-      {result && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
-          <div className="glass-card p-5">
-            <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA)</h3>
-            <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-80 overflow-auto whitespace-pre-wrap break-all">
-              {result.aln_fasta}
-            </pre>
-          </div>
-
-          {result.phylotree && (
+      {result && (() => {
+        const alignedSeqs = parseAlignedFasta(result.aln_fasta);
+        return (
+          <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
             <div className="glass-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Phylogenetic Tree (Newick)</h3>
-              <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-40 overflow-auto whitespace-pre-wrap break-all">
-                {result.phylotree}
+              <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA)</h3>
+              <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-80 overflow-auto whitespace-pre-wrap break-all">
+                {result.aln_fasta}
               </pre>
             </div>
-          )}
-        </motion.div>
-      )}
+
+            {result.phylotree && (
+              <div className="glass-card p-5">
+                <PhyloTreeViewer newick={result.phylotree} />
+              </div>
+            )}
+
+            {alignedSeqs.length >= 2 && (
+              <div className="glass-card p-5">
+                <ConservationTrack alignedSeqs={alignedSeqs} />
+              </div>
+            )}
+          </motion.div>
+        );
+      })()}
     </div>
   );
 }

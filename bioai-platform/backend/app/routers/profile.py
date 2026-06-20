@@ -23,8 +23,10 @@ async def get_profile(user_id: str = Depends(require_user_id)):
 async def update_profile(profile: ProfileUpdate, user_id: str = Depends(require_user_id)):
     supabase = get_supabase()
     data = {}
-    if profile.full_name: data["full_name"] = profile.full_name
-    if profile.institution: data["institution"] = profile.institution
+    if "full_name" in profile.model_dump() and profile.full_name is not None:
+        data["full_name"] = profile.full_name
+    if "institution" in profile.model_dump() and profile.institution is not None:
+        data["institution"] = profile.institution
     if data:
         result = supabase.table("profiles").update(data).eq("id", user_id).execute()
         return {"status": "updated", "data": result.data[0] if result.data else data}

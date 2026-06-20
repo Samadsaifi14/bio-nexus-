@@ -178,12 +178,12 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
             raise HTTPException(404, f"PDB file not found: {pdb_id}")
         pdb_bytes = r.content
 
-    # 2. Submit to Foldseek
-    async with httpx.AsyncClient(timeout=30) as client:
-        submit = await client.post(
+    # 2. Submit to Foldseek (use sync client to avoid httpx async multipart issue)
+    with httpx.Client(timeout=30) as client:
+        submit = client.post(
             f"{FOLDSEEK_BASE}/ticket",
             files={"q": (f"{pdb_id}.pdb", pdb_bytes, "application/octet-stream")},
-            data=[("mode", "tmalign"), ("database[]", "pdb100")],
+            data={"mode": "tmalign", "database[]": "pdb100"},
         )
         if submit.status_code != 200:
             raise HTTPException(502, f"Foldseek submission failed (HTTP {submit.status_code})")

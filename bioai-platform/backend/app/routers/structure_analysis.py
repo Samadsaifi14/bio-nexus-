@@ -232,33 +232,31 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
             raise HTTPException(504, "Foldseek job did not complete in time")
 
     # 5. Parse alignments
+    entries = data if isinstance(data, list) else data.get("results", [])
     seen: set[str] = set()
     results: list[StructureMatch] = []
-    for db_entry in data.get("results", []):
-        for aln in db_entry.get("alignments", []):
-            target = aln.get("target", "")
-            raw = target.replace("pdb_", "").replace("PDB_", "")
-            match_pdb   = raw[:4].upper()
-            match_chain = raw[4:] if len(raw) > 4 else ""
+    for db_entry in entries:
+        target = db_entry.get("target", "")
+        raw = target.replace("pdb_", "").replace("PDB_", "")
+        match_pdb   = raw[:4].upper()
+        match_chain = raw[4:] if len(raw) > 4 else ""
 
-            if match_pdb == pdb_id and (not match_chain or match_chain == chain):
-                continue
-            if match_pdb in seen:
-                continue
-            seen.add(match_pdb)
+        if match_pdb == pdb_id and (not match_chain or match_chain == chain):
+            continue
+        if match_pdb in seen:
+            continue
+        seen.add(match_pdb)
 
-            tm = aln.get("score", 0) / 100.0  # Foldseek: score = qTMscore * 100
-            results.append(StructureMatch(
-                pdb_id=match_pdb,
-                chain=match_chain,
-                description=target,
-                tm_score=round(tm, 4),
-                rmsd=0,
-                seq_identity=aln.get("seqId", 0),
-                aligned_length=aln.get("alnLength", 0),
-            ))
-            if len(results) >= max_results:
-                break
+        tm = db_entry.get("score", 0) / 100.0  # Foldseek: score = qTMscore * 100
+        results.append(StructureMatch(
+            pdb_id=match_pdb,
+            chain=match_chain,
+            description=target,
+            tm_score=round(tm, 4),
+            rmsd=0,
+            seq_identity=db_entry.get("seqId", 0),
+            aligned_length=db_entry.get("alnLength", 0),
+        ))
         if len(results) >= max_results:
             break
 

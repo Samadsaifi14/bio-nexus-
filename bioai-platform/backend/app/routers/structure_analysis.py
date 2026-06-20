@@ -226,36 +226,20 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
 
     # 5. Parse alignments
     entries = data if isinstance(data, list) else data.get("results", [])
-    seen: set[str] = set()
-    results: list[StructureMatch] = []
-    for db_entry in entries:
-        for aln in db_entry.get("alignments", []):
-            target = aln.get("target", "")
-            raw_target = target.replace("pdb_", "").replace("PDB_", "")
-            match_pdb   = raw_target[:4].upper()
-            match_chain = raw_target[4:] if len(raw_target) > 4 else ""
+    if not entries:
+        raise HTTPException(502, "No Foldseek results, raw keys: " + _json.dumps(list(data.keys())[:10]))
 
-            if not match_pdb or (match_pdb == pdb_id and (not match_chain or match_chain == chain)):
-                continue
-            if match_pdb in seen:
-                continue
-            seen.add(match_pdb)
-
-            results.append(StructureMatch(
-                pdb_id=match_pdb,
-                chain=match_chain,
-                description=target,
-                tm_score=round(aln.get("score", 0) / 100.0, 4),
-                rmsd=0,
-                seq_identity=aln.get("seqId", 0),
-                aligned_length=aln.get("alnLength", 0),
-            ))
-            if len(results) >= max_results:
-                break
-        if len(results) >= max_results:
-            break
-
-    if not results:
-        raise HTTPException(404, "No structurally similar proteins found")
-    results.sort(key=lambda x: x.tm_score, reverse=True)
-    return {"query": f"{pdb_id}:{chain}", "matches": results}
+    # Debug: show first entry structure
+    e0 = entries[0]
+    if isinstance(e0, list):
+        raise HTTPException(502, f"First entry is list len={len(e0)}, first: {str(e0[0])[:200]}")
+    e0_has_align = "alignments" in (e0 if isinstance(e0, dict) else {})
+    e0_has_target = "target" in (e0 if isinstance(e0, dict) else {})
+    return {
+        "query": f"{pdb_id}:{chain}",
+        "_debug_has_align": e0_has_align,
+        "_debug_has_target": e0_has_target,
+        "_debug_e0_keys": list(e0.keys())[:15] if isinstance(e0, dict) else type(e0).__name__,
+        "_debug_entries": len(entries),
+        "_debug_e0_type": type(e0).__name__,
+    }

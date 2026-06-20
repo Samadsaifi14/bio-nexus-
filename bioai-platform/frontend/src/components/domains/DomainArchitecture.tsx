@@ -17,17 +17,21 @@ export function DomainArchitecture({ accession }: { accession: string }) {
   const [data, setData] = useState<DomainsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState<{ domain: Domain; x: number; y: number } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     setLoading(true);
+    setError(null);
     fetch(`/api/backend/api/domains/${accession}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`InterPro returned ${r.status}`); return r.json(); })
       .then(setData)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [accession]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Loading domain annotations&hellip;</div>;
-  if (!data) return <div className="text-error text-sm">Failed to load domains.</div>;
+  if (error) return <div className="text-error text-sm">{error}</div>;
+  if (!data) return <div className="text-error text-sm">No domain data returned.</div>;
 
   const { sequence_length: seqLen, domains } = data;
   const W = 700;

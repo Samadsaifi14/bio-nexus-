@@ -14,15 +14,20 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string; chain?
   const [points, setPoints] = useState<RPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [hovered, setHovered] = useState<RPoint | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     fetch(`/api/backend/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.json(); })
       .then(setPoints)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [pdbId, chain]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Calculating &phi;/&psi; angles&hellip;</div>;
+  if (error) return <div className="text-error text-sm">{error}</div>;
 
   const W = 400, H = 400, PAD = 40;
   const toX = (phi: number) => PAD + ((phi + 180) / 360) * (W - PAD * 2);

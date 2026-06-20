@@ -13,16 +13,21 @@ type Interaction = {
 export function StringDBViewer({ geneName }: { geneName: string }) {
   const [data, setData] = useState<{ interactions: Interaction[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`STRING-DB returned ${r.status}`); return r.json(); })
       .then(setData)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [geneName]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Fetching STRING-DB interactions&hellip;</div>;
+  if (error) return <div className="text-error text-sm">{error}</div>;
   if (!data?.interactions?.length) return <div className="text-text-muted text-sm">No interactions found.</div>;
 
   const { interactions } = data;

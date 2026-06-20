@@ -9,15 +9,20 @@ const SS_LABEL: Record<string, string> = { H: "&alpha;-Helix", E: "&beta;-Sheet"
 export function SecondaryStructureViewer({ identifier }: { identifier: string }) {
   const [data, setData] = useState<{ method: string; residues: SSResidue[] } | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    setLoading(true);
+    setError(null);
     fetch(`/api/backend/api/structure_analysis/secondary_structure/${identifier}`)
-      .then(r => r.json())
+      .then(r => { if (!r.ok) throw new Error(`Failed: ${r.status}`); return r.json(); })
       .then(setData)
+      .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [identifier]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Predicting secondary structure&hellip;</div>;
+  if (error) return <div className="text-error text-sm">{error}</div>;
   if (!data) return <div className="text-error text-sm">Failed to load.</div>;
 
   const { residues, method } = data;

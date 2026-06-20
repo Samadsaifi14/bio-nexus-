@@ -260,7 +260,8 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
         if len(results) >= max_results:
             break
 
-    if not results:
-        raise HTTPException(404, "No structurally similar proteins found")
-    results.sort(key=lambda x: x.tm_score, reverse=True)
-    return {"query": f"{pdb_id}:{chain}", "matches": results}
+    return {
+        "query": f"{pdb_id}:{chain}",
+        "matches": sorted(results, key=lambda x: x.tm_score, reverse=True),
+        "raw": data,
+    }

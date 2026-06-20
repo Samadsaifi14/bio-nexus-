@@ -203,7 +203,7 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
         if not ticket:
             raise HTTPException(502, f"Foldseek returned no ticket ID: {body}")
 
-    # 3. Poll for results (up to ~120s)
+    # 3. Poll for results (up to ~120s) then fetch
     async with httpx.AsyncClient(timeout=120) as client:
         for _ in range(60):
             await asyncio.sleep(2)
@@ -220,16 +220,16 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
             except Exception:
                 continue
 
-    # 4. Fetch results - try multiple times since there's a race
-    for attempt in range(3):
-        result_resp = await client.get(f"{FOLDSEEK_BASE}/result/{ticket}/0")
-        if result_resp.status_code == 200:
-            data = result_resp.json()
-            break
-        if attempt < 2:
-            await asyncio.sleep(2)
-    else:
-        raise HTTPException(504, "Foldseek job did not complete in time")
+        # 4. Fetch results - try multiple times since there's a race
+        for attempt in range(3):
+            result_resp = await client.get(f"{FOLDSEEK_BASE}/result/{ticket}/0")
+            if result_resp.status_code == 200:
+                data = result_resp.json()
+                break
+            if attempt < 2:
+                await asyncio.sleep(2)
+        else:
+            raise HTTPException(504, "Foldseek job did not complete in time")
 
     # 5. Parse alignments
     seen: set[str] = set()

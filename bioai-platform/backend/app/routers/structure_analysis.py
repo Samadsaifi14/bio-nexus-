@@ -189,17 +189,20 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
                 files={"q": (f"{pdb_id}.pdb", pdb_bytes, "application/octet-stream")},
                 data={"mode": "tmalign", "database[]": "pdb100"},
             )
-            return resp.status_code, resp.text
+            return resp.status_code, resp.text, str(dict(resp.headers))
         finally:
             client.close()
     loop = asyncio.get_event_loop()
-    status, resp_text = await loop.run_in_executor(None, _submit)
+    status, resp_text, resp_headers = await loop.run_in_executor(None, _submit)
     if status != 200:
         raise HTTPException(502, f"Foldseek submission failed (HTTP {status}): {resp_text[:500]}")
-    resp_json = _json.loads(resp_text)
-    ticket = resp_json.get("id")
+    try:
+        resp_json = _json.loads(resp_text)
+    except Exception as e:
+        raise HTTPException(502, f"Foldseek bad JSON (HTTP {status}): {resp_text[:500]}")
+    ticket = resp_json.get("id") if isinstance(resp_json, dict) else None
     if not ticket:
-        raise HTTPException(502, f"Foldseek returned no ticket ID: {resp_text[:500]}")
+        raise HTTPException(502, f"Foldseek returned type={type(resp_json).__name__}, no id: {resp_text[:500]} | headers: {resp_headers[:300]}")
 
     # 3. Poll for results (up to ~120s) then fetch
     async with httpx.AsyncClient(timeout=120) as client:

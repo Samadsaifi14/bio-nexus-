@@ -163,47 +163,62 @@ def _extract_chain(pdb_text: str, chain_id: str) -> str:
 async def compare_structures(pdb_id: str, chain: str = Query(default="A"),
                               max_results: int = Query(default=10, le=50)):
     pdb_id = pdb_id.upper()
+    try:
+        return await _foldseek_search(pdb_id, chain, max_results)
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(500, f"Foldseek error: {type(e).__name__}: {e}")
 
+async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     # 1. Fetch PDB file from RCSB
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
         if r.status_code != 200:
             raise HTTPException(404, f"PDB file not found: {pdb_id}")
-        pdb_text = r.text
+        pdb_bytes = r.content
 
     # 2. Submit to Foldseek
     async with httpx.AsyncClient(timeout=30) as client:
         submit = await client.post(
             f"{FOLDSEEK_BASE}/ticket",
-            files={"q": (f"{pdb_id}.pdb", pdb_text.encode())},
+            files={"q": (f"{pdb_id}.pdb", pdb_bytes, "application/octet-stream")},
             data=[("mode", "tmalign"), ("database[]", "pdb100")],
         )
         if submit.status_code != 200:
             raise HTTPException(502, f"Foldseek submission failed (HTTP {submit.status_code})")
-        ticket = submit.json().get("id")
+        body = submit.json()
+        ticket = body.get("id")
         if not ticket:
-            raise HTTPException(502, "Foldseek returned no ticket ID")
+            raise HTTPException(502, f"Foldseek returned no ticket ID: {body}")
 
     # 3. Poll for results (up to ~120s)
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=120) as client:
         for _ in range(60):
             await asyncio.sleep(2)
-            status = await client.get(f"{FOLDSEEK_BASE}/ticket/{ticket}")
-            if status.status_code != 200:
+            try:
+                status = await client.get(f"{FOLDSEEK_BASE}/ticket/{ticket}")
+                if status.status_code == 200:
+                    s = status.json().get("status")
+                    if s == "COMPLETE":
+                        break
+                    if s == "ERROR":
+                        raise HTTPException(502, "Foldseek job failed")
+            except HTTPException:
+                raise
+            except Exception:
                 continue
-            s = status.json().get("status")
-            if s == "COMPLETE":
-                break
-            if s == "ERROR":
-                raise HTTPException(502, "Foldseek job failed")
 
-        # 4. Fetch results
+    # 4. Fetch results - try multiple times since there's a race
+    for attempt in range(3):
         result_resp = await client.get(f"{FOLDSEEK_BASE}/result/{ticket}/0")
-        if result_resp.status_code == 404:
-            raise HTTPException(504, "Foldseek job did not complete in time")
-        if result_resp.status_code != 200:
-            raise HTTPException(502, f"Foldseek returned {result_resp.status_code}")
-        data = result_resp.json()
+        if result_resp.status_code == 200:
+            data = result_resp.json()
+            break
+        if attempt < 2:
+            await asyncio.sleep(2)
+    else:
+        raise HTTPException(504, "Foldseek job did not complete in time")
 
     # 5. Parse alignments
     seen: set[str] = set()

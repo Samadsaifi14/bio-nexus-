@@ -1,6 +1,7 @@
 "use client";
 import { useState } from "react";
-import { LoaderCircle } from "lucide-react";
+import { LoaderCircle, Download } from "lucide-react";
+import { downloadTsv } from "@/lib/export-utils";
 
 type PrimerPair = {
   pair_index: number;
@@ -94,17 +95,26 @@ export function PrimerDesigner() {
 
       {pairs.length > 0 && (
         <div className="space-y-4">
-          <div className="flex gap-2 flex-wrap">
-            {pairs.map(p => (
-              <button key={p.pair_index} onClick={() => setSelectedPair(p.pair_index)}
-                className={`px-3 py-1 rounded-full text-xs border transition ${
-                  selectedPair === p.pair_index
-                    ? "border-accent-cyan bg-accent-cyan/10 text-accent-cyan"
-                    : "border-glass-border text-text-muted hover:border-white/20"
-                }`}>
-                Pair {p.pair_index + 1} &middot; {p.product_size}bp
-              </button>
-            ))}
+          <div className="flex items-center justify-between">
+            <div className="flex gap-2 flex-wrap">
+              {pairs.map(p => (
+                <button key={p.pair_index} onClick={() => setSelectedPair(p.pair_index)}
+                  className={`px-3 py-1 rounded-full text-xs border transition ${
+                    selectedPair === p.pair_index
+                      ? "border-accent-cyan bg-accent-cyan/10 text-accent-cyan"
+                      : "border-glass-border text-text-muted hover:border-white/20"
+                  }`}>
+                  Pair {p.pair_index + 1} &middot; {p.product_size}bp
+                </button>
+              ))}
+            </div>
+            <button onClick={() => downloadTsv(
+              ["Pair", "Forward seq", "Fwd Tm", "Fwd GC%", "Fwd Pos", "Fwd Len", "Reverse seq", "Rev Tm", "Rev GC%", "Rev Pos", "Rev Len", "Product size", "Penalty"],
+              pairs.map(p => [String(p.pair_index + 1), p.left_seq, p.left_tm.toFixed(1), p.left_gc.toFixed(1), String(p.left_pos), String(p.left_len), p.right_seq, p.right_tm.toFixed(1), p.right_gc.toFixed(1), String(p.right_pos), String(p.right_len), String(p.product_size), p.penalty.toFixed(3)]),
+              "primers.tsv"
+            )} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+              <Download className="w-3 h-3" /> Export TSV
+            </button>
           </div>
 
           {selectedPair !== null && (() => {

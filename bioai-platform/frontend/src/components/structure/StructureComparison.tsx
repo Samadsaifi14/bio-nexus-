@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 
 type StructureMatch = {
   pdb_id: string; chain: string; description: string;
@@ -10,6 +11,7 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
   const [matches, setMatches] = useState<StructureMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     fetch(`/api/backend/api/structure_analysis/compare/${pdbId}?chain=${chain}`)
@@ -26,10 +28,19 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-text-primary font-semibold">Structural Homologs</h3>
-        <span className="text-text-muted text-xs">{matches.length} hits &middot; PDBeFold</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => exportSvgPng(svgRef.current, `compare-${pdbId}.png`)}
+            className="btn-ghost text-xs px-2 py-1">Export PNG</button>
+          <button onClick={() => downloadTsv(
+            ["PDB", "Chain", "RMSD", "Seq ID%", "Aligned", "TM-score", "Description"],
+            matches.map(m => [m.pdb_id, m.chain, m.rmsd.toFixed(2), (m.seq_identity * 100).toFixed(1), String(m.aligned_length), m.tm_score.toFixed(3), m.description]),
+            `compare-${pdbId}.tsv`
+          )} className="btn-ghost text-xs px-2 py-1">Export TSV</button>
+          <span className="text-text-muted text-xs">{matches.length} hits &middot; PDBeFold</span>
+        </div>
       </div>
 
-      <div className="space-y-1">
+      <div className="space-y-1" ref={svgRef as any}>
         <div className="flex justify-between text-xs text-text-muted mb-2">
           <span>TM-score (0&rarr;1)</span>
           <span>TM &gt; 0.5 = same fold</span>

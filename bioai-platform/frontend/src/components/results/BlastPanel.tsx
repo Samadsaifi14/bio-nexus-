@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, ExternalLink } from 'lucide-react';
+import { ChevronDown, ChevronUp, ExternalLink, Download } from 'lucide-react';
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
+import { downloadTsv } from '@/lib/export-utils';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
 interface BlastPanelProps {
@@ -41,6 +42,24 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
           BLAST Hits
           <span className="text-xs text-text-muted ml-2 font-normal">({count} found{source ? ` via ${source}` : ''})</span>
         </h2>
+        <div className="flex items-center gap-2">
+          <button onClick={() => downloadTsv(
+            ["Accession", "Description", "E-value", "Identity%", "Score", "Confidence"],
+            safeHits.map(h => [h.accession, h.description, h.evalue_raw || String(h.evalue), String(h.identity_pct), String(h.bit_score), confidenceBand(h.evalue).label]),
+            "blast-hits.tsv"
+          )} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+            <Download className="w-3 h-3" /> Export CSV
+          </button>
+          <button onClick={() => {
+            const fasta = safeHits.map(h => `>${h.accession} ${h.description}\n${h.midline || ""}`).join("\n");
+            const a = document.createElement("a");
+            a.download = "blast-hits.fasta";
+            a.href = "data:text/fasta;charset=utf-8," + encodeURIComponent(fasta);
+            a.click();
+          }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+            <Download className="w-3 h-3" /> FASTA
+          </button>
+        </div>
       </div>
       <motion.div variants={stagger} className="divide-y divide-glass-border">
         {safeHits.length === 0 ? (

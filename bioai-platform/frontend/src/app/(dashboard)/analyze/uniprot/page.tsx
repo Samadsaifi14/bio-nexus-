@@ -3,11 +3,12 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen } from 'lucide-react';
+import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { searchUniprot, getUniprotDetail } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { UniprotSummary } from '@/types/pipeline';
+import { downloadJson, downloadTsv } from '@/lib/export-utils';
 
 type SearchResult = {
   accession: string;
@@ -270,17 +271,38 @@ export default function UniprotLookupPage() {
               </div>
             )}
 
-            <div className="px-6 py-4 flex items-center justify-between">
-              <a
-                href={`https://www.uniprot.org/uniprotkb/${detail.accession}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-text-muted hover:text-accent-cyan transition flex items-center gap-1"
-              >
-                <BookOpen className="w-3 h-3" />
-                View on UniProt
-                <ExternalLink className="w-3 h-3" />
-              </a>
+            <div className="px-6 py-4 flex items-center justify-between flex-wrap gap-2">
+              <div className="flex items-center gap-2">
+                <a
+                  href={`https://www.uniprot.org/uniprotkb/${detail.accession}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-xs text-text-muted hover:text-accent-cyan transition flex items-center gap-1"
+                >
+                  <BookOpen className="w-3 h-3" />
+                  View on UniProt
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+                <button onClick={() => downloadJson(detail, `uniprot-${detail.accession}.json`)}
+                  className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+                  <Download className="w-3 h-3" /> JSON
+                </button>
+                <button onClick={() => {
+                  const headers = ["Accession", "Gene", "Organism", "Length", "Function", "Keywords", "Subcellular Location"];
+                  const rows = [[
+                    detail.accession,
+                    detail.gene_names.join("; "),
+                    detail.organism,
+                    String(detail.sequence_length),
+                    detail.functions.join("; ").replace(/"/g, '""'),
+                    detail.keywords.join("; "),
+                    detail.subcellular_locations.join("; "),
+                  ]];
+                  downloadTsv(headers, rows, `uniprot-${detail.accession}.tsv`);
+                }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+                  <Download className="w-3 h-3" /> CSV
+                </button>
+              </div>
               <button
                 onClick={() => handleSendToBlast(detail.accession, detail.sequence)}
                 className="btn-primary py-2 px-4 text-sm flex items-center gap-2"

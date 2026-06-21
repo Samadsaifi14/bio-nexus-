@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { exportSvgPng } from "@/lib/export-utils";
 
 type TreeNode = { name: string; length: number; children: TreeNode[] };
 
@@ -83,6 +84,7 @@ export function PhyloTreeViewer({ jobId, newick: propNewick }: { jobId?: string;
   const [newick, setNewick] = useState<string | null>(propNewick ?? null);
   const [loading, setLoading] = useState(!propNewick);
   const [error, setError] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     if (propNewick) { setNewick(propNewick); setLoading(false); return; }
@@ -104,9 +106,13 @@ export function PhyloTreeViewer({ jobId, newick: propNewick }: { jobId?: string;
 
   return (
     <div className="space-y-3">
-      <h3 className="text-text-primary font-semibold">Phylogenetic Tree</h3>
+      <div className="flex items-center justify-between">
+        <h3 className="text-text-primary font-semibold">Phylogenetic Tree</h3>
+        <button onClick={() => exportSvgPng(svgRef.current, "phylotree.png")}
+          className="btn-ghost text-xs px-2 py-1">Export PNG</button>
+      </div>
       <div className="glass-card overflow-hidden p-2">
-        <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+        <svg ref={svgRef} viewBox={`0 0 ${W} ${H}`} className="w-full">
           {nodes.map((n, i) =>
             n.children.map((child, j) => (
               <g key={`${i}-${j}`}>

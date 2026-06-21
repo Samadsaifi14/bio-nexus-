@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 
 const DB_COLORS: Record<string, string> = {
   PFAM:    "#00F5D4",
@@ -18,6 +19,7 @@ export function DomainArchitecture({ accession }: { accession: string }) {
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState<{ domain: Domain; x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   useEffect(() => {
     setLoading(true);
@@ -43,7 +45,16 @@ export function DomainArchitecture({ accession }: { accession: string }) {
     <div className="space-y-4 relative">
       <div className="flex items-center justify-between">
         <h3 className="text-text-primary font-semibold">Domain Architecture</h3>
-        <span className="text-text-muted text-xs">{seqLen} aa &middot; {domains.length} annotations</span>
+        <div className="flex items-center gap-2">
+          <button onClick={() => exportSvgPng(svgRef.current, `domains-${accession}.png`)}
+            className="btn-ghost text-xs px-2 py-1">Export PNG</button>
+          <button onClick={() => downloadTsv(
+            ["Accession", "Name", "DB", "Start", "End"],
+            domains.map(d => [d.accession, d.name, d.source_db, String(d.start), String(d.end)]),
+            `domains-${accession}.tsv`
+          )} className="btn-ghost text-xs px-2 py-1">Export TSV</button>
+          <span className="text-text-muted text-xs">{seqLen} aa &middot; {domains.length} annotations</span>
+        </div>
       </div>
 
       <div className="flex flex-wrap gap-3">
@@ -56,7 +67,7 @@ export function DomainArchitecture({ accession }: { accession: string }) {
       </div>
 
       <div className="overflow-x-auto">
-        <svg viewBox={`0 0 ${W + 40} 70`} className="w-full min-w-[400px]">
+        <svg ref={svgRef} viewBox={`0 0 ${W + 40} 70`} className="w-full min-w-[400px]">
           <rect x={20} y={30} width={W} height={8} rx={4} fill="rgba(255,255,255,0.08)" />
 
           {[0, 0.25, 0.5, 0.75, 1].map(t => (

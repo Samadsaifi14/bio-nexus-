@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitBranch, ChevronDown, ChevronRight, ExternalLink, AlertCircle } from 'lucide-react';
+import { GitBranch, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Download } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import type { PathwayEnrichment as PathwayEnrichmentData } from '@/types/pipeline';
+import { downloadTsv, copyText } from '@/lib/export-utils';
 import PathwayDiagram from './PathwayDiagram';
 
 interface Props {
@@ -18,9 +19,24 @@ export function PathwayEnrichment({ data }: Props) {
 
   return (
     <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5">
-      <div className="flex items-center gap-2 mb-4">
-        <GitBranch className="w-5 h-5 text-accent-cyan" />
-        <h3 className="text-lg font-semibold text-text-primary">Pathway Enrichment</h3>
+      <div className="flex items-center justify-between mb-4">
+        <div className="flex items-center gap-2">
+          <GitBranch className="w-5 h-5 text-accent-cyan" />
+          <h3 className="text-lg font-semibold text-text-primary">Pathway Enrichment</h3>
+        </div>
+        <div className="flex items-center gap-2">
+          <button onClick={() => copyText(data.pathways.map(p => `https://reactome.org/content/detail/${p.stId}`).join("\n"))}
+            className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+            <Download className="w-3 h-3" /> Copy links
+          </button>
+          <button onClick={() => downloadTsv(
+            ["ID", "Name", "Species", "Found/Total", "FDR"],
+            data.pathways.map(p => [p.stId, p.name, p.species, `${p.entitiesFound}/${p.entitiesTotal}`, p.entitiesFDR.toExponential(2)]),
+            "pathways.tsv"
+          )} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+            <Download className="w-3 h-3" /> Export TSV
+          </button>
+        </div>
       </div>
       <p className="text-xs text-text-muted mb-4">
         {data.pathways.length} enriched pathway{data.pathways.length !== 1 ? 's' : ''} found · Sorted by FDR

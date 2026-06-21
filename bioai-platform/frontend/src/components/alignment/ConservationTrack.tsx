@@ -1,4 +1,6 @@
 "use client";
+import { useRef } from "react";
+import { exportSvgPng } from "@/lib/export-utils";
 
 const GROUPS: Record<string, string[]> = {
   polar_positive: ["K", "R", "H"],
@@ -35,6 +37,7 @@ interface Props {
 }
 
 export function ConservationTrack({ alignedSeqs }: Props) {
+  const svgRef = useRef<SVGSVGElement>(null);
   if (!alignedSeqs.length) return null;
   const L = alignedSeqs[0].length;
 
@@ -57,6 +60,8 @@ export function ConservationTrack({ alignedSeqs }: Props) {
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h3 className="text-text-primary font-semibold">Conservation Analysis</h3>
+        <button onClick={() => exportSvgPng(svgRef.current, "conservation.png")}
+          className="btn-ghost text-xs px-2 py-1">Export PNG</button>
         <div className="flex gap-4 text-xs text-text-muted">
           <span>Avg: <span className="text-text-secondary">{avgConservation}%</span></span>
           <span>Fully conserved: <span className="text-accent-cyan">{highlyConserved} positions</span></span>
@@ -64,7 +69,7 @@ export function ConservationTrack({ alignedSeqs }: Props) {
       </div>
 
       <div className="bg-surface-1 rounded-xl p-3 border border-glass-border overflow-x-auto">
-        <svg viewBox={`0 0 ${L * 4} 60`} className="w-full" style={{ minWidth: L * 4 }}>
+        <svg ref={svgRef} viewBox={`0 0 ${L * 4} 60`} className="w-full" style={{ minWidth: L * 4 }}>
           {scores.map((s, i) => (
             <rect key={i} x={i * 4} y={60 - s * 55} width={3} height={s * 55}
               fill={scoreColor(s)} rx={1} />

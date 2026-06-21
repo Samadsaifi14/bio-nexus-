@@ -5,6 +5,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends build-essential
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+# primer3-py is optional (requires C compiler) — skip silently if it fails
+RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"
 COPY . .
 
 EXPOSE 7860

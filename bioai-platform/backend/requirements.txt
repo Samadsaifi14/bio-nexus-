@@ -11,4 +11,4 @@ supabase
 reportlab
 celery
 pydantic[email]
-primer3-py>=2.0.3
+# primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)

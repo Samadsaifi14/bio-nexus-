@@ -120,6 +120,16 @@ export type AlignmentResult = {
   stype: string;
 };
 
+export async function runPipelineV2(sequence: string, steps?: string[]): Promise<{ job_id: string }> {
+  const res = await api.post('/api/pipeline/v2/run', { sequence, steps: steps || undefined });
+  return res.data;
+}
+
+export async function getPipelineStatusV2(jobId: string): Promise<any> {
+  const res = await api.get(`/api/pipeline/v2/status/${jobId}`);
+  return res.data;
+}
+
 export async function runAlignment(sequence: string, stype: string = 'protein'): Promise<AlignmentResult> {
   const res = await api.post('/api/alignment/run', { sequence, stype });
   return res.data;

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle } from 'lucide-react';
+import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle, GitFork } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { ReactNode } from 'react';
@@ -23,6 +23,7 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'uniprot',   name: 'UniProt Lookup',           description: 'Retrieve detailed annotations for a known protein.',       icon: Globe,     active: true },
       { id: 'alignment', name: 'Multiple Sequence Alignment', description: 'Align sequences to find conserved regions and relationships.', icon: Layout, active: true },
       { id: 'domains',   name: 'Domain Analysis',          description: 'Fetch domain/motif annotations from InterPro.',             icon: Layers,    active: true },
+      { id: 'phylo',     name: 'Phylogenetic Tree',        description: 'Build and visualize phylogenetic trees from sequences.',     icon: GitFork,   active: true },
     ],
   },
   {

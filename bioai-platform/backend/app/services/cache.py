@@ -1,9 +1,12 @@
+import logging
 import redis
 import hashlib
 import json
 import functools
 from typing import Callable, Any
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 _redis = None
 
@@ -13,8 +16,10 @@ def init_redis():
     try:
         _redis = redis.from_url(settings.REDIS_URL, decode_responses=True)
         _redis.ping()
+        logger.info("Redis connected")
     except Exception:
         _redis = None
+        logger.warning("Redis unavailable — caching disabled")
 
 
 def get_redis():

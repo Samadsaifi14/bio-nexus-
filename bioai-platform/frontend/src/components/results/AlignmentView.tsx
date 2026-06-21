@@ -8,30 +8,30 @@ interface AlignmentViewProps {
 }
 
 const COLORS: Record<string, string> = {
-  A: 'text-green-700',
-  R: 'text-blue-700',
-  N: 'text-purple-700',
-  D: 'text-red-700',
-  C: 'text-yellow-700',
-  Q: 'text-indigo-700',
-  E: 'text-red-700',
-  G: 'text-gray-700',
-  H: 'text-blue-700',
-  I: 'text-green-700',
-  L: 'text-green-700',
-  K: 'text-blue-700',
-  M: 'text-green-700',
-  F: 'text-green-700',
-  P: 'text-orange-700',
-  S: 'text-teal-700',
-  T: 'text-teal-700',
-  W: 'text-green-700',
-  Y: 'text-blue-700',
-  V: 'text-green-700',
+  A: 'text-emerald-400',
+  R: 'text-blue-400',
+  N: 'text-purple-400',
+  D: 'text-red-400',
+  C: 'text-yellow-400',
+  Q: 'text-indigo-400',
+  E: 'text-red-400',
+  G: 'text-text-secondary',
+  H: 'text-blue-400',
+  I: 'text-emerald-400',
+  L: 'text-emerald-400',
+  K: 'text-blue-400',
+  M: 'text-emerald-400',
+  F: 'text-emerald-400',
+  P: 'text-orange-400',
+  S: 'text-teal-400',
+  T: 'text-teal-400',
+  W: 'text-emerald-400',
+  Y: 'text-blue-400',
+  V: 'text-emerald-400',
 };
 
 function colorChar(c: string): string {
-  return COLORS[c.toUpperCase()] || 'text-gray-700';
+  return COLORS[c.toUpperCase()] || 'text-text-secondary';
 }
 
 function renderLine(label: string, seq: string, start: number, isMidline: boolean = false): JSX.Element {
@@ -41,21 +41,21 @@ function renderLine(label: string, seq: string, start: number, isMidline: boolea
     const chunk = chars.slice(i, i + 60);
     groups.push(
       <div key={i} className="flex font-mono text-xs leading-5">
-        <span className="w-12 text-right text-gray-400 shrink-0 mr-2">{start + i}</span>
+        <span className="w-12 text-right text-text-muted shrink-0 mr-2">{start + i}</span>
         <span className="tracking-wider">
           {chunk.map((c, j) => (
-            <span key={j} className={isMidline ? (c === '|' ? 'text-teal-600 font-bold' : 'text-gray-300') : colorChar(c)}>
+            <span key={j} className={isMidline ? (c === '|' ? 'text-accent-cyan font-bold' : 'text-text-muted') : colorChar(c)}>
               {c}
             </span>
           ))}
         </span>
-        <span className="w-12 text-left text-gray-400 shrink-0 ml-2">{start + i + chunk.length}</span>
+        <span className="w-12 text-left text-text-muted shrink-0 ml-2">{start + i + chunk.length}</span>
       </div>
     );
   }
   return (
     <div className="mb-1">
-      <span className="inline-block w-8 text-xs text-gray-400 font-mono shrink-0">{label}</span>
+      <span className="inline-block w-8 text-xs text-text-muted font-mono shrink-0">{label}</span>
       <div className="inline-block">{groups}</div>
     </div>
   );
@@ -86,14 +86,14 @@ export function AlignmentView({ hit }: AlignmentViewProps) {
   const displayM = showAll ? mid : truncate(mid, displayLines);
 
   return (
-    <div className="mt-3 pt-3 border-t border-gray-100">
-      <div className="flex items-center gap-4 mb-3 text-xs text-gray-500">
-        <span>Identities: <strong className="text-gray-900">{identities}/{alignLen} ({pctId}%)</strong></span>
-        <span>Positives: <strong className="text-gray-900">{positives}</strong></span>
-        {gaps > 0 && <span>Gaps: <strong className="text-gray-900">{gaps}</strong></span>}
+    <div className="mt-3 pt-3 border-t border-glass-border">
+      <div className="flex items-center gap-4 mb-3 text-xs text-text-muted">
+        <span>Identities: <strong className="text-text-primary">{identities}/{alignLen} ({pctId}%)</strong></span>
+        <span>Positives: <strong className="text-text-primary">{positives}</strong></span>
+        {gaps > 0 && <span>Gaps: <strong className="text-text-primary">{gaps}</strong></span>}
       </div>
 
-      <div className="bg-gray-50 rounded-lg p-3 overflow-x-auto">
+      <div className="bg-surface-1 rounded-lg p-3 overflow-x-auto">
         {renderLine('Query', displayQ, hit.query_from || 0)}
         {renderLine('', displayM, 0, true)}
         {renderLine('Sbjct', displayH, hit.hit_from || 0)}
@@ -102,7 +102,7 @@ export function AlignmentView({ hit }: AlignmentViewProps) {
       {!showAll && totalLines > 3 && (
         <button
           onClick={() => setShowAll(true)}
-          className="mt-2 text-xs text-teal-600 hover:text-teal-700"
+          className="mt-2 text-xs text-accent-cyan hover:text-accent-cyan/80"
         >
           Show full alignment ({totalLines} lines)
         </button>

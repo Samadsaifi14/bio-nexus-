@@ -30,7 +30,7 @@ router = APIRouter(prefix="/phylo", tags=["phylo"])
 
 # ── EBI base URLs ──────────────────────────────────────────────────────────────
 _EBI_CLUSTALO = "https://www.ebi.ac.uk/Tools/services/rest/clustalo"
-_EMAIL        = "bionexus@demo.com"
+_EMAIL        = "bionexus@example.com"
 
 # ── PhyML protein models (most-used first) ────────────────────────────────────
 PROTEIN_MODELS = ["LG", "WAG", "JTT", "Blosum62", "MtREV", "Dayhoff"]

@@ -89,7 +89,7 @@ export default function StructurePage() {
             </div>
             {pdbId ? (
               <iframe
-                src={`https://embed.rcsb.org/3d-view/${pdbId}`}
+                src={`https://www.ebi.ac.uk/pdbe/entry/pdb/${pdbId}/embedded/`}
                 className="w-full h-96 rounded-xl border-0"
                 title="3D structure viewer"
               />

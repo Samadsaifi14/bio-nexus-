@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc autoconf automake pkg-config wget && \
+    build-essential gcc autoconf automake libtool pkg-config wget ca-certificates && \
     rm -rf /var/lib/apt/lists/*
 
 # Build PhyML from source (~2 min)
@@ -13,8 +13,7 @@ RUN wget -O /tmp/phyml.tar.gz \
     ./autogen.sh
 RUN cd /tmp/phyml-3.3.20250515 && \
     ./configure --enable-phyml --disable-native && \
-    make -j$(nproc) && \
-    make install && \
+    make && make install && \
     rm -rf /tmp/phyml-3.3.20250515 /tmp/phyml.tar.gz
 
 WORKDIR /app

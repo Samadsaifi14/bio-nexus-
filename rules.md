@@ -473,23 +473,27 @@ Data:
 
 ---
 
-## 8 — What NOT To Build (Pre-Demo)
+## 8 — What NOT To Build (Post-Phase 2)
 
-This list exists because scope creep during the 18-day sprint will kill the demo.
+Phase 2 is complete — everything below was once on the "do not build" list and is now live.
+Keeping this section for Phase 3+ scope guard.
 
-❌ MSA wizard (Phase 2)  
-❌ Phylogenetic tree viewer (Phase 2)  
-❌ Protein 3D structure viewer (Phase 3)  
-❌ AlphaFold integration (Phase 3)  
-❌ Drug docking features (Phase 4)  
-❌ PDF export (post-demo Phase 1)  
-❌ Onboarding tutorial (post-demo Phase 1)  
-❌ Email notifications  
-❌ Rate limiting UI  
-❌ Admin panel  
-❌ Analytics dashboard  
-❌ Dark/light mode toggle (dark by default — toggle later)  
-❌ Mobile app  
-❌ Public API  
+✅ MSA wizard (Phase 2 — built)  
+✅ Phylogenetic tree viewer (Phase 2 — built)  
+✅ Protein 3D structure viewer (built)  
+✅ AlphaFold integration (built)  
+✅ PDF export (built)  
+✅ Public API (built — API key system)  
+✅ Guest → account upgrade (built)  
+✅ Share links (built)  
 
-If you find yourself working on any of the above before June 30: stop, commit your current work, and return to the demo track.
+❌ Drug docking features (Phase 4 — not started)  
+❌ Onboarding tutorial (not started)  
+❌ Email notifications (not started)  
+❌ Rate limiting UI (not started)  
+❌ Admin panel (not started)  
+❌ Analytics dashboard (not started)  
+❌ Dark/light mode toggle (void-dark only)  
+❌ Mobile app (not started)  
+
+If you find yourself working on any of the ❌ items without explicit prioritization: stop and align with the current phase goals.

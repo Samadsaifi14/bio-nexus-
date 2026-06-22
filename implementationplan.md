@@ -90,32 +90,29 @@ One golden path only: **Sequence In → BLAST → AI-interpreted report.** Every
 
 ---
 
-## Track B — Phase 1 Full Build (post-prototype, ~10–12 weeks)
+## Track B — Phase 1 & 2 Complete ✅
 
-### Sprint 1–2: Pairwise Alignment + Pipeline Chaining Foundation
-- Add Clustal Omega pairwise alignment as the second live operation
-- Implement `parent_job_id` chaining (schema already supports this)
-- Operation grid: two live cards
+All Phase 1 and Phase 2 features are now built and deployed:
 
-### Sprint 3–4: UniProt + PDB
-- UniProt annotation lookup
-- PDB structure fetch + Mol* 3D viewer
-- Chain: "from this BLAST hit → fetch structure"
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Clustal Omega MSA | ✅ Live | `/analyze/alignment` + pipeline v2 auto-pipe |
+| UniProt annotation | ✅ Live | `_run_uniprot()` in pipeline v2 |
+| PDB structure fetch + Mol* viewer | ✅ Live | `/analyze/structure`, `AlphaFoldViewer.tsx` |
+| BLAST hit → structure chain | ✅ Live | Pipeline v2 full flow |
+| MSA + phylogenetic tree | ✅ Live | NJ/UPGMA/ML via `backend/app/routers/phylo.py` |
+| Pathway integration (Reactome/KEGG) | ✅ Live | `/analyze/pathways` |
+| Primer design | ✅ Live | `/analyze/primers` (Primer3) |
+| Domain & motif analysis | ✅ Live | InterPro API via `backend/app/routers/domains.py` |
+| Protein interactions (STRING) | ✅ Live | `/analyze/interactions` |
+| Structural analysis suite | ✅ Live | Ramachandran, 2° structure, comparison |
+| PDF report export | ✅ Live | `GET /api/export/job/{id}?format=pdf` |
+| API key system | ✅ Live | Programmatic access with X-API-Key auth |
+| Share links | ✅ Live | Token-based sharing |
+| Guest → account upgrade | ✅ Live | Google OAuth in Settings |
 
-### Sprint 5–6: MSA + Phylogenetic Tree
-- Clustal Omega multi-sequence alignment
-- Basic tree construction + visualization
-- Completes the BLAST → shortlist → MSA → tree workflow from your syllabus mapping
-
-### Sprint 7: Pathway Integration
-- Gene/protein → pathway lookup via Reactome/WikiPathways
-- Pathway diagram viewer
-
-### Sprint 8: Onboarding + `/learn`
-- First-run tutorial
-- Documentation pages generated from existing "what does this mean" content — write once, reuse
-
-### Sprint 9–10: Hardening
-- PDF report export
-- Cache-hit check before re-calling external APIs (raw responses already stored from Day 1)
+### Phase 3 — Next
+- RAW sequencing data (FASTQ → QC → alignment → variant calling)
+- Onboarding tutorial + `/learn` docs site
 - Error monitoring (Sentry free tier)
+- Homology modeling (SWISS-MODEL)

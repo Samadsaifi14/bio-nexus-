@@ -139,16 +139,20 @@ One workflow. Done better than anyone else has done it. No feature creep.
 
 No one offers this. Galaxy makes you build a workflow manually. EMBL-EBI runs each tool separately. Nobody gives a unified interpreted result.
 
-### Phase 2 — Expand the pipeline library (Months 5–10)
+### Phase 2 — Expand the pipeline library ✅ (Completed)
 
-New pipelines:
-- **MSA + phylogenetic tree** — paste sequences, get a tree with evolutionary distances explained
-- **Domain & motif analysis** — Pfam, PROSITE — what are the functional regions
-- **Gene ontology + KEGG enrichment** — given a gene list, what processes are enriched
-- **Primer design** — Primer3 integration, conditions included
-- **Molecular docking** — DiffDock via Replicate (GPU inference API, not local)
+All Phase 2 features are now live:
 
-Pipeline selector UI: "What do you have?" → "What do you want to know?" → pipeline recommended automatically
+| Feature | Status | Implementation |
+|---------|--------|----------------|
+| **MSA + phylogenetic tree** | ✅ Live | ClustalOmega (EBI API), NJ/UPGMA/ML with PhyML binary |
+| **Domain & motif analysis** | ✅ Live | InterPro API via `_run_domains()` in pipeline v2 |
+| **Gene ontology + KEGG enrichment** | ✅ Live | Reactome Analysis Service in pipeline v2 |
+| **Primer design** | ✅ Live | Primer3 integration with `backend/app/routers/primers.py` |
+| **API key system** | ✅ Live | `api_keys` table, CRUD router, X-API-Key middleware |
+| **Share links** | ✅ Live | Token-based sharing with `POST /api/share` |
+| **Export (PDF/JSON)** | ✅ Live | ReportLab PDF generation via `GET /api/export/job/{id}` |
+| **Guest → account upgrade** | ✅ Live | Google OAuth via `upgradeToAccount()` in Settings |
 
 ### Phase 3 — Handle raw sequencing data (Months 11–18)
 
@@ -162,7 +166,7 @@ Pipeline selector UI: "What do you have?" → "What do you want to know?" → pi
 - Lab workspaces (PI + students share a project)
 - Custom pipeline builder for advanced users
 - Institution licensing
-- API access for programmatic use
+- ~~API access for programmatic use~~ ✅ Done in Phase 2
 
 ---
 

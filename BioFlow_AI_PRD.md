@@ -375,42 +375,37 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 
 ---
 
-### Phase 2 — Alignment & Phylogenetics ✅ (Completed)
+### Phase 2 — Alignment & Phylogenetics (Months 4–6)
 
 **Goal:** Add MSA and phylogenetic analysis workflows so students can complete the full sequence-to-tree pipeline.
 
-**Status: All implemented and live.**
-
-| Feature | Implementation | URL/Endpoint |
-|---------|---------------|-------------|
-| MSA (ClustalOmega) | `backend/app/routers/alignment.py` + pipeline v2 `_run_msa()` | `/analyze/alignment` |
-| Phylogenetic tree (NJ/UPGMA/ML) | `backend/app/routers/phylo.py` with local PhyML binary | `/analyze/phylo` |
-| Phylo viewer | `PhyloTreeViewer.tsx` — rectangular/circular, export SVG/PNG/Newick | Standalone + embedded |
-| Conservation analysis | Via domain architecture viewer (`DomainArchitecture.tsx`) | Advanced Analysis tab |
-| Primer design | `backend/app/routers/primers.py` with Primer3 | `/analyze/primers` |
-| Domain & motif analysis | `backend/app/routers/domains.py` via InterPro API | Embedded in pipeline v2 |
-| Pathway enrichment | `backend/app/routers/pathways.py` via Reactome | `/analyze/pathways` |
-| Structure (AlphaFold/PDB) | `backend/app/routers/structures.py`, `AlphaFoldViewer.tsx` | `/analyze/structure` |
-| Protein interactions | `backend/app/routers/interactions.py` via STRING | `/analyze/interactions` |
-| AI interpretation | `backend/app/routers/ai.py` via Groq (LiteLLM) | Pipeline v2 interpret step |
-
 #### F2.1 — Multiple Sequence Alignment (MSA)
-- EMBL-EBI ClustalOmega API ✅
-- Pipeline v2 auto-pipes BLAST hits → MSA ✅
-- Raw FASTA output viewable in report page ✅
+
+- Inputs: multiple sequences (from BLAST shortlist, accession list, or paste)
+- Algorithm options (wizard-guided): ClustalOmega (default), MUSCLE (alternative)
+- EMBL-EBI ClustalOmega API for execution
+- Results visualization: color-coded MSA viewer with conservation scores
+- Highlight: conserved regions, variable regions, gaps
+- Downloadable in: FASTA, Clustal, PHYLIP format (all generated automatically)
 
 #### F2.2 — Phylogenetic Tree Construction
-- NJ via Clustal Omega guide tree ✅
-- UPGMA via pure Python p-distance + weighted linkage ✅
-- ML via local PhyML 3.3 binary ✅
-- phylotree.js based interactive viewer (PhyloTreeViewer.tsx) ✅
-- Method badge, layout toggle (rectangular/circular), bootstrap colour scale ✅
-- Export SVG, PNG, Newick ✅
-- Bootstrap values colour-coded (≥90 cyan, ≥70 lime, ≥50 orange, <50 red) ✅
+
+- Inputs: MSA output (auto-piped from F2.1, or user-uploaded alignment)
+- Method selection (wizard-guided):
+  - "Quick overview" → Neighbor-Joining (PHYLIP via EMBL-EBI)
+  - "More accurate" → Maximum Likelihood (IQ-TREE web API)
+- Bootstrap support values computed automatically
+- Results: interactive phylogenetic tree rendered in browser (phylotree.js)
+  - Zoom, pan, collapse clades
+  - Click leaf → show organism info, highlight in MSA
+- Tree downloadable as: Newick format, SVG image, PNG
 
 #### F2.3 — Conservation Analysis
-- Domain architecture visualization via InterPro API ✅
-- Cross-referenced with UniProt annotations ✅
+
+- Takes MSA output → plots conservation score per position
+- Highlights functionally important conserved residues
+- Cross-references UniProt functional annotations for conserved positions
+- AI interpretation: which conserved regions may be functionally significant
 
 #### F2.4 — Primer Design (from nucleotide alignment)
 
@@ -844,14 +839,13 @@ Renders results page
 
 ---
 
-### Phase 2 — Alignment & Phylogenetics ✅ (Completed)
+### Phase 2 — Alignment & Phylogenetics (Months 4–6)
 
-| Month | Milestones | Status |
-|---|---|---|
-| Month 4 | MSA via ClustalOmega API. MSA viewer component. Conservation plot. | ✅ Live |
-| Month 5 | Phylogenetic tree (NJ/UPGMA/ML). PhyloTreeViewer with export. Bootstrap display. | ✅ Live |
-| Month 6 | Primer design. Domain analysis. Pathway enrichment. BLAST→MSA→Tree auto-piped in v2. | ✅ Live |
-| Bonus | API keys, share links, PDF/JSON export, guest→account upgrade | ✅ Live |
+| Month | Milestones |
+|---|---|
+| Month 4 | MSA via ClustalOmega API. MSA viewer component. Conservation plot. |
+| Month 5 | Phylogenetic tree (PHYLIP/IQ-TREE web API). phylotree.js tree renderer. Bootstrap support display. |
+| Month 6 | Primer design from nucleotide alignment. Workflow: BLAST → shortlist → MSA → tree (auto-piped). Phase 2 results page with all visualizations. |
 
 ---
 
@@ -915,29 +909,28 @@ Renders results page
 
 Maps platform features to the standard M.Sc. Bioinformatics curriculum (JMI / DU equivalent):
 
-| Curriculum Topic | BioFlow AI Feature | Phase | Status |
-|---|---|---|---|---|
-| NCBI, ExPASy, EBI exploration | Sequence retrieval engine + database browser | 1 | ✅ |
-| FASTA, GenBank, FASTQ formats | File format converter (auto-detect + convert) | 1 | ✅ |
-| Pairwise alignment (NW, SW) | Pairwise alignment wizard | 1 | ✅ |
-| BLAST and variants | BLAST wizard | 1 | ✅ |
-| E-value, P-value interpretation | AI interpretation layer + inline tooltips | 1 | ✅ |
-| BLOSUM, PAM matrices | Parameter annotations in wizard | 1 | ✅ |
-| ClustalW / MSA | MSA wizard (ClustalOmega) | 2 | ✅ |
-| HMM / Pfam | Pfam domain search (InterPro) | 2 | ✅ |
-| PHYLIP, MEGA, phylogenetic trees | Phylogenetics wizard (NJ/UPGMA/ML) + tree viewer | 2 | ✅ |
-| Primer design from alignment | Primer design tool (Primer3) | 2 | ✅ |
-| PDB, CATH, SCOP databases | Structure retrieval + AlphaFold viewer | 2 | ✅ |
-| PyMOL / structure visualization | Mol* 3D viewer in browser | 2 | ✅ |
-| Ramachandran plot | Ramachandran analysis tool | 2 | ✅ |
-| H-bonds, salt bridges, distances | Structural analysis suite | 2 | ✅ |
-| Secondary structure prediction | Secondary structure prediction tool | 2 | ✅ |
-| DALI / TM-Align structural comparison | Structural comparison tool (Foldseek) | 2 | ✅ |
-| Protein interactions | STRING PPI network viewer | 2 | ✅ |
-| Pathway analysis (KEGG, Reactome) | Pathway wizard (Reactome/WikiPathways) | 2 | ✅ |
-| Drug design, docking, ADMET | Drug discovery module | 4 | ⬜ |
-| Homology modeling | SWISS-MODEL integration | 3 | ⬜ |
-| QSAR | QSAR basics module | 4 | ⬜ |
+| Curriculum Topic | BioFlow AI Feature | Phase |
+|---|---|---|
+| NCBI, ExPASy, EBI exploration | Sequence retrieval engine + database browser | 1 |
+| FASTA, GenBank, FASTQ formats | File format converter (auto-detect + convert) | 1 |
+| Pairwise alignment (NW, SW) | Pairwise alignment wizard | 1 |
+| BLAST and variants | BLAST wizard | 1 |
+| E-value, P-value interpretation | AI interpretation layer + inline tooltips | 1 |
+| BLOSUM, PAM matrices | Parameter annotations in wizard | 1 |
+| ClustalW / MSA | MSA wizard (ClustalOmega) | 2 |
+| HMM / Pfam | Pfam domain search (Phase 2 addition) | 2 |
+| PHYLIP, MEGA, phylogenetic trees | Phylogenetics wizard + tree viewer | 2 |
+| Primer design from alignment | Primer design tool | 2 |
+| PDB, CATH, SCOP databases | Structure retrieval + metadata display | 3 |
+| PyMOL / structure visualization | NGL.js 3D viewer in browser | 3 |
+| Ramachandran plot | Ramachandran analysis tool | 3 |
+| H-bonds, salt bridges, distances | Structural analysis suite | 3 |
+| Secondary structure prediction (DSSP, PSIPred) | Secondary structure prediction tool | 3 |
+| Homology modeling | SWISS-MODEL integration | 3 |
+| DALI / TM-Align structural comparison | Structural comparison tool | 3 |
+| Drug design, docking, ADMET | Drug discovery module | 4 |
+| QSAR | QSAR basics module | 4 |
+| Pathway analysis (KEGG) | Pathway wizard (Reactome/WikiPathways) | 2 |
 
 ---
 

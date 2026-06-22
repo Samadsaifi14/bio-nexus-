@@ -5,15 +5,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # Build PhyML from source (~2 min)
-RUN wget -qO /tmp/phyml.tar.gz \
+# --disable-native avoids -march=native which can fail on some HF CPU archs
+RUN wget -O /tmp/phyml.tar.gz \
       https://github.com/stephaneguindon/phyml/archive/refs/tags/v3.3.20250515.tar.gz && \
     tar xzf /tmp/phyml.tar.gz -C /tmp && \
     cd /tmp/phyml-3.3.20250515 && \
-    ./autogen.sh && \
-    ./configure --enable-phyml && \
+    ./autogen.sh
+RUN cd /tmp/phyml-3.3.20250515 && \
+    ./configure --enable-phyml --disable-native && \
     make -j$(nproc) && \
     make install && \
-    cd / && \
     rm -rf /tmp/phyml-3.3.20250515 /tmp/phyml.tar.gz
 
 WORKDIR /app

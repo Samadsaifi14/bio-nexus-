@@ -1,8 +1,16 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc && \
+    build-essential gcc wget ca-certificates && \
     rm -rf /var/lib/apt/lists/*
+
+# Download pre-compiled PhyML binary from bioconda
+RUN wget -qO /tmp/phyml.tar.bz2 \
+      https://anaconda.org/bioconda/phyml/3.3.20220408/download/linux-64/phyml-3.3.20220408-h9bc3f66_3.tar.bz2 && \
+    tar xjf /tmp/phyml.tar.bz2 -C /tmp && \
+    cp /tmp/bin/phyml /usr/local/bin/phyml && \
+    chmod +x /usr/local/bin/phyml && \
+    rm -rf /tmp/phyml.tar.bz2 /tmp/bin
 
 WORKDIR /app
 COPY requirements.txt .

@@ -9,7 +9,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo
 from app.services.cache import init_redis
 
 logger = logging.getLogger(__name__)
@@ -50,6 +50,7 @@ app.include_router(domains.router)
 app.include_router(interactions.router)
 app.include_router(primers.router)
 app.include_router(structure_analysis.router)
+app.include_router(phylo.router)
 
 TERMINAL_STATUSES = {"complete", "failed"}
 NON_TERMINAL_STATUSES = {

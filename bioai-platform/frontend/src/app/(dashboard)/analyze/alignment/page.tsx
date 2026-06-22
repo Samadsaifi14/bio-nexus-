@@ -8,7 +8,7 @@ import { fadeUp } from '@/lib/animations';
 import { runAlignment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { AlignmentResult } from '@/lib/api';
-import { PhyloTreeViewer } from '@/components/phylo/PhyloTreeViewer';
+import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 
 function parseAlignedFasta(fasta: string): string[] {

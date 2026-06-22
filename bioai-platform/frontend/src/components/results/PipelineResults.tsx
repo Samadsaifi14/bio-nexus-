@@ -5,7 +5,7 @@ import { CheckCircle2, Circle, LoaderCircle, XCircle, ArrowRight, Dna } from "lu
 import { BlastPanel } from "./BlastPanel";
 import { ScoreBars } from "./ScoreBars";
 import { UniprotPanel } from "./UniprotPanel";
-import { PhyloTreeViewer } from "@/components/phylo/PhyloTreeViewer";
+import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import { AIInterpretation } from "./AIInterpretation";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
 

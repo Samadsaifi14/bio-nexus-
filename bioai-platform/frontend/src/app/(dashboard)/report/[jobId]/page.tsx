@@ -7,7 +7,7 @@ import { downloadJson } from "@/lib/export-utils";
 import { BlastPanel } from "@/components/results/BlastPanel";
 import { ScoreBars } from "@/components/results/ScoreBars";
 import { UniprotPanel } from "@/components/results/UniprotPanel";
-import { PhyloTreeViewer } from "@/components/phylo/PhyloTreeViewer";
+import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
 
 export default function ReportPage() {

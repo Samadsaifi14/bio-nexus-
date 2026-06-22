@@ -12,7 +12,7 @@ import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
-import { getJob } from '@/lib/api';
+import { getJob, createShareLink } from '@/lib/api';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { DomainArchitecture } from '@/components/domains/DomainArchitecture';
@@ -247,7 +247,13 @@ export default function JobPage() {
           </p>
         </div>
         <button
-          onClick={() => { navigator.clipboard.writeText(window.location.href); toast.success('Link copied!'); }}
+          onClick={async () => {
+            try {
+              const { url } = await createShareLink(jobId);
+              navigator.clipboard.writeText(`${window.location.origin}${url}`);
+              toast.success('Share link copied!');
+            } catch { toast.error('Failed to create share link'); }
+          }}
           className="btn-primary px-4 py-2 text-sm flex items-center gap-2"
         >
           <Copy className="w-4 h-4" />

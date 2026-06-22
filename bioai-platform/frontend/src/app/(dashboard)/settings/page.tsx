@@ -7,11 +7,13 @@ import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
 import {
   User, BarChart3, Key, Shield, LoaderCircle, Save, Sun,
-  Mail, Building2, LogOut, ChevronRight, Zap,
+  Mail, Building2, LogOut, ChevronRight, Zap, Trash2, Plus, Copy,
 } from 'lucide-react';
 import { useAuth } from '@/contexts/auth';
 import { getSupabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
+import { getApiKeys, createApiKey, deleteApiKey } from '@/lib/api';
+import type { ApiKey } from '@/lib/api';
 
 function getInitials(name?: string, email?: string): string {
   if (name)  return name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
@@ -20,7 +22,7 @@ function getInitials(name?: string, email?: string): string {
 }
 
 export default function SettingsPage() {
-  const { user, isGuest } = useAuth();
+  const { user, isGuest, upgradeToAccount } = useAuth();
   const router = useRouter();
 
   const [fullName, setFullName]       = useState('');
@@ -30,6 +32,12 @@ export default function SettingsPage() {
   const [jobsToday, setJobsToday]     = useState(0);
   const [jobsTotal, setJobsTotal]     = useState(0);
   const [dailyLimit, setDailyLimit]   = useState(10);
+
+  const [apiKeys, setApiKeys]           = useState<ApiKey[]>([]);
+  const [keysLoading, setKeysLoading]   = useState(false);
+  const [creatingKey, setCreatingKey]   = useState(false);
+  const [newKeyValue, setNewKeyValue]   = useState<string | null>(null);
+  const [keyNameInput, setKeyNameInput] = useState('');
 
   useEffect(() => {
     const fetchData = async () => {
@@ -55,7 +63,11 @@ export default function SettingsPage() {
       } catch { /* guest users may 401 */ } finally { setLoading(false); }
     };
     fetchData();
-  }, []);
+    if (!isGuest) {
+      setKeysLoading(true);
+      getApiKeys().then(setApiKeys).catch(() => {}).finally(() => setKeysLoading(false));
+    }
+  }, [isGuest]);
 
   const handleSave = async () => {
     setSaving(true);
@@ -160,16 +172,32 @@ export default function SettingsPage() {
                 </div>
               </div>
 
-              <div className="flex items-center justify-between pt-1">
-                <button
-                  onClick={handleSave} disabled={saving || isGuest}
-                  className="btn-primary px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50"
-                >
-                  {saving ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
-                  Save Profile
-                </button>
-                {isGuest && <p className="text-xs text-text-muted">Sign in to persist profile data</p>}
-              </div>
+              {isGuest ? (
+                <div className="rounded-xl bg-accent-cyan/5 border border-accent-cyan/15 p-5 text-center">
+                  <User className="w-10 h-10 text-accent-cyan mx-auto mb-3" />
+                  <h3 className="text-sm font-semibold text-text-primary mb-1">Save your work</h3>
+                  <p className="text-xs text-text-muted mb-4 max-w-sm mx-auto">
+                    Create a free account to keep your analysis history, save settings, and never lose results.
+                  </p>
+                  <button
+                    onClick={() => upgradeToAccount()}
+                    className="btn-primary px-5 py-2.5 text-sm inline-flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                    Sign in with Google
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between pt-1">
+                  <button
+                    onClick={handleSave} disabled={saving}
+                    className="btn-primary px-5 py-2.5 text-sm flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {saving ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
+                    Save Profile
+                  </button>
+                </div>
+              )}
             </div>
           )}
         </motion.section>
@@ -248,13 +276,115 @@ export default function SettingsPage() {
             <Key className="w-4 h-4 text-accent-cyan" />
             <h2 className="text-base font-semibold text-text-primary">API Access</h2>
           </div>
-          <div className="p-5 rounded-xl bg-surface-0 border border-glass-border text-center">
-            <Key className="w-8 h-8 text-text-muted mx-auto mb-3" />
-            <p className="text-sm font-medium text-text-primary">Coming in Phase 2</p>
-            <p className="text-xs text-text-muted mt-1 max-w-xs mx-auto">
-              Programmatic access to run BioNexus pipelines from your scripts and notebooks.
-            </p>
-          </div>
+          {isGuest ? (
+            <div className="p-5 rounded-xl bg-surface-0 border border-glass-border text-center">
+              <Key className="w-8 h-8 text-text-muted mx-auto mb-3" />
+              <p className="text-sm font-medium text-text-primary">Sign in to access API keys</p>
+              <p className="text-xs text-text-muted mt-1 max-w-xs mx-auto">
+                Create a free account to generate API keys for programmatic access.
+              </p>
+            </div>
+          ) : (
+            <div className="space-y-4">
+              <p className="text-sm text-text-secondary">
+                Generate API keys to run BioNexus pipelines from your scripts.
+                Use the <code className="text-accent-cyan text-xs bg-surface-0 px-1.5 py-0.5 rounded">X-API-Key</code> header to authenticate.
+              </p>
+
+              {/* Existing keys */}
+              {keysLoading ? (
+                <div className="flex items-center justify-center py-4">
+                  <LoaderCircle className="w-4 h-4 animate-spin text-accent-cyan" />
+                </div>
+              ) : apiKeys.length > 0 ? (
+                <div className="space-y-2">
+                  {apiKeys.map(k => (
+                    <div key={k.id} className="flex items-center justify-between p-3 rounded-xl bg-surface-0 border border-glass-border">
+                      <div className="flex items-center gap-3">
+                        <Key className="w-4 h-4 text-text-muted" />
+                        <div>
+                          <p className="text-sm font-medium text-text-primary">{k.name}</p>
+                          <p className="text-xs text-text-muted font-mono">{k.key_prefix}...</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <span className="text-[10px] text-text-muted">
+                          {k.last_used_at ? `Used ${new Date(k.last_used_at).toLocaleDateString()}` : 'Never used'}
+                        </span>
+                        <button
+                          onClick={async () => {
+                            if (!confirm('Revoke this API key? This cannot be undone.')) return;
+                            try {
+                              await deleteApiKey(k.id);
+                              setApiKeys(prev => prev.filter(x => x.id !== k.id));
+                              toast.success('API key revoked');
+                            } catch { toast.error('Failed to revoke key'); }
+                          }}
+                          className="p-1.5 rounded-lg hover:bg-error/10 text-text-muted hover:text-error transition"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 rounded-xl bg-surface-0 border border-glass-border text-center">
+                  <p className="text-xs text-text-muted">No API keys yet.</p>
+                </div>
+              )}
+
+              {/* Generate new key */}
+              {newKeyValue ? (
+                <div className="p-4 rounded-xl bg-accent-cyan/5 border border-accent-cyan/15">
+                  <p className="text-xs font-semibold text-accent-cyan mb-2">Key generated — copy it now. You won't see it again.</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 text-xs font-mono bg-surface-0 px-3 py-2 rounded-lg border border-glass-border text-text-primary break-all">
+                      {newKeyValue}
+                    </code>
+                    <button
+                      onClick={() => { navigator.clipboard.writeText(newKeyValue); toast.success('Copied!'); }}
+                      className="btn-primary px-3 py-2 text-xs flex items-center gap-1 shrink-0"
+                    >
+                      <Copy className="w-3.5 h-3.5" /> Copy
+                    </button>
+                  </div>
+                  <button
+                    onClick={() => { setNewKeyValue(null); setKeyNameInput(''); }}
+                    className="text-xs text-text-muted mt-2 hover:text-text-primary transition"
+                  >
+                    Dismiss
+                  </button>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text" value={keyNameInput}
+                    onChange={e => setKeyNameInput(e.target.value)}
+                    placeholder="e.g. My script"
+                    className="flex-1 px-4 py-2 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm text-text-primary bg-surface-1"
+                  />
+                  <button
+                    onClick={async () => {
+                      if (!keyNameInput.trim()) { toast.error('Enter a name'); return; }
+                      setCreatingKey(true);
+                      try {
+                        const res = await createApiKey(keyNameInput.trim());
+                        setNewKeyValue(res.key);
+                        setApiKeys(prev => [...prev, { id: '', name: res.name, key_prefix: res.key_prefix, created_at: new Date().toISOString(), last_used_at: null }]);
+                        toast.success('API key created');
+                      } catch { toast.error('Failed to create key'); } finally { setCreatingKey(false); }
+                    }}
+                    disabled={creatingKey}
+                    className="btn-primary px-4 py-2 text-sm flex items-center gap-2 disabled:opacity-50"
+                  >
+                    {creatingKey ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Plus className="w-4 h-4" />}
+                    Generate
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
         </motion.section>
 
         {/* ── Data & Privacy ── */}
@@ -278,9 +408,24 @@ export default function SettingsPage() {
         </motion.section>
 
         {/* ── Account Actions ── */}
-        {!isGuest && (
-          <motion.section variants={fadeUp} className="glass-card p-6 border border-error/10">
-            <h2 className="text-base font-semibold text-text-primary mb-4">Account Actions</h2>
+        <motion.section variants={fadeUp} className={`glass-card p-6 ${isGuest ? '' : 'border border-error/10'}`}>
+          <h2 className="text-base font-semibold text-text-primary mb-4">
+            {isGuest ? 'Get Started' : 'Account Actions'}
+          </h2>
+          {isGuest ? (
+            <div className="space-y-3">
+              <p className="text-sm text-text-secondary">
+                Sign in with Google to save your results, access your history, and unlock higher daily limits.
+              </p>
+              <button
+                onClick={() => upgradeToAccount()}
+                className="btn-primary px-5 py-2.5 text-sm inline-flex items-center gap-2"
+              >
+                <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/></svg>
+                Sign in with Google
+              </button>
+            </div>
+          ) : (
             <button
               onClick={handleSignOut}
               className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-error/20 text-error text-sm hover:bg-error/5 transition"
@@ -288,8 +433,8 @@ export default function SettingsPage() {
               <LogOut className="w-4 h-4" />
               Sign out
             </button>
-          </motion.section>
-        )}
+          )}
+        </motion.section>
       </motion.div>
     </div>
   );

@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { ArrowLeft, Printer, Download, LoaderCircle, XCircle } from "lucide-react";
 import Link from "next/link";
-import { downloadJson } from "@/lib/export-utils";
+import { getExportUrl } from "@/lib/api";
 import { BlastPanel } from "@/components/results/BlastPanel";
 import { ScoreBars } from "@/components/results/ScoreBars";
 import { UniprotPanel } from "@/components/results/UniprotPanel";
@@ -55,14 +55,14 @@ export default function ReportPage() {
           <ArrowLeft className="w-4 h-4" /> Back to Wizard
         </Link>
         <div className="flex gap-2">
-          <button onClick={() => window.print()}
+          <a href={getExportUrl(jobId, 'pdf')}
             className="px-4 py-2 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center gap-1.5">
             <Printer className="w-4 h-4" /> PDF
-          </button>
-          <button onClick={() => downloadJson(data, `bio-nexus-report-${jobId}.json`)}
+          </a>
+          <a href={getExportUrl(jobId, 'json')}
             className="px-4 py-2 rounded-xl border border-glass-border text-text-secondary text-sm hover:bg-surface-1 transition flex items-center gap-1.5">
             <Download className="w-4 h-4" /> JSON
-          </button>
+          </a>
         </div>
       </div>
 

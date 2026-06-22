@@ -28,7 +28,7 @@ router = APIRouter()
 _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
-STEP_ORDER = ["blast", "uniprot", "msa", "phylo", "domains", "interpret"]
+STEP_ORDER = ["blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment", "alphafold", "interpret"]
 
 EBI_CLUSTALO = "https://www.ebi.ac.uk/Tools/services/rest/clustalo"
 
@@ -182,6 +182,18 @@ async def _execute(job_id: str, sequence: str, steps: list[str]):
                     context["domains"] = result
                 else:
                     _set_step_status(job_id, step, "failed", error="No UniProt accession for domain lookup")
+
+            elif step == "pathway_enrichment":
+                result = await _run_pathway_enrichment(context)
+                s = "complete" if result and result.get("pathways") else "failed"
+                _set_step_status(job_id, step, s, progress=100, data=result or {})
+                context["pathway_enrichment"] = result
+
+            elif step == "alphafold":
+                result = await _run_alphafold(context)
+                s = "complete" if result else "failed"
+                _set_step_status(job_id, step, s, progress=100, data=result or {})
+                context["alphafold"] = result
 
             elif step == "interpret":
                 result = await _run_interpret(context)
@@ -444,6 +456,45 @@ async def _run_domains(accession: str) -> dict:
         return {"error": str(e), "uniprot_accession": accession, "sequence_length": 0, "domains": []}
 
 
+async def _run_pathway_enrichment(context: dict) -> dict | None:
+    gene_names = []
+    uniprot = context.get("uniprot", {})
+    if isinstance(uniprot, dict):
+        gene_names = uniprot.get("gene_names", [])[:20] if isinstance(uniprot.get("gene_names"), list) else []
+    if not gene_names:
+        blast_data = context.get("blast", {})
+        if isinstance(blast_data, dict):
+            for hit in (blast_data.get("hits") or [])[:10]:
+                words = (hit.get("description", "") or "").replace("(", " ").replace(")", " ").split()
+                for w in words:
+                    if w.isupper() and len(w) >= 2 and not w.startswith("OS="):
+                        gene_names.append(w)
+                        break
+    if not gene_names:
+        return None
+    try:
+        from app.services.pathway_enrichment import run_enrichment
+        result = await run_enrichment(gene_names)
+        return result
+    except Exception as e:
+        logger.warning(f"Pathway enrichment failed: {e}")
+        return None
+
+
+async def _run_alphafold(context: dict) -> dict | None:
+    uniprot_data = context.get("uniprot", {})
+    accession = uniprot_data.get("accession") if isinstance(uniprot_data, dict) else None
+    if not accession:
+        return None
+    try:
+        from app.tools.alphafold import AlphaFoldTool
+        result = await AlphaFoldTool().run({"uniprot_accession": accession})
+        return result
+    except Exception as e:
+        logger.warning(f"AlphaFold fetch failed for {accession}: {e}")
+        return {"structure_available": False, "message": str(e)}
+
+
 async def _run_interpret(context: dict) -> dict:
     if not llm_client.has_api_key():
         return {"interpretation": "AI interpretation unavailable: GROQ_API_KEY not configured"}
@@ -451,7 +502,8 @@ async def _run_interpret(context: dict) -> dict:
     prompt_context = {
         "blast": context.get("blast", {}),
         "uniprot": context.get("uniprot", {}),
-        "alphafold": {},
+        "alphafold": context.get("alphafold", {}),
+        "pathway_enrichment": context.get("pathway_enrichment", {}),
     }
 
     prompt = llm_client.build_prompt("protein_analysis", prompt_context)

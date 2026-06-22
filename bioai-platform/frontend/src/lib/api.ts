@@ -55,6 +55,11 @@ export async function getSharedResult(token: string): Promise<JobStatus> {
   return res.data;
 }
 
+export async function createShareLink(jobId: string): Promise<{ token: string; url: string }> {
+  const res = await api.post('/api/share', { job_id: jobId });
+  return res.data;
+}
+
 export async function interpretStream(payload: {
   pipeline_type: string;
   context: unknown;
@@ -209,6 +214,32 @@ export type EnrichmentResult = {
     entitiesFDR: number;
   }>;
 };
+
+export type ApiKey = {
+  id: string;
+  name: string;
+  key_prefix: string;
+  created_at: string;
+  last_used_at: string | null;
+};
+
+export async function getApiKeys(): Promise<ApiKey[]> {
+  const res = await api.get('/api/keys');
+  return res.data.keys || [];
+}
+
+export async function createApiKey(name: string): Promise<{ key: string; key_prefix: string; name: string }> {
+  const res = await api.post('/api/keys', { name });
+  return res.data;
+}
+
+export async function deleteApiKey(id: string): Promise<void> {
+  await api.delete(`/api/keys/${id}`);
+}
+
+export function getExportUrl(jobId: string, format: 'pdf' | 'json'): string {
+  return `/api/backend/api/export/job/${jobId}?format=${format}`;
+}
 
 export async function runEnrichment(identifiers: string[]): Promise<EnrichmentResult> {
   const res = await api.post('/api/pathways/enrichment', { identifiers });

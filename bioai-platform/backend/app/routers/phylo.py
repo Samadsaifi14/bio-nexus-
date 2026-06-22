@@ -290,7 +290,15 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
     _patch(job_id, phase="tree_running")
 
     import os
+    import shutil
     import tempfile
+
+    phyml_path = shutil.which("phyml")
+    if not phyml_path:
+        _patch(job_id, phase="error",
+               error="PhyML binary not found. ML method requires PhyML compiled from "
+                     "https://github.com/stephaneguindon/phyml. Try NJ or UPGMA instead.")
+        return
 
     fd, phy_path = tempfile.mkstemp(suffix=".phy")
     os.close(fd)

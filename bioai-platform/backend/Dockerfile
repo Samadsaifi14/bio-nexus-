@@ -1,20 +1,8 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc autoconf automake libtool pkg-config wget ca-certificates && \
+    build-essential gcc && \
     rm -rf /var/lib/apt/lists/*
-
-# Build PhyML from source (~2 min)
-# --disable-native avoids -march=native which can fail on some HF CPU archs
-RUN wget -O /tmp/phyml.tar.gz \
-      https://github.com/stephaneguindon/phyml/archive/refs/tags/v3.3.20250515.tar.gz && \
-    tar xzf /tmp/phyml.tar.gz -C /tmp && \
-    cd /tmp/phyml-3.3.20250515 && \
-    ./autogen.sh
-RUN cd /tmp/phyml-3.3.20250515 && \
-    ./configure --enable-phyml --disable-native && \
-    make && make install && \
-    rm -rf /tmp/phyml-3.3.20250515 /tmp/phyml.tar.gz
 
 WORKDIR /app
 COPY requirements.txt .

@@ -7,6 +7,7 @@ import { ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle, AlertTrian
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
+import StructureViewer from '@/components/StructureViewer';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
 const SMILES_EXAMPLES = [
@@ -243,11 +244,7 @@ export default function DockingPage() {
           {result.result?.pdb_id && (
             <div className="glass-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Structure</h3>
-              <iframe
-                src={`https://molstar.org/viewer/?pdb=${result.result.pdb_id}&hide-controls=1`}
-                className="w-full h-80 rounded-xl border-0"
-                title="Protein structure"
-              />
+              <StructureViewer pdbId={result.result.pdb_id} />
             </div>
           )}
         </motion.div>

@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import { Space_Grotesk, Inter, JetBrains_Mono } from 'next/font/google';
+import Script from 'next/script';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
@@ -34,11 +35,15 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en" className={`${spaceGrotesk.variable} ${inter.variable} ${jetbrainsMono.variable}`}>
+      <head>
+        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar.css" />
+      </head>
       <body className="font-sans antialiased">
         <Providers>
           {children}
         </Providers>
         <Toaster position="bottom-right" />
+        <Script src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar-component.js" strategy="lazyOnload" />
       </body>
     </html>
   );

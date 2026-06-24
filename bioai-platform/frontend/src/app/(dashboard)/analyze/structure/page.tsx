@@ -8,6 +8,7 @@ import { fadeUp } from '@/lib/animations';
 import { fetchStructure } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { StructureResult } from '@/lib/api';
+import StructureViewer from '@/components/StructureViewer';
 
 export default function StructurePage() {
   const router = useRouter();
@@ -88,11 +89,7 @@ export default function StructurePage() {
               )}
             </div>
             {pdbId ? (
-              <iframe
-                src={`https://molstar.org/viewer/?pdb=${pdbId}&hide-controls=1`}
-                className="w-full h-96 rounded-xl border-0"
-                title="3D structure viewer"
-              />
+              <StructureViewer pdbId={pdbId} />
             ) : (
               <div className="w-full h-96 rounded-xl bg-surface-0 flex items-center justify-center">
                 <p className="text-sm text-text-muted">3D view not available</p>

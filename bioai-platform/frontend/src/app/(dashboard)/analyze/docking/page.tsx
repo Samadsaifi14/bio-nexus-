@@ -244,7 +244,7 @@ export default function DockingPage() {
             <div className="glass-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Structure</h3>
               <iframe
-                src={`https://www.ebi.ac.uk/pdbe/entry/pdb/${result.result.pdb_id}/embedded/`}
+                src={`https://molstar.org/viewer/?pdb=${result.result.pdb_id}&hide-controls=1`}
                 className="w-full h-80 rounded-xl border-0"
                 title="Protein structure"
               />

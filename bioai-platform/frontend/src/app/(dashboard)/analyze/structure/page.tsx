@@ -89,7 +89,7 @@ export default function StructurePage() {
             </div>
             {pdbId ? (
               <iframe
-                src={`https://www.ebi.ac.uk/pdbe/entry/pdb/${pdbId}/embedded/`}
+                src={`https://molstar.org/viewer/?pdb=${pdbId}&hide-controls=1`}
                 className="w-full h-96 rounded-xl border-0"
                 title="3D structure viewer"
               />

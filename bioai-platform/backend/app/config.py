@@ -1,9 +1,14 @@
 import os
 from dotenv import load_dotenv, dotenv_values
 
-load_dotenv()
-# Read .env values directly (override HF Space secrets that may be stale)
-_env_file = dotenv_values()
+# Load from .env.deploy first, then .env, then env vars
+_env_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), ".env.deploy")
+if os.path.exists(_env_path):
+    load_dotenv(_env_path)
+    _env_file = dotenv_values(_env_path)
+else:
+    load_dotenv()
+    _env_file = dotenv_values()
 _env_supabase_url = _env_file.get("SUPABASE_URL")
 _env_supabase_key = _env_file.get("SUPABASE_SERVICE_ROLE_KEY")
 

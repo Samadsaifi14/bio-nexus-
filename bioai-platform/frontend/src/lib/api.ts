@@ -277,3 +277,72 @@ export async function getDockingStatus(jobId: string): Promise<DockingResult> {
   const res = await api.get(`/api/docking/status/${jobId}`);
   return res.data;
 }
+
+export type SequencingQC = {
+  total_reads: number;
+  total_bases: number;
+  avg_read_length: number;
+  min_read_length: number;
+  max_read_length: number;
+  gc_percent: number;
+  mean_quality: number;
+  min_quality: number;
+  max_quality: number;
+  q20_percent: number;
+  q30_percent: number;
+  overrepresented_sequences: { sequence: string; count: number; percent: number }[];
+};
+
+export type SequencingAlignment = {
+  mapped_reads: number;
+  unmapped_reads: number;
+  total_alignments: number;
+};
+
+export type SequencingVariant = {
+  pos: number;
+  ref: string;
+  alt: string;
+  depth: number;
+  alt_count: number;
+  freq: number;
+};
+
+export type SequencingResult = {
+  job_id: string;
+  status: string;
+  result?: {
+    reference: string;
+    qc: SequencingQC;
+    alignment: SequencingAlignment;
+    variants: SequencingVariant[];
+    report: {
+      reference: string;
+      qc_summary: { total_reads: number; total_bases: number; mean_quality: number; q30_percent: number; gc_percent: number };
+      variant_summary: { total_variants: number; snv_count: number; avg_depth: number };
+      variants: SequencingVariant[];
+    };
+    steps_completed: string[];
+  };
+  error?: string;
+};
+
+export type SequencingReference = {
+  id: string;
+  name: string;
+};
+
+export async function runSequencing(fastqUrl: string, reference: string = 'sars-cov-2'): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/sequencing/run', { fastq_url: fastqUrl, reference });
+  return res.data;
+}
+
+export async function getSequencingStatus(jobId: string): Promise<SequencingResult> {
+  const res = await api.get(`/api/sequencing/status/${jobId}`);
+  return res.data;
+}
+
+export async function listSequencingReferences(): Promise<SequencingReference[]> {
+  const res = await api.get('/api/sequencing/references');
+  return res.data.references || [];
+}

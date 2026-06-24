@@ -24,6 +24,7 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'alignment', name: 'Multiple Sequence Alignment', description: 'Align sequences to find conserved regions and relationships.', icon: Layout, active: true },
       { id: 'domains',   name: 'Domain Analysis',          description: 'Fetch domain/motif annotations from InterPro.',             icon: Layers,    active: true },
       { id: 'phylo',     name: 'Phylogenetic Tree',        description: 'Build and visualize phylogenetic trees from sequences.',     icon: GitFork,   active: true },
+      { id: 'sequencing', name: 'Sequencing Pipeline',     description: 'Raw FASTQ → QC → alignment → variant calling → report for genomic data.', icon: Dna, active: true, badge: 'New' },
     ],
   },
   {

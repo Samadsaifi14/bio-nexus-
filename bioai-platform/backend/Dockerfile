@@ -16,6 +16,13 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
+# Download minimap2 for sequencing pipeline alignment
+RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
+    tar xjf /tmp/minimap2.tar.bz2 -C /tmp && \
+    cp /tmp/minimap2-2.28_x64-linux/minimap2 /usr/local/bin/ && \
+    chmod +x /usr/local/bin/minimap2 && \
+    rm -rf /tmp/minimap2*
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

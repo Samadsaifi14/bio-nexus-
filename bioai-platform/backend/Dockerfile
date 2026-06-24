@@ -13,7 +13,7 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
     rm -rf /tmp/phyml.tar.bz2 /tmp/bin
 
 # Download pre-compiled AutoDock Vina binary from GitHub releases
-RUN wget -q "https://github.com/autodock/autodock-vina/releases/download/v1.2.5/vina_1.2.5_linux_x86_64" -O /usr/local/bin/vina && \
+RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
 WORKDIR /app

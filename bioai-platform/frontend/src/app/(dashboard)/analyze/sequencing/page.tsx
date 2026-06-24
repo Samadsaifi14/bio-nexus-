@@ -8,6 +8,11 @@ import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
 import type { SequencingResult, SequencingReference } from '@/lib/api';
 
+const DEFAULT_REFERENCES = [
+  { id: 'sars-cov-2', name: 'Sars Cov 2' },
+  { id: 'lambda', name: 'Lambda' },
+];
+
 const EXAMPLE_FASTQ = [
   { label: 'SARS-CoV-2 (small)', value: 'https://raw.githubusercontent.com/jeffkaufman/small-fastq-files/main/sars-cov-2_sample.fastq' },
 ];
@@ -23,7 +28,7 @@ export default function SequencingPage() {
   const router = useRouter();
   const [fastqUrl, setFastqUrl] = useState('');
   const [reference, setReference] = useState('sars-cov-2');
-  const [references, setReferences] = useState<SequencingReference[]>([]);
+  const [references, setReferences] = useState<SequencingReference[]>(DEFAULT_REFERENCES);
   const [jobId, setJobId] = useState<string | null>(null);
   const [result, setResult] = useState<SequencingResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -31,7 +36,7 @@ export default function SequencingPage() {
   const [polling, setPolling] = useState(false);
 
   useEffect(() => {
-    listSequencingReferences().then(setReferences).catch(() => {});
+    listSequencingReferences().then((r) => { if (r.length > 0) setReferences(r); }).catch(() => {});
   }, []);
 
   const startPipeline = async () => {

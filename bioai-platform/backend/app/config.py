@@ -24,6 +24,7 @@ class Settings:
     NCBI_EMAIL: str = os.getenv("NCBI_EMAIL", "bioflow@example.com")
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
     CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bioai-platform.vercel.app")
+    SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
 
 
 settings = Settings()

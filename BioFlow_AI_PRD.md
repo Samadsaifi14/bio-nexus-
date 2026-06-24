@@ -1,9 +1,9 @@
 # BioFlow AI — Product Requirements Document
 
-**Version:** 1.0  
+**Version:** 2.0  
 **Author:** Samad (Founder)  
 **Date:** June 2026  
-**Status:** Draft — Pre-Development  
+**Status:** Phase 2 Complete — Hardening In Progress  
 
 ---
 
@@ -239,8 +239,10 @@ This platform was conceived from direct experience failing bioinformatics practi
 | Supabase (PostgreSQL) | Primary database + auth |
 | Upstash Redis | Job queue + result caching |
 | Vercel | Frontend deployment |
-| Railway / Render | FastAPI backend deployment |
+| Hugging Face Spaces | FastAPI backend deployment (cpu-basic, Docker) |
 | Cloudflare R2 | Temporary file storage (PDB files, alignment outputs) |
+| Hugging Face Hub CLI | Backend deployment (`hf upload --type space`) |
+| Sentry | Error monitoring (frontend + backend) |
 
 ### AI & Interpretation
 
@@ -375,11 +377,11 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 
 ---
 
-### Phase 2 — Alignment & Phylogenetics (Months 4–6)
+### Phase 2 — Alignment, Phylogenetics & Platform Features (Months 4–8) ✅
 
-**Goal:** Add MSA and phylogenetic analysis workflows so students can complete the full sequence-to-tree pipeline.
+**Goal:** Add MSA, phylogenetic analysis, domain analysis, pathway enrichment, primer design, and platform features (API keys, share links, export, guest→account upgrade, documentation, monitoring, caching).
 
-#### F2.1 — Multiple Sequence Alignment (MSA)
+#### F2.1 — Multiple Sequence Alignment (MSA) ✅
 
 - Inputs: multiple sequences (from BLAST shortlist, accession list, or paste)
 - Algorithm options (wizard-guided): ClustalOmega (default), MUSCLE (alternative)
@@ -387,34 +389,81 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - Results visualization: color-coded MSA viewer with conservation scores
 - Highlight: conserved regions, variable regions, gaps
 - Downloadable in: FASTA, Clustal, PHYLIP format (all generated automatically)
+- **Status: Shipped**
 
-#### F2.2 — Phylogenetic Tree Construction
+#### F2.2 — Phylogenetic Tree Construction ✅
 
 - Inputs: MSA output (auto-piped from F2.1, or user-uploaded alignment)
-- Method selection (wizard-guided):
-  - "Quick overview" → Neighbor-Joining (PHYLIP via EMBL-EBI)
-  - "More accurate" → Maximum Likelihood (IQ-TREE web API)
-- Bootstrap support values computed automatically
-- Results: interactive phylogenetic tree rendered in browser (phylotree.js)
-  - Zoom, pan, collapse clades
-  - Click leaf → show organism info, highlight in MSA
-- Tree downloadable as: Newick format, SVG image, PNG
+- Method selection: Neighbor-Joining (Clustal Omega guide tree), UPGMA (pure Python p-distance), Maximum Likelihood (local PhyML binary)
+- Bootstrap support values (0–1000) with colour scale on tree branches
+- Results: interactive phylogenetic tree rendered in browser (PhyloTreeViewer)
+  - Rectangular / circular layout toggle
+  - Bootstrap colour scale: ≥90 cyan, ≥70 lime, ≥50 orange, <50 red
+  - Export SVG, PNG, Newick
+- PhyML binary downloaded pre-compiled from bioconda (2 MB, no compilation needed)
+- **Status: Shipped**
 
-#### F2.3 — Conservation Analysis
+#### F2.3 — Conservation Analysis ✅
 
-- Takes MSA output → plots conservation score per position
-- Highlights functionally important conserved residues
-- Cross-references UniProt functional annotations for conserved positions
+- Takes MSA output → conservation scores per position
+- Visualized as score bars in results panel
 - AI interpretation: which conserved regions may be functionally significant
+- **Status: Shipped** (via pipeline v2)
 
-#### F2.4 — Primer Design (from nucleotide alignment)
+#### F2.4 — Primer Design (from nucleotide alignment) ✅
 
-- Input: nucleotide MSA output
-- User specifies: target region, primer length (default 20bp)
-- Platform identifies consensus sequence in target region
-- Designs degenerate primer where sequences diverge
-- Calculates degeneracy score
-- Reports: primer sequence, Tm, degeneracy, GC content
+- Input: nucleotide sequence
+- Primer3 with configurable: product size, Tm, GC content, number of returns
+- Reports: primer sequences (left/right), Tm, GC%, positions, product size, penalty
+- No rate limits, runs locally via primer3-py
+- **Status: Shipped**
+
+#### F2.5 — Domain & Motif Analysis ✅
+
+- Input: UniProt accession
+- Fetches domain annotations from InterProScan API (Pfam, PROSITE, SMART, etc.)
+- Displays: domain name, source DB, start/end positions, score
+- **Status: Shipped**
+
+#### F2.6 — API Key System ✅
+
+- Generate scoped API keys (`sk_bio_` + `secrets.token_urlsafe(32)`)
+- SHA-256 hashed storage (plaintext returned once at creation)
+- `X-API-Key` auth middleware in services/auth.py
+- Frontend: list keys with prefix badge + last_used_at, generate modal, revoke with confirmation
+- **Status: Shipped**
+
+#### F2.7 — Share Links & Export ✅
+
+- Share: `POST /api/share` generates `secrets.token_urlsafe(16)` token, stores in jobs.share_token
+- Frontend share button copies shareable URL to clipboard
+- Export: `GET /api/export/job/{id}?format=pdf|json` returns StreamingResponse with Content-Disposition
+- **Status: Shipped**
+
+#### F2.8 — Guest → Account Upgrade ✅
+
+- Guest sessions via `signInAnonymously()`
+- Upgrade via `linkIdentity({ provider: 'google' })`
+- Settings page shows upgrade card for guests, Google sign-in button
+- **Status: Shipped**
+
+#### F2.9 — Pipeline v2 Engine ✅
+
+- 8-step in-memory pipeline: BLAST → UniProt → MSA → Phylo → Domains → Pathway Enrichment → AlphaFold → AI
+- Thread-safe dict storage, polling via `/api/pipeline/v2/status/{job_id}`
+- Configurable via `steps[]` param
+- Progressive reveal in PipelineResults.tsx
+- **Status: Shipped**
+
+#### F2.10 — Documentation, Monitoring & Caching ✅
+
+- `/learn` documentation site with 10+ topic pages and glossary
+- First-run tutorial (5-step modal walkthrough)
+- Sentry error monitoring (frontend `@sentry/nextjs` + backend `sentry-sdk`)
+- Cache-hit tracking with `from_cache` flag on results
+- `/api/admin/cache-stats` endpoint for cache metrics
+- `@ttl_cache` applied to pathway enrichment and NCBI search methods
+- **Status: Shipped**
 
 ---
 
@@ -676,20 +725,24 @@ Anthropic Claude API → full report generation (on user request)
 
 ---
 
-## 14. Onboarding & Learning System
+## 14. Onboarding & Learning System ✅
 
-### Level 1 — First-Run Onboarding (triggered once)
+### Level 1 — First-Run Onboarding (triggered once) ✅
 
-- 5-step interactive walkthrough on first login
-- Covers: how to enter a sequence, what BLAST does, how to read the results page
-- Skip available; re-accessible from Help menu
+- 5-step interactive walkthrough on first login (TutorialWalkthrough component)
+- Steps: ① Welcome & navigation ② Running an analysis ③ Understanding results ④ AI interpretation ⑤ Learning more
+- Skip available; re-accessible from Settings page
+- localStorage flag `bio-nexus-onboarding` persists completion
+- **Status: Shipped**
 
-### Level 2 — Contextual Tooltips (persistent throughout app)
+### Level 2 — Contextual Tooltips (persistent throughout app) ✅
 
 - Every field has a ⓘ icon that explains what it is and why it matters
 - Every result metric has a ⓘ that explains it in plain language with example
+- Implemented as LearnPopover component — inline `(?)` popover with explanation and "Learn more →" link
 - Tooltips are written for someone who has heard of the concept but never used the tool
 - Power users can turn tooltips off in settings
+- **Status: Shipped**
 
 ### Level 3 — "Learn More" Panel
 
@@ -698,11 +751,15 @@ Anthropic Claude API → full report generation (on user request)
 - Each panel links to the relevant section in the platform's own documentation
 - Curriculum-aligned: content maps to standard M.Sc. Bioinformatics syllabus topics
 
-### Level 4 — In-App Documentation / Knowledge Base
+### Level 4 — In-App Documentation / Knowledge Base ✅
 
-- Full documentation site (Next.js docs pages or Mintlify)
-- Organized by: workflow type → step-by-step guide → parameter explanations → example analyses with annotated results
-- Examples library: 10+ worked examples with real sequences and annotated outputs covering the most common student practical scenarios
+- Full documentation site at `/learn` (Next.js pages within the app)
+- 10 topic pages: BLAST, Alignment, Domains, Phylogenetic Trees, Protein Structure, Pathway Analysis, Interactions, Primer Design, Utility Tools, Glossary
+- Each topic: sections with headings, code examples, parameter explanations
+- Glossary: A–Z of bioinformatics terms with plain-language definitions
+- Search bar on docs landing page
+- Sidebar nav item (BookOpen icon) linking to `/learn`
+- **Status: Shipped**
 
 ### Level 5 — Practical Templates (Curriculum-Aligned)
 

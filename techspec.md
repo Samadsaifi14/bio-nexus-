@@ -1,125 +1,141 @@
 # BioFlow AI — Technical Specification
 
-**Version:** 1.0  
-**Repos:** `bioflow-frontend` (Next.js 14) · `bioflow-backend` (FastAPI)  
+**Version:** 2.0  
+**Repos:** Monorepo at `bio-nexus/bioai-platform/` — `frontend/` (Next.js 14) · `backend/` (FastAPI)  
 **Last Updated:** June 2026
 
 ---
 
 ## Repository Structure
 
-### `bioflow-frontend`
+### `bioai-platform/frontend` (Current Structure)
 
 ```
-bioflow-frontend/
+bioai-platform/frontend/
+├── src/
+│   ├── app/
+│   │   ├── (auth)/
+│   │   │   ├── auth/
+│   │   │   │   ├── callback/page.tsx
+│   │   │   │   └── page.tsx
+│   │   │   └── layout.tsx
+│   │   ├── (dashboard)/
+│   │   │   ├── layout.tsx                # App shell with collapsible sidebar + header
+│   │   │   ├── dashboard/page.tsx        # Stats, quick tools grid, recent jobs
+│   │   │   ├── analyze/page.tsx          # Operation hub (all tools listed)
+│   │   │   ├── analyze/blast/page.tsx
+│   │   │   ├── analyze/uniprot/page.tsx
+│   │   │   ├── analyze/structure/page.tsx
+│   │   │   ├── analyze/alignment/page.tsx
+│   │   │   ├── analyze/domains/page.tsx
+│   │   │   ├── analyze/phylo/page.tsx
+│   │   │   ├── analyze/pathway/page.tsx
+│   │   │   ├── analyze/interactions/page.tsx
+│   │   │   ├── analyze/compare/page.tsx
+│   │   │   ├── analyze/tools/page.tsx
+│   │   │   ├── analyze/primers/page.tsx
+│   │   │   ├── wizard/page.tsx           # 4-step guided pipeline wizard
+│   │   │   ├── jobs/page.tsx             # Job list with filter tabs
+│   │   │   ├── jobs/[jobId]/page.tsx     # Job detail + share
+│   │   │   ├── results/[jobId]/page.tsx
+│   │   │   ├── report/[jobId]/page.tsx   # Print-to-PDF report
+│   │   │   ├── history/page.tsx
+│   │   │   ├── retrieve/page.tsx
+│   │   │   ├── settings/page.tsx         # API keys, profile, guest upgrade, usage
+│   │   │   ├── shared/[token]/page.tsx
+│   │   │   └── learn/                    # Documentation site
+│   │   │       ├── page.tsx              # Docs landing with topic grid
+│   │   │       └── [topic]/page.tsx      # Dynamic topic pages
+│   │   ├── layout.tsx                    # Root layout (fonts, providers)
+│   │   ├── providers.tsx                 # Theme + Auth providers
+│   │   └── globals.css                   # Tailwind + glassmorphism overrides
+│   ├── components/
+│   │   ├── phylo/PhyloTreeViewer.tsx
+│   │   ├── results/PipelineResults.tsx
+│   │   ├── learn/LearnPopover.tsx        # Inline help popover
+│   │   ├── TutorialWalkthrough.tsx       # First-run onboarding modal
+│   │   ├── ErrorBoundary.tsx
+│   │   ├── GuestBanner.tsx
+│   │   ├── ThemeToggle.tsx
+│   │   └── ... (BlastPanel, ScoreBars, UniprotPanel, DomainSummary, etc.)
+│   ├── contexts/
+│   │   ├── auth.tsx                      # Auth context (Supabase session)
+│   │   └── theme.tsx                     # Theme context + localStorage
+│   ├── lib/
+│   │   ├── api.ts                        # Type-safe backend API client
+│   │   ├── supabase.ts                   # Supabase client (browser)
+│   │   ├── types.ts
+│   │   └── animations.ts                # Framer motion variants
+│   └── hooks/
+│       └── useJobPolling.ts
+├── sentry.client.config.ts              # Sentry client config
+├── sentry.server.config.ts              # Sentry server config
+├── next.config.js                       # Sentry-wrapped Next config
+└── package.json
+```
+
+### `bioai-platform/backend` (Current Structure)
+
+```
+bioai-platform/backend/
 ├── app/
-│   ├── (auth)/
-│   │   ├── login/
-│   │   │   └── page.tsx
-│   │   └── signup/
-│   │       └── page.tsx
-│   ├── (app)/
-│   │   ├── dashboard/
-│   │   │   └── page.tsx          # Job history, saved analyses
-│   │   ├── job/
-│   │   │   └── [jobId]/
-│   │   │       └── page.tsx      # Live job status + results
-│   │   └── layout.tsx            # App shell with nav
-│   ├── wizard/
-│   │   ├── page.tsx              # Workflow selection entry
-│   │   └── [workflowType]/
-│   │       └── page.tsx          # Specific wizard flow
-│   ├── api/
-│   │   └── auth/
-│   │       └── [...nextauth]/
-│   │           └── route.ts      # NextAuth handlers
-│   ├── layout.tsx                # Root layout
-│   ├── page.tsx                  # Landing page
-│   └── globals.css
-├── components/
-│   ├── ui/                       # Primitive components (button, input, card, etc.)
-│   ├── visualizations/
-│   │   ├── SequenceViewer.tsx    # Colored sequence display with annotations
-│   │   ├── BlastResultsTable.tsx # Interactive BLAST hits table
-│   │   ├── AlignmentViewer.tsx   # Color-coded pairwise alignment
-│   │   ├── MSAViewer.tsx         # Multiple sequence alignment block view
-│   │   ├── StructureViewer.tsx   # NGL.js / Mol* 3D structure wrapper
-│   │   ├── PhyloTreeViewer.tsx   # phylotree.js tree renderer
-│   │   ├── RamachandranPlot.tsx  # D3.js phi/psi scatter plot
-│   │   ├── ConservationPlot.tsx  # Per-position conservation bar chart
-│   │   └── PathwayViewer.tsx     # Reactome pathway embed
-│   ├── wizard/
-│   │   ├── WizardShell.tsx       # Step container, progress bar, navigation
-│   │   ├── WizardStep.tsx        # Individual step wrapper
-│   │   └── steps/
-│   │       ├── SequenceInputStep.tsx
-│   │       ├── DatabaseSelectStep.tsx
-│   │       ├── AlgorithmSelectStep.tsx
-│   │       └── ConfirmRunStep.tsx
-│   ├── job/
-│   │   ├── JobStatusCard.tsx     # Live step-by-step progress display
-│   │   ├── StepTimeline.tsx      # Visual pipeline step timeline
-│   │   └── ResultsPage.tsx       # Full results layout wrapper
-│   └── layout/
-│       ├── Navbar.tsx
-│       ├── Sidebar.tsx
-│       └── GuestBanner.tsx       # Shown to guest users prompting signup
-├── lib/
-│   ├── api.ts                    # Type-safe backend API client
-│   ├── supabase.ts               # Supabase client (browser)
-│   ├── supabase-server.ts        # Supabase client (server components)
-│   ├── types.ts                  # All shared TypeScript types
-│   └── constants.ts              # Workflow types, step labels, etc.
-├── hooks/
-│   ├── useJobPolling.ts          # React Query polling for job status
-│   ├── useGuestSession.ts        # Guest session cookie management
-│   └── useWorkflowWizard.ts      # Wizard state machine
-└── public/
-    └── fonts/                    # Self-hosted Space Grotesk + JetBrains Mono
-```
-
-### `bioflow-backend`
-
-```
-bioflow-backend/
-├── app/
-│   ├── main.py                   # FastAPI app, CORS, lifespan events
-│   ├── api/
-│   │   ├── deps.py               # Auth dependencies, DB session
-│   │   └── routes/
-│   │       ├── jobs.py           # POST /jobs, GET /jobs/{id}, GET /jobs/{id}/steps
-│   │       ├── sequences.py      # POST /sequences/fetch, POST /sequences/validate
-│   │       ├── blast.py          # POST /blast/submit, GET /blast/{job_id}/status
-│   │       ├── alignment.py      # POST /align/pairwise, POST /align/msa
-│   │       ├── structures.py     # POST /structures/fetch, POST /structures/predict
-│   │       └── dashboard.py      # GET /dashboard/jobs (paginated job history)
+│   ├── main.py                   # FastAPI app, CORS, lifespan (Sentry init, Redis init)
+│   ├── config.py                 # Settings via pydantic-settings + dotenv
+│   ├── routers/                  # 19 route modules
+│   │   ├── pipelines.py          # POST /api/pipelines/run
+│   │   ├── pipeline_v2.py        # POST /api/pipeline/v2/run, GET /status/{job_id}
+│   │   ├── ai.py                 # POST /api/ai/interpret, /interpret/stream
+│   │   ├── jobs.py               # GET/POST/DELETE /api/jobs
+│   │   ├── share.py              # POST /api/share, GET /api/share/{token}
+│   │   ├── profile.py            # GET/PUT /api/profile
+│   │   ├── sequences.py          # POST /api/sequences/fetch, /validate, /search
+│   │   ├── uniprot.py            # POST /api/uniprot/search, /detail
+│   │   ├── alignment.py          # POST /api/alignment/run
+│   │   ├── structures.py         # POST /api/structures/fetch, /search
+│   │   ├── pathways.py           # POST /api/pathways/search, /detail, /kegg/search, /enrichment
+│   │   ├── domains.py            # GET /api/domains/{accession}
+│   │   ├── interactions.py       # GET /api/interactions/{gene_name}
+│   │   ├── primers.py            # POST /api/primers/design
+│   │   ├── structure_analysis.py # GET /api/structure_analysis/ramachandran, /secondary, /compare
+│   │   ├── phylo.py              # POST /phylo/run, GET /status/{job_id}, /models
+│   │   ├── export.py             # GET /api/export/job/{id}?format=pdf|json
+│   │   ├── api_keys.py           # GET/POST /api/keys, DELETE /api/keys/{id}
+│   │   └── cache_stats.py        # GET /api/admin/cache-stats, POST /reset
 │   ├── services/
-│   │   ├── ncbi_service.py       # Entrez API wrapper (fetch, BLAST)
-│   │   ├── embl_service.py       # EMBL-EBI tools (BLAST, ClustalOmega, MUSCLE)
-│   │   ├── pdb_service.py        # RCSB PDB REST API
-│   │   ├── uniprot_service.py    # UniProt REST API
-│   │   ├── alphafold_service.py  # AlphaFold EBI API
-│   │   ├── reactome_service.py   # Reactome REST + WikiPathways fallback
-│   │   ├── groq_service.py       # Groq API for AI interpretation
-│   │   ├── r2_service.py         # Cloudflare R2 upload/download
-│   │   └── cache_service.py      # Cache read/write logic
+│   │   ├── cache.py              # Redis cache wrapper, @ttl_cache decorator, stats tracking
+│   │   ├── auth.py               # JWT auth, X-API-Key middleware
+│   │   ├── export.py             # PDF/JSON report generation (reportlab)
+│   │   ├── ncbi_service.py       # NCBI Entrez (fetch, search) — @ttl_cache on both
+│   │   ├── pathway_enrichment.py # Reactome enrichment — cached via cache_get/set
+│   │   ├── supabase.py           # Supabase REST client
+│   │   ├── rate_limit.py         # Per-user rate limiting
+│   │   ├── redis.py              # Redis connection
+│   │   ├── sequence_utils.py     # Sequence validation, type detection
+│   │   └── validators.py         # Input validation
+│   ├── tools/                    # Tool classes with @ttl_cache on run()
+│   │   ├── blast.py              # EBI BLAST submit/poll/parse
+│   │   ├── uniprot.py            # UniProt REST lookup
+│   │   ├── alphafold.py          # AlphaFold DB query
+│   │   ├── base.py               # Abstract BaseTool
+│   │   └── registration.py       # Tool registry
+│   ├── pipeline/                 # Pipeline v1 engine (deprecated in favor of v2)
 │   ├── workers/
-│   │   └── pipeline_worker.py    # Celery task: executes pipeline steps
-│   ├── parsers/
-│   │   ├── blast_parser.py       # NCBI BLAST XML → structured dict
-│   │   ├── alignment_parser.py   # ClustalW/MSA output → structured dict
-│   │   ├── pdb_parser.py         # PDB/mmCIF parsing via BioPython
-│   │   └── newick_parser.py      # Newick tree validation/normalization
-│   ├── models/
-│   │   └── schemas.py            # Pydantic v2 request/response models
-│   └── core/
-│       ├── config.py             # Settings (env vars via pydantic-settings)
-│       ├── database.py           # Supabase + async DB client
-│       └── exceptions.py         # Custom exception classes
-├── requirements.txt
-├── .env.example
-├── Dockerfile
-└── celery_worker.py              # Celery worker entrypoint
+│   │   ├── pipeline_worker.py    # Thread-based pipeline execution
+│   │   └── celery_app.py         # Celery app config (unused, kept for reference)
+│   ├── ai/                       # AI interpretation layer
+│   │   ├── interpreter.py
+│   │   ├── llm_client.py         # LiteLLM wrapper (Groq)
+│   │   └── prompts.py            # Prompt templates
+│   ├── models/responses.py       # Pydantic response models
+│   ├── integrations/ncbi/        # NCBI-specific modules
+│   │   ├── blast.py              # BLAST submission & polling
+│   │   └── parser.py             # XML parsing
+│   ├── data/demo_results.py      # Demo mode fallback sequences
+│   └── core/storage.py           # R2 storage wrapper
+├── requirements.txt              # + sentry-sdk
+├── .env.deploy                   # Deployment env template (+ SENTRY_DSN)
+├── Dockerfile                    # Pre-compiled PhyML binary download
+└── railway.json / render.yaml    # Deploy configs
 ```
 
 ---
@@ -666,19 +682,20 @@ RATE_LIMIT_EXCEEDED      — user has exceeded daily job quota
 ## Deployment
 
 ### Frontend — Vercel
-- Repo: `bioflow-frontend`
-- Framework preset: Next.js
+- Deployed from `bioai-platform/` (Root Directory: auto-detect)
+- Production URL: https://bioai-platform.vercel.app
 - Environment variables: set in Vercel dashboard
-- Domain: bioflow.ai (or subdomain for staging: staging.bioflow.ai)
+- Sentry DSN set as `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN`
 
-### Backend — Railway
-- Repo: `bioflow-backend`
-- Service 1: FastAPI web (`uvicorn app.main:app --host 0.0.0.0 --port $PORT`)
-- Service 2: Celery worker (`celery -A celery_worker worker --loglevel=info`)
-- Both services share same repo, different start commands
-- Redis: Upstash (external, connects via REDIS_URL)
+### Backend — Hugging Face Spaces
+- Space: `Samad14/bio-nexus-api`
+- Public URL: https://samad14-bio-nexus-api.hf.space
+- SDK: Docker (cpu-basic, sleeps after 48h)
+- Deployed via `hf upload --type space ...` from local
+- Env vars set in HF Space dashboard (secrets)
+- PhyML binary: downloaded pre-compiled from bioconda in Dockerfile
 
 ### Staging vs Production
-- Two Vercel deployments: `main` → production, `dev` → staging
-- Two Railway environments: production and staging
-- Two Supabase projects: `bioflow-prod` and `bioflow-dev`
+- Single Vercel deployment: `main` → production
+- Single HF Space: `samad14-bio-nexus-api`
+- Supabase project: `bjbktegnmkljhuzlsvrf` (single project, RLS on tables)

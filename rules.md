@@ -1,15 +1,15 @@
 # BioFlow AI — Rules
 
-**Version:** 1.0  
-**Scope:** Both repos — `bioflow-frontend` and `bioflow-backend`  
+**Version:** 2.0  
+**Scope:** Both repos — `bioflow-frontend` and `bioflow-backend` (monorepo at `bio-nexus/bioai-platform/`)  
 **Last Updated:** June 2026
 
 ---
 
 ## 0 — The Prime Rule
 
-**The prototype ships June 30. Every decision is evaluated against this.**  
-If a rule conflicts with shipping the demo, ship the demo. Document the deviation. Fix it after.
+**The prototype shipped June 30 — Phase 2 is complete.**  
+Hardening (docs, Sentry, cache checks) is done. Phase 3+ items should be planned before building.
 
 ---
 
@@ -473,23 +473,61 @@ Data:
 
 ---
 
-## 8 — What NOT To Build (Pre-Demo)
+## 8 — Monitoring & Observability Rules (Sentry)
 
-This list exists because scope creep during the 18-day sprint will kill the demo.
+1. **Errors must be captured.** Every unhandled exception in production should reach Sentry. Frontend: `@sentry/nextjs` with `beforeSend` filtering. Backend: `sentry_sdk.init()` in startup.
 
-❌ MSA wizard (Phase 2)  
-❌ Phylogenetic tree viewer (Phase 2)  
-❌ Protein 3D structure viewer (Phase 3)  
-❌ AlphaFold integration (Phase 3)  
-❌ Drug docking features (Phase 4)  
-❌ PDF export (post-demo Phase 1)  
-❌ Onboarding tutorial (post-demo Phase 1)  
-❌ Email notifications  
-❌ Rate limiting UI  
-❌ Admin panel  
-❌ Analytics dashboard  
-❌ Dark/light mode toggle (dark by default — toggle later)  
-❌ Mobile app  
-❌ Public API  
+2. **No secrets in Sentry.** Ensure `beforeSend` strips auth tokens, API keys, and sequence data from Sentry events.
 
-If you find yourself working on any of the above before June 30: stop, commit your current work, and return to the demo track.
+3. **Traces** at `tracesSampleRate: 0.1` (10%) — enough for debugging, cheap enough for free tier.
+
+4. **Environment tagging.** All Sentry events must be tagged with `environment: development | production`.
+
+---
+
+## 9 — Caching Rules
+
+1. **Cache-first architecture.** Every external API call must check the corresponding cache before executing. Use `@ttl_cache` decorator from `services/cache.py`.
+
+2. **Cache key format.** `{prefix}:{sha256_first_16_chars_of_json_input}` — consistent, deterministic.
+
+3. **TTL guidelines:**
+   - BLAST results: 24h
+   - UniProt records: 24h
+   - AlphaFold predictions: 30 days
+   - Pathway enrichment: 12h
+   - NCBI sequence/search: 24h
+
+4. **Cache misses are tracked.** `get_cache_stats()` exposes hit/miss counts. Monitor via `/api/admin/cache-stats`.
+
+5. **`from_cache` flag.** All cached results include `from_cache: true/false` in the response dict for observability.
+
+6. **Graceful fallback.** If Redis is unavailable (`_redis = None`), caching is silently disabled — the app still works.
+
+---
+
+## 10 — Documentation & Learning Rules
+
+1. **`/learn` is the canonical docs source.** All inline "Learn more →" links must point to a valid `/learn/{topic}` route.
+
+2. **LearnPopover consistency.** Every scientific term shown to users (E-value, bit score, pLDDT, bootstrap, etc.) must have a LearnPopover component available.
+
+3. **First-run tutorial.** New users see the TutorialWalkthrough once. It must be re-accessible from the Settings page.
+
+4. **Plain language.** All docs and help text must be understandable by a first-year M.Sc. student. No jargon without explanation.
+
+---
+
+## 11 — What NOT To Build (Current)
+
+This list keeps scope in check for Phase 3+.
+
+❌ **Phase 2 items** — already built (MSA, Phylo, Domains, Pathways, Primers, API keys, Share, Export, Guest upgrade, Docs, Sentry, Cache checks)  
+❌ **Molecular docking / DiffDock** — requires revenue for paid Replicate API  
+❌ **RNA-seq pipeline** — Phase 3, requires file storage infrastructure  
+❌ **FASTQ / variant calling** — Phase 3, requires compute  
+❌ **Lab workspaces** — Phase 4, requires institution licensing  
+❌ **Custom pipeline builder** — Phase 4  
+❌ **Mobile app** — not planned  
+❌ **Email notifications** — not planned until Phase 4  
+❌ **Admin panel** — not needed until 100+ users

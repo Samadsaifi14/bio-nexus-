@@ -82,6 +82,16 @@ Type scale: `12 / 14 / 16 / 20 / 28 / 40 / 56px`, line-height 1.5 for body, 1.1 
 ## 7. Iconography
 - Lucide icons (already in your stack), 1.5px stroke, sizes 16/20/24.
 
-## 8. Accessibility
+## 8. Documentation Site Design (`/learn`)
+
+- **Layout**: Centered content (max-width 880px), topic pages with back navigation, sticky right-side section nav for long pages
+- **Topic cards**: Same glass-card pattern as /analyze — icon + title + description in a 2-column grid
+- **Code examples**: `font-mono` on `bg-elevated` background, with horizontal scroll for long lines
+- **Glossary**: A–Z listing with letter dividers, term in `font-mono` semibold, definition in `text-text-secondary`
+- **LearnPopover**: Small `(?)` icon in `text-accent-cyan/60` next to term → click opens floating glass-card popover (max-width 320px) with 1-2 sentence explanation + optional "Learn more →" link in accent cyan
+
+## 9. Accessibility
 - All `--accent` on `--bg-base` text combinations pass WCAG AA at ≥14px.
 - Confidence bands are never color-only — always paired with the text label (colorblind-safe, and this is scientific data where ambiguity matters).
+- Tutorial walkthrough has keyboard navigation (Tab/Enter + Escape to close)
+- Sequence data rendered in monospace (`font-mono`) — never sans-serif

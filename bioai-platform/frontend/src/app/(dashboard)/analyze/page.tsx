@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle, GitFork } from 'lucide-react';
+import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle, GitFork, Atom } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { ReactNode } from 'react';
@@ -33,6 +33,7 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'pathway',     name: 'Pathway Analysis',       description: 'Map genes to biological pathways from Reactome/KEGG.',      icon: GitBranch, active: true },
       { id: 'interactions', name: 'Protein Interactions',  description: 'Explore interaction partners from the STRING database.',     icon: Share2,    active: true },
       { id: 'compare',     name: 'Structure Compare',      description: 'Find structurally similar proteins via PDBeFold (TM-align).', icon: Shuffle, active: true },
+      { id: 'docking',     name: 'Molecular Docking',      description: 'Dock a small molecule into a protein using AutoDock Vina (free, CPU-based).', icon: Atom, active: true, badge: 'New' },
     ],
   },
   {

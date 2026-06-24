@@ -139,25 +139,39 @@ One workflow. Done better than anyone else has done it. No feature creep.
 
 No one offers this. Galaxy makes you build a workflow manually. EMBL-EBI runs each tool separately. Nobody gives a unified interpreted result.
 
-### Phase 2 — Expand the pipeline library (Months 5–10)
+### Phase 2 — Expand the pipeline library (Months 5–10) ✅
 
-New pipelines:
-- **MSA + phylogenetic tree** — paste sequences, get a tree with evolutionary distances explained
-- **Domain & motif analysis** — Pfam, PROSITE — what are the functional regions
-- **Gene ontology + KEGG enrichment** — given a gene list, what processes are enriched
-- **Primer design** — Primer3 integration, conditions included
-- **Molecular docking** — DiffDock via Replicate (GPU inference API, not local)
+**Completed:**
+- **MSA + phylogenetic tree** — ClustalOmega MSA, NJ/UPGMA/ML tree methods, interactive PhyloTreeViewer with rectangular/circular layout, bootstrap colour scale, SVG/PNG/Newick export ✅
+- **Domain & motif analysis** — Pfam/InterPro domain fetching via InterProScan API ✅
+- **Gene ontology + KEGG enrichment** — Reactome pathway search + enrichment analysis ✅
+- **Primer design** — Primer3 integration with configurable parameters ✅
+- **Pipeline wizard & v2 engine** — 8-step in-memory pipeline (BLAST → UniProt → MSA → Phylo → Domains → Pathway Enrichment → AlphaFold → AI), step checkboxes in wizard, progressive reveal results ✅
+- **API Key System** — `sk_bio_` prefix keys, SHA-256 hashing, X-API-Key auth middleware ✅
+- **Share Links** — Token-based sharing for any job result ✅
+- **Export** — PDF/JSON export via `/api/export/job/{id}` endpoint ✅
+- **Guest → Account upgrade** — Guest session to permanent Google account via `linkIdentity` ✅
+- **Enhanced Dashboard/Jobs/Settings** — Quick tools grid, filter tabs, usage bars, avatar, API key management UI ✅
 
-Pipeline selector UI: "What do you have?" → "What do you want to know?" → pipeline recommended automatically
+**Not started:**
+- **Molecular docking** — DiffDock via Replicate (GPU inference API, lab-tier feature — requires revenue)
 
-### Phase 3 — Handle raw sequencing data (Months 11–18)
+### Phase 2.5 — Platform Hardening (Ongoing) ✅
+
+- **Documentation site (`/learn`)** — 10+ topic docs, glossary, inline LearnPopover help tooltips ✅
+- **First-run tutorial** — 5-step onboarding walkthrough on first login, re-accessible from Settings ✅
+- **Sentry error monitoring** — Frontend (`@sentry/nextjs`) + Backend (`sentry-sdk`) with DSN config ✅
+- **Cache-hit checks** — Cache metrics tracking, `from_cache` flag on results, `/api/admin/cache-stats` endpoint ✅
+- **Cache coverage** — `@ttl_cache` added to `pathway_enrichment.run_enrichment()`, `ncbi_service.search_by_name()` ✅
+
+### Phase 3 — Handle raw sequencing data (Months 11–18) 🔜
 
 - FASTQ → QC → trimming → alignment → variant calling → annotation → interpreted report
 - RNA-seq differential expression
 - Larger infrastructure: file storage, longer jobs, more compute
 - Significantly expands user base from coursework students to researchers doing published work
 
-### Phase 4 — Platform + collaboration (Months 19–30)
+### Phase 4 — Platform + collaboration (Months 19–30) 🔜
 
 - Lab workspaces (PI + students share a project)
 - Custom pipeline builder for advanced users

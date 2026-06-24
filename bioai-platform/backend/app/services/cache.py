@@ -9,6 +9,7 @@ from app.config import settings
 logger = logging.getLogger(__name__)
 
 _redis = None
+_cache_stats = {"hits": 0, "misses": 0}
 
 
 def init_redis():
@@ -29,7 +30,11 @@ def get_redis():
 def cache_get(key: str) -> str | None:
     r = get_redis()
     if r:
-        return r.get(key)
+        val = r.get(key)
+        if val is not None:
+            _cache_stats["hits"] += 1
+            return val
+        _cache_stats["misses"] += 1
     return None
 
 
@@ -37,6 +42,15 @@ def cache_set(key: str, value: str, ttl: int = 86400):
     r = get_redis()
     if r:
         r.setex(key, ttl, value)
+
+
+def get_cache_stats() -> dict:
+    return {**_cache_stats, "redis_connected": _redis is not None}
+
+
+def reset_cache_stats():
+    _cache_stats["hits"] = 0
+    _cache_stats["misses"] = 0
 
 
 def ttl_cache(ttl: int = 86400, prefix: str = "cache"):
@@ -50,7 +64,10 @@ def ttl_cache(ttl: int = 86400, prefix: str = "cache"):
             cached = cache_get(cache_key)
             if cached is not None:
                 try:
-                    return json.loads(cached)
+                    result = json.loads(cached)
+                    if isinstance(result, dict):
+                        result["from_cache"] = True
+                    return result
                 except (json.JSONDecodeError, TypeError):
                     pass
 
@@ -59,6 +76,8 @@ def ttl_cache(ttl: int = 86400, prefix: str = "cache"):
                 cache_set(cache_key, json.dumps(result), ttl=ttl)
             except (TypeError, ValueError):
                 pass
+            if isinstance(result, dict):
+                result["from_cache"] = False
             return result
 
         return wrapper

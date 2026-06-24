@@ -111,11 +111,13 @@ One golden path only: **Sequence In → BLAST → AI-interpreted report.** Every
 - Gene/protein → pathway lookup via Reactome/WikiPathways
 - Pathway diagram viewer
 
-### Sprint 8: Onboarding + `/learn`
-- First-run tutorial
-- Documentation pages generated from existing "what does this mean" content — write once, reuse
+### Sprint 8: Onboarding + `/learn` ✅
+- First-run tutorial (TutorialWalkthrough component, 5 steps, localStorage flag) ✅
+- 10+ documentation pages at `/learn` (BLAST, Alignment, Domains, Phylo, Structure, Pathways, Interactions, Primers, Tools, Glossary) ✅
+- LearnPopover component for inline `(?)` help tooltips ✅
 
-### Sprint 9–10: Hardening
-- PDF report export
-- Cache-hit check before re-calling external APIs (raw responses already stored from Day 1)
-- Error monitoring (Sentry free tier)
+### Sprint 9–10: Hardening ✅
+- PDF report export (`GET /api/export/job/{id}?format=pdf|json`) ✅
+- Cache-hit check with `from_cache` flag, `/api/admin/cache-stats` endpoint ✅
+- `@ttl_cache` coverage: pathway enrichment, NCBI search, BLAST, UniProt, AlphaFold ✅
+- Sentry error monitoring (`@sentry/nextjs` frontend + `sentry-sdk` backend) ✅

@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc wget ca-certificates && \
+    build-essential gcc wget ca-certificates openbabel && \
     rm -rf /var/lib/apt/lists/*
 
 # Download pre-compiled PhyML binary from bioconda
@@ -11,6 +11,10 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
     cp /tmp/bin/phyml /usr/local/bin/phyml && \
     chmod +x /usr/local/bin/phyml && \
     rm -rf /tmp/phyml.tar.bz2 /tmp/bin
+
+# Download pre-compiled AutoDock Vina binary from GitHub releases
+RUN wget -q "https://github.com/autodock/autodock-vina/releases/download/v1.2.5/vina_1.2.5_linux_x86_64" -O /usr/local/bin/vina && \
+    chmod +x /usr/local/bin/vina
 
 WORKDIR /app
 COPY requirements.txt .

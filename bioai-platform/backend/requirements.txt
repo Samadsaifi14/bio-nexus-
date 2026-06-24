@@ -6,6 +6,7 @@ httpx
 aiohttp
 biopython
 litellm
+sentry-sdk
 python-dotenv
 supabase
 reportlab

@@ -245,3 +245,35 @@ export async function runEnrichment(identifiers: string[]): Promise<EnrichmentRe
   const res = await api.post('/api/pathways/enrichment', { identifiers });
   return res.data;
 }
+
+export type DockingPose = {
+  model: number;
+  atoms: number;
+  affinity: number | null;
+};
+
+export type DockingResult = {
+  job_id: string;
+  status: string;
+  result?: {
+    pdb_id: string;
+    smiles: string;
+    poses: DockingPose[];
+    num_poses: number;
+    box_center: { x: number; y: number; z: number };
+    box_size: { x: number; y: number; z: number };
+    vina_log?: string;
+    from_cache?: boolean;
+  };
+  error?: string;
+};
+
+export async function runDocking(pdbId: string, smiles: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/docking/run', { pdb_id: pdbId, smiles });
+  return res.data;
+}
+
+export async function getDockingStatus(jobId: string): Promise<DockingResult> {
+  const res = await api.get(`/api/docking/status/${jobId}`);
+  return res.data;
+}

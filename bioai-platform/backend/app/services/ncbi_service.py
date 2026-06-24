@@ -77,6 +77,7 @@ class NCBIService:
         except Exception as e:
             return {"error": str(e)}
 
+    @ttl_cache(ttl=86400, prefix="ncbi_search")
     async def search_by_name(self, term: str, db: str = "protein", max_results: int = 10) -> dict:
         try:
             handle = Entrez.esearch(db=db, term=term, retmax=max_results)

@@ -1,4 +1,7 @@
 import logging
+import os
+
+import sentry_sdk
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -9,7 +12,7 @@ from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking
 from app.services.cache import init_redis
 
 logger = logging.getLogger(__name__)
@@ -53,6 +56,8 @@ app.include_router(structure_analysis.router)
 app.include_router(phylo.router)
 app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(api_keys.router, prefix="/api/keys", tags=["api_keys"])
+app.include_router(cache_stats.router)
+app.include_router(docking.router)
 
 TERMINAL_STATUSES = {"complete", "failed"}
 NON_TERMINAL_STATUSES = {
@@ -96,13 +101,20 @@ async def _fail_stuck_jobs():
 
 @app.on_event("startup")
 async def startup():
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=os.getenv("ENVIRONMENT", "development"),
+        traces_sample_rate=0.1,
+    )
     init_redis()
     await _fail_stuck_jobs()
 
 
 @app.get("/health")
 async def health():
-    return {"status": "ok"}
+    from app.services.cache import get_cache_stats
+    stats = get_cache_stats()
+    return {"status": "ok", "cache": stats}
 
 
 @app.exception_handler(Exception)

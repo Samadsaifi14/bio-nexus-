@@ -1,5 +1,9 @@
 import httpx
+import json
+import hashlib
 import logging
+
+from app.services.cache import cache_get, cache_set
 
 logger = logging.getLogger(__name__)
 
@@ -7,6 +11,19 @@ ANALYSIS_BASE = "https://reactome.org/AnalysisService"
 
 
 async def run_enrichment(identifiers: list[str]) -> dict | None:
+    raw = json.dumps(sorted(identifiers), sort_keys=True)
+    key_hash = hashlib.sha256(raw.encode()).hexdigest()[:16]
+    cache_key = f"enrichment:{key_hash}"
+
+    cached = cache_get(cache_key)
+    if cached is not None:
+        try:
+            result = json.loads(cached)
+            if isinstance(result, dict):
+                result["from_cache"] = True
+            return result
+        except (json.JSONDecodeError, TypeError):
+            pass
     try:
         body = "\n".join(identifiers)
         async with httpx.AsyncClient(timeout=30) as client:
@@ -48,10 +65,16 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
 
             pathways.sort(key=lambda p: p["entitiesFDR"])
 
-            return {
+            result = {
                 "token": token,
                 "pathways": pathways,
             }
+            try:
+                cache_set(cache_key, json.dumps(result), ttl=86400)
+            except (TypeError, ValueError):
+                pass
+            result["from_cache"] = False
+            return result
     except Exception as e:
         logger.warning(f"Pathway enrichment failed: {e}")
         return None

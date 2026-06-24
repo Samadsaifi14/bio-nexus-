@@ -11,6 +11,7 @@ import {
   History,
   Search,
   Settings,
+  BookOpen,
   ChevronRight,
   LogOut,
   Dna,
@@ -19,6 +20,7 @@ import {
 import { useAuth } from '@/contexts/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
+import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
@@ -26,6 +28,7 @@ const NAV_ITEMS = [
   { href: '/retrieve',  icon: Search,          label: 'Retrieve'   },
   { href: '/jobs',      icon: Clock,           label: 'Jobs'       },
   { href: '/history',   icon: History,         label: 'History'    },
+  { href: '/learn',     icon: BookOpen,        label: 'Learn'      },
   { href: '/settings',  icon: Settings,        label: 'Settings'   },
 ] as const;
 
@@ -303,6 +306,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </div>
         </main>
       </div>
+      <TutorialWalkthrough />
     </div>
   );
 }

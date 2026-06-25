@@ -35,3 +35,6 @@ dump.rdb
 .vercel
 
 tsconfig.tsbuildinfo
+
+# --- Temp / scratch ---
+tmp_hf/

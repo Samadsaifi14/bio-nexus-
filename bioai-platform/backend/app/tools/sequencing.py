@@ -12,7 +12,8 @@ from app.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
-MINIMAP2_PATH = shutil.which("minimap2") or "/usr/local/bin/minimap2"
+BIN_DIR = os.path.join(os.path.dirname(__file__), "..", "bin")
+MINIMAP2_PATH = shutil.which("minimap2") or os.path.join(BIN_DIR, "minimap2")
 MINIMAP2_URL = "https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2"
 
 PIPELINE_TIMEOUT = 600
@@ -24,12 +25,14 @@ REFERENCE_URLS = {
 
 SMALL_REFERENCE = "sars-cov-2"
 MAX_FASTQ_SIZE = 50 * 1024 * 1024
+REF_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "references")
 
 
 async def _ensure_minimap2() -> str:
     if os.path.exists(MINIMAP2_PATH) and os.access(MINIMAP2_PATH, os.X_OK):
         return MINIMAP2_PATH
     dest = MINIMAP2_PATH
+    os.makedirs(BIN_DIR, exist_ok=True)
     logger.info("Downloading minimap2 binary ...")
     async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
         r = await client.get(MINIMAP2_URL)
@@ -232,31 +235,36 @@ def _generate_report(qc: dict, variants: list[dict], ref_name: str) -> dict:
 
 async def _download_fastq(url: str, dest: str) -> str:
     async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-        r = await client.get(url)
-        r.raise_for_status()
-        content_length = int(r.headers.get("content-length", 0))
-        if content_length > MAX_FASTQ_SIZE:
-            raise ValueError(f"FASTQ too large: {content_length} bytes (max {MAX_FASTQ_SIZE})")
-        with open(dest, "wb") as f:
-            f.write(r.content)
+        async with client.stream("GET", url) as r:
+            r.raise_for_status()
+            content_length = int(r.headers.get("content-length", 0))
+            if content_length > MAX_FASTQ_SIZE:
+                raise ValueError(f"FASTQ too large: {content_length} bytes (max {MAX_FASTQ_SIZE})")
+            with open(dest, "wb") as f:
+                async for chunk in r.aiter_bytes():
+                    f.write(chunk)
     return dest
 
 
-async def _download_reference(ref_name: str, dest_dir: str) -> str:
+async def _download_reference(ref_name: str, dest_dir: str | None = None) -> str:
     url = REFERENCE_URLS.get(ref_name)
     if not url:
         raise ValueError(f"Unknown reference genome: {ref_name}")
-    fa_path = os.path.join(dest_dir, f"{ref_name}.fa")
-    if not os.path.exists(fa_path):
-        async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
-            r = await client.get(url)
-            r.raise_for_status()
-            data = r.content
-            if url.endswith(".gz"):
-                import gzip
-                data = gzip.decompress(data)
-            with open(fa_path, "wb") as f:
-                f.write(data)
+    cache_dir = dest_dir or REF_CACHE_DIR
+    os.makedirs(cache_dir, exist_ok=True)
+    fa_path = os.path.join(cache_dir, f"{ref_name}.fa")
+    if os.path.exists(fa_path) and os.path.getsize(fa_path) > 0:
+        logger.info(f"Using cached reference {ref_name} ({os.path.getsize(fa_path)} bytes)")
+        return fa_path
+    async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
+        r = await client.get(url)
+        r.raise_for_status()
+        data = r.content
+        if url.endswith(".gz"):
+            import gzip
+            data = gzip.decompress(data)
+        with open(fa_path, "wb") as f:
+            f.write(data)
     return fa_path
 
 
@@ -272,24 +280,26 @@ class SequencingPipeline(BaseTool):
 
         tmpdir = tempfile.mkdtemp(prefix="seqpipe_")
         try:
-            ref_path = os.path.join(tmpdir, f"{reference}.fa")
-            await _download_reference(reference, tmpdir)
+            ref_path = await _download_reference(reference)
 
             with open(ref_path) as f:
                 ref_content = f.read()
 
             fastq_path = os.path.join(tmpdir, "input.fastq")
             synthetic = fastq_url.lower() in ("synthetic", "demo", "test")
+            fastq_source = "synthetic"
             if synthetic:
                 logger.info("Generating synthetic FASTQ reads")
                 fastq_data = _generate_synthetic_fastq(ref_content, num_reads=500, read_len=100)
                 with open(fastq_path, "w") as f:
                     f.write(fastq_data)
             else:
+                fastq_source = "url"
                 try:
                     await asyncio.wait_for(_download_fastq(fastq_url, fastq_path), timeout=120)
                 except Exception:
                     logger.info("FASTQ download failed, generating synthetic reads from reference")
+                    fastq_source = "synthetic"
                     fastq_data = _generate_synthetic_fastq(ref_content, num_reads=500, read_len=100)
                     with open(fastq_path, "w") as f:
                         f.write(fastq_data)
@@ -337,7 +347,7 @@ class SequencingPipeline(BaseTool):
 
             return {
                 "reference": reference,
-                "fastq_source": "synthetic" if not os.path.exists(os.path.join(tmpdir, "input.fastq")) else "url",
+                "fastq_source": fastq_source,
                 "qc": qc,
                 "alignment": aln_stats,
                 "variants": variants[:20],

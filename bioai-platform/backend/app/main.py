@@ -8,8 +8,7 @@ load_dotenv()
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
-from slowapi.util import get_remote_address
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing
@@ -17,7 +16,7 @@ from app.services.cache import init_redis
 
 logger = logging.getLogger(__name__)
 
-limiter = Limiter(key_func=get_remote_address, default_limits=["30/minute"])
+from app.deps import limiter
 
 app = FastAPI(title="Bio Nexus API", version="0.2.0")
 app.state.limiter = limiter
@@ -109,6 +108,11 @@ async def startup():
     )
     init_redis()
     await _fail_stuck_jobs()
+    from app.routers import sequencing, docking
+    lost_seq = sum(1 for j in sequencing._jobs.values() if j.get("status") not in {"complete", "failed"})
+    lost_dock = sum(1 for j in docking._jobs.values() if j.get("status") not in {"complete", "failed"})
+    if lost_seq or lost_dock:
+        logger.warning(f"Startup: {lost_seq} sequencing + {lost_dock} docking in-memory job(s) lost on restart")
 
 
 @app.get("/health")

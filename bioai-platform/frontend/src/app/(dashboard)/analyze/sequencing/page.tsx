@@ -14,7 +14,7 @@ const DEFAULT_REFERENCES = [
 ];
 
 const EXAMPLE_FASTQ = [
-  { label: 'SARS-CoV-2 (small)', value: 'https://raw.githubusercontent.com/jeffkaufman/small-fastq-files/main/sars-cov-2_sample.fastq' },
+  { label: 'Demo (synthetic reads)', value: 'synthetic' },
 ];
 
 const STEPS = [

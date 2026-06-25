@@ -20,7 +20,7 @@ PIPELINE_TIMEOUT = 600
 
 REFERENCE_URLS = {
     "sars-cov-2": "https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/bigZips/wuhCor1.fa.gz",
-    "lambda": "https://ftp.ncbi.nlm.nih.gov/genomes/Viruses/lambdavirus_237184_uid14815/NC_001416.fna",
+    "lambda": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=NC_001416&rettype=fasta&retmode=text",
 }
 
 SMALL_REFERENCE = "sars-cov-2"

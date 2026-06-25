@@ -13,7 +13,31 @@ from app.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
-MINIMAP2 = shutil.which("minimap2") or "/usr/local/bin/minimap2"
+MINIMAP2_PATH = shutil.which("minimap2") or "/usr/local/bin/minimap2"
+MINIMAP2_URL = "https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2"
+
+
+async def _ensure_minimap2() -> str:
+    if os.path.exists(MINIMAP2_PATH) and os.access(MINIMAP2_PATH, os.X_OK):
+        return MINIMAP2_PATH
+    dest = MINIMAP2_PATH
+    logger.info("Downloading minimap2 binary ...")
+    async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+        r = await client.get(MINIMAP2_URL)
+        r.raise_for_status()
+        import tarfile
+        import io
+        with tarfile.open(fileobj=io.BytesIO(r.content)) as tar:
+            for member in tar.getmembers():
+                if member.name.endswith("minimap2"):
+                    f = tar.extractfile(member)
+                    if f:
+                        with open(dest, "wb") as out:
+                            out.write(f.read())
+                    break
+    os.chmod(dest, 0o755)
+    logger.info(f"minimap2 downloaded to {dest}")
+    return dest
 
 REFERENCE_URLS = {
     "sars-cov-2": "https://hgdownload.soe.ucsc.edu/goldenPath/wuhCor1/bigZips/wuhCor1.fa.gz",
@@ -257,9 +281,10 @@ class SequencingPipeline(BaseTool):
             if "error" in qc:
                 return {"error": qc["error"], "step": "qc"}
 
+            mm2 = await _ensure_minimap2()
             sam_path = os.path.join(tmpdir, "aln.sam")
             minimap2_proc = await asyncio.create_subprocess_exec(
-                MINIMAP2, "-ax", "sr", ref_path, fastq_path,
+                mm2, "-ax", "sr", ref_path, fastq_path,
                 "-o", sam_path,
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,

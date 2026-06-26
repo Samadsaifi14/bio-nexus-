@@ -1,10 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Copy, Check } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 
 const COMPLEMENT: Record<string, string> = {
   A: 'T', T: 'A', C: 'G', G: 'C',
@@ -12,9 +13,24 @@ const COMPLEMENT: Record<string, string> = {
   B: 'V', V: 'B', D: 'H', H: 'D', N: 'N',
 };
 
-const SAMPLE_DNA = 'ATGGCCCTGTGGATGCGCCTCCTGCCCCTGCTGGCGCTGCTGGCCCTCTGGGGACCTGACCCAGCC';
+const CODON: Record<string, string> = {
+  TTT:'F',TTC:'F',TTA:'L',TTG:'L',TCT:'S',TCC:'S',TCA:'S',TCG:'S',
+  TAT:'Y',TAC:'Y',TAA:'*',TAG:'*',TGT:'C',TGC:'C',TGA:'*',TGG:'W',
+  CTT:'L',CTC:'L',CTA:'L',CTG:'L',CCT:'P',CCC:'P',CCA:'P',CCG:'P',
+  CAT:'H',CAC:'H',CAA:'Q',CAG:'Q',CGT:'R',CGC:'R',CGA:'R',CGG:'R',
+  ATT:'I',ATC:'I',ATA:'I',ATG:'M',ACT:'T',ACC:'T',ACA:'T',ACG:'T',
+  AAT:'N',AAC:'N',AAA:'K',AAG:'K',AGT:'S',AGC:'S',AGA:'R',AGG:'R',
+  GTT:'V',GTC:'V',GTA:'V',GTG:'V',GCT:'A',GCC:'A',GCA:'A',GCG:'A',
+  GAT:'D',GAC:'D',GAA:'E',GAG:'E',GGT:'G',GGC:'G',GGA:'G',GGG:'G',
+};
+
+const VALID_DNA = new Set('ACGTUN');
+
+// Insulin CDS (human) — complete ORF with stop codon
+const SAMPLE_CDS = 'ATGGCCCTGTGGATGCGCCTCCTGCCCCTGCTGGCGCTGCTGGCCCTCTGGGGACCTGACCCAGCCGCAGCCTTTGTGAACCAACACCTGTGCGGCTCACACCTGGTGGAAGCTCTCTACCTAGTGTGCGGGGAACGAGGCTTCTTCTACACACCCAAGACCCGCCGGGAGGCAGAGGACCTGCAGGTGGGGCAGGTGGAGCTGGGCGGGGGCCCTGGTGCAGGCAGCCTGCAGCCCTTGGCCCTGGAGGGGTCCCTGCAGAAGCGTGGCATTGTGGAACAATGCTGTACCAGCATCTGCTCCCTCTACCAGCTGGAGAACTACTGCAACTAG';
 
 const TOOLS = [
+  { id: 'translate' as const, label: 'Translate CDS' },
   { id: 'revcomp' as const, label: 'Reverse Complement' },
   { id: 'reverse' as const, label: 'Reverse' },
   { id: 'complement' as const, label: 'Complement' },
@@ -24,15 +40,62 @@ const TOOLS = [
 
 export default function ToolsPage() {
   const router = useRouter();
+  const audit = useAuditTrail();
+  const auditedRef = useRef(false);
   const [input, setInput] = useState('');
   const [output, setOutput] = useState('');
-  const [tool, setTool] = useState<string>('revcomp');
+  const [tool, setTool] = useState<string>('translate');
   const [copied, setCopied] = useState(false);
 
   const process = () => {
     const raw = input.replace(/[^A-Za-z]/g, '').toUpperCase();
     if (!raw) return;
+    auditedRef.current = false;
     switch (tool) {
+      case 'translate': {
+        const chars = raw.split('');
+        const invalid = chars.filter(c => !VALID_DNA.has(c));
+        if (invalid.length > 0) {
+          setOutput(`Error: Invalid DNA character(s): ${[...new Set(invalid)].join(', ')}\nOnly A, C, G, T, U, N allowed.`);
+          audit.emitFailed('translate_cds', 'CDStool', `${raw.length}bp`, `invalid chars: ${[...new Set(invalid)].join(',')}`);
+          return;
+        }
+        const seq = raw.replace(/U/g, 'T');
+        if (seq.length < 3) {
+          setOutput('Error: Sequence too short — need at least 3 bases (1 codon).');
+          audit.emitFailed('translate_cds', 'CDStool', `${seq.length}bp`, 'too short');
+          return;
+        }
+        const startIdx = seq.indexOf('ATG');
+        const offset = startIdx >= 0 ? startIdx : 0;
+        const cdsLen = seq.length - offset;
+        const codons: string[] = [];
+        for (let i = offset; i + 2 < seq.length; i += 3) {
+          codons.push(seq.slice(i, i + 3));
+        }
+        const aa: string[] = [];
+        let stopped = false;
+        for (const codon of codons) {
+          if (codon.includes('N')) { aa.push('X'); continue; }
+          const a = CODON[codon];
+          if (!a) { aa.push('X'); continue; }
+          if (a === '*') { stopped = true; break; }
+          aa.push(a);
+        }
+        const protein = aa.join('');
+        const line1 = `> Translated CDS${startIdx >= 0 ? '' : ' (no start codon — translated from position 0)'}`;
+        const lines: string[] = [];
+        for (let i = 0; i < protein.length; i += 60) {
+          lines.push(protein.slice(i, i + 60));
+        }
+        const stats =
+          `CDS: ${cdsLen} bp → Protein: ${protein.length} aa` +
+          (stopped ? ' (complete ORF)' : cdsLen % 3 !== 0 ? ' (incomplete final codon)' : ' (no stop codon — partial CDS)') +
+          (offset > 0 ? `\nORF start at position ${offset + 1}` : '');
+        setOutput(`${line1}\n${lines.join('\n')}\n\n${stats}`);
+        if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('translate_cds', 'CDStool', `${raw.length}bp`, `${protein.length}aa`); }
+        break;
+      }
       case 'revcomp':
         setOutput(raw.split('').reverse().map(c => COMPLEMENT[c] || c).join(''));
         break;
@@ -82,7 +145,7 @@ export default function ToolsPage() {
 
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Utility Tools</h1>
-        <p className="text-sm text-text-secondary">Reverse complement, GC content, FASTA formatting, and more.</p>
+        <p className="text-sm text-text-secondary">Translate CDS, reverse complement, GC content, FASTA formatting, and more.</p>
       </motion.div>
 
       <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6 space-y-4">
@@ -103,7 +166,7 @@ export default function ToolsPage() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => { setInput(SAMPLE_DNA); setOutput(''); }}
+            onClick={() => { setInput(tool === 'translate' ? SAMPLE_CDS : SAMPLE_DNA); setOutput(''); }}
             className="text-sm text-accent-cyan hover:text-accent-cyan/80 underline"
           >
             Load sample

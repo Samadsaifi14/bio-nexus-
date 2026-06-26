@@ -268,8 +268,8 @@ export type DockingResult = {
   error?: string;
 };
 
-export async function runDocking(pdbId: string, smiles: string): Promise<{ job_id: string; status: string }> {
-  const res = await api.post('/api/docking/run', { pdb_id: pdbId, smiles });
+export async function runDocking(pdbId: string, smiles: string, pdbUrl?: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/docking/run', { pdb_id: pdbId, smiles, pdb_url: pdbUrl || '' });
   return res.data;
 }
 

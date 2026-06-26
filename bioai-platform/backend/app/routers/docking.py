@@ -60,13 +60,15 @@ _lock = threading.Lock()
 
 
 class DockingRequest(BaseModel):
-    pdb_id: str
+    pdb_id: str = ""
     smiles: str
+    pdb_url: str = ""
 
 
 class DockingJob(BaseModel):
     job_id: str
-    pdb_id: str
+    pdb_id: str = ""
+    pdb_url: str = ""
     smiles: str
     status: str = "queued"
     result: Optional[dict] = None
@@ -81,6 +83,7 @@ def _init(job_id: str, req: DockingRequest) -> None:
         _jobs[job_id] = {
             "job_id":    job_id,
             "pdb_id":    req.pdb_id,
+            "pdb_url":   req.pdb_url,
             "smiles":    req.smiles,
             "status":    "queued",
             "result":    None,
@@ -112,10 +115,12 @@ async def _worker(job_id: str) -> None:
     from app.tools.docking import DockingTool
 
     tool = DockingTool()
-    result = await tool.run({
-        "pdb_id": job["pdb_id"],
-        "smiles": job["smiles"],
-    })
+    params: dict = {"smiles": job["smiles"]}
+    if job.get("pdb_url"):
+        params["pdb_url"] = job["pdb_url"]
+    if job.get("pdb_id"):
+        params["pdb_id"] = job["pdb_id"]
+    result = await tool.run(params)
 
     if "error" in result and not result.get("poses"):
         _patch(job_id, status="failed", error=result["error"], done_at=time.time())
@@ -125,8 +130,8 @@ async def _worker(job_id: str) -> None:
 
 @router.post("/run")
 async def run_docking(req: DockingRequest, background_tasks: BackgroundTasks):
-    if not req.pdb_id.strip():
-        raise HTTPException(400, detail="pdb_id is required")
+    if not req.pdb_id.strip() and not req.pdb_url.strip():
+        raise HTTPException(400, detail="pdb_id or pdb_url is required")
     if not req.smiles.strip():
         raise HTTPException(400, detail="smiles is required")
 

@@ -1,15 +1,17 @@
 "use client";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { StringDBViewer } from "@/components/interactions/StringDBViewer";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 const GENE_EXAMPLES = ["TP53", "BRCA1", "EGFR", "TNF", "INS"];
 
 export default function InteractionsPage() {
   const router = useRouter();
+  const audit = useAuditTrail();
   const [geneName, setGeneName] = useState("");
   const [submitted, setSubmitted] = useState("");
 
@@ -33,7 +35,7 @@ export default function InteractionsPage() {
             onKeyDown={e => e.key === "Enter" && setSubmitted(geneName)}
             placeholder="e.g. TP53"
             className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary" />
-          <button onClick={() => setSubmitted(geneName)} disabled={!geneName.trim()}
+          <button onClick={handleFind} disabled={!geneName.trim()}
             className="btn-primary px-5 py-3 disabled:opacity-50">
             Find Partners
           </button>
@@ -41,7 +43,7 @@ export default function InteractionsPage() {
         <div className="flex gap-2 flex-wrap">
           <span className="text-xs text-text-muted">Examples:</span>
           {GENE_EXAMPLES.map(g => (
-            <button key={g} onClick={() => { setGeneName(g); setSubmitted(g); }}
+            <button key={g} onClick={() => submitGene(g)}
               className="px-2 py-1 text-xs rounded bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 transition">
               {g}
             </button>

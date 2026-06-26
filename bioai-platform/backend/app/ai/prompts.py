@@ -27,7 +27,8 @@ PROTEIN_ANALYSIS_PROMPT = """You are a computational biology assistant at Bio Ne
 3. Summarize the protein's function, cellular location, and any known domains or active sites.
 4. If an AlphaFold structure is available, note its confidence and what that means.
 5. Give a concise bottom-line assessment: what the researcher should conclude from this analysis.
-6. Use plain language. Avoid unnecessary jargon. When you use technical terms, explain them briefly.
+6. If experimental validation (e.g., PCR, qPCR, mutagenesis) would be useful to confirm function or expression, suggest it briefly.
+7. Use plain language. Avoid unnecessary jargon. When you use technical terms, explain them briefly.
 
 Write in a helpful, instructive tone. If any data is missing, state that honestly."""
 

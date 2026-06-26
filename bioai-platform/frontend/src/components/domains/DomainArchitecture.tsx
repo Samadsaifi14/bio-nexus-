@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 const DB_COLORS: Record<string, string> = {
   PFAM:    "#00F5D4",
@@ -15,21 +16,24 @@ type Domain = { accession: string; name: string; source_db: string; start: numbe
 type DomainsResponse = { uniprot_accession: string; sequence_length: number; domains: Domain[] };
 
 export function DomainArchitecture({ accession }: { accession: string }) {
+  const audit = useAuditTrail();
   const [data, setData] = useState<DomainsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [tooltip, setTooltip] = useState<{ domain: Domain; x: number; y: number } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const auditedRef = useRef(false);
 
   useEffect(() => {
     setLoading(true);
     setError(null);
+    auditedRef.current = false;
     fetch(`/api/backend/api/domains/${accession}`)
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
-      .then(setData)
-      .catch(e => setError(e.message))
+      .then(d => { setData(d); if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('domain_view', 'InterPro', accession, `${d.domains?.length || 0} domains`); } })
+      .catch(e => { setError(e.message); audit.emitFailed('domain_view', 'InterPro', accession, e.message); })
       .finally(() => setLoading(false));
-  }, [accession]);
+  }, [accession, audit]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Loading domain annotations&hellip;</div>;
   if (error) return <div className="text-error text-sm">{error}</div>;

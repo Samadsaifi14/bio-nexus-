@@ -26,7 +26,9 @@ function affinityColor(affinity: number | null): string {
 
 export default function DockingPage() {
   const router = useRouter();
-  const [pdbId, setPdbId] = useState('');
+  const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
+  const [pdbId, setPdbId] = useState(searchParams?.get('pdb_id') || '');
+  const [pdbUrl, setPdbUrl] = useState(searchParams?.get('pdb_url') || '');
   const [smiles, setSmiles] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
   const audit = useAuditTrail();
@@ -36,15 +38,17 @@ export default function DockingPage() {
   const [polling, setPolling] = useState(false);
 
   const startDocking = async () => {
-    if (!pdbId.trim() || !smiles.trim()) return;
-    const inputSummary = `pdb:${pdbId.trim().toUpperCase()}`;
+    const hasPdbId = pdbId.trim().length > 0;
+    const hasPdbUrl = pdbUrl.trim().length > 0;
+    if ((!hasPdbId && !hasPdbUrl) || !smiles.trim()) return;
+    const inputSummary = hasPdbId ? `pdb:${pdbId.trim().toUpperCase()}` : `url:${pdbUrl.trim().slice(0, 60)}`;
     audit.emitStarted('docking_run', 'AutoDock Vina', inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
     setJobId(null);
     try {
-      const { job_id } = await runDocking(pdbId.trim().toUpperCase(), smiles.trim());
+      const { job_id } = await runDocking(pdbId.trim().toUpperCase(), smiles.trim(), pdbUrl.trim() || undefined);
       setJobId(job_id);
       setPolling(true);
       audit.emitSuccess('docking_run', 'AutoDock Vina', inputSummary, `job_id:${job_id}`);
@@ -128,6 +132,18 @@ export default function DockingPage() {
           </div>
         </div>
 
+        {pdbUrl && (
+          <div>
+            <label className="block text-sm font-medium text-text-primary mb-1.5">PDB URL (from AlphaFold)</label>
+            <input
+              type="text"
+              value={pdbUrl}
+              readOnly
+              className="w-full px-4 py-3 rounded-xl border border-accent-cyan/40 text-sm font-mono bg-surface-1 text-accent-cyan"
+            />
+          </div>
+        )}
+
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">Ligand SMILES</label>
           <input
@@ -152,7 +168,7 @@ export default function DockingPage() {
           </div>
         </div>
 
-        <button onClick={startDocking} disabled={loading || !pdbId.trim() || !smiles.trim() || polling}
+        <button onClick={startDocking} disabled={loading || (!pdbId.trim() && !pdbUrl.trim()) || !smiles.trim() || polling}
           className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
           {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
           {loading ? 'Starting...' : polling ? 'Running...' : 'Run Docking'}

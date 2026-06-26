@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import { LoaderCircle, Download } from "lucide-react";
 import { downloadTsv } from "@/lib/export-utils";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 type PrimerPair = {
   pair_index: number;
@@ -11,6 +12,7 @@ type PrimerPair = {
 };
 
 export function PrimerDesigner() {
+  const audit = useAuditTrail();
   const [sequence, setSequence] = useState("");
   const [productMin, setProductMin] = useState(100);
   const [productMax, setProductMax] = useState(500);
@@ -19,9 +21,11 @@ export function PrimerDesigner() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPair, setSelectedPair] = useState<number | null>(null);
+  const auditedRef = useRef(false);
 
   async function design() {
     setError(null); setPairs([]); setLoading(true);
+    auditedRef.current = false;
     try {
       const res = await fetch("/api/backend/api/primers/design", {
         method: "POST",
@@ -35,9 +39,11 @@ export function PrimerDesigner() {
           : typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
         throw new Error(msg || res.statusText);
       }
-      setPairs(await res.json());
+      const result = await res.json();
+      setPairs(result);
       setSelectedPair(0);
-    } catch (e: any) { setError(e.message); }
+      if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('primer_design', 'Primer3', `${sequence.length}bp`, `${result.length} pairs`); }
+    } catch (e: any) { setError(e.message); audit.emitFailed('primer_design', 'Primer3', `${sequence.length}bp`, e.message); }
     finally { setLoading(false); }
   }
 

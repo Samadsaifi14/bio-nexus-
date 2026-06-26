@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { Search } from 'lucide-react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -554,6 +555,8 @@ function NodeInfoPanel({ node, allNodes }: { node: TreeNode; allNodes: TreeNode[
     while (cur) { d++; cur = cur.parent }
     return d
   })()
+  const leafName = isLeaf ? (node.name || '').split('|').pop()?.split('_')[0] || node.name : ''
+  const isValidAccession = leafName.length >= 4 && /^[A-Z0-9_]+$/.test(leafName)
 
   return (
     <div className="glass-card p-4 space-y-2 text-sm">
@@ -589,6 +592,16 @@ function NodeInfoPanel({ node, allNodes }: { node: TreeNode; allNodes: TreeNode[
           <span className="text-text-primary font-mono">{node.id}</span>
         </div>
       </div>
+      {isLeaf && isValidAccession && (
+        <div className="pt-2 border-t border-glass-border flex items-center justify-end gap-2">
+          <a href={`https://www.ncbi.nlm.nih.gov/protein/${leafName}`} target="_blank" rel="noreferrer"
+            className="text-xs text-accent-cyan hover:underline">View on NCBI</a>
+          <button onClick={() => window.open(`/analyze/blast?sequence=${leafName}`, '_blank')}
+            className="flex items-center gap-1 px-2.5 py-1 rounded bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition">
+            <Search className="w-3 h-3" /> BLAST ortholog (F6)
+          </button>
+        </div>
+      )}
     </div>
   )
 }

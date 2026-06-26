@@ -1,8 +1,9 @@
 'use client';
 
 import { useState, useRef, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Brain, Loader2 } from 'lucide-react';
+import { Brain, Loader2, Dna, Search } from 'lucide-react';
 import type { AssembledContext } from '@/types/pipeline';
 import type { StreamEvent } from '@/types/results';
 import { interpretStream } from '@/lib/api';
@@ -73,6 +74,7 @@ interface AIInterpretationProps {
 }
 
 export function AIInterpretation({ context, pipelineType }: AIInterpretationProps) {
+  const router = useRouter();
   const [text, setText] = useState('');
   const [model, setModel] = useState('');
   const [loading, setLoading] = useState(false);
@@ -164,6 +166,19 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
         <motion.div variants={fadeIn}>
           {renderMarkdown(text)}
           {model && <div className="mt-3 text-xs text-gray-400">Model: {model}</div>}
+          <div className="mt-4 pt-3 border-t border-teal-200 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-teal-700 font-medium mb-2">Bridges</div>
+            <div className="flex flex-wrap gap-2">
+              <button onClick={() => router.push('/analyze/primers')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 transition">
+                <Dna className="w-3.5 h-3.5" /> Design Primers (F4)
+              </button>
+              <button onClick={() => router.push('/analyze')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20">
+                <Search className="w-3.5 h-3.5" /> Run New Analysis (F8)
+              </button>
+            </div>
+          </div>
         </motion.div>
       ) : loading ? (
         <div className="flex items-center gap-2 text-sm text-gray-500">

@@ -125,19 +125,23 @@ class DockingTool(BaseTool):
 
     async def run(self, input: dict) -> dict:
         pdb_id = input.get("pdb_id", "").strip().upper()
+        pdb_url = input.get("pdb_url", "").strip()
         smiles = input.get("smiles", "").strip()
 
-        if not pdb_id or not smiles:
-            return {"error": "pdb_id and smiles are required"}
+        if not pdb_id and not pdb_url:
+            return {"error": "pdb_id or pdb_url is required"}
+        if not smiles:
+            return {"error": "smiles is required"}
 
         tmpdir = tempfile.mkdtemp(prefix="docking_")
         try:
             # 1. Fetch PDB
-            pdb_url = PDB_DOWNLOAD.format(pdb_id=pdb_id)
+            if not pdb_url:
+                pdb_url = PDB_DOWNLOAD.format(pdb_id=pdb_id)
             async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.get(pdb_url)
                 if r.status_code != 200:
-                    return {"error": f"PDB {pdb_id} not found at RCSB"}
+                    return {"error": f"PDB not found at {pdb_url}"}
                 pdb_content = r.text
 
             pdb_path = os.path.join(tmpdir, "protein.pdb")
@@ -219,8 +223,9 @@ class DockingTool(BaseTool):
             poses = _parse_vina_pdbqt(out_content)
             log = stdout.decode() if stdout else ""
 
+            resolved_pdb_id = pdb_id or pdb_url.split("/")[-1].replace(".pdb", "").split("-")[0] if pdb_url else "predicted"
             return {
-                "pdb_id": pdb_id,
+                "pdb_id": resolved_pdb_id,
                 "smiles": smiles,
                 "poses": poses,
                 "num_poses": len(poses),

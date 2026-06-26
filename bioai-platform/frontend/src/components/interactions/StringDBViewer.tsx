@@ -1,5 +1,6 @@
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 type Interaction = {
   partner_gene: string;
@@ -10,24 +11,28 @@ type Interaction = {
   ascore: number;
 };
 
-export function StringDBViewer({ geneName }: { geneName: string }) {
-  const [data, setData] = useState<{ interactions: Interaction[] } | null>(null);
-  const [loading, setLoading] = useState(true);
+export function StringDBViewer({ geneName, initialData }: { geneName: string; initialData?: { interactions: Interaction[] } | null }) {
+  const audit = useAuditTrail();
+  const [data, setData] = useState<{ interactions: Interaction[] } | null>(initialData ?? null);
+  const [loading, setLoading] = useState(!initialData);
   const [error, setError] = useState<string | null>(null);
   const [imgError, setImgError] = useState(false);
   const [copied, setCopied] = useState(false);
+  const auditedRef = useRef(false);
 
   const species = 9606;
 
   useEffect(() => {
+    if (initialData) return;
     setLoading(true);
     setError(null);
+    auditedRef.current = false;
     fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12`)
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
-      .then(setData)
-      .catch(e => setError(e.message))
+      .then(d => { setData(d); if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('interactions_view', 'STRING-DB', geneName, `${d.interactions?.length || 0} partners`); } })
+      .catch(e => { setError(e.message); audit.emitFailed('interactions_view', 'STRING-DB', geneName, e.message); })
       .finally(() => setLoading(false));
-  }, [geneName]);
+  }, [geneName, initialData, audit]);
 
   const scoreChannels = [
     { key: "escore" as const, label: "Experimental", color: "#00F5D4" },

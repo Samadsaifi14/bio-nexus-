@@ -1,6 +1,7 @@
 "use client";
 import { useEffect, useState, useRef } from "react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 type StructureMatch = {
   pdb_id: string; chain: string; description: string;
@@ -8,18 +9,21 @@ type StructureMatch = {
 };
 
 export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; chain?: string }) {
+  const audit = useAuditTrail();
   const [matches, setMatches] = useState<StructureMatch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
+  const auditedRef = useRef(false);
 
   useEffect(() => {
+    auditedRef.current = false;
     fetch(`/api/backend/api/structure_analysis/compare/${pdbId}?chain=${chain}`)
       .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.detail); }))
-      .then(d => setMatches(d.matches))
-      .catch(e => setError(e.message))
+      .then(d => { setMatches(d.matches); if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('struct_compare', 'PDBeFold', pdbId, `${d.matches?.length || 0} matches`); } })
+      .catch(e => { setError(e.message); audit.emitFailed('struct_compare', 'PDBeFold', pdbId, e.message); })
       .finally(() => setLoading(false));
-  }, [pdbId, chain]);
+  }, [pdbId, chain, audit]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Searching structural homologs (PDBeFold)&hellip;</div>;
   if (error) return <div className="text-error text-sm">{error}</div>;

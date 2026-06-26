@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, CheckCircle, XCircle, AlertTriangle, Dna, BarChart3, Map, Bug, FileText } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, CheckCircle, XCircle, AlertTriangle, Dna, BarChart3, Map, Bug, FileText, Search } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
 import type { SequencingResult, SequencingReference } from '@/lib/api';
@@ -389,6 +389,19 @@ export default function SequencingPage() {
                 <CheckCircle className="w-4 h-4 text-green-400" />
                 <p className="text-sm">No variants detected in the sample.</p>
               </div>
+            </div>
+          )}
+
+          {result.status === 'complete' && (
+            <div className="glass-card p-4 flex items-center justify-between">
+              <span className="text-xs text-text-muted">Bridge: BLAST Analysis</span>
+              <button
+                onClick={() => router.push('/analyze/blast')}
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
+              >
+                <Search className="w-3.5 h-3.5" />
+                Identify assembled sequence with BLAST
+              </button>
             </div>
           )}
         </motion.div>

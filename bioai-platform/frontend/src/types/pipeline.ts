@@ -103,6 +103,25 @@ export interface PathwayEnrichment {
   pathways: PathwayEnrichmentPathway[];
 }
 
+export interface InteractionPartner {
+  partner_gene: string;
+  partner_protein: string;
+  combined_score: number;
+  nscore: number;
+  fscore: number;
+  pscore: number;
+  ascore: number;
+  escore: number;
+  dscore: number;
+  tscore: number;
+}
+
+export interface InteractionsResult {
+  gene: string;
+  species: number;
+  interactions: InteractionPartner[];
+}
+
 export interface AssembledContext {
   query: {
     sequence: string;
@@ -112,6 +131,7 @@ export interface AssembledContext {
   uniprot: UniprotSummary | null;
   alphafold: AlphaFoldResult | null;
   pathway_enrichment?: PathwayEnrichment | null;
+  interactions?: InteractionsResult | null;
 }
 
 export interface BlastSummary {

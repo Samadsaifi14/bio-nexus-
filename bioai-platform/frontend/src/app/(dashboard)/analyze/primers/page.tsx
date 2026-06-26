@@ -4,9 +4,11 @@ import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { PrimerDesigner } from "@/components/primers/PrimerDesigner";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 export default function PrimersPage() {
   const router = useRouter();
+  useAuditTrail();
 
   return (
     <div className="max-w-3xl">

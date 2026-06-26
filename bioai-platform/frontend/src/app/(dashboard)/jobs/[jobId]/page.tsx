@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { LoaderCircle, Dna, AlertCircle, Copy, Download, Search, Clock, WifiOff } from 'lucide-react';
+import { LoaderCircle, Dna, AlertCircle, Copy, Download, Search, Clock, WifiOff, FlaskConical } from 'lucide-react';
 import toast from 'react-hot-toast';
 import type { JobStatus, JobStepStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
@@ -312,6 +312,18 @@ export default function JobPage() {
                 pdbUrl={context.alphafold.pdb_url}
                 uniprotId={context.alphafold.uniprot_accession}
               />
+              <div className="mt-2 flex items-center justify-end">
+                <button
+                  onClick={() => {
+                    const url = context.alphafold?.pdb_url;
+                    if (url) router.push(`/analyze/docking?pdb_url=${encodeURIComponent(url)}`);
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
+                >
+                  <FlaskConical className="w-3.5 h-3.5" />
+                  Dock with this structure
+                </button>
+              </div>
             </motion.div>
           )}
 
@@ -350,11 +362,27 @@ export default function JobPage() {
             const pdbId = context.uniprot?.pdb_ids?.[0] ?? null;
 
             const analysisTabs: { id: string; label: string; available: boolean; component: React.ReactNode }[] = [
-              { id: "doms", label: "Domains",     available: !!uniprotAcc, component: uniprotAcc ? <DomainArchitecture accession={uniprotAcc} /> : null },
-              { id: "net",  label: "Interactions", available: !!geneName,   component: geneName ? <StringDBViewer geneName={geneName} /> : null },
+              { id: "doms", label: "Domains",     available: !!uniprotAcc, component: uniprotAcc ? <>
+                <DomainArchitecture accession={uniprotAcc} />
+                {pdbId && <div className="mt-3 pt-3 border-t border-glass-border flex items-center justify-end">
+                  <button onClick={() => router.push(`/analyze/docking?pdb_id=${pdbId}`)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition">
+                    <FlaskConical className="w-3.5 h-3.5" /> Dock at binding site (F5)
+                  </button>
+                </div>}
+              </> : null },
+              { id: "net",  label: "Interactions", available: !!geneName,   component: geneName ? <StringDBViewer geneName={geneName} initialData={context.interactions ?? null} /> : null },
               { id: "ss",   label: "2° Structure", available: !!uniprotAcc, component: uniprotAcc ? <SecondaryStructureViewer identifier={uniprotAcc} /> : null },
               { id: "rama", label: "Ramachandran", available: !!pdbId,     component: pdbId ? <RamachandranPlot pdbId={pdbId} /> : null },
-              { id: "comp", label: "Comparison",   available: !!pdbId,     component: pdbId ? <StructureComparison pdbId={pdbId} /> : null },
+              { id: "comp", label: "Comparison",   available: !!pdbId,     component: pdbId ? <>
+                <StructureComparison pdbId={pdbId} />
+                <div className="mt-3 pt-3 border-t border-glass-border flex items-center justify-end">
+                  <button onClick={() => router.push(`/analyze/docking?pdb_id=${pdbId}`)}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition">
+                    <FlaskConical className="w-3.5 h-3.5" /> Use top match as docking receptor (F7)
+                  </button>
+                </div>
+              </> : null },
             ];
 
             const available = analysisTabs.filter(t => t.available);

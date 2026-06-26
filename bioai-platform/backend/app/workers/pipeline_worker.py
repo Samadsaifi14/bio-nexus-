@@ -203,6 +203,45 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
             except Exception as e:
                 logger.warning(f"[{job_id}] UniProt fetch failed (non-fatal): {e}")
 
+        # Bridge F2: UniProt → Interactions (pre-fetch STRING-DB data)
+        interactions_data = None
+        try:
+            gene_names = context.get("uniprot", {}).get("gene_names", [])
+            if gene_names:
+                gene_name = gene_names[0]
+                string_url = "https://string-db.org/api/json/interaction_partners"
+                async with httpx.AsyncClient(timeout=20) as client:
+                    r = await client.get(string_url, params={
+                        "identifiers": gene_name,
+                        "species": 9606,
+                        "limit": 12,
+                        "caller_identity": "bio-nexus-platform",
+                    })
+                    if r.status_code == 200:
+                        raw = r.json()
+                        if raw:
+                            interactions = [
+                                {
+                                    "partner_gene": item.get("preferredName_B", ""),
+                                    "partner_protein": item.get("stringId_B", ""),
+                                    "combined_score": item.get("score", 0),
+                                    "nscore": item.get("nscore", 0),
+                                    "fscore": item.get("fscore", 0),
+                                    "pscore": item.get("pscore", 0),
+                                    "ascore": item.get("ascore", 0),
+                                    "escore": item.get("escore", 0),
+                                    "dscore": item.get("dscore", 0),
+                                    "tscore": item.get("tscore", 0),
+                                }
+                                for item in raw
+                            ]
+                            interactions.sort(key=lambda x: x["combined_score"], reverse=True)
+                            interactions_data = {"gene": gene_name, "species": 9606, "interactions": interactions}
+        except Exception as e:
+            logger.warning(f"[{job_id}] Interactions fetch failed (non-fatal): {e}")
+
+        context["interactions"] = interactions_data
+
         pathway_enrichment_result = None
         try:
             gene_names = []

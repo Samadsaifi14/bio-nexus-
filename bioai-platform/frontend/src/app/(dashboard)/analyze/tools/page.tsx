@@ -56,8 +56,8 @@ export default function ToolsPage() {
         const chars = raw.split('');
         const invalid = chars.filter(c => !VALID_DNA.has(c));
         if (invalid.length > 0) {
-          setOutput(`Error: Invalid DNA character(s): ${[...new Set(invalid)].join(', ')}\nOnly A, C, G, T, U, N allowed.`);
-          audit.emitFailed('translate_cds', 'CDStool', `${raw.length}bp`, `invalid chars: ${[...new Set(invalid)].join(',')}`);
+          setOutput(`Error: Invalid DNA character(s): ${Array.from(new Set(invalid)).join(', ')}\nOnly A, C, G, T, U, N allowed.`);
+          audit.emitFailed('translate_cds', 'CDStool', `${raw.length}bp`, `invalid chars: ${Array.from(new Set(invalid)).join(',')}`);
           return;
         }
         const seq = raw.replace(/U/g, 'T');
@@ -166,7 +166,7 @@ export default function ToolsPage() {
 
         <div className="flex gap-3">
           <button
-            onClick={() => { setInput(tool === 'translate' ? SAMPLE_CDS : SAMPLE_DNA); setOutput(''); }}
+            onClick={() => { setInput(SAMPLE_CDS); setOutput(''); }}
             className="text-sm text-accent-cyan hover:text-accent-cyan/80 underline"
           >
             Load sample

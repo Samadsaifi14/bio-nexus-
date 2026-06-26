@@ -15,6 +15,13 @@ export default function InteractionsPage() {
   const [geneName, setGeneName] = useState("");
   const [submitted, setSubmitted] = useState("");
 
+  const submitGene = useCallback((g: string) => {
+    if (!g.trim()) return;
+    setGeneName(g);
+    setSubmitted(g);
+    audit.emitStarted('interactions_search', 'STRING-DB', g);
+  }, [audit]);
+
   return (
     <div className="max-w-3xl">
       <button onClick={() => router.push("/analyze")}
@@ -32,10 +39,10 @@ export default function InteractionsPage() {
         <div className="flex gap-3">
           <input type="text" value={geneName}
             onChange={e => setGeneName(e.target.value.toUpperCase())}
-            onKeyDown={e => e.key === "Enter" && setSubmitted(geneName)}
+            onKeyDown={e => e.key === "Enter" && submitGene(geneName)}
             placeholder="e.g. TP53"
             className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary" />
-          <button onClick={handleFind} disabled={!geneName.trim()}
+          <button onClick={() => submitGene(geneName)} disabled={!geneName.trim()}
             className="btn-primary px-5 py-3 disabled:opacity-50">
             Find Partners
           </button>

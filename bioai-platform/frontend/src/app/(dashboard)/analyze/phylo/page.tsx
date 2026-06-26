@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
+import { useAuditTrail } from '@/hooks/useAuditTrail'
 
 const PhyloTreeViewer = dynamic(
   () => import('@/components/phylo/PhyloTreeViewer'),
@@ -140,6 +141,7 @@ export default function PhyloPage() {
   const [job, setJob]             = useState<PhyloJobStatus | null>(null)
   const intervalRef               = useRef<ReturnType<typeof setInterval> | null>(null)
   const fileRef                   = useRef<HTMLInputElement>(null)
+  const audit                     = useAuditTrail()
 
   useEffect(() => {
     setModel(seqType === 'protein' ? 'LG' : 'GTR')
@@ -166,6 +168,9 @@ export default function PhyloPage() {
     if (sequences.length < 2) { setSubmitError('Enter at least 2 sequences in FASTA format.'); return }
     if (sequences.length > 50) { setSubmitError('Maximum 50 sequences per run.'); return }
     if (sequences.some(s => s.sequence.length < 10)) { setSubmitError('Each sequence must be at least 10 residues.'); return }
+
+    const inputSummary = `method:${method},seqType:${seqType},seqs:${sequences.length}`
+    audit.emitStarted('phylo_run', 'PhyML/QuickTree', inputSummary)
 
     setSubmitError('')
     setLoading(true)
@@ -198,8 +203,11 @@ export default function PhyloPage() {
       setJobId(job_id)
       await fetchStatus(job_id)
       intervalRef.current = setInterval(() => fetchStatus(job_id), 3000)
+      audit.emitSuccess('phylo_run', 'PhyML/QuickTree', inputSummary, `job_id:${job_id}`)
     } catch (e: unknown) {
-      setSubmitError(e instanceof Error ? e.message : 'Failed to start job')
+      const errMsg = e instanceof Error ? e.message : 'Failed to start job'
+      audit.emitFailed('phylo_run', 'PhyML/QuickTree', inputSummary, errMsg)
+      setSubmitError(errMsg)
     } finally {
       setLoading(false)
     }

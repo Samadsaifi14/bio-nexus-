@@ -7,6 +7,7 @@ import { ArrowLeft, LoaderCircle, ExternalLink, Dna } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { fetchStructure } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { StructureResult } from '@/lib/api';
 import StructureViewer from '@/components/StructureViewer';
 
@@ -16,17 +17,23 @@ export default function StructurePage() {
   const [result, setResult] = useState<StructureResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const audit = useAuditTrail();
 
   const handleSearch = async () => {
     if (!query.trim()) return;
+    const inputSummary = `query:${query.trim()}`;
+    audit.emitStarted('structure_fetch', 'AlphaFold/PDB', inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
     try {
       const res = await fetchStructure(query.trim());
       setResult(res);
+      audit.emitSuccess('structure_fetch', 'AlphaFold/PDB', inputSummary, `pdb:${res?.pdb_id ?? ''}`);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err, 'Structure not found'));
+      const errMsg = extractErrorMessage(err, 'Structure not found');
+      audit.emitFailed('structure_fetch', 'AlphaFold/PDB', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

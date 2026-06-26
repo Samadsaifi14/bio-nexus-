@@ -7,6 +7,7 @@ import { ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle, AlertTrian
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import StructureViewer from '@/components/StructureViewer';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
@@ -28,6 +29,7 @@ export default function DockingPage() {
   const [pdbId, setPdbId] = useState('');
   const [smiles, setSmiles] = useState('');
   const [jobId, setJobId] = useState<string | null>(null);
+  const audit = useAuditTrail();
   const [result, setResult] = useState<DockingResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -35,6 +37,8 @@ export default function DockingPage() {
 
   const startDocking = async () => {
     if (!pdbId.trim() || !smiles.trim()) return;
+    const inputSummary = `pdb:${pdbId.trim().toUpperCase()}`;
+    audit.emitStarted('docking_run', 'AutoDock Vina', inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -43,8 +47,11 @@ export default function DockingPage() {
       const { job_id } = await runDocking(pdbId.trim().toUpperCase(), smiles.trim());
       setJobId(job_id);
       setPolling(true);
+      audit.emitSuccess('docking_run', 'AutoDock Vina', inputSummary, `job_id:${job_id}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to start docking');
+      const errMsg = err instanceof Error ? err.message : 'Failed to start docking';
+      audit.emitFailed('docking_run', 'AutoDock Vina', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

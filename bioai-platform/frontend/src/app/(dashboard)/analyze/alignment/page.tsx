@@ -8,6 +8,7 @@ import { fadeUp } from '@/lib/animations';
 import { runAlignment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { AlignmentResult } from '@/lib/api';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 
@@ -80,6 +81,7 @@ export default function AlignmentPage() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AlignmentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const audit = useAuditTrail();
 
   const handleSubmit = async () => {
     const validationError = validateFasta(input);
@@ -87,14 +89,20 @@ export default function AlignmentPage() {
       setError(validationError);
       return;
     }
+    const seqCount = parseFasta(input).headers.length;
+    const inputSummary = `type:${stype},seqs:${seqCount}`;
+    audit.emitStarted('alignment_run', 'Clustal Omega', inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
     try {
       const res = await runAlignment(input, stype);
       setResult(res);
+      audit.emitSuccess('alignment_run', 'Clustal Omega', inputSummary, `job_id:${res?.job_id ?? ''},stype:${res?.stype ?? ''}`);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err, 'Alignment failed'));
+      const errMsg = extractErrorMessage(err, 'Alignment failed');
+      audit.emitFailed('alignment_run', 'Clustal Omega', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

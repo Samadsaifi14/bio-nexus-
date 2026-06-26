@@ -7,6 +7,7 @@ import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, Exte
 import { fadeUp } from '@/lib/animations';
 import { searchUniprot, getUniprotDetail } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { UniprotSummary } from '@/types/pipeline';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
 
@@ -26,9 +27,12 @@ export default function UniprotLookupPage() {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const audit = useAuditTrail();
 
   const handleSearch = async () => {
     if (!query.trim()) return;
+    const inputSummary = `query:${query.trim()}`;
+    audit.emitStarted('uniprot_search', 'UniProt', inputSummary);
     setLoading(true);
     setError(null);
     setResults(null);
@@ -36,22 +40,30 @@ export default function UniprotLookupPage() {
     try {
       const res = await searchUniprot(query.trim());
       setResults(res.results);
+      audit.emitSuccess('uniprot_search', 'UniProt', inputSummary, `count:${res.results?.length ?? 0}`);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err, 'Search failed'));
+      const errMsg = extractErrorMessage(err, 'Search failed');
+      audit.emitFailed('uniprot_search', 'UniProt', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
   };
 
   const handleSelect = async (accession: string) => {
+    const inputSummary = `accession:${accession}`;
+    audit.emitStarted('uniprot_fetch', 'UniProt', inputSummary);
     setDetailLoading(true);
     setError(null);
     setDetail(null);
     try {
       const res = await getUniprotDetail(accession);
       setDetail(res);
+      audit.emitSuccess('uniprot_fetch', 'UniProt', inputSummary, `name:${res?.full_name ?? ''}`);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err, 'Failed to fetch details'));
+      const errMsg = extractErrorMessage(err, 'Failed to fetch details');
+      audit.emitFailed('uniprot_fetch', 'UniProt', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setDetailLoading(false);
     }

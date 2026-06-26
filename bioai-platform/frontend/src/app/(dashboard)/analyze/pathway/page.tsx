@@ -8,6 +8,7 @@ import { fadeUp } from '@/lib/animations';
 import { searchPathways, searchKEGGPathways, runEnrichment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { PathwayResult, KEGGPathwayResult, EnrichmentResult } from '@/lib/api';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PathwayDiagram from '@/components/results/PathwayDiagram';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
@@ -24,9 +25,12 @@ export default function PathwayPage() {
   const [expandedDiagram, setExpandedDiagram] = useState<string | null>(null);
   const [expandedKEGG, setExpandedKEGG] = useState<string | null>(null);
   const [geneInput, setGeneInput] = useState('');
+  const audit = useAuditTrail();
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;
+    const inputSummary = `tab:${tab},query:${query.trim()}`;
+    audit.emitStarted('pathway_search', 'Pathway', inputSummary);
     setLoading(true);
     setError(null);
     setExpandedDiagram(null);
@@ -42,27 +46,35 @@ export default function PathwayPage() {
         const res = await searchKEGGPathways(query.trim());
         setKeggResults(res.results);
       }
+      audit.emitSuccess('pathway_search', 'Pathway', inputSummary, `tab:${tab}`);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err, 'Search failed'));
+      const errMsg = extractErrorMessage(err, 'Search failed');
+      audit.emitFailed('pathway_search', 'Pathway', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
-  }, [query, tab]);
+  }, [query, tab, audit]);
 
   const handleEnrichment = useCallback(async () => {
     const ids = geneInput.trim().split(/[\n,]+/).map(s => s.trim()).filter(Boolean);
     if (ids.length === 0) return;
+    const inputSummary = `genes:${ids.length}`;
+    audit.emitStarted('pathway_enrichment', 'Pathway', inputSummary);
     setLoading(true);
     setError(null);
     try {
       const res = await runEnrichment(ids);
       setEnrichmentResult(res);
+      audit.emitSuccess('pathway_enrichment', 'Pathway', inputSummary, `hits:${res?.pathways?.length ?? 0}`);
     } catch (err: unknown) {
-      setError(extractErrorMessage(err, 'Enrichment analysis failed'));
+      const errMsg = extractErrorMessage(err, 'Enrichment analysis failed');
+      audit.emitFailed('pathway_enrichment', 'Pathway', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }
-  }, [geneInput]);
+  }, [geneInput, audit]);
 
   return (
     <div className="max-w-3xl">

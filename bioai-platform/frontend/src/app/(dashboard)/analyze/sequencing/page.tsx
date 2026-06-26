@@ -7,6 +7,7 @@ import { ArrowLeft, LoaderCircle, CheckCircle, XCircle, AlertTriangle, Dna, BarC
 import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
 import type { SequencingResult, SequencingReference } from '@/lib/api';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'Sars Cov 2' },
@@ -28,6 +29,7 @@ export default function SequencingPage() {
   const router = useRouter();
   const [fastqUrl, setFastqUrl] = useState('');
   const [reference, setReference] = useState('sars-cov-2');
+  const audit = useAuditTrail();
   const [references, setReferences] = useState<SequencingReference[]>(DEFAULT_REFERENCES);
   const [jobId, setJobId] = useState<string | null>(null);
   const [result, setResult] = useState<SequencingResult | null>(null);
@@ -41,6 +43,8 @@ export default function SequencingPage() {
 
   const startPipeline = async () => {
     if (!fastqUrl.trim()) return;
+    const inputSummary = `ref:${reference},fastq:${fastqUrl.trim().slice(0,60)}`;
+    audit.emitStarted('sequencing_run', 'SequencingPipeline', inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
@@ -49,8 +53,11 @@ export default function SequencingPage() {
       const { job_id } = await runSequencing(fastqUrl.trim(), reference);
       setJobId(job_id);
       setPolling(true);
+      audit.emitSuccess('sequencing_run', 'SequencingPipeline', inputSummary, `job_id:${job_id}`);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Failed to start pipeline');
+      const errMsg = err instanceof Error ? err.message : 'Failed to start pipeline';
+      audit.emitFailed('sequencing_run', 'SequencingPipeline', inputSummary, errMsg);
+      setError(errMsg);
     } finally {
       setLoading(false);
     }

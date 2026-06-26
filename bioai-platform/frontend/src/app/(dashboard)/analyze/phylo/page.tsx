@@ -354,6 +354,17 @@ export default function PhyloPage() {
             </p>
           )}
 
+          {method !== 'ml' && (
+            <div className="flex items-start gap-2 p-3 rounded-xl bg-accent-cyan/5 border border-accent-cyan/20">
+              <span className="text-accent-cyan text-sm mt-0.5">ⓘ</span>
+              <p className="text-text-secondary text-xs leading-relaxed">
+                <strong className="text-text-primary">Maximum Likelihood (ML)</strong> is the most accurate method — it evaluates
+                substitution models statistically and reports <strong>bootstrap confidence</strong> values at each node.
+                Switch to ML for publication-quality trees.
+              </p>
+            </div>
+          )}
+
           <button onClick={handleSubmit} disabled={loading || seqCount < 2}
             className="btn-primary w-full py-3 text-sm font-semibold
               disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">

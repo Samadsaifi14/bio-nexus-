@@ -263,18 +263,26 @@ function RectangularTree({ nodes, svgH, maxDepth }: { nodes: TreeNode[]; svgH: n
     <>
       {nodes.map((n, i) => {
         if (n.px === n.x && n.py === n.y) return null
+        const midX = (n.px + n.x) / 2
+        const blLabel = n.length > 0.001 ? n.length.toFixed(4) : null
         return (
           <g key={`b-${i}`}>
             <line x1={n.px} y1={n.py} x2={n.px} y2={n.y}
               stroke="#334155" strokeWidth={1.2} />
             <line x1={n.px} y1={n.y} x2={n.x} y2={n.y}
               stroke="#475569" strokeWidth={1.5} />
+            {blLabel && (
+              <text x={midX} y={n.y - 5} fontSize={8} fill="#64748b" textAnchor="middle" fontFamily="sans-serif">
+                {blLabel}
+              </text>
+            )}
           </g>
         )
       })}
 
       {nodes.map((n, i) => {
         const isLeaf = n.children.length === 0
+        const blTip  = n.length > 0 ? `branch length: ${n.length.toFixed(5)}` : ''
         return (
           <g key={`n-${i}`}>
             {isLeaf ? (
@@ -284,17 +292,22 @@ function RectangularTree({ nodes, svgH, maxDepth }: { nodes: TreeNode[]; svgH: n
                   fontFamily="'JetBrains Mono', monospace">
                   {n.name}
                 </text>
+                <title>{n.name}{blTip ? ` · ${blTip}` : ''}</title>
               </>
             ) : (
               <>
-                <circle cx={n.x} cy={n.y} r={2.5} fill="#475569" />
+                <circle cx={n.x} cy={n.y} r={5} fill="#1e293b" stroke="#00F5D4" strokeWidth={1.5} opacity={0.7} />
                 {n.bootstrap !== null && n.bootstrap >= 50 && (
-                  <text x={n.x - 4} y={n.y - 5} fontSize={9}
+                  <text x={n.x - 4} y={n.y - 7} fontSize={9}
                     fill={bootstrapColour(n.bootstrap)} textAnchor="end"
-                    fontFamily="sans-serif">
+                    fontFamily="sans-serif" fontWeight="bold">
                     {Math.round(n.bootstrap)}
                   </text>
                 )}
+                <text x={n.x} y={n.y + 4} fontSize={7} fill="#64748b" textAnchor="middle" fontFamily="sans-serif">
+                  N{i}
+                </text>
+                <title>Node N{i}{blTip ? ` · ${blTip}` : ''}{n.bootstrap !== null ? ` · bootstrap: ${n.bootstrap}` : ''}</title>
               </>
             )}
           </g>
@@ -327,10 +340,19 @@ function CircularTree({ nodes }: { nodes: TreeNode[] }) {
     <>
       {nodes.map((n, i) => {
         if (n.px === n.x && n.py === n.y) return null
+        const midX = (n.px + n.x) / 2
+        const midY = (n.py + n.y) / 2
+        const blLabel = n.length > 0.001 ? n.length.toFixed(4) : null
         return (
-          <line key={`b-${i}`}
-            x1={n.px} y1={n.py} x2={n.x} y2={n.y}
-            stroke="#475569" strokeWidth={1.4} />
+          <g key={`b-${i}`}>
+            <line x1={n.px} y1={n.py} x2={n.x} y2={n.y}
+              stroke="#475569" strokeWidth={1.4} />
+            {blLabel && (
+              <text x={midX} y={midY - 4} fontSize={7} fill="#64748b" textAnchor="middle" fontFamily="sans-serif">
+                {blLabel}
+              </text>
+            )}
+          </g>
         )
       })}
 
@@ -359,6 +381,7 @@ function CircularTree({ nodes }: { nodes: TreeNode[] }) {
         const flip   = deg > 90 && deg < 270
         const labelX = CIRC_CX + (n.radius! + 10) * Math.cos(angle)
         const labelY = CIRC_CY + (n.radius! + 10) * Math.sin(angle)
+        const blTip  = n.length > 0 ? `branch length: ${n.length.toFixed(5)}` : ''
 
         return (
           <g key={`n-${i}`}
@@ -375,16 +398,21 @@ function CircularTree({ nodes }: { nodes: TreeNode[] }) {
                 >
                   {n.name}
                 </text>
+                <title>{n.name}{blTip ? ` · ${blTip}` : ''}</title>
               </>
             ) : (
               <>
-                <circle cx={n.x} cy={n.y} r={2.5} fill="#475569" />
+                <circle cx={n.x} cy={n.y} r={5} fill="#1e293b" stroke="#00F5D4" strokeWidth={1.5} opacity={0.7} />
                 {n.bootstrap !== null && n.bootstrap >= 50 && (
-                  <text x={n.x} y={n.y - 6} fontSize={8}
-                    fill={bootstrapColour(n.bootstrap)} textAnchor="middle">
+                  <text x={n.x} y={n.y - 7} fontSize={8}
+                    fill={bootstrapColour(n.bootstrap)} textAnchor="middle" fontWeight="bold">
                     {Math.round(n.bootstrap)}
                   </text>
                 )}
+                <text x={n.x} y={n.y + 4} fontSize={7} fill="#64748b" textAnchor="middle" fontFamily="sans-serif">
+                  N{i}
+                </text>
+                <title>Node N{i}{blTip ? ` · ${blTip}` : ''}{n.bootstrap !== null ? ` · bootstrap: ${n.bootstrap}` : ''}</title>
               </>
             )}
           </g>

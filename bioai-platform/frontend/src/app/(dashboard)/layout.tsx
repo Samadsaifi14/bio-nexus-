@@ -21,6 +21,7 @@ import { useAuth } from '@/contexts/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
+import { AuditInsightPanel } from '@/components/AuditInsightPanel';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
@@ -307,6 +308,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </main>
       </div>
       <TutorialWalkthrough />
+      <AuditInsightPanel sessionId={typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`} />
     </div>
   );
 }

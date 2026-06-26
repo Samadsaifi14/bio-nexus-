@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { ArrowLeft, Dna, Search, ChevronRight, LoaderCircle, CircleCheck } from 'lucide-react';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
 import toast from 'react-hot-toast';
 import { runPipeline, fetchSequence } from '@/lib/api';
 import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
@@ -54,6 +55,7 @@ export default function BlastWizardPage() {
   const [accessionResult, setAccessionResult] = useState<SequenceResult | null>(null);
   const [accessionLoading, setAccessionLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const audit = useAuditTrail();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedDb, setAdvancedDb] = useState('nr');
   const [advancedProgram, setAdvancedProgram] = useState('');
@@ -128,16 +130,20 @@ export default function BlastWizardPage() {
       return;
     }
 
+    const inputSummary = `seq_len:${clean.length},db:${advancedDb || 'nr'}`;
+    audit.emitStarted('blast_search', 'BLAST', inputSummary);
     setSubmitting(true);
     try {
       const result = await runPipeline(seq, 'blast', advancedDb || 'nr', 100);
+      audit.emitSuccess('blast_search', 'BLAST', inputSummary, `job_id:${result.job_id}`);
       router.push(`/jobs/${result.job_id}`);
     } catch (err: unknown) {
+      const errMsg = extractErrorMessage(err, 'Failed to start analysis');
+      audit.emitFailed('blast_search', 'BLAST', inputSummary, errMsg);
       if (extractErrorStatus(err) === 429) {
-        const msg = extractErrorMessage(err);
-        toast.error(msg || 'Daily limit reached. Resets at midnight.');
+        toast.error(errMsg || 'Daily limit reached. Resets at midnight.');
       } else {
-        toast.error(extractErrorMessage(err, 'Failed to start analysis'));
+        toast.error(errMsg);
       }
     } finally {
       setSubmitting(false);

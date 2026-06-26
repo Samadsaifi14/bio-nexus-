@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -691,13 +691,9 @@ export default function PhyloTreeViewer({
     downloadBlob(new Blob([newick], { type: 'text/plain' }), `${filename}.nwk`)
   }, [newick, filename])
 
-  const resetView = useCallback(() => {
-    setTransform({ scale: 1, x: 0, y: 0 })
-  }, [])
-
   // ── Zoom / pan event handlers ──────────────────────────────────────────────
 
-  const handleWheel = useCallback((e: React.WheelEvent<SVGSVGElement>) => {
+  const handleWheel = useCallback((e: WheelEvent) => {
     e.preventDefault()
     const svg = svgRef.current
     if (!svg) return
@@ -714,6 +710,18 @@ export default function PhyloTreeViewer({
       y: my - (my - transform.y) * ratio,
     })
   }, [transform])
+
+  // Attach non-passive wheel listener so e.preventDefault() blocks page scroll
+  useEffect(() => {
+    const el = svgRef.current
+    if (!el) return
+    el.addEventListener('wheel', handleWheel, { passive: false })
+    return () => el.removeEventListener('wheel', handleWheel)
+  }, [handleWheel])
+
+  const resetView = useCallback(() => {
+    setTransform({ scale: 1, x: 0, y: 0 })
+  }, [])
 
   const handleMouseDown = useCallback((e: React.MouseEvent<SVGSVGElement>) => {
     if (e.button !== 0) return
@@ -868,7 +876,6 @@ export default function PhyloTreeViewer({
           width="100%"
           style={{ maxHeight: '70vh', background: '#04040A', cursor: isDragging ? 'grabbing' : 'grab' }}
           xmlns="http://www.w3.org/2000/svg"
-          onWheel={handleWheel}
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}

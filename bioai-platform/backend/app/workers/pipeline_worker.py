@@ -121,14 +121,21 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
 
             for attempt in range(max_polls):
                 await asyncio.sleep(poll_interval)
-                status_result = await ncbi_blast.check_status(rid)
+                try:
+                    status_result = await ncbi_blast.check_status(rid)
+                except Exception as e:
+                    logger.warning(f"[{job_id}] NCBI status check failed (attempt {attempt+1}/{max_polls}): {e}")
+                    continue
                 status = status_result["status"]
                 if status == "READY":
                     break
                 if status in ("ERROR", "FAILED"):
                     raise RuntimeError(f"NCBI BLAST failed with status: {status}")
+                if status == "UNKNOWN":
+                    logger.warning(f"[{job_id}] NCBI returned UNKNOWN status (attempt {attempt+1}/{max_polls}), retrying")
+                    continue
             else:
-                raise RuntimeError("NCBI BLAST timed out")
+                raise RuntimeError("NCBI BLAST timed out after {max_polls} polls")
 
             await _set_step("parsing", 50)
 

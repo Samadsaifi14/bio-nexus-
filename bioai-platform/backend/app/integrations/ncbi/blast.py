@@ -60,7 +60,7 @@ async def submit_blast(
 
 async def check_status(rid: str, fmt: str = "XML") -> dict:
     params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid}
-    async with httpx.AsyncClient(timeout=30) as client:
+    async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=10.0)) as client:
         resp = await client.get(NCBI_BLAST_URL, params=params)
         resp.raise_for_status()
         text = resp.text

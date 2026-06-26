@@ -393,15 +393,40 @@ export default function SequencingPage() {
           )}
 
           {result.status === 'complete' && (
-            <div className="glass-card p-4 flex items-center justify-between">
-              <span className="text-xs text-text-muted">Bridge: BLAST Analysis</span>
-              <button
-                onClick={() => router.push('/analyze/blast')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
-              >
-                <Search className="w-3.5 h-3.5" />
-                Identify assembled sequence with BLAST
-              </button>
+            <div className="glass-card p-4 space-y-3">
+              {result.result?.consensus_sequence && (
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-text-muted">Consensus Sequence (SNVs applied)</span>
+                  <button
+                    onClick={() => {
+                      const a = document.createElement('a');
+                      a.download = `${result.result?.reference}-consensus.fasta`;
+                      a.href = 'data:text/fasta;charset=utf-8,' + encodeURIComponent(result.result!.consensus_sequence!);
+                      a.click();
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
+                  >
+                    <Dna className="w-3.5 h-3.5" />
+                    Download consensus FASTA
+                  </button>
+                </div>
+              )}
+              <div className="flex items-center justify-between pt-2 border-t border-glass-border">
+                <span className="text-xs text-text-muted">Bridge: BLAST Analysis</span>
+                <button
+                  onClick={() => {
+                    if (result.result?.consensus_sequence) {
+                      const seq = result.result.consensus_sequence;
+                      sessionStorage.setItem('blast_sequence', seq);
+                    }
+                    router.push('/analyze/blast');
+                  }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
+                >
+                  <Search className="w-3.5 h-3.5" />
+                  Identify assembled sequence with BLAST
+                </button>
+              </div>
             </div>
           )}
         </motion.div>

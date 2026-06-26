@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
-import { searchUniprot, getUniprotDetail } from '@/lib/api';
+import { searchUniprot, getUniprotDetail, fetchUniprotCds } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { UniprotSummary } from '@/types/pipeline';
@@ -27,6 +27,9 @@ export default function UniprotLookupPage() {
   const [loading, setLoading] = useState(false);
   const [detailLoading, setDetailLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cdsResult, setCdsResult] = useState<{ accession: string; sequence: string; length: number } | null>(null);
+  const [cdsLoading, setCdsLoading] = useState<string | null>(null);
+  const [cdsError, setCdsError] = useState<string | null>(null);
   const audit = useAuditTrail();
 
   const handleSearch = async () => {
@@ -72,6 +75,21 @@ export default function UniprotLookupPage() {
   const handleSendToBlast = (accession: string, seq: string) => {
     sessionStorage.setItem('blast_sequence', `>${accession}\n${seq}`);
     router.push('/analyze/blast');
+  };
+
+  const handleFetchCds = async (emblAcc: string) => {
+    if (!detail) return;
+    setCdsLoading(emblAcc);
+    setCdsResult(null);
+    setCdsError(null);
+    try {
+      const res = await fetchUniprotCds(detail.accession, emblAcc);
+      setCdsResult({ accession: emblAcc, sequence: res.sequence, length: res.length });
+    } catch {
+      setCdsError('Failed to fetch CDS sequence');
+    } finally {
+      setCdsLoading(null);
+    }
   };
 
   return (
@@ -271,6 +289,56 @@ export default function UniprotLookupPage() {
                     </a>
                   ))}
                 </div>
+              </div>
+            )}
+
+            {detail.cds_accessions && detail.cds_accessions.length > 0 && (
+              <div className="px-6 py-4">
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Coding Sequence (CDS) Accessions</p>
+                <div className="space-y-2">
+                  {detail.cds_accessions.map((cds) => (
+                    <div key={cds.accession} className="flex items-center justify-between bg-surface-1 rounded-xl p-3 border border-glass-border">
+                      <div className="flex items-center gap-2">
+                        <Dna className="w-4 h-4 text-accent-cyan" />
+                        <code className="text-sm font-mono text-accent-cyan">{cds.accession}</code>
+                        <span className="text-xs text-text-muted">({cds.database})</span>
+                      </div>
+                      <button
+                        onClick={() => handleFetchCds(cds.accession)}
+                        disabled={cdsLoading === cds.accession}
+                        className="btn-ghost text-xs px-2 py-1 flex items-center gap-1"
+                      >
+                        {cdsLoading === cds.accession ? (
+                          <LoaderCircle className="w-3 h-3 animate-spin" />
+                        ) : (
+                          <Dna className="w-3 h-3" />
+                        )}
+                        {cdsLoading === cds.accession ? 'Fetching...' : 'Fetch CDS'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                {cdsError && (
+                  <p className="mt-2 text-xs text-error">{cdsError}</p>
+                )}
+                {cdsResult && (
+                  <div className="mt-3 bg-surface-1 rounded-xl p-4 border border-accent-cyan/20">
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="text-xs font-medium text-accent-cyan">{cdsResult.accession} — {cdsResult.length} bp</p>
+                      <button onClick={() => {
+                        const a = document.createElement('a');
+                        a.download = `${cdsResult.accession}.fasta`;
+                        a.href = 'data:text/fasta;charset=utf-8,' + encodeURIComponent(`>${cdsResult.accession}\n${cdsResult.sequence}`);
+                        a.click();
+                      }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+                        <Download className="w-3 h-3" /> FASTA
+                      </button>
+                    </div>
+                    <pre className="font-mono text-xs text-text-secondary break-all whitespace-pre-wrap max-h-24 overflow-auto">
+                      {cdsResult.sequence}
+                    </pre>
+                  </div>
+                )}
               </div>
             )}
 

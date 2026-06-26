@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, Copy, Check } from 'lucide-react';
@@ -46,6 +46,15 @@ export default function ToolsPage() {
   const [output, setOutput] = useState('');
   const [tool, setTool] = useState<string>('translate');
   const [copied, setCopied] = useState(false);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('cds_sequence');
+    if (stored) {
+      sessionStorage.removeItem('cds_sequence');
+      setInput(stored);
+      setTool('translate');
+    }
+  }, []);
 
   const process = () => {
     const raw = input.replace(/[^A-Za-z]/g, '').toUpperCase();

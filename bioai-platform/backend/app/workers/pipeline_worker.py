@@ -79,6 +79,14 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
         await _set_step("submitted_to_ncbi", 10)
 
         sequence_clean = "".join(c for c in sequence if c.isalpha()).upper()
+
+        def _is_dna(seq: str) -> bool:
+            if len(seq) < 10:
+                return False
+            dna = sum(1 for c in seq if c in "ACGTUN")
+            return dna / len(seq) > 0.85
+
+        seq_is_dna = _is_dna(sequence_clean)
         seq_for_blast = sequence_clean if len(sequence_clean) > 20 else sequence_clean
 
         demo_info = _matches_demo(sequence)
@@ -97,7 +105,9 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
                     logger.info(f"[{job_id}] Demo mode ON but sequence doesn't match known demo sequences — falling through to real NCBI call")
             await _set_step("polling_ncbi", 30)
 
-            submit_result = await ncbi_blast.submit_blast(seq_for_blast, database=database)
+            blast_program = "blastn" if seq_is_dna else "blastp"
+            blast_db = database if database != "nr" else ("nt" if seq_is_dna else "nr")
+            submit_result = await ncbi_blast.submit_blast(seq_for_blast, program=blast_program, database=blast_db)
             if "error" in submit_result:
                 raise RuntimeError(f"NCBI submission failed: {submit_result['error']}")
 
@@ -142,6 +152,7 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
             "query": {
                 "sequence": sequence,
                 "length": len(sequence_clean),
+                "sequence_type": "dna" if seq_is_dna else "protein",
             },
             "blast": {
                 "count": len(parsed.get("hits", [])),
@@ -164,13 +175,23 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
                         "evalue_raw": h.get("evalue_raw", str(h["evalue"])),
                         "identity_pct": h["identity_pct"],
                         "bit_score": h["bit_score"],
+                        "alignment_length": h.get("alignment_length", 0),
+                        "query_from": h.get("query_from", 0),
+                        "query_to": h.get("query_to", 0),
+                        "hit_from": h.get("hit_from", 0),
+                        "hit_to": h.get("hit_to", 0),
+                        "positive": h.get("positive", 0),
+                        "gaps": h.get("gaps", 0),
+                        "query_alignment": h.get("query_alignment", ""),
+                        "hit_alignment": h.get("hit_alignment", ""),
+                        "midline": h.get("midline", ""),
                     }
                     for h in parsed.get("hits", [])[:max_hits]
                 ],
             },
         }
 
-        if top_hit:
+        if top_hit and not seq_is_dna:
             try:
                 from app.tools.uniprot import UniprotTool
                 from app.services.sequence_utils import map_refseq_to_uniprot, detect_source_from_accession
@@ -270,16 +291,19 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
             logger.info(f"[{job_id}] Skipping pathway_enrichment step (no enrichment data)")
 
         alphafold_data = None
-        uniprot_id = context.get("uniprot", {}).get("accession")
-        if uniprot_id:
-            try:
-                await _set_step("fetching_alphafold", 85)
-                from app.tools.alphafold import AlphaFoldTool
-                af_result = await AlphaFoldTool().run({"uniprot_accession": uniprot_id})
-                alphafold_data = af_result
-            except Exception as e:
-                logger.warning(f"[{job_id}] AlphaFold fetch failed for {uniprot_id}: {e}")
-                alphafold_data = {"structure_available": False, "message": str(e)}
+        if seq_is_dna:
+            logger.info(f"[{job_id}] Skipping AlphaFold for DNA sequence")
+        else:
+            uniprot_id = context.get("uniprot", {}).get("accession")
+            if uniprot_id:
+                try:
+                    await _set_step("fetching_alphafold", 85)
+                    from app.tools.alphafold import AlphaFoldTool
+                    af_result = await AlphaFoldTool().run({"uniprot_accession": uniprot_id})
+                    alphafold_data = af_result
+                except Exception as e:
+                    logger.warning(f"[{job_id}] AlphaFold fetch failed for {uniprot_id}: {e}")
+                    alphafold_data = {"structure_available": False, "message": str(e)}
 
         context["alphafold"] = alphafold_data
 

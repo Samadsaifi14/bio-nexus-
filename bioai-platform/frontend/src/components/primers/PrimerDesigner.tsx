@@ -1,5 +1,5 @@
 "use client";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { LoaderCircle, Download } from "lucide-react";
 import { downloadTsv } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
@@ -22,6 +22,14 @@ export function PrimerDesigner() {
   const [error, setError] = useState<string | null>(null);
   const [selectedPair, setSelectedPair] = useState<number | null>(null);
   const auditedRef = useRef(false);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('primer_sequence');
+    if (stored) {
+      sessionStorage.removeItem('primer_sequence');
+      setSequence(stored);
+    }
+  }, []);
 
   async function design() {
     setError(null); setPairs([]); setLoading(true);
@@ -114,6 +122,20 @@ export function PrimerDesigner() {
                 </button>
               ))}
             </div>
+            <button onClick={() => {
+              const fasta = pairs.flatMap(p => [
+                `>pair${p.pair_index + 1}_forward Tm=${p.left_tm.toFixed(1)} GC=${p.left_gc.toFixed(1)}% pos=${p.left_pos} len=${p.left_len}`,
+                p.left_seq,
+                `>pair${p.pair_index + 1}_reverse Tm=${p.right_tm.toFixed(1)} GC=${p.right_gc.toFixed(1)}% pos=${p.right_pos} len=${p.right_len}`,
+                p.right_seq,
+              ]).join('\n');
+              const a = document.createElement('a');
+              a.download = 'primers.fasta';
+              a.href = 'data:text/fasta;charset=utf-8,' + encodeURIComponent(fasta);
+              a.click();
+            }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+              <Download className="w-3 h-3" /> FASTA
+            </button>
             <button onClick={() => downloadTsv(
               ["Pair", "Forward seq", "Fwd Tm", "Fwd GC%", "Fwd Pos", "Fwd Len", "Reverse seq", "Rev Tm", "Rev GC%", "Rev Pos", "Rev Len", "Product size", "Penalty"],
               pairs.map(p => [String(p.pair_index + 1), p.left_seq, p.left_tm.toFixed(1), p.left_gc.toFixed(1), String(p.left_pos), String(p.left_len), p.right_seq, p.right_tm.toFixed(1), p.right_gc.toFixed(1), String(p.right_pos), String(p.right_len), String(p.product_size), p.penalty.toFixed(3)]),

@@ -325,16 +325,42 @@ export function SequenceRetrieval() {
               <BookOpen className="w-3 h-3" />
               <span>Source: {result.db_source} {result.from_cache && '(cached)'}</span>
             </div>
-            <button
-              onClick={() => {
-                sessionStorage.setItem('blast_sequence', `>${result.accession}\n${result.sequence}`);
-                router.push('/analyze/blast');
-              }}
-              className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition"
-            >
-              <Beaker className="w-4 h-4" />
-              Analyze with BLAST
-            </button>
+            <div className="flex items-center gap-2 flex-wrap">
+              <button
+                onClick={() => {
+                  sessionStorage.setItem('blast_sequence', `>${result.accession}\n${result.sequence}`);
+                  router.push('/analyze/blast');
+                }}
+                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition"
+              >
+                <Beaker className="w-4 h-4" />
+                Analyze with BLAST
+              </button>
+              {(result.sequence_type === 'dna' || result.sequence_type === 'rna') && (
+                <>
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('primer_sequence', result.sequence);
+                      router.push('/analyze/primers');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-xl hover:bg-purple-700 transition"
+                  >
+                    <Dna className="w-4 h-4" />
+                    Design Primers
+                  </button>
+                  <button
+                    onClick={() => {
+                      sessionStorage.setItem('cds_sequence', result.sequence);
+                      router.push('/analyze/tools');
+                    }}
+                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition"
+                  >
+                    <Dna className="w-4 h-4" />
+                    Translate CDS
+                  </button>
+                </>
+              )}
+            </div>
           </div>
         </motion.div>
       )}

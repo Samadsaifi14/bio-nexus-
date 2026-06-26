@@ -113,20 +113,22 @@ export default function BlastWizardPage() {
 
     const body = stripFastaHeader(seq);
     const clean = body.replace(/[^A-Za-z]/g, '');
+    const isDna = detectedType === 'dna' || detectedType === 'rna';
     if (clean.length < 6) {
-      toast.error('Sequence must be at least 6 amino acids');
+      toast.error(`Sequence must be at least 6 ${isDna ? 'bases' : 'amino acids'}`);
       return;
     }
 
-    const invalid = clean.split('').filter(c => !PROTEIN_CODES.has(c.toUpperCase()));
+    const validChars = isDna ? new Set('ACGTUN') : PROTEIN_CODES;
+    const invalid = clean.split('').filter(c => !validChars.has(c.toUpperCase()));
     if (invalid.length > 0) {
       const unique = Array.from(new Set(invalid.map(c => c.toUpperCase())));
-      toast.error(`Invalid character(s) in sequence: ${unique.join(', ')}`);
+      toast.error(`Invalid character(s) for ${detectedType} sequence: ${unique.join(', ')}`);
       return;
     }
 
     if (clean.length > 10000) {
-      toast.error('Sequence too long (max 10,000 residues for BLAST)');
+      toast.error('Sequence too long (max 10,000 bases/residues for BLAST)');
       return;
     }
 
@@ -235,7 +237,7 @@ export default function BlastWizardPage() {
                     }`}>
                       {detectedType}
                     </span>
-                    <span className="text-xs text-text-muted">{aaCount} aa</span>
+                    <span className="text-xs text-text-muted">{aaCount} {detectedType === 'protein' ? 'aa' : 'bp'}</span>
                   </div>
                 )}
               </div>
@@ -359,8 +361,8 @@ export default function BlastWizardPage() {
                 <p className="font-medium text-text-primary">BLAST Search</p>
                 <p className="text-sm text-text-secondary">
                   We'll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
-                  <strong>{aaCount || accessionResult?.length}</strong>-{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
-                  {detectedType} against the <strong>{advancedDb || dbLabel}</strong> database.
+                  <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
+                  {detectedType} sequence against the <strong>{advancedDb || dbLabel}</strong> database.
                 </p>
               </div>
             </div>

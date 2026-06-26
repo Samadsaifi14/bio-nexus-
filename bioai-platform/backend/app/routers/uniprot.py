@@ -1,11 +1,14 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from typing import Optional
 from app.tools.uniprot import UniprotTool
+from app.services.ncbi_service import NCBIService
 import httpx
 from app.config import settings
 
 router = APIRouter()
 uniprot_tool = UniprotTool()
+ncbi_service = NCBIService()
 
 
 class UniprotSearchRequest(BaseModel):
@@ -15,6 +18,10 @@ class UniprotSearchRequest(BaseModel):
 
 class UniprotAccessionRequest(BaseModel):
     accession: str = Field(..., min_length=1, description="UniProt accession (e.g. P04637)")
+
+class UniprotCDSRequest(BaseModel):
+    accession: str = Field(..., min_length=1, description="UniProt accession")
+    embl_accession: str = Field(..., min_length=1, description="EMBL/GenBank nucleotide accession")
 
 
 @router.post("/search")
@@ -45,3 +52,19 @@ async def uniprot_detail(req: UniprotAccessionRequest):
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])
     return result
+
+
+@router.post("/cds")
+async def fetch_uniprot_cds(req: UniprotCDSRequest):
+    """Fetch the CDS nucleotide sequence for a UniProt entry given an EMBL/GenBank accession."""
+    result = await ncbi_service.fetch_by_accession(req.embl_accession)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    return {
+        "uniprot_accession": req.accession,
+        "embl_accession": req.embl_accession,
+        "sequence": result.get("sequence", ""),
+        "length": result.get("length", 0),
+        "description": result.get("description", ""),
+        "organism": result.get("organism", ""),
+    }

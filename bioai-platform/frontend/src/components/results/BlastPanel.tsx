@@ -51,7 +51,7 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
             <Download className="w-3 h-3" /> Export CSV
           </button>
           <button onClick={() => {
-            const fasta = safeHits.map(h => `>${h.accession} ${h.description}\n${h.midline || ""}`).join("\n");
+            const fasta = safeHits.map(h => `>${h.accession} ${h.description}\n${(h.hit_alignment || h.midline || "").replace(/-/g, "")}`).join("\n");
             const a = document.createElement("a");
             a.download = "blast-hits.fasta";
             a.href = "data:text/fasta;charset=utf-8," + encodeURIComponent(fasta);

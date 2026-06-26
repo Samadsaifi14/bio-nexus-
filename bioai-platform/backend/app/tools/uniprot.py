@@ -32,6 +32,7 @@ class UniprotTool(BaseTool):
             "pdb_ids": self._extract_pdb(data),
             "features": self._extract_features(data),
             "go_terms": self._extract_go_terms(data),
+            "cds_accessions": self._extract_cds_accessions(data),
         }
 
     async def _fetch(self, accession: str) -> dict:
@@ -71,6 +72,25 @@ class UniprotTool(BaseTool):
                     if loc:
                         locs.append(loc)
         return locs
+
+    def _extract_cds_accessions(self, data: dict) -> list[dict]:
+        refs = data.get("uniProtKBCrossReferences") or []
+        cds = []
+        seen_ids = set()
+        for r in refs:
+            db = r.get("database", "")
+            if db in ("EMBL", "GenBank", "DDBJ"):
+                props = {p.get("key", ""): p.get("value", "") for p in (r.get("properties") or [])}
+                acc = r.get("id", "")
+                if acc and acc not in seen_ids:
+                    seen_ids.add(acc)
+                    cds.append({
+                        "database": db,
+                        "accession": acc,
+                        "protein_sequence_id": props.get("protein sequence ID", ""),
+                        "nucleotide_sequence_id": props.get("nucleotide sequence ID", ""),
+                    })
+        return cds
 
     def _extract_pdb(self, data: dict) -> list[str]:
         refs = data.get("uniProtKBCrossReferences") or []

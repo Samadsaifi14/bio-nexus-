@@ -126,6 +126,7 @@ export interface AssembledContext {
   query: {
     sequence: string;
     length: number;
+    sequence_type?: 'protein' | 'dna' | 'rna';
   };
   blast: BlastSummary;
   uniprot: UniprotSummary | null;
@@ -181,6 +182,14 @@ export interface UniprotSummary {
   go_terms: string[];
   sequence_length: number;
   sequence: string;
+  cds_accessions?: CdsCrossRef[];
+}
+
+export interface CdsCrossRef {
+  database: string;
+  accession: string;
+  protein_sequence_id: string;
+  nucleotide_sequence_id: string;
 }
 
 export interface UniprotFeature {

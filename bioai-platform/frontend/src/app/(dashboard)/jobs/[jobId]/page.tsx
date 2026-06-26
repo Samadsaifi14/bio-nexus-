@@ -243,7 +243,7 @@ export default function JobPage() {
         <div>
           <h1 className="text-2xl font-bold text-text-primary mb-1">Analysis Results</h1>
           <p className="text-sm text-text-secondary">
-            Query: {context.query?.sequence?.slice(0, 80) ?? ''}... ({context.query?.length ?? '?'} aa)
+            Query: {context.query?.sequence?.slice(0, 80) ?? ''}... ({context.query?.length ?? '?'} {context.query?.sequence_type === 'dna' ? 'bp' : 'aa'})
           </p>
         </div>
         <button

@@ -101,6 +101,20 @@ export async function getUniprotDetail(accession: string): Promise<UniprotSummar
   return res.data;
 }
 
+export type UniprotCDSResult = {
+  uniprot_accession: string;
+  embl_accession: string;
+  sequence: string;
+  length: number;
+  description: string;
+  organism: string;
+};
+
+export async function fetchUniprotCds(accession: string, emblAccession: string): Promise<UniprotCDSResult> {
+  const res = await api.post('/api/uniprot/cds', { accession, embl_accession: emblAccession });
+  return res.data;
+}
+
 export type UniprotSearchResult = {
   accession: string;
   name: string;
@@ -316,6 +330,7 @@ export type SequencingResult = {
     qc: SequencingQC;
     alignment: SequencingAlignment;
     variants: SequencingVariant[];
+    consensus_sequence?: string;
     report: {
       reference: string;
       qc_summary: { total_reads: number; total_bases: number; mean_quality: number; q30_percent: number; gc_percent: number };

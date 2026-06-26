@@ -211,6 +211,18 @@ def _parse_sam_for_variants(sam_path: str, reference_seq: str) -> list[dict]:
     return variants[:50]
 
 
+def _build_consensus(reference_seq: str, variants: list[dict]) -> str:
+    ref_lines = reference_seq.splitlines()
+    ref = "".join(line.strip().upper() for line in ref_lines if not line.startswith(">"))
+    seq = list(ref)
+    for v in variants:
+        pos = v.get("pos", 0) - 1
+        alt = v.get("alt", "")
+        if 0 <= pos < len(seq):
+            seq[pos] = alt
+    return "".join(seq)
+
+
 def _generate_report(qc: dict, variants: list[dict], ref_name: str) -> dict:
     total_variants = len(variants)
     snv_count = sum(1 for v in variants if len(v["ref"]) == 1 and len(v["alt"]) == 1)
@@ -344,6 +356,7 @@ class SequencingPipeline(BaseTool):
 
             variants = _parse_sam_for_variants(sam_path, ref_content)
             report = _generate_report(qc, variants, reference)
+            consensus = _build_consensus(ref_content, variants)
 
             return {
                 "reference": reference,
@@ -352,6 +365,7 @@ class SequencingPipeline(BaseTool):
                 "alignment": aln_stats,
                 "variants": variants[:20],
                 "report": report,
+                "consensus_sequence": f">{reference} consensus (SNVs applied)\n{consensus}",
                 "steps_completed": ["qc", "align", "variants", "report"],
             }
 

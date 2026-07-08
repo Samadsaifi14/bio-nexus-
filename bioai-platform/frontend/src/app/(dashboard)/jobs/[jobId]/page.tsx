@@ -60,7 +60,10 @@ export default function JobPage() {
           }
         }
       } catch {
-        if (!cancelled) setPollError('Connection lost — retrying...');
+        if (!cancelled) {
+          setPollError('Connection lost — retrying...');
+          setLoading(false);
+        }
       }
       if (!cancelled) pollTimer = setTimeout(poll, 3000);
     };
@@ -238,7 +241,7 @@ export default function JobPage() {
   const hasHits = context.blast && context.blast.hits && context.blast.hits.length > 0;
 
   return (
-    <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+    <motion.div variants={stagger} initial={{ y: 24 }} animate="show" className="space-y-6">
       <motion.div variants={fadeUp} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary mb-1">Analysis Results</h1>

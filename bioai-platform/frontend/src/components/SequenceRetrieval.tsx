@@ -91,7 +91,7 @@ export function SequenceRetrieval() {
   };
 
   return (
-    <motion.div initial="hidden" animate="show" variants={stagger} className="space-y-6">
+    <motion.div initial={{ y: 24 }} animate="show" variants={stagger} className="space-y-6">
       <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
         <h2 className="text-lg font-semibold text-gray-900 mb-1">Sequence Retrieval</h2>
         <p className="text-sm text-gray-500 mb-6">
@@ -194,7 +194,7 @@ export function SequenceRetrieval() {
           {searchResults.length === 0 ? (
             <p className="text-sm text-gray-500">No results found</p>
           ) : (
-            <motion.div initial="hidden" animate="show" variants={stagger} className="space-y-2">
+            <motion.div animate="show" variants={stagger} className="space-y-2">
               {searchResults.map((r, i) => (
                 <motion.div key={i} variants={fadeUp}>
                   <button

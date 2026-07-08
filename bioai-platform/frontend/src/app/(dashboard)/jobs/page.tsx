@@ -132,7 +132,7 @@ export default function JobsPage() {
           <p className="text-sm text-text-muted">No {filter} jobs.</p>
         </div>
       ) : (
-        <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-2">
+        <motion.div variants={stagger} animate="show" className="space-y-2">
           {filtered.map(job => {
             const Icon       = STATUS_ICONS[job.status] || Clock;
             const color      = STATUS_COLORS[job.status] || 'text-text-muted';

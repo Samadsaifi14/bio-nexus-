@@ -30,12 +30,12 @@ export default function InteractionsPage() {
         Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Protein-Protein Interactions</h1>
         <p className="text-sm text-text-secondary">Explore interaction partners from the STRING database.</p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
         <div className="flex gap-3">
           <input type="text" value={geneName}
             onChange={e => setGeneName(e.target.value.toUpperCase())}
@@ -59,7 +59,7 @@ export default function InteractionsPage() {
       </motion.div>
 
       {submitted && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
           <div className="glass-card p-5">
             <StringDBViewer geneName={submitted} />
           </div>

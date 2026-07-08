@@ -85,7 +85,7 @@ export default function LearnPage() {
 
   return (
     <div>
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Documentation & Learning</h1>
         <p className="text-text-muted mb-6">Learn the concepts behind every tool in Bio Nexus.</p>
       </motion.div>

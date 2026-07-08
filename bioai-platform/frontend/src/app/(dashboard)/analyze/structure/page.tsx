@@ -47,12 +47,12 @@ export default function StructurePage() {
         <ArrowLeft className="w-4 h-4" /> Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Structure Viewer</h1>
         <p className="text-sm text-text-secondary">Fetch 3D structures from PDB or AlphaFold by PDB ID or UniProt accession.</p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
         <div className="flex gap-3">
           <input
             type="text"
@@ -74,10 +74,10 @@ export default function StructurePage() {
         </div>
       </motion.div>
 
-      {error && <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}
+      {error && <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}
 
       {result && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>

@@ -114,12 +114,12 @@ export default function SequencingPage() {
         <ArrowLeft className="w-4 h-4" /> Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Sequencing Pipeline</h1>
         <p className="text-sm text-text-secondary">Raw FASTQ → QC → alignment → variant calling → report. Supports viral/bacterial genomes (cpu-basic tier).</p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">FASTQ URL</label>
           <input
@@ -165,7 +165,7 @@ export default function SequencingPage() {
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 mb-6 border border-red-400/20">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-red-400/20">
           <div className="flex items-start gap-3">
             <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
             <p className="text-sm text-red-400">{error}</p>
@@ -174,7 +174,7 @@ export default function SequencingPage() {
       )}
 
       {result && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
 
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">

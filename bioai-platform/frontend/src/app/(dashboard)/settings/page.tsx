@@ -103,7 +103,7 @@ export default function SettingsPage() {
         </motion.p>
       </div>
 
-      <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+      <motion.div variants={stagger} animate="show" className="space-y-6">
 
         {/* ── Profile ── */}
         <motion.section variants={fadeUp} className="glass-card p-6">

@@ -18,12 +18,12 @@ export default function PrimersPage() {
         Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Primer Design</h1>
         <p className="text-sm text-text-secondary">Design PCR primers using Primer3. Runs locally &mdash; instant results.</p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
         <div className="glass-card p-5">
           <PrimerDesigner />
         </div>

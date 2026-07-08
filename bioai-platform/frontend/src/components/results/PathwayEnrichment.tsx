@@ -18,7 +18,7 @@ export function PathwayEnrichment({ data }: Props) {
   if (!data || !data.pathways || data.pathways.length === 0) return null;
 
   return (
-    <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5">
+    <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <GitBranch className="w-5 h-5 text-accent-cyan" />

@@ -82,7 +82,7 @@ export default function PathwayPage() {
         <ArrowLeft className="w-4 h-4" /> Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Pathway Analysis</h1>
         <p className="text-sm text-text-secondary">Map your genes or proteins to biological pathways from Reactome and KEGG, or run pathway enrichment analysis.</p>
       </motion.div>
@@ -104,7 +104,7 @@ export default function PathwayPage() {
       </div>
 
       {tab !== 'enrichment' && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
           <div className="flex gap-3">
             <input
               type="text"
@@ -128,7 +128,7 @@ export default function PathwayPage() {
       )}
 
       {tab === 'enrichment' && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
           <p className="text-sm text-text-secondary mb-3">Paste gene or protein identifiers (one per line or comma-separated) to find over-represented pathways.</p>
           <textarea
             value={geneInput}
@@ -144,10 +144,10 @@ export default function PathwayPage() {
         </motion.div>
       )}
 
-      {error && <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}
+      {error && <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}
 
       {tab === 'reactome' && reactomeResults && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-3">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <p className="text-xs text-text-muted mb-2">{reactomeResults.length} pathway{reactomeResults.length !== 1 ? 's' : ''} found</p>
           {reactomeResults.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
@@ -191,7 +191,7 @@ export default function PathwayPage() {
       )}
 
       {tab === 'kegg' && keggResults && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-3">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <p className="text-xs text-text-muted mb-2">{keggResults.length} pathway{keggResults.length !== 1 ? 's' : ''} found</p>
           {keggResults.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
@@ -238,7 +238,7 @@ export default function PathwayPage() {
       )}
 
       {tab === 'enrichment' && enrichmentResult && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-3">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <p className="text-xs text-text-muted mb-2">{enrichmentResult.pathways.length} enriched pathway{enrichmentResult.pathways.length !== 1 ? 's' : ''} found</p>
           {enrichmentResult.pathways.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No significantly enriched pathways found</p></div>

@@ -259,7 +259,7 @@ export default function TopicPage() {
 
   return (
     <div className="max-w-3xl">
-      <motion.div variants={fadeUp} initial="hidden" animate="show">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
         <Link
           href="/learn"
           className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition mb-6"
@@ -277,7 +277,7 @@ export default function TopicPage() {
           <motion.section
             key={i}
             variants={fadeUp}
-            initial="hidden"
+            initial={{ y: 24 }}
             animate="show"
           >
             <h2 className="text-lg font-semibold text-text-primary mb-3">{section.heading}</h2>

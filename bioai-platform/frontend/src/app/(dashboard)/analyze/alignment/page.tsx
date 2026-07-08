@@ -124,14 +124,14 @@ export default function AlignmentPage() {
         Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Multiple Sequence Alignment</h1>
         <p className="text-sm text-text-secondary">
           Align two or more protein or DNA sequences using Clustal Omega.
         </p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
         <div className="flex gap-2">
           {(['protein', 'dna'] as const).map((t) => (
             <button
@@ -173,13 +173,13 @@ export default function AlignmentPage() {
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 border border-error/20">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20">
           <p className="text-sm text-error">{error}</p>
         </motion.div>
       )}
 
       {loading && !result && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-8 text-center">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-8 text-center">
           <LoaderCircle className="w-6 h-6 animate-spin text-accent-cyan mx-auto mb-3" />
           <p className="text-sm text-text-secondary">Running Clustal Omega on EBI servers...</p>
         </motion.div>
@@ -188,7 +188,7 @@ export default function AlignmentPage() {
       {result && (() => {
         const alignedSeqs = parseAlignedFasta(result.aln_fasta);
         return (
-          <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
+          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
             <div className="glass-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA)</h3>
               <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-80 overflow-auto whitespace-pre-wrap break-all">

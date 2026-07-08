@@ -34,7 +34,7 @@ export default function AuthPage() {
       <div className="absolute top-4 right-4">
         <ThemeToggle compact />
       </div>
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
           <Dna className="w-8 h-8 text-teal-600" />
           <span className="text-xl font-bold text-gray-900">Bio Nexus</span>

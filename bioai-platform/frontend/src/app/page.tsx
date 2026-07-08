@@ -130,7 +130,7 @@ export default function LandingPage() {
         >
           <motion.p
             variants={fadeUp}
-            initial="hidden"
+            initial={{ y: 24 }}
             animate="show"
             transition={{ delay: 0.2 }}
             className="text-[10px] tracking-[0.35em] uppercase text-accent-cyan mb-7 font-mono"
@@ -140,7 +140,7 @@ export default function LandingPage() {
 
           <motion.h1
             variants={fadeUp}
-            initial="hidden"
+            initial={{ y: 24 }}
             animate="show"
             transition={{ delay: 0.4 }}
             className="font-display font-bold leading-[0.92] tracking-tight mb-8"
@@ -153,7 +153,7 @@ export default function LandingPage() {
 
           <motion.p
             variants={fadeUp}
-            initial="hidden"
+            initial={{ y: 24 }}
             animate="show"
             transition={{ delay: 0.6 }}
             className="text-text-secondary text-lg max-w-[520px] mx-auto mb-10 leading-relaxed"
@@ -164,7 +164,7 @@ export default function LandingPage() {
 
           <motion.div
             variants={fadeUp}
-            initial="hidden"
+            initial={{ y: 24 }}
             animate="show"
             transition={{ delay: 0.75 }}
             className="flex flex-col sm:flex-row items-center justify-center gap-4"

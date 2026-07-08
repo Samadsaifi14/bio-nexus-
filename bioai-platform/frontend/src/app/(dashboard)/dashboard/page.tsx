@@ -128,7 +128,7 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Stats ── */}
-      <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <motion.div variants={stagger} animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
           { icon: BarChart3,   label: 'Total Jobs', value: jobs.length,     color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10',   sub: 'all time' },
           { icon: CheckCircle, label: 'Completed',  value: completedCount,  color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10',   sub: jobs.length ? `${Math.round((completedCount / jobs.length) * 100)}% rate` : '—' },
@@ -154,7 +154,7 @@ export default function DashboardPage() {
             All tools <ChevronRight className="w-3.5 h-3.5" />
           </Link>
         </motion.div>
-        <motion.div variants={stagger} initial="hidden" animate="show" className="grid grid-cols-2 md:grid-cols-3 gap-3">
+        <motion.div variants={stagger} animate="show" className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {QUICK_TOOLS.map(t => (
             <motion.div key={t.label} variants={fadeUp} whileHover={cardHover}>
               <Link href={t.href} className="glass-card p-4 flex items-center gap-3 hover:bg-surface-2 transition group">
@@ -183,7 +183,7 @@ export default function DashboardPage() {
         </motion.div>
 
         {recentJobs.length > 0 ? (
-          <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-2">
+          <motion.div variants={stagger} animate="show" className="space-y-2">
             {recentJobs.map(job => {
               const Icon     = STATUS_ICONS[job.status] || Clock;
               const color    = STATUS_COLORS[job.status] || 'text-text-muted';

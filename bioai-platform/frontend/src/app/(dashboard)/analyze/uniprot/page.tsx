@@ -102,14 +102,14 @@ export default function UniprotLookupPage() {
         Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">UniProt Lookup</h1>
         <p className="text-sm text-text-secondary">
           Search by gene name, protein name, or keyword to retrieve comprehensive annotations.
         </p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
         <div className="flex gap-3">
           <input
             type="text"
@@ -131,13 +131,13 @@ export default function UniprotLookupPage() {
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-4 border border-error/20">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20">
           <p className="text-sm text-error">{error}</p>
         </motion.div>
       )}
 
       {results && !detail && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-3">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <p className="text-xs text-text-muted mb-2">{results.length} result{results.length !== 1 ? 's' : ''}</p>
           {results.length === 0 ? (
             <div className="glass-card p-6 text-center">
@@ -175,14 +175,14 @@ export default function UniprotLookupPage() {
       )}
 
       {detailLoading && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-8 text-center">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-8 text-center">
           <LoaderCircle className="w-6 h-6 animate-spin text-accent-cyan mx-auto mb-3" />
           <p className="text-sm text-text-secondary">Loading UniProt entry...</p>
         </motion.div>
       )}
 
       {detail && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-4">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <div className="glass-card divide-y divide-glass-border">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">

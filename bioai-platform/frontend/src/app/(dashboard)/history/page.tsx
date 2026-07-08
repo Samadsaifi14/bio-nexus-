@@ -61,7 +61,7 @@ export default function HistoryPage() {
   return (
     <div className="max-w-4xl">
       <motion.h1 variants={fadeUp} className="text-2xl font-bold text-text-primary mb-6">Analysis history</motion.h1>
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card overflow-hidden">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-glass-border bg-surface-1">
@@ -71,7 +71,7 @@ export default function HistoryPage() {
               <th className="px-4 py-3 text-left font-medium text-text-muted hidden sm:table-cell">Created</th>
             </tr>
           </thead>
-          <motion.tbody variants={stagger} initial="hidden" animate="show">
+          <motion.tbody variants={stagger} animate="show">
             {jobs.map((job) => (
               <motion.tr
                 key={job.id}

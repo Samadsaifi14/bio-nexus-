@@ -152,12 +152,12 @@ export default function ToolsPage() {
         <ArrowLeft className="w-4 h-4" /> Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">Utility Tools</h1>
         <p className="text-sm text-text-secondary">Translate CDS, reverse complement, GC content, FASTA formatting, and more.</p>
       </motion.div>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
         <div className="flex gap-2 flex-wrap">
           {TOOLS.map((t) => (
             <button key={t.id} onClick={() => { setTool(t.id); setOutput(''); }} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tool === t.id ? 'btn-primary' : 'glass-card text-text-secondary'}`}>
@@ -188,7 +188,7 @@ export default function ToolsPage() {
       </motion.div>
 
       {output && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-text-muted uppercase tracking-wider">Result</p>
             <button onClick={handleCopy} className="text-xs text-accent-cyan hover:underline flex items-center gap-1">

@@ -73,7 +73,7 @@ export default function JobPage() {
 
   if (loading && !job && !timedOut) {
     return (
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-center justify-center py-20">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="flex items-center justify-center py-20">
         <div className="text-center">
           <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin mx-auto mb-4" />
           <p className="text-sm text-text-secondary">Loading job...</p>
@@ -84,7 +84,7 @@ export default function JobPage() {
 
   if (!job && timedOut) {
     return (
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="max-w-xl mx-auto py-12">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="max-w-xl mx-auto py-12">
         <div className="glass-card p-8 text-center">
           <Clock className="w-12 h-12 text-accent-amber mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-text-primary mb-2">Still processing</h3>
@@ -105,7 +105,7 @@ export default function JobPage() {
 
   if (!job) {
     return (
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-16 text-center">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-16 text-center">
         <Dna className="w-16 h-16 text-text-muted mx-auto mb-6" />
         <h3 className="text-xl font-semibold text-text-primary mb-2">Job not found</h3>
         <p className="text-sm text-text-secondary">This job does not exist or has been deleted.</p>
@@ -118,7 +118,7 @@ export default function JobPage() {
 
   if (isActive) {
     return (
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="max-w-xl mx-auto py-12">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="max-w-xl mx-auto py-12">
         <div className="glass-card p-8 text-center">
           {pollError ? (
             <div className="mb-6">

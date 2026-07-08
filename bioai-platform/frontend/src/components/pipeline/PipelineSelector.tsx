@@ -31,7 +31,7 @@ export function PipelineSelector({ onSelect }: PipelineSelectorProps) {
   return (
     <div>
       <h2 className="text-lg font-semibold text-gray-900 mb-4">Choose a pipeline</h2>
-      <motion.div initial="hidden" animate="show" variants={stagger} className="grid gap-4">
+      <motion.div animate="show" variants={stagger} className="grid gap-4">
         {pipelines.map((p) => {
           const active = selected === p.id;
           return (

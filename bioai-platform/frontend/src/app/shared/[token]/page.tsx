@@ -73,7 +73,7 @@ export default function SharedResultPage() {
             <p className="text-sm text-gray-500">This result is from an older version and cannot be displayed in full.</p>
           </div>
         ) : (
-          <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-6">
+          <motion.div variants={stagger} animate="show" className="space-y-6">
             <motion.div variants={fadeUp}>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Analysis Results</h1>
               <p className="text-sm text-gray-500">

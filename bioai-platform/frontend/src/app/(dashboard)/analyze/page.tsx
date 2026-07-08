@@ -81,7 +81,7 @@ export default function AnalyzePage() {
 
   return (
     <div>
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <div className="glass-card p-6 border border-accent-cyan/20 bg-accent-cyan/5">
           <div className="flex items-center justify-between">
             <div>

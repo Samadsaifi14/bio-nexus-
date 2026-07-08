@@ -165,7 +165,7 @@ export default function BlastWizardPage() {
         Choose a different operation
       </button>
 
-      <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-center gap-3 mb-8">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="flex items-center gap-3 mb-8">
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
@@ -182,7 +182,7 @@ export default function BlastWizardPage() {
       </motion.div>
 
       {step === 2 && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-6">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-text-primary mb-1">Enter your sequence</h2>
             <p className="text-sm text-text-secondary">
@@ -208,7 +208,7 @@ export default function BlastWizardPage() {
           </div>
 
           {inputMode === 'paste' ? (
-            <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5">
+            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
               <textarea
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
@@ -216,7 +216,7 @@ export default function BlastWizardPage() {
                 className="w-full h-40 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm text-text-primary bg-surface-1 resize-none"
               />
               <div className="flex items-center justify-between mt-4">
-                <motion.div variants={fadeUp} initial="hidden" animate="show" className="flex items-center gap-3">
+                <motion.div variants={fadeUp} className="flex items-center gap-3">
                   {SAMPLES.map((s) => (
                     <button
                       key={s.label}
@@ -243,7 +243,7 @@ export default function BlastWizardPage() {
               </div>
             </motion.div>
           ) : (
-            <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-5 space-y-4">
+            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 space-y-4">
               <div className="flex gap-3">
                 <input
                   type="text"
@@ -348,13 +348,13 @@ export default function BlastWizardPage() {
       )}
 
       {step === 3 && (
-        <motion.div variants={fadeUp} initial="hidden" animate="show" className="space-y-6">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-text-primary mb-1">Confirm and run</h2>
             <p className="text-sm text-text-secondary">Review your analysis settings before submitting.</p>
           </div>
 
-          <motion.div variants={fadeUp} initial="hidden" animate="show" className="glass-card p-6 space-y-4">
+          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-6 space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-glass-border">
               <Search className="w-5 h-5 text-accent-cyan" />
               <div>

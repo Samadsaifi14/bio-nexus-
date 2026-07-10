@@ -24,4 +24,4 @@ RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py
 COPY . .
 
 EXPOSE 7860
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "7860"]
+CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

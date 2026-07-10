@@ -516,7 +516,7 @@ class DockingTool(BaseTool):
             if found:
                 VINA_CMD = found
             else:
-                dest = os.path.join(os.path.dirname(sys.executable) if sys.executable else "/usr/local/bin", "vina")
+                dest = os.path.join(tempfile.gettempdir(), "bin", "vina")
                 dl = _download_vina(dest)
                 if dl:
                     VINA_CMD = dl

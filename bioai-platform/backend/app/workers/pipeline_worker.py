@@ -155,7 +155,6 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
         await store_result(job_id, "blast_hits", parsed, "json")
 
         top_hit = parsed["hits"][0] if parsed.get("hits") else None
-        context = {
         query_len = parsed.get("query_length", 0)
         context = {
             "query": {

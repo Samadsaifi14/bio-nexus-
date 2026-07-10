@@ -23,6 +23,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Ensure backend API URL is set
-        run: npx vercel env add NEXT_PUBLIC_API_URL production https://bio-nexus-api.onrender.com --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --cwd bioai-platform/frontend --token "$VERCEL_TOKEN" || true
+        run: npx vercel env add NEXT_PUBLIC_API_URL production https://bio-nexus-api.onrender.com --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --token "$VERCEL_TOKEN" || true
       - name: Deploy to Vercel
-        run: npx vercel --token "$VERCEL_TOKEN" --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --prod --cwd bioai-platform/frontend --yes
+        run: npx vercel --token "$VERCEL_TOKEN" --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --prod --yes

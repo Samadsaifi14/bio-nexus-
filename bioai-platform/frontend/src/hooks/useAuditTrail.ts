@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useRef } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/auth';
 import type { AuditEvent } from '@/types/audit';
 
@@ -46,5 +46,5 @@ export function useAuditTrail() {
     emit({ step, tool, status: 'failed', input_summary, output_summary: error, duration_ms: Date.now() - t0, user_id: user?.id ?? null });
   }, [emit, user?.id]);
 
-  return { emit, emitStarted, emitSuccess, emitFailed, SESSION_ID };
+  return useMemo(() => ({ emit, emitStarted, emitSuccess, emitFailed, SESSION_ID }), [emit, emitStarted, emitSuccess, emitFailed]);
 }

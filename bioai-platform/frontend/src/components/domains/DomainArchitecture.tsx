@@ -25,7 +25,6 @@ export function DomainArchitecture({ accession }: { accession: string }) {
   const auditedRef = useRef(false);
 
   useEffect(() => {
-    setLoading(true);
     setError(null);
     auditedRef.current = false;
     fetch(`/api/backend/api/domains/${accession}`)

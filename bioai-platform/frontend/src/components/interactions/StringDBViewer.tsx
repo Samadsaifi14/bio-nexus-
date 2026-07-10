@@ -24,7 +24,6 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
 
   useEffect(() => {
     if (initialData) return;
-    setLoading(true);
     setError(null);
     auditedRef.current = false;
     fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12`)

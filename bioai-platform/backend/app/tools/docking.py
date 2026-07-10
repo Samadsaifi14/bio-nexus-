@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
+OBABEL_CMD = shutil.which("obabel")
 
 # ── interaction cutoffs ──────────────────────────────────────────────────
 HBOND_DIST = 3.5      # donor–acceptor heavy-atom distance (Å)
@@ -465,6 +466,9 @@ class DockingTool(BaseTool):
         if not smiles:
             return {"error": "smiles is required"}
 
+        if not OBABEL_CMD:
+            return {"error": "Dependencies missing: Open Babel (obabel) is not installed on the server. Please install it via `apt install obabel` or `conda install -c conda-forge openbabel`."}
+
         tmpdir = tempfile.mkdtemp(prefix="docking_")
         try:
             # 1. Fetch PDB
@@ -489,7 +493,7 @@ class DockingTool(BaseTool):
             # 3. Convert protein to PDBQT via obabel
             protein_pdbqt = os.path.join(tmpdir, "protein.pdbqt")
             proc = await asyncio.create_subprocess_exec(
-                "obabel", clean_path, "-O", protein_pdbqt, "-xr",
+                OBABEL_CMD, clean_path, "-O", protein_pdbqt, "-xr",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

@@ -19,7 +19,7 @@ export function useAuditTrail() {
       user_id: user?.id ?? null,
       timestamp: new Date().toISOString(),
     };
-    fetch('/api/backend/audit/event', {
+    fetch('/api/backend/api/audit/event', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),

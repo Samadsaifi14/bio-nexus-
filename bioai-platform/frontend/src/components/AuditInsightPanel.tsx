@@ -20,7 +20,7 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
     if (!sessionId) return;
     const poll = async () => {
       try {
-        const r = await fetch(`/api/backend/audit/insights?session=${sessionId}`);
+        const r = await fetch(`/api/backend/api/audit/insights?session=${sessionId}`);
         if (!r.ok) return;
         const data = await r.json();
         if (data.latest) {

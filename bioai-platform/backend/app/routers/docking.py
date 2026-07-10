@@ -9,6 +9,7 @@ import uuid
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from app.deps import limiter
@@ -148,3 +149,18 @@ async def get_status(job_id: str):
     if not job:
         raise HTTPException(404, detail=f"Job {job_id} not found")
     return job
+
+
+@router.get("/result/{job_id}/pdb", response_class=PlainTextResponse)
+@limiter.exempt
+async def get_pdb_result(job_id: str):
+    job = _read(job_id)
+    if not job:
+        raise HTTPException(404, detail=f"Job {job_id} not found")
+    if job.get("status") != "complete":
+        raise HTTPException(400, detail="Job not yet complete")
+    result = job.get("result", {})
+    ligand_pdb = result.get("ligand_pdb", "")
+    if not ligand_pdb:
+        raise HTTPException(404, detail="No ligand PDB available")
+    return ligand_pdb

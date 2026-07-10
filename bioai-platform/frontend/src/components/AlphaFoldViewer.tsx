@@ -12,6 +12,8 @@ interface MoleViewer {
   zoomTo: () => void;
   spin: (axis: string | boolean, speed?: number) => void;
   resize: () => void;
+  removeAllLabels: () => void;
+  addLabel: (text: string, opts: Record<string, unknown>) => void;
 }
 
 interface MoleAtom {

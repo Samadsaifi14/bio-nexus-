@@ -3,12 +3,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle, AlertTriangle, Hexagon } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
-import StructureViewer from '@/components/StructureViewer';
+import { DockingViewer } from '@/components/DockingViewer';
+import { InteractionPanel } from '@/components/InteractionPanel';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
 const SMILES_EXAMPLES = [
@@ -95,6 +96,11 @@ export default function DockingPage() {
   const bestPose = result?.result?.poses?.length
     ? result.result.poses.reduce((a, b) => (a.affinity !== null && (b.affinity === null || a.affinity < b.affinity) ? a : b))
     : null;
+
+  const bestLigandPdb = (() => {
+    if (!result?.result?.ligand_pdb) return '';
+    return result.result.ligand_pdb;
+  })();
 
   return (
     <div className="max-w-3xl">
@@ -225,23 +231,34 @@ export default function DockingPage() {
                     <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
                       <th className="text-left py-2 pr-4">Pose</th>
                       <th className="text-left py-2 pr-4">Atoms</th>
-                      <th className="text-left py-2">Affinity (kcal/mol)</th>
+                      <th className="text-left py-2 pr-4">Affinity (kcal/mol)</th>
+                      <th className="text-left py-2">Interactions</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-glass-border">
-                    {result.result.poses.map((pose) => (
-                      <tr key={pose.model} className="text-text-primary">
-                        <td className="py-2 pr-4 font-mono">{pose.model}</td>
-                        <td className="py-2 pr-4 font-mono">{pose.atoms}</td>
-                        <td className={`py-2 font-mono ${affinityColor(pose.affinity)}`}>
-                          {pose.affinity !== null ? pose.affinity.toFixed(2) : '—'}
-                        </td>
-                      </tr>
-                    ))}
+                    {result.result.poses.map((pose) => {
+                      const pi = result.result?.pose_interactions?.find((p: { model: number }) => p.model === pose.model);
+                      return (
+                        <tr key={pose.model} className="text-text-primary">
+                          <td className="py-2 pr-4 font-mono">{pose.model}</td>
+                          <td className="py-2 pr-4 font-mono">{pose.atoms}</td>
+                          <td className={`py-2 pr-4 font-mono ${affinityColor(pose.affinity)}`}>
+                            {pose.affinity !== null ? pose.affinity.toFixed(2) : '—'}
+                          </td>
+                          <td className="py-2 font-mono text-xs text-text-muted">
+                            {pi ? `${pi.hbonds}H / ${pi.hydrophobic}HP / ${pi.pi_stacking}π` : '—'}
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
+          )}
+
+          {result.result?.interactions && (
+            <InteractionPanel interactions={result.result.interactions} />
           )}
 
           {result.result?.box_center && (
@@ -264,11 +281,25 @@ export default function DockingPage() {
             </div>
           )}
 
-          {result.result?.pdb_id && (
+          {result.result?.pdb_id && bestLigandPdb && (
             <div className="glass-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Structure</h3>
-              <StructureViewer pdbId={result.result.pdb_id} />
+              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <Hexagon className="w-4 h-4 text-accent-cyan" />
+                Structure — Best Pose
+              </h3>
+              <DockingViewer pdbId={result.result.pdb_id} ligandPdb={bestLigandPdb} />
             </div>
+          )}
+
+          {result.result?.vina_log && (
+            <details className="glass-card p-5 group">
+              <summary className="text-sm font-semibold text-text-primary cursor-pointer list-none flex items-center gap-2">
+                Vina Log
+              </summary>
+              <pre className="mt-3 text-xs text-text-muted font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
+                {result.result.vina_log}
+              </pre>
+            </details>
           )}
         </motion.div>
       )}

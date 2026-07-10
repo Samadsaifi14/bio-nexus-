@@ -262,10 +262,52 @@ export async function runEnrichment(identifiers: string[]): Promise<EnrichmentRe
   return res.data;
 }
 
+export type DockingAtom = {
+  x: number;
+  y: number;
+  z: number;
+  element: string;
+  atom_type: string;
+};
+
 export type DockingPose = {
   model: number;
   atoms: number;
+  coords?: DockingAtom[];
   affinity: number | null;
+};
+
+export type DockingInteraction = {
+  hbonds: Array<{
+    type: string;
+    ligand_atom: string;
+    protein_residue: string;
+    protein_atom: string;
+    protein_atom_name: string;
+    distance: number;
+    confidence: string;
+  }>;
+  hydrophobic: Array<{
+    type: string;
+    ligand_atom: string;
+    protein_residue: string;
+    protein_atom: string;
+    protein_atom_name: string;
+    distance: number;
+  }>;
+  pi_stacking: Array<{
+    type: string;
+    protein_residue: string;
+    centroid_distance: number;
+    confidence: string;
+  }>;
+};
+
+export type DockingPoseInteractions = {
+  model: number;
+  hbonds: number;
+  hydrophobic: number;
+  pi_stacking: number;
 };
 
 export type DockingResult = {
@@ -280,6 +322,9 @@ export type DockingResult = {
     box_size: { x: number; y: number; z: number };
     vina_log?: string;
     from_cache?: boolean;
+    interactions?: DockingInteraction;
+    pose_interactions?: DockingPoseInteractions[];
+    ligand_pdb?: string;
   };
   error?: string;
 };
@@ -292,6 +337,10 @@ export async function runDocking(pdbId: string, smiles: string, pdbUrl?: string)
 export async function getDockingStatus(jobId: string): Promise<DockingResult> {
   const res = await api.get(`/api/docking/status/${jobId}`);
   return res.data;
+}
+
+export function getDockingPdbUrl(jobId: string): string {
+  return `/api/backend/api/docking/result/${jobId}/pdb`;
 }
 
 export type SequencingQC = {

@@ -4,6 +4,7 @@ import math
 import os
 import re
 import shutil
+import sys
 import tempfile
 import time
 from typing import Any
@@ -15,8 +16,48 @@ from app.tools.base import BaseTool
 logger = logging.getLogger(__name__)
 
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
+def _find_obabel() -> str | None:
+    """Locate the obabel CLI — check PATH first, then Python's bin dir (openbabel-wheel installs there), then common system paths."""
+    cmd = shutil.which("obabel")
+    if cmd:
+        return cmd
+    extra = os.pathsep.join([
+        os.path.dirname(sys.executable) if sys.executable else "",
+        "/usr/local/bin",
+        "/usr/bin",
+    ])
+    return shutil.which("obabel", path=extra)
+
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
-OBABEL_CMD = shutil.which("obabel")
+OBABEL_CMD = _find_obabel()
+
+# ── self-healing binary download ─────────────────────────────────────────
+_VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
+
+def _pip_install_obabel() -> str | None:
+    """Install openbabel-wheel via pip and return the obabel path."""
+    import subprocess as _sp
+    logger.info("obabel not found — installing openbabel-wheel via pip")
+    try:
+        _sp.run([sys.executable, "-m", "pip", "install", "openbabel-wheel", "-q"],
+                capture_output=True, timeout=120)
+    except Exception as exc:
+        logger.warning("pip install openbabel-wheel failed: %s", exc)
+        return None
+    return _find_obabel()
+
+def _download_vina(dest: str) -> str | None:
+    """Download the Vina binary to *dest*."""
+    import urllib.request as _ur
+    try:
+        logger.info("Downloading AutoDock Vina binary …")
+        os.makedirs(os.path.dirname(dest), exist_ok=True)
+        _ur.urlretrieve(_VINA_URL, dest)
+        os.chmod(dest, 0o755)
+    except Exception as exc:
+        logger.warning("Failed to download Vina: %s", exc)
+        return None
+    return dest if os.path.isfile(dest) else None
 
 # ── interaction cutoffs ──────────────────────────────────────────────────
 HBOND_DIST = 3.5      # donor–acceptor heavy-atom distance (Å)
@@ -466,8 +507,24 @@ class DockingTool(BaseTool):
         if not smiles:
             return {"error": "smiles is required"}
 
+        # Self-heal missing binaries
+        global OBABEL_CMD, VINA_CMD
+        if not OBABEL_CMD:
+            OBABEL_CMD = _pip_install_obabel()
+        if not VINA_CMD or not os.path.isfile(VINA_CMD):
+            found = shutil.which("vina")
+            if found:
+                VINA_CMD = found
+            else:
+                dest = os.path.join(os.path.dirname(sys.executable) if sys.executable else "/usr/local/bin", "vina")
+                dl = _download_vina(dest)
+                if dl:
+                    VINA_CMD = dl
+
         if not OBABEL_CMD:
             return {"error": "Dependencies missing: Open Babel (obabel) is not installed on the server. Please install it via `apt install obabel` or `conda install -c conda-forge openbabel`."}
+        if not VINA_CMD:
+            return {"error": "Dependencies missing: AutoDock Vina is not installed on the server and could not be downloaded."}
 
         tmpdir = tempfile.mkdtemp(prefix="docking_")
         try:
@@ -505,7 +562,7 @@ class DockingTool(BaseTool):
             # 4. Convert SMILES to 3D PDBQT via obabel
             ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
             proc = await asyncio.create_subprocess_exec(
-                "obabel", f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
+                OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
             )

@@ -18,6 +18,7 @@ class PipelineRunRequest(BaseModel):
     pipeline_type: str = "protein_analysis"
     database: str = "nr"
     max_hits: int = 10
+    query_accession: str = ""
 
 
 @router.post("/run", response_model=PipelineRunResponse, dependencies=[Depends(check_daily_limit)])
@@ -49,7 +50,7 @@ async def run_pipeline(req: PipelineRunRequest, user_id: str | None = Depends(ge
     }).execute()
 
     import threading
-    t = threading.Thread(target=run_pipeline_sync, args=(job_id, clean, req.database, req.max_hits), daemon=True)
+    t = threading.Thread(target=run_pipeline_sync, args=(job_id, clean, req.database, req.max_hits, req.query_accession), daemon=True)
     t.start()
 
     return {"job_id": job_id, "status": "queued"}

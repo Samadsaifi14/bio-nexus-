@@ -25,12 +25,14 @@ export async function runPipeline(
   pipelineType: string = 'protein_analysis',
   database: string = 'uniprotkb_swissprot',
   maxHits: number = 10,
+  queryAccession?: string,
 ): Promise<{ job_id: string; status: string }> {
   const res = await api.post('/api/pipelines/run', {
     sequence,
     pipeline_type: pipelineType,
     database,
     max_hits: maxHits,
+    query_accession: queryAccession ?? '',
   });
   return res.data;
 }

@@ -275,6 +275,7 @@ async def _run_blast(sequence: str) -> dict:
                 "identity_pct": h["identity_pct"],
                 "bit_score": h["bit_score"],
                 "alignment_length": h.get("alignment_length", 0),
+                "query_coverage_pct": round(h.get("alignment_length", 0) / query_length * 100, 1) if query_length > 0 else 0,
                 "hit_alignment": h.get("hit_alignment", ""),
                 "query_alignment": h.get("query_alignment", ""),
                 "midline": h.get("midline", ""),

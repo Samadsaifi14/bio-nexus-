@@ -63,7 +63,7 @@ def _matches_demo(sequence: str) -> Optional[dict]:
     return None
 
 
-async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10) -> None:
+async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10, query_accession: str = "") -> None:
     steps_completed: list[str] = []
 
     async def _set_step(step: str, progress_pct: int) -> None:
@@ -156,15 +156,19 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
 
         top_hit = parsed["hits"][0] if parsed.get("hits") else None
         context = {
+        query_len = parsed.get("query_length", 0)
+        context = {
             "query": {
                 "sequence": sequence,
                 "length": len(sequence_clean),
                 "sequence_type": "dna" if seq_is_dna else "protein",
+                "accession": query_accession or (top_hit.get("accession", "") if top_hit else ""),
             },
             "blast": {
                 "count": len(parsed.get("hits", [])),
                 "source": "demo" if (DEMO_MODE and demo_info) else "ncbi",
                 "database": parsed.get("database", "nr"),
+                "query_length": query_len,
                 "top_hit": {
                     "accession": top_hit["accession"],
                     "description": top_hit["description"],
@@ -178,11 +182,13 @@ async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", ma
                     {
                         "accession": h["accession"],
                         "description": h["description"],
+                        "organism": h.get("organism", ""),
                         "evalue": h["evalue"],
                         "evalue_raw": h.get("evalue_raw", str(h["evalue"])),
                         "identity_pct": h["identity_pct"],
                         "bit_score": h["bit_score"],
                         "alignment_length": h.get("alignment_length", 0),
+                        "query_coverage_pct": round(h.get("alignment_length", 0) / query_len * 100, 1) if query_len > 0 else 0,
                         "query_from": h.get("query_from", 0),
                         "query_to": h.get("query_to", 0),
                         "hit_from": h.get("hit_from", 0),
@@ -335,11 +341,11 @@ async def _set_job_failed(job_id: str, message: str) -> None:
     await _patch_job(job_id, {"status": "failed", "error": message})
 
 
-def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10) -> None:
+def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10, query_accession: str = "") -> None:
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(execute_blast_job(job_id, sequence, database=database, max_hits=max_hits))
+        loop.run_until_complete(execute_blast_job(job_id, sequence, database=database, max_hits=max_hits, query_accession=query_accession))
     except Exception:
         logger.exception(f"[{job_id}] FATAL: unhandled exception in background thread")
         try:

@@ -12,6 +12,7 @@ interface BlastPanelProps {
   hits: BlastHitSummary[] | undefined | null;
   count: number;
   source?: string;
+  queryLength?: number;
 }
 
 function confidenceBand(evalue: number): { label: string; color: string; bg: string } {
@@ -31,6 +32,12 @@ function formatEvalue(evalue: number, evalue_raw?: string): string {
   return evalue.toFixed(4);
 }
 
+function coverageColor(pct: number): string {
+  if (pct >= 90) return 'text-accent-cyan';
+  if (pct >= 50) return 'text-accent-amber';
+  return 'text-text-muted';
+}
+
 export function BlastPanel({ hits, count, source }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const safeHits = hits ?? [];
@@ -44,8 +51,8 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
         </h2>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTsv(
-            ["Accession", "Description", "E-value", "Identity%", "Score", "Confidence"],
-            safeHits.map(h => [h.accession, h.description, h.evalue_raw || String(h.evalue), String(h.identity_pct), String(h.bit_score), confidenceBand(h.evalue).label]),
+            ["Accession", "Description", "Organism", "E-value", "Identity%", "Coverage%", "Score", "Confidence"],
+            safeHits.map(h => [h.accession, h.description, h.organism ?? '', h.evalue_raw || String(h.evalue), String(h.identity_pct), String(h.query_coverage_pct ?? ''), String(h.bit_score), confidenceBand(h.evalue).label]),
             "blast-hits.tsv"
           )} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
             <Download className="w-3 h-3" /> Export CSV
@@ -77,6 +84,7 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
                   <div className="flex items-center gap-3">
                     <span className="text-xs font-mono bg-surface-1 px-2 py-0.5 rounded text-text-secondary">{hit.accession}</span>
                     <span className="text-sm text-text-primary truncate">{hit.description}</span>
+                    {hit.organism && <span className="text-xs text-text-muted hidden sm:inline ml-auto">{hit.organism}</span>}
                   </div>
                   <div className="flex items-center gap-4 mt-2 text-xs text-text-muted">
                     <span>
@@ -87,6 +95,7 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
                       </span>
                     </span>
                     <span>Identity: <strong className="text-text-primary">{hit.identity_pct}%</strong></span>
+                    <span>Coverage: <strong className={coverageColor(hit.query_coverage_pct ?? 0)}>{hit.query_coverage_pct ?? '—'}%</strong></span>
                     <span>Score: <strong className="text-text-primary">{hit.bit_score}</strong></span>
                   </div>
                 </div>

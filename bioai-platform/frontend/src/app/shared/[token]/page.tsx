@@ -77,7 +77,10 @@ export default function SharedResultPage() {
             <motion.div variants={fadeUp}>
               <h1 className="text-2xl font-bold text-gray-900 mb-1">Analysis Results</h1>
               <p className="text-sm text-gray-500">
-                Query: {context.query.sequence.slice(0, 80)}... ({context.query.length} aa)
+                {context.query.accession
+                  ? <>Query: <code className="font-mono text-cyan-600">{context.query.accession}</code></>
+                  : <>Query: {context.query.sequence.slice(0, 80)}...</>
+                } ({context.query.length} {context.query.sequence_type === 'dna' ? 'bp' : 'aa'})
               </p>
             </motion.div>
 

@@ -65,14 +65,21 @@ class BlastTool(BaseTool):
         parsed = []
         for hit in raw_hits[:max_hits]:
             hsps = hit.get("hsps", [{}])[0] if hit.get("hsps") else {}
+            desc = hit.get("hit_desc", "")
+            organism = ""
+            if "[" in desc and "]" in desc:
+                organism = desc.split("[")[-1].rstrip("]")
+                desc = desc.split("[")[0].strip()
             parsed.append({
                 "accession": hit.get("hit_acc", ""),
                 "id": hit.get("hit_id", ""),
-                "description": hit.get("hit_desc", ""),
+                "description": desc,
+                "organism": organism,
                 "evalue": hsps.get("hsp_expect", 0),
                 "bit_score": hsps.get("hsp_bit_score", 0),
                 "identity_pct": hsps.get("hsp_identity", 0),
                 "alignment_length": hsps.get("hsp_align_len", 0),
+                "query_coverage_pct": 0,
                 "query_from": hsps.get("hsp_query_from", 0),
                 "query_to": hsps.get("hsp_query_to", 0),
                 "hit_from": hsps.get("hsp_hit_from", 0),

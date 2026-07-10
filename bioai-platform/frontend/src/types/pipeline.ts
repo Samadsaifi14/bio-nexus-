@@ -127,6 +127,7 @@ export interface AssembledContext {
     sequence: string;
     length: number;
     sequence_type?: 'protein' | 'dna' | 'rna';
+    accession?: string;
   };
   blast: BlastSummary;
   uniprot: UniprotSummary | null;
@@ -153,11 +154,13 @@ export interface BlastSummary {
 export interface BlastHitSummary {
   accession: string;
   description: string;
+  organism?: string;
   evalue: number;
   evalue_raw?: string;
   identity_pct: number;
   bit_score: number;
   alignment_length?: number;
+  query_coverage_pct?: number;
   query_from?: number;
   query_to?: number;
   hit_from?: number;

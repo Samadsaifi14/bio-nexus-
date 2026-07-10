@@ -132,11 +132,16 @@ export default function BlastWizardPage() {
       return;
     }
 
+    const queryAccession = inputMode === 'accession' && accessionResult
+      ? accessionResult.accession
+      : rawInput.split('\n')[0]?.startsWith('>')
+        ? rawInput.split('\n')[0].slice(1).split(/\s+/)[0]
+        : undefined;
     const inputSummary = `seq_len:${clean.length},db:${advancedDb || 'nr'}`;
     audit.emitStarted('blast_search', 'BLAST', inputSummary);
     setSubmitting(true);
     try {
-      const result = await runPipeline(seq, 'blast', advancedDb || 'nr', 100);
+      const result = await runPipeline(seq, 'blast', advancedDb || 'nr', 100, queryAccession);
       audit.emitSuccess('blast_search', 'BLAST', inputSummary, `job_id:${result.job_id}`);
       router.push(`/jobs/${result.job_id}`);
     } catch (err: unknown) {

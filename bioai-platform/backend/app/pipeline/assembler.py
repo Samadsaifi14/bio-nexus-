@@ -41,10 +41,12 @@ class ContextAssembler:
                 {
                     "accession": h.get("accession", ""),
                     "description": h.get("description", ""),
+                    "organism": h.get("organism", ""),
                     "evalue": h.get("evalue", 0),
                     "identity_pct": h.get("identity_pct", 0),
                     "bit_score": h.get("bit_score", 0),
                     "alignment_length": h.get("alignment_length", 0),
+                    "query_coverage_pct": h.get("query_coverage_pct", 0),
                     "query_from": h.get("query_from", 0),
                     "query_to": h.get("query_to", 0),
                     "hit_from": h.get("hit_from", 0),

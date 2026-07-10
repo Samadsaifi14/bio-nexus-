@@ -17,4 +17,4 @@ services:
       - key: DEMO_MODE
         value: "true"
       - key: CORS_ORIGIN
-        value: "https://bioai-platform.vercel.app"
+        value: "https://bio-nexus-ebon.vercel.app"

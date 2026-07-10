@@ -1,10 +1,11 @@
 services:
   - type: web
     name: bio-nexus-api
-    runtime: docker
+    runtime: python
     region: ohio
     rootDir: bioai-platform/backend
-    dockerfilePath: ./Dockerfile
+    buildCommand: bash build.sh
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
     envVars:
       - key: SUPABASE_URL

@@ -1,11 +1,14 @@
 import asyncio
 import io
+import logging
 import math
+import re
 import secrets
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from Bio.PDB import PDBParser, PPBuilder
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/structure_analysis", tags=["structure_analysis"])
 
@@ -195,6 +198,7 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     ticket = resp_json.get("id") if isinstance(resp_json, dict) else None
     if not ticket:
         raise HTTPException(502, f"Foldseek returned type={type(resp_json).__name__}, no id: {resp_text[:500]}")
+    logger.info("foldseek ticket=%s status=%s pdb_id=%s", ticket, resp_json.get("status"), pdb_id)
 
     # 3. Poll for results (up to ~120s) then fetch
     async with httpx.AsyncClient(timeout=120) as client:
@@ -224,26 +228,60 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
         else:
             raise HTTPException(504, "Foldseek job did not complete in time")
 
-    # 5. Parse alignments (each alignment is [dict] — list wrapping one dict)
+    # 5. Parse alignments
+    logger.info("foldseek result keys=%s type=%s", list(data.keys()) if isinstance(data, dict) else type(data).__name__, type(data).__name__)
+
+    if isinstance(data, dict) and "results" not in data:
+        logger.warning("foldseek response missing 'results' key, keys=%s", list(data.keys()))
+        # Some versions nest alignments under queries
+        if "queries" in data and isinstance(data["queries"], list) and len(data["queries"]) > 0:
+            data = {"results": [{"db": "pdb100", "alignments": data["queries"][0].get("alignments", [])}]}
+        else:
+            data = {"results": []}
+
     entries = data if isinstance(data, list) else data.get("results", [])
+    logger.info("foldseek entries=%d", len(entries))
+
     seen: set[str] = set()
     results: list[StructureMatch] = []
     for db_entry in entries:
-        for aln in db_entry.get("alignments", []):
-            entry = aln[0] if isinstance(aln, list) else aln
+        if not isinstance(db_entry, dict):
+            logger.warning("foldseek db_entry not dict: %s", type(db_entry))
+            continue
+        db_alignments = db_entry.get("alignments", [])
+        if not isinstance(db_alignments, list):
+            logger.warning("foldseek alignments not list: %s", type(db_alignments))
+            continue
+        logger.info("foldseek db=%s alignments=%d", db_entry.get("db"), len(db_alignments))
+
+        for aln in db_alignments:
+            if isinstance(aln, list):
+                entry = aln[0] if aln else None
+            elif isinstance(aln, dict):
+                entry = aln
+            else:
+                logger.warning("foldseek aln unexpected type: %s", type(aln))
+                continue
+            if not isinstance(entry, dict):
+                continue
+
             target = entry.get("target", "")
             raw_target = target.replace("pdb_", "").replace("PDB_", "")
-            # Parse target like "1vwt-assembly1.cif.gz_A" → PDB 1VWT chain A
-            import re
-            m = re.match(r'^(\w{4})', raw_target)
-            match_pdb = m.group(1).upper() if m else ""
-            match_chain = ""
-            if "_" in raw_target:
-                match_chain = raw_target.split("_")[-1][:1].upper()
 
-            if not match_pdb or (match_pdb == pdb_id and (not match_chain or match_chain == chain)):
+            # Parse PDB ID — handle various Foldseek target formats
+            match_pdb = _parse_pdb_id(raw_target)
+            match_chain = _parse_chain(raw_target)
+
+            if not match_pdb:
+                logger.debug("foldseek skip empty pdb target=%s", target[:80])
                 continue
+
+            if match_pdb == pdb_id and (not match_chain or match_chain == chain):
+                logger.debug("foldseek skip self-match %s:%s", match_pdb, match_chain)
+                continue
+
             if match_pdb in seen:
+                logger.debug("foldseek skip duplicate %s:%s", match_pdb, match_chain)
                 continue
             seen.add(match_pdb)
 
@@ -261,7 +299,34 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
         if len(results) >= max_results:
             break
 
+    logger.info("foldseek parsed=%d results for %s", len(results), pdb_id)
     if not results:
         raise HTTPException(404, "No structurally similar proteins found")
     results.sort(key=lambda x: x.tm_score, reverse=True)
     return {"query": f"{pdb_id}:{chain}", "matches": results}
+
+
+def _parse_pdb_id(raw: str) -> str:
+    """Extract a valid 4-character PDB ID from the start of a Foldseek target string."""
+    m = re.match(r'^(\w{4})', raw)
+    if m:
+        return m.group(1).upper()
+    # Fallback: try to find a 4-char alphanumeric segment
+    m = re.search(r'\b([A-Za-z0-9]{4})\b', raw)
+    if m:
+        return m.group(1).upper()
+    return ""
+
+
+def _parse_chain(raw: str) -> str:
+    """Extract chain ID from a Foldseek target string."""
+    if "_" not in raw:
+        return ""
+    parts = raw.split("_")
+    last = parts[-1]
+    if len(last) >= 1:
+        ch = last[0].upper()
+        # A valid chain ID is typically a single letter or digit
+        if ch.isalnum():
+            return ch
+    return ""

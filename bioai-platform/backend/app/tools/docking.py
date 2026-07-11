@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
-_SMILES2MOL = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/mol"
+_SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
 def _download_vina(dest: str) -> str | None:
     import socket as _socket
@@ -173,6 +173,34 @@ def _generate_ligand_pdb(
         )
     lines.append("END")
     return "\n".join(lines)
+
+def _molblock_to_pdb(sdf_content: str) -> str:
+    """Convert SDF V2000 mol block to minimal PDB."""
+    lines = sdf_content.splitlines()
+    if len(lines) < 4:
+        return ""
+    try:
+        num_atoms = int(lines[3][:3].strip())
+    except (ValueError, IndexError):
+        return ""
+    atom_lines = lines[4:4 + num_atoms]
+    pdb_lines = []
+    for i, line in enumerate(atom_lines, start=1):
+        try:
+            x = float(line[0:10].strip())
+            y = float(line[10:20].strip())
+            z = float(line[20:30].strip())
+        except (ValueError, IndexError):
+            continue
+        elem = line[30:33].strip().upper() or "C"
+        pdb_lines.append(
+            f"HETATM{i:>5}  {elem:<2}  LIG L   1    "
+            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           {elem:>2}"
+        )
+    if not pdb_lines:
+        return ""
+    pdb_lines.append("END")
+    return "\n".join(pdb_lines)
 
 def _parse_protein_atoms(cleaned_pdb: str) -> list[dict[str, Any]]:
     atoms: list[dict[str, Any]] = []
@@ -464,15 +492,18 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert SMILES to 3D MOL via NCI CACTUS API
-            ligand_mol = os.path.join(tmpdir, "ligand.mol")
-            mol_url = _SMILES2MOL.format(smiles=urllib.parse.quote(smiles, safe=""))
+            # 3. Convert SMILES to 3D PDB via NCI CACTUS API + SDF→PDB conversion
+            ligand_pdb_file = os.path.join(tmpdir, "ligand.pdb")
+            sdf_url = _SMILES2SDF.format(smiles=urllib.parse.quote(smiles, safe=""))
             async with httpx.AsyncClient(timeout=30) as client:
-                r = await client.get(mol_url)
+                r = await client.get(sdf_url)
                 if r.status_code != 200:
                     return {"error": f"SMILES→3D conversion failed (HTTP {r.status_code})"}
-            with open(ligand_mol, "w") as f:
-                f.write(r.text)
+            pdb_content = _molblock_to_pdb(r.text)
+            if not pdb_content:
+                return {"error": "Failed to parse 3D structure from SMILES"}
+            with open(ligand_pdb_file, "w") as f:
+                f.write(pdb_content)
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
@@ -491,7 +522,7 @@ class DockingTool(BaseTool):
                     [
                         VINA_CMD,
                         "--receptor", clean_path,
-                        "--ligand", ligand_mol,
+                        "--ligand", ligand_pdb_file,
                         "--out", out_pdbqt,
                         "--center_x", str(cx),
                         "--center_y", str(cy),

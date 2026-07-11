@@ -31,48 +31,11 @@ def _find_obabel() -> str | None:
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
 OBABEL_CMD = _find_obabel()
 
-# ── in-process OpenBabel bindings (no subprocess – saves ~200 MB RAM) ───
-
-def _pdb_to_pdbqt_pybel(pdb_path: str, out_path: str) -> bool:
-    try:
-        from openbabel import pybel
-        mol = next(pybel.readfile("pdb", pdb_path))
-        mol.write("pdbqt", out_path, overwrite=True)
-        if not os.path.exists(out_path):
-            return False
-        # PDBQT writer treats the molecule as flexible by default, adding
-        # ROOT/BRANCH/ENDROOT/ENDBRANCH.  For a rigid receptor these tags
-        # cause "Unknown or inappropriate tag found in rigid receptor" from
-        # vina.  Strip them — the ATOM records are already correct.
-        with open(out_path) as _f:
-            _lines = _f.readlines()
-        _keep = [l for l in _lines
-                 if not l.startswith(("ROOT", "ENDROOT", "BRANCH", "ENDBRANCH",
-                                     "TORSDOF", "TORSDEG", "TORSLIB"))]
-        if len(_keep) != len(_lines):
-            with open(out_path, "w") as _f:
-                _f.writelines(_keep)
-        return True
-    except Exception:
-        return False
-
-
-def _smiles_to_pdbqt_pybel(smiles: str, out_path: str) -> bool:
-    try:
-        from openbabel import pybel
-        mol = pybel.readstring("smi", smiles)
-        mol.addh()
-        mol.make3D()
-        mol.write("pdbqt", out_path, overwrite=True)
-        return os.path.exists(out_path)
-    except Exception:
-        return False
-
 # ── self-healing binary download ─────────────────────────────────────────
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 
 def _pip_install_obabel() -> str | None:
-    """Install openbabel-wheel via pip and return the obabel path."""
+    """Install openbabel CLI via pip and return the obabel path."""
     import subprocess as _sp
     logger.info("obabel not found — installing openbabel-wheel via pip")
     try:
@@ -589,39 +552,37 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert protein to PDBQT (in-process pybel → no subprocess, saves ~200+ MB)
+            # 3. Convert protein to PDBQT (via obabel CLI subprocess)
             protein_pdbqt = os.path.join(tmpdir, "protein.pdbqt")
-            if not _pdb_to_pdbqt_pybel(clean_path, protein_pdbqt):
-                if not OBABEL_CMD:
-                    OBABEL_CMD = _pip_install_obabel()
-                if not OBABEL_CMD:
-                    return {"error": "Open Babel not available – cannot prepare protein PDBQT."}
-                proc = await asyncio.create_subprocess_exec(
-                    OBABEL_CMD, clean_path, "-O", protein_pdbqt, "-xr",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                _, stderr = await proc.communicate()
-                if proc.returncode != 0 or not os.path.exists(protein_pdbqt):
-                    err = stderr.decode() if stderr else "obabel failed"
-                    return {"error": f"Protein PDBQT preparation failed: {err}"}
+            if not OBABEL_CMD:
+                OBABEL_CMD = _pip_install_obabel()
+            if not OBABEL_CMD:
+                return {"error": "Open Babel not available – cannot prepare protein PDBQT."}
+            proc = await asyncio.create_subprocess_exec(
+                OBABEL_CMD, clean_path, "-O", protein_pdbqt, "-xr",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode != 0 or not os.path.exists(protein_pdbqt):
+                err = stderr.decode() if stderr else "obabel failed"
+                return {"error": f"Protein PDBQT preparation failed: {err}"}
 
-            # 4. Convert SMILES to 3D PDBQT (in-process pybel → no subprocess)
+            # 4. Convert SMILES to 3D PDBQT (via obabel CLI subprocess)
             ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
-            if not _smiles_to_pdbqt_pybel(smiles, ligand_pdbqt):
-                if not OBABEL_CMD:
-                    OBABEL_CMD = _pip_install_obabel()
-                if not OBABEL_CMD:
-                    return {"error": "Open Babel not available – cannot prepare ligand PDBQT."}
-                proc = await asyncio.create_subprocess_exec(
-                    OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
-                    stdout=asyncio.subprocess.PIPE,
-                    stderr=asyncio.subprocess.PIPE,
-                )
-                _, stderr = await proc.communicate()
-                if proc.returncode != 0 or not os.path.exists(ligand_pdbqt):
-                    err = stderr.decode() if stderr else "obabel failed"
-                    return {"error": f"Ligand PDBQT preparation failed: {err}"}
+            if not OBABEL_CMD:
+                OBABEL_CMD = _pip_install_obabel()
+            if not OBABEL_CMD:
+                return {"error": "Open Babel not available – cannot prepare ligand PDBQT."}
+            proc = await asyncio.create_subprocess_exec(
+                OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode != 0 or not os.path.exists(ligand_pdbqt):
+                err = stderr.decode() if stderr else "obabel failed"
+                return {"error": f"Ligand PDBQT preparation failed: {err}"}
 
             # 5. Determine binding site box
             center = _find_ligand_center(pdb_content)

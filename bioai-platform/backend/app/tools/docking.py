@@ -471,8 +471,13 @@ class DockingTool(BaseTool):
                 r = await client.get(sdf_url)
                 if r.status_code != 200:
                     return {"error": f"SMILES→SDF conversion failed (HTTP {r.status_code})"}
-            with open(ligand_sdf, "wb") as f:
-                f.write(r.content)
+            # Strip data sections (Vina SDF parser rejects ">" header lines)
+            content = r.text
+            end = content.find("M  END")
+            if end > 0:
+                content = content[:end + 6] + "\n$$$$\n"
+            with open(ligand_sdf, "w") as f:
+                f.write(content)
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)

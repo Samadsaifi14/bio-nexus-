@@ -530,8 +530,8 @@ class DockingTool(BaseTool):
         if not smiles:
             return {"error": "smiles is required"}
 
-        # Self-heal missing Vina binary (obabel is handled in-process via pybel bindings)
-        global VINA_CMD
+        # Self-heal missing binaries (obabel primarily via in-process pybel bindings)
+        global VINA_CMD, OBABEL_CMD
         if not VINA_CMD or not os.path.isfile(VINA_CMD):
             found = shutil.which("vina")
             if found:
@@ -568,7 +568,6 @@ class DockingTool(BaseTool):
             # 3. Convert protein to PDBQT (in-process pybel → no subprocess, saves ~200+ MB)
             protein_pdbqt = os.path.join(tmpdir, "protein.pdbqt")
             if not _pdb_to_pdbqt_pybel(clean_path, protein_pdbqt):
-                global OBABEL_CMD
                 if not OBABEL_CMD:
                     OBABEL_CMD = _pip_install_obabel()
                 if not OBABEL_CMD:
@@ -586,7 +585,6 @@ class DockingTool(BaseTool):
             # 4. Convert SMILES to 3D PDBQT (in-process pybel → no subprocess)
             ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
             if not _smiles_to_pdbqt_pybel(smiles, ligand_pdbqt):
-                global OBABEL_CMD
                 if not OBABEL_CMD:
                     OBABEL_CMD = _pip_install_obabel()
                 if not OBABEL_CMD:

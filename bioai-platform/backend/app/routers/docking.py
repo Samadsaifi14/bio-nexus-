@@ -9,7 +9,7 @@ import time
 import uuid
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException
 from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
@@ -108,15 +108,16 @@ def _read(job_id: str) -> dict | None:
         return dict(_jobs[job_id]) if job_id in _jobs else None
 
 
-def _worker_sync(job_id: str) -> None:
-    """Run docking job synchronously in a worker thread."""
+async def _worker(job_id: str) -> None:
+    """Run docking job — async on the main event loop (subprocess calls are non-blocking)."""
     job = _read(job_id)
     if not job:
         return
     _patch(job_id, status="preparing")
 
-    from app.tools.docking import run_docking_sync
+    from app.tools.docking import DockingTool
 
+    tool = DockingTool()
     params: dict = {"smiles": job["smiles"]}
     if job.get("pdb_url"):
         params["pdb_url"] = job["pdb_url"]
@@ -124,7 +125,7 @@ def _worker_sync(job_id: str) -> None:
         params["pdb_id"] = job["pdb_id"]
 
     try:
-        result = run_docking_sync(params)
+        result = await tool.run(params)
     except Exception as exc:
         logger.exception("Worker crashed for job %s", job_id)
         _patch(job_id, status="failed", error=str(exc), done_at=time.time())
@@ -167,7 +168,7 @@ async def debug_deps():
 
 
 @router.post("/run")
-async def run_docking(req: DockingRequest):
+async def run_docking(req: DockingRequest, background_tasks: BackgroundTasks):
     if not req.pdb_id.strip() and not req.pdb_url.strip():
         raise HTTPException(400, detail="pdb_id or pdb_url is required")
     if not req.smiles.strip():
@@ -175,8 +176,7 @@ async def run_docking(req: DockingRequest):
 
     job_id = str(uuid.uuid4())
     _init(job_id, req)
-    loop = asyncio.get_running_loop()
-    loop.run_in_executor(None, _worker_sync, job_id)
+    background_tasks.add_task(_worker, job_id)
     return {"job_id": job_id, "status": "queued"}
 
 

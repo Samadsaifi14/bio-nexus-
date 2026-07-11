@@ -535,6 +535,7 @@ class DockingTool(BaseTool):
     name = "docking"
 
     async def run(self, input: dict) -> dict:
+        global VINA_CMD, OBABEL_CMD
         pdb_id = input.get("pdb_id", "").strip().upper()
         pdb_url = input.get("pdb_url", "").strip()
         smiles = input.get("smiles", "").strip()
@@ -545,7 +546,6 @@ class DockingTool(BaseTool):
             return {"error": "smiles is required"}
 
         # Self-heal missing binaries (obabel primarily via in-process pybel bindings)
-        global VINA_CMD, OBABEL_CMD
         if not VINA_CMD or not os.path.isfile(VINA_CMD):
             found = shutil.which("vina")
             if found:

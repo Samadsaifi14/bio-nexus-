@@ -84,8 +84,11 @@ def _pip_install_obabel() -> str | None:
     return _find_obabel()
 
 def _download_vina(dest: str) -> str | None:
-    """Download the Vina binary to *dest*."""
+    """Download the Vina binary to *dest* (60 s socket timeout)."""
+    import socket as _socket
     import urllib.request as _ur
+    old_tmo = _socket.getdefaulttimeout()
+    _socket.setdefaulttimeout(60)
     try:
         logger.info("Downloading AutoDock Vina binary …")
         os.makedirs(os.path.dirname(dest), exist_ok=True)
@@ -93,7 +96,14 @@ def _download_vina(dest: str) -> str | None:
         os.chmod(dest, 0o755)
     except Exception as exc:
         logger.warning("Failed to download Vina: %s", exc)
+        try:
+            if os.path.exists(dest):
+                os.remove(dest)
+        except Exception:
+            pass
         return None
+    finally:
+        _socket.setdefaulttimeout(old_tmo)
     return dest if os.path.isfile(dest) else None
 
 # ── interaction cutoffs ──────────────────────────────────────────────────

@@ -19,7 +19,7 @@ logger = logging.getLogger(__name__)
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
-_SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
+_SMILES2MOL = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/mol"
 
 def _download_vina(dest: str) -> str | None:
     import socket as _socket
@@ -464,20 +464,15 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert SMILES to 3D SDF via NCI CACTUS API
-            ligand_sdf = os.path.join(tmpdir, "ligand.sdf")
-            sdf_url = _SMILES2SDF.format(smiles=urllib.parse.quote(smiles, safe=""))
+            # 3. Convert SMILES to 3D MOL via NCI CACTUS API
+            ligand_mol = os.path.join(tmpdir, "ligand.mol")
+            mol_url = _SMILES2MOL.format(smiles=urllib.parse.quote(smiles, safe=""))
             async with httpx.AsyncClient(timeout=30) as client:
-                r = await client.get(sdf_url)
+                r = await client.get(mol_url)
                 if r.status_code != 200:
-                    return {"error": f"SMILES→SDF conversion failed (HTTP {r.status_code})"}
-            # Strip data sections (Vina SDF parser rejects ">" header lines)
-            content = r.text
-            end = content.find("M  END")
-            if end > 0:
-                content = content[:end + 6] + "\n$$$$\n"
-            with open(ligand_sdf, "w") as f:
-                f.write(content)
+                    return {"error": f"SMILES→3D conversion failed (HTTP {r.status_code})"}
+            with open(ligand_mol, "w") as f:
+                f.write(r.text)
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
@@ -496,7 +491,7 @@ class DockingTool(BaseTool):
                     [
                         VINA_CMD,
                         "--receptor", clean_path,
-                        "--ligand", ligand_sdf,
+                        "--ligand", ligand_mol,
                         "--out", out_pdbqt,
                         "--center_x", str(cx),
                         "--center_y", str(cy),

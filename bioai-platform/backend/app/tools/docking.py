@@ -526,8 +526,8 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Generate 3D ligand from SMILES via RDKit → SDF
-            ligand_sdf = os.path.join(tmpdir, "ligand.sdf")
+            # 3. Generate 3D ligand from SMILES via RDKit → PDB
+            ligand_pdb_file = os.path.join(tmpdir, "ligand.pdb")
             mol = Chem.MolFromSmiles(smiles)
             if mol is None:
                 return {"error": f"Invalid SMILES: {smiles}"}
@@ -535,9 +535,7 @@ class DockingTool(BaseTool):
             if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
                 return {"error": "Failed to generate 3D conformer for ligand"}
             AllChem.UFFOptimizeMolecule(mol)
-            writer = Chem.SDWriter(ligand_sdf)
-            writer.write(mol)
-            writer.close()
+            Chem.MolToPDBFile(mol, ligand_pdb_file)
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
@@ -548,12 +546,12 @@ class DockingTool(BaseTool):
                 cx, cy, cz = _find_protein_center(pdb_content)
                 sx = sy = sz = 30
 
-            # 5. Run Vina (accepts PDB/SDF input natively since v1.2)
+            # 5. Run Vina (accepts PDB input natively since v1.2)
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
             vina_cmd = await asyncio.create_subprocess_exec(
                 VINA_CMD,
                 "--receptor", clean_path,
-                "--ligand", ligand_sdf,
+                "--ligand", ligand_pdb_file,
                 "--out", out_pdbqt,
                 "--center_x", str(cx),
                 "--center_y", str(cy),

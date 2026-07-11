@@ -35,14 +35,24 @@ OBABEL_CMD = _find_obabel()
 
 def _pdb_to_pdbqt_pybel(pdb_path: str, out_path: str) -> bool:
     try:
-        from openbabel import openbabel as ob
-        mol = ob.OBMol()
-        conv = ob.OBConversion()
-        conv.SetInAndOutFormats("pdb", "pdbqt")
-        conv.AddOption("r", ob.OBConversion.OUTOPTIONS)  # rigid receptor (equiv. of obabel -xr)
-        conv.ReadFile(mol, pdb_path)
-        conv.WriteFile(mol, out_path)
-        return os.path.exists(out_path)
+        from openbabel import pybel
+        mol = next(pybel.readfile("pdb", pdb_path))
+        mol.write("pdbqt", out_path, overwrite=True)
+        if not os.path.exists(out_path):
+            return False
+        # PDBQT writer treats the molecule as flexible by default, adding
+        # ROOT/BRANCH/ENDROOT/ENDBRANCH.  For a rigid receptor these tags
+        # cause "Unknown or inappropriate tag found in rigid receptor" from
+        # vina.  Strip them — the ATOM records are already correct.
+        with open(out_path) as _f:
+            _lines = _f.readlines()
+        _keep = [l for l in _lines
+                 if not l.startswith(("ROOT", "ENDROOT", "BRANCH", "ENDBRANCH",
+                                     "TORSDOF", "TORSDEG", "TORSLIB"))]
+        if len(_keep) != len(_lines):
+            with open(out_path, "w") as _f:
+                _f.writelines(_keep)
+        return True
     except Exception:
         return False
 

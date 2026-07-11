@@ -115,10 +115,8 @@ def _worker_sync(job_id: str) -> None:
         return
     _patch(job_id, status="preparing")
 
-    from app.tools.docking import DockingTool
-    import asyncio as _asyncio
+    from app.tools.docking import run_docking_sync
 
-    tool = DockingTool()
     params: dict = {"smiles": job["smiles"]}
     if job.get("pdb_url"):
         params["pdb_url"] = job["pdb_url"]
@@ -126,7 +124,7 @@ def _worker_sync(job_id: str) -> None:
         params["pdb_id"] = job["pdb_id"]
 
     try:
-        result = _asyncio.run(tool.run(params))
+        result = run_docking_sync(params)
     except Exception as exc:
         logger.exception("Worker crashed for job %s", job_id)
         _patch(job_id, status="failed", error=str(exc), done_at=time.time())

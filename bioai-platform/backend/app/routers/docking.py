@@ -139,31 +139,18 @@ async def _worker(job_id: str) -> None:
 
 @router.get("/debug")
 async def debug_deps():
-    """Isolate crash — test imports and binaries one step at a time."""
-    import os, sys, shutil, subprocess as _sp
+    import os, sys, shutil
     steps = {}
-
     steps["python"] = sys.version
     steps["vina_in_path"] = shutil.which("vina") or "NOT FOUND"
-
     try:
-        from app.tools.docking import VINA_CMD, OBABEL_CMD
+        from app.tools.docking import VINA_CMD
         steps["VINA_CMD"] = VINA_CMD or "None"
-        steps["OBABEL_CMD"] = OBABEL_CMD or "None"
+        steps["rdkit"] = __import__("rdkit").__version__
     except Exception as e:
         steps["import_error"] = str(e)
-
-    if OBABEL_CMD:
-        try:
-            r = _sp.run([OBABEL_CMD, "--version"], capture_output=True, timeout=10, text=True)
-            steps["obabel_version"] = r.stdout.strip() or r.stderr.strip()
-            steps["obabel_rc"] = r.returncode
-        except Exception as e:
-            steps["obabel_error"] = str(e)
-
     steps["tempdir"] = __import__("tempfile").gettempdir()
     steps["cwd"] = os.getcwd()
-
     return steps
 
 

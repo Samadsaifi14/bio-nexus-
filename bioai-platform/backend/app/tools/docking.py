@@ -5,47 +5,21 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
 from typing import Any
 
 import httpx
+from rdkit import Chem
+from rdkit.Chem import AllChem
 
 from app.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
-def _find_obabel() -> str | None:
-    """Locate the obabel CLI — check PATH first, then Python's bin dir (openbabel-wheel installs there), then common system paths."""
-    cmd = shutil.which("obabel")
-    if cmd:
-        return cmd
-    extra = os.pathsep.join([
-        os.path.dirname(sys.executable) if sys.executable else "",
-        "/usr/local/bin",
-        "/usr/bin",
-    ])
-    return shutil.which("obabel", path=extra)
-
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
-OBABEL_CMD = _find_obabel()
-
-# ── self-healing binary download ─────────────────────────────────────────
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
-
-def _pip_install_obabel() -> str | None:
-    """Install openbabel CLI via pip and return the obabel path."""
-    import subprocess as _sp
-    logger.info("obabel not found — installing openbabel-wheel via pip")
-    try:
-        _sp.run([sys.executable, "-m", "pip", "install", "openbabel-wheel", "-q"],
-                capture_output=True, timeout=120)
-    except Exception as exc:
-        logger.warning("pip install openbabel-wheel failed: %s", exc)
-        return None
-    return _find_obabel()
 
 def _download_vina(dest: str) -> str | None:
     """Download the Vina binary to *dest* (60 s socket timeout)."""
@@ -509,7 +483,6 @@ class DockingTool(BaseTool):
     name = "docking"
 
     async def run(self, input: dict) -> dict:
-        global VINA_CMD, OBABEL_CMD
         pdb_id = input.get("pdb_id", "").strip().upper()
         pdb_url = input.get("pdb_url", "").strip()
         smiles = input.get("smiles", "").strip()
@@ -519,7 +492,7 @@ class DockingTool(BaseTool):
         if not smiles:
             return {"error": "smiles is required"}
 
-        # Self-heal missing binaries (obabel primarily via in-process pybel bindings)
+        global VINA_CMD
         if not VINA_CMD or not os.path.isfile(VINA_CMD):
             found = shutil.which("vina")
             if found:
@@ -553,39 +526,20 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert protein to PDBQT (via obabel CLI subprocess)
-            protein_pdbqt = os.path.join(tmpdir, "protein.pdbqt")
-            if not OBABEL_CMD:
-                OBABEL_CMD = _pip_install_obabel()
-            if not OBABEL_CMD:
-                return {"error": "Open Babel not available – cannot prepare protein PDBQT."}
-            proc = await asyncio.create_subprocess_exec(
-                OBABEL_CMD, clean_path, "-O", protein_pdbqt, "-xr",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
-            if proc.returncode != 0 or not os.path.exists(protein_pdbqt):
-                err = stderr.decode() if stderr else "obabel failed"
-                return {"error": f"Protein PDBQT preparation failed: {err}"}
+            # 3. Generate 3D ligand from SMILES via RDKit → SDF
+            ligand_sdf = os.path.join(tmpdir, "ligand.sdf")
+            mol = Chem.MolFromSmiles(smiles)
+            if mol is None:
+                return {"error": f"Invalid SMILES: {smiles}"}
+            mol = Chem.AddHs(mol)
+            if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
+                return {"error": "Failed to generate 3D conformer for ligand"}
+            AllChem.UFFOptimizeMolecule(mol)
+            writer = Chem.SDWriter(ligand_sdf)
+            writer.write(mol)
+            writer.close()
 
-            # 4. Convert SMILES to 3D PDBQT (via obabel CLI subprocess)
-            ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
-            if not OBABEL_CMD:
-                OBABEL_CMD = _pip_install_obabel()
-            if not OBABEL_CMD:
-                return {"error": "Open Babel not available – cannot prepare ligand PDBQT."}
-            proc = await asyncio.create_subprocess_exec(
-                OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
-            if proc.returncode != 0 or not os.path.exists(ligand_pdbqt):
-                err = stderr.decode() if stderr else "obabel failed"
-                return {"error": f"Ligand PDBQT preparation failed: {err}"}
-
-            # 5. Determine binding site box
+            # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
             if center:
                 cx, cy, cz = center
@@ -594,12 +548,12 @@ class DockingTool(BaseTool):
                 cx, cy, cz = _find_protein_center(pdb_content)
                 sx = sy = sz = 30
 
-            # 6. Run Vina
+            # 5. Run Vina (accepts PDB/SDF input natively since v1.2)
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
             vina_cmd = await asyncio.create_subprocess_exec(
                 VINA_CMD,
-                "--receptor", protein_pdbqt,
-                "--ligand", ligand_pdbqt,
+                "--receptor", clean_path,
+                "--ligand", ligand_sdf,
                 "--out", out_pdbqt,
                 "--center_x", str(cx),
                 "--center_y", str(cy),
@@ -623,14 +577,14 @@ class DockingTool(BaseTool):
                 err = stderr.decode("utf-8", errors="replace")[:500] if stderr else ""
                 return {"error": f"Vina failed (exit {vina_cmd.returncode}): {err}"}
 
-            # 7. Parse results
+            # 6. Parse results
             with open(out_pdbqt) as f:
                 out_content = f.read()
 
             poses = _parse_vina_pdbqt(out_content)
             log = stdout.decode() if stdout else ""
 
-            # 8. Run interaction fingerprinting on best pose
+            # 7. Run interaction fingerprinting on best pose
             interactions: dict[str, Any] = {"hbonds": [], "hydrophobic": [], "pi_stacking": []}
             ligand_pdb: str = ""
             if poses:
@@ -640,7 +594,7 @@ class DockingTool(BaseTool):
                     ligand_pdb = _generate_ligand_pdb(coords)
                     interactions = _analyze_interactions(coords, cleaned)
 
-            # 9. Build per-pose interaction summary
+            # 8. Build per-pose interaction summary
             pose_interactions: list[dict] = []
             for pose in poses:
                 pc = pose.get("coords", [])

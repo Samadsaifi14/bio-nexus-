@@ -174,8 +174,14 @@ def _generate_ligand_pdb(
     lines.append("END")
     return "\n".join(lines)
 
-def _molblock_to_pdb(sdf_content: str) -> str:
-    """Convert SDF V2000 mol block to minimal PDB."""
+_AD_TYPE = {
+    "C": "C", "N": "N", "O": "OA", "S": "S", "P": "P",
+    "F": "F", "CL": "Cl", "BR": "Br", "I": "I",
+    "H": "H", "B": "B",
+}
+
+def _molblock_to_pdbqt(sdf_content: str) -> str:
+    """Convert SDF V2000 mol block to minimal PDBQT."""
     lines = sdf_content.splitlines()
     if len(lines) < 4:
         return ""
@@ -184,7 +190,7 @@ def _molblock_to_pdb(sdf_content: str) -> str:
     except (ValueError, IndexError):
         return ""
     atom_lines = lines[4:4 + num_atoms]
-    pdb_lines = []
+    pdbqt_lines = ["ROOT"]
     for i, line in enumerate(atom_lines, start=1):
         try:
             x = float(line[0:10].strip())
@@ -193,14 +199,16 @@ def _molblock_to_pdb(sdf_content: str) -> str:
         except (ValueError, IndexError):
             continue
         elem = line[30:33].strip().upper() or "C"
-        pdb_lines.append(
-            f"HETATM{i:>5}  {elem:<2}  LIG L   1    "
-            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  1.00  0.00           {elem:>2}"
+        ad_type = _AD_TYPE.get(elem, "C")
+        pdbqt_lines.append(
+            f"ATOM      {i:>4}  {elem:<2}  LIG L   1        "
+            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}  "
+            f"  1.00  0.00    {ad_type:>6}"
         )
-    if not pdb_lines:
+    pdbqt_lines.append("ENDROOT")
+    if not pdbqt_lines:
         return ""
-    pdb_lines.append("END")
-    return "\n".join(pdb_lines)
+    return "\n".join(pdbqt_lines)
 
 def _parse_protein_atoms(cleaned_pdb: str) -> list[dict[str, Any]]:
     atoms: list[dict[str, Any]] = []
@@ -492,18 +500,18 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert SMILES to 3D PDB via NCI CACTUS API + SDF→PDB conversion
-            ligand_pdb_file = os.path.join(tmpdir, "ligand.pdb")
+            # 3. Convert SMILES to 3D PDBQT via NCI CACTUS API + SDF→PDBQT conversion
+            ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
             sdf_url = _SMILES2SDF.format(smiles=urllib.parse.quote(smiles, safe=""))
             async with httpx.AsyncClient(timeout=30) as client:
                 r = await client.get(sdf_url)
                 if r.status_code != 200:
                     return {"error": f"SMILES→3D conversion failed (HTTP {r.status_code})"}
-            pdb_content = _molblock_to_pdb(r.text)
-            if not pdb_content:
+            pdbqt_content = _molblock_to_pdbqt(r.text)
+            if not pdbqt_content:
                 return {"error": "Failed to parse 3D structure from SMILES"}
-            with open(ligand_pdb_file, "w") as f:
-                f.write(pdb_content)
+            with open(ligand_pdbqt, "w") as f:
+                f.write(pdbqt_content)
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
@@ -522,7 +530,7 @@ class DockingTool(BaseTool):
                     [
                         VINA_CMD,
                         "--receptor", clean_path,
-                        "--ligand", ligand_pdb_file,
+                        "--ligand", ligand_pdbqt,
                         "--out", out_pdbqt,
                         "--center_x", str(cx),
                         "--center_y", str(cy),

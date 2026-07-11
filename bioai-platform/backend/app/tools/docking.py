@@ -35,9 +35,13 @@ OBABEL_CMD = _find_obabel()
 
 def _pdb_to_pdbqt_pybel(pdb_path: str, out_path: str) -> bool:
     try:
-        from openbabel import pybel
-        mol = next(pybel.readfile("pdb", pdb_path))
-        mol.write("pdbqt", out_path, overwrite=True)
+        from openbabel import openbabel as ob
+        mol = ob.OBMol()
+        conv = ob.OBConversion()
+        conv.SetInAndOutFormats("pdb", "pdbqt")
+        conv.AddOption("r", ob.OBConversion.OUTOPTIONS)  # rigid receptor (equiv. of obabel -xr)
+        conv.ReadFile(mol, pdb_path)
+        conv.WriteFile(mol, out_path)
         return os.path.exists(out_path)
     except Exception:
         return False

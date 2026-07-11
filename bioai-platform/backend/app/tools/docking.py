@@ -4,6 +4,7 @@ import math
 import os
 import re
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -560,8 +561,8 @@ class DockingTool(BaseTool):
                 return {"error": "Open Babel not available – cannot prepare protein PDBQT."}
             proc = await asyncio.create_subprocess_exec(
                 OBABEL_CMD, clean_path, "-O", protein_pdbqt, "-xr",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
             _, stderr = await proc.communicate()
             if proc.returncode != 0 or not os.path.exists(protein_pdbqt):
@@ -576,8 +577,8 @@ class DockingTool(BaseTool):
                 return {"error": "Open Babel not available – cannot prepare ligand PDBQT."}
             proc = await asyncio.create_subprocess_exec(
                 OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
             _, stderr = await proc.communicate()
             if proc.returncode != 0 or not os.path.exists(ligand_pdbqt):
@@ -608,8 +609,8 @@ class DockingTool(BaseTool):
                 "--size_z", str(sz),
                 "--exhaustiveness", "3",
                 "--num_modes", "5",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
             )
             try:
                 stdout, stderr = await asyncio.wait_for(vina_cmd.communicate(), timeout=600)

@@ -492,16 +492,18 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert SMILES to 3D PDBQT via obabel CLI subprocess
+            # 3. Convert SMILES to 3D PDBQT via obabel CLI (in thread)
             ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
-            proc = await asyncio.create_subprocess_exec(
-                OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
-            _, stderr = await proc.communicate()
-            if proc.returncode != 0 or not os.path.exists(ligand_pdbqt):
-                err = stderr.decode() if stderr else "obabel failed"
+            try:
+                r = await asyncio.to_thread(
+                    subprocess.run,
+                    [OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h"],
+                    capture_output=True, timeout=120,
+                )
+            except subprocess.TimeoutExpired:
+                return {"error": "obabel timed out converting SMILES to 3D"}
+            if r.returncode != 0 or not os.path.exists(ligand_pdbqt):
+                err = r.stderr.decode() if r.stderr else "obabel failed"
                 return {"error": f"Ligand PDBQT preparation failed: {err}"}
 
             # 4. Determine binding site box
@@ -513,34 +515,34 @@ class DockingTool(BaseTool):
                 cx, cy, cz = _find_protein_center(pdb_content)
                 sx = sy = sz = 30
 
-            # 5. Run Vina (receptor PDB, ligand PDBQT — Vina 1.2 reads PDB natively)
+            # 5. Run Vina (in thread)
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
-            vina_cmd = await asyncio.create_subprocess_exec(
-                VINA_CMD,
-                "--receptor", clean_path,
-                "--ligand", ligand_pdbqt,
-                "--out", out_pdbqt,
-                "--center_x", str(cx),
-                "--center_y", str(cy),
-                "--center_z", str(cz),
-                "--size_x", str(sx),
-                "--size_y", str(sy),
-                "--size_z", str(sz),
-                "--exhaustiveness", "3",
-                "--num_modes", "5",
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-            )
             try:
-                stdout, stderr = await asyncio.wait_for(vina_cmd.communicate(), timeout=600)
-            except asyncio.TimeoutError:
-                vina_cmd.kill()
-                await vina_cmd.communicate()
+                r = await asyncio.to_thread(
+                    subprocess.run,
+                    [
+                        VINA_CMD,
+                        "--receptor", clean_path,
+                        "--ligand", ligand_pdbqt,
+                        "--out", out_pdbqt,
+                        "--center_x", str(cx),
+                        "--center_y", str(cy),
+                        "--center_z", str(cz),
+                        "--size_x", str(sx),
+                        "--size_y", str(sy),
+                        "--size_z", str(sz),
+                        "--exhaustiveness", "3",
+                        "--num_modes", "5",
+                    ],
+                    capture_output=True, timeout=600,
+                )
+            except subprocess.TimeoutExpired:
                 return {"error": "Docking timed out after 10 minutes"}
 
-            if vina_cmd.returncode != 0 or not os.path.exists(out_pdbqt):
-                err = stderr.decode("utf-8", errors="replace")[:500] if stderr else ""
-                return {"error": f"Vina failed (exit {vina_cmd.returncode}): {err}"}
+            if r.returncode != 0 or not os.path.exists(out_pdbqt):
+                err = r.stderr.decode("utf-8", errors="replace")[:500] if r.stderr else ""
+                return {"error": f"Vina failed (exit {r.returncode}): {err}"}
+            stdout, stderr = r.stdout, r.stderr
 
             # 6. Parse results
             with open(out_pdbqt) as f:

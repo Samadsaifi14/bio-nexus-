@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-echo "==> Installing Python dependencies (openbabel-wheel for obabel CLI)"
+echo "==> Installing Python dependencies"
 pip install -r requirements.txt
 
 echo "==> Downloading AutoDock Vina binary …"

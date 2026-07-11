@@ -5,9 +5,9 @@ import os
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 import time
+import urllib.parse
 from typing import Any
 
 import httpx
@@ -17,32 +17,9 @@ from app.tools.base import BaseTool
 logger = logging.getLogger(__name__)
 
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
-
-def _find_obabel() -> str | None:
-    cmd = shutil.which("obabel")
-    if cmd:
-        return cmd
-    extra = os.pathsep.join([
-        os.path.dirname(sys.executable) if sys.executable else "",
-        "/usr/local/bin",
-        "/usr/bin",
-    ])
-    return shutil.which("obabel", path=extra)
-
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
-OBABEL_CMD = _find_obabel()
-
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
-
-def _pip_install_obabel() -> str | None:
-    logger.info("obabel not found — installing openbabel-wheel via pip")
-    try:
-        subprocess.run([sys.executable, "-m", "pip", "install", "openbabel-wheel", "-q"],
-                capture_output=True, timeout=120)
-    except Exception as exc:
-        logger.warning("pip install openbabel-wheel failed: %s", exc)
-        return None
-    return _find_obabel()
+_SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
 def _download_vina(dest: str) -> str | None:
     import socket as _socket
@@ -444,7 +421,7 @@ class DockingTool(BaseTool):
     name = "docking"
 
     async def run(self, input: dict) -> dict:
-        global VINA_CMD, OBABEL_CMD
+        global VINA_CMD
         pdb_id = input.get("pdb_id", "").strip().upper()
         pdb_url = input.get("pdb_url", "").strip()
         smiles = input.get("smiles", "").strip()
@@ -465,11 +442,6 @@ class DockingTool(BaseTool):
                     VINA_CMD = dl
         if not VINA_CMD:
             return {"error": "Dependencies missing: AutoDock Vina is not installed on the server and could not be downloaded."}
-
-        if not OBABEL_CMD:
-            OBABEL_CMD = _pip_install_obabel()
-        if not OBABEL_CMD:
-            return {"error": "Open Babel not available – cannot prepare ligand PDBQT."}
 
         tmpdir = tempfile.mkdtemp(prefix="docking_")
         try:
@@ -492,19 +464,15 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Convert SMILES to 3D PDBQT via obabel CLI (in thread)
-            ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
-            try:
-                r = await asyncio.to_thread(
-                    subprocess.run,
-                    [OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h"],
-                    capture_output=True, timeout=120,
-                )
-            except subprocess.TimeoutExpired:
-                return {"error": "obabel timed out converting SMILES to 3D"}
-            if r.returncode != 0 or not os.path.exists(ligand_pdbqt):
-                err = r.stderr.decode() if r.stderr else "obabel failed"
-                return {"error": f"Ligand PDBQT preparation failed: {err}"}
+            # 3. Convert SMILES to 3D SDF via NCI CACTUS API
+            ligand_sdf = os.path.join(tmpdir, "ligand.sdf")
+            sdf_url = _SMILES2SDF.format(smiles=urllib.parse.quote(smiles, safe=""))
+            async with httpx.AsyncClient(timeout=30) as client:
+                r = await client.get(sdf_url)
+                if r.status_code != 200:
+                    return {"error": f"SMILES→SDF conversion failed (HTTP {r.status_code})"}
+            with open(ligand_sdf, "wb") as f:
+                f.write(r.content)
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
@@ -523,7 +491,7 @@ class DockingTool(BaseTool):
                     [
                         VINA_CMD,
                         "--receptor", clean_path,
-                        "--ligand", ligand_pdbqt,
+                        "--ligand", ligand_sdf,
                         "--out", out_pdbqt,
                         "--center_x", str(cx),
                         "--center_y", str(cy),

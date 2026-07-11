@@ -144,9 +144,8 @@ async def debug_deps():
     steps["python"] = sys.version
     steps["vina_in_path"] = shutil.which("vina") or "NOT FOUND"
     try:
-        from app.tools.docking import VINA_CMD, OBABEL_CMD
+        from app.tools.docking import VINA_CMD
         steps["VINA_CMD"] = VINA_CMD or "None"
-        steps["OBABEL_CMD"] = OBABEL_CMD or "None"
     except Exception as e:
         steps["import_error"] = str(e)
     steps["tempdir"] = __import__("tempfile").gettempdir()

@@ -5,24 +5,46 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import time
 from typing import Any
 
 import httpx
-from rdkit import Chem
-from rdkit.Chem import AllChem
 
 from app.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
 PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
+
+def _find_obabel() -> str | None:
+    cmd = shutil.which("obabel")
+    if cmd:
+        return cmd
+    extra = os.pathsep.join([
+        os.path.dirname(sys.executable) if sys.executable else "",
+        "/usr/local/bin",
+        "/usr/bin",
+    ])
+    return shutil.which("obabel", path=extra)
+
 VINA_CMD = shutil.which("vina") or "/usr/local/bin/vina"
+OBABEL_CMD = _find_obabel()
+
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 
+def _pip_install_obabel() -> str | None:
+    logger.info("obabel not found — installing openbabel-wheel via pip")
+    try:
+        subprocess.run([sys.executable, "-m", "pip", "install", "openbabel-wheel", "-q"],
+                capture_output=True, timeout=120)
+    except Exception as exc:
+        logger.warning("pip install openbabel-wheel failed: %s", exc)
+        return None
+    return _find_obabel()
+
 def _download_vina(dest: str) -> str | None:
-    """Download the Vina binary to *dest* (60 s socket timeout)."""
     import socket as _socket
     import urllib.request as _ur
     old_tmo = _socket.getdefaulttimeout()
@@ -45,17 +67,14 @@ def _download_vina(dest: str) -> str | None:
     return dest if os.path.isfile(dest) else None
 
 # ── interaction cutoffs ──────────────────────────────────────────────────
-HBOND_DIST = 3.5      # donor–acceptor heavy-atom distance (Å)
+HBOND_DIST = 3.5
 HYDROPHOBIC_DIST = 4.0
 PI_STACK_CENTROID_DIST = 4.5
-PI_STACK_ANGLE_TOL = 30  # degrees from parallel/perpendicular
+PI_STACK_ANGLE_TOL = 30
 
 AROMATIC_RESIDUES = {"PHE", "TYR", "TRP", "HIS"}
 AROMATIC_ATOMS = {"CG", "CD1", "CD2", "CE1", "CE2", "CZ", "CZ2", "CZ3", "CH2", "ND1", "NE1", "CD", "NE2"}
-# ring centroids used: PHE, TYR, TRP(five+six), HIS
 
-
-# ── helpers ──────────────────────────────────────────────────────────────
 def _find_ligand_center(pdb_content: str) -> tuple[float, float, float] | None:
     het_atoms: list[list[tuple[float, float, float]]] = []
     current_het: list[tuple[float, float, float]] = []
@@ -95,7 +114,6 @@ def _find_ligand_center(pdb_content: str) -> tuple[float, float, float] | None:
     cz = sum(a[2] for a in largest) / len(largest)
     return cx, cy, cz
 
-
 def _find_protein_center(pdb_content: str) -> tuple[float, float, float]:
     xs, ys, zs = [], [], []
     for line in pdb_content.splitlines():
@@ -110,7 +128,6 @@ def _find_protein_center(pdb_content: str) -> tuple[float, float, float]:
         return 0.0, 0.0, 0.0
     return sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)
 
-
 def _clean_protein(pdb_content: str) -> str:
     lines: list[str] = []
     for line in pdb_content.splitlines():
@@ -122,8 +139,6 @@ def _clean_protein(pdb_content: str) -> str:
             lines.append(line)
     return "\n".join(lines)
 
-
-# ── parsing Vina output ─────────────────────────────────────────────────
 def _parse_vina_pdbqt(pdbqt: str) -> list[dict[str, Any]]:
     models = re.split(r"^MODEL\s+(\d+)", pdbqt, flags=re.MULTILINE)
     poses: list[dict[str, Any]] = []
@@ -162,8 +177,6 @@ def _parse_vina_pdbqt(pdbqt: str) -> list[dict[str, Any]]:
                 current_atoms = []
     return poses
 
-
-# ── generating ligand PDB from coords ───────────────────────────────────
 def _generate_ligand_pdb(
     coords: list[dict[str, Any]],
     resname: str = "LIG",
@@ -184,8 +197,6 @@ def _generate_ligand_pdb(
     lines.append("END")
     return "\n".join(lines)
 
-
-# ── interaction fingerprinting ──────────────────────────────────────────
 def _parse_protein_atoms(cleaned_pdb: str) -> list[dict[str, Any]]:
     atoms: list[dict[str, Any]] = []
     for line in cleaned_pdb.splitlines():
@@ -207,34 +218,27 @@ def _parse_protein_atoms(cleaned_pdb: str) -> list[dict[str, Any]]:
         })
     return atoms
 
-
 def _dist(a: dict, b: dict) -> float:
     dx = a["x"] - b["x"]
     dy = a["y"] - b["y"]
     dz = a["z"] - b["z"]
     return math.sqrt(dx * dx + dy * dy + dz * dz)
 
-
 def _is_donor(elem: str) -> bool:
     return elem in ("N", "O")
-
 
 def _is_acceptor(elem: str) -> bool:
     return elem in ("N", "O", "F")
 
-
 def _is_hydrophobic(elem: str) -> bool:
     return elem == "C"
-
 
 def _is_side_chain(atom_name: str) -> bool:
     return atom_name not in ("N", "CA", "C", "O", "OXT", "H", "HA")
 
-
 def _find_aromatic_ring_atoms(
     atoms: list[dict[str, Any]],
 ) -> list[list[dict[str, Any]]]:
-    """Group atoms belonging to aromatic rings (PHE, TYR, TRP, HIS)."""
     rings: list[list[dict[str, Any]]] = []
     for resname, chain, resno in {(a["resname"], a["chain"], a["residue_no"]) for a in atoms}:
         if resname not in AROMATIC_RESIDUES:
@@ -250,11 +254,6 @@ def _find_aromatic_ring_atoms(
             continue
 
         if resname == "TRP":
-            # TRP has two rings (five-membered and six-membered)
-            five = [a for a in ring_atoms if a["atom_name"] in ("CG", "CD1", "CD2", "CE2", "NE1") or a["atom_name"] == "CD"]
-            six = [a for a in ring_atoms if a["atom_name"] in ("CZ2", "CZ3", "CE3", "CH2")]
-            # Actually TRP: 5-ring = ND1, CE2, CD2, CG, CD1; 6-ring = CZ2, CE2, CZ3, CE3, CH2, CD2
-            # Let me just split by whether they fall in the six-membered set
             five_ring_atoms = [
                 a for a in ring_atoms
                 if a["atom_name"] in ("CG", "CD1", "CD2", "NE1", "CE2", "CD")
@@ -268,12 +267,9 @@ def _find_aromatic_ring_atoms(
             if len(six_ring_atoms) >= 4:
                 rings.append(six_ring_atoms)
         elif resname == "HIS":
-            # HIS single ring
             if len(ring_atoms) >= 4:
                 rings.append(ring_atoms)
         else:
-            # PHE / TYR single six-ring
-            # CG, CD1, CD2, CE1, CE2, CZ
             six_atoms = [
                 a for a in ring_atoms
                 if a["atom_name"] in ("CG", "CD1", "CD2", "CE1", "CE2", "CZ")
@@ -282,18 +278,14 @@ def _find_aromatic_ring_atoms(
                 rings.append(six_atoms)
     return rings
 
-
 def _centroid(atoms: list[dict[str, Any]]) -> tuple[float, float, float]:
     cx = sum(a["x"] for a in atoms) / len(atoms)
     cy = sum(a["y"] for a in atoms) / len(atoms)
     cz = sum(a["z"] for a in atoms) / len(atoms)
     return cx, cy, cz
 
-
 def _plane_normal(atoms: list[dict[str, Any]]) -> tuple[float, float, float]:
-    """Least-squares plane normal via SVD of centroid-offset vectors."""
     cx, cy, cz = _centroid(atoms)
-    # 3×3 covariance
     xx = xy = xz = yy = yz = zz = 0.0
     for a in atoms:
         dx = a["x"] - cx
@@ -305,9 +297,7 @@ def _plane_normal(atoms: list[dict[str, Any]]) -> tuple[float, float, float]:
         yy += dy * dy
         yz += dy * dz
         zz += dz * dz
-    # eigenvector of smallest eigenvalue via cross-product trick
     cov = [[xx, xy, xz], [xy, yy, yz], [xz, yz, zz]]
-    # power iteration
     v = [1.0, 0.0, 0.0]
     for _ in range(20):
         v_new = [
@@ -319,28 +309,21 @@ def _plane_normal(atoms: list[dict[str, Any]]) -> tuple[float, float, float]:
         if norm < 1e-12:
             break
         v = [x / norm for x in v_new]
-    # v is the vector of largest eigenvalue → plane normal is orthogonal
-    # We want the smallest eigenvector. Use cross product of two in-plane vectors.
-    # Use Gram-Schmidt to find two orthogonal vectors in the plane.
-    # Pick two atoms far apart for the first in-plane vector.
     if len(atoms) >= 3:
         a0, a1 = atoms[0], atoms[len(atoms)//2]
         dx = a1["x"] - a0["x"]
         dy = a1["y"] - a0["y"]
         dz = a1["z"] - a0["z"]
-        # Project out component along v
         dot = dx * v[0] + dy * v[1] + dz * v[2]
         u1 = [dx - dot * v[0], dy - dot * v[1], dz - dot * v[2]]
         norm = math.sqrt(u1[0]**2 + u1[1]**2 + u1[2]**2)
         if norm > 1e-10:
             u1 = [x / norm for x in u1]
-            # second in-plane vector = cross(v, u1)
             u2 = [
                 v[1] * u1[2] - v[2] * u1[1],
                 v[2] * u1[0] - v[0] * u1[2],
                 v[0] * u1[1] - v[1] * u1[0],
             ]
-            # normal = cross(u1, u2)
             n = [
                 u1[1] * u2[2] - u1[2] * u2[1],
                 u1[2] * u2[0] - u1[0] * u2[2],
@@ -351,12 +334,10 @@ def _plane_normal(atoms: list[dict[str, Any]]) -> tuple[float, float, float]:
                 return (n[0]/norm, n[1]/norm, n[2]/norm)
     return (0.0, 0.0, 1.0)
 
-
 def _angle_between(v1: tuple[float, ...], v2: tuple[float, ...]) -> float:
     dot = v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]
     dot = max(-1.0, min(1.0, dot))
     return math.degrees(math.acos(dot))
-
 
 def _analyze_interactions(
     ligand_coords: list[dict[str, Any]],
@@ -366,12 +347,10 @@ def _analyze_interactions(
     if not protein_atoms:
         return {"hbonds": [], "hydrophobic": [], "pi_stacking": []}
 
-    # Precompute protein atom KD-tree-like search via simple loops
     hbonds: list[dict[str, Any]] = []
     hydrophobic: list[dict[str, Any]] = []
     pi_stacking: list[dict[str, Any]] = []
 
-    # ── H-bonds and hydrophobic contacts ──
     for lig_atom in ligand_coords:
         lig_elem = lig_atom["element"]
         lig_is_donor = _is_donor(lig_elem)
@@ -383,7 +362,6 @@ def _analyze_interactions(
             prot_elem = prot_atom["element"]
             prot_name = prot_atom["atom_name"]
 
-            # H-bonds
             if d <= HBOND_DIST:
                 if lig_is_donor and _is_acceptor(prot_elem):
                     hbonds.append({
@@ -406,7 +384,6 @@ def _analyze_interactions(
                         "confidence": "potential",
                     })
 
-            # Hydrophobic
             if d <= HYDROPHOBIC_DIST and lig_is_hydrophobic and _is_hydrophobic(prot_elem):
                 if _is_side_chain(prot_name):
                     hydrophobic.append({
@@ -418,7 +395,6 @@ def _analyze_interactions(
                         "distance": round(d, 2),
                     })
 
-    # Deduplicate H-bonds (keep shortest distance per residue pair)
     hbonds_dedup: dict[str, dict] = {}
     for hb in hbonds:
         key = (hb["protein_residue"], hb["ligand_atom"])
@@ -426,7 +402,6 @@ def _analyze_interactions(
             hbonds_dedup[key] = hb
     unique_hbonds = sorted(hbonds_dedup.values(), key=lambda x: x["distance"])
 
-    # Deduplicate hydrophobic (keep shortest)
     hydro_dedup: dict[str, dict] = {}
     for hc in hydrophobic:
         key = (hc["protein_residue"], hc["ligand_atom"])
@@ -434,29 +409,17 @@ def _analyze_interactions(
             hydro_dedup[key] = hc
     unique_hydro = sorted(hydro_dedup.values(), key=lambda x: x["distance"])
 
-    # ── Pi-stacking ──
-    # Detect aromatic rings in ligand
     lig_elements = {a["element"] for a in ligand_coords}
     if "C" in lig_elements:
-        # Heuristic: look for planar ring-like patterns in the ligand
-        # For now, skip full ligand ring detection and check distances
-        # between protein aromatic centroids and ligand carbons
         pass
 
-    # Find protein aromatic rings
     protein_rings = _find_aromatic_ring_atoms(protein_atoms)
     if protein_rings:
-        # Find ligand atoms that might be aromatic (C atoms in planar arrangement)
-        # Simplified: check any large cluster of C's
         for ring in protein_rings:
             p_centroid = _centroid(ring)
             p_normal = _plane_normal(ring)
-            # Check distance to other aromatic candidate centroids in ligand
-            # Use nearby C atoms as a proxy
             lig_carbons = [a for a in ligand_coords if a["element"] == "C"]
             if len(lig_carbons) >= 4:
-                # Try to group carbons into ring-sized clusters
-                # For simplicity, check centroid of all carbons
                 lig_centroid = _centroid(lig_carbons)
                 cd = math.sqrt(
                     (p_centroid[0] - lig_centroid[0])**2 +
@@ -477,12 +440,11 @@ def _analyze_interactions(
         "pi_stacking": pi_stacking[:5],
     }
 
-
-# ── tool ─────────────────────────────────────────────────────────────────
 class DockingTool(BaseTool):
     name = "docking"
 
     async def run(self, input: dict) -> dict:
+        global VINA_CMD, OBABEL_CMD
         pdb_id = input.get("pdb_id", "").strip().upper()
         pdb_url = input.get("pdb_url", "").strip()
         smiles = input.get("smiles", "").strip()
@@ -492,7 +454,6 @@ class DockingTool(BaseTool):
         if not smiles:
             return {"error": "smiles is required"}
 
-        global VINA_CMD
         if not VINA_CMD or not os.path.isfile(VINA_CMD):
             found = shutil.which("vina")
             if found:
@@ -504,6 +465,11 @@ class DockingTool(BaseTool):
                     VINA_CMD = dl
         if not VINA_CMD:
             return {"error": "Dependencies missing: AutoDock Vina is not installed on the server and could not be downloaded."}
+
+        if not OBABEL_CMD:
+            OBABEL_CMD = _pip_install_obabel()
+        if not OBABEL_CMD:
+            return {"error": "Open Babel not available – cannot prepare ligand PDBQT."}
 
         tmpdir = tempfile.mkdtemp(prefix="docking_")
         try:
@@ -526,16 +492,17 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
-            # 3. Generate 3D ligand from SMILES via RDKit → PDB
-            ligand_pdb_file = os.path.join(tmpdir, "ligand.pdb")
-            mol = Chem.MolFromSmiles(smiles)
-            if mol is None:
-                return {"error": f"Invalid SMILES: {smiles}"}
-            mol = Chem.AddHs(mol)
-            if AllChem.EmbedMolecule(mol, randomSeed=42) != 0:
-                return {"error": "Failed to generate 3D conformer for ligand"}
-            AllChem.UFFOptimizeMolecule(mol)
-            Chem.MolToPDBFile(mol, ligand_pdb_file)
+            # 3. Convert SMILES to 3D PDBQT via obabel CLI subprocess
+            ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
+            proc = await asyncio.create_subprocess_exec(
+                OBABEL_CMD, f"-:{smiles}", "-O", ligand_pdbqt, "--gen3d", "-h",
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+            _, stderr = await proc.communicate()
+            if proc.returncode != 0 or not os.path.exists(ligand_pdbqt):
+                err = stderr.decode() if stderr else "obabel failed"
+                return {"error": f"Ligand PDBQT preparation failed: {err}"}
 
             # 4. Determine binding site box
             center = _find_ligand_center(pdb_content)
@@ -546,12 +513,12 @@ class DockingTool(BaseTool):
                 cx, cy, cz = _find_protein_center(pdb_content)
                 sx = sy = sz = 30
 
-            # 5. Run Vina (accepts PDB input natively since v1.2)
+            # 5. Run Vina (receptor PDB, ligand PDBQT — Vina 1.2 reads PDB natively)
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
             vina_cmd = await asyncio.create_subprocess_exec(
                 VINA_CMD,
                 "--receptor", clean_path,
-                "--ligand", ligand_pdb_file,
+                "--ligand", ligand_pdbqt,
                 "--out", out_pdbqt,
                 "--center_x", str(cx),
                 "--center_y", str(cy),

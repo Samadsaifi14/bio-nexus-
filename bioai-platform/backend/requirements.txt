@@ -11,5 +11,5 @@ python-dotenv
 supabase
 reportlab
 pydantic[email]
-rdkit
+openbabel-wheel
 # primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)

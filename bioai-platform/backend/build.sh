@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-echo "==> Installing Python dependencies (rdkit for SMILES→3D, no openbabel)"
+echo "==> Installing Python dependencies (openbabel-wheel for obabel CLI)"
 pip install -r requirements.txt
 
 echo "==> Downloading AutoDock Vina binary …"

@@ -208,6 +208,7 @@ def _molblock_to_pdbqt(sdf_content: str) -> str:
             f"  0.00  0.00  {charge:>8.3f} {ad_type:>2}"
         )
     pdbqt_lines.append("ENDROOT")
+    pdbqt_lines.append("TORSDOF 0")
     if not pdbqt_lines:
         return ""
     return "\n".join(pdbqt_lines)

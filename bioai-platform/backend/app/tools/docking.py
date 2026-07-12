@@ -204,7 +204,7 @@ def _molblock_to_pdbqt(sdf_content: str) -> str:
         pdbqt_lines.append(
             f"ATOM  {i:>5} {atom_name} LIG     1    "
             f"{x:>8.3f}{y:>8.3f}{z:>8.3f}"
-            f"  0.00  0.00   0.000 {ad_type}"
+            f"  0.00  0.00   0.000   {ad_type:<3}"
         )
     pdbqt_lines.append("ENDROOT")
     if not pdbqt_lines:

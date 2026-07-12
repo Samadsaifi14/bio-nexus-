@@ -1,5 +1,6 @@
 import logging
 import os
+from datetime import datetime, timezone, timedelta
 
 import sentry_sdk
 from dotenv import load_dotenv
@@ -100,6 +101,41 @@ async def _fail_stuck_jobs():
         logger.warning(f"Startup resume: error: {e}")
 
 
+async def _fail_stuck_dockseq_jobs():
+    """Mark docking/sequencing jobs that were in-flight when the process restarted."""
+    try:
+        import httpx
+        from app.config import settings
+        headers = {
+            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        }
+        base = f"{settings.SUPABASE_URL}/rest/v1"
+        grace_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        for table in ("docking_jobs", "sequencing_jobs"):
+            select_url = f"{base}/{table}?select=id&status=not.in.(complete,failed)&created_at=lt.{grace_cutoff}"
+            async with httpx.AsyncClient(timeout=10) as client:
+                resp = await client.get(select_url, headers=headers)
+                if resp.status_code != 200:
+                    logger.warning(f"Startup resume: failed to query {table} ({resp.status_code})")
+                    continue
+                stuck = resp.json()
+                for job in stuck:
+                    jid = job["id"]
+                    logger.info(f"Startup resume: marking stuck {table} job {jid} as failed")
+                    await client.patch(
+                        f"{base}/{table}?id=eq.{jid}",
+                        headers=headers,
+                        json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).isoformat()},
+                    )
+                if stuck:
+                    logger.info(f"Startup resume: marked {len(stuck)} stuck {table} job(s) as failed")
+    except Exception as e:
+        logger.warning(f"Startup resume: error for docking/sequencing: {e}")
+
+
 @app.on_event("startup")
 async def startup():
     sentry_sdk.init(
@@ -109,11 +145,7 @@ async def startup():
     )
     init_redis()
     await _fail_stuck_jobs()
-    from app.routers import sequencing, docking
-    lost_seq = sum(1 for j in sequencing._jobs.values() if j.get("status") not in {"complete", "failed"})
-    lost_dock = sum(1 for j in docking._jobs.values() if j.get("status") not in {"complete", "failed"})
-    if lost_seq or lost_dock:
-        logger.warning(f"Startup: {lost_seq} sequencing + {lost_dock} docking in-memory job(s) lost on restart")
+    await _fail_stuck_dockseq_jobs()
 
 
 @app.get("/health")

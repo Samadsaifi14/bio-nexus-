@@ -1,12 +1,8 @@
 from __future__ import annotations
 
-import asyncio
-import json
 import logging
-import os
-import threading
-import time
 import uuid
+from datetime import datetime, timezone, timedelta
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException
@@ -14,51 +10,34 @@ from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel
 
 from app.deps import limiter
+from app.services.supabase import get_supabase
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/docking", tags=["docking"])
 
-_PERSIST_DIR = os.path.join(os.path.dirname(__file__), "..", "data")
-_PERSIST_FILE = os.path.join(_PERSIST_DIR, "jobs_docking.json")
+_TABLE = "docking_jobs"
 _MAX_JOBS = 200
 _JOB_TTL = 7200
 
 
-def _load_jobs() -> dict[str, dict]:
-    if os.path.exists(_PERSIST_FILE):
-        try:
-            with open(_PERSIST_FILE) as f:
-                return json.load(f)
-        except Exception as e:
-            logger.warning(f"Failed to load jobs from {_PERSIST_FILE}: {e}")
-    return {}
-
-
-def _save_jobs() -> None:
-    try:
-        os.makedirs(_PERSIST_DIR, exist_ok=True)
-        with open(_PERSIST_FILE, "w") as f:
-            json.dump(_jobs, f, default=str)
-    except Exception as e:
-        logger.warning(f"Failed to save jobs: {e}")
-
-
 def _prune_jobs() -> None:
-    now = time.time()
-    stale = [
-        jid
-        for jid, j in list(_jobs.items())
-        if (j.get("done_at") and (now - j["done_at"]) > _JOB_TTL)
-        or (j.get("status") in ("complete", "failed") and len(_jobs) > _MAX_JOBS)
-    ]
-    for jid in stale:
-        _jobs.pop(jid, None)
-    if stale:
-        _save_jobs()
-
-
-_jobs: dict[str, dict] = _load_jobs()
-_lock = threading.Lock()
+    sb = get_supabase()
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_JOB_TTL)).isoformat()
+    sb.table(_TABLE).delete().lt("done_at", cutoff).execute()
+    count = sb.table(_TABLE).select("id", count="exact").execute().count or 0
+    if count > _MAX_JOBS:
+        to_delete = (
+            sb.table(_TABLE)
+            .select("id")
+            .in_("status", ("complete", "failed"))
+            .order("created_at", desc=True)
+            .range(_MAX_JOBS, _MAX_JOBS + 500)
+            .execute()
+            .data
+        )
+        ids = [r["id"] for r in to_delete]
+        if ids:
+            sb.table(_TABLE).delete().in_("id", ids).execute()
 
 
 class DockingRequest(BaseModel):
@@ -75,37 +54,34 @@ class DockingJob(BaseModel):
     status: str = "queued"
     result: Optional[dict] = None
     error: Optional[str] = None
-    created_at: float = 0.0
-    done_at: Optional[float] = None
+    created_at: str = ""
+    done_at: Optional[str] = None
 
 
 def _init(job_id: str, req: DockingRequest) -> None:
-    with _lock:
+    try:
         _prune_jobs()
-        _jobs[job_id] = {
-            "job_id":    job_id,
-            "pdb_id":    req.pdb_id,
-            "pdb_url":   req.pdb_url,
-            "smiles":    req.smiles,
-            "status":    "queued",
-            "result":    None,
-            "error":     None,
-            "created_at": time.time(),
-            "done_at":   None,
-        }
-        _save_jobs()
+    except Exception:
+        pass
+    get_supabase().table(_TABLE).insert({
+        "id":      job_id,
+        "pdb_id":  req.pdb_id,
+        "pdb_url": req.pdb_url,
+        "smiles":  req.smiles,
+        "status":  "queued",
+        "result":  None,
+        "error":   None,
+        "done_at": None,
+    }).execute()
 
 
 def _patch(job_id: str, **kw) -> None:
-    with _lock:
-        if job_id in _jobs:
-            _jobs[job_id].update(kw)
-            _save_jobs()
+    get_supabase().table(_TABLE).update(kw).eq("id", job_id).execute()
 
 
 def _read(job_id: str) -> dict | None:
-    with _lock:
-        return dict(_jobs[job_id]) if job_id in _jobs else None
+    rows = get_supabase().table(_TABLE).select("*").eq("id", job_id).execute().data
+    return dict(rows[0]) if rows else None
 
 
 async def _worker(job_id: str) -> None:
@@ -128,13 +104,13 @@ async def _worker(job_id: str) -> None:
         result = await tool.run(params)
     except Exception as exc:
         logger.exception("Worker crashed for job %s", job_id)
-        _patch(job_id, status="failed", error=str(exc), done_at=time.time())
+        _patch(job_id, status="failed", error=str(exc), done_at=datetime.now(timezone.utc).isoformat())
         return
 
     if "error" in result and not result.get("poses"):
-        _patch(job_id, status="failed", error=result["error"], done_at=time.time())
+        _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).isoformat())
     else:
-        _patch(job_id, status="complete", result=result, done_at=time.time())
+        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).isoformat())
 
 
 @router.get("/debug")

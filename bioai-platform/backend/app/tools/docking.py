@@ -8,7 +8,7 @@ import subprocess
 import tempfile
 import time
 import urllib.parse
-from typing import Any
+from typing import Any, Callable, Optional
 
 import httpx
 
@@ -459,7 +459,7 @@ def _analyze_interactions(
 class DockingTool(BaseTool):
     name = "docking"
 
-    async def run(self, input: dict) -> dict:
+    async def run(self, input: dict, progress_callback: Optional[Callable[[str], None]] = None) -> dict:
         global VINA_CMD
         pdb_id = input.get("pdb_id", "").strip().upper()
         pdb_url = input.get("pdb_url", "").strip()
@@ -484,6 +484,8 @@ class DockingTool(BaseTool):
 
         tmpdir = tempfile.mkdtemp(prefix="docking_")
         try:
+            if progress_callback:
+                progress_callback("fetching_pdb")
             # 1. Fetch PDB
             if not pdb_url:
                 pdb_url = PDB_DOWNLOAD.format(pdb_id=pdb_id)
@@ -503,6 +505,8 @@ class DockingTool(BaseTool):
             with open(clean_path, "w") as f:
                 f.write(cleaned)
 
+            if progress_callback:
+                progress_callback("converting_ligand")
             # 3. Convert SMILES to 3D PDBQT via NCI CACTUS API + SDF→PDBQT conversion
             ligand_pdbqt = os.path.join(tmpdir, "ligand.pdbqt")
             sdf_url = _SMILES2SDF.format(smiles=urllib.parse.quote(smiles, safe=""))
@@ -525,7 +529,11 @@ class DockingTool(BaseTool):
                 cx, cy, cz = _find_protein_center(pdb_content)
                 sx = sy = sz = 30
 
+            if progress_callback:
+                progress_callback("running_vina")
             # 5. Run Vina (in thread)
+            logger.info("Vina CMD: %s | which: %s | exists: %s",
+                        VINA_CMD, shutil.which("vina"), os.path.isfile(VINA_CMD))
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
             try:
                 r = await asyncio.to_thread(
@@ -554,6 +562,8 @@ class DockingTool(BaseTool):
                 return {"error": f"Vina failed (exit {r.returncode}): {err}"}
             stdout, stderr = r.stdout, r.stderr
 
+            if progress_callback:
+                progress_callback("parsing_results")
             # 6. Parse results
             with open(out_pdbqt) as f:
                 out_content = f.read()

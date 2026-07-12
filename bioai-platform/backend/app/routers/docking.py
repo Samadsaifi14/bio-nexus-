@@ -89,10 +89,11 @@ async def _worker(job_id: str) -> None:
     job = _read(job_id)
     if not job:
         return
-    _patch(job_id, status="preparing")
 
+    _patch(job_id, status="importing_tool")
     from app.tools.docking import DockingTool
 
+    _patch(job_id, status="building_params")
     tool = DockingTool()
     params: dict = {"smiles": job["smiles"]}
     if job.get("pdb_url"):
@@ -100,8 +101,11 @@ async def _worker(job_id: str) -> None:
     if job.get("pdb_id"):
         params["pdb_id"] = job["pdb_id"]
 
+    progress_callback = lambda s: _patch(job_id, status=s)
+
+    _patch(job_id, status="starting_docking")
     try:
-        result = await tool.run(params)
+        result = await tool.run(params, progress_callback=progress_callback)
     except Exception as exc:
         logger.exception("Worker crashed for job %s", job_id)
         _patch(job_id, status="failed", error=str(exc), done_at=datetime.now(timezone.utc).isoformat())

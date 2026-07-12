@@ -113,7 +113,7 @@ async def _fail_stuck_dockseq_jobs():
             "Prefer": "return=minimal",
         }
         base = f"{settings.SUPABASE_URL}/rest/v1"
-        grace_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        grace_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
         for table in ("docking_jobs", "sequencing_jobs"):
             select_url = f"{base}/{table}?select=id&status=not.in.(complete,failed)&created_at=lt.{grace_cutoff}"
             async with httpx.AsyncClient(timeout=10) as client:
@@ -128,7 +128,7 @@ async def _fail_stuck_dockseq_jobs():
                     await client.patch(
                         f"{base}/{table}?id=eq.{jid}",
                         headers=headers,
-                        json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).isoformat()},
+                        json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")},
                     )
                 if stuck:
                     logger.info(f"Startup resume: marked {len(stuck)} stuck {table} job(s) as failed")

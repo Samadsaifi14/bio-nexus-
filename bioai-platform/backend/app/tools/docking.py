@@ -4,7 +4,6 @@ import math
 import os
 import re
 import shutil
-import subprocess
 import tempfile
 import time
 import urllib.parse
@@ -535,32 +534,32 @@ class DockingTool(BaseTool):
             logger.info("Vina CMD: %s | which: %s | exists: %s",
                         VINA_CMD, shutil.which("vina"), os.path.isfile(VINA_CMD))
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
+            proc = await asyncio.create_subprocess_exec(
+                VINA_CMD,
+                "--receptor", clean_path,
+                "--ligand", ligand_pdbqt,
+                "--out", out_pdbqt,
+                "--center_x", str(cx),
+                "--center_y", str(cy),
+                "--center_z", str(cz),
+                "--size_x", str(sx),
+                "--size_y", str(sy),
+                "--size_z", str(sz),
+                "--exhaustiveness", "3",
+                "--num_modes", "5",
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
             try:
-                r = await asyncio.to_thread(
-                    subprocess.run,
-                    [
-                        VINA_CMD,
-                        "--receptor", clean_path,
-                        "--ligand", ligand_pdbqt,
-                        "--out", out_pdbqt,
-                        "--center_x", str(cx),
-                        "--center_y", str(cy),
-                        "--center_z", str(cz),
-                        "--size_x", str(sx),
-                        "--size_y", str(sy),
-                        "--size_z", str(sz),
-                        "--exhaustiveness", "3",
-                        "--num_modes", "5",
-                    ],
-                    capture_output=True, timeout=600,
-                )
-            except subprocess.TimeoutExpired:
+                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
                 return {"error": "Docking timed out after 10 minutes"}
 
-            if r.returncode != 0 or not os.path.exists(out_pdbqt):
-                err = r.stderr.decode("utf-8", errors="replace")[:500] if r.stderr else ""
-                return {"error": f"Vina failed (exit {r.returncode}): {err}"}
-            stdout, stderr = r.stdout, r.stderr
+            if proc.returncode != 0 or not os.path.exists(out_pdbqt):
+                err = stderr.decode("utf-8", errors="replace")[:500] if stderr else ""
+                return {"error": f"Vina failed (exit {proc.returncode}): {err}"}
 
             if progress_callback:
                 progress_callback("parsing_results")

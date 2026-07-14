@@ -22,7 +22,7 @@ _JOB_TTL = 7200
 
 def _prune_jobs() -> None:
     sb = get_supabase()
-    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_JOB_TTL)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_JOB_TTL)).strftime('%Y-%m-%dT%H:%M:%S')
     sb.table(_TABLE).delete().lt("done_at", cutoff).execute()
     count = sb.table(_TABLE).select("id", count="exact").execute().count or 0
     if count > _MAX_JOBS:
@@ -99,13 +99,13 @@ async def _worker(job_id: str) -> None:
             timeout=PIPELINE_TIMEOUT,
         )
     except asyncio.TimeoutError:
-        _patch(job_id, status="failed", error="Pipeline timed out", done_at=datetime.now(timezone.utc).isoformat())
+        _patch(job_id, status="failed", error="Pipeline timed out", done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
         return
 
     if "error" in result and not result.get("steps_completed"):
-        _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).isoformat())
+        _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
     else:
-        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).isoformat())
+        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
 VALID_DEMO = {"synthetic", "demo", "test"}

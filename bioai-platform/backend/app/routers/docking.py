@@ -22,7 +22,7 @@ _JOB_TTL = 7200
 
 def _prune_jobs() -> None:
     sb = get_supabase()
-    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_JOB_TTL)).isoformat()
+    cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_JOB_TTL)).strftime('%Y-%m-%dT%H:%M:%S')
     sb.table(_TABLE).delete().lt("done_at", cutoff).execute()
     count = sb.table(_TABLE).select("id", count="exact").execute().count or 0
     if count > _MAX_JOBS:
@@ -108,13 +108,13 @@ async def _worker(job_id: str) -> None:
         result = await tool.run(params, progress_callback=progress_callback)
     except Exception as exc:
         logger.exception("Worker crashed for job %s", job_id)
-        _patch(job_id, status="failed", error=str(exc), done_at=datetime.now(timezone.utc).isoformat())
+        _patch(job_id, status="failed", error=str(exc), done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
         return
 
     if "error" in result and not result.get("poses"):
-        _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).isoformat())
+        _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
     else:
-        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).isoformat())
+        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
 @router.get("/debug")

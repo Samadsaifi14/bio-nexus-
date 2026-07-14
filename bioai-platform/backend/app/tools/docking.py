@@ -20,38 +20,48 @@ PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
+import concurrent.futures as _futures
+_VINA_EXECUTOR = _futures.ThreadPoolExecutor(max_workers=1, thread_name_prefix="vina")
+
+
 async def _run_vina_with_timeout(
     cmd: list[str],
     stdout_path: str,
     stderr_path: str,
     timeout: float = 600,
 ) -> tuple[int, str, str]:
-    """Run Vina via native async subprocess with reliable timeout kill.
-    Uses file descriptors instead of asyncio.subprocess.PIPE to avoid
-    pipe-buffer deadlock, and create_subprocess_exec (not threads) to
-    avoid ThreadPoolExecutor exhaustion from stuck processes."""
-    import os, signal
-    stdout_fd = os.open(stdout_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
-    stderr_fd = os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=stdout_fd,
-        stderr=stderr_fd,
-        start_new_session=True,
-    )
-    os.close(stdout_fd)
-    os.close(stderr_fd)
+    """Run Vina with subprocess.run(timeout=N) in a dedicated single-worker
+    thread pool (file handles, no pipes → no pipe-buffer deadlock)."""
+    loop = asyncio.get_event_loop()
     try:
-        await asyncio.wait_for(proc.wait(), timeout=timeout)
-    except asyncio.TimeoutError:
-        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        await proc.wait()
-        raise
+        rc, stdout_str, stderr_str = await loop.run_in_executor(
+            _VINA_EXECUTOR,
+            _run_vina_sync_timeout,
+            cmd, stdout_path, stderr_path, timeout,
+        )
+        return rc, stdout_str, stderr_str
+    except TimeoutError:
+        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
+
+
+def _run_vina_sync_timeout(
+    cmd: list[str],
+    stdout_path: str,
+    stderr_path: str,
+    timeout: float,
+) -> tuple[int, str, str]:
+    """Synchronous Vina wrapper with subprocess.run(timeout=…)."""
+    import subprocess
+    with open(stdout_path, "wb") as out_f, open(stderr_path, "wb") as err_f:
+        try:
+            r = subprocess.run(cmd, stdout=out_f, stderr=err_f, timeout=timeout)
+        except subprocess.TimeoutExpired:
+            raise TimeoutError(f"Vina timed out after {timeout}s")
     with open(stdout_path, "rb") as f:
         stdout = f.read()
     with open(stderr_path, "rb") as f:
         stderr = f.read()
-    return proc.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
+    return r.returncode if r else -1, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
 
 def _download_vina(dest: str) -> str | None:

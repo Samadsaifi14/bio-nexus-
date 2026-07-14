@@ -117,6 +117,62 @@ async def _worker(job_id: str) -> None:
         _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
+@router.get("/vimontest")
+async def vina_montest():
+    import asyncio, os, sys, shutil, subprocess, tempfile, time
+    steps = {}
+    from app.tools.docking import VINA_CMD
+    steps["cmd"] = VINA_CMD
+    steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
+    steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
+
+    if not VINA_CMD or not os.path.isfile(VINA_CMD):
+        steps["error"] = "vina not found"
+        return steps
+
+    # write a minimal PDBQT
+    tdir = tempfile.mkdtemp(prefix="vtest_")
+    try:
+        rec = os.path.join(tdir, "rec.pdbqt")
+        lig = os.path.join(tdir, "lig.pdbqt")
+        out = os.path.join(tdir, "out.pdbqt")
+        # minimal valid PDBQT — single atom ALA
+        for fn, content in [
+            (rec, "ATOM      1  N   ALA A   1       0.000   0.000   0.000  1.00  0.00           N\n"),
+            (lig, "ATOM      1  C   LIG A   1       1.000   0.000   0.000  1.00  0.00           C\n"),
+        ]:
+            with open(fn, "w") as f:
+                f.write(content)
+
+        started = time.time()
+        try:
+            r = subprocess.run(
+                [VINA_CMD, "--receptor", rec, "--ligand", lig, "--out", out,
+                 "--center_x", "0", "--center_y", "0", "--center_z", "0",
+                 "--size_x", "20", "--size_y", "20", "--size_z", "20",
+                 "--exhaustiveness", "1", "--num_modes", "1"],
+                capture_output=True, timeout=30,
+            )
+            steps["rc"] = r.returncode
+            steps["elapsed"] = round(time.time() - started, 2)
+            steps["out_exists"] = os.path.isfile(out)
+            steps["stdout"] = r.stdout.decode(errors="replace")[:500]
+            steps["stderr"] = r.stderr.decode(errors="replace")[:500]
+            if r.returncode != 0:
+                try:
+                    with open(out) as f:
+                        steps["out_content"] = f.read()[:200]
+                except:
+                    pass
+        except subprocess.TimeoutExpired:
+            steps["error"] = f"TIMEOUT after {round(time.time()-started, 1)}s"
+        except Exception as e:
+            steps["error"] = f"EXC: {e}"
+    finally:
+        shutil.rmtree(tdir, ignore_errors=True)
+
+    return steps
+
 @router.get("/debug")
 async def debug_deps():
     import asyncio, os, sys, shutil, subprocess

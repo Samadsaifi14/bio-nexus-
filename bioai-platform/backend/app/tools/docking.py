@@ -562,19 +562,20 @@ class DockingTool(BaseTool):
                                 "--size_x", str(sx),
                                 "--size_y", str(sy),
                                 "--size_z", str(sz),
-                                "--exhaustiveness", "3",
-                                "--num_modes", "5",
+                                "--exhaustiveness", "2",
+                                "--num_modes", "3",
                             ],
                             stdout=out_f, stderr=err_f,
+                            timeout=600,
                         ),
-                        timeout=600,
+                        timeout=660,
                     )
                 with open(vina_stdout, "r") as f:
                     stdout_str = f.read()
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()
             except asyncio.TimeoutError:
-                return {"error": "Docking timed out after 10 minutes"}
+                return {"error": "Docking timed out after 11 minutes"}
             except Exception as exc:
                 logger.exception("Vina subprocess failed to start")
                 return {"error": f"Vina execution failed: {exc}"}

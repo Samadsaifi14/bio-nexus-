@@ -119,7 +119,7 @@ async def _worker(job_id: str) -> None:
 
 @router.get("/vimontest")
 async def vina_montest():
-    import asyncio, os, shutil, subprocess, tempfile, time
+    import asyncio, os, shutil, subprocess, tempfile, time, urllib.parse
     steps = {}
     from app.tools.docking import VINA_CMD, PDB_DOWNLOAD, _clean_protein, _molblock_to_pdbqt, _find_ligand_center
     steps["cmd"] = VINA_CMD

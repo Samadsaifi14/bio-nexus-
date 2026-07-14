@@ -33,7 +33,7 @@ async def _run_vina_with_timeout(
             timeout=timeout + 30,
         )
     except subprocess.TimeoutExpired:
-        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
+        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s (subprocess)")
     with open(stdout_path, "wb") as f:
         f.write(r.stdout or b"")
     with open(stderr_path, "wb") as f:
@@ -613,13 +613,13 @@ class DockingTool(BaseTool):
                      "--num_modes", "3"],
                     stdout_path=vina_stdout,
                     stderr_path=vina_stderr,
-                    timeout=600,
+                    timeout=60,
                 )
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()
             except asyncio.TimeoutError:
-                logger.error("Vina timed out after 600s")
-                return {"error": "Docking timed out after 10 minutes"}
+                logger.error("Vina timed out after 60s")
+                return {"error": "Docking timed out after 60 seconds"}
             except Exception as exc:
                 logger.exception("Vina subprocess failed to start")
                 return {"error": f"Vina execution failed: {exc}"}

@@ -607,7 +607,7 @@ class DockingTool(BaseTool):
             vina_stdout = os.path.join(tmpdir, "vina_stdout.log")
             vina_stderr = os.path.join(tmpdir, "vina_stderr.log")
             try:
-                    rc, stdout_str, _ = await _run_vina_with_timeout(
+                rc, stdout_str, _ = await _run_vina_with_timeout(
                     [VINA_CMD,
                      "--receptor", clean_path,
                      "--ligand", ligand_pdbqt,

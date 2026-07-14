@@ -189,17 +189,22 @@ _AD_TYPE = {
 }
 
 def _molblock_to_pdbqt(sdf_content: str) -> str:
-    """Convert SDF V2000 mol block to minimal PDBQT."""
+    """Convert SDF V2000 mol block or CACTUS PDB-like output to minimal PDBQT."""
     lines = sdf_content.splitlines()
+    atom_lines = [l for l in lines if l.startswith("ATOM")]
+    if atom_lines:
+        # CACTUS API returns PDB-format ATOM records
+        return _pdb_atoms_to_pdbqt(atom_lines)
+    # Fallback: V2000 SDF format
     if len(lines) < 4:
         return ""
     try:
         num_atoms = int(lines[3][:3].strip())
     except (ValueError, IndexError):
         return ""
-    atom_lines = lines[4:4 + num_atoms]
+    v2000_atoms = lines[4:4 + num_atoms]
     pdbqt_lines = ["ROOT"]
-    for i, line in enumerate(atom_lines, start=1):
+    for i, line in enumerate(v2000_atoms, start=1):
         try:
             x = float(line[0:10].strip())
             y = float(line[10:20].strip())
@@ -217,7 +222,33 @@ def _molblock_to_pdbqt(sdf_content: str) -> str:
         )
     pdbqt_lines.append("ENDROOT")
     pdbqt_lines.append("TORSDOF 0")
-    if not pdbqt_lines:
+    return "\n".join(pdbqt_lines)
+
+
+def _pdb_atoms_to_pdbqt(atom_lines: list[str]) -> str:
+    """Convert PDB-format ATOM lines to minimal PDBQT."""
+    pdbqt_lines = ["ROOT"]
+    for i, line in enumerate(atom_lines, start=1):
+        try:
+            x = float(line[30:38].strip())
+            y = float(line[38:46].strip())
+            z = float(line[46:54].strip())
+        except (ValueError, IndexError):
+            continue
+        elem = line[76:78].strip().upper()
+        if not elem or elem in ("+", "-"):
+            elem = "C"
+        ad_type = _AD_TYPE.get(elem, "C")
+        atom_name = f" {elem}  " if len(elem) == 1 else f"{elem}   "
+        charge = 0.0
+        pdbqt_lines.append(
+            f"ATOM  {i:>5} {atom_name} LIG     1    "
+            f"{x:>8.3f}{y:>8.3f}{z:>8.3f}"
+            f"  0.00  0.00  {charge:>8.3f} {ad_type:>2}"
+        )
+    pdbqt_lines.append("ENDROOT")
+    pdbqt_lines.append("TORSDOF 0")
+    if len(pdbqt_lines) <= 3:
         return ""
     return "\n".join(pdbqt_lines)
 

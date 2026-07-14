@@ -548,41 +548,38 @@ class DockingTool(BaseTool):
             vina_stderr = os.path.join(tmpdir, "vina_stderr.log")
             try:
                 with open(vina_stdout, "wb") as out_f, open(vina_stderr, "wb") as err_f:
-                    await asyncio.wait_for(
-                        asyncio.to_thread(
-                            subprocess.run,
-                            [
-                                VINA_CMD,
-                                "--receptor", clean_path,
-                                "--ligand", ligand_pdbqt,
-                                "--out", out_pdbqt,
-                                "--center_x", str(cx),
-                                "--center_y", str(cy),
-                                "--center_z", str(cz),
-                                "--size_x", str(sx),
-                                "--size_y", str(sy),
-                                "--size_z", str(sz),
-                                "--exhaustiveness", "2",
-                                "--num_modes", "3",
-                            ],
-                            stdout=out_f, stderr=err_f,
-                            timeout=600,
-                        ),
-                        timeout=660,
+                    r = await asyncio.to_thread(
+                        subprocess.run,
+                        ["timeout", "600", VINA_CMD,
+                         "--receptor", clean_path,
+                         "--ligand", ligand_pdbqt,
+                         "--out", out_pdbqt,
+                         "--center_x", str(cx),
+                         "--center_y", str(cy),
+                         "--center_z", str(cz),
+                         "--size_x", str(sx),
+                         "--size_y", str(sy),
+                         "--size_z", str(sz),
+                         "--exhaustiveness", "2",
+                         "--num_modes", "3"],
+                        stdout=out_f, stderr=err_f,
                     )
                 with open(vina_stdout, "r") as f:
                     stdout_str = f.read()
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()
-            except asyncio.TimeoutError:
-                return {"error": "Docking timed out after 11 minutes"}
             except Exception as exc:
                 logger.exception("Vina subprocess failed to start")
                 return {"error": f"Vina execution failed: {exc}"}
 
+            if r.returncode == 124:
+                return {"error": "Docking timed out after 10 minutes"}
+            if r.returncode != 0:
+                err = stderr_str[:500] if stderr_str else ""
+                return {"error": f"Vina failed (exit {r.returncode}): {err}"}
             if not os.path.exists(out_pdbqt):
                 err = stderr_str[:500] if stderr_str else ""
-                return {"error": f"Vina failed (exit code unknown — no output file): {err}"}
+                return {"error": f"Vina failed — no output file: {err}"}
 
             if progress_callback:
                 progress_callback("parsing_results")

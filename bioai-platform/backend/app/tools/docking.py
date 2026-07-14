@@ -623,7 +623,7 @@ class DockingTool(BaseTool):
                      "--cpu", "1"],
                     stdout_path=vina_stdout,
                     stderr_path=vina_stderr,
-                    timeout=60,
+                    timeout=10,
                 )
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()

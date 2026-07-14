@@ -20,15 +20,6 @@ PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
-# resolve Vina binary path; try download at import-time if missing
-_VINA_DEFAULT = shutil.which("vina") or "/usr/local/bin/vina"
-if not os.path.isfile(_VINA_DEFAULT):
-    _dl_dest = os.path.join(tempfile.gettempdir(), "bin", "vina")
-    _dl = _download_vina(_dl_dest)
-    VINA_CMD = _dl if _dl and os.path.isfile(_dl) else _VINA_DEFAULT
-else:
-    VINA_CMD = _VINA_DEFAULT
-
 def _download_vina(dest: str) -> str | None:
     import socket as _socket
     import urllib.request as _ur
@@ -50,6 +41,15 @@ def _download_vina(dest: str) -> str | None:
     finally:
         _socket.setdefaulttimeout(old_tmo)
     return dest if os.path.isfile(dest) else None
+
+# resolve Vina binary path; try download at import-time if missing
+_VINA_DEFAULT = shutil.which("vina") or "/usr/local/bin/vina"
+if not os.path.isfile(_VINA_DEFAULT):
+    _dl_dest = os.path.join(tempfile.gettempdir(), "bin", "vina")
+    _dl = _download_vina(_dl_dest)
+    VINA_CMD = _dl if _dl and os.path.isfile(_dl) else _VINA_DEFAULT
+else:
+    VINA_CMD = _VINA_DEFAULT
 
 # ── interaction cutoffs ──────────────────────────────────────────────────
 HBOND_DIST = 3.5

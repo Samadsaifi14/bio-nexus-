@@ -158,6 +158,16 @@ async def vina_montest():
         if r2.status_code != 200:
             steps["error"] = f"SDF download failed: {r2.status_code}"; return steps
         steps["step3_sdf_preview"] = r2.text[:500]
+        # debug: check first ATOM line
+        first_atom = [l for l in r2.text.splitlines() if l.startswith("ATOM")]
+        if first_atom:
+            l = first_atom[0]
+            steps["dbg_line"] = repr(l)
+            steps["dbg_len"] = len(l)
+            steps["dbg_30_38"] = repr(l[30:38]) if len(l) >= 38 else "too_short"
+            steps["dbg_38_46"] = repr(l[38:46]) if len(l) >= 46 else "too_short"
+            steps["dbg_46_54"] = repr(l[46:54]) if len(l) >= 54 else "too_short"
+            steps["dbg_76_78"] = repr(l[76:78]) if len(l) >= 78 else "too_short"
         pdbqt_content = _molblock_to_pdbqt(r2.text)
         steps["step3_pdbqt_len"] = len(pdbqt_content) if pdbqt_content else 0
         steps["step3_pdbqt_preview"] = (pdbqt_content or "EMPTY")[:500]

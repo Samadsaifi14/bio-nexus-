@@ -20,6 +20,32 @@ PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
+async def _run_vina_with_timeout(
+    cmd: list[str],
+    stdout_path: str,
+    stderr_path: str,
+    timeout: float = 600,
+) -> tuple[int, str, str]:
+    """Run Vina via asyncio subprocess with reliable kill-on-timeout."""
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    try:
+        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+        returncode = await proc.wait()
+    except asyncio.TimeoutError:
+        proc.kill()
+        await proc.wait()
+        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
+    with open(stdout_path, "wb") as f:
+        f.write(stdout or b"")
+    with open(stderr_path, "wb") as f:
+        f.write(stderr or b"")
+    return returncode, (stdout or b"").decode(errors="replace"), (stderr or b"").decode(errors="replace")
+
+
 def _download_vina(dest: str) -> str | None:
     import socket as _socket
     import urllib.request as _ur
@@ -571,43 +597,41 @@ class DockingTool(BaseTool):
 
             if progress_callback:
                 progress_callback("running_vina")
-            # 5. Run Vina (in thread pool, files for stdout/stderr to avoid pipe deadlock)
             logger.info("Vina CMD: %s | which: %s | exists: %s | readable: %s",
                         VINA_CMD, shutil.which("vina"), os.path.isfile(VINA_CMD), os.access(VINA_CMD, os.R_OK))
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
             vina_stdout = os.path.join(tmpdir, "vina_stdout.log")
             vina_stderr = os.path.join(tmpdir, "vina_stderr.log")
             try:
-                with open(vina_stdout, "wb") as out_f, open(vina_stderr, "wb") as err_f:
-                    r = await asyncio.to_thread(
-                        subprocess.run,
-                        ["timeout", "600", VINA_CMD,
-                         "--receptor", clean_path,
-                         "--ligand", ligand_pdbqt,
-                         "--out", out_pdbqt,
-                         "--center_x", str(cx),
-                         "--center_y", str(cy),
-                         "--center_z", str(cz),
-                         "--size_x", str(sx),
-                         "--size_y", str(sy),
-                         "--size_z", str(sz),
-                         "--exhaustiveness", "2",
-                         "--num_modes", "3"],
-                        stdout=out_f, stderr=err_f,
-                    )
-                with open(vina_stdout, "r") as f:
-                    stdout_str = f.read()
+                rc, stdout_str, _ = await _run_vina_with_timeout(
+                    [VINA_CMD,
+                     "--receptor", clean_path,
+                     "--ligand", ligand_pdbqt,
+                     "--out", out_pdbqt,
+                     "--center_x", str(cx),
+                     "--center_y", str(cy),
+                     "--center_z", str(cz),
+                     "--size_x", str(sx),
+                     "--size_y", str(sy),
+                     "--size_z", str(sz),
+                     "--exhaustiveness", "2",
+                     "--num_modes", "3"],
+                    stdout_path=vina_stdout,
+                    stderr_path=vina_stderr,
+                    timeout=600,
+                )
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()
+            except asyncio.TimeoutError:
+                logger.error("Vina timed out after 600s")
+                return {"error": "Docking timed out after 10 minutes"}
             except Exception as exc:
                 logger.exception("Vina subprocess failed to start")
                 return {"error": f"Vina execution failed: {exc}"}
 
-            if r.returncode == 124:
-                return {"error": "Docking timed out after 10 minutes"}
-            if r.returncode != 0:
+            if rc != 0:
                 err = stderr_str[:500] if stderr_str else ""
-                return {"error": f"Vina failed (exit {r.returncode}): {err}"}
+                return {"error": f"Vina failed (exit {rc}): {err}"}
             if not os.path.exists(out_pdbqt):
                 err = stderr_str[:500] if stderr_str else ""
                 return {"error": f"Vina failed — no output file: {err}"}

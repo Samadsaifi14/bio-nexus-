@@ -119,9 +119,11 @@ async def _worker(job_id: str) -> None:
 
 @router.get("/vimontest")
 async def vina_montest():
-    import asyncio, os, shutil, subprocess, tempfile, time, urllib.parse
+    import asyncio, os, shutil, tempfile, time, urllib.parse
     steps = {}
-    from app.tools.docking import VINA_CMD, PDB_DOWNLOAD, _clean_protein, _molblock_to_pdbqt, _find_ligand_center
+    from app.tools.docking import (VINA_CMD, PDB_DOWNLOAD, _clean_protein,
+                                    _molblock_to_pdbqt, _find_ligand_center,
+                                    _run_vina_with_timeout)
     steps["cmd"] = VINA_CMD
     steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
     steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
@@ -130,81 +132,67 @@ async def vina_montest():
 
     tdir = tempfile.mkdtemp(prefix="vtest_")
     try:
-        # step 1: download PDB
         import httpx
+        # step 1: download PDB
         steps["step1_start"] = 1
         async with httpx.AsyncClient(timeout=15) as cl:
             r = await cl.get(PDB_DOWNLOAD.format(pdb_id="1aki"))
-        steps["step1_pdb_status"] = r.status_code
         if r.status_code != 200:
             steps["error"] = f"PDB download failed: {r.status_code}"; return steps
         pdb = r.text
-        steps["step1_pdb_len"] = len(pdb)
 
         # step 2: clean protein
         steps["step2_start"] = 1
         cleaned = _clean_protein(pdb)
         rec_pdb = os.path.join(tdir, "rec.pdb")
-        rec_pdbqt = os.path.join(tdir, "rec.pdbqt")
         with open(rec_pdb, "w") as f: f.write(cleaned)
-        shutil.copy(rec_pdb, rec_pdbqt)
 
         # step 3: SMILES → SDF → PDBQT
         steps["step3_start"] = 1
         sdf_url = f"https://cactus.nci.nih.gov/chemical/structure/{urllib.parse.quote('CCO', safe='')}/sdf"
         async with httpx.AsyncClient(timeout=15) as cl:
             r2 = await cl.get(sdf_url)
-        steps["step3_sdf_status"] = r2.status_code
         if r2.status_code != 200:
             steps["error"] = f"SDF download failed: {r2.status_code}"; return steps
-        steps["step3_sdf_preview"] = r2.text[:500]
-        # debug: check first ATOM line
-        first_atom = [l for l in r2.text.splitlines() if l.startswith("ATOM")]
-        if first_atom:
-            l = first_atom[0]
-            steps["dbg_line"] = repr(l)
-            steps["dbg_len"] = len(l)
-            steps["dbg_30_38"] = repr(l[30:38]) if len(l) >= 38 else "too_short"
-            steps["dbg_38_46"] = repr(l[38:46]) if len(l) >= 46 else "too_short"
-            steps["dbg_46_54"] = repr(l[46:54]) if len(l) >= 54 else "too_short"
-            steps["dbg_76_78"] = repr(l[76:78]) if len(l) >= 78 else "too_short"
         pdbqt_content = _molblock_to_pdbqt(r2.text)
-        steps["step3_pdbqt_len"] = len(pdbqt_content) if pdbqt_content else 0
-        steps["step3_pdbqt_preview"] = (pdbqt_content or "EMPTY")[:500]
         if not pdbqt_content or len(pdbqt_content) < 50:
             steps["error"] = "PDBQT conversion failed or too short"; return steps
         lig_pdbqt = os.path.join(tdir, "lig.pdbqt")
         with open(lig_pdbqt, "w") as f: f.write(pdbqt_content)
-        steps["step3_lig_pdbqt_len"] = len(pdbqt_content)
 
         # step 4: find center
         steps["step4_start"] = 1
         center = _find_ligand_center(pdb) or (0, 0, 0)
-        steps["step4_center"] = list(center)
 
-        # step 5: run Vina
+        # step 5: run Vina with proper async timeout
         out = os.path.join(tdir, "out.pdbqt")
+        vina_stdout = os.path.join(tdir, "vina_stdout.log")
+        vina_stderr = os.path.join(tdir, "vina_stderr.log")
         started = time.time()
         try:
-            r = subprocess.run(
-                ["timeout", "10", VINA_CMD,
-                 "--receptor", rec_pdbqt, "--ligand", lig_pdbqt, "--out", out,
-                 "--center_x", str(center[0]), "--center_y", str(center[1]), "--center_z", str(center[2]),
+            rc, vout, verr = await _run_vina_with_timeout(
+                [VINA_CMD,
+                 "--receptor", rec_pdb,
+                 "--ligand", lig_pdbqt,
+                 "--out", out,
+                 "--center_x", str(center[0]),
+                 "--center_y", str(center[1]),
+                 "--center_z", str(center[2]),
                  "--size_x", "20", "--size_y", "20", "--size_z", "20",
                  "--exhaustiveness", "1", "--num_modes", "1"],
-                capture_output=True, timeout=30,
+                stdout_path=vina_stdout,
+                stderr_path=vina_stderr,
+                timeout=30,
             )
-            steps["rc"] = r.returncode
+            steps["rc"] = rc
             steps["elapsed"] = round(time.time() - started, 2)
             steps["out_exists"] = os.path.isfile(out)
-            steps["stdout"] = r.stdout.decode(errors="replace")[:800]
-            steps["stderr"] = r.stderr.decode(errors="replace")[:800]
-            if r.returncode == 124:
-                steps["error"] = "TIMEOUT (linux timeout killed it)"
-            elif os.path.isfile(out):
+            steps["stdout"] = vout[:800]
+            steps["stderr"] = verr[:800]
+            if os.path.isfile(out):
                 with open(out) as f: steps["out_preview"] = f.read()[:300]
-        except subprocess.TimeoutExpired:
-            steps["error"] = f"PYTHON TIMEOUT after {round(time.time()-started, 1)}s"
+        except asyncio.TimeoutError:
+            steps["error"] = f"TIMEOUT after {round(time.time()-started, 1)}s"
         except Exception as e:
             steps["error"] = f"EXC: {e}"
     finally:

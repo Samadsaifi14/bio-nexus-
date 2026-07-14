@@ -119,15 +119,33 @@ async def _worker(job_id: str) -> None:
 
 @router.get("/debug")
 async def debug_deps():
-    import os, sys, shutil
+    import asyncio, os, sys, shutil, subprocess
     steps = {}
     steps["python"] = sys.version
     steps["vina_in_path"] = shutil.which("vina") or "NOT FOUND"
     try:
         from app.tools.docking import VINA_CMD
         steps["VINA_CMD"] = VINA_CMD or "None"
+        steps["vina_exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
+        steps["vina_executable"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
     except Exception as e:
         steps["import_error"] = str(e)
+    # try running vina --version
+    cmd = steps.get("VINA_CMD", "")
+    if cmd and os.access(cmd, os.X_OK):
+        try:
+            r = subprocess.run([cmd, "--version"], capture_output=True, timeout=10)
+            steps["vina_version_rc"] = r.returncode
+            steps["vina_version_out"] = r.stdout.decode(errors="replace").strip()
+            steps["vina_version_err"] = r.stderr.decode(errors="replace").strip()[:200]
+        except FileNotFoundError:
+            steps["vina_version_err"] = "FileNotFoundError"
+        except subprocess.TimeoutExpired:
+            steps["vina_version_err"] = "TIMEOUT after 10s"
+        except Exception as e:
+            steps["vina_version_err"] = str(e)[:200]
+    else:
+        steps["vina_version_err"] = "binary not accessible"
     steps["tempdir"] = __import__("tempfile").gettempdir()
     steps["cwd"] = os.getcwd()
     return steps

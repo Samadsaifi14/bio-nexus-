@@ -4,6 +4,7 @@ import math
 import os
 import re
 import shutil
+import subprocess
 import tempfile
 import time
 import urllib.parse
@@ -530,36 +531,48 @@ class DockingTool(BaseTool):
 
             if progress_callback:
                 progress_callback("running_vina")
-            # 5. Run Vina (in thread)
-            logger.info("Vina CMD: %s | which: %s | exists: %s",
-                        VINA_CMD, shutil.which("vina"), os.path.isfile(VINA_CMD))
+            # 5. Run Vina (in thread pool, files for stdout/stderr to avoid pipe deadlock)
+            logger.info("Vina CMD: %s | which: %s | exists: %s | readable: %s",
+                        VINA_CMD, shutil.which("vina"), os.path.isfile(VINA_CMD), os.access(VINA_CMD, os.R_OK))
             out_pdbqt = os.path.join(tmpdir, "out.pdbqt")
-            proc = await asyncio.create_subprocess_exec(
-                VINA_CMD,
-                "--receptor", clean_path,
-                "--ligand", ligand_pdbqt,
-                "--out", out_pdbqt,
-                "--center_x", str(cx),
-                "--center_y", str(cy),
-                "--center_z", str(cz),
-                "--size_x", str(sx),
-                "--size_y", str(sy),
-                "--size_z", str(sz),
-                "--exhaustiveness", "3",
-                "--num_modes", "5",
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
+            vina_stdout = os.path.join(tmpdir, "vina_stdout.log")
+            vina_stderr = os.path.join(tmpdir, "vina_stderr.log")
             try:
-                stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=600)
+                with open(vina_stdout, "wb") as out_f, open(vina_stderr, "wb") as err_f:
+                    await asyncio.wait_for(
+                        asyncio.to_thread(
+                            subprocess.run,
+                            [
+                                VINA_CMD,
+                                "--receptor", clean_path,
+                                "--ligand", ligand_pdbqt,
+                                "--out", out_pdbqt,
+                                "--center_x", str(cx),
+                                "--center_y", str(cy),
+                                "--center_z", str(cz),
+                                "--size_x", str(sx),
+                                "--size_y", str(sy),
+                                "--size_z", str(sz),
+                                "--exhaustiveness", "3",
+                                "--num_modes", "5",
+                            ],
+                            stdout=out_f, stderr=err_f,
+                        ),
+                        timeout=600,
+                    )
+                with open(vina_stdout, "r") as f:
+                    stdout_str = f.read()
+                with open(vina_stderr, "r") as f:
+                    stderr_str = f.read()
             except asyncio.TimeoutError:
-                proc.kill()
-                await proc.wait()
                 return {"error": "Docking timed out after 10 minutes"}
+            except Exception as exc:
+                logger.exception("Vina subprocess failed to start")
+                return {"error": f"Vina execution failed: {exc}"}
 
-            if proc.returncode != 0 or not os.path.exists(out_pdbqt):
-                err = stderr.decode("utf-8", errors="replace")[:500] if stderr else ""
-                return {"error": f"Vina failed (exit {proc.returncode}): {err}"}
+            if not os.path.exists(out_pdbqt):
+                err = stderr_str[:500] if stderr_str else ""
+                return {"error": f"Vina failed (exit code unknown — no output file): {err}"}
 
             if progress_callback:
                 progress_callback("parsing_results")
@@ -568,7 +581,7 @@ class DockingTool(BaseTool):
                 out_content = f.read()
 
             poses = _parse_vina_pdbqt(out_content)
-            log = stdout.decode() if stdout else ""
+            log = stdout_str
 
             # 7. Run interaction fingerprinting on best pose
             interactions: dict[str, Any] = {"hbonds": [], "hydrophobic": [], "pi_stacking": []}

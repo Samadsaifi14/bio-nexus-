@@ -20,50 +20,38 @@ PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
-def _run_vina_sync(
-    cmd: list[str],
-    stdout_path: str,
-    stderr_path: str,
-    timeout: float = 600,
-) -> tuple[int, str, str]:
-    """Run Vina synchronously with reliable process-group kill on timeout.
-    Uses file handles instead of pipes to avoid pipe-buffer deadlock
-    (Vina blocks in D-state on full pipe, making SIGKILL ineffective)."""
-    import os, signal, time
-    with open(stdout_path, "wb") as out_f, open(stderr_path, "wb") as err_f:
-        proc = subprocess.Popen(
-            cmd,
-            stdout=out_f,
-            stderr=err_f,
-            start_new_session=True,
-        )
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
-            if proc.poll() is not None:
-                break
-            time.sleep(0.5)
-        else:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            proc.wait()
-            raise TimeoutError(f"Vina timed out after {timeout}s")
-    with open(stdout_path, "rb") as f:
-        stdout = f.read()
-    with open(stderr_path, "rb") as f:
-        stderr = f.read()
-    return proc.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
-
-
 async def _run_vina_with_timeout(
     cmd: list[str],
     stdout_path: str,
     stderr_path: str,
     timeout: float = 600,
 ) -> tuple[int, str, str]:
-    """Run Vina in thread pool with reliable kill on timeout."""
+    """Run Vina via native async subprocess with reliable timeout kill.
+    Uses file descriptors instead of asyncio.subprocess.PIPE to avoid
+    pipe-buffer deadlock, and create_subprocess_exec (not threads) to
+    avoid ThreadPoolExecutor exhaustion from stuck processes."""
+    import os, signal
+    stdout_fd = os.open(stdout_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    stderr_fd = os.open(stderr_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC)
+    proc = await asyncio.create_subprocess_exec(
+        *cmd,
+        stdout=stdout_fd,
+        stderr=stderr_fd,
+        start_new_session=True,
+    )
+    os.close(stdout_fd)
+    os.close(stderr_fd)
     try:
-        return await asyncio.to_thread(_run_vina_sync, cmd, stdout_path, stderr_path, timeout)
-    except TimeoutError:
-        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
+        await asyncio.wait_for(proc.wait(), timeout=timeout)
+    except asyncio.TimeoutError:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        await proc.wait()
+        raise
+    with open(stdout_path, "rb") as f:
+        stdout = f.read()
+    with open(stderr_path, "rb") as f:
+        stderr = f.read()
+    return proc.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
 
 def _download_vina(dest: str) -> str | None:

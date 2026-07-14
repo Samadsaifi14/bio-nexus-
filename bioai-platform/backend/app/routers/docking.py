@@ -120,7 +120,7 @@ async def _worker(job_id: str) -> None:
 @router.get("/vimontest")
 async def vina_montest():
     import os, subprocess
-    from app.tools.docking import VINA_CMD, _run_vina_sync
+    from app.tools.docking import VINA_CMD, _run_vina_with_timeout
     steps = {"cmd": VINA_CMD}
     steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
     steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
@@ -140,7 +140,7 @@ async def vina_montest():
         out = os.path.join(tdir, "out.log")
         err = os.path.join(tdir, "err.log")
         start = time.time()
-        _run_vina_sync(
+        await _run_vina_with_timeout(
             ["sleep", "30"],
             stdout_path=out, stderr_path=err, timeout=5,
         )

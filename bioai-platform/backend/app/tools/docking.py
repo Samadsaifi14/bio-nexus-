@@ -26,24 +26,19 @@ async def _run_vina_with_timeout(
     stderr_path: str,
     timeout: float = 600,
 ) -> tuple[int, str, str]:
-    """Run Vina via asyncio subprocess with reliable kill-on-timeout."""
-    proc = await asyncio.create_subprocess_exec(
-        *cmd,
-        stdout=asyncio.subprocess.PIPE,
-        stderr=asyncio.subprocess.PIPE,
-    )
+    """Run Vina in thread pool with dual timeout (subprocess + asyncio)."""
     try:
-        stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout)
-        returncode = await proc.wait()
-    except asyncio.TimeoutError:
-        proc.kill()
-        await proc.wait()
+        r = await asyncio.wait_for(
+            asyncio.to_thread(subprocess.run, cmd, capture_output=True, timeout=timeout),
+            timeout=timeout + 30,
+        )
+    except subprocess.TimeoutExpired:
         raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
     with open(stdout_path, "wb") as f:
-        f.write(stdout or b"")
+        f.write(r.stdout or b"")
     with open(stderr_path, "wb") as f:
-        f.write(stderr or b"")
-    return returncode, (stdout or b"").decode(errors="replace"), (stderr or b"").decode(errors="replace")
+        f.write(r.stderr or b"")
+    return r.returncode, (r.stdout or b"").decode(errors="replace"), (r.stderr or b"").decode(errors="replace")
 
 
 def _download_vina(dest: str) -> str | None:

@@ -117,11 +117,13 @@ async def _worker(job_id: str) -> None:
         _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
+_DEPLOYED_COMMIT = "88df0f4"
+
 @router.get("/vimontest")
 async def vina_montest():
     import os, subprocess
     from app.tools.docking import VINA_CMD
-    steps = {"cmd": VINA_CMD}
+    steps = {"cmd": VINA_CMD, "_commit": _DEPLOYED_COMMIT}
     steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
     steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
     if not VINA_CMD or not os.path.isfile(VINA_CMD):

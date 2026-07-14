@@ -20,25 +20,48 @@ PDB_DOWNLOAD = "https://files.rcsb.org/download/{pdb_id}.pdb"
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _SMILES2SDF = "https://cactus.nci.nih.gov/chemical/structure/{smiles}/sdf"
 
+def _run_vina_sync(
+    cmd: list[str],
+    stdout_path: str,
+    stderr_path: str,
+    timeout: float = 600,
+) -> tuple[int, str, str]:
+    """Run Vina synchronously with reliable process-group kill on timeout."""
+    import os, signal, time
+    proc = subprocess.Popen(
+        cmd,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        start_new_session=True,
+    )
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        if proc.poll() is not None:
+            break
+        time.sleep(0.5)
+    else:
+        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        proc.wait()
+        raise TimeoutError(f"Vina timed out after {timeout}s")
+    stdout, stderr = proc.communicate()
+    with open(stdout_path, "wb") as f:
+        f.write(stdout or b"")
+    with open(stderr_path, "wb") as f:
+        f.write(stderr or b"")
+    return proc.returncode, (stdout or b"").decode(errors="replace"), (stderr or b"").decode(errors="replace")
+
+
 async def _run_vina_with_timeout(
     cmd: list[str],
     stdout_path: str,
     stderr_path: str,
     timeout: float = 600,
 ) -> tuple[int, str, str]:
-    """Run Vina in thread pool with dual timeout (subprocess + asyncio)."""
+    """Run Vina in thread pool with reliable kill on timeout."""
     try:
-        r = await asyncio.wait_for(
-            asyncio.to_thread(subprocess.run, cmd, capture_output=True, timeout=timeout),
-            timeout=timeout + 30,
-        )
-    except subprocess.TimeoutExpired:
-        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s (subprocess)")
-    with open(stdout_path, "wb") as f:
-        f.write(r.stdout or b"")
-    with open(stderr_path, "wb") as f:
-        f.write(r.stderr or b"")
-    return r.returncode, (r.stdout or b"").decode(errors="replace"), (r.stderr or b"").decode(errors="replace")
+        return await asyncio.to_thread(_run_vina_sync, cmd, stdout_path, stderr_path, timeout)
+    except TimeoutError:
+        raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
 
 
 def _download_vina(dest: str) -> str | None:

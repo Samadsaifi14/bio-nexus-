@@ -119,58 +119,68 @@ async def _worker(job_id: str) -> None:
 
 @router.get("/vimontest")
 async def vina_montest():
-    import asyncio, os, sys, shutil, subprocess, tempfile, time
+    import asyncio, os, shutil, subprocess, tempfile, time
     steps = {}
-    from app.tools.docking import VINA_CMD
+    from app.tools.docking import VINA_CMD, PDB_DOWNLOAD, _clean_protein, _molblock_to_pdbqt, _find_ligand_center
     steps["cmd"] = VINA_CMD
     steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
     steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
-
     if not VINA_CMD or not os.path.isfile(VINA_CMD):
-        steps["error"] = "vina not found"
-        return steps
+        steps["error"] = "vina not found"; return steps
 
-    # write a minimal PDBQT
     tdir = tempfile.mkdtemp(prefix="vtest_")
     try:
-        rec = os.path.join(tdir, "rec.pdbqt")
-        lig = os.path.join(tdir, "lig.pdbqt")
-        out = os.path.join(tdir, "out.pdbqt")
-        # minimal valid PDBQT — single atom ALA
-        for fn, content in [
-            (rec, "ATOM      1  N   ALA A   1       0.000   0.000   0.000  1.00  0.00           N\n"),
-            (lig, "ATOM      1  C   LIG A   1       1.000   0.000   0.000  1.00  0.00           C\n"),
-        ]:
-            with open(fn, "w") as f:
-                f.write(content)
+        # fetch a real tiny PDB (1aki — 10-residue peptide)
+        import httpx
+        async with httpx.AsyncClient(timeout=15) as cl:
+            r = await cl.get(PDB_DOWNLOAD.format(pdb_id="1aki"))
+        if r.status_code != 200:
+            steps["error"] = f"PDB download failed: {r.status_code}"; return steps
+        pdb = r.text
+        cleaned = _clean_protein(pdb)
+        rec_pdb = os.path.join(tdir, "rec.pdb")
+        rec_pdbqt = os.path.join(tdir, "rec.pdbqt")
+        with open(rec_pdb, "w") as f: f.write(cleaned)
+        # convert receptor PDB → PDBQT (just copy — Vina can read PDB)
+        shutil.copy(rec_pdb, rec_pdbqt)
 
+        # SMILES → PDBQT for ethanol
+        sdf_url = f"https://cactus.nci.nih.gov/chemical/structure/{urllib.parse.quote('CCO', safe='')}/sdf"
+        async with httpx.AsyncClient(timeout=15) as cl:
+            r2 = await cl.get(sdf_url)
+        if r2.status_code != 200:
+            steps["error"] = f"SDF download failed: {r2.status_code}"; return steps
+        pdbqt_content = _molblock_to_pdbqt(r2.text)
+        lig_pdbqt = os.path.join(tdir, "lig.pdbqt")
+        with open(lig_pdbqt, "w") as f: f.write(pdbqt_content)
+
+        center = _find_ligand_center(pdb) or (0, 0, 0)
+        out = os.path.join(tdir, "out.pdbqt")
         started = time.time()
         try:
             r = subprocess.run(
-                [VINA_CMD, "--receptor", rec, "--ligand", lig, "--out", out,
-                 "--center_x", "0", "--center_y", "0", "--center_z", "0",
+                ["timeout", "60", VINA_CMD,
+                 "--receptor", rec_pdbqt, "--ligand", lig_pdbqt, "--out", out,
+                 "--center_x", str(center[0]), "--center_y", str(center[1]), "--center_z", str(center[2]),
                  "--size_x", "20", "--size_y", "20", "--size_z", "20",
                  "--exhaustiveness", "1", "--num_modes", "1"],
-                capture_output=True, timeout=30,
+                capture_output=True, timeout=120,
             )
             steps["rc"] = r.returncode
             steps["elapsed"] = round(time.time() - started, 2)
             steps["out_exists"] = os.path.isfile(out)
-            steps["stdout"] = r.stdout.decode(errors="replace")[:500]
-            steps["stderr"] = r.stderr.decode(errors="replace")[:500]
-            if r.returncode != 0:
-                try:
-                    with open(out) as f:
-                        steps["out_content"] = f.read()[:200]
-                except:
-                    pass
+            steps["stdout"] = r.stdout.decode(errors="replace")[:800]
+            steps["stderr"] = r.stderr.decode(errors="replace")[:800]
+            if r.returncode == 124:
+                steps["error"] = "TIMEOUT (linux timeout killed it)"
+            elif os.path.isfile(out):
+                with open(out) as f: steps["out_preview"] = f.read()[:300]
         except subprocess.TimeoutExpired:
-            steps["error"] = f"TIMEOUT after {round(time.time()-started, 1)}s"
+            steps["error"] = f"PYTHON TIMEOUT after {round(time.time()-started, 1)}s"
         except Exception as e:
             steps["error"] = f"EXC: {e}"
     finally:
         shutil.rmtree(tdir, ignore_errors=True)
-
     return steps
 
 @router.get("/debug")

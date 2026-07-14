@@ -151,10 +151,26 @@ async def vina_montest():
         lig_pdbqt = os.path.join(tdir, "lig.pdbqt")
         with open(lig_pdbqt, "w") as f: f.write(pdbqt_content)
 
-        # step 3: test vina --version (binary works)
-        r = subprocess.run([VINA_CMD, "--version"], capture_output=True, timeout=10)
-        steps["vina_version"] = r.stdout.decode(errors="replace").strip()
-        steps["rc"] = r.returncode
+        # step 3: test vina run with short timeout (should timeout)
+        rec_pdb = os.path.join(tdir, "rec.pdb")
+        with open(rec_pdb, "w") as f: f.write(cleaned)
+        out_pdbqt = os.path.join(tdir, "out.pdbqt")
+        start = time.time()
+        try:
+            r = subprocess.run(
+                [VINA_CMD, "--receptor", rec_pdb, "--ligand", lig_pdbqt,
+                 "--out", out_pdbqt, "--center_x", "0", "--center_y", "0",
+                 "--center_z", "0", "--size_x", "20", "--size_y", "20",
+                 "--size_z", "20", "--exhaustiveness", "1", "--num_modes", "1"],
+                capture_output=True, timeout=10,
+            )
+            steps["vina_rc"] = r.returncode
+            steps["vina_out"] = r.stdout.decode(errors="replace")[:500]
+            steps["vina_err"] = r.stderr.decode(errors="replace")[:500]
+        except subprocess.TimeoutExpired:
+            steps["timeout_after"] = round(time.time() - start, 1)
+            steps["vina_rc"] = "TIMEOUT"
+        steps["elapsed"] = round(time.time() - start, 2)
     except Exception as e:
         steps["error"] = repr(e)
     finally:

@@ -44,20 +44,25 @@ async def _run_vina_with_timeout(
         raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
 
 
+_TIMEOUT_CMD = "/usr/bin/timeout"
+
 def _run_vina_sync_timeout(
     cmd: list[str],
     stdout_path: str,
     stderr_path: str,
     timeout: float,
 ) -> tuple[int, str, str]:
-    """Synchronous Vina wrapper with subprocess.run(timeout=…).
-    Writes output to /dev/null to eliminate any I/O blocking.
-    Final output is reconstructed from the Vina output file."""
-    import subprocess
-    try:
-        r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
-    except subprocess.TimeoutExpired:
-        raise TimeoutError(f"Vina timed out after {timeout}s")
+    """Run Vina via /usr/bin/timeout — uses OS-level process kill.
+    Avoids Python subprocess.run(timeout=…) which may not work on Render."""
+    import subprocess, os, time
+    timeout_cmd = [_TIMEOUT_CMD, "--kill-after=5", str(int(timeout))] + cmd
+    r = subprocess.run(
+        timeout_cmd,
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    if r.returncode in (124, 137) or r.returncode >= 128:
+        raise TimeoutError(f"Vina timed out after {timeout}s (exit {r.returncode})")
     stdout = stderr = ""
     try:
         with open(stdout_path, "rb") as f:

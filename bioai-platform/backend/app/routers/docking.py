@@ -133,12 +133,13 @@ async def vina_montest():
     except Exception as e:
         steps["error"] = repr(e)
 
-    # Test timeout mechanism: run `sleep 30` with 5s timeout
+    # Test OS timeout: run `sleep 30` with 5s timeout
+    import tempfile, subprocess, time
+    tdir = tempfile.mkdtemp(prefix="vt_")
+    out = os.path.join(tdir, "out.log")
+    err = os.path.join(tdir, "err.log")
+    from app.tools.docking import _run_vina_with_timeout
     try:
-        import tempfile, time
-        tdir = tempfile.mkdtemp(prefix="vt_")
-        out = os.path.join(tdir, "out.log")
-        err = os.path.join(tdir, "err.log")
         start = time.time()
         await _run_vina_with_timeout(
             ["sleep", "30"],
@@ -149,9 +150,7 @@ async def vina_montest():
         steps["timeout_sleep"] = f"TIMEOUT_{round(time.time() - start, 2)}s"
     except Exception as exc:
         steps["timeout_sleep"] = f"ERR: {exc}"
-    finally:
-        import shutil
-        shutil.rmtree(tdir, ignore_errors=True)
+    import shutil; shutil.rmtree(tdir, ignore_errors=True)
 
     return steps
 

@@ -50,21 +50,21 @@ def _run_vina_sync_timeout(
     stderr_path: str,
     timeout: float,
 ) -> tuple[int, str, str]:
-    """Run Vina with subprocess.Popen + wait(timeout=…) + kill.
-    Avoids subprocess.run and /usr/bin/timeout which may get stuck
-    if the subprocess enters an uninterruptible sleep."""
+    """Run Vina with poll()-based polling loop (no proc.wait timeout,
+    avoiding Python 3.14 pidfd-wait hangs on Render)."""
     import subprocess, os, signal, time
     with open(stdout_path, "wb") as of, open(stderr_path, "wb") as ef:
         proc = subprocess.Popen(cmd, stdout=of, stderr=ef, start_new_session=True)
-        try:
-            rc = proc.wait(timeout=timeout)
-        except subprocess.TimeoutExpired:
-            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-            try:
-                rc = proc.wait(timeout=10)
-            except subprocess.TimeoutExpired:
-                proc.kill()
-                rc = proc.wait()
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            rc = proc.poll()
+            if rc is not None:
+                break
+            time.sleep(0.5)
+        else:
+            pgid = os.getpgid(proc.pid)
+            os.killpg(pgid, signal.SIGKILL)
+            proc.wait()
             raise TimeoutError(f"Vina timed out after {timeout}s")
     with open(stdout_path, "rb") as f:
         stdout = f.read().decode(errors="replace")

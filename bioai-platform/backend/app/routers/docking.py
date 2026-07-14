@@ -202,6 +202,7 @@ async def debug_deps():
             steps["vina_version_err"] = str(e)[:200]
     else:
         steps["vina_version_err"] = "binary not accessible"
+    steps["which_timeout"] = shutil.which("timeout") or "NOT FOUND"
     steps["tempdir"] = __import__("tempfile").gettempdir()
     steps["cwd"] = os.getcwd()
     return steps

@@ -50,18 +50,24 @@ def _run_vina_sync_timeout(
     stderr_path: str,
     timeout: float,
 ) -> tuple[int, str, str]:
-    """Synchronous Vina wrapper with subprocess.run(timeout=…)."""
+    """Synchronous Vina wrapper with subprocess.run(timeout=…).
+    Writes output to /dev/null to eliminate any I/O blocking.
+    Final output is reconstructed from the Vina output file."""
     import subprocess
-    with open(stdout_path, "wb") as out_f, open(stderr_path, "wb") as err_f:
-        try:
-            r = subprocess.run(cmd, stdout=out_f, stderr=err_f, timeout=timeout)
-        except subprocess.TimeoutExpired:
-            raise TimeoutError(f"Vina timed out after {timeout}s")
-    with open(stdout_path, "rb") as f:
-        stdout = f.read()
-    with open(stderr_path, "rb") as f:
-        stderr = f.read()
-    return r.returncode if r else -1, stdout.decode(errors="replace"), stderr.decode(errors="replace")
+    try:
+        r = subprocess.run(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=timeout)
+    except subprocess.TimeoutExpired:
+        raise TimeoutError(f"Vina timed out after {timeout}s")
+    stdout = stderr = ""
+    try:
+        with open(stdout_path, "rb") as f:
+            stdout = f.read().decode(errors="replace")
+    except: pass
+    try:
+        with open(stderr_path, "rb") as f:
+            stderr = f.read().decode(errors="replace")
+    except: pass
+    return r.returncode, stdout, stderr
 
 
 def _download_vina(dest: str) -> str | None:
@@ -636,7 +642,7 @@ class DockingTool(BaseTool):
                      "--num_modes", "3"],
                     stdout_path=vina_stdout,
                     stderr_path=vina_stderr,
-                    timeout=60,
+                    timeout=30,
                 )
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()

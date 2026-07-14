@@ -117,7 +117,7 @@ async def _worker(job_id: str) -> None:
         _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
-_DEPLOYED_COMMIT = "88df0f4"
+_DEPLOYED_COMMIT = "e36a2bd"
 
 @router.get("/vimontest")
 async def vina_montest():

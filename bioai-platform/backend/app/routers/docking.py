@@ -130,41 +130,56 @@ async def vina_montest():
 
     tdir = tempfile.mkdtemp(prefix="vtest_")
     try:
-        # fetch a real tiny PDB (1aki — 10-residue peptide)
+        # step 1: download PDB
         import httpx
+        steps["step1_start"] = 1
         async with httpx.AsyncClient(timeout=15) as cl:
             r = await cl.get(PDB_DOWNLOAD.format(pdb_id="1aki"))
+        steps["step1_pdb_status"] = r.status_code
         if r.status_code != 200:
             steps["error"] = f"PDB download failed: {r.status_code}"; return steps
         pdb = r.text
+        steps["step1_pdb_len"] = len(pdb)
+
+        # step 2: clean protein
+        steps["step2_start"] = 1
         cleaned = _clean_protein(pdb)
         rec_pdb = os.path.join(tdir, "rec.pdb")
         rec_pdbqt = os.path.join(tdir, "rec.pdbqt")
         with open(rec_pdb, "w") as f: f.write(cleaned)
-        # convert receptor PDB → PDBQT (just copy — Vina can read PDB)
         shutil.copy(rec_pdb, rec_pdbqt)
 
-        # SMILES → PDBQT for ethanol
+        # step 3: SMILES → SDF → PDBQT
+        steps["step3_start"] = 1
         sdf_url = f"https://cactus.nci.nih.gov/chemical/structure/{urllib.parse.quote('CCO', safe='')}/sdf"
         async with httpx.AsyncClient(timeout=15) as cl:
             r2 = await cl.get(sdf_url)
+        steps["step3_sdf_status"] = r2.status_code
         if r2.status_code != 200:
             steps["error"] = f"SDF download failed: {r2.status_code}"; return steps
         pdbqt_content = _molblock_to_pdbqt(r2.text)
+        if not pdbqt_content or len(pdbqt_content) < 50:
+            steps["error"] = "PDBQT conversion failed or too short"; return steps
         lig_pdbqt = os.path.join(tdir, "lig.pdbqt")
         with open(lig_pdbqt, "w") as f: f.write(pdbqt_content)
+        steps["step3_lig_pdbqt_len"] = len(pdbqt_content)
 
+        # step 4: find center
+        steps["step4_start"] = 1
         center = _find_ligand_center(pdb) or (0, 0, 0)
+        steps["step4_center"] = list(center)
+
+        # step 5: run Vina
         out = os.path.join(tdir, "out.pdbqt")
         started = time.time()
         try:
             r = subprocess.run(
-                ["timeout", "60", VINA_CMD,
+                ["timeout", "10", VINA_CMD,
                  "--receptor", rec_pdbqt, "--ligand", lig_pdbqt, "--out", out,
                  "--center_x", str(center[0]), "--center_y", str(center[1]), "--center_z", str(center[2]),
                  "--size_x", "20", "--size_y", "20", "--size_z", "20",
                  "--exhaustiveness", "1", "--num_modes", "1"],
-                capture_output=True, timeout=120,
+                capture_output=True, timeout=30,
             )
             steps["rc"] = r.returncode
             steps["elapsed"] = round(time.time() - started, 2)

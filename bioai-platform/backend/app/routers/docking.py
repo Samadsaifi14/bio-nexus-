@@ -117,13 +117,11 @@ async def _worker(job_id: str) -> None:
         _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
-_DEPLOYED_COMMIT = "951d3f5"
-
 @router.get("/vimontest")
 async def vina_montest():
     import os, subprocess
-    from app.tools.docking import VINA_CMD
-    steps = {"cmd": VINA_CMD, "_commit": _DEPLOYED_COMMIT}
+    from app.tools.docking import VINA_CMD, _run_vina_sync
+    steps = {"cmd": VINA_CMD}
     steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
     steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
     if not VINA_CMD or not os.path.isfile(VINA_CMD):
@@ -134,6 +132,27 @@ async def vina_montest():
         steps["rc"] = r.returncode
     except Exception as e:
         steps["error"] = repr(e)
+
+    # Test timeout mechanism: run `sleep 30` with 5s timeout
+    try:
+        import tempfile, time
+        tdir = tempfile.mkdtemp(prefix="vt_")
+        out = os.path.join(tdir, "out.log")
+        err = os.path.join(tdir, "err.log")
+        start = time.time()
+        _run_vina_sync(
+            ["sleep", "30"],
+            stdout_path=out, stderr_path=err, timeout=5,
+        )
+        steps["timeout_sleep"] = round(time.time() - start, 2)
+    except TimeoutError:
+        steps["timeout_sleep"] = f"TIMEOUT_{round(time.time() - start, 2)}s"
+    except Exception as exc:
+        steps["timeout_sleep"] = f"ERR: {exc}"
+    finally:
+        import shutil
+        shutil.rmtree(tdir, ignore_errors=True)
+
     return steps
 
 @router.get("/debug")

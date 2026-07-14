@@ -157,7 +157,10 @@ async def vina_montest():
         steps["step3_sdf_status"] = r2.status_code
         if r2.status_code != 200:
             steps["error"] = f"SDF download failed: {r2.status_code}"; return steps
+        steps["step3_sdf_preview"] = r2.text[:500]
         pdbqt_content = _molblock_to_pdbqt(r2.text)
+        steps["step3_pdbqt_len"] = len(pdbqt_content) if pdbqt_content else 0
+        steps["step3_pdbqt_preview"] = (pdbqt_content or "EMPTY")[:500]
         if not pdbqt_content or len(pdbqt_content) < 50:
             steps["error"] = "PDBQT conversion failed or too short"; return steps
         lig_pdbqt = os.path.join(tdir, "lig.pdbqt")

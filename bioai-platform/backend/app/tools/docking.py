@@ -44,35 +44,33 @@ async def _run_vina_with_timeout(
         raise asyncio.TimeoutError(f"Vina timed out after {timeout}s")
 
 
-_TIMEOUT_CMD = "/usr/bin/timeout"
-
 def _run_vina_sync_timeout(
     cmd: list[str],
     stdout_path: str,
     stderr_path: str,
     timeout: float,
 ) -> tuple[int, str, str]:
-    """Run Vina via /usr/bin/timeout — uses OS-level process kill.
-    Avoids Python subprocess.run(timeout=…) which may not work on Render."""
-    import subprocess, os, time
-    timeout_cmd = [_TIMEOUT_CMD, "--kill-after=5", str(int(timeout))] + cmd
-    r = subprocess.run(
-        timeout_cmd,
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    if r.returncode in (124, 137) or r.returncode >= 128:
-        raise TimeoutError(f"Vina timed out after {timeout}s (exit {r.returncode})")
-    stdout = stderr = ""
-    try:
-        with open(stdout_path, "rb") as f:
-            stdout = f.read().decode(errors="replace")
-    except: pass
-    try:
-        with open(stderr_path, "rb") as f:
-            stderr = f.read().decode(errors="replace")
-    except: pass
-    return r.returncode, stdout, stderr
+    """Run Vina with subprocess.Popen + wait(timeout=…) + kill.
+    Avoids subprocess.run and /usr/bin/timeout which may get stuck
+    if the subprocess enters an uninterruptible sleep."""
+    import subprocess, os, signal, time
+    with open(stdout_path, "wb") as of, open(stderr_path, "wb") as ef:
+        proc = subprocess.Popen(cmd, stdout=of, stderr=ef, start_new_session=True)
+        try:
+            rc = proc.wait(timeout=timeout)
+        except subprocess.TimeoutExpired:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            try:
+                rc = proc.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                proc.kill()
+                rc = proc.wait()
+            raise TimeoutError(f"Vina timed out after {timeout}s")
+    with open(stdout_path, "rb") as f:
+        stdout = f.read().decode(errors="replace")
+    with open(stderr_path, "rb") as f:
+        stderr = f.read().decode(errors="replace")
+    return rc, stdout, stderr
 
 
 def _download_vina(dest: str) -> str | None:
@@ -647,7 +645,7 @@ class DockingTool(BaseTool):
                      "--num_modes", "3"],
                     stdout_path=vina_stdout,
                     stderr_path=vina_stderr,
-                    timeout=30,
+                    timeout=60,
                 )
                 with open(vina_stderr, "r") as f:
                     stderr_str = f.read()

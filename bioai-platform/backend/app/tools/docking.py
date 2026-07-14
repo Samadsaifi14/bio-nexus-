@@ -26,29 +26,31 @@ def _run_vina_sync(
     stderr_path: str,
     timeout: float = 600,
 ) -> tuple[int, str, str]:
-    """Run Vina synchronously with reliable process-group kill on timeout."""
+    """Run Vina synchronously with reliable process-group kill on timeout.
+    Uses file handles instead of pipes to avoid pipe-buffer deadlock
+    (Vina blocks in D-state on full pipe, making SIGKILL ineffective)."""
     import os, signal, time
-    proc = subprocess.Popen(
-        cmd,
-        stdout=subprocess.PIPE,
-        stderr=subprocess.PIPE,
-        start_new_session=True,
-    )
-    deadline = time.monotonic() + timeout
-    while time.monotonic() < deadline:
-        if proc.poll() is not None:
-            break
-        time.sleep(0.5)
-    else:
-        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
-        proc.wait()
-        raise TimeoutError(f"Vina timed out after {timeout}s")
-    stdout, stderr = proc.communicate()
-    with open(stdout_path, "wb") as f:
-        f.write(stdout or b"")
-    with open(stderr_path, "wb") as f:
-        f.write(stderr or b"")
-    return proc.returncode, (stdout or b"").decode(errors="replace"), (stderr or b"").decode(errors="replace")
+    with open(stdout_path, "wb") as out_f, open(stderr_path, "wb") as err_f:
+        proc = subprocess.Popen(
+            cmd,
+            stdout=out_f,
+            stderr=err_f,
+            start_new_session=True,
+        )
+        deadline = time.monotonic() + timeout
+        while time.monotonic() < deadline:
+            if proc.poll() is not None:
+                break
+            time.sleep(0.5)
+        else:
+            os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            proc.wait()
+            raise TimeoutError(f"Vina timed out after {timeout}s")
+    with open(stdout_path, "rb") as f:
+        stdout = f.read()
+    with open(stderr_path, "rb") as f:
+        stderr = f.read()
+    return proc.returncode, stdout.decode(errors="replace"), stderr.decode(errors="replace")
 
 
 async def _run_vina_with_timeout(

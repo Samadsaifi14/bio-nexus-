@@ -119,62 +119,19 @@ async def _worker(job_id: str) -> None:
 
 @router.get("/vimontest")
 async def vina_montest():
-    import asyncio, os, shutil, tempfile, time, urllib.parse, subprocess
-    steps = {}
-    from app.tools.docking import (VINA_CMD, PDB_DOWNLOAD, _clean_protein,
-                                    _molblock_to_pdbqt, _find_ligand_center)
-    steps["cmd"] = VINA_CMD
+    import os, subprocess
+    from app.tools.docking import VINA_CMD
+    steps = {"cmd": VINA_CMD}
     steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
     steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
     if not VINA_CMD or not os.path.isfile(VINA_CMD):
         steps["error"] = "vina not found"; return steps
-
-    tdir = tempfile.mkdtemp(prefix="vtest_")
     try:
-        import httpx
-        # step 1: download PDB
-        async with httpx.AsyncClient(timeout=15) as cl:
-            r = await cl.get(PDB_DOWNLOAD.format(pdb_id="1aki"))
-        if r.status_code != 200:
-            steps["error"] = f"PDB download failed: {r.status_code}"; return steps
-        cleaned = _clean_protein(r.text)
-
-        # step 2: SMILES → SDF → PDBQT
-        sdf_url = f"https://cactus.nci.nih.gov/chemical/structure/{urllib.parse.quote('CCO', safe='')}/sdf"
-        async with httpx.AsyncClient(timeout=15) as cl:
-            r2 = await cl.get(sdf_url)
-        if r2.status_code != 200:
-            steps["error"] = f"SDF download failed: {r2.status_code}"; return steps
-        pdbqt_content = _molblock_to_pdbqt(r2.text)
-        if not pdbqt_content or len(pdbqt_content) < 50:
-            steps["error"] = "PDBQT conversion failed or too short"; return steps
-        lig_pdbqt = os.path.join(tdir, "lig.pdbqt")
-        with open(lig_pdbqt, "w") as f: f.write(pdbqt_content)
-
-        # step 3: test vina run with short timeout (should timeout)
-        rec_pdb = os.path.join(tdir, "rec.pdb")
-        with open(rec_pdb, "w") as f: f.write(cleaned)
-        out_pdbqt = os.path.join(tdir, "out.pdbqt")
-        start = time.time()
-        try:
-            r = subprocess.run(
-                [VINA_CMD, "--receptor", rec_pdb, "--ligand", lig_pdbqt,
-                 "--out", out_pdbqt, "--center_x", "0", "--center_y", "0",
-                 "--center_z", "0", "--size_x", "20", "--size_y", "20",
-                 "--size_z", "20", "--exhaustiveness", "1", "--num_modes", "1"],
-                capture_output=True, timeout=10,
-            )
-            steps["vina_rc"] = r.returncode
-            steps["vina_out"] = r.stdout.decode(errors="replace")[:500]
-            steps["vina_err"] = r.stderr.decode(errors="replace")[:500]
-        except subprocess.TimeoutExpired:
-            steps["timeout_after"] = round(time.time() - start, 1)
-            steps["vina_rc"] = "TIMEOUT"
-        steps["elapsed"] = round(time.time() - start, 2)
+        r = subprocess.run([VINA_CMD, "--version"], capture_output=True, timeout=10)
+        steps["vina_version"] = r.stdout.decode(errors="replace").strip()
+        steps["rc"] = r.returncode
     except Exception as e:
         steps["error"] = repr(e)
-    finally:
-        shutil.rmtree(tdir, ignore_errors=True)
     return steps
 
 @router.get("/debug")

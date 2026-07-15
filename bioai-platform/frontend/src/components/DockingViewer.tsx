@@ -15,7 +15,6 @@ type StyleMode = 'cartoon' | 'surface' | 'stick';
 
 interface PDBeElement extends HTMLElement {
   plugin?: {
-    clear: () => void;
     loadStructureFromData: (data: string, format: string, options?: Record<string, unknown>) => Promise<unknown>;
     canvas3d?: {
       requestDraw: () => void;
@@ -40,6 +39,7 @@ export function DockingViewer({
 }: DockingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDBeElement | null>(null);
+  const initRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [styleMode] = useState<StyleMode>('cartoon');
@@ -110,6 +110,7 @@ export function DockingViewer({
     }
   }, []);
 
+  // Initialize viewer ONCE per pdbId — never re-create
   useEffect(() => {
     if (!pdbId || !ligandPdb) {
       setStatus('error');
@@ -120,85 +121,73 @@ export function DockingViewer({
     const container = containerRef.current;
     if (!container) return;
 
-    let cancelled = false;
+    // Prevent double-init (React StrictMode)
+    if (initRef.current) return;
+    initRef.current = true;
 
-    // Create the pdbe-molstar web component (proven approach from StructureViewer)
+    let cancelled = false;
+    let checkInterval: ReturnType<typeof setInterval> | null = null;
+
+    // Create the pdbe-molstar web component
     container.innerHTML = '';
 
     const el = document.createElement('pdbe-molstar') as PDBeElement;
     el.setAttribute('molecule-id', pdbId.toLowerCase());
     el.setAttribute('hide-controls', '');
-    el.setAttribute('loading-overlay', '');
     el.setAttribute('background-color', backgroundColor);
     el.id = `pdbe-docking-${pdbId.toLowerCase()}`;
     container.appendChild(el);
     viewerRef.current = el;
 
-    // Wait for the web component to be ready, then load ligand + interactions
-    const loadCustom = async () => {
-      // pdbe-molstar fires 'molstar-models-loaded' when ready
-      let loaded = false;
+    // Wait for plugin to be ready, then load ligand + interactions
+    let attempts = 0;
+    checkInterval = setInterval(async () => {
+      if (cancelled) {
+        if (checkInterval) clearInterval(checkInterval);
+        return;
+      }
 
-      const onLoaded = async () => {
-        if (cancelled || loaded) return;
-        loaded = true;
-
-        const plugin = el.plugin;
-        if (!plugin) return;
-
-        // Load ligand as additional structure
-        if (ligandPdb) {
-          try {
-            await plugin.loadStructureFromData(ligandPdb, 'pdb', {});
-          } catch {
-            // Ligand load is best-effort
-          }
-        }
-
-        // Draw interaction lines
-        if (interactions) {
-          drawInteractions(interactions);
-        }
-
-        setStatus('ready');
-      };
-
-      // Try event first, fall back to polling
-      el.addEventListener('molstar-models-loaded', () => onLoaded());
-
-      // Fallback: poll for plugin availability
-      let attempts = 0;
-      const check = setInterval(() => {
-        if (cancelled || loaded) {
-          clearInterval(check);
-          return;
-        }
-        if (el.plugin?.canvas3d) {
-          clearInterval(check);
-          onLoaded();
-        }
+      const plugin = el.plugin;
+      if (!plugin?.canvas3d) {
         attempts++;
-        if (attempts > 100) {
-          clearInterval(check);
+        if (attempts > 150) { // 45 seconds max
+          if (checkInterval) clearInterval(checkInterval);
           if (!cancelled) {
             setStatus('error');
             setError('Molstar failed to initialize');
           }
         }
-      }, 300);
-    };
+        return;
+      }
 
-    // Small delay to let web component initialize
-    const timer = setTimeout(loadCustom, 500);
+      if (checkInterval) clearInterval(checkInterval);
+
+      // Load ligand as additional structure
+      if (ligandPdb) {
+        try {
+          await plugin.loadStructureFromData(ligandPdb, 'pdb', {});
+        } catch {
+          // Best-effort
+        }
+      }
+
+      // Draw interaction lines
+      if (interactions) {
+        drawInteractions(interactions);
+      }
+
+      if (!cancelled) {
+        setStatus('ready');
+      }
+    }, 300);
 
     return () => {
       cancelled = true;
-      clearTimeout(timer);
-      container.innerHTML = '';
+      if (checkInterval) clearInterval(checkInterval);
     };
-  }, [pdbId, ligandPdb, backgroundColor, drawInteractions, interactions]);
+  }, [pdbId, ligandPdb, backgroundColor]); // NO interactions here — avoids re-init
 
-  // Redraw interactions when they change
+  // Update interactions without re-creating viewer
   useEffect(() => {
     if (status === 'ready' && interactions) {
       drawInteractions(interactions);
@@ -254,14 +243,14 @@ export function DockingViewer({
       )}
 
       <div className="relative" style={{ height }}>
-        <div ref={containerRef} className="absolute inset-0" />
+        <div ref={containerRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
         {status === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-white/60">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-white/60 z-10">
             Loading structure...
           </div>
         )}
         {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-red-400">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-red-400 z-10">
             {error}
           </div>
         )}

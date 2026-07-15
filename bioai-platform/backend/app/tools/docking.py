@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import shutil
 import subprocess
 import tempfile
 import urllib.request
@@ -41,11 +42,18 @@ def _verify_checksum(path: Path) -> None:
 
 
 def _ensure_vina() -> str:
-    """Download and locate the AutoDock Vina binary (Linux build)."""
+    """Locate the AutoDock Vina binary (installed by Dockerfile, or download)."""
     global _VINA_BINARY
     if _VINA_BINARY and os.path.isfile(_VINA_BINARY):
         return _VINA_BINARY
 
+    # Check the Dockerfile-installed location first
+    for candidate in ["/usr/local/bin/vina", shutil.which("vina") or ""]:
+        if candidate and os.path.isfile(candidate):
+            _VINA_BINARY = candidate
+            return _VINA_BINARY
+
+    # Fall back to downloading
     bin_dir = Path(tempfile.gettempdir()) / "vina_bin"
     bin_dir.mkdir(exist_ok=True)
     exe_path = bin_dir / _EXE_NAME

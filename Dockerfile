@@ -17,11 +17,11 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
     chmod +x /usr/local/bin/vina
 
 WORKDIR /app
-COPY requirements.txt .
+COPY bioai-platform/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # primer3-py is optional (requires C compiler) — skip silently if it fails
 RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"
-COPY . .
+COPY bioai-platform/backend/ .
 
 EXPOSE 7860
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

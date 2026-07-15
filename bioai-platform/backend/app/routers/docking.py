@@ -132,7 +132,7 @@ async def create_docking_job(body: DockingJobCreate):
     return DockingJobResponse(**{k: v for k, v in row.items() if k in DockingJobResponse.model_fields})
 
 
-@router.get("/{job_id}", response_model=DockingJobResponse)
+@router.get("/status/{job_id}", response_model=DockingJobResponse)
 async def get_docking_job(job_id: str):
     supabase = get_client()
     result = supabase.table(_TABLE).select("*").eq("id", job_id).single().execute()

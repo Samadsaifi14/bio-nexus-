@@ -340,7 +340,7 @@ export async function getDockingStatus(jobId: string): Promise<DockingResult> {
 }
 
 export function getDockingPdbUrl(jobId: string): string {
-  return `/api/backend/api/docking/result/${jobId}/pdb`;
+  return `/api/backend/docking/result/${jobId}/pdb`;
 }
 
 export type SequencingQC = {

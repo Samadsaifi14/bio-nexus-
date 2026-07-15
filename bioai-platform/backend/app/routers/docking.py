@@ -208,7 +208,7 @@ _AROMATIC_RING_ATOMS = {
 }
 
 # Two-ring centroids for TRP (5-membered + 6-membered)
-_TRP_RINGS = {
+_TRP_RING_ATOMS = {
     "five": ["CD1", "NE1", "CE2", "CG", "CD2"],
     "six": ["CE2", "CD2", "CZ2", "CH2", "CZ3", "CE3"],
 }

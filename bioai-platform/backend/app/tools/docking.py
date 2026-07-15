@@ -1,29 +1,23 @@
 from __future__ import annotations
 
+import math
 import os
+import re
 import subprocess
 import tempfile
 import urllib.request
 from pathlib import Path
+from typing import Optional
 
 # AutoDock Vina binary location
 _VINA_BINARY: str | None = None
-# FIX: was pointing at the Windows build (vina_1.2.3_win.exe) while the
-# container runs Linux -> subprocess.run() failed with "Exec format error",
-# which was being swallowed and recorded as a generic "failed" docking job.
 _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.3/vina_1.2.3_linux_x86_64"
 _EXE_NAME = "vina"
-
-# Expected checksum for the Linux binary (from the GitHub release page).
-# Fill this in from the release's checksums.txt / SHA256SUMS before deploying;
-# left blank here since I can't fetch it in this sandbox. If left empty,
-# verification is skipped (with a warning) rather than blocking startup.
-_VINA_SHA256 = ""  # e.g. "a1b2c3..."
+_VINA_SHA256 = ""
 
 
 def _verify_checksum(path: Path) -> None:
     if not _VINA_SHA256:
-        print("[docking] WARNING: _VINA_SHA256 not set, skipping binary verification.")
         return
     import hashlib
 
@@ -35,25 +29,22 @@ def _verify_checksum(path: Path) -> None:
     if digest != _VINA_SHA256:
         path.unlink(missing_ok=True)
         raise RuntimeError(
-            f"Vina binary checksum mismatch (got {digest}, expected {_VINA_SHA256}). "
-            "Refusing to use a possibly corrupted/tampered download."
+            f"Vina binary checksum mismatch (got {digest}, expected {_VINA_SHA256})."
         )
 
 
 def _ensure_vina() -> str:
-    """Locate the AutoDock Vina binary (installed by Dockerfile, or download)."""
+    """Locate the AutoDock Vina binary."""
     global _VINA_BINARY
     if _VINA_BINARY and os.path.isfile(_VINA_BINARY):
         return _VINA_BINARY
 
-    # Check the Dockerfile-installed location first
     import shutil
     for candidate in ["/usr/local/bin/vina", shutil.which("vina") or ""]:
         if candidate and os.path.isfile(candidate):
             _VINA_BINARY = candidate
             return _VINA_BINARY
 
-    # Fall back to downloading
     bin_dir = Path(tempfile.gettempdir()) / "vina_bin"
     bin_dir.mkdir(exist_ok=True)
     exe_path = bin_dir / _EXE_NAME
@@ -68,10 +59,56 @@ def _ensure_vina() -> str:
     return _VINA_BINARY
 
 
+# ---------------------------------------------------------------------------
+# PDB fetching
+# ---------------------------------------------------------------------------
+
+def fetch_pdb_from_rcsb(pdb_id: str) -> str:
+    """Download a PDB file from RCSB by 4-character PDB ID."""
+    pdb_id = pdb_id.strip().upper()
+    if len(pdb_id) != 4:
+        raise ValueError(f"Invalid PDB ID: {pdb_id!r}")
+    url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+    try:
+        data = urllib.request.urlopen(url, timeout=30).read().decode("utf-8", errors="replace")
+    except Exception as e:
+        raise RuntimeError(f"Failed to fetch PDB {pdb_id} from RCSB: {e}")
+    if "ATOM" not in data and "HETATM" not in data:
+        raise RuntimeError(f"PDB {pdb_id} from RCSB contains no coordinate data")
+    return data
+
+
+# ---------------------------------------------------------------------------
+# Grid center computation
+# ---------------------------------------------------------------------------
+
+_ATOM_RE = re.compile(
+    r"^(ATOM|HETATM)\s+\d+\s+\S+\s+(\S)\s+(\d+)\s+"
+    r"([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"
+)
+
+
+def compute_grid_center(pdb_text: str) -> list[float]:
+    """Compute the geometric centre of all ATOM (non-ligand) records."""
+    xs, ys, zs = [], [], []
+    for line in pdb_text.splitlines():
+        if line.startswith("ATOM"):
+            m = _ATOM_RE.match(line)
+            if m:
+                xs.append(float(m.group(4)))
+                ys.append(float(m.group(5)))
+                zs.append(float(m.group(6)))
+    if not xs:
+        return [0.0, 0.0, 0.0]
+    return [sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)]
+
+
+# ---------------------------------------------------------------------------
+# Ligand prep (SMILES -> PDBQT via NCI CACTUS + Open Babel)
+# ---------------------------------------------------------------------------
+
 def smiles_to_pdbqt(smiles: str) -> str:
     """Convert SMILES to PDBQT via NCI CACTUS (3D SDF) + Open Babel."""
-    import tempfile
-
     try:
         url = f"https://cactus.nci.nih.gov/chemical/structure/{smiles}/file?format=sdf&get3d=true"
         sdf_bytes = urllib.request.urlopen(url, timeout=30).read()
@@ -89,20 +126,7 @@ def smiles_to_pdbqt(smiles: str) -> str:
 
 
 def _sdf_to_pdbqt(sdf_path: str) -> str:
-    """
-    Convert SDF to PDBQT.
-
-    FIX: the previous implementation hand-appended a bare charge float onto
-    raw PDB ATOM/HETATM lines. Real PDBQT requires AutoDock atom types
-    (C, N, OA, HD, A, etc.) in a dedicated column, correct Gasteiger partial
-    charges, and torsion tree info for the ligand. A hand-rolled line format
-    is either rejected by Vina or silently mis-scored.
-
-    We now shell out to Open Babel, which is purpose-built for this and is
-    the tool the AutoDock docs themselves recommend for ligand prep.
-    Requires `obabel` on PATH (add `openbabel` to the Dockerfile's apt-get
-    install list, e.g. `apt-get install -y openbabel`).
-    """
+    """Convert SDF to PDBQT using Open Babel."""
     pdbqt_path = sdf_path.rsplit(".", 1)[0] + ".pdbqt"
     try:
         result = subprocess.run(
@@ -111,7 +135,7 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
                 sdf_path,
                 "-O", pdbqt_path,
                 "--partialcharge", "gasteiger",
-                "-p", "7.4",  # protonate at physiological pH
+                "-p", "7.4",
             ],
             capture_output=True,
             text=True,
@@ -119,59 +143,29 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
         )
         if result.returncode != 0:
             raise RuntimeError(f"Open Babel ligand conversion failed: {result.stderr[:1000]}")
-
         if not os.path.isfile(pdbqt_path):
             raise RuntimeError("Open Babel did not produce a PDBQT output file")
-
         with open(pdbqt_path, "r") as f:
             content = f.read()
-
         if not content.strip():
             raise RuntimeError("PDBQT conversion produced empty output")
         return content
     except FileNotFoundError:
         raise RuntimeError(
-            "Open Babel (`obabel`) is not installed in this container. "
-            "Add it to the Dockerfile, e.g.: RUN apt-get update && apt-get install -y openbabel"
+            "Open Babel (`obabel`) is not installed. "
+            "Add it to the Dockerfile: RUN apt-get update && apt-get install -y openbabel"
         )
     finally:
         if os.path.isfile(pdbqt_path):
             os.unlink(pdbqt_path)
 
 
-def make_pdb_from_sequence(sequence: str) -> str:
-    """Create a minimal PDB file from amino acid sequence (Cα trace)."""
-    lines = ["HEADER    PROTEIN STRUCTURE"]
-    aa = "ACDEFGHIKLMNPQRSTVWY"
-
-    for i, residue in enumerate(sequence.upper()):
-        if residue in aa:
-            x = i * 3.8  # ~3.8 Å per residue
-            y = 2.0 * (i % 3) - 1.0
-            z = 0.0
-            atom_line = (
-                f"ATOM  {i+1:5d}  CA  {residue} A{i+1:4d}    "
-                f"{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00           C"
-            )
-            lines.append(atom_line)
-
-    lines.append("END")
-    return "\n".join(lines)
-
+# ---------------------------------------------------------------------------
+# Receptor prep (PDB -> PDBQT rigid receptor)
+# ---------------------------------------------------------------------------
 
 def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
-    """
-    Convert a plain PDB receptor to PDBQT.
-
-    FIX: `run_vina` was previously called with the raw PDB straight out of
-    `make_pdb_from_sequence()` / a fetched PDB file. Vina requires the
-    receptor in PDBQT format (AutoDock atom types + charges + rigid-body
-    markup), so it was rejecting every job with:
-        "PDBQT parsing error: Unknown or inappropriate tag found in rigid receptor."
-    Only the ligand was being run through Open Babel before; the receptor
-    needs the same treatment. `-xr` tells Open Babel to treat it as a rigid
-    receptor (no torsion tree), which is what Vina expects for the protein.
-    """
+    """Convert a plain PDB receptor to PDBQT (rigid, for Vina)."""
     in_path = None
     out_path = None
     try:
@@ -185,7 +179,7 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
                 "obabel",
                 in_path,
                 "-O", out_path,
-                "-xr",  # rigid receptor, no torsion tree
+                "-xr",
                 "--partialcharge", "gasteiger",
             ],
             capture_output=True,
@@ -194,20 +188,17 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
         )
         if result.returncode != 0:
             raise RuntimeError(f"Open Babel receptor conversion failed: {result.stderr[:1000]}")
-
         if not os.path.isfile(out_path):
             raise RuntimeError("Open Babel did not produce a receptor PDBQT output file")
-
         with open(out_path, "r") as f:
             content = f.read()
-
         if not content.strip():
             raise RuntimeError("Receptor PDBQT conversion produced empty output")
         return content
     except FileNotFoundError:
         raise RuntimeError(
-            "Open Babel (`obabel`) is not installed in this container. "
-            "Add it to the Dockerfile, e.g.: RUN apt-get update && apt-get install -y openbabel"
+            "Open Babel (`obabel`) is not installed. "
+            "Add it to the Dockerfile: RUN apt-get update && apt-get install -y openbabel"
         )
     finally:
         if in_path and os.path.isfile(in_path):
@@ -215,6 +206,10 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
         if out_path and os.path.isfile(out_path):
             os.unlink(out_path)
 
+
+# ---------------------------------------------------------------------------
+# Vina execution + multi-pose parsing
+# ---------------------------------------------------------------------------
 
 def run_vina(
     protein_pdbqt: str | bytes,
@@ -224,7 +219,7 @@ def run_vina(
     exhaustiveness: int = 8,
     num_modes: int = 9,
 ) -> dict:
-    """Run AutoDock Vina and parse results."""
+    """Run AutoDock Vina and return parsed multi-pose results."""
     vina_bin = _ensure_vina()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -265,20 +260,96 @@ def run_vina(
         with open(out_path, "r") as f:
             output_pdbqt = f.read()
 
-        affinity = None
-        rmsd_lb = None
-        rmsd_ub = None
-        for line in result.stdout.split("\n"):
-            if line.strip().startswith("1 "):
-                parts = line.split()
-                if len(parts) >= 4:
-                    affinity = float(parts[1])
-                    rmsd_lb = float(parts[2])
-                    rmsd_ub = float(parts[3])
+        vina_log = result.stdout
+        poses = _parse_vina_poses(output_pdbqt, vina_log)
+        ligand_pdb = _extract_ligand_pdb(output_pdbqt)
+
+        best_affinity = None
+        if poses:
+            best_affinity = poses[0]["affinity"]
 
         return {
-            "affinity": affinity,
-            "rmsd_lb": rmsd_lb,
-            "rmsd_ub": rmsd_ub,
+            "poses": poses,
+            "num_poses": len(poses),
+            "affinity": best_affinity,
+            "vina_log": vina_log,
+            "ligand_pdb": ligand_pdb,
             "result_sdf": output_pdbqt,
         }
+
+
+def _parse_vina_poses(output_pdbqt: str, vina_log: str) -> list[dict]:
+    """Parse Vina output PDBQT into a list of per-pose dicts."""
+    affinity_from_log: dict[int, float] = {}
+    for line in vina_log.splitlines():
+        m = re.match(r"\s*(\d+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", line)
+        if m:
+            mode = int(m.group(1))
+            affinity_from_log[mode] = float(m.group(2))
+
+    models: dict[int, list[str]] = {}
+    current_model: int | None = None
+    for line in output_pdbqt.splitlines():
+        if line.startswith("MODEL"):
+            parts = line.split()
+            if len(parts) >= 2:
+                current_model = int(parts[1])
+                models[current_model] = []
+        elif line.startswith("ENDMDL"):
+            current_model = None
+        elif current_model is not None:
+            models.setdefault(current_model, []).append(line)
+
+    poses = []
+    for model_id in sorted(models.keys()):
+        atom_count = sum(1 for l in models[model_id] if l.startswith("HETATM") or l.startswith("ATOM"))
+        affinity = affinity_from_log.get(model_id, None)
+        poses.append({
+            "model": model_id,
+            "atoms": atom_count,
+            "affinity": affinity,
+        })
+
+    return poses
+
+
+def _extract_ligand_pdb(output_pdbqt: str) -> str:
+    """Extract HETATM lines from the best (first) model as PDB for 3D viewer."""
+    in_model = False
+    lines: list[str] = []
+    for line in output_pdbqt.splitlines():
+        if line.startswith("MODEL") and not in_model:
+            in_model = True
+            continue
+        if line.startswith("ENDMDL"):
+            break
+        if in_model and (line.startswith("HETATM") or line.startswith("ATOM")):
+            pdb_line = _pdbqt_line_to_pdb(line)
+            lines.append(pdb_line)
+
+    if not lines:
+        return ""
+    lines.append("END")
+    return "\n".join(lines)
+
+
+def _pdbqt_line_to_pdb(pdbqt_line: str) -> str:
+    """Convert a PDBQT ATOM/HETATM line to a standard PDB ATOM/HETATM line."""
+    fields = pdbqt_line.split()
+    if len(fields) < 7:
+        return pdbqt_line
+    record = fields[0]
+    atom_num = fields[1]
+    atom_name = fields[2]
+    res_name = fields[3]
+    chain = fields[4] if len(fields[4]) == 1 and fields[4].isalpha() else "A"
+    res_seq = fields[5]
+    x = float(fields[6])
+    y = float(fields[7])
+    z = float(fields[8]) if len(fields) > 8 else 0.0
+
+    return (
+        f"{record:<6}{atom_num:>5s}  {atom_name:<4s}{res_name:<3s} "
+        f"{chain}{res_seq:>4s}    "
+        f"{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00           "
+    )

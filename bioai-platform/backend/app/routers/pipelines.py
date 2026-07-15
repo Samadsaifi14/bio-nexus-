@@ -5,7 +5,6 @@ from app.pipeline.definitions.protein_analysis import get_pipeline_definition
 from app.services.supabase import get_supabase
 from app.services.rate_limit import check_daily_limit
 from app.services.auth import get_user_id
-from app.workers.pipeline_worker import dispatch_job
 from app.models.responses import PipelineRunResponse, PipelineDefinitionResponse
 from datetime import datetime, timezone
 import uuid
@@ -48,8 +47,6 @@ async def run_pipeline(req: PipelineRunRequest, user_id: str | None = Depends(ge
         "error": None,
         "share_token": None,
     }).execute()
-
-    dispatch_job(job_id)
 
     return {"job_id": job_id, "status": "queued"}
 

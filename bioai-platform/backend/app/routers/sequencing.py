@@ -6,7 +6,7 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.deps import limiter
@@ -118,7 +118,7 @@ VALID_DEMO = {"synthetic", "demo", "test"}
 
 
 @router.post("/run")
-async def run_sequencing(req: SequencingRequest, background_tasks: BackgroundTasks, user_id: str = Depends(require_user_id)):
+async def run_sequencing(req: SequencingRequest, user_id: str = Depends(require_user_id)):
     if not req.fastq_url.strip():
         raise HTTPException(400, detail="fastq_url is required")
     if req.fastq_url.lower() not in VALID_DEMO:
@@ -128,7 +128,6 @@ async def run_sequencing(req: SequencingRequest, background_tasks: BackgroundTas
 
     job_id = str(uuid.uuid4())
     _init(job_id, req, user_id)
-    background_tasks.add_task(_worker, job_id)
     return {"job_id": job_id, "status": "queued"}
 
 

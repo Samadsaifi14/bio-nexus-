@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import json
 import math
 import re
@@ -662,26 +661,25 @@ async def create_docking_job(body: DockingJobCreate, user_id: str = Depends(requ
         "status": "queued",
         "ligand_smiles": body.smiles,
         "user_id": user_id,
+        "payload": {
+            "pdb_id": body.pdb_id,
+            "pdb_url": body.pdb_url,
+            "grid_center": body.grid_center or [0, 0, 0],
+            "grid_size": body.grid_size,
+            "exhaustiveness": body.exhaustiveness,
+            "num_modes": body.num_modes,
+        },
     }
     try:
         supabase.table(_TABLE).insert(insert_row).execute()
     except Exception as e:
         if "ligand_smiles" in str(e):
-            supabase.table(_TABLE).insert({"id": job_id, "status": "queued", "user_id": user_id}).execute()
+            supabase.table(_TABLE).insert({
+                "id": job_id, "status": "queued", "user_id": user_id,
+                "payload": insert_row["payload"],
+            }).execute()
         else:
             raise
-
-    worker_payload = {
-        **insert_row,
-        "pdb_id": body.pdb_id,
-        "pdb_url": body.pdb_url,
-        "grid_center": body.grid_center or [0, 0, 0],
-        "grid_size": body.grid_size,
-        "exhaustiveness": body.exhaustiveness,
-        "num_modes": body.num_modes,
-    }
-    loop = asyncio.get_event_loop()
-    asyncio.ensure_future(loop.run_in_executor(None, _run_docking_sync, job_id, worker_payload))
 
     return DockingJobResponse(job_id=job_id, status="queued", result=None)
 

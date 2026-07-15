@@ -1,0 +1,23 @@
+FROM python:3.11-slim
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential gcc wget ca-certificates openbabel && \
+    rm -rf /var/lib/apt/lists/*
+
+# AutoDock Vina
+RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
+    chmod +x /usr/local/bin/vina
+
+# minimap2 (for sequencing)
+RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
+    tar xjf /tmp/minimap2.tar.bz2 -C /tmp && \
+    cp /tmp/minimap2-2.28_x64-linux/minimap2 /usr/local/bin/minimap2 && \
+    chmod +x /usr/local/bin/minimap2 && \
+    rm -rf /tmp/minimap2*
+
+WORKDIR /app
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+COPY . .
+
+CMD ["python", "-m", "app.worker"]

@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import os
-import shutil
 import subprocess
 import tempfile
 import urllib.request
@@ -48,6 +47,7 @@ def _ensure_vina() -> str:
         return _VINA_BINARY
 
     # Check the Dockerfile-installed location first
+    import shutil
     for candidate in ["/usr/local/bin/vina", shutil.which("vina") or ""]:
         if candidate and os.path.isfile(candidate):
             _VINA_BINARY = candidate
@@ -157,6 +157,63 @@ def make_pdb_from_sequence(sequence: str) -> str:
 
     lines.append("END")
     return "\n".join(lines)
+
+
+def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
+    """
+    Convert a plain PDB receptor to PDBQT.
+
+    FIX: `run_vina` was previously called with the raw PDB straight out of
+    `make_pdb_from_sequence()` / a fetched PDB file. Vina requires the
+    receptor in PDBQT format (AutoDock atom types + charges + rigid-body
+    markup), so it was rejecting every job with:
+        "PDBQT parsing error: Unknown or inappropriate tag found in rigid receptor."
+    Only the ligand was being run through Open Babel before; the receptor
+    needs the same treatment. `-xr` tells Open Babel to treat it as a rigid
+    receptor (no torsion tree), which is what Vina expects for the protein.
+    """
+    in_path = None
+    out_path = None
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False, mode="w") as f:
+            f.write(pdb_text)
+            in_path = f.name
+        out_path = in_path.rsplit(".", 1)[0] + ".pdbqt"
+
+        result = subprocess.run(
+            [
+                "obabel",
+                in_path,
+                "-O", out_path,
+                "-xr",  # rigid receptor, no torsion tree
+                "--partialcharge", "gasteiger",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=120,
+        )
+        if result.returncode != 0:
+            raise RuntimeError(f"Open Babel receptor conversion failed: {result.stderr[:1000]}")
+
+        if not os.path.isfile(out_path):
+            raise RuntimeError("Open Babel did not produce a receptor PDBQT output file")
+
+        with open(out_path, "r") as f:
+            content = f.read()
+
+        if not content.strip():
+            raise RuntimeError("Receptor PDBQT conversion produced empty output")
+        return content
+    except FileNotFoundError:
+        raise RuntimeError(
+            "Open Babel (`obabel`) is not installed in this container. "
+            "Add it to the Dockerfile, e.g.: RUN apt-get update && apt-get install -y openbabel"
+        )
+    finally:
+        if in_path and os.path.isfile(in_path):
+            os.unlink(in_path)
+        if out_path and os.path.isfile(out_path):
+            os.unlink(out_path)
 
 
 def run_vina(

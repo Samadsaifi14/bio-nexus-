@@ -287,7 +287,7 @@ export default function DockingPage() {
                 <Hexagon className="w-4 h-4 text-accent-cyan" />
                 Structure — Best Pose
               </h3>
-              <DockingViewer pdbId={result.result.pdb_id} ligandPdb={bestLigandPdb} />
+              <DockingViewer pdbId={result.result.pdb_id} ligandPdb={bestLigandPdb} interactions={result.result.interactions} />
             </div>
           )}
 

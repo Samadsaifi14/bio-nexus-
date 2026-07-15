@@ -281,25 +281,50 @@ export type DockingInteraction = {
   hbonds: Array<{
     type: string;
     ligand_atom: string;
+    ligand_coords: [number, number, number];
     protein_residue: string;
+    protein_residue_seq: number;
+    protein_chain: string;
     protein_atom: string;
-    protein_atom_name: string;
+    protein_coords: [number, number, number];
     distance: number;
     confidence: string;
   }>;
   hydrophobic: Array<{
     type: string;
     ligand_atom: string;
+    ligand_coords: [number, number, number];
     protein_residue: string;
+    protein_residue_seq: number;
+    protein_chain: string;
     protein_atom: string;
-    protein_atom_name: string;
+    protein_coords: [number, number, number];
     distance: number;
   }>;
   pi_stacking: Array<{
     type: string;
     protein_residue: string;
-    centroid_distance: number;
+    protein_residue_seq: number;
+    protein_chain: string;
+    ring_centroid: [number, number, number];
+    ring_normal: [number, number, number];
+    ligand_centroid: [number, number, number];
+    distance: number;
+    angle: number;
+    stacking_type: string;
     confidence: string;
+  }>;
+  salt_bridges: Array<{
+    type: string;
+    ligand_atom: string;
+    ligand_coords: [number, number, number];
+    protein_residue: string;
+    protein_residue_seq: number;
+    protein_chain: string;
+    protein_atom: string;
+    protein_coords: [number, number, number];
+    distance: number;
+    charge_pair: string;
   }>;
 };
 
@@ -308,6 +333,7 @@ export type DockingPoseInteractions = {
   hbonds: number;
   hydrophobic: number;
   pi_stacking: number;
+  salt_bridges: number;
 };
 
 export type DockingResult = {

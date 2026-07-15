@@ -192,11 +192,37 @@ def _run_docking_sync(job_id: str, payload: dict):
 
 
 # ---------------------------------------------------------------------------
-# Simple geometric interaction detector (H-bonds, hydrophobic, pi-stacking)
+# Geometric interaction detector (H-bonds, hydrophobic, pi-stacking, salt bridges)
 # ---------------------------------------------------------------------------
 
-_RESIDUEPOLAR = {"SER", "THR", "ASN", "GLN", "ASP", "GLU", "ARG", "LYS", "HIS", "CYS", "TYR"}
-_RESIDUEHYDRO = {"ALA", "VAL", "LEU", "ILE", "MET", "PHE", "TRP", "PRO", "GLY"}
+    # Protein atom classification
+_HYDROPHOBIC_RES = {"ALA", "VAL", "LEU", "ILE", "MET", "PHE", "TRP", "PRO", "GLY"}
+_AROMATIC_RES = {"PHE", "TRP", "TYR", "HIS"}
+
+# Atoms in aromatic rings by residue (PDB atom names)
+_AROMATIC_RING_ATOMS = {
+    "PHE": ["CG", "CD1", "CD2", "CE1", "CE2", "CZ"],
+    "TYR": ["CG", "CD1", "CD2", "CE1", "CE2", "CZ"],
+    "HIS": ["CG", "ND1", "CD2", "CE1", "NE2"],
+    "TRP": ["CG", "CD1", "CD2", "NE1", "CE2", "CE3", "CZ2", "CZ3", "CH2"],
+}
+
+# Two-ring centroids for TRP (5-membered + 6-membered)
+_TRP_RINGS = {
+    "five": ["CD1", "NE1", "CE2", "CG", "CD2"],
+    "six": ["CE2", "CD2", "CZ2", "CH2", "CZ3", "CE3"],
+}
+
+# Polar atoms eligible for H-bonding
+_POLAR_ATOMS = {"N", "O", "S"}
+
+# Residue-level charge groups for salt bridges
+_ANIONIC_RES = {"ASP", "GLU"}
+_CATIONIC_RES = {"LYS", "ARG", "HIS"}
+
+# Atom names that define the charged group center
+_ANIONIC_CARBONS = {"ASP": "CG", "GLU": "CD"}
+_CATIONIC_NITROGENS = {"LYS": "NZ", "ARG": ["CZ", "NH1", "NH2"]}
 
 _PDB_COORD_RE = re.compile(
     r"^(ATOM|HETATM)\s+\d+\s+(\S+)\s+(\S{3})\s+(\S)\s+(\d+)\s+"
@@ -222,55 +248,359 @@ def _distance(a: tuple[float, float, float], b: tuple[float, float, float]) -> f
     return math.sqrt(sum((x - y) ** 2 for x, y in zip(a, b)))
 
 
+def _angle(a: tuple[float, float, float], b: tuple[float, float, float],
+           c: tuple[float, float, float]) -> float:
+    """Angle at vertex b between segments b→a and b→c, in degrees."""
+    ba = tuple(x - y for x, y in zip(a, b))
+    bc = tuple(x - y for x, y in zip(c, b))
+    dot = sum(x * y for x, y in zip(ba, bc))
+    mag_ba = math.sqrt(sum(x * x for x in ba))
+    mag_bc = math.sqrt(sum(x * x for x in bc))
+    if mag_ba < 1e-9 or mag_bc < 1e-9:
+        return 0.0
+    cos_angle = max(-1.0, min(1.0, dot / (mag_ba * mag_bc)))
+    return math.degrees(math.acos(cos_angle))
+
+
+def _vec_sub(a: tuple[float, float, float], b: tuple[float, float, float]) -> tuple[float, float, float]:
+    return (a[0] - b[0], a[1] - b[1], a[2] - b[2])
+
+
+def _vec_cross(a: tuple[float, float, float], b: tuple[float, float, float]) -> tuple[float, float, float]:
+    return (
+        a[1] * b[2] - a[2] * b[1],
+        a[2] * b[0] - a[0] * b[2],
+        a[0] * b[1] - a[1] * b[0],
+    )
+
+
+def _vec_norm(v: tuple[float, float, float]) -> float:
+    return math.sqrt(sum(x * x for x in v))
+
+
+def _ring_centroid(coords: list[tuple[float, float, float]]) -> tuple[float, float, float]:
+    n = len(coords)
+    if n == 0:
+        return (0.0, 0.0, 0.0)
+    return (
+        sum(c[0] for c in coords) / n,
+        sum(c[1] for c in coords) / n,
+        sum(c[2] for c in coords) / n,
+    )
+
+
+def _ring_normal(coords: list[tuple[float, float, float]]) -> tuple[float, float, float]:
+    """Compute the normal vector of a planar ring via cross product of two edges."""
+    if len(coords) < 3:
+        return (0.0, 0.0, 1.0)
+    v1 = _vec_sub(coords[1], coords[0])
+    v2 = _vec_sub(coords[2], coords[0])
+    cross = _vec_cross(v1, v2)
+    n = _vec_norm(cross)
+    if n < 1e-9:
+        return (0.0, 0.0, 1.0)
+    return (cross[0] / n, cross[1] / n, cross[2] / n)
+
+
+def _build_residue_map(atoms: list[tuple]) -> dict[tuple[str, str, int], list[tuple]]:
+    """Group atoms by (chain, res_name, res_seq)."""
+    res_map: dict[tuple[str, str, int], list[tuple]] = {}
+    for a in atoms:
+        key = (a[3], a[2], a[4])  # chain, res_name, res_seq
+        res_map.setdefault(key, []).append(a)
+    return res_map
+
+
+def _find_hydrogens(atoms: list[tuple]) -> list[tuple]:
+    """Return only hydrogen atoms from parsed PDB."""
+    return [a for a in atoms if a[1].startswith("H") or a[1] in ("1H", "2H", "3H")]
+
+
 def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
-    """Compute simple distance-based interactions between protein and ligand."""
+    """
+    Compute protein-ligand interactions using proper geometry.
+
+    H-bonds:     donor-H···acceptor angle > 120°, distance < 3.5Å
+    Hydrophobic: ligand carbon near protein carbon in hydrophobic residue, < 4.5Å
+    Pi-stacking: aromatic ring centroids, distance < 5.5Å, inter-ring angle
+    Salt bridges: charged group centroids, distance < 4.0Å
+    """
     if not ligand_pdb:
-        return {"hbonds": [], "hydrophobic": [], "pi_stacking": []}
+        return {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
 
     prot_atoms = _parse_atom_coords(protein_pdb)
     lig_atoms = _parse_atom_coords(ligand_pdb)
+    prot_h = _find_hydrogens(prot_atoms)
+    lig_h = _find_hydrogens(lig_atoms)
+    prot_heavy = [a for a in prot_atoms if not (a[1].startswith("H") or a[1] in ("1H", "2H", "3H"))]
+    lig_heavy = [a for a in lig_atoms if not (a[1].startswith("H") or a[1] in ("1H", "2H", "3H"))]
 
     hbonds: list[dict] = []
     hydrophobic: list[dict] = []
+    pi_stacking: list[dict] = []
+    salt_bridges: list[dict] = []
 
-    HBDONORS = {"N", "O", "S"}
-    HBACCEPTORS = {"N", "O", "S"}
+    seen_hbonds: set[tuple] = set()
+    seen_hydrophobic: set[tuple] = set()
+    seen_salt: set[tuple] = set()
 
-    for la in lig_atoms:
+    # --- H-bonds with angle check ---
+    for la in lig_heavy:
+        l_elem = la[1][0] if la[1] else ""
+        if l_elem not in _POLAR_ATOMS:
+            continue
         lcoord = (la[5], la[6], la[7])
-        for pa in prot_atoms:
+
+        # Find nearest H on ligand for angle reference
+        lig_h_near = None
+        min_h_dist = 1.5
+        for h in lig_h:
+            hd = _distance(lcoord, (h[5], h[6], h[7]))
+            if hd < min_h_dist:
+                min_h_dist = hd
+                lig_h_near = (h[5], h[6], h[7])
+
+        for pa in prot_heavy:
+            p_elem = pa[1][0] if pa[1] else ""
+            if p_elem not in _POLAR_ATOMS:
+                continue
             pcoord = (pa[5], pa[6], pa[7])
             d = _distance(lcoord, pcoord)
-            aname = la[1]
 
-            if d < 3.5 and (aname in HBDONORS or aname in HBACCEPTORS):
-                hbonds.append({
-                    "type": "hbond",
-                    "ligand_atom": aname,
-                    "protein_residue": pa[2],
-                    "protein_atom": pa[1],
-                    "protein_atom_name": pa[1],
-                    "distance": round(d, 2),
-                    "confidence": "medium",
-                })
+            if d > 3.5 or d < 1.0:
+                continue
+
+            # Find nearest H on protein donor for angle check
+            prot_h_near = None
+            min_ph_dist = 1.5
+            for h in prot_h:
+                hd = _distance(pcoord, (h[5], h[6], h[7]))
+                if hd < min_ph_dist:
+                    min_ph_dist = hd
+                    prot_h_near = (h[5], h[6], h[7])
+
+            # Check angle if we have hydrogen positions
+            angle_ok = True
+            if lig_h_near and prot_h_near:
+                # H-bond angle: ligand-H···protein or protein-H···ligand
+                a1 = _angle(lig_h_near, lcoord, pcoord)
+                a2 = _angle(prot_h_near, pcoord, lcoord)
+                angle_ok = max(a1, a2) > 120.0
+            elif lig_h_near:
+                a1 = _angle(lig_h_near, lcoord, pcoord)
+                angle_ok = a1 > 120.0
+            elif prot_h_near:
+                a1 = _angle(prot_h_near, pcoord, lcoord)
+                angle_ok = a1 > 120.0
+            # If no H found at all, accept based on distance + element only
+
+            if not angle_ok:
+                continue
+
+            key = (la[4], pa[4])  # (lig_res_seq, prot_res_seq)
+            if key in seen_hbonds:
+                continue
+            seen_hbonds.add(key)
+
+            hbonds.append({
+                "type": "hbond",
+                "ligand_atom": la[1],
+                "ligand_coords": [la[5], la[6], la[7]],
+                "protein_residue": pa[2],
+                "protein_residue_seq": pa[4],
+                "protein_chain": pa[3],
+                "protein_atom": pa[1],
+                "protein_coords": [pa[5], pa[6], pa[7]],
+                "distance": round(d, 2),
+                "confidence": "high" if d < 3.0 else "medium",
+            })
+            if len(hbonds) >= 20:
                 break
+        if len(hbonds) >= 20:
+            break
 
-        for pa in prot_atoms:
+    # --- Hydrophobic contacts ---
+    for la in lig_heavy:
+        if la[1][0] != "C":
+            continue
+        lcoord = (la[5], la[6], la[7])
+        for pa in prot_heavy:
+            if pa[1][0] != "C":
+                continue
+            pres = pa[2]
+            if pres not in _HYDROPHOBIC_RES:
+                continue
             pcoord = (pa[5], pa[6], pa[7])
             d = _distance(lcoord, pcoord)
-            pres = pa[2]
-            if d < 4.5 and pres in _RESIDUEHYDRO:
+            if d < 4.5:
+                key = (la[4], pa[4])
+                if key in seen_hydrophobic:
+                    continue
+                seen_hydrophobic.add(key)
                 hydrophobic.append({
                     "type": "hydrophobic",
                     "ligand_atom": la[1],
+                    "ligand_coords": [la[5], la[6], la[7]],
                     "protein_residue": pres,
+                    "protein_residue_seq": pa[4],
+                    "protein_chain": pa[3],
                     "protein_atom": pa[1],
-                    "protein_atom_name": pa[1],
+                    "protein_coords": [pa[5], pa[6], pa[7]],
                     "distance": round(d, 2),
                 })
-                break
+                if len(hydrophobic) >= 20:
+                    break
+        if len(hydrophobic) >= 20:
+            break
 
-    return {"hbonds": hbonds[:20], "hydrophobic": hydrophobic[:20], "pi_stacking": []}
+    # --- Pi-stacking (aromatic ring centroid geometry) ---
+    prot_res_map = _build_residue_map(prot_heavy)
+
+    for res_key, res_atoms in prot_res_map.items():
+        chain, res_name, res_seq = res_key
+        if res_name not in _AROMATIC_RES:
+            continue
+
+        ring_atom_names = _AROMATIC_RING_ATOMS[res_name]
+        ring_atoms_by_name = {a[1]: a for a in res_atoms}
+        ring_coords = []
+        for rn in ring_atom_names:
+            if rn in ring_atoms_by_name:
+                a = ring_atoms_by_name[rn]
+                ring_coords.append((a[5], a[6], a[7]))
+
+        if len(ring_coords) < 3:
+            continue
+
+        centroid = _ring_centroid(ring_coords)
+        normal = _ring_normal(ring_coords)
+
+        # For TRP, also check the 5-membered ring
+        rings_to_check = [(ring_coords, centroid, normal)]
+        if res_name == "TRP":
+            for ring_name in ("five", "six"):
+                ring_atom_names_2 = _TRP_RING_ATOMS[ring_name]
+                coords_2 = []
+                for rn in ring_atom_names_2:
+                    if rn in ring_atoms_by_name:
+                        a = ring_atoms_by_name[rn]
+                        coords_2.append((a[5], a[6], a[7]))
+                if len(coords_2) >= 3:
+                    rings_to_check.append((coords_2, _ring_centroid(coords_2), _ring_normal(coords_2)))
+
+        for ring_coords_r, centroid_r, normal_r in rings_to_check:
+            # Find aromatic atoms in ligand (heuristic: C/N in a flat region)
+            lig_aromatic_coords = []
+            for la in lig_heavy:
+                if la[1][0] in ("C", "N"):
+                    lig_aromatic_coords.append((la[5], la[6], la[7]))
+
+            if len(lig_aromatic_coords) < 3:
+                continue
+
+            # Use all ligand heavy atoms as a pseudo-centroid
+            lig_centroid = _ring_centroid(lig_aromatic_coords)
+
+            dist = _distance(centroid_r, lig_centroid)
+            if dist > 6.5:
+                continue
+
+            # Compute angle between ring normal and vector to ligand centroid
+            v_to_lig = _vec_sub(lig_centroid, centroid_r)
+            v_norm = _vec_norm(v_to_lig)
+            if v_norm < 1e-9:
+                continue
+            cos_angle = abs(sum(x * y for x, y in zip(normal_r, v_to_lig))) / (
+                _vec_norm(normal_r) * v_norm
+            )
+            ring_angle = math.degrees(math.acos(max(0, min(1, cos_angle))))
+
+            # Parallel: ring normal ~parallel to centroid-centroid vector (angle < 30°)
+            # T-shaped: ring normal ~perpendicular (angle 60-90°)
+            stacking_type = "unknown"
+            if ring_angle < 30 and dist < 5.5:
+                stacking_type = "parallel"
+            elif 60 < ring_angle < 90 and dist < 6.5:
+                stacking_type = "perpendicular"
+
+            if stacking_type == "unknown":
+                continue
+
+            pi_stacking.append({
+                "type": "pi_stacking",
+                "protein_residue": res_name,
+                "protein_residue_seq": res_seq,
+                "protein_chain": chain,
+                "ring_centroid": [round(c, 3) for c in centroid_r],
+                "ring_normal": [round(c, 3) for c in normal_r],
+                "ligand_centroid": [round(c, 3) for c in lig_centroid],
+                "distance": round(dist, 2),
+                "angle": round(ring_angle, 1),
+                "stacking_type": stacking_type,
+                "confidence": "high" if dist < 4.5 else "medium",
+            })
+            if len(pi_stacking) >= 10:
+                break
+        if len(pi_stacking) >= 10:
+            break
+
+    # --- Salt bridges (charged group centroid distance) ---
+    for la in lig_heavy:
+        l_elem = la[1][0] if la[1] else ""
+        if l_elem not in ("N", "O", "S", "C"):
+            continue
+        lcoord = (la[5], la[6], la[7])
+
+        for pa in prot_heavy:
+            pres = pa[2]
+            if pres in _ANIONIC_RES and pa[1] in ("OD1", "OD2", "OE1", "OE2"):
+                d = _distance(lcoord, pa[1:8] if False else (pa[5], pa[6], pa[7]))
+                if d < 4.0 and l_elem in ("N",):
+                    key = (la[4], pa[4])
+                    if key not in seen_salt:
+                        seen_salt.add(key)
+                        salt_bridges.append({
+                            "type": "salt_bridge",
+                            "ligand_atom": la[1],
+                            "ligand_coords": [la[5], la[6], la[7]],
+                            "protein_residue": pres,
+                            "protein_residue_seq": pa[4],
+                            "protein_chain": pa[3],
+                            "protein_atom": pa[1],
+                            "protein_coords": [pa[5], pa[6], pa[7]],
+                            "distance": round(d, 2),
+                            "charge_pair": "positive-negative",
+                        })
+
+            if pres in _CATIONIC_RES:
+                cat_atoms = _CATIONIC_NITROGENS.get(pres, [])
+                if isinstance(cat_atoms, str):
+                    cat_atoms = [cat_atoms]
+                if pa[1] in cat_atoms:
+                    d = _distance(lcoord, (pa[5], pa[6], pa[7]))
+                    if d < 4.0 and l_elem in ("O",):
+                        key = (la[4], pa[4])
+                        if key not in seen_salt:
+                            seen_salt.add(key)
+                            salt_bridges.append({
+                                "type": "salt_bridge",
+                                "ligand_atom": la[1],
+                                "ligand_coords": [la[5], la[6], la[7]],
+                                "protein_residue": pres,
+                                "protein_residue_seq": pa[4],
+                                "protein_chain": pa[3],
+                                "protein_atom": pa[1],
+                                "protein_coords": [pa[5], pa[6], pa[7]],
+                                "distance": round(d, 2),
+                                "charge_pair": "negative-positive",
+                            })
+
+    return {
+        "hbonds": hbonds[:20],
+        "hydrophobic": hydrophobic[:20],
+        "pi_stacking": pi_stacking[:10],
+        "salt_bridges": salt_bridges[:10],
+    }
 
 
 def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[dict]:
@@ -299,6 +629,7 @@ def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[di
             "hbonds": len(inter.get("hbonds", [])),
             "hydrophobic": len(inter.get("hydrophobic", [])),
             "pi_stacking": len(inter.get("pi_stacking", [])),
+            "salt_bridges": len(inter.get("salt_bridges", [])),
         })
     return summaries
 

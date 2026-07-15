@@ -294,12 +294,13 @@ async def _run_blast(sequence: str) -> dict:
 
     hits = parsed.get("hits", [])
     top_hit = hits[0] if hits else None
+    query_length = parsed.get("query_length", 0)
 
     return {
         "count": len(hits),
         "source": "ncbi",
         "database": "nr",
-        "query_length": parsed.get("query_length", 0),
+        "query_length": query_length,
         "top_hit": {
             "accession": top_hit["accession"],
             "description": top_hit["description"],

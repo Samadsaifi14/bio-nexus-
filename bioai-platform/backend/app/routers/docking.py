@@ -94,7 +94,9 @@ def _run_docking_sync(job_id: str, payload: dict):
 
         pdb_id = payload.get("pdb_id", "").strip().upper()
         pdb_url = payload.get("pdb_url", "").strip()
-        smiles = payload["smiles"]
+        smiles = payload.get("ligand_smiles") or payload.get("smiles")
+        if not smiles:
+            raise ValueError("Missing ligand_smiles in job payload")
 
         # 1. Obtain PDB text
         pdb_text: str | None = None

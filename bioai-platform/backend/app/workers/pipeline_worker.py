@@ -77,12 +77,18 @@ async def process_job(job_id: str) -> None:
         result = await run_pipeline(query, organism=organism, analysis_type=analysis_type)
 
         done_at = datetime.datetime.utcnow().isoformat()
+
+        # Offload large result to Supabase Storage
+        from app.services.artifact_storage import upload_json
+        storage_url = upload_json(job_id, "context", result)
+
         await _patch(
             "jobs",
             job_id,
             {
                 "status": "completed",
-                "results": result,
+                "storage_url": storage_url,
+                "results": None,
                 "updated_at": done_at,
                 "completed_at": done_at,
             },

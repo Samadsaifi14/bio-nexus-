@@ -61,15 +61,32 @@ def _prune_old(supabase, max_rows: int = 200):
 def _row_to_response(row: dict) -> dict:
     """Convert a Supabase row to the frontend DockingResult shape."""
     result = None
-    if row.get("result_sdf"):
+
+    # Prefer Storage URL (Phase 0c)
+    storage_url = row.get("storage_url")
+    if storage_url:
+        from app.services.artifact_storage import download_json
+        result = download_json(storage_url)
+    elif row.get("result_sdf"):
         try:
             result = json.loads(row["result_sdf"])
         except Exception:
             pass
+
     return {
         "job_id": row["id"],
         "status": row["status"],
         "result": result,
+        "error": row.get("error"),
+    }
+
+
+def _row_to_list_response(row: dict) -> dict:
+    """Lightweight row conversion for list views — skips Storage downloads."""
+    return {
+        "job_id": row["id"],
+        "status": row["status"],
+        "result": None,
         "error": row.get("error"),
     }
 
@@ -178,11 +195,14 @@ def _run_docking_sync(job_id: str, payload: dict):
             "ligand_pdb": vina_result.get("ligand_pdb", ""),
         }
 
+        # Offload to Supabase Storage; DB keeps only the URL
+        from app.services.artifact_storage import upload_json
+        storage_url = upload_json(job_id, "result", result_obj)
+
         supabase.table(_TABLE).update({
-            # Keep the persisted value aligned with the frontend's terminal
-            # status contract (and the other job runners in this service).
             "status": "complete",
-            "result_sdf": json.dumps(result_obj),
+            "storage_url": storage_url,
+            "result_sdf": None,  # cleared — data lives in Storage now
         }).eq("id", job_id).execute()
 
     except Exception as exc:
@@ -696,13 +716,22 @@ async def get_docking_job(job_id: str, user_id: str = Depends(require_user_id)):
 @router.get("/result/{job_id}/pdb")
 async def get_docking_pdb(job_id: str, user_id: str = Depends(require_user_id)):
     supabase = get_client()
-    result = supabase.table(_TABLE).select("result_sdf").eq("id", job_id).eq("user_id", user_id).single().execute()
-    if not result.data or not result.data.get("result_sdf"):
+    row = supabase.table(_TABLE).select("result_sdf,storage_url").eq("id", job_id).eq("user_id", user_id).single().execute()
+    if not row.data:
         raise HTTPException(status_code=404, detail="Docking result not found")
-    try:
-        data = json.loads(result.data["result_sdf"])
-    except Exception:
-        raise HTTPException(status_code=500, detail="Invalid result data")
+
+    data = None
+    if row.data.get("storage_url"):
+        from app.services.artifact_storage import download_json
+        data = download_json(row.data["storage_url"])
+    elif row.data.get("result_sdf"):
+        try:
+            data = json.loads(row.data["result_sdf"])
+        except Exception:
+            pass
+
+    if not data:
+        raise HTTPException(status_code=404, detail="Docking result not found")
     ligand_pdb = data.get("ligand_pdb", "")
     if not ligand_pdb:
         raise HTTPException(status_code=404, detail="No ligand PDB available")
@@ -722,4 +751,4 @@ async def list_docking_jobs(limit: int = 50, user_id: str = Depends(require_user
         .execute()
         .data
     )
-    return {"jobs": [_row_to_response(r) for r in rows]}
+    return {"jobs": [_row_to_list_response(r) for r in rows]}

@@ -84,7 +84,18 @@ def _read(job_id: str, user_id: str | None = None) -> dict | None:
     if user_id:
         query = query.eq("user_id", user_id)
     rows = query.execute().data
-    return dict(rows[0]) if rows else None
+    if not rows:
+        return None
+    job = dict(rows[0])
+
+    # Hydrate from Storage if result was offloaded
+    if job.get("storage_url") and not job.get("result"):
+        from app.services.artifact_storage import download_json
+        result = download_json(job["storage_url"])
+        if result:
+            job["result"] = result
+
+    return job
 
 
 async def _worker(job_id: str) -> None:
@@ -111,7 +122,10 @@ async def _worker(job_id: str) -> None:
     if "error" in result and not result.get("steps_completed"):
         _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
     else:
-        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+        # Offload large result to Storage
+        from app.services.artifact_storage import upload_json
+        storage_url = upload_json(job_id, "result", result)
+        _patch(job_id, status="complete", storage_url=storage_url, result=None, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
 VALID_DEMO = {"synthetic", "demo", "test"}

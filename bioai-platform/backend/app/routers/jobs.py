@@ -42,6 +42,14 @@ async def get_job(job_id: str, user_id: str | None = Depends(get_user_id)):
     job = result.data[0]
     if user_id and job.get("user_id") and job["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
+
+    # Hydrate from Storage if result was offloaded
+    if job.get("storage_url") and not job.get("results"):
+        from app.services.artifact_storage import download_json
+        results = download_json(job["storage_url"])
+        if results:
+            job["results"] = results
+
     return job
 
 

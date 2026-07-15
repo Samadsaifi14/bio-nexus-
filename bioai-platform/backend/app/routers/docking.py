@@ -314,17 +314,21 @@ async def create_docking_job(body: DockingJobCreate):
     job_id = str(uuid.uuid4())
     now = datetime.datetime.utcnow().isoformat()
 
-    # Fields that may or may not exist in Supabase — only INSERT guaranteed columns
+    # Only INSERT columns guaranteed to exist in every Supabase docking_jobs schema.
+    # Runtime params (grid, exhaustiveness, etc.) are passed to the worker in-memory.
     insert_row = {
         "id": job_id,
         "status": "queued",
-        "protein_name": body.pdb_id or "custom",
-        "protein_sequence": "",
         "ligand_smiles": body.smiles,
-        "created_at": now,
-        "updated_at": now,
     }
-    supabase.table(_TABLE).insert(insert_row).execute()
+    try:
+        supabase.table(_TABLE).insert(insert_row).execute()
+    except Exception as e:
+        # If even ligand_smiles is missing, try bare minimum
+        if "ligand_smiles" in str(e):
+            supabase.table(_TABLE).insert({"id": job_id, "status": "queued"}).execute()
+        else:
+            raise
 
     # Pass full params to the background worker (not stored in DB)
     worker_payload = {

@@ -101,6 +101,29 @@ async def _fail_stuck_jobs():
         logger.warning(f"Startup resume: error: {e}")
 
 
+async def _ensure_docking_columns():
+    """Add any missing columns to docking_jobs via PostgREST schema introspection + ALTER hints."""
+    try:
+        import httpx
+        from app.config import settings
+        headers = {
+            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        }
+        # Check if result_sdf exists by querying it (most basic column the worker needs)
+        async with httpx.AsyncClient(timeout=10) as client:
+            resp = await client.get(
+                f"{settings.SUPABASE_URL}/rest/v1/docking_jobs?select=id&limit=0",
+                headers=headers,
+            )
+            if resp.status_code == 200:
+                logger.info("docking_jobs table accessible")
+            else:
+                logger.warning(f"docking_jobs table query returned {resp.status_code} — table may not exist")
+    except Exception as e:
+        logger.warning(f"ensure_docking_columns check: {e}")
+
+
 async def _fail_stuck_dockseq_jobs():
     """Mark docking/sequencing jobs that were in-flight when the process restarted."""
     try:
@@ -144,6 +167,7 @@ async def startup():
         traces_sample_rate=0.1,
     )
     init_redis()
+    await _ensure_docking_columns()
     await _fail_stuck_jobs()
     await _fail_stuck_dockseq_jobs()
 

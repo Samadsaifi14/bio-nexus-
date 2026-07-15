@@ -3,7 +3,11 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle, AlertTriangle, Hexagon } from 'lucide-react';
+import {
+  ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle,
+  AlertTriangle, Hexagon, FileText, Copy, Check, ChevronDown,
+  ChevronRight
+} from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
@@ -23,6 +27,98 @@ function affinityColor(affinity: number | null): string {
   if (affinity <= -8) return 'text-green-400';
   if (affinity <= -5) return 'text-amber-400';
   return 'text-red-400';
+}
+
+function VinaLog({ log }: { log: string }) {
+  const [copied, setCopied] = useState(false);
+  const [open, setOpen] = useState(false);
+
+  const copyToClipboard = () => {
+    navigator.clipboard.writeText(log);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
+
+  const lines = log.split('\n');
+  const affinityLines = lines.filter(l => l.includes('affinity') || l.includes('kcal/mol'));
+  const rmsdLines = lines.filter(l => l.includes('RMSD') || l.includes('rmsd'));
+
+  return (
+    <div className="glass-card overflow-hidden">
+      {/* Header — always visible */}
+      <button
+        type="button"
+        onClick={() => setOpen(o => !o)}
+        className="w-full flex items-center justify-between px-5 py-4 hover:bg-white/[0.02] transition-colors"
+      >
+        <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-accent-purple/10">
+            <FileText className="w-4 h-4 text-accent-purple" />
+          </div>
+          <div className="text-left">
+            <h3 className="text-sm font-semibold text-text-primary">AutoDock Vina Log</h3>
+            <p className="text-xs text-text-muted mt-0.5">
+              {affinityLines.length > 0 ? `${affinityLines.length} poses scored` : 'Full simulation output'}
+            </p>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); copyToClipboard(); }}
+            className="p-2 rounded-lg hover:bg-white/5 transition-colors text-text-muted hover:text-text-primary"
+            title="Copy log"
+          >
+            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+          </button>
+          <div className="text-text-muted">
+            {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+          </div>
+        </div>
+      </button>
+
+      {/* Collapsible content */}
+      {open && (
+        <div className="border-t border-white/5">
+          {/* Key metrics strip */}
+          {affinityLines.length > 0 && (
+            <div className="px-5 py-3 bg-white/[0.02] border-b border-white/5 flex flex-wrap gap-3">
+              {affinityLines.slice(0, 3).map((line, i) => {
+                const match = line.match(/(-?\d+\.?\d*)\s*kcal\/mol/);
+                const affinity = match ? parseFloat(match[1]) : null;
+                return (
+                  <div key={i} className="flex items-center gap-1.5 text-xs">
+                    <span className="text-text-muted">Pose {i + 1}:</span>
+                    <span className={`font-mono font-medium ${affinity !== null ? affinityColor(affinity) : 'text-text-muted'}`}>
+                      {affinity !== null ? affinity.toFixed(1) : '—'} kcal/mol
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+
+          {/* Log body */}
+          <div className="max-h-80 overflow-y-auto">
+            <pre className="px-5 py-4 text-xs font-mono whitespace-pre-wrap leading-relaxed">
+              {lines.map((line, i) => {
+                let className = 'text-text-muted';
+                if (line.startsWith('REMARK') || line.startsWith('USER')) className = 'text-text-muted/60';
+                else if (line.includes('affinity') || line.includes('kcal/mol')) className = 'text-accent-cyan';
+                else if (line.includes('RMSD') || line.includes('rmsd')) className = 'text-accent-amber';
+                else if (line.includes('mode') || line.includes('MODE')) className = 'text-accent-purple';
+                else if (line.includes('WARNING') || line.includes('error')) className = 'text-red-400';
+                else if (line.includes('-----') || line.includes('===') || line.includes('+++')) className = 'text-text-secondary';
+                else if (line.trim().length === 0) return <br key={i} />;
+                return <div key={i} className={className}>{line}</div>;
+              })}
+            </pre>
+          </div>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export default function DockingPage() {
@@ -67,7 +163,7 @@ export default function DockingPage() {
     try {
       const status = await getDockingStatus(jobId);
       setResult(status);
-      if (status.status === 'complete' || status.status === 'failed') {
+      if (status.status === 'complete' || status.status === 'completed' || status.status === 'failed') {
         setPolling(false);
       }
     } catch {
@@ -88,7 +184,7 @@ export default function DockingPage() {
 
   const statusIcon = () => {
     if (!result) return null;
-    if (result.status === 'complete') return <CheckCircle className="w-5 h-5 text-green-400" />;
+    if (result.status === 'complete' || result.status === 'completed') return <CheckCircle className="w-5 h-5 text-green-400" />;
     if (result.status === 'failed') return <XCircle className="w-5 h-5 text-red-400" />;
     return <LoaderCircle className="w-5 h-5 text-accent-cyan animate-spin" />;
   };
@@ -282,7 +378,7 @@ export default function DockingPage() {
           )}
 
           {result.result?.pdb_id && bestLigandPdb && (
-            <div className="glass-card p-5">
+            <div className="glass-card p-5 relative z-10">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <Hexagon className="w-4 h-4 text-accent-cyan" />
                 Structure — Best Pose
@@ -292,14 +388,7 @@ export default function DockingPage() {
           )}
 
           {result.result?.vina_log && (
-            <details className="glass-card p-5 group">
-              <summary className="text-sm font-semibold text-text-primary cursor-pointer list-none flex items-center gap-2">
-                Vina Log
-              </summary>
-              <pre className="mt-3 text-xs text-text-muted font-mono whitespace-pre-wrap max-h-48 overflow-y-auto">
-                {result.result.vina_log}
-              </pre>
-            </details>
+            <VinaLog log={result.result.vina_log} />
           )}
         </motion.div>
       )}

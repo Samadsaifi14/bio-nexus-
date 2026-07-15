@@ -17,6 +17,14 @@ interface DockingViewerProps {
 
 type RepresentationType = 'cartoon' | 'ball-and-stick' | 'spacefill' | 'gaussian-surface' | 'molecular-surface' | 'putty' | 'ribbon';
 type ColorScheme = 'spectrum' | 'chain' | 'secondary-structure' | 'residue-type' | 'bfactor' | 'uniform';
+type InteractionLayer = 'hbonds' | 'hydrophobic' | 'pi_stacking' | 'salt_bridges';
+
+const INTERACTION_LAYERS: { key: InteractionLayer; label: string; color: string }[] = [
+  { key: 'hbonds', label: 'H-bonds', color: '#4488ff' },
+  { key: 'hydrophobic', label: 'Hydrophobic', color: '#ff8844' },
+  { key: 'pi_stacking', label: 'Pi-stacking', color: '#ff44ff' },
+  { key: 'salt_bridges', label: 'Salt bridges', color: '#00cccc' },
+];
 
 const REP_OPTIONS: { value: RepresentationType; label: string; icon: typeof Box }[] = [
   { value: 'cartoon', label: 'Cartoon', icon: Layers },
@@ -82,6 +90,12 @@ export function DockingViewer({
   const [representation, setRepresentation] = useState<RepresentationType>('cartoon');
   const [colorScheme, setColorScheme] = useState<ColorScheme>('spectrum');
   const [spinning, setSpinning] = useState(false);
+  const [visibleInteractions, setVisibleInteractions] = useState<Record<InteractionLayer, boolean>>({
+    hbonds: true,
+    hydrophobic: true,
+    pi_stacking: true,
+    salt_bridges: true,
+  });
   const representationRef = useRef<RepresentationType>('cartoon');
   const colorSchemeRef = useRef<ColorScheme>('spectrum');
 
@@ -138,7 +152,7 @@ export function DockingViewer({
     }
   }, [ligandPdb]);
 
-  const drawInteractions = useCallback((inter: DockingInteraction) => {
+  const drawInteractions = useCallback((inter: DockingInteraction, visible: Record<InteractionLayer, boolean>) => {
     const plugin = viewerRef.current?.viewerInstance?.plugin;
     if (!plugin?.primitives) return;
 
@@ -146,7 +160,7 @@ export function DockingViewer({
       plugin.primitives.clear();
       const primitives: unknown[] = [];
 
-      for (const hb of inter.hbonds || []) {
+      for (const hb of visible.hbonds ? inter.hbonds || [] : []) {
         if (hb.ligand_coords && hb.protein_coords) {
           primitives.push({
             kind: 'cylinder',
@@ -158,7 +172,7 @@ export function DockingViewer({
         }
       }
 
-      for (const hp of inter.hydrophobic || []) {
+      for (const hp of visible.hydrophobic ? inter.hydrophobic || [] : []) {
         if (hp.ligand_coords && hp.protein_coords) {
           primitives.push({
             kind: 'cylinder',
@@ -170,7 +184,7 @@ export function DockingViewer({
         }
       }
 
-      for (const ps of inter.pi_stacking || []) {
+      for (const ps of visible.pi_stacking ? inter.pi_stacking || [] : []) {
         if (ps.ring_centroid && ps.ligand_centroid) {
           primitives.push({
             kind: 'cylinder',
@@ -182,7 +196,7 @@ export function DockingViewer({
         }
       }
 
-      for (const sb of inter.salt_bridges || []) {
+      for (const sb of visible.salt_bridges ? inter.salt_bridges || [] : []) {
         if (sb.ligand_coords && sb.protein_coords) {
           primitives.push({
             kind: 'cylinder',
@@ -266,7 +280,7 @@ export function DockingViewer({
       await loadLigand();
 
       // Draw interaction lines
-      if (interactions) drawInteractions(interactions);
+      if (interactions) drawInteractions(interactions, visibleInteractions);
 
       if (!cancelled) setStatus('ready');
     };
@@ -318,9 +332,9 @@ export function DockingViewer({
   // Interaction updates
   useEffect(() => {
     if (status === 'ready' && interactions) {
-      drawInteractions(interactions);
+      drawInteractions(interactions, visibleInteractions);
     }
-  }, [interactions, status, drawInteractions]);
+  }, [interactions, status, drawInteractions, visibleInteractions]);
 
   // Spin
   useEffect(() => {
@@ -328,9 +342,9 @@ export function DockingViewer({
   }, [spinning, status]);
 
   return (
-    <div className="w-full rounded-lg border border-white/10 bg-[#0d1117]">
+    <div className="w-full rounded-lg border border-white/10 bg-[#0d1117] relative z-20">
       {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2">
+      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 relative z-20">
         <span className="font-mono text-xs text-white/60 mr-2">{pdbId}</span>
 
         {/* Representation */}
@@ -425,19 +439,25 @@ export function DockingViewer({
 
       {/* Interaction legend */}
       {status === 'ready' && interactions && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-white/10 px-3 py-1.5 text-[10px]">
-          {interactions.hbonds?.length > 0 && (
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-[#4488ff]" /> H-bonds ({interactions.hbonds.length})</span>
-          )}
-          {interactions.hydrophobic?.length > 0 && (
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-[#ff8844]" /> Hydrophobic ({interactions.hydrophobic.length})</span>
-          )}
-          {interactions.pi_stacking?.length > 0 && (
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-[#ff44ff]" /> Pi-stacking ({interactions.pi_stacking.length})</span>
-          )}
-          {interactions.salt_bridges?.length > 0 && (
-            <span className="flex items-center gap-1"><span className="inline-block w-3 h-0.5 bg-[#00cccc]" /> Salt bridges ({interactions.salt_bridges.length})</span>
-          )}
+        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 text-[10px]">
+          <span className="mr-1 text-white/40">Contacts</span>
+          {INTERACTION_LAYERS.map(({ key, label, color }) => {
+            const count = interactions[key]?.length || 0;
+            if (!count) return null;
+            const active = visibleInteractions[key];
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={active}
+                onClick={() => setVisibleInteractions(current => ({ ...current, [key]: !current[key] }))}
+                className={`flex items-center gap-1 rounded px-1.5 py-1 transition ${active ? 'bg-white/10 text-white/90' : 'text-white/35 line-through'}`}
+              >
+                <span className="inline-block w-3 h-0.5" style={{ backgroundColor: color }} />
+                {label} ({count})
+              </button>
+            );
+          })}
         </div>
       )}
 

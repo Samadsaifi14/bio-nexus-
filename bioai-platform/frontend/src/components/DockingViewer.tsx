@@ -13,54 +13,23 @@ interface DockingViewerProps {
 
 type StyleMode = 'cartoon' | 'surface' | 'stick';
 
-declare global {
-  interface Window {
-    PDBeMolstarPlugin?: new () => PDBeMolstarInstance;
-  }
-}
-
-interface PDBeMolstarInstance {
-  render: (container: HTMLElement, options: Record<string, unknown>) => Promise<void>;
-  plugin: {
+interface PDBeElement extends HTMLElement {
+  plugin?: {
     clear: () => void;
-    build: () => unknown;
     loadStructureFromData: (data: string, format: string, options?: Record<string, unknown>) => Promise<unknown>;
-    setSecurityContext: (ctx: unknown) => void;
-    managers: {
-      structure: {
-        hierarchy: {
-          current: {
-            assemblies: Array<{ id: string }>;
-          };
-        };
-      };
-    };
-    canvas3d: {
+    canvas3d?: {
       requestDraw: () => void;
       camera: {
-        focus: (snapshot: Record<string, unknown>) => void;
+        spin: (on: boolean | string, speed?: number) => void;
         reset: () => void;
-        spin: (on: boolean) => void;
       };
     };
-    state: {
-      update: (state: unknown) => void;
-    };
-    update: (state: unknown) => void;
-    primitives: {
+    primitives?: {
       clear: () => void;
       add: (primitives: unknown[]) => void;
     };
-    representation: {
-      autoAttach: (structureRef: unknown) => void;
-    };
-    structures: {
-      clear: () => void;
-    };
   };
 }
-
-const CDN_URL = 'https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build';
 
 export function DockingViewer({
   pdbId,
@@ -70,84 +39,20 @@ export function DockingViewer({
   backgroundColor = '#0d1117',
 }: DockingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
-  const pluginRef = useRef<PDBeMolstarInstance | null>(null);
+  const viewerRef = useRef<PDBeElement | null>(null);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [styleMode, setStyleMode] = useState<StyleMode>('cartoon');
+  const [styleMode] = useState<StyleMode>('cartoon');
   const [spinning, setSpinning] = useState(false);
 
-  const buildScene = useCallback(async () => {
-    const plugin = pluginRef.current;
-    if (!plugin?.plugin) return;
-
-    try {
-      plugin.plugin.clear();
-
-      // Load protein from RCSB
-      const pdbUrl = `https://files.rcsb.org/download/${pdbId}.pdb`;
-      const pdbRes = await fetch(pdbUrl);
-      if (!pdbRes.ok) throw new Error(`Protein fetch failed (HTTP ${pdbRes.status})`);
-      const pdbData = await pdbRes.text();
-
-      // Load protein structure
-      await plugin.plugin.loadStructureFromData(pdbData, 'pdb', {});
-
-      // Load ligand structure
-      if (ligandPdb) {
-        await plugin.plugin.loadStructureFromData(ligandPdb, 'pdb', {});
-      }
-
-      // Apply styles
-      applyStyle(styleMode);
-
-      // Draw interaction lines if available
-      if (interactions) {
-        drawInteractions(interactions);
-      }
-
-      setStatus('ready');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to build scene');
-      setStatus('error');
-    }
-  }, [pdbId, ligandPdb, interactions, styleMode]);
-
-  const applyStyle = useCallback((mode: StyleMode) => {
-    const plugin = pluginRef.current?.plugin;
-    if (!plugin) return;
-
-    try {
-      // Clear existing representations
-      plugin.clear();
-
-      // Rebuild with style
-      const build = plugin.build();
-      if (build && typeof build === 'object' && 'to' in build) {
-        const b = build as Record<string, unknown>;
-        if (typeof b.to === 'function') {
-          (b.to as (selector: unknown) => unknown)({});
-        }
-      }
-
-      plugin.canvas3d?.requestDraw();
-    } catch {
-      // Style application is best-effort
-    }
-  }, []);
-
   const drawInteractions = useCallback((inter: DockingInteraction) => {
-    const plugin = pluginRef.current?.plugin;
-    if (!plugin) return;
+    const plugin = viewerRef.current?.plugin;
+    if (!plugin?.primitives) return;
 
     try {
-      // Clear previous primitives
-      if (plugin.primitives?.clear) {
-        plugin.primitives.clear();
-      }
-
+      plugin.primitives.clear();
       const primitives: unknown[] = [];
 
-      // H-bonds as blue dashed cylinders
       for (const hb of inter.hbonds || []) {
         if (hb.ligand_coords && hb.protein_coords) {
           primitives.push({
@@ -156,13 +61,10 @@ export function DockingViewer({
             end: { x: hb.protein_coords[0], y: hb.protein_coords[1], z: hb.protein_coords[2] },
             color: 0x4488ff,
             radius: 0.15,
-            dashLength: 0.3,
-            gapLength: 0.2,
           });
         }
       }
 
-      // Hydrophobic as orange dashed cylinders
       for (const hp of inter.hydrophobic || []) {
         if (hp.ligand_coords && hp.protein_coords) {
           primitives.push({
@@ -171,13 +73,10 @@ export function DockingViewer({
             end: { x: hp.protein_coords[0], y: hp.protein_coords[1], z: hp.protein_coords[2] },
             color: 0xff8844,
             radius: 0.12,
-            dashLength: 0.25,
-            gapLength: 0.2,
           });
         }
       }
 
-      // Pi-stacking as magenta cylinders (centroid to centroid)
       for (const ps of inter.pi_stacking || []) {
         if (ps.ring_centroid && ps.ligand_centroid) {
           primitives.push({
@@ -186,13 +85,10 @@ export function DockingViewer({
             end: { x: ps.ligand_centroid[0], y: ps.ligand_centroid[1], z: ps.ligand_centroid[2] },
             color: 0xff44ff,
             radius: 0.18,
-            dashLength: 0.35,
-            gapLength: 0.15,
           });
         }
       }
 
-      // Salt bridges as cyan cylinders
       for (const sb of inter.salt_bridges || []) {
         if (sb.ligand_coords && sb.protein_coords) {
           primitives.push({
@@ -201,19 +97,16 @@ export function DockingViewer({
             end: { x: sb.protein_coords[0], y: sb.protein_coords[1], z: sb.protein_coords[2] },
             color: 0x00cccc,
             radius: 0.2,
-            dashLength: 0.4,
-            gapLength: 0.15,
           });
         }
       }
 
-      if (primitives.length > 0 && plugin.primitives?.add) {
+      if (primitives.length > 0) {
         plugin.primitives.add(primitives);
       }
-
       plugin.canvas3d?.requestDraw();
     } catch {
-      // Interaction drawing is best-effort — pdbe-molstar may not expose primitives API
+      // Interaction drawing is best-effort
     }
   }, []);
 
@@ -224,55 +117,86 @@ export function DockingViewer({
       return;
     }
 
+    const container = containerRef.current;
+    if (!container) return;
+
     let cancelled = false;
 
-    const init = async () => {
-      setStatus('loading');
-      setError(null);
+    // Create the pdbe-molstar web component (proven approach from StructureViewer)
+    container.innerHTML = '';
 
-      try {
-        // Wait for PDBeMolstarPlugin to be available
-        let attempts = 0;
-        while (!window.PDBeMolstarPlugin && attempts < 50) {
-          await new Promise(r => setTimeout(r, 200));
-          attempts++;
+    const el = document.createElement('pdbe-molstar') as PDBeElement;
+    el.setAttribute('molecule-id', pdbId.toLowerCase());
+    el.setAttribute('hide-controls', '');
+    el.setAttribute('loading-overlay', '');
+    el.setAttribute('background-color', backgroundColor);
+    el.id = `pdbe-docking-${pdbId.toLowerCase()}`;
+    container.appendChild(el);
+    viewerRef.current = el;
+
+    // Wait for the web component to be ready, then load ligand + interactions
+    const loadCustom = async () => {
+      // pdbe-molstar fires 'molstar-models-loaded' when ready
+      let loaded = false;
+
+      const onLoaded = async () => {
+        if (cancelled || loaded) return;
+        loaded = true;
+
+        const plugin = el.plugin;
+        if (!plugin) return;
+
+        // Load ligand as additional structure
+        if (ligandPdb) {
+          try {
+            await plugin.loadStructureFromData(ligandPdb, 'pdb', {});
+          } catch {
+            // Ligand load is best-effort
+          }
         }
 
-        if (!window.PDBeMolstarPlugin || !containerRef.current) {
-          throw new Error('Molstar failed to load');
+        // Draw interaction lines
+        if (interactions) {
+          drawInteractions(interactions);
         }
 
-        if (cancelled) return;
+        setStatus('ready');
+      };
 
-        const plugin = new window.PDBeMolstarPlugin();
-        pluginRef.current = plugin;
+      // Try event first, fall back to polling
+      el.addEventListener('molstar-models-loaded', () => onLoaded());
 
-        await plugin.render(containerRef.current, {
-          moleculeId: pdbId.toLowerCase(),
-          backgroundColor,
-          hideControls: true,
-          hideCanvasControls: false,
-          sequencePanel: false,
-          ligandView: { hide: true },
-          crystallographicInfo: false,
-          secondaryStructure: { display: true },
-        });
-
-        if (cancelled) return;
-
-        await buildScene();
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : 'Failed to initialize');
-          setStatus('error');
+      // Fallback: poll for plugin availability
+      let attempts = 0;
+      const check = setInterval(() => {
+        if (cancelled || loaded) {
+          clearInterval(check);
+          return;
         }
-      }
+        if (el.plugin?.canvas3d) {
+          clearInterval(check);
+          onLoaded();
+        }
+        attempts++;
+        if (attempts > 100) {
+          clearInterval(check);
+          if (!cancelled) {
+            setStatus('error');
+            setError('Molstar failed to initialize');
+          }
+        }
+      }, 300);
     };
 
-    init();
+    // Small delay to let web component initialize
+    const timer = setTimeout(loadCustom, 500);
 
-    return () => { cancelled = true; };
-  }, [pdbId, ligandPdb, backgroundColor, buildScene]);
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+      container.innerHTML = '';
+    };
+  }, [pdbId, ligandPdb, backgroundColor, drawInteractions, interactions]);
 
   // Redraw interactions when they change
   useEffect(() => {
@@ -283,9 +207,9 @@ export function DockingViewer({
 
   // Spin control
   useEffect(() => {
-    const plugin = pluginRef.current?.plugin;
+    const plugin = viewerRef.current?.plugin;
     if (!plugin?.canvas3d?.camera) return;
-    plugin.canvas3d.camera.spin(spinning);
+    plugin.canvas3d.camera.spin(spinning ? 'y' : false);
   }, [spinning, status]);
 
   return (
@@ -295,13 +219,11 @@ export function DockingViewer({
         <div className="flex items-center gap-2">
           <select
             value={styleMode}
-            onChange={(e) => setStyleMode(e.target.value as StyleMode)}
+            onChange={() => {}}
             disabled={status !== 'ready'}
             className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/80 disabled:opacity-40"
           >
             <option value="cartoon">Cartoon</option>
-            <option value="surface">Surface</option>
-            <option value="stick">Stick</option>
           </select>
           <button
             type="button"
@@ -314,7 +236,6 @@ export function DockingViewer({
         </div>
       </div>
 
-      {/* Interaction legend */}
       {status === 'ready' && interactions && (
         <div className="flex flex-wrap items-center gap-3 border-b border-white/10 px-3 py-1.5 text-[10px]">
           {interactions.hbonds?.length > 0 && (

@@ -15,7 +15,7 @@ interface DockingViewerProps {
   backgroundColor?: string;
 }
 
-type RepresentationType = 'cartoon' | 'ball-and-stick' | 'spacefill' | 'surface' | 'ribbon' | 'tube';
+type RepresentationType = 'cartoon' | 'ball-and-stick' | 'spacefill' | 'gaussian-surface' | 'molecular-surface' | 'putty' | 'ribbon';
 type ColorScheme = 'spectrum' | 'chain' | 'secondary-structure' | 'residue-type' | 'bfactor' | 'uniform';
 
 const REP_OPTIONS: { value: RepresentationType; label: string; icon: typeof Box }[] = [
@@ -23,65 +23,49 @@ const REP_OPTIONS: { value: RepresentationType; label: string; icon: typeof Box 
   { value: 'ribbon', label: 'Ribbon', icon: Minus },
   { value: 'ball-and-stick', label: 'Ball+Stick', icon: Box },
   { value: 'spacefill', label: 'Spacefill', icon: Circle },
-  { value: 'surface', label: 'Surface', icon: Hexagon },
-  { value: 'tube', label: 'Tube', icon: Minus },
+  { value: 'gaussian-surface', label: 'Surface', icon: Hexagon },
+  { value: 'putty', label: 'Putty', icon: Minus },
 ];
-
-const COLOR_OPTIONS: { value: ColorScheme; label: string }[] = [
-  { value: 'spectrum', label: 'Spectrum' },
-  { value: 'chain', label: 'Chain' },
-  { value: 'secondary-structure', label: 'Sec. Structure' },
-  { value: 'residue-type', label: 'Residue Type' },
-  { value: 'bfactor', label: 'B-factor' },
-  { value: 'uniform', label: 'Uniform' },
-];
-
-interface PDBeElement extends HTMLElement {
-  plugin?: {
-    loadStructureFromData: (data: string, format: string, options?: Record<string, unknown>) => Promise<unknown>;
-    clear: () => void;
-    build: () => unknown;
-    canvas3d?: {
-      requestDraw: () => void;
-      camera: {
-        spin: (on: boolean | string, speed?: number) => void;
-        reset: () => void;
-        focus: (options: unknown) => void;
-      };
-    };
-    primitives?: {
-      clear: () => void;
-      add: (primitives: unknown[]) => void;
-    };
-    managers?: {
-      structure?: {
-        hierarchy?: {
-          current?: {
-            structures?: Array<{ representations?: unknown[] }>;
-          };
-        };
-      };
-    };
-  };
-}
-
-const REPRESENTATION_MAP: Record<RepresentationType, Record<string, unknown>> = {
-  'cartoon': { type: 'cartoon', quality: 'medium' },
-  'ribbon': { type: 'ribbon', quality: 'medium' },
-  'ball-and-stick': { type: 'ball-and-stick' },
-  'spacefill': { type: 'spacefill' },
-  'surface': { type: 'surface', probeRadius: 1.4, opacity: 0.85 },
-  'tube': { type: 'tube', radius: 1.2 },
-};
 
 const COLOR_MAP: Record<ColorScheme, Record<string, unknown>> = {
   'spectrum': { name: 'spectrum' },
   'chain': { name: 'chain-id' },
   'secondary-structure': { name: 'secondary-structure' },
   'residue-type': { name: 'residue-type' },
-  'bfactor': { name: 'bfactor', coloringParams: { domain: [0, 100] } },
+  'bfactor': { name: 'bfactor' },
   'uniform': { name: 'uniform', value: 0x66ccff },
 };
+
+interface PDBeElement extends HTMLElement {
+  viewerInstance?: {
+    plugin?: {
+      canvas3d?: {
+        requestDraw: () => void;
+        camera: {
+          spin: (on: boolean | string, speed?: number) => void;
+          reset: () => void;
+        };
+      };
+      primitives?: {
+        clear: () => void;
+        add: (primitives: unknown[]) => void;
+      };
+    };
+    visual: {
+      update: (options: Record<string, unknown>, fullLoad?: boolean) => Promise<boolean>;
+      select: (params: Record<string, unknown>) => Promise<void>;
+      reset: (params: Record<string, unknown>) => Promise<void>;
+      toggleSpin: (spin?: boolean) => Promise<void>;
+      focus: (selection: unknown[]) => Promise<void>;
+    };
+    clear: () => Promise<void>;
+    load: (params: Record<string, unknown>, fullLoad?: boolean) => Promise<void>;
+    deleteStructure: (id?: string | number) => Promise<void>;
+    events: {
+      loadComplete: { subscribe: (cb: (success: boolean) => void) => void };
+    };
+  };
+}
 
 export function DockingViewer({
   pdbId,
@@ -93,15 +77,69 @@ export function DockingViewer({
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDBeElement | null>(null);
   const initRef = useRef(false);
-  const pdbDataRef = useRef<string>('');
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [representation, setRepresentation] = useState<RepresentationType>('cartoon');
   const [colorScheme, setColorScheme] = useState<ColorScheme>('spectrum');
   const [spinning, setSpinning] = useState(false);
+  const representationRef = useRef<RepresentationType>('cartoon');
+  const colorSchemeRef = useRef<ColorScheme>('spectrum');
+
+  const applyRepresentation = useCallback(async (rep: RepresentationType) => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer) return;
+
+    try {
+      await viewer.visual.update({
+        moleculeId: pdbId.toLowerCase(),
+        visualStyle: rep,
+      }, true);
+    } catch {
+      // Best-effort
+    }
+  }, [pdbId]);
+
+  const applyColor = useCallback(async (color: ColorScheme) => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer) return;
+
+    const colorConfig = COLOR_MAP[color];
+    try {
+      await viewer.visual.select({
+        data: [{
+          label_entity_id: '1',
+          color: colorConfig.name === 'uniform' ? '#66ccff' : undefined,
+        }],
+        nonSelectedColor: colorConfig.name === 'uniform' ? '#66ccff' : undefined,
+        keepRepresentations: true,
+      });
+    } catch {
+      // Best-effort
+    }
+  }, []);
+
+  const loadLigand = useCallback(async () => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer || !ligandPdb) return;
+
+    try {
+      const blob = new Blob([ligandPdb], { type: 'text/plain' });
+      const url = URL.createObjectURL(blob);
+
+      await viewer.load({
+        url,
+        format: 'pdb',
+        id: 'ligand',
+      }, false);
+
+      URL.revokeObjectURL(url);
+    } catch {
+      // Best-effort
+    }
+  }, [ligandPdb]);
 
   const drawInteractions = useCallback((inter: DockingInteraction) => {
-    const plugin = viewerRef.current?.plugin;
+    const plugin = viewerRef.current?.viewerInstance?.plugin;
     if (!plugin?.primitives) return;
 
     try {
@@ -165,44 +203,8 @@ export function DockingViewer({
     }
   }, []);
 
-  const applyVisualization = useCallback(async (rep: RepresentationType, color: ColorScheme) => {
-    const el = viewerRef.current;
-    const plugin = el?.plugin;
-    if (!plugin || !pdbDataRef.current) return;
-
-    try {
-      plugin.clear();
-
-      const repConfig = REPRESENTATION_MAP[rep];
-      const colorConfig = COLOR_MAP[color];
-
-      await plugin.loadStructureFromData(pdbDataRef.current, 'pdb', {
-        representation: {
-          ...repConfig,
-          color: colorConfig,
-        },
-      });
-
-      if (ligandPdb) {
-        await plugin.loadStructureFromData(ligandPdb, 'pdb', {
-          representation: {
-            type: 'ball-and-stick',
-            color: { name: 'uniform', value: 0xffcc00 },
-          },
-        });
-      }
-
-      if (interactions) {
-        drawInteractions(interactions);
-      }
-    } catch {
-      // Best-effort
-    }
-  }, [ligandPdb, interactions, drawInteractions]);
-
   const handleScreenshot = useCallback(() => {
-    const el = viewerRef.current;
-    const canvas = el?.querySelector('canvas');
+    const canvas = viewerRef.current?.querySelector('canvas');
     if (!canvas) return;
     const link = document.createElement('a');
     link.download = `docking-${pdbId}-${Date.now()}.png`;
@@ -211,11 +213,11 @@ export function DockingViewer({
   }, [pdbId]);
 
   const handleResetCamera = useCallback(() => {
-    viewerRef.current?.plugin?.canvas3d?.camera?.reset();
+    viewerRef.current?.viewerInstance?.visual?.reset({ camera: true });
   }, []);
 
   const handleFlipView = useCallback(() => {
-    const cam = viewerRef.current?.plugin?.canvas3d?.camera;
+    const cam = viewerRef.current?.viewerInstance?.plugin?.canvas3d?.camera;
     if (!cam) return;
     cam.spin('x');
     setTimeout(() => cam.spin(false), 1500);
@@ -254,36 +256,18 @@ export function DockingViewer({
       cancelled_after_event = true;
       if (checkInterval) clearInterval(checkInterval);
 
-      const plugin = el.plugin;
-      if (!plugin) {
+      const viewer = el.viewerInstance;
+      if (!viewer) {
         if (!cancelled) setStatus('ready');
         return;
       }
 
-      // Store protein PDB data for re-renders
-      try {
-        const pdbUrl = `https://files.rcsb.org/download/${pdbId}.pdb`;
-        const res = await fetch(pdbUrl);
-        if (res.ok) pdbDataRef.current = await res.text();
-      } catch {
-        // Best-effort
-      }
+      // Load ligand as separate structure
+      await loadLigand();
 
-      // Load ligand as ball-and-stick (always visible, distinct color)
-      if (ligandPdb) {
-        try {
-          await plugin.loadStructureFromData(ligandPdb, 'pdb', {
-            representation: {
-              type: 'ball-and-stick',
-              color: { name: 'uniform', value: 0xffcc00 },
-            },
-          });
-        } catch {
-          // Best-effort
-        }
-      }
-
+      // Draw interaction lines
       if (interactions) drawInteractions(interactions);
+
       if (!cancelled) setStatus('ready');
     };
 
@@ -315,12 +299,21 @@ export function DockingViewer({
     };
   }, [pdbId, ligandPdb, backgroundColor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Representation/color changes
+  // Representation changes
   useEffect(() => {
-    if (status === 'ready') {
-      applyVisualization(representation, colorScheme);
+    if (status === 'ready' && representation !== representationRef.current) {
+      representationRef.current = representation;
+      applyRepresentation(representation);
     }
-  }, [representation, colorScheme]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [representation, status, applyRepresentation]);
+
+  // Color changes
+  useEffect(() => {
+    if (status === 'ready' && colorScheme !== colorSchemeRef.current) {
+      colorSchemeRef.current = colorScheme;
+      applyColor(colorScheme);
+    }
+  }, [colorScheme, status, applyColor]);
 
   // Interaction updates
   useEffect(() => {
@@ -331,9 +324,7 @@ export function DockingViewer({
 
   // Spin
   useEffect(() => {
-    const cam = viewerRef.current?.plugin?.canvas3d?.camera;
-    if (!cam) return;
-    cam.spin(spinning ? 'y' : false);
+    viewerRef.current?.viewerInstance?.visual?.toggleSpin(spinning);
   }, [spinning, status]);
 
   return (
@@ -376,9 +367,12 @@ export function DockingViewer({
             title="Color scheme"
             className="appearance-none rounded border border-white/10 bg-black/30 pl-6 pr-2 py-1 text-[10px] text-white/80 disabled:opacity-40 cursor-pointer"
           >
-            {COLOR_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
-            ))}
+            <option value="spectrum">Spectrum</option>
+            <option value="chain">Chain</option>
+            <option value="secondary-structure">Sec. Structure</option>
+            <option value="residue-type">Residue Type</option>
+            <option value="bfactor">B-factor</option>
+            <option value="uniform">Uniform</option>
           </select>
           <Palette className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40 pointer-events-none" />
         </div>

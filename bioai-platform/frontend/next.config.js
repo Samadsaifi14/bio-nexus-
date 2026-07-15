@@ -13,6 +13,7 @@ const nextConfig = {
   },
 };
 
+// Force clean Vercel rebuild — reads NEXT_PUBLIC_API_URL at build time
 module.exports = withSentryConfig(nextConfig, {
   silent: true,
   hideSourceMaps: true,

@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DockingInteraction } from '@/lib/api';
 import {
-  RotateCcw, Camera, FlipHorizontal, Palette,
+  RotateCcw, RotateCw, Camera, FlipHorizontal, Palette,
   Box, Layers, Minus, Circle, Hexagon
 } from 'lucide-react';
 
@@ -99,38 +99,23 @@ export function DockingViewer({
   const representationRef = useRef<RepresentationType>('cartoon');
   const colorSchemeRef = useRef<ColorScheme>('spectrum');
 
-  const applyRepresentation = useCallback(async (rep: RepresentationType) => {
+  const applyVisualization = useCallback(async (rep: RepresentationType, color: ColorScheme) => {
     const viewer = viewerRef.current?.viewerInstance;
     if (!viewer) return;
 
     try {
       await viewer.visual.update({
         moleculeId: pdbId.toLowerCase(),
-        visualStyle: rep,
+        visualStyle: {
+          polymer: { type: rep, color: { name: COLOR_MAP[color].name } },
+          het: 'ball-and-stick',
+          water: 'spacefill',
+        },
       }, true);
     } catch {
       // Best-effort
     }
   }, [pdbId]);
-
-  const applyColor = useCallback(async (color: ColorScheme) => {
-    const viewer = viewerRef.current?.viewerInstance;
-    if (!viewer) return;
-
-    const colorConfig = COLOR_MAP[color];
-    try {
-      await viewer.visual.select({
-        data: [{
-          label_entity_id: '1',
-          color: colorConfig.name === 'uniform' ? '#66ccff' : undefined,
-        }],
-        nonSelectedColor: colorConfig.name === 'uniform' ? '#66ccff' : undefined,
-        keepRepresentations: true,
-      });
-    } catch {
-      // Best-effort
-    }
-  }, []);
 
   const loadLigand = useCallback(async () => {
     const viewer = viewerRef.current?.viewerInstance;
@@ -313,21 +298,14 @@ export function DockingViewer({
     };
   }, [pdbId, ligandPdb, backgroundColor]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Representation changes
+  // Representation + color changes
   useEffect(() => {
-    if (status === 'ready' && representation !== representationRef.current) {
+    if (status === 'ready' && (representation !== representationRef.current || colorScheme !== colorSchemeRef.current)) {
       representationRef.current = representation;
-      applyRepresentation(representation);
-    }
-  }, [representation, status, applyRepresentation]);
-
-  // Color changes
-  useEffect(() => {
-    if (status === 'ready' && colorScheme !== colorSchemeRef.current) {
       colorSchemeRef.current = colorScheme;
-      applyColor(colorScheme);
+      applyVisualization(representation, colorScheme);
     }
-  }, [colorScheme, status, applyColor]);
+  }, [representation, colorScheme, status, applyVisualization]);
 
   // Interaction updates
   useEffect(() => {
@@ -413,7 +391,7 @@ export function DockingViewer({
           disabled={status !== 'ready'}
           className="p-1.5 rounded text-white/50 hover:text-white/80 hover:bg-white/5 transition disabled:opacity-40"
         >
-          <RotateCcw className="w-3.5 h-3.5" />
+          <RotateCw className="w-3.5 h-3.5" />
         </button>
 
         <button

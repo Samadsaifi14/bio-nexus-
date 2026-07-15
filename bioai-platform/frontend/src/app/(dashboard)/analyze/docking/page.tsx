@@ -40,8 +40,15 @@ function VinaLog({ log }: { log: string }) {
   };
 
   const lines = log.split('\n');
-  const affinityLines = lines.filter(l => l.includes('affinity') || l.includes('kcal/mol'));
-  const rmsdLines = lines.filter(l => l.includes('RMSD') || l.includes('rmsd'));
+
+  const poseData = lines
+    .filter(l => /^\s*\d+\s+-?\d+/.test(l))
+    .map(l => {
+      const parts = l.trim().split(/\s+/);
+      return { mode: parseInt(parts[0]), affinity: parseFloat(parts[1]) };
+    })
+    .filter(p => !isNaN(p.affinity))
+    .sort((a, b) => a.affinity - b.affinity);
 
   return (
     <div className="glass-card overflow-hidden">
@@ -58,7 +65,7 @@ function VinaLog({ log }: { log: string }) {
           <div className="text-left">
             <h3 className="text-sm font-semibold text-text-primary">AutoDock Vina Log</h3>
             <p className="text-xs text-text-muted mt-0.5">
-              {affinityLines.length > 0 ? `${affinityLines.length} poses scored` : 'Full simulation output'}
+              {poseData.length > 0 ? `${poseData.length} poses scored` : 'Full simulation output'}
             </p>
           </div>
         </div>
@@ -82,20 +89,16 @@ function VinaLog({ log }: { log: string }) {
       {open && (
         <div className="border-t border-white/5">
           {/* Key metrics strip */}
-          {affinityLines.length > 0 && (
+          {poseData.length > 0 && (
             <div className="px-5 py-3 bg-white/[0.02] border-b border-white/5 flex flex-wrap gap-3">
-              {affinityLines.slice(0, 3).map((line, i) => {
-                const match = line.match(/(-?\d+\.?\d*)\s*kcal\/mol/);
-                const affinity = match ? parseFloat(match[1]) : null;
-                return (
-                  <div key={i} className="flex items-center gap-1.5 text-xs">
-                    <span className="text-text-muted">Pose {i + 1}:</span>
-                    <span className={`font-mono font-medium ${affinity !== null ? affinityColor(affinity) : 'text-text-muted'}`}>
-                      {affinity !== null ? affinity.toFixed(1) : '—'} kcal/mol
-                    </span>
-                  </div>
-                );
-              })}
+              {poseData.slice(0, 3).map((pose) => (
+                <div key={pose.mode} className="flex items-center gap-1.5 text-xs">
+                  <span className="text-text-muted">Mode {pose.mode}:</span>
+                  <span className={`font-mono font-medium ${affinityColor(pose.affinity)}`}>
+                    {pose.affinity.toFixed(1)} kcal/mol
+                  </span>
+                </div>
+              ))}
             </div>
           )}
 

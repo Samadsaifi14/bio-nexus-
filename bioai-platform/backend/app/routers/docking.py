@@ -314,23 +314,30 @@ async def create_docking_job(body: DockingJobCreate):
     job_id = str(uuid.uuid4())
     now = datetime.datetime.utcnow().isoformat()
 
-    row = {
+    # Fields that may or may not exist in Supabase — only INSERT guaranteed columns
+    insert_row = {
         "id": job_id,
         "status": "queued",
         "protein_name": body.pdb_id or "custom",
         "protein_sequence": "",
         "ligand_smiles": body.smiles,
+        "created_at": now,
+        "updated_at": now,
+    }
+    supabase.table(_TABLE).insert(insert_row).execute()
+
+    # Pass full params to the background worker (not stored in DB)
+    worker_payload = {
+        **insert_row,
+        "pdb_id": body.pdb_id,
+        "pdb_url": body.pdb_url,
         "grid_center": body.grid_center or [0, 0, 0],
         "grid_size": body.grid_size,
         "exhaustiveness": body.exhaustiveness,
         "num_modes": body.num_modes,
-        "created_at": now,
-        "updated_at": now,
     }
-    supabase.table(_TABLE).insert(row).execute()
-
     loop = asyncio.get_event_loop()
-    asyncio.ensure_future(loop.run_in_executor(None, _run_docking_sync, job_id, row))
+    asyncio.ensure_future(loop.run_in_executor(None, _run_docking_sync, job_id, worker_payload))
 
     return DockingJobResponse(job_id=job_id, status="queued", result=None)
 

@@ -13,6 +13,8 @@ interface DockingViewerProps {
   interactions?: DockingInteraction;
   height?: number | string;
   backgroundColor?: string;
+  chains?: Array<{ id: string; residue_count: number }>;
+  ligands?: Array<{ id: string; chain: string; residue_count: number }>;
 }
 
 type RepresentationType = 'cartoon' | 'ball-and-stick' | 'spacefill' | 'gaussian-surface' | 'molecular-surface' | 'putty' | 'ribbon';
@@ -81,6 +83,8 @@ export function DockingViewer({
   interactions,
   height = 480,
   backgroundColor = '#0d1117',
+  chains = [],
+  ligands = [],
 }: DockingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDBeElement | null>(null);
@@ -90,6 +94,7 @@ export function DockingViewer({
   const [representation, setRepresentation] = useState<RepresentationType>('cartoon');
   const [colorScheme, setColorScheme] = useState<ColorScheme>('spectrum');
   const [spinning, setSpinning] = useState(false);
+  const [selectedChain, setSelectedChain] = useState('');
   const [visibleInteractions, setVisibleInteractions] = useState<Record<InteractionLayer, boolean>>({
     hbonds: true,
     hydrophobic: true,
@@ -202,6 +207,43 @@ export function DockingViewer({
     }
   }, []);
 
+  const selectChain = useCallback(async (chain: string) => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer) return;
+    try {
+      if (!chain) {
+        await viewer.visual.reset({ camera: false, theme: false });
+        return;
+      }
+      await viewer.visual.select({
+        data: [{ auth_asym_id: chain, color: '#5eead4' }],
+        nonSelectedColor: '#334155',
+        keepRepresentations: true,
+      });
+      await viewer.visual.focus([{ auth_asym_id: chain }]);
+    } catch {
+      // The PDBe API can differ between deposited structures; preserve the canvas if a selection is unsupported.
+    }
+  }, []);
+
+  const focusContacts = useCallback(async () => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer || !interactions) return;
+    const residues = [
+      ...interactions.hbonds,
+      ...interactions.hydrophobic,
+      ...interactions.pi_stacking,
+      ...interactions.salt_bridges,
+    ].map(contact => ({ auth_asym_id: contact.protein_chain, auth_seq_id: contact.protein_residue_seq }));
+    if (!residues.length) return;
+    try {
+      await viewer.visual.select({ data: residues, keepRepresentations: true });
+      await viewer.visual.focus(residues);
+    } catch {
+      // Best-effort viewer enhancement; the tabular fingerprint remains available.
+    }
+  }, [interactions]);
+
   const handleScreenshot = useCallback(() => {
     const canvas = viewerRef.current?.querySelector('canvas');
     if (!canvas) return;
@@ -224,9 +266,9 @@ export function DockingViewer({
 
   // Initialize viewer ONCE per pdbId
   useEffect(() => {
-    if (!pdbId || !ligandPdb) {
+    if (!pdbId) {
       setStatus('error');
-      setError('Missing structure data');
+      setError('Missing structure identifier');
       return;
     }
 
@@ -350,6 +392,25 @@ export function DockingViewer({
 
         <div className="w-px h-5 bg-white/10" />
 
+        {chains.length > 0 && (
+          <select
+            value={selectedChain}
+            onChange={(event) => { const chain = event.target.value; setSelectedChain(chain); selectChain(chain); }}
+            disabled={status !== 'ready'}
+            title="Focus protein chain"
+            className="rounded border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-white/80 disabled:opacity-40"
+          >
+            <option value="">All chains</option>
+            {chains.map(chain => <option key={chain.id} value={chain.id}>Chain {chain.id} · {chain.residue_count} residues</option>)}
+          </select>
+        )}
+
+        {interactions && (
+          <button type="button" onClick={focusContacts} disabled={status !== 'ready'} className="rounded border border-white/10 px-2 py-1 text-[10px] text-white/60 hover:bg-white/5 hover:text-white disabled:opacity-40">
+            Focus pocket
+          </button>
+        )}
+
         {/* Color scheme */}
         <div className="relative">
           <select
@@ -436,6 +497,14 @@ export function DockingViewer({
               </button>
             );
           })}
+        </div>
+      )}
+
+      {(chains.length > 0 || ligands.length > 0) && (
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-white/10 px-3 py-2 text-[10px] text-white/50">
+          {chains.length > 0 && <span>{chains.length} protein chain{chains.length === 1 ? '' : 's'}</span>}
+          {ligands.length > 0 && <span>Deposited ligands: {ligands.map(ligand => `${ligand.id}:${ligand.chain}`).join(', ')}</span>}
+          {ligandPdb && <span className="text-accent-cyan">Docked ligand loaded</span>}
         </div>
       )}
 

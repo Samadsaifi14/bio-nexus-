@@ -1,5 +1,6 @@
 import httpx
 import re
+from collections import defaultdict
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -14,6 +15,10 @@ UNIPROT_BASE = "https://rest.uniprot.org/uniprotkb"
 
 class StructureSearchRequest(BaseModel):
     query: str = Field(..., min_length=1, description="PDB ID, UniProt accession, or keyword")
+
+
+class StructureInventoryRequest(BaseModel):
+    pdb_id: str = Field(..., pattern=r"^[A-Za-z0-9]{4}$", description="Four-character PDB identifier")
 
 
 def _is_pdb_id(q: str) -> bool:
@@ -150,3 +155,40 @@ async def search_pdb(req: StructureSearchRequest):
             "score": hit.get("score", 0),
         })
     return {"results": results, "count": len(results)}
+
+
+@router.post("/inventory")
+async def structure_inventory(req: StructureInventoryRequest):
+    """Return lightweight chain and non-polymer inventory for workbench controls."""
+    pdb_id = req.pdb_id.upper()
+    async with httpx.AsyncClient(timeout=20) as client:
+        response = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
+    if response.status_code != 200:
+        raise HTTPException(status_code=404, detail=f"PDB file not found: {pdb_id}")
+
+    chains: dict[str, set[tuple[str, str]]] = defaultdict(set)
+    ligands: dict[tuple[str, str], dict] = {}
+    for line in response.text.splitlines():
+        if len(line) < 27:
+            continue
+        record = line[:6].strip()
+        if record not in {"ATOM", "HETATM"}:
+            continue
+        residue = line[17:20].strip() or "UNK"
+        chain = line[21].strip() or "_"
+        residue_id = f"{line[22:26].strip()}{line[26].strip()}"
+        if record == "ATOM":
+            chains[chain].add((residue, residue_id))
+        elif residue not in {"HOH", "WAT", "DOD"}:
+            key = (residue, chain)
+            ligands.setdefault(key, {"id": residue, "chain": chain, "residue_count": 0})
+            ligands[key]["residue_count"] += 1
+
+    return {
+        "pdb_id": pdb_id,
+        "chains": [
+            {"id": chain, "residue_count": len(residues)}
+            for chain, residues in sorted(chains.items())
+        ],
+        "ligands": sorted(ligands.values(), key=lambda ligand: (ligand["id"], ligand["chain"])),
+    }

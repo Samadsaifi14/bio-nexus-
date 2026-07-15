@@ -4,11 +4,13 @@ import asyncio
 import json
 import math
 import re
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
 from app.services.supabase import get_client
+from app.services.auth import require_user_id
+from app.services.ssrf import validate_url
 
 router = APIRouter(prefix="/api/docking", tags=["Docking"])
 _TABLE = "docking_jobs"
@@ -91,6 +93,7 @@ def _run_docking_sync(job_id: str, payload: dict):
             run_vina,
         )
         import urllib.request
+        from app.services.ssrf import validate_url
 
         pdb_id = payload.get("pdb_id", "").strip().upper()
         pdb_url = payload.get("pdb_url", "").strip()
@@ -101,6 +104,7 @@ def _run_docking_sync(job_id: str, payload: dict):
         # 1. Obtain PDB text
         pdb_text: str | None = None
         if pdb_url:
+            validate_url(pdb_url)  # SSRF guard even in worker
             try:
                 pdb_text = urllib.request.urlopen(pdb_url, timeout=30).read().decode("utf-8", errors="replace")
             except Exception:
@@ -176,7 +180,9 @@ def _run_docking_sync(job_id: str, payload: dict):
         }
 
         supabase.table(_TABLE).update({
-            "status": "completed",
+            # Keep the persisted value aligned with the frontend's terminal
+            # status contract (and the other job runners in this service).
+            "status": "complete",
             "result_sdf": json.dumps(result_obj),
         }).eq("id", job_id).execute()
 
@@ -639,31 +645,32 @@ def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[di
 # ---------------------------------------------------------------------------
 
 @router.post("/run", response_model=DockingJobResponse)
-async def create_docking_job(body: DockingJobCreate):
+async def create_docking_job(body: DockingJobCreate, user_id: str = Depends(require_user_id)):
     supabase = get_client()
     _prune_old(supabase)
+
+    # SSRF validation on user-supplied URL
+    if body.pdb_url:
+        validate_url(body.pdb_url)
 
     import uuid, datetime
     job_id = str(uuid.uuid4())
     now = datetime.datetime.utcnow().isoformat()
 
-    # Only INSERT columns guaranteed to exist in every Supabase docking_jobs schema.
-    # Runtime params (grid, exhaustiveness, etc.) are passed to the worker in-memory.
     insert_row = {
         "id": job_id,
         "status": "queued",
         "ligand_smiles": body.smiles,
+        "user_id": user_id,
     }
     try:
         supabase.table(_TABLE).insert(insert_row).execute()
     except Exception as e:
-        # If even ligand_smiles is missing, try bare minimum
         if "ligand_smiles" in str(e):
-            supabase.table(_TABLE).insert({"id": job_id, "status": "queued"}).execute()
+            supabase.table(_TABLE).insert({"id": job_id, "status": "queued", "user_id": user_id}).execute()
         else:
             raise
 
-    # Pass full params to the background worker (not stored in DB)
     worker_payload = {
         **insert_row,
         "pdb_id": body.pdb_id,
@@ -680,18 +687,18 @@ async def create_docking_job(body: DockingJobCreate):
 
 
 @router.get("/status/{job_id}", response_model=DockingJobResponse)
-async def get_docking_job(job_id: str):
+async def get_docking_job(job_id: str, user_id: str = Depends(require_user_id)):
     supabase = get_client()
-    result = supabase.table(_TABLE).select("*").eq("id", job_id).single().execute()
+    result = supabase.table(_TABLE).select("*").eq("id", job_id).eq("user_id", user_id).single().execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Docking job not found")
     return DockingJobResponse(**_row_to_response(result.data))
 
 
 @router.get("/result/{job_id}/pdb")
-async def get_docking_pdb(job_id: str):
+async def get_docking_pdb(job_id: str, user_id: str = Depends(require_user_id)):
     supabase = get_client()
-    result = supabase.table(_TABLE).select("result_sdf").eq("id", job_id).single().execute()
+    result = supabase.table(_TABLE).select("result_sdf").eq("id", job_id).eq("user_id", user_id).single().execute()
     if not result.data or not result.data.get("result_sdf"):
         raise HTTPException(status_code=404, detail="Docking result not found")
     try:
@@ -706,11 +713,12 @@ async def get_docking_pdb(job_id: str):
 
 
 @router.get("")
-async def list_docking_jobs(limit: int = 50):
+async def list_docking_jobs(limit: int = 50, user_id: str = Depends(require_user_id)):
     supabase = get_client()
     rows = (
         supabase.table(_TABLE)
         .select("*")
+        .eq("user_id", user_id)
         .order("created_at", desc=True)
         .limit(limit)
         .execute()

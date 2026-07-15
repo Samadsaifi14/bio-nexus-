@@ -5,11 +5,11 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { ArrowLeft, LoaderCircle, ExternalLink, Dna } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
-import { fetchStructure } from '@/lib/api';
+import { fetchStructure, getStructureInventory } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { StructureResult } from '@/lib/api';
-import StructureViewer from '@/components/StructureViewer';
+import { DockingViewer } from '@/components/DockingViewer';
 
 export default function StructurePage() {
   const router = useRouter();
@@ -17,6 +17,7 @@ export default function StructurePage() {
   const [result, setResult] = useState<StructureResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [inventory, setInventory] = useState<{ chains: Array<{ id: string; residue_count: number }>; ligands: Array<{ id: string; chain: string; residue_count: number }> } | null>(null);
   const audit = useAuditTrail();
 
   const handleSearch = async () => {
@@ -26,9 +27,13 @@ export default function StructurePage() {
     setLoading(true);
     setError(null);
     setResult(null);
+    setInventory(null);
     try {
       const res = await fetchStructure(query.trim());
       setResult(res);
+      if (res.pdb_id) {
+        getStructureInventory(res.pdb_id).then(setInventory).catch(() => setInventory(null));
+      }
       audit.emitSuccess('structure_fetch', 'AlphaFold/PDB', inputSummary, `pdb:${res?.pdb_id ?? ''}`);
     } catch (err: unknown) {
       const errMsg = extractErrorMessage(err, 'Structure not found');
@@ -96,7 +101,7 @@ export default function StructurePage() {
               )}
             </div>
             {pdbId ? (
-              <StructureViewer pdbId={pdbId} />
+              <DockingViewer pdbId={pdbId} ligandPdb="" chains={inventory?.chains} ligands={inventory?.ligands} />
             ) : (
               <div className="w-full h-96 rounded-xl bg-surface-0 flex items-center justify-center">
                 <p className="text-sm text-text-muted">3D view not available</p>

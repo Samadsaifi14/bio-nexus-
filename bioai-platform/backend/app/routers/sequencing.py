@@ -6,11 +6,13 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, BackgroundTasks, HTTPException
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Depends
 from pydantic import BaseModel
 
 from app.deps import limiter
 from app.services.supabase import get_supabase
+from app.services.auth import require_user_id
+from app.services.ssrf import validate_url
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sequencing", tags=["sequencing"])
@@ -56,7 +58,7 @@ class SequencingJob(BaseModel):
     done_at: Optional[str] = None
 
 
-def _init(job_id: str, req: SequencingRequest) -> None:
+def _init(job_id: str, req: SequencingRequest, user_id: str) -> None:
     try:
         _prune_jobs()
     except Exception:
@@ -66,6 +68,7 @@ def _init(job_id: str, req: SequencingRequest) -> None:
         "fastq_url": req.fastq_url,
         "reference": req.reference,
         "status":    "queued",
+        "user_id":   user_id,
         "result":    None,
         "error":     None,
         "done_at":   None,
@@ -76,8 +79,11 @@ def _patch(job_id: str, **kw) -> None:
     get_supabase().table(_TABLE).update(kw).eq("id", job_id).execute()
 
 
-def _read(job_id: str) -> dict | None:
-    rows = get_supabase().table(_TABLE).select("*").eq("id", job_id).execute().data
+def _read(job_id: str, user_id: str | None = None) -> dict | None:
+    query = get_supabase().table(_TABLE).select("*").eq("id", job_id)
+    if user_id:
+        query = query.eq("user_id", user_id)
+    rows = query.execute().data
     return dict(rows[0]) if rows else None
 
 
@@ -112,22 +118,24 @@ VALID_DEMO = {"synthetic", "demo", "test"}
 
 
 @router.post("/run")
-async def run_sequencing(req: SequencingRequest, background_tasks: BackgroundTasks):
+async def run_sequencing(req: SequencingRequest, background_tasks: BackgroundTasks, user_id: str = Depends(require_user_id)):
     if not req.fastq_url.strip():
         raise HTTPException(400, detail="fastq_url is required")
-    if not req.fastq_url.startswith(("http://", "https://")) and req.fastq_url.lower() not in VALID_DEMO:
-        raise HTTPException(400, detail="fastq_url must be a valid URL or 'synthetic' for demo data")
+    if req.fastq_url.lower() not in VALID_DEMO:
+        if not req.fastq_url.startswith(("http://", "https://")):
+            raise HTTPException(400, detail="fastq_url must be a valid URL or 'synthetic' for demo data")
+        validate_url(req.fastq_url)
 
     job_id = str(uuid.uuid4())
-    _init(job_id, req)
+    _init(job_id, req, user_id)
     background_tasks.add_task(_worker, job_id)
     return {"job_id": job_id, "status": "queued"}
 
 
 @router.get("/status/{job_id}")
 @limiter.exempt
-async def get_status(job_id: str):
-    job = _read(job_id)
+async def get_status(job_id: str, user_id: str = Depends(require_user_id)):
+    job = _read(job_id, user_id)
     if not job:
         raise HTTPException(404, detail=f"Job {job_id} not found")
     return job

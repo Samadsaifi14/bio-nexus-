@@ -175,6 +175,17 @@ export async function fetchStructure(query: string): Promise<StructureResult> {
   return res.data;
 }
 
+export type StructureInventory = {
+  pdb_id: string;
+  chains: Array<{ id: string; residue_count: number }>;
+  ligands: Array<{ id: string; chain: string; residue_count: number }>;
+};
+
+export async function getStructureInventory(pdbId: string): Promise<StructureInventory> {
+  const res = await api.post('/api/structures/inventory', { pdb_id: pdbId });
+  return res.data;
+}
+
 /** @deprecated Unused — search is handled by fetchStructure */
 export async function searchStructures(query: string): Promise<{ results: { pdb_id: string; score: number }[]; count: number }> {
   const res = await api.post('/api/structures/search', { query });

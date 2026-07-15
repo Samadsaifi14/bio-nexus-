@@ -1,356 +1,106 @@
 """
-Background job executor for bioinformatics pipelines.
-
-For the prototype, uses asyncio.create_task (not Celery) —
-sufficient for single-instance. Raw responses are stored
-to R2/local before any parsing occurs.
+Background pipeline worker: picks up queued jobs and runs the v2 pipeline
+using asyncio.create_task (in-process).  Status is PATCHed to Supabase via
+raw HTTP so we never import app.db.
 """
 
+from __future__ import annotations
+
 import asyncio
+import datetime
 import logging
-from typing import Optional
+import os
 
 import httpx
 
 from app.config import settings
-from app.integrations.ncbi import blast as ncbi_blast
-from app.integrations.ncbi.parser import parse_blast_xml
-from app.core.storage import store_raw_response, store_result
-from app.data.demo_results import get_demo_result
+from app.routers.pipeline_v2 import run_pipeline
 
 logger = logging.getLogger(__name__)
 
-DEMO_MODE = settings.DEMO_MODE
+_supabase_url = settings.supabase_url.rstrip("/")
+_supabase_key = settings.supabase_service_key  # service key for server-side writes
 
-STEP_STATUSES = [
-    "submitted_to_ncbi",
-    "polling_ncbi",
-    "parsing",
-    "interpreting",
-    "pathway_enrichment",
-    "fetching_alphafold",
-    "complete",
-]
+_HEADERS = {
+    "apikey": _supabase_key,
+    "Authorization": f"Bearer {_supabase_key}",
+    "Content-Type": "application/json",
+    "Prefer": "return=minimal",
+}
 
-
-def _supa_headers() -> dict:
-    return {
-        "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
-        "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-        "Content-Type": "application/json",
-        "Prefer": "return=minimal",
-    }
+# Reusable async client (created lazily)
+_client: httpx.AsyncClient | None = None
 
 
-async def _patch_job(job_id: str, payload: dict) -> None:
-    url = f"{settings.SUPABASE_URL}/rest/v1/jobs?id=eq.{job_id}"
+def _get_client() -> httpx.AsyncClient:
+    global _client
+    if _client is None or _client.is_closed:
+        _client = httpx.AsyncClient(timeout=30)
+    return _client
+
+
+async def _patch(table: str, job_id: str, payload: dict) -> None:
+    url = f"{_supabase_url}/rest/v1/{table}?id=eq.{job_id}"
+    await _get_client().patch(url, headers=_HEADERS, json=payload)
+
+
+async def _fetch_job(table: str, job_id: str) -> dict | None:
+    url = f"{_supabase_url}/rest/v1/{table}?id=eq.{job_id}&select=*"
+    resp = await _get_client().get(url, headers=_HEADERS)
+    if resp.status_code != 200:
+        return None
+    rows = resp.json()
+    return rows[0] if rows else None
+
+
+async def process_job(job_id: str) -> None:
+    """Mark a pipeline job as running, execute steps, PATCH results."""
+    now = datetime.datetime.utcnow().isoformat()
+
+    # Optimistic lock: set status -> running
     try:
-        async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.patch(url, headers=_supa_headers(), json=payload)
-        if resp.status_code not in (200, 204):
-            logger.error(f"[{job_id}] Supabase PATCH {resp.status_code}: {resp.text[:300]}")
-    except Exception as e:
-        logger.error(f"[{job_id}] Supabase PATCH exception: {e}")
-
-
-def _matches_demo(sequence: str) -> Optional[dict]:
-    from app.data.demo_results import DEMO_SEQUENCES
-    seq_clean = "".join(c for c in sequence if c.isalpha()).upper()
-    for key, info in DEMO_SEQUENCES.items():
-        demo_clean = "".join(c for c in info["sequence"] if c.isalpha()).upper()
-        if seq_clean == demo_clean:
-            return info
-    return None
-
-
-async def execute_blast_job(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10, query_accession: str = "") -> None:
-    steps_completed: list[str] = []
-
-    async def _set_step(step: str, progress_pct: int) -> None:
-        steps_completed.append(step)
-        await _patch_job(job_id, {
-            "status": step,
-            "steps_completed": steps_completed,
-            "progress_pct": progress_pct,
-        })
-        logger.info(f"[{job_id}] Step: {step}")
+        await _patch("jobs", job_id, {"status": "running", "updated_at": now})
+    except Exception:
+        logger.exception("Failed to mark job %s as running", job_id)
+        return
 
     try:
-        await _set_step("submitted_to_ncbi", 10)
+        job = await _fetch_job("jobs", job_id)
+        if job is None:
+            logger.error("Job %s not found in Supabase", job_id)
+            return
 
-        sequence_clean = "".join(c for c in sequence if c.isalpha()).upper()
+        query = job.get("query_sequence") or job.get("query") or ""
+        organism = job.get("organism", "Homo sapiens")
+        analysis_type = job.get("analysis_type", "comprehensive")
 
-        def _is_dna(seq: str) -> bool:
-            if len(seq) < 10:
-                return False
-            dna = sum(1 for c in seq if c in "ACGTUN")
-            return dna / len(seq) > 0.85
+        result = await run_pipeline(query, organism=organism, analysis_type=analysis_type)
 
-        seq_is_dna = _is_dna(sequence_clean)
-        seq_for_blast = sequence_clean if len(sequence_clean) > 20 else sequence_clean
-
-        demo_info = _matches_demo(sequence)
-        if DEMO_MODE and demo_info:
-            logger.info(f"[{job_id}] Demo mode: using cached result for {demo_info['name']}")
-            await _set_step("polling_ncbi", 30)
-            await asyncio.sleep(1)
-            await _set_step("parsing", 50)
-            demo_result = get_demo_result(sequence)
-            parsed = demo_result if demo_result else {"error": "Demo result not found", "hits": []}
-            await _set_step("interpreting", 70)
-        else:
-            if DEMO_MODE:
-                demo_label = _matches_demo(sequence)
-                if not demo_label:
-                    logger.info(f"[{job_id}] Demo mode ON but sequence doesn't match known demo sequences — falling through to real NCBI call")
-            await _set_step("polling_ncbi", 30)
-
-            blast_program = "blastn" if seq_is_dna else "blastp"
-            blast_db = database if database != "nr" else ("nt" if seq_is_dna else "nr")
-            submit_result = await ncbi_blast.submit_blast(seq_for_blast, program=blast_program, database=blast_db)
-            if "error" in submit_result:
-                raise RuntimeError(f"NCBI submission failed: {submit_result['error']}")
-
-            rid = submit_result["rid"]
-            poll_interval = min(submit_result["estimated_seconds"] / 2, 15)
-            max_polls = 40
-
-            await _patch_job(job_id, {
-                "context_json": {"ncbi_rid": rid, "poll_interval": poll_interval},
-            })
-
-            for attempt in range(max_polls):
-                await asyncio.sleep(poll_interval)
-                try:
-                    status_result = await ncbi_blast.check_status(rid)
-                except Exception as e:
-                    logger.warning(f"[{job_id}] NCBI status check failed (attempt {attempt+1}/{max_polls}): {e}")
-                    continue
-                status = status_result["status"]
-                if status == "READY":
-                    break
-                if status in ("ERROR", "FAILED"):
-                    raise RuntimeError(f"NCBI BLAST failed with status: {status}")
-                if status == "UNKNOWN":
-                    logger.warning(f"[{job_id}] NCBI returned UNKNOWN status (attempt {attempt+1}/{max_polls}), retrying")
-                    continue
-            else:
-                raise RuntimeError("NCBI BLAST timed out after {max_polls} polls")
-
-            await _set_step("parsing", 50)
-
-            results = await ncbi_blast.fetch_results(rid)
-            if "error" in results:
-                raise RuntimeError(f"NCBI fetch failed: {results['error']}")
-
-            raw_xml = results["raw"]
-            await store_raw_response(job_id, "blast", "ncbi_blast", raw_xml, "xml")
-
-            parsed = parse_blast_xml(raw_xml)
-            if "error" in parsed:
-                raise RuntimeError(f"BLAST XML parse error: {parsed['error']}")
-
-            await _set_step("interpreting", 70)
-
-        await store_result(job_id, "blast_hits", parsed, "json")
-
-        top_hit = parsed["hits"][0] if parsed.get("hits") else None
-        query_len = parsed.get("query_length", 0)
-        context = {
-            "query": {
-                "sequence": sequence,
-                "length": len(sequence_clean),
-                "sequence_type": "dna" if seq_is_dna else "protein",
-                "accession": query_accession or (top_hit.get("accession", "") if top_hit else ""),
+        done_at = datetime.datetime.utcnow().isoformat()
+        await _patch(
+            "jobs",
+            job_id,
+            {
+                "status": "completed",
+                "results": result,
+                "updated_at": done_at,
+                "completed_at": done_at,
             },
-            "blast": {
-                "count": len(parsed.get("hits", [])),
-                "source": "demo" if (DEMO_MODE and demo_info) else "ncbi",
-                "database": parsed.get("database", "nr"),
-                "query_length": query_len,
-                "top_hit": {
-                    "accession": top_hit["accession"],
-                    "description": top_hit["description"],
-                    "evalue": top_hit["evalue"],
-                    "evalue_raw": top_hit.get("evalue_raw", str(top_hit["evalue"])),
-                    "identity_pct": top_hit["identity_pct"],
-                    "bit_score": top_hit["bit_score"],
-                    "alignment_length": top_hit.get("alignment_length", 0),
-                } if top_hit else None,
-                "hits": [
-                    {
-                        "accession": h["accession"],
-                        "description": h["description"],
-                        "organism": h.get("organism", ""),
-                        "evalue": h["evalue"],
-                        "evalue_raw": h.get("evalue_raw", str(h["evalue"])),
-                        "identity_pct": h["identity_pct"],
-                        "bit_score": h["bit_score"],
-                        "alignment_length": h.get("alignment_length", 0),
-                        "query_coverage_pct": round(h.get("alignment_length", 0) / query_len * 100, 1) if query_len > 0 else 0,
-                        "query_from": h.get("query_from", 0),
-                        "query_to": h.get("query_to", 0),
-                        "hit_from": h.get("hit_from", 0),
-                        "hit_to": h.get("hit_to", 0),
-                        "positive": h.get("positive", 0),
-                        "gaps": h.get("gaps", 0),
-                        "query_alignment": h.get("query_alignment", ""),
-                        "hit_alignment": h.get("hit_alignment", ""),
-                        "midline": h.get("midline", ""),
-                    }
-                    for h in parsed.get("hits", [])[:max_hits]
-                ],
-            },
-        }
-
-        if top_hit and not seq_is_dna:
-            try:
-                from app.tools.uniprot import UniprotTool
-                from app.services.sequence_utils import map_refseq_to_uniprot, detect_source_from_accession
-                uniprot = UniprotTool()
-                accession = demo_info.get("uniprot_accession", top_hit["accession"]) if (DEMO_MODE and demo_info) else top_hit["accession"]
-                source = detect_source_from_accession(accession)
-                if source == "ncbi":
-                    mapped = await map_refseq_to_uniprot(accession)
-                    if mapped:
-                        logger.info(f"[{job_id}] Mapped RefSeq {accession} -> UniProt {mapped}")
-                        accession = mapped
-                uniprot_result = await uniprot.run({"accession": accession})
-                if "error" not in uniprot_result:
-                    context["uniprot"] = {
-                        "accession": uniprot_result.get("accession", ""),
-                        "full_name": uniprot_result.get("full_name", ""),
-                        "organism": uniprot_result.get("organism", ""),
-                        "gene_names": uniprot_result.get("gene_names", []),
-                        "functions": uniprot_result.get("functions", []),
-                        "keywords": uniprot_result.get("keywords", []),
-                        "subcellular_locations": uniprot_result.get("subcellular_locations", []),
-                        "pdb_ids": uniprot_result.get("pdb_ids", []),
-                        "features": [
-                            f for f in (uniprot_result.get("features", []) or [])
-                            if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS")
-                        ],
-                        "go_terms": uniprot_result.get("go_terms", []),
-                        "sequence_length": uniprot_result.get("sequence_length", 0),
-                    }
-            except Exception as e:
-                logger.warning(f"[{job_id}] UniProt fetch failed (non-fatal): {e}")
-
-        # Bridge F2: UniProt → Interactions (pre-fetch STRING-DB data)
-        interactions_data = None
-        try:
-            gene_names = context.get("uniprot", {}).get("gene_names", [])
-            if gene_names:
-                gene_name = gene_names[0]
-                string_url = "https://string-db.org/api/json/interaction_partners"
-                async with httpx.AsyncClient(timeout=20) as client:
-                    r = await client.get(string_url, params={
-                        "identifiers": gene_name,
-                        "species": 9606,
-                        "limit": 12,
-                        "caller_identity": "bio-nexus-platform",
-                    })
-                    if r.status_code == 200:
-                        raw = r.json()
-                        if raw:
-                            interactions = [
-                                {
-                                    "partner_gene": item.get("preferredName_B", ""),
-                                    "partner_protein": item.get("stringId_B", ""),
-                                    "combined_score": item.get("score", 0),
-                                    "nscore": item.get("nscore", 0),
-                                    "fscore": item.get("fscore", 0),
-                                    "pscore": item.get("pscore", 0),
-                                    "ascore": item.get("ascore", 0),
-                                    "escore": item.get("escore", 0),
-                                    "dscore": item.get("dscore", 0),
-                                    "tscore": item.get("tscore", 0),
-                                }
-                                for item in raw
-                            ]
-                            interactions.sort(key=lambda x: x["combined_score"], reverse=True)
-                            interactions_data = {"gene": gene_name, "species": 9606, "interactions": interactions}
-        except Exception as e:
-            logger.warning(f"[{job_id}] Interactions fetch failed (non-fatal): {e}")
-
-        context["interactions"] = interactions_data
-
-        pathway_enrichment_result = None
-        try:
-            gene_names = []
-            if context.get("uniprot", {}).get("gene_names"):
-                gene_names = context["uniprot"]["gene_names"][:20]
-            if not gene_names:
-                for hit in parsed.get("hits", [])[:10]:
-                    words = (hit.get("description", "") or "").replace("(", " ").replace(")", " ").split()
-                    for w in words:
-                        if w.isupper() and len(w) >= 2 and not w.startswith("OS="):
-                            gene_names.append(w)
-                            break
-            if gene_names:
-                from app.services.pathway_enrichment import run_enrichment
-                pathway_enrichment_result = await run_enrichment(gene_names)
-                if pathway_enrichment_result:
-                    logger.info(f"[{job_id}] Pathway enrichment found {len(pathway_enrichment_result['pathways'])} pathways")
-        except Exception as e:
-            logger.warning(f"[{job_id}] Pathway enrichment failed (non-fatal): {e}")
-
-        context["pathway_enrichment"] = pathway_enrichment_result
-
-        if pathway_enrichment_result:
-            await _set_step("pathway_enrichment", 80)
-        else:
-            logger.info(f"[{job_id}] Skipping pathway_enrichment step (no enrichment data)")
-
-        alphafold_data = None
-        if seq_is_dna:
-            logger.info(f"[{job_id}] Skipping AlphaFold for DNA sequence")
-        else:
-            uniprot_id = context.get("uniprot", {}).get("accession")
-            if uniprot_id:
-                try:
-                    await _set_step("fetching_alphafold", 85)
-                    from app.tools.alphafold import AlphaFoldTool
-                    af_result = await AlphaFoldTool().run({"uniprot_accession": uniprot_id})
-                    alphafold_data = af_result
-                except Exception as e:
-                    logger.warning(f"[{job_id}] AlphaFold fetch failed for {uniprot_id}: {e}")
-                    alphafold_data = {"structure_available": False, "message": str(e)}
-
-        context["alphafold"] = alphafold_data
-
-        await _patch_job(job_id, {
-            "status": "complete",
-            "context_json": context,
-            "steps_completed": steps_completed,
-            "progress_pct": 100,
-        })
-
-        logger.info(f"[{job_id}] Pipeline complete (demo={DEMO_MODE})")
+        )
 
     except Exception as exc:
-        logger.error(f"[{job_id}] Pipeline failed: {exc}", exc_info=True)
-        await _patch_job(job_id, {
-            "status": "failed",
-            "error": str(exc),
-        })
-
-
-async def _set_job_failed(job_id: str, message: str) -> None:
-    await _patch_job(job_id, {"status": "failed", "error": message})
-
-
-def run_pipeline_sync(job_id: str, sequence: str, database: str = "nr", max_hits: int = 10, query_accession: str = "") -> None:
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    try:
-        loop.run_until_complete(execute_blast_job(job_id, sequence, database=database, max_hits=max_hits, query_accession=query_accession))
-    except Exception:
-        logger.exception(f"[{job_id}] FATAL: unhandled exception in background thread")
+        logger.exception("Pipeline failed for job %s", job_id)
+        fail_at = datetime.datetime.utcnow().isoformat()
         try:
-            loop.run_until_complete(_set_job_failed(job_id, "Internal pipeline error"))
+            await _patch(
+                "jobs",
+                job_id,
+                {"status": "failed", "error": str(exc)[:2000], "updated_at": fail_at},
+            )
         except Exception:
-            pass
-    finally:
-        loop.close()
-        asyncio.set_event_loop(None)
+            logger.exception("Also failed to PATCH failure for job %s", job_id)
+
+
+def dispatch_job(job_id: str) -> None:
+    """Fire-and-forget enqueue into the async event loop."""
+    asyncio.ensure_future(process_job(job_id))

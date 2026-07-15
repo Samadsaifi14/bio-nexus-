@@ -85,69 +85,122 @@ def _read(job_id: str) -> dict | None:
 
 
 async def _worker(job_id: str) -> None:
-    """Run docking job — async on the main event loop (subprocess calls are non-blocking)."""
+    """Run docking job — calls the new docking module directly."""
     job = _read(job_id)
     if not job:
         return
 
-    _patch(job_id, status="importing_tool")
-    from app.tools.docking import DockingTool
-
-    _patch(job_id, status="building_params")
-    tool = DockingTool()
-    params: dict = {"smiles": job["smiles"]}
-    if job.get("pdb_url"):
-        params["pdb_url"] = job["pdb_url"]
-    if job.get("pdb_id"):
-        params["pdb_id"] = job["pdb_id"]
-
-    progress_callback = lambda s: _patch(job_id, status=s)
-
-    _patch(job_id, status="starting_docking")
     try:
-        result = await tool.run(params, progress_callback=progress_callback)
+        from app.tools.docking import (
+            _ensure_vina,
+            smiles_to_pdbqt,
+            make_pdb_from_sequence,
+            run_vina,
+        )
     except Exception as exc:
-        logger.exception("Worker crashed for job %s", job_id)
-        _patch(job_id, status="failed", error=str(exc), done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+        logger.exception("Failed to import docking tools for job %s", job_id)
+        _patch(job_id, status="failed", error=str(exc),
+               done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
         return
 
-    if "error" in result and not result.get("poses"):
-        _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
-    else:
-        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+    _patch(job_id, status="importing_tool")
+    try:
+        vina_bin = _ensure_vina()
+    except Exception as exc:
+        logger.exception("Vina download/locate failed for job %s", job_id)
+        _patch(job_id, status="failed", error=str(exc),
+               done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+        return
+
+    _patch(job_id, status="building_params")
+    try:
+        import httpx as _httpx
+        pdb_url = job.get("pdb_url", "")
+        pdb_id = job.get("pdb_id", "")
+        smiles = job.get("smiles", "")
+
+        if not pdb_url and pdb_id:
+            pdb_url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+
+        if not pdb_url:
+            _patch(job_id, status="failed", error="pdb_id or pdb_url is required",
+                   done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+            return
+
+        async with _httpx.AsyncClient(timeout=30) as client:
+            r = await client.get(pdb_url)
+            if r.status_code != 200:
+                _patch(job_id, status="failed", error=f"PDB not found at {pdb_url}",
+                       done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+                return
+            pdb_content = r.text
+
+        _patch(job_id, status="converting_ligand")
+        ligand_pdbqt = smiles_to_pdbqt(smiles)
+
+        _patch(job_id, status="running_vina")
+        result = await run_vina(
+            protein_pdbqt=pdb_content,
+            ligand_pdbqt=ligand_pdbqt,
+            exhaustiveness=2,
+            num_modes=3,
+        )
+
+        if "error" in result and not result.get("poses"):
+            _patch(job_id, status="failed", error=result["error"],
+                   done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+        else:
+            _patch(job_id, status="complete", result=result,
+                   done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+
+    except Exception as exc:
+        logger.exception("Worker crashed for job %s", job_id)
+        _patch(job_id, status="failed", error=str(exc),
+               done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
 
 
 @router.get("/vimontest")
 async def vina_montest():
-    import os, subprocess
-    from app.tools.docking import VINA_CMD, _run_vina_with_timeout
-    steps = {"cmd": VINA_CMD}
-    steps["exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
-    steps["exec"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
-    if not VINA_CMD or not os.path.isfile(VINA_CMD):
-        steps["error"] = "vina not found"; return steps
+    import os, subprocess, time
+    from app.tools.docking import _ensure_vina
+    steps = {}
     try:
-        r = subprocess.run([VINA_CMD, "--version"], capture_output=True, timeout=10)
+        vina_bin = _ensure_vina()
+        steps["cmd"] = vina_bin
+        steps["exists"] = os.path.isfile(vina_bin)
+        steps["exec"] = os.access(vina_bin, os.X_OK)
+    except Exception as e:
+        steps["error"] = repr(e)
+        return steps
+    try:
+        r = subprocess.run([vina_bin, "--version"], capture_output=True, timeout=10)
         steps["vina_version"] = r.stdout.decode(errors="replace").strip()
         steps["rc"] = r.returncode
     except Exception as e:
         steps["error"] = repr(e)
 
     # Test OS timeout: run `sleep 30` with 5s timeout
-    import tempfile, subprocess, time
+    import tempfile
     tdir = tempfile.mkdtemp(prefix="vt_")
     out = os.path.join(tdir, "out.log")
     err = os.path.join(tdir, "err.log")
-    from app.tools.docking import _run_vina_with_timeout
     try:
-        start = time.time()
-        await _run_vina_with_timeout(
-            ["sleep", "30"],
-            stdout_path=out, stderr_path=err, timeout=5,
-        )
-        steps["timeout_sleep"] = round(time.time() - start, 2)
-    except TimeoutError:
-        steps["timeout_sleep"] = f"TIMEOUT_{round(time.time() - start, 2)}s"
+        proc = None
+        of = open(out, "wb")
+        ef = open(err, "wb")
+        try:
+            proc = await asyncio.create_subprocess_exec("sleep", "30", stdout=of, stderr=ef)
+            start = time.time()
+            try:
+                await asyncio.wait_for(proc.wait(), timeout=5)
+                steps["timeout_sleep"] = f"COMPLETED_{round(time.time() - start, 2)}s"
+            except asyncio.TimeoutError:
+                proc.kill()
+                await proc.wait()
+                steps["timeout_sleep"] = f"TIMEOUT_{round(time.time() - start, 2)}s"
+        finally:
+            of.close()
+            ef.close()
     except Exception as exc:
         steps["timeout_sleep"] = f"ERR: {exc}"
     import shutil; shutil.rmtree(tdir, ignore_errors=True)
@@ -161,10 +214,11 @@ async def debug_deps():
     steps["python"] = sys.version
     steps["vina_in_path"] = shutil.which("vina") or "NOT FOUND"
     try:
-        from app.tools.docking import VINA_CMD
-        steps["VINA_CMD"] = VINA_CMD or "None"
-        steps["vina_exists"] = os.path.isfile(VINA_CMD) if VINA_CMD else False
-        steps["vina_executable"] = os.access(VINA_CMD, os.X_OK) if VINA_CMD else False
+        from app.tools.docking import _ensure_vina
+        vina_bin = _ensure_vina()
+        steps["VINA_CMD"] = vina_bin or "None"
+        steps["vina_exists"] = os.path.isfile(vina_bin) if vina_bin else False
+        steps["vina_executable"] = os.access(vina_bin, os.X_OK) if vina_bin else False
     except Exception as e:
         steps["import_error"] = str(e)
     # try running vina --version

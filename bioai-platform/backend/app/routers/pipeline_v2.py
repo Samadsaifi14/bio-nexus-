@@ -103,6 +103,50 @@ async def get_pipeline_v2_status(job_id: str):
     return job
 
 
+async def run_pipeline(
+    sequence: str,
+    organism: str = "Homo sapiens",
+    analysis_type: str = "comprehensive",
+) -> dict:
+    """Public async entry point for the pipeline (used by pipeline_worker).
+
+    Creates a temporary in-memory job, runs the configured steps, and
+    returns the context dict with all results.
+    """
+    job_id = f"worker-{uuid.uuid4().hex[:12]}"
+    requested = list(STEP_ORDER)
+    steps_dict = {s: {"status": "pending", "progress": 0, "data": None, "error": None} for s in STEP_ORDER}
+
+    with _jobs_lock:
+        _jobs[job_id] = {
+            "job_id": job_id,
+            "status": "running",
+            "current_step": None,
+            "steps": steps_dict,
+            "requested_steps": requested,
+            "sequence": sequence,
+            "error": None,
+            "created_at": datetime.now(timezone.utc).isoformat(),
+        }
+
+    try:
+        await _execute(job_id, sequence, requested)
+    finally:
+        job = _get_job(job_id)
+        with _jobs_lock:
+            _jobs.pop(job_id, None)
+
+    if job and job.get("status") == "failed":
+        raise RuntimeError(job.get("error", "Pipeline failed"))
+
+    context: dict = {"sequence": sequence, "length": len(sequence)}
+    if job:
+        for step_name, step_info in job.get("steps", {}).items():
+            if step_info.get("data"):
+                context[step_name] = step_info["data"]
+    return context
+
+
 # ---------------------------------------------------------------------------
 # Background pipeline
 # ---------------------------------------------------------------------------

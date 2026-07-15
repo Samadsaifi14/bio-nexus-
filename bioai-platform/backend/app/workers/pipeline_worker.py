@@ -18,8 +18,8 @@ from app.routers.pipeline_v2 import run_pipeline
 
 logger = logging.getLogger(__name__)
 
-_supabase_url = settings.supabase_url.rstrip("/")
-_supabase_key = settings.supabase_service_key  # service key for server-side writes
+_supabase_url = settings.SUPABASE_URL.rstrip("/")
+_supabase_key = settings.SUPABASE_SERVICE_ROLE_KEY  # service key for server-side writes
 
 _HEADERS = {
     "apikey": _supabase_key,

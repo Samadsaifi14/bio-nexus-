@@ -15,6 +15,7 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 _SESSION_EVENT_COUNTS: dict[str, int] = {}
 _AUDIT_INTERVAL = 5
+_MAX_SESSIONS = 1000  # cap to prevent unbounded memory growth
 
 
 class AuditEventIn(BaseModel):
@@ -33,6 +34,10 @@ class AuditEventIn(BaseModel):
 def _should_trigger_audit(session_id: str) -> bool:
     count = _SESSION_EVENT_COUNTS.get(session_id, 0) + 1
     _SESSION_EVENT_COUNTS[session_id] = count
+    if len(_SESSION_EVENT_COUNTS) > _MAX_SESSIONS:
+        oldest = list(_SESSION_EVENT_COUNTS.keys())[:_MAX_SESSIONS // 2]
+        for k in oldest:
+            _SESSION_EVENT_COUNTS.pop(k, None)
     return count % _AUDIT_INTERVAL == 0
 
 

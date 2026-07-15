@@ -103,7 +103,7 @@ def _run_docking_sync(job_id: str, payload: dict):
         _prune_old(supabase)
 
 
-@router.post("", response_model=DockingJobResponse)
+@router.post("/run", response_model=DockingJobResponse)
 async def create_docking_job(body: DockingJobCreate):
     supabase = get_client()
     _prune_old(supabase)

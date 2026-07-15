@@ -220,7 +220,7 @@ export function DockingViewer({
   }, [spinning, status]);
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-white/10 bg-[#0d1117]">
+    <div className="w-full rounded-lg border border-white/10 bg-[#0d1117]">
       <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
         <span className="font-mono text-xs text-white/60">Docking pose — {pdbId}</span>
         <div className="flex items-center gap-2">
@@ -260,19 +260,17 @@ export function DockingViewer({
         </div>
       )}
 
-      <div className="relative" style={{ height }}>
-        <div ref={containerRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
-        {status === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-white/60 pointer-events-none">
-            Loading structure...
-          </div>
-        )}
-        {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-red-400">
-            {error}
-          </div>
-        )}
-      </div>
+      <div ref={containerRef} style={{ height, minHeight: height, position: 'relative' }} />
+      {status === 'loading' && (
+        <div className="flex items-center justify-center py-4 text-sm text-white/60">
+          Loading structure...
+        </div>
+      )}
+      {status === 'error' && (
+        <div className="flex items-center justify-center py-4 px-6 text-center text-sm text-red-400">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

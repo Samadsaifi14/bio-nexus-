@@ -139,28 +139,19 @@ export function DockingViewer({
     container.appendChild(el);
     viewerRef.current = el;
 
-    // Wait for plugin to be ready, then load ligand + interactions
-    let attempts = 0;
-    checkInterval = setInterval(async () => {
-      if (cancelled) {
-        if (checkInterval) clearInterval(checkInterval);
-        return;
-      }
+    // Wait for pdbe-molstar to finish loading models via its custom event
+    let cancelled_after_event = false;
+
+    const onModelsLoaded = async () => {
+      if (cancelled || cancelled_after_event) return;
+      cancelled_after_event = true;
+      if (checkInterval) clearInterval(checkInterval);
 
       const plugin = el.plugin;
-      if (!plugin?.canvas3d) {
-        attempts++;
-        if (attempts > 150) { // 45 seconds max
-          if (checkInterval) clearInterval(checkInterval);
-          if (!cancelled) {
-            setStatus('error');
-            setError('Molstar failed to initialize');
-          }
-        }
+      if (!plugin) {
+        if (!cancelled) { setStatus('ready'); }
         return;
       }
-
-      if (checkInterval) clearInterval(checkInterval);
 
       // Load ligand as additional structure
       if (ligandPdb) {
@@ -179,11 +170,38 @@ export function DockingViewer({
       if (!cancelled) {
         setStatus('ready');
       }
+    };
+
+    el.addEventListener('molstar-models-loaded', onModelsLoaded);
+
+    // Fallback polling: check if plugin exists at all (not canvas3d which may be renamed)
+    let attempts = 0;
+    checkInterval = setInterval(() => {
+      if (cancelled || cancelled_after_event) {
+        if (checkInterval) clearInterval(checkInterval);
+        return;
+      }
+      // Check if the web component has rendered anything (canvas element present)
+      const hasCanvas = el.querySelector('canvas');
+      if (hasCanvas) {
+        onModelsLoaded();
+        return;
+      }
+      attempts++;
+      if (attempts > 100) { // 30 seconds max
+        if (checkInterval) clearInterval(checkInterval);
+        // Even if we can't detect it, mark ready — the viewer may be working
+        if (!cancelled) {
+          setStatus('ready');
+        }
+      }
     }, 300);
 
     return () => {
       cancelled = true;
+      cancelled_after_event = true;
       if (checkInterval) clearInterval(checkInterval);
+      el.removeEventListener('molstar-models-loaded', onModelsLoaded);
     };
   }, [pdbId, ligandPdb, backgroundColor]); // NO interactions here — avoids re-init
 
@@ -245,12 +263,12 @@ export function DockingViewer({
       <div className="relative" style={{ height }}>
         <div ref={containerRef} className="absolute inset-0" style={{ width: '100%', height: '100%' }} />
         {status === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-white/60 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-white/60 pointer-events-none">
             Loading structure...
           </div>
         )}
         {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-red-400 z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-red-400">
             {error}
           </div>
         )}

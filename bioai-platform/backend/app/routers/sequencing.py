@@ -6,13 +6,14 @@ import uuid
 from datetime import datetime, timezone, timedelta
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel
 
 from app.deps import limiter
 from app.services.supabase import get_supabase
 from app.services.auth import require_user_id
 from app.services.ssrf import validate_url
+from app.services.rate_limit import check_daily_limit_sequencing
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/sequencing", tags=["sequencing"])
@@ -131,8 +132,9 @@ async def _worker(job_id: str) -> None:
 VALID_DEMO = {"synthetic", "demo", "test"}
 
 
-@router.post("/run")
-async def run_sequencing(req: SequencingRequest, user_id: str = Depends(require_user_id)):
+@router.post("/run", dependencies=[Depends(check_daily_limit_sequencing)])
+@limiter.limit("3/minute")
+async def run_sequencing(request: Request, req: SequencingRequest, user_id: str = Depends(require_user_id)):
     if not req.fastq_url.strip():
         raise HTTPException(400, detail="fastq_url is required")
     if req.fastq_url.lower() not in VALID_DEMO:

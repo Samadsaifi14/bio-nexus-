@@ -10,11 +10,13 @@ import uuid
 from datetime import datetime, timezone
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from litellm import acompletion
 
 from app.config import settings
+from app.deps import limiter
+from app.services.rate_limit import check_daily_limit_pipelines
 from app.integrations.ncbi import blast as ncbi_blast
 from app.integrations.ncbi.parser import parse_blast_xml
 from app.services.validators import validate_fasta
@@ -59,8 +61,9 @@ class PipelineV2RunRequest(BaseModel):
     steps: list[str] = Field(default_factory=lambda: list(STEP_ORDER), description="Steps to run")
 
 
-@router.post("/run")
-async def run_pipeline_v2(req: PipelineV2RunRequest):
+@router.post("/run", dependencies=[Depends(check_daily_limit_pipelines)])
+@limiter.limit("3/minute")
+async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)

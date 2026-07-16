@@ -3,13 +3,15 @@ from __future__ import annotations
 import json
 import math
 import re
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
 from app.services.supabase import get_client
 from app.services.auth import require_user_id
 from app.services.ssrf import validate_url
+from app.services.rate_limit import check_daily_limit_docking
+from app.deps import limiter
 
 router = APIRouter(prefix="/api/docking", tags=["Docking"])
 _TABLE = "docking_jobs"
@@ -663,8 +665,9 @@ def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[di
 # API endpoints
 # ---------------------------------------------------------------------------
 
-@router.post("/run", response_model=DockingJobResponse)
-async def create_docking_job(body: DockingJobCreate, user_id: str = Depends(require_user_id)):
+@router.post("/run", response_model=DockingJobResponse, dependencies=[Depends(check_daily_limit_docking)])
+@limiter.limit("5/minute")
+async def create_docking_job(request: Request, body: DockingJobCreate, user_id: str = Depends(require_user_id)):
     supabase = get_client()
     _prune_old(supabase)
 

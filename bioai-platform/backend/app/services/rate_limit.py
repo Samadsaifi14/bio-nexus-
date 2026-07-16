@@ -1,3 +1,10 @@
+"""Rate limiting helpers.
+
+- `check_daily_limit` counts today's jobs across all three tables.
+- `check_daily_limit_pipelines`, `check_daily_limit_docking`, `check_daily_limit_sequencing`
+  count per-table for tighter per-feature caps.
+"""
+
 import base64
 import json
 import logging
@@ -31,16 +38,12 @@ def _extract_user_id_from_request(request: Request) -> str | None:
         return None
 
 
-async def check_daily_limit(request: Request) -> None:
-    user_id = _extract_user_id_from_request(request)
-    if not user_id:
-        logger.info("Rate limit check skipped: no authenticated user session")
-        return
-
+async def _count_today_jobs(user_id: str, table: str) -> int:
+    """Count today's jobs for a user in a specific table."""
     try:
         today = date.today().isoformat()
         url = (
-            f"{settings.SUPABASE_URL}/rest/v1/jobs"
+            f"{settings.SUPABASE_URL}/rest/v1/{table}"
             f"?user_id=eq.{user_id}"
             f"&created_at=gte.{today}T00:00:00"
             f"&select=id"
@@ -55,21 +58,62 @@ async def check_daily_limit(request: Request) -> None:
             resp.raise_for_status()
 
         content_range = resp.headers.get("content-range", "*/0")
-        total = int(content_range.split("/")[-1])
-
+        return int(content_range.split("/")[-1])
     except HTTPException:
         raise
     except Exception as e:
-        logger.warning(f"Rate limit check skipped (Supabase unreachable): {e}")
+        logger.warning("Daily count check skipped (table %s): %s", table, e)
+        return 0
+
+
+async def _enforce_limit(request: Request, table: str, limit: int, label: str) -> None:
+    user_id = _extract_user_id_from_request(request)
+    if not user_id:
         return
+
+    total = await _count_today_jobs(user_id, table)
+    if total >= limit:
+        raise HTTPException(
+            status_code=429,
+            detail={
+                "error": "daily_limit_exceeded",
+                "message": f"You've used all {limit} daily {label}. Resets at midnight UTC.",
+                "used": total,
+                "limit": limit,
+            },
+        )
+
+
+async def check_daily_limit(request: Request) -> None:
+    """Global daily limit across all tables (existing behavior)."""
+    user_id = _extract_user_id_from_request(request)
+    if not user_id:
+        return
+
+    tables = ["jobs", "docking_jobs", "sequencing_jobs"]
+    total = 0
+    for t in tables:
+        total += await _count_today_jobs(user_id, t)
 
     if total >= settings.DAILY_LIMIT:
         raise HTTPException(
             status_code=429,
             detail={
                 "error": "daily_limit_exceeded",
-                "message": f"You've used all {settings.DAILY_LIMIT} daily analyses. Resets at midnight IST.",
+                "message": f"You've used all {settings.DAILY_LIMIT} daily analyses. Resets at midnight UTC.",
                 "used": total,
                 "limit": settings.DAILY_LIMIT,
             },
         )
+
+
+async def check_daily_limit_pipelines(request: Request) -> None:
+    await _enforce_limit(request, "jobs", 10, "pipeline runs")
+
+
+async def check_daily_limit_docking(request: Request) -> None:
+    await _enforce_limit(request, "docking_jobs", 10, "docking jobs")
+
+
+async def check_daily_limit_sequencing(request: Request) -> None:
+    await _enforce_limit(request, "sequencing_jobs", 5, "sequencing jobs")

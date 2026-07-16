@@ -162,9 +162,15 @@ def _run_md(job: dict) -> None:
     from app.tools.md_sim import run_simulation
     from app.services.supabase import get_client
     payload = {**job, **(job.get("payload") or {})}
-    pdb_id = payload.get("pdb_id", "")
+    pdb_id = payload.get("pdb_id", "").upper().strip()
     mode = payload.get("mode", "minimize")
+
+    if not pdb_id or len(pdb_id) != 4:
+        _handle_failure("docking_jobs", job, ValueError(f"Invalid PDB ID: {pdb_id!r}"))
+        return
+
     try:
+        logger.info("Running MD simulation: PDB=%s mode=%s", pdb_id, mode)
         result = run_simulation(pdb_id, mode)
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job["id"], "result", result)
@@ -174,8 +180,9 @@ def _run_md(job: dict) -> None:
             "storage_url": storage_url,
             "result_sdf": None,
         }).eq("id", job["id"]).execute()
+        logger.info("MD simulation complete for %s (engine=%s)", pdb_id, result.get("engine", "unknown"))
     except Exception as exc:
-        logger.exception("Worker MD error for %s", job["id"])
+        logger.exception("Worker MD error for %s", pdb_id)
         _handle_failure("docking_jobs", job, exc)
 
 

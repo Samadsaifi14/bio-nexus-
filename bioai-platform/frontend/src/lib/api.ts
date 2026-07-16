@@ -449,3 +449,77 @@ export async function listSequencingReferences(): Promise<SequencingReference[]>
   const res = await api.get('/api/sequencing/references');
   return res.data.references || [];
 }
+
+// ---------------------------------------------------------------------------
+// ADMET descriptors
+// ---------------------------------------------------------------------------
+
+export type ADMETResult = {
+  smiles: string;
+  formula: string;
+  heavy_atoms: number;
+  molecular_weight: number;
+  logp: number;
+  tpsa: number;
+  hbd: number;
+  hba: number;
+  rotatable_bonds: number;
+  qed_score: number;
+  lipinski: { pass: boolean; violations: string[]; violation_count: number };
+  veber: { pass: boolean; violations: string[]; violation_count: number };
+};
+
+export async function computeADMET(smiles: string): Promise<{ result: ADMETResult }> {
+  const res = await api.post('/api/admet/descriptors', { smiles });
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// MD Simulation
+// ---------------------------------------------------------------------------
+
+export type MDSimulationResult = {
+  pdb_id: string;
+  mode: string;
+  minimization_steps: number;
+  equilibration_steps: number;
+  production_steps: number;
+  final_energy_kj_mol: number;
+  energy: { minimization: { step: number; energy: number }[]; production: { step: number; energy: number }[] };
+  rmsd: { frame: number; rmsd: number }[];
+  status: string;
+};
+
+export async function runMD(pdbId: string, mode: string = 'minimize'): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/md/run', { pdb_id: pdbId, mode });
+  return res.data;
+}
+
+export async function getMDStatus(jobId: string): Promise<{ job_id: string; status: string; result?: MDSimulationResult; error?: string }> {
+  const res = await api.get(`/api/md/status/${jobId}`);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
+// Function Prediction (DeepFRI-inspired)
+// ---------------------------------------------------------------------------
+
+export type FunctionPredictionResult = {
+  pdb_id: string;
+  sequence_length: number;
+  go_terms: { go_id: string; name: string; namespace: string; confidence: number }[];
+  ec_numbers: { number: string; confidence: number }[];
+  saliency: number[];
+  method: string;
+  note: string;
+};
+
+export async function predictFunction(pdbId: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/function/predict', { pdb_id: pdbId });
+  return res.data;
+}
+
+export async function getFunctionStatus(jobId: string): Promise<{ job_id: string; status: string; result?: FunctionPredictionResult; error?: string }> {
+  const res = await api.get(`/api/function/status/${jobId}`);
+  return res.data;
+}

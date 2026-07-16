@@ -34,6 +34,8 @@ MAX_CONCURRENT = {
     "docking": 2,
     "sequencing": 1,
     "pipeline": 1,
+    "md": 1,
+    "function_predict": 1,
 }
 
 _semaphore: dict[str, asyncio.Semaphore] = {}
@@ -114,13 +116,20 @@ def _sweep_stuck(table: str) -> int:
 # ---------------------------------------------------------------------------
 
 def _run_docking(job: dict) -> None:
-    from app.routers.docking import _run_docking_sync
     payload = {**job, **(job.get("payload") or {})}
-    try:
-        _run_docking_sync(job["id"], payload)
-    except Exception as exc:
-        logger.exception("Worker docking error for %s", job["id"])
-        _handle_failure("docking_jobs", job, exc)
+    tool_type = payload.get("tool_type", "docking")
+
+    if tool_type == "md":
+        _run_md(job)
+    elif tool_type == "function_predict":
+        _run_function_predict(job)
+    else:
+        from app.routers.docking import _run_docking_sync
+        try:
+            _run_docking_sync(job["id"], payload)
+        except Exception as exc:
+            logger.exception("Worker docking error for %s", job["id"])
+            _handle_failure("docking_jobs", job, exc)
 
 
 def _run_sequencing(job: dict) -> None:
@@ -147,6 +156,47 @@ def _run_pipeline(job: dict) -> None:
         _handle_failure("jobs", job, exc)
     finally:
         loop.close()
+
+
+def _run_md(job: dict) -> None:
+    from app.tools.md_sim import run_simulation
+    from app.services.supabase import get_client
+    payload = {**job, **(job.get("payload") or {})}
+    pdb_id = payload.get("pdb_id", "")
+    mode = payload.get("mode", "minimize")
+    try:
+        result = run_simulation(pdb_id, mode)
+        from app.services.artifact_storage import upload_json
+        storage_url = upload_json(job["id"], "result", result)
+        supabase = get_client()
+        supabase.table("docking_jobs").update({
+            "status": "complete",
+            "storage_url": storage_url,
+            "result_sdf": None,
+        }).eq("id", job["id"]).execute()
+    except Exception as exc:
+        logger.exception("Worker MD error for %s", job["id"])
+        _handle_failure("docking_jobs", job, exc)
+
+
+def _run_function_predict(job: dict) -> None:
+    from app.tools.function_predict import predict_function
+    from app.services.supabase import get_client
+    payload = {**job, **(job.get("payload") or {})}
+    pdb_id = payload.get("pdb_id", "")
+    try:
+        result = predict_function(pdb_id)
+        from app.services.artifact_storage import upload_json
+        storage_url = upload_json(job["id"], "result", result)
+        supabase = get_client()
+        supabase.table("docking_jobs").update({
+            "status": "complete",
+            "storage_url": storage_url,
+            "result_sdf": None,
+        }).eq("id", job["id"]).execute()
+    except Exception as exc:
+        logger.exception("Worker function prediction error for %s", job["id"])
+        _handle_failure("docking_jobs", job, exc)
 
 
 def _handle_failure(table: str, job: dict, exc: Exception) -> None:

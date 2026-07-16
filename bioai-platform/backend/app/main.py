@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, audit
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, audit, admet, md, function_predict
 from app.services.cache import init_redis
 
 setup_logging()
@@ -64,6 +64,9 @@ app.include_router(cache_stats.router)
 app.include_router(docking.router)
 app.include_router(sequencing.router)
 app.include_router(audit.router)
+app.include_router(admet.router)
+app.include_router(md.router)
+app.include_router(function_predict.router)
 
 TERMINAL_STATUSES = {"complete", "failed"}
 NON_TERMINAL_STATUSES = {

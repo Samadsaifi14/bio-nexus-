@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle, GitFork, Atom } from 'lucide-react';
+import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle, GitFork, Atom, Pill, Activity, Brain } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { ReactNode } from 'react';
@@ -35,6 +35,14 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'interactions', name: 'Protein Interactions',  description: 'Explore interaction partners from the STRING database.',     icon: Share2,    active: true },
       { id: 'compare',     name: 'Structure Compare',      description: 'Find structurally similar proteins via PDBeFold (TM-align).', icon: Shuffle, active: true },
       { id: 'docking',     name: 'Molecular Docking',      description: 'Dock a small molecule into a protein using AutoDock Vina (free, CPU-based).', icon: Atom, active: true, badge: 'New' },
+      { id: 'md',          name: 'MD Simulation',          description: 'Implicit solvent molecular dynamics using OpenMM. Minimize, equilibrate, or run.', icon: Activity, active: true, badge: 'New' },
+      { id: 'function',    name: 'Function Prediction',    description: 'Predict protein function (GO terms) from structure. DeepFRI-inspired.', icon: Brain, active: true, badge: 'New' },
+    ],
+  },
+  {
+    title: 'Drug Discovery',
+    items: [
+      { id: 'admet',   name: 'ADMET Descriptors',  description: 'Compute molecular descriptors from SMILES. Lipinski, Veber, QED analysis.', icon: Pill, active: true, badge: 'New' },
     ],
   },
   {

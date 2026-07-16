@@ -12,9 +12,12 @@ from fastapi.responses import JSONResponse
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from app.config import settings
+from app.logging_config import setup_logging
+from app.middleware import RequestIDMiddleware
 from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, audit
 from app.services.cache import init_redis
 
+setup_logging()
 logger = logging.getLogger(__name__)
 
 from app.deps import limiter
@@ -22,6 +25,7 @@ from app.deps import limiter
 app = FastAPI(title="Bio Nexus API", version="0.2.0")
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(RequestIDMiddleware)
 
 PROD_ORIGIN = settings.CORS_ORIGIN
 
@@ -159,12 +163,25 @@ async def _fail_stuck_dockseq_jobs():
         logger.warning(f"Startup resume: error for docking/sequencing: {e}")
 
 
+def _sentry_filter(event, hint):
+    """Filter out noisy/harmless errors from Sentry."""
+    # Don't report rate limit hits
+    if event.get("exception"):
+        exc = event["exception"].get("values", [{}])[0]
+        if exc.get("type") == "HTTPException" and exc.get("value", {}).get("status_code") == 429:
+            return None
+    return event
+
+
 @app.on_event("startup")
 async def startup():
     sentry_sdk.init(
         dsn=settings.SENTRY_DSN,
         environment=os.getenv("ENVIRONMENT", "development"),
         traces_sample_rate=0.1,
+        send_default_pii=False,
+        enable_tracing=True,
+        before_send=_sentry_filter,
     )
     init_redis()
     await _ensure_docking_columns()
@@ -181,16 +198,49 @@ async def startup():
 @app.get("/health")
 async def health():
     from app.services.cache import get_cache_stats
+    import httpx
+
     stats = get_cache_stats()
-    return {"status": "ok", "cache": stats}
+    health_data = {
+        "status": "ok",
+        "version": "0.2.0",
+        "cache": stats,
+        "worker": "unknown",
+        "queue_depth": {},
+    }
+
+    # Check worker health via queue depths
+    try:
+        headers = {
+            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
+        }
+        async with httpx.AsyncClient(timeout=5) as client:
+            for table in ("docking_jobs", "sequencing_jobs", "jobs"):
+                resp = await client.get(
+                    f"{settings.SUPABASE_URL}/rest/v1/{table}"
+                    f"?status=eq.queued&select=id",
+                    headers=headers,
+                )
+                if resp.status_code == 200:
+                    health_data["queue_depth"][table] = len(resp.json())
+    except Exception:
+        pass
+
+    return health_data
 
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception):
+    from app.logging_config import request_id_var
+    rid = request_id_var.get("")
+
     if isinstance(exc, HTTPException):
-        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+        return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail, "request_id": rid})
+
     logger.exception("Unhandled exception")
+    sentry_sdk.capture_exception(exc)
     return JSONResponse(
         status_code=500,
-        content={"detail": "Internal server error"},
+        content={"detail": "Internal server error", "request_id": rid},
     )

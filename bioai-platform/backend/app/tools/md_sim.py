@@ -322,7 +322,7 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
     - Radius of gyration
     - Estimated energy from bond geometry (simplified harmonic model)
     """
-    from Bio.PDB import PDBParser, Polypeptide, CaPPD
+    from Bio.PDB import PDBParser, Polypeptide
     import math
 
     logger.info("OpenMM unavailable — running BioPython structural analysis for %s", pdb_id)

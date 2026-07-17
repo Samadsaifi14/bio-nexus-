@@ -129,32 +129,37 @@ export default function MDPage() {
           {/* Simulation Parameters */}
           <div className="glass-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-              <Activity className="w-4 h-4 text-accent-cyan" /> Simulation Parameters
+              <Activity className="w-4 h-4 text-accent-cyan" /> {result.engine === "openmm" ? "Simulation Parameters" : "Analysis Parameters"}
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
               <div className="bg-surface-1 rounded-lg p-3">
                 <div className="text-xs text-text-muted">Engine</div>
-                <div className="text-sm font-semibold text-text-primary">{result.engine}</div>
+                <div className="text-sm font-semibold text-text-primary">{result.engine === "openmm" ? "OpenMM" : "BioPython"}</div>
               </div>
               <div className="bg-surface-1 rounded-lg p-3">
                 <div className="text-xs text-text-muted">Force Field</div>
-                <div className="text-sm font-semibold text-text-primary">{result.forcefield}</div>
+                <div className="text-sm font-semibold text-text-primary">{result.engine === "openmm" ? result.forcefield : "None (structural)"}</div>
               </div>
               <div className="bg-surface-1 rounded-lg p-3">
                 <div className="text-xs text-text-muted">Solvent Model</div>
-                <div className="text-sm font-semibold text-text-primary">{result.implicit_solvent}</div>
+                <div className="text-sm font-semibold text-text-primary">{result.engine === "openmm" ? result.implicit_solvent : "None (static)"}</div>
               </div>
               <div className="bg-surface-1 rounded-lg p-3">
-                <div className="text-xs text-text-muted">Temperature</div>
-                <div className="text-sm font-semibold text-text-primary">{result.temperature_k} K</div>
+                <div className="text-xs text-text-muted">{result.engine === "openmm" ? "Temperature" : "Mode"}</div>
+                <div className="text-sm font-semibold text-text-primary">{result.engine === "openmm" ? `${result.temperature_k} K` : result.mode}</div>
               </div>
             </div>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
               {[
                 { label: "Atoms", value: result.atom_count },
                 { label: "Residues", value: result.residue_count },
-                { label: "Timestep", value: `${result.timestep_fs} fs` },
-                { label: "Elapsed", value: `${result.elapsed_seconds}s` },
+                ...(result.engine === "openmm" ? [
+                  { label: "Timestep", value: `${result.timestep_fs} fs` },
+                  { label: "Elapsed", value: `${result.elapsed_seconds}s` },
+                ] : [
+                  { label: "Elapsed", value: `${result.elapsed_seconds}s` },
+                  { label: "Chains", value: result.chain_count ?? "N/A" },
+                ]),
               ].map((p) => (
                 <div key={p.label} className="bg-surface-1 rounded-lg p-3">
                   <div className="text-xs text-text-muted">{p.label}</div>
@@ -164,7 +169,8 @@ export default function MDPage() {
             </div>
           </div>
 
-          {/* Step Counts */}
+          {/* Step Counts — only for OpenMM */}
+          {result.engine === "openmm" && (
           <div className="glass-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-accent-purple" /> Integration Steps
@@ -187,8 +193,10 @@ export default function MDPage() {
               ))}
             </div>
           </div>
+          )}
 
           {/* Energy */}
+          {result.engine === "openmm" && (
           <div className="glass-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
               <Zap className="w-4 h-4 text-accent-amber" /> Energy Analysis
@@ -249,6 +257,7 @@ export default function MDPage() {
               </div>
             )}
           </div>
+          )}
 
           {/* RMSD */}
           {result.rmsd.length > 0 && (
@@ -404,9 +413,15 @@ export default function MDPage() {
               {result.secondary_structure && (() => {
                 const total = result.secondary_structure.helix + result.secondary_structure.sheet + result.secondary_structure.coil;
                 const helixPct = total > 0 ? (result.secondary_structure.helix / total) * 100 : 0;
-                return (
-                  <p><strong className="text-text-primary">Secondary Structure:</strong> {helixPct > 40 ? "Predominantly alpha-helical — consistent with many globular proteins." : helixPct > 20 ? "Mixed alpha/beta fold." : "Predominantly coil/disordered — may indicate a flexible or intrinsically disordered region."}</p>
-                );
+                const sheetPct = total > 0 ? (result.secondary_structure.sheet / total) * 100 : 0;
+                const coilPct = total > 0 ? (result.secondary_structure.coil / total) * 100 : 0;
+                let desc: string;
+                if (helixPct > 40 && sheetPct < 20) desc = "Predominantly alpha-helical — consistent with many globular proteins.";
+                else if (sheetPct > 40 && helixPct < 20) desc = "Predominantly beta-sheet — likely a beta-barrel or beta-sandwich fold (e.g. TIM barrel, immunoglobulin).";
+                else if (helixPct > 25 && sheetPct > 25) desc = "Mixed alpha/beta fold — common in enzymes and metabolic proteins.";
+                else if (coilPct > 60) desc = "High coil content — may indicate flexible loops, linker regions, or intrinsically disordered segments.";
+                else desc = "Mixed secondary structure composition.";
+                return <p><strong className="text-text-primary">Secondary Structure:</strong> {desc}</p>;
               })()}
             </div>
           </div>

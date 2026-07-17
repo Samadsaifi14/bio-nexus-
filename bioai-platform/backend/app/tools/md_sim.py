@@ -355,7 +355,7 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
     else:
         rg = 0.0
 
-    # Secondary structure from phi/psi angles
+    # Secondary structure from phi/psi angles (Ramachandran classification)
     pp = Polypeptide.Polypeptide(model)
     phi_psi = pp.get_phi_psi_list()
     ss_counts = {"helix": 0, "sheet": 0, "coil": 0}
@@ -364,10 +364,19 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
         if phi is None or psi is None:
             ss_per_residue.append("coil")
             ss_counts["coil"] += 1
-        elif -150 < math.degrees(phi) < -30 and -75 < math.degrees(psi) < 50:
+            continue
+        d_phi = math.degrees(phi)
+        d_psi = math.degrees(psi)
+        # Right-handed alpha helix: (-160,-40) x (-75,45)
+        # 3-10 helix: (-110,-40) x (-75,0)
+        is_helix = (-160 < d_phi < -40 and -75 < d_psi < 45)
+        # Beta sheet (extended strand): (-180,-45) x (90,180) or (-180,-45) x (-180,-120)
+        is_sheet = ((-180 < d_phi < -45 and 90 < d_psi <= 180) or
+                    (-180 < d_phi < -45 and -180 <= d_psi < -120))
+        if is_helix:
             ss_per_residue.append("helix")
             ss_counts["helix"] += 1
-        elif -180 < math.degrees(phi) < -60 and 60 < math.degrees(psi) < 180:
+        elif is_sheet:
             ss_per_residue.append("sheet")
             ss_counts["sheet"] += 1
         else:

@@ -20,10 +20,9 @@ def compute_descriptors(smiles: str) -> dict:
     from rdkit import Chem
     from rdkit.Chem import (
         Descriptors, Lipinski, QED, rdMolDescriptors,
-        EState, Fragments, Crippen, GraphMolDescriptors,
+        EState, Fragments, Crippen,
     )
     from rdkit.Chem.MolSurf import TPSA, LabuteASA
-    from rdkit.Chem import rdMolDescriptors as rdm
 
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
@@ -46,7 +45,7 @@ def compute_descriptors(smiles: str) -> dict:
     qed_score = round(QED.qed(mol), 4)
 
     # ---- Extended topological descriptors ----
-    fsp3 = round(GraphMolDescriptors.FractionCSP3(mol), 4)
+    fsp3 = round(Descriptors.FractionCSP3(mol), 4)
     mr = round(Crippen.MolMR(mol), 2)  # molar refractivity
     mol_volume = round(Descriptors.MolVolume(mol), 2)
     complexity = round(Descriptors.BalabanJ(mol) if n_heavy > 1 else 0, 4)

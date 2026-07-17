@@ -17,21 +17,12 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
-# Install micromamba
-RUN wget -qO /tmp/micromamba.tar.bz2 "https://micro.mamba.pm/api/micromamba/linux-64/latest" && \
-    tar -xjf /tmp/micromamba.tar.bz2 -C /usr/local/bin --strip-components=1 bin/micromamba && \
-    rm /tmp/micromamba.tar.bz2
-
-# Create conda env with OpenMM + Python — all pip deps install into this env
-RUN micromamba create -n app -c conda-forge openmm python=3.11 -y --root-workdir /opt/conda
-
-# All subsequent commands run inside the conda env
-ENV PATH="/opt/conda/envs/app/bin:$PATH"
-ENV PYTHONPATH="/opt/conda/envs/app/lib/python3.11/site-packages"
-
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+
+# Install OpenMM directly into system Python
+RUN pip install --no-cache-dir openmm
 
 # primer3-py is optional (requires C compiler) — skip silently if it fails
 RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"

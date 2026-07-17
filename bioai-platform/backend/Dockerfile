@@ -2,7 +2,8 @@ FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates openbabel \
-    libgl1-mesa-glx libgomp1 libopenblas-dev && \
+    libgl1-mesa-glx libgomp1 libopenblas-dev \
+    libxml2 libxslt1.1 && \
     rm -rf /var/lib/apt/lists/*
 
 # Download pre-compiled PhyML binary from bioconda
@@ -22,12 +23,18 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # Install OpenMM directly into system Python
-RUN pip install --no-cache-dir openmm
+RUN pip install --no-cache-dir openmm && \
+    python -c "import openmm; print('OpenMM', openmm.__version__, 'installed successfully')" || \
+    echo "FAILED: pip install openmm did not work"
 
-# primer3-py is optional (requires C compiler) — skip silently if it fails
+# Verify OpenMM is importable
+RUN python -c "from openmm.app import PDBFile, ForceField, OBC2, Modeller; print('OpenMM app modules OK')" || \
+    echo "FAILED: OpenMM app modules not importable"
+
+# primer3-py is optional — skip silently if it fails
 RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"
 
 COPY . .
 
 EXPOSE 7860
-CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]
+CMD ["sh", "-c", "python -c 'import openmm; print(\"OpenMM\", openmm.__version__)' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

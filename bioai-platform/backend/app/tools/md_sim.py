@@ -56,11 +56,12 @@ def _check_openmm() -> bool:
     global _OPENMM_AVAILABLE
     if _OPENMM_AVAILABLE is None:
         try:
-            import openmm  # noqa: F401
+            import openmm
+            logger.info("OpenMM %s detected", openmm.__version__)
             _OPENMM_AVAILABLE = True
-        except ImportError:
+        except ImportError as e:
             _OPENMM_AVAILABLE = False
-            logger.warning("OpenMM not installed — MD simulation unavailable")
+            logger.warning("OpenMM import failed: %s", e)
     return _OPENMM_AVAILABLE
 
 

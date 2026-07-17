@@ -191,6 +191,13 @@ async def startup():
     await _fail_stuck_jobs()
     await _fail_stuck_dockseq_jobs()
 
+    # Check OpenMM availability
+    try:
+        import openmm
+        logger.info("OpenMM %s available — full MD simulation enabled", openmm.__version__)
+    except ImportError as e:
+        logger.warning("OpenMM not available (%s) — MD will use BioPython fallback", e)
+
     # Launch durable worker (in-process)
     from app.worker import start_worker
     await start_worker()

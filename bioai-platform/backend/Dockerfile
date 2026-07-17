@@ -1,8 +1,8 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc wget ca-certificates openbabel \
-    libgl1-mesa-glx libgomp1 && \
+    build-essential gcc g++ wget ca-certificates openbabel \
+    libgl1-mesa-glx libgomp1 libopenblas-dev && \
     rm -rf /var/lib/apt/lists/*
 
 # Download pre-compiled PhyML binary from bioconda
@@ -17,24 +17,21 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
-# Install micromamba for OpenMM (conda-forge is the official channel)
+# Install micromamba
 RUN wget -qO /tmp/micromamba.tar.bz2 "https://micro.mamba.pm/api/micromamba/linux-64/latest" && \
     tar -xjf /tmp/micromamba.tar.bz2 -C /usr/local/bin --strip-components=1 bin/micromamba && \
     rm /tmp/micromamba.tar.bz2
 
+# Create conda env with OpenMM + Python — all pip deps install into this env
+RUN micromamba create -n app -c conda-forge openmm python=3.11 -y --root-workdir /opt/conda
+
+# All subsequent commands run inside the conda env
+ENV PATH="/opt/conda/envs/app/bin:$PATH"
+ENV PYTHONPATH="/opt/conda/envs/app/lib/python3.11/site-packages"
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-
-# Install OpenMM via conda-forge (official channel, most reliable)
-RUN micromamba create -n openmm -c conda-forge openmm python=3.11 -y --root-workdir /opt/conda && \
-    echo "OpenMM installed successfully via conda-forge" || \
-    (pip install --no-cache-dir openmm && echo "OpenMM installed via pip fallback") || \
-    echo "WARNING: OpenMM could not be installed — MD will use BioPython fallback"
-
-# Make conda env available in PATH
-ENV PATH="/opt/conda/envs/openmm/bin:$PATH"
-ENV PYTHONPATH="/opt/conda/envs/openmm/lib/python3.11/site-packages:$PYTHONPATH"
 
 # primer3-py is optional (requires C compiler) — skip silently if it fails
 RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"

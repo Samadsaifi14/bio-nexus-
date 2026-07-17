@@ -341,7 +341,7 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
     n_chains = len(chains)
 
     # B-factor statistics
-    b_factors = [atom.get_bfactor() for atom in atoms if atom.has_anisou() or atom.get_bfactor() > 0]
+    b_factors = [atom.get_bfactor() for atom in atoms]
     avg_bfactor = round(sum(b_factors) / len(b_factors), 2) if b_factors else 0.0
     max_bfactor = round(max(b_factors), 2) if b_factors else 0.0
 

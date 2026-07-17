@@ -43,7 +43,17 @@ export default function MDPage() {
 
   useEffect(() => {
     if (!jobId) return;
-    const iv = setInterval(() => poll(jobId), 2000);
+    const start = Date.now();
+    const MAX_POLL_MS = 5 * 60 * 1000;
+    const iv = setInterval(() => {
+      if (Date.now() - start > MAX_POLL_MS) {
+        setError("Simulation timed out after 5 minutes");
+        setLoading(false);
+        clearInterval(iv);
+        return;
+      }
+      poll(jobId);
+    }, 2000);
     return () => clearInterval(iv);
   }, [jobId, poll]);
 

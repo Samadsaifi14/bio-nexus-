@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import uuid
+from datetime import datetime, timezone, timedelta
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
@@ -64,6 +65,21 @@ async def get_function_status(job_id: str, user_id: str = Depends(require_user_i
         raise HTTPException(status_code=404, detail="Job not found")
 
     data = row.data
+
+    if data.get("status") in ("queued", "running") and data.get("claimed_at"):
+        try:
+            claimed = datetime.fromisoformat(data["claimed_at"].replace("Z", "+00:00"))
+            if datetime.now(timezone.utc) - claimed > timedelta(minutes=10):
+                supabase.table(_TABLE).update({
+                    "status": "failed",
+                    "error": "Job timed out (exceeded 10 minute limit)",
+                    "done_at": datetime.now(timezone.utc).isoformat(),
+                }).eq("id", job_id).execute()
+                data["status"] = "failed"
+                data["error"] = "Job timed out (exceeded 10 minute limit)"
+        except Exception:
+            pass
+
     result = None
     if data.get("storage_url"):
         from app.services.artifact_storage import download_json

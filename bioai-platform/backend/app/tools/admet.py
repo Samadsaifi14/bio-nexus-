@@ -47,10 +47,19 @@ def compute_descriptors(smiles: str) -> dict:
     # ---- Extended topological descriptors ----
     fsp3 = round(Descriptors.FractionCSP3(mol), 4)
     mr = round(Crippen.MolMR(mol), 2)  # molar refractivity
-    mol_volume = round(Descriptors.MolVolume(mol), 2)
-    complexity = round(Descriptors.BalabanJ(mol) if n_heavy > 1 else 0, 4)
-    wiener = Descriptors.WeinerIndex(mol) if n_heavy > 1 else 0
-    zagreb = Descriptors.ZagrebIndex(mol) if n_heavy > 1 else 0
+    mol_volume = round(rdMolDescriptors.CalcMolecularVolume(mol), 2)
+    try:
+        complexity = round(Descriptors.BalabanJ(mol), 4)
+    except Exception:
+        complexity = 0.0
+    try:
+        wiener = Descriptors.WeinerIndex(mol)
+    except Exception:
+        wiener = 0
+    try:
+        zagreb = Descriptors.ZagrebIndex(mol)
+    except Exception:
+        zagreb = 0
     num_heteroatoms = Lipinski.NumHeteroatoms(mol)
     num_amide_bonds = rdMolDescriptors.CalcNumAmideBonds(mol)
     num_atom_stereocenters = rdMolDescriptors.CalcNumAtomStereoCenters(mol)

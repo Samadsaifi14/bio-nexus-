@@ -687,6 +687,8 @@ async def create_docking_job(request: Request, body: DockingJobCreate, user_id: 
             "grid_size": body.grid_size,
             "exhaustiveness": body.exhaustiveness,
             "num_modes": body.num_modes,
+            "smiles": body.smiles,
+            "ligand_smiles": body.smiles,
         },
     }
     try:

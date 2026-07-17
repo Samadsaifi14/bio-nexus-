@@ -191,11 +191,10 @@ async def startup():
     await _fail_stuck_jobs()
     await _fail_stuck_dockseq_jobs()
 
-    # Launch durable worker (in-process, behind env flag)
-    if os.getenv("ENABLE_INPROCESS_WORKER", "").lower() in ("1", "true"):
-        from app.worker import start_worker
-        await start_worker()
-        logger.info("In-process durable worker started")
+    # Launch durable worker (in-process)
+    from app.worker import start_worker
+    await start_worker()
+    logger.info("In-process durable worker started")
 
 
 @app.get("/health")

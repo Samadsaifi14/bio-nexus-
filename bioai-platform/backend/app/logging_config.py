@@ -56,6 +56,7 @@ class DevFormatter(logging.Formatter):
         if uid:
             prefix += f"(user:{uid[:8]}) "
         record.msg = prefix + record.getMessage()
+        record.args = None
         return super().format(record)
 
 

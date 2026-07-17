@@ -36,7 +36,7 @@ async def predict_function_endpoint(request: Request, body: FunctionPredictReque
     supabase = get_client()
     job_id = str(uuid.uuid4())
 
-    supabase.table(_TABLE).insert({
+    insert_row = {
         "id": job_id,
         "status": "queued",
         "user_id": user_id,
@@ -45,7 +45,17 @@ async def predict_function_endpoint(request: Request, body: FunctionPredictReque
             "pdb_id": body.pdb_id,
             "tool_type": "function_predict",
         },
-    }).execute()
+    }
+    try:
+        supabase.table(_TABLE).insert(insert_row).execute()
+    except Exception as e:
+        if "ligand_smiles" in str(e):
+            supabase.table(_TABLE).insert({
+                "id": job_id, "status": "queued", "user_id": user_id,
+                "payload": insert_row["payload"],
+            }).execute()
+        else:
+            raise
 
     return FunctionPredictResponse(job_id=job_id, status="queued")
 

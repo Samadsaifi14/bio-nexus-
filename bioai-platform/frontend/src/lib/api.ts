@@ -497,6 +497,11 @@ export type MDSimulationResult = {
   residue_count: number;
   elapsed_seconds: number;
   status: string;
+  note?: string;
+  chain_count?: number;
+  radius_of_gyration_angstrom?: number;
+  avg_bfactor?: number;
+  secondary_structure?: { helix: number; sheet: number; coil: number };
 };
 
 export async function runMD(pdbId: string, mode: string = 'minimize'): Promise<{ job_id: string; status: string }> {

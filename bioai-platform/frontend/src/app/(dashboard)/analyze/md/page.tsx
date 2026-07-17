@@ -209,6 +209,47 @@ export default function MDPage() {
                 </div>
               </div>
             )}
+
+            {result.secondary_structure && (
+              <div className="mt-4">
+                <h4 className="text-xs text-text-secondary mb-2">Secondary Structure</h4>
+                <div className="flex gap-3">
+                  <div className="bg-surface-1 rounded-lg px-3 py-2 text-center flex-1">
+                    <div className="text-lg font-semibold text-blue-400">{result.secondary_structure.helix}</div>
+                    <div className="text-xs text-text-muted">alpha-helix</div>
+                  </div>
+                  <div className="bg-surface-1 rounded-lg px-3 py-2 text-center flex-1">
+                    <div className="text-lg font-semibold text-yellow-400">{result.secondary_structure.sheet}</div>
+                    <div className="text-xs text-text-muted">beta-sheet</div>
+                  </div>
+                  <div className="bg-surface-1 rounded-lg px-3 py-2 text-center flex-1">
+                    <div className="text-lg font-semibold text-text-muted">{result.secondary_structure.coil}</div>
+                    <div className="text-xs text-text-muted">coil</div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {result.radius_of_gyration_angstrom !== undefined && (
+              <div className="mt-3 flex flex-wrap gap-3">
+                <div className="bg-surface-1 rounded-lg px-3 py-2">
+                  <div className="text-xs text-text-muted">Radius of Gyration</div>
+                  <div className="text-sm font-semibold text-text-primary">{result.radius_of_gyration_angstrom} A</div>
+                </div>
+                {result.avg_bfactor !== undefined && (
+                  <div className="bg-surface-1 rounded-lg px-3 py-2">
+                    <div className="text-xs text-text-muted">Avg B-factor</div>
+                    <div className="text-sm font-semibold text-text-primary">{result.avg_bfactor} A^2</div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {result.note && (
+              <div className="mt-4 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+                <p className="text-xs text-amber-400">{result.note}</p>
+              </div>
+            )}
           </div>
         </motion.div>
       )}

@@ -210,7 +210,7 @@ def _handle_failure(table: str, job: dict, exc: Exception) -> None:
     """Requeue if under max_attempts, else mark failed permanently."""
     attempts = job.get("attempts", 0)
     max_attempts = job.get("max_attempts", 3)
-    error_msg = "Job failed. Reference ID: " + job["id"][:8]
+    error_msg = f"Job failed: {exc}. Reference ID: {job['id'][:8]}"
     if attempts >= max_attempts:
         now = datetime.now(timezone.utc).isoformat()
         payload = {"status": "failed", "error": error_msg}

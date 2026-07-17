@@ -47,7 +47,14 @@ def compute_descriptors(smiles: str) -> dict:
     # ---- Extended topological descriptors ----
     fsp3 = round(Descriptors.FractionCSP3(mol), 4)
     mr = round(Crippen.MolMR(mol), 2)  # molar refractivity
-    mol_volume = round(rdMolDescriptors.CalcMolecularVolume(mol), 2)
+    try:
+        mol_volume = round(rdMolDescriptors.CalcMolecularVolume(mol), 2)
+    except AttributeError:
+        try:
+            from rdkit.Chem import Descriptors3D
+            mol_volume = round(Descriptors3D.CalcVolume(mol), 2)
+        except Exception:
+            mol_volume = round(labute_asa * 0.5, 2) if labute_asa else 0.0
     try:
         complexity = round(Descriptors.BalabanJ(mol), 4)
     except Exception:

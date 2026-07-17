@@ -465,8 +465,69 @@ export type ADMETResult = {
   hba: number;
   rotatable_bonds: number;
   qed_score: number;
-  lipinski: { pass: boolean; violations: string[]; violation_count: number };
-  veber: { pass: boolean; violations: string[]; violation_count: number };
+  molar_refractivity: number;
+  molecular_volume: number;
+  fsp3: number;
+  labute_asa: number;
+  estate_sum: number;
+  wiener_index: number;
+  zagreb_index: number;
+  ring_count: number;
+  aromatic_ring_count: number;
+  aliphatic_ring_count: number;
+  num_heteroatoms: number;
+  num_amide_bonds: number;
+  num_atom_stereocenters: number;
+  num_unspecified_stereocenters: number;
+  functional_groups: Record<string, number>;
+  drug_likeness: {
+    overall_score: number;
+    qed_score: number;
+    lipinski: { pass: boolean; violations: string[]; violation_count: number };
+    veber: { pass: boolean; violations: string[]; violation_count: number };
+    ghose: { pass: boolean; violations: string[]; violation_count: number };
+    egan: { pass: boolean; violations: string[]; violation_count: number };
+    mddr: { pass: boolean; violations: string[]; violation_count: number };
+  };
+  structural_alerts: {
+    pains: { pass: boolean; alerts: string[]; alert_count: number };
+    brenk: { pass: boolean; alerts: string[]; alert_count: number };
+    total_alert_count: number;
+  };
+  absorption: {
+    oral_bioavailability: number;
+    caco2_permeability: string;
+    pgp_substrate: string;
+    pgp_inhibitor: string;
+    hia: string;
+  };
+  distribution: {
+    volume_of_distribution: number;
+    bbb_permeability: string;
+    plasma_protein_binding: string;
+    cns_penetration: string;
+  };
+  metabolism: {
+    cyp_inhibition: Record<string, string>;
+    cyp_substrate_risk: string;
+    half_life_class: string;
+    lipophilic_efficiency: number;
+  };
+  toxicity: {
+    ames_mutagenicity: string;
+    ames_alerts: string[];
+    herg_liability: string;
+    hepatotoxicity_dili: string;
+    skin_sensitization: string;
+    skin_sensitization_factors: string[];
+    acute_toxicity_ld50: string;
+    ld50_estimate_log: number;
+    risk_score: number;
+  };
+  clearance: {
+    clearance_class: string;
+    half_life_class: string;
+  };
 };
 
 export async function computeADMET(smiles: string): Promise<{ result: ADMETResult }> {

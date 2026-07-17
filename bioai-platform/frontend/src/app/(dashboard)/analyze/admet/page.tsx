@@ -32,7 +32,7 @@ export default function ADMETPage() {
       const res = await computeADMET(smiles.trim());
       setResult(res.result);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || e.message || "Computation failed");
+      setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Computation failed");
     } finally {
       setLoading(false);
     }

@@ -56,7 +56,7 @@ export default function FunctionPage() {
       setJobId(res.job_id);
       setStatus(res.status);
     } catch (e: any) {
-      setError(e?.response?.data?.detail || e.message || "Submission failed");
+      setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Submission failed");
       setLoading(false);
     }
   };

@@ -9,11 +9,8 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 
-from app.deps import limiter
 from app.services.supabase import get_client
 from app.services.auth import require_user_id
-from app.services.rate_limit import check_daily_limit
-from app.services.artifact_storage import upload_json
 
 router = APIRouter(prefix="/api/md", tags=["MD Simulation"])
 _TABLE = "docking_jobs"  # reuse docking_jobs table with md_jobs for now
@@ -31,8 +28,7 @@ class MDJobResponse(BaseModel):
     error: str | None = None
 
 
-@router.post("/run", response_model=MDJobResponse, dependencies=[Depends(check_daily_limit)])
-@limiter.limit("3/minute")
+@router.post("/run", response_model=MDJobResponse)
 async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(require_user_id)):
     """Submit an MD simulation job (queued through the durable worker)."""
     from app.services.ssrf import validate_url

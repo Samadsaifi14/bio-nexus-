@@ -5,7 +5,6 @@ from __future__ import annotations
 from fastapi import APIRouter, HTTPException, Depends
 from pydantic import BaseModel, Field
 
-from app.deps import limiter
 from app.services.auth import get_user_id
 
 router = APIRouter(prefix="/api/admet", tags=["ADMET"])
@@ -23,7 +22,6 @@ class ADMETResponse(BaseModel):
 
 
 @router.post("/descriptors", response_model=ADMETResponse)
-@limiter.limit("10/minute")
 async def compute_descriptors(request, body: ADMETRequest, user_id: str | None = Depends(get_user_id)):
     """Compute molecular descriptors from SMILES using RDKit.
 

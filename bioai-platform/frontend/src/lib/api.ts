@@ -481,12 +481,21 @@ export async function computeADMET(smiles: string): Promise<{ result: ADMETResul
 export type MDSimulationResult = {
   pdb_id: string;
   mode: string;
+  engine: string;
+  forcefield: string;
+  implicit_solvent: string;
+  temperature_k: number;
+  timestep_fs: number;
   minimization_steps: number;
   equilibration_steps: number;
   production_steps: number;
   final_energy_kj_mol: number;
   energy: { minimization: { step: number; energy: number }[]; production: { step: number; energy: number }[] };
   rmsd: { frame: number; rmsd: number }[];
+  rmsf: { residue: string; rmsf_angstrom: number }[];
+  atom_count: number;
+  residue_count: number;
+  elapsed_seconds: number;
   status: string;
 };
 

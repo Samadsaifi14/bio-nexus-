@@ -123,7 +123,8 @@ export default function MDPage() {
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
               <Activity className="w-4 h-4 text-accent-cyan" /> Simulation Results
             </h3>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-4">
+
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3">
               <div className="bg-surface-1 rounded-lg p-3">
                 <div className="text-xs text-text-muted">Final Energy</div>
                 <div className="text-lg font-semibold text-text-primary">{result.final_energy_kj_mol}</div>
@@ -144,6 +145,15 @@ export default function MDPage() {
                 <div className="text-lg font-semibold text-text-primary">{result.production_steps}</div>
                 <div className="text-xs text-text-muted">steps</div>
               </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2 mb-4">
+              <span className="text-xs bg-surface-1 text-text-secondary px-2 py-1 rounded">{result.engine}</span>
+              <span className="text-xs bg-surface-1 text-text-secondary px-2 py-1 rounded">{result.forcefield}</span>
+              <span className="text-xs bg-surface-1 text-text-secondary px-2 py-1 rounded">{result.implicit_solvent} solvent</span>
+              <span className="text-xs bg-surface-1 text-text-secondary px-2 py-1 rounded">{result.temperature_k}K</span>
+              <span className="text-xs bg-surface-1 text-text-secondary px-2 py-1 rounded">{result.atom_count} atoms</span>
+              <span className="text-xs bg-surface-1 text-text-secondary px-2 py-1 rounded">{result.residue_count} residues</span>
             </div>
 
             {result.energy.production.length > 0 && (
@@ -168,7 +178,7 @@ export default function MDPage() {
 
             {result.rmsd.length > 0 && (
               <div className="mt-4">
-                <h4 className="text-xs text-text-secondary mb-2">RMSD</h4>
+                <h4 className="text-xs text-text-secondary mb-2">RMSD (vs minimized structure)</h4>
                 <div className="bg-surface-1 rounded-lg p-3 h-32 flex items-end gap-px">
                   {result.rmsd.slice(-60).map((pt, i) => {
                     const maxRmsd = Math.max(...result.rmsd.map(r => r.rmsd));
@@ -176,7 +186,24 @@ export default function MDPage() {
                     return (
                       <div key={i} className="flex-1 rounded-t bg-accent-purple/60 hover:bg-accent-purple transition-colors"
                         style={{ height: `${Math.max(height, 2)}%` }}
-                        title={`Frame ${pt.frame}: ${pt.rmsd.toFixed(3)}`} />
+                        title={`Frame ${pt.frame}: ${pt.rmsd.toFixed(3)} A`} />
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {result.rmsf && result.rmsf.length > 0 && (
+              <div className="mt-4">
+                <h4 className="text-xs text-text-secondary mb-2">RMSF (per residue)</h4>
+                <div className="bg-surface-1 rounded-lg p-3 h-32 flex items-end gap-px">
+                  {result.rmsf.slice(-60).map((pt, i) => {
+                    const maxRmsf = Math.max(...result.rmsf.map(r => r.rmsf_angstrom));
+                    const height = maxRmsf > 0 ? (pt.rmsf_angstrom / maxRmsf) * 100 : 50;
+                    return (
+                      <div key={i} className="flex-1 rounded-t bg-green-500/60 hover:bg-green-500 transition-colors"
+                        style={{ height: `${Math.max(height, 2)}%` }}
+                        title={`${pt.residue}: ${pt.rmsf_angstrom.toFixed(3)} A`} />
                     );
                   })}
                 </div>

@@ -12,6 +12,7 @@ supabase
 reportlab
 pydantic[email]
 rdkit
-# openmm  # installed separately in Dockerfile (requires conda or pre-built wheel)
+numpy
+# openmm  # installed separately in Dockerfile
 # openbabel-wheel  # removed — SMILES→3D via NCI CACTUS API, Vina reads PDB/SDF natively
 # primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)

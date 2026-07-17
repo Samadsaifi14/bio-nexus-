@@ -19,8 +19,8 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
-# OpenMM for MD simulation (conda-forge wheel)
-RUN pip install --no-cache-dir openmm 2>/dev/null || echo "openmm skipped (optional — MD simulation disabled)"
+# OpenMM for MD simulation (required for accurate MD)
+RUN pip install --no-cache-dir openmm || echo "ERROR: OpenMM failed to install — MD simulation will be unavailable"
 # primer3-py is optional (requires C compiler) — skip silently if it fails
 RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"
 COPY . .

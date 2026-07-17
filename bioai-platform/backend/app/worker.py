@@ -116,6 +116,9 @@ def _sweep_stuck(table: str) -> int:
 # ---------------------------------------------------------------------------
 
 def _run_docking(job: dict) -> None:
+    if not job or not job.get("id"):
+        logger.warning("Skipping dispatch of phantom job (no id): %s", job)
+        return
     payload = {**job, **(job.get("payload") or {})}
     tool_type = payload.get("tool_type", "docking")
 
@@ -208,17 +211,22 @@ def _run_function_predict(job: dict) -> None:
 
 def _handle_failure(table: str, job: dict, exc: Exception) -> None:
     """Requeue if under max_attempts, else mark failed permanently."""
-    attempts = job.get("attempts", 0)
-    max_attempts = job.get("max_attempts", 3)
-    error_msg = f"Job failed: {exc}. Reference ID: {job['id'][:8]}"
+    job_id = (job.get("id") or "") if isinstance(job, dict) else ""
+    attempts = job.get("attempts", 0) if isinstance(job, dict) else 0
+    max_attempts = job.get("max_attempts", 3) if isinstance(job, dict) else 3
+    ref = job_id[:8] if job_id else "unknown"
+    error_msg = f"Job failed: {exc}. Reference ID: {ref}"
+    if not job_id:
+        logger.error("Cannot handle failure — job id is empty: %s", exc)
+        return
     if attempts >= max_attempts:
         now = datetime.now(timezone.utc).isoformat()
         payload = {"status": "failed", "error": error_msg}
         if table != "jobs":
             payload["done_at"] = now
-        _patch(table, job["id"], payload)
+        _patch(table, job_id, payload)
     else:
-        _patch(table, job["id"], {
+        _patch(table, job_id, {
             "status": "queued",
             "claimed_at": None,
             "claimed_by": None,
@@ -249,7 +257,7 @@ async def _poll_once(sweep_counter: int) -> None:
         if sem.locked():
             continue
         job = _rpc(rpc_fn, WORKER_ID)
-        if job is None:
+        if not job or not job.get("id"):
             continue
         logger.info("Claimed %s job %s", table, job["id"])
 

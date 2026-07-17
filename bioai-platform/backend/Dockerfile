@@ -1,8 +1,8 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc g++ wget ca-certificates openbabel \
-    libgl1-mesa-glx libgomp1 libopenblas-dev \
+    build-essential gcc g++ wget ca-certificates bzip2 xz-utils curl \
+    openbabel libgl1-mesa-glx libgomp1 libopenblas-dev \
     libxml2 libxslt1.1 && \
     rm -rf /var/lib/apt/lists/*
 
@@ -18,18 +18,22 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
+# Install micromamba for OpenMM (OpenMM is only on conda-forge, not PyPI)
+RUN curl -Ls https://micro.mamba.pm/api/micromamba/linux-64/latest | \
+    tar -xvj -C /usr/local/bin --strip-components=1 bin/micromamba
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Install OpenMM directly into system Python
-RUN pip install --no-cache-dir openmm && \
-    python -c "import openmm; print('OpenMM', openmm.__version__, 'installed successfully')" || \
-    echo "FAILED: pip install openmm did not work"
-
-# Verify OpenMM is importable
-RUN python -c "from openmm.app import PDBFile, ForceField, OBC2, Modeller; print('OpenMM app modules OK')" || \
-    echo "FAILED: OpenMM app modules not importable"
+# Install OpenMM from conda-forge into a prefix, then link into system Python
+ENV MAMBA_ROOT_PREFIX=/opt/conda
+RUN micromamba create -y -p /opt/conda/envs/openmm -c conda-forge openmm python=3.11 && \
+    SITE=$(/opt/conda/envs/openmm/bin/python -c "import site; print(site.getsitepackages()[0])") && \
+    ln -s "$SITE/openmm" "/usr/local/lib/python3.11/site-packages/openmm" && \
+    ln -s "$SITE/openmm-$(/opt/conda/envs/openmm/bin/python -c 'import openmm; print(openmm.__version__)')".dist-info \
+         "/usr/local/lib/python3.11/site-packages/" 2>/dev/null; \
+    python -c "import openmm; print('OpenMM', openmm.__version__, 'installed successfully')"
 
 # primer3-py is optional — skip silently if it fails
 RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"

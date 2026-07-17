@@ -22,7 +22,7 @@ class ADMETResponse(BaseModel):
 
 
 @router.post("/descriptors", response_model=ADMETResponse)
-async def compute_descriptors(request, body: ADMETRequest, user_id: str | None = Depends(get_user_id)):
+async def compute_descriptors(body: ADMETRequest, user_id: str | None = Depends(get_user_id)):
     """Compute molecular descriptors from SMILES using RDKit.
 
     Returns Lipinski/Veber compliance, QED score, and key properties.

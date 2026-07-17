@@ -54,7 +54,7 @@ def compute_descriptors(smiles: str) -> dict:
             from rdkit.Chem import Descriptors3D
             mol_volume = round(Descriptors3D.CalcVolume(mol), 2)
         except Exception:
-            mol_volume = round(labute_asa * 0.5, 2) if labute_asa else 0.0
+            mol_volume = 0.0
     try:
         complexity = round(Descriptors.BalabanJ(mol), 4)
     except Exception:

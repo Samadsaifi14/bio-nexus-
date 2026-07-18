@@ -69,14 +69,21 @@ async def process_job(job_id: str) -> None:
             logger.error("Job %s not found in Supabase", job_id)
             return
 
-        query = ""
-        ctx = job.get("context_json")
-        if isinstance(ctx, dict):
-            query = ctx.get("sequence", "")
+        query = job.get("query_preview", "") or ""
+
+        if not query:
+            ctx = job.get("context_json")
+            if isinstance(ctx, str):
+                import json as _json
+                try:
+                    ctx = _json.loads(ctx)
+                except Exception:
+                    ctx = None
+            if isinstance(ctx, dict):
+                query = ctx.get("sequence", "")
+
         if not query:
             query = job.get("query_sequence") or job.get("query") or ""
-        if not query:
-            query = job.get("query_preview", "")
         organism = job.get("organism", "Homo sapiens")
         analysis_type = job.get("analysis_type", "comprehensive")
 

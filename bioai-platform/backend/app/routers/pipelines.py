@@ -39,7 +39,7 @@ async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str |
         "id": job_id,
         "user_id": user_id,
         "tool": "pipeline",
-        "query_preview": clean[:100],
+        "query_preview": clean,
         "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],

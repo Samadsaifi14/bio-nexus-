@@ -43,7 +43,7 @@ async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str |
         "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],
-        "context_json": None,
+        "context_json": {"sequence": clean},
         "progress_pct": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None,

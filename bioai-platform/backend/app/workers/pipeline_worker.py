@@ -55,11 +55,10 @@ async def _fetch_job(table: str, job_id: str) -> dict | None:
 
 async def process_job(job_id: str) -> None:
     """Mark a pipeline job as running, execute steps, PATCH results."""
-    now = datetime.datetime.utcnow().isoformat()
 
     # Optimistic lock: set status -> running
     try:
-        await _patch("jobs", job_id, {"status": "running", "updated_at": now})
+        await _patch("jobs", job_id, {"status": "running"})
     except Exception:
         logger.exception("Failed to mark job %s as running", job_id)
         return
@@ -70,7 +69,14 @@ async def process_job(job_id: str) -> None:
             logger.error("Job %s not found in Supabase", job_id)
             return
 
-        query = job.get("query_sequence") or job.get("query") or ""
+        query = ""
+        ctx = job.get("context_json")
+        if isinstance(ctx, dict):
+            query = ctx.get("sequence", "")
+        if not query:
+            query = job.get("query_sequence") or job.get("query") or ""
+        if not query:
+            query = job.get("query_preview", "")
         organism = job.get("organism", "Homo sapiens")
         analysis_type = job.get("analysis_type", "comprehensive")
 
@@ -86,10 +92,9 @@ async def process_job(job_id: str) -> None:
             "jobs",
             job_id,
             {
-                "status": "completed",
+                "status": "complete",
                 "storage_url": storage_url,
                 "results": None,
-                "updated_at": done_at,
                 "completed_at": done_at,
             },
         )
@@ -101,7 +106,7 @@ async def process_job(job_id: str) -> None:
             await _patch(
                 "jobs",
                 job_id,
-                {"status": "failed", "error": str(exc)[:2000], "updated_at": fail_at},
+                {"status": "failed", "error": str(exc)[:2000]},
             )
         except Exception:
             logger.exception("Also failed to PATCH failure for job %s", job_id)

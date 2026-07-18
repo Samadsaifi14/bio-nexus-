@@ -355,6 +355,15 @@ def compute_descriptors(smiles: str) -> dict:
     return {
         "smiles": smiles,
         "formula": formula,
+        "_methodology": {
+            "core_descriptors": {"tier": "3a", "confidence": "high", "method": "RDKit descriptors", "note": "Computed directly from molecular graph — production-ready"},
+            "drug_likeness": {"tier": "3a", "confidence": "high", "method": "RDKit + Lipinski/Veber/Ghose/Egan rules", "note": "Validated pharma filters — production-ready"},
+            "structural_alerts": {"tier": "3a", "confidence": "high", "method": "PAINS/Brenk SMARTS patterns", "note": "Well-established substructure filters — production-ready"},
+            "functional_groups": {"tier": "3a", "confidence": "high", "method": "RDKit Fragments module", "note": "Deterministic fragment counts — production-ready"},
+            "absorption_distribution_metabolism": {"tier": "3b", "confidence": "approximate", "method": "Rule-based heuristics on top of RDKit descriptors", "note": "Educational estimates — for research use, not clinical decisions. Replace with validated QSAR models for production."},
+            "toxicity": {"tier": "3b", "confidence": "approximate", "method": "Rule-based heuristics (LogP/MW/TPSA thresholds, structural alerts)", "note": "No ML classifiers — these are simplified heuristics. Real toxicity prediction requires trained models (e.g. ProTox, Tox21). For research use only."},
+            "clearance": {"tier": "3b", "confidence": "approximate", "method": "LogP/TPSA heuristic", "note": "Very rough estimate — real clearance depends on CYP metabolism kinetics"},
+        },
         "heavy_atoms": heavy_atoms,
         "molecular_weight": mw,
         "logp": logp,
@@ -424,6 +433,7 @@ def compute_descriptors(smiles: str) -> dict:
             "lipophilic_efficiency": lipe,
         },
         "toxicity": {
+            "_disclaimer": "Rule-based heuristics only — no ML classifiers. For research screening, not clinical/ regulatory use.",
             "ames_mutagenicity": ames_prediction,
             "ames_alerts": ames_alerts,
             "herg_liability": herg_risk,

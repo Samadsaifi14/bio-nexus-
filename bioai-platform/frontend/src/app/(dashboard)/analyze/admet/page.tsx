@@ -163,6 +163,15 @@ export default function ADMETPage() {
             </div>
           </div>
 
+          {/* Methodology banner */}
+          <div className="glass-card p-3 border-l-2 border-accent-cyan/50">
+            <p className="text-xs text-text-muted">
+              <span className="text-accent-cyan font-semibold">3a</span> Core descriptors & drug-likeness — RDKit, production-ready.
+              <span className="mx-2 text-surface-3">|</span>
+              <span className="text-amber-400 font-semibold">3b</span> ADMET & toxicity — rule-based heuristics, research screening only (no ML classifiers).
+            </p>
+          </div>
+
           {/* Tabs */}
           <div className="flex gap-1 p-1 bg-surface-1 rounded-lg overflow-x-auto">
             {TABS.map((tab) => {
@@ -212,11 +221,11 @@ export default function ADMETPage() {
                       { label: "Oral Bioavailability", value: `${(result.absorption.oral_bioavailability * 100).toFixed(0)}%` },
                       { label: "BBB Permeability", value: result.distribution.bbb_permeability },
                       { label: "CYP Inhibition", value: result.metabolism.cyp_substrate_risk },
-                      { label: "AMES Mutagenicity", value: result.toxicity.ames_mutagenicity },
-                      { label: "hERG Risk", value: result.toxicity.herg_liability },
+                      { label: "AMES Mutagenicity", value: result.toxicity.ames_mutagenicity, rule: true },
+                      { label: "hERG Risk", value: result.toxicity.herg_liability, rule: true },
                     ].map((p) => (
                       <div key={p.label} className="bg-surface-1 rounded-lg p-3 text-center">
-                        <div className="text-xs text-text-muted mb-1">{p.label}</div>
+                        <div className="text-xs text-text-muted mb-1">{p.label}{(p as any).rule && <span className="text-amber-400/50 ml-1 text-[10px]">(rule)</span>}</div>
                         <RiskBadge level={p.value} />
                       </div>
                     ))}
@@ -359,7 +368,7 @@ export default function ADMETPage() {
             {activeTab === "admet" && (
               <motion.div key="admet" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">
                 {/* Absorption */}
-                <SectionCard title="Absorption">
+                <SectionCard title="Absorption (Rule-based)">
                   <div className="space-y-0">
                     <PropRow label="Oral Bioavailability" value={`${(result.absorption.oral_bioavailability * 100).toFixed(0)}%`} note={result.absorption.oral_bioavailability > 0.7 ? "Good" : result.absorption.oral_bioavailability > 0.4 ? "Moderate" : "Poor"} />
                     <PropRow label="Caco-2 Permeability" value="" />
@@ -382,7 +391,7 @@ export default function ADMETPage() {
                 </SectionCard>
 
                 {/* Distribution */}
-                <SectionCard title="Distribution">
+                <SectionCard title="Distribution (Rule-based)">
                   <div className="space-y-0">
                     <PropRow label="Volume of Distribution (Vd)" value={result.distribution.volume_of_distribution} unit="L/kg" />
                     <PropRow label="BBB Permeability" value="" />
@@ -401,7 +410,7 @@ export default function ADMETPage() {
                 </SectionCard>
 
                 {/* Metabolism */}
-                <SectionCard title="Metabolism">
+                <SectionCard title="Metabolism (Rule-based)">
                   <div className="space-y-0">
                     <PropRow label="CYP Substrate Risk" value="" />
                     <div className="flex items-center gap-2 py-1.5 border-b border-surface-3">
@@ -426,8 +435,9 @@ export default function ADMETPage() {
                   </div>
                 </SectionCard>
 
-                {/* Toxicity */}
-                <SectionCard title="Toxicity">
+                {/* Toxicity — 3b: Rule-based heuristics */}
+                <SectionCard title="Toxicity (Rule-based Estimation)">
+                  <p className="text-xs text-amber-400/70 mb-3 -mt-1">Simplified heuristics — no ML classifiers. For research screening only.</p>
                   <div className="space-y-0">
                     <PropRow label="AMES Mutagenicity" value="" />
                     <div className="flex items-center gap-2 py-1.5 border-b border-surface-3">
@@ -544,7 +554,7 @@ export default function ADMETPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-text-primary">Overall ADMET Risk</p>
-                        <p className="text-xs text-text-muted mt-0.5">Composite of AMES, hERG, DILI, skin sensitization</p>
+                        <p className="text-xs text-text-muted mt-0.5">Composite of AMES, hERG, DILI, skin sensitization <span className="text-amber-400/60">(rule-based)</span></p>
                       </div>
                       <div className={`text-2xl font-bold ${result.toxicity.risk_score <= 2 ? "text-green-400" : result.toxicity.risk_score <= 5 ? "text-amber-400" : "text-red-400"}`}>
                         {result.toxicity.risk_score}<span className="text-sm text-text-muted">/10</span>

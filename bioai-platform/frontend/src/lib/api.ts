@@ -480,6 +480,7 @@ export type ADMETResult = {
   num_atom_stereocenters: number;
   num_unspecified_stereocenters: number;
   functional_groups: Record<string, number>;
+  _methodology?: Record<string, { tier: string; confidence: string; method: string; note: string }>;
   drug_likeness: {
     overall_score: number;
     qed_score: number;
@@ -514,6 +515,7 @@ export type ADMETResult = {
     lipophilic_efficiency: number;
   };
   toxicity: {
+    _disclaimer?: string;
     ames_mutagenicity: string;
     ames_alerts: string[];
     herg_liability: string;

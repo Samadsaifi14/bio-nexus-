@@ -15,6 +15,18 @@ import logging
 logger = logging.getLogger(__name__)
 
 
+def _fg(mol, name: str) -> int:
+    """Safely call a Fragments.fr_* function, returning 0 if unavailable."""
+    from rdkit.Chem import Fragments
+    fn = getattr(Fragments, name, None)
+    if fn is None:
+        return 0
+    try:
+        return fn(mol)
+    except Exception:
+        return 0
+
+
 def compute_descriptors(smiles: str) -> dict:
     """Compute comprehensive ADMET descriptors from a SMILES string."""
     from rdkit import Chem
@@ -83,21 +95,21 @@ def compute_descriptors(smiles: str) -> dict:
                                      mol.GetAtomWithIdx(a).GetDegree() == 3
                                      for a in ring))
 
-    # Functional group counts
-    num_oh = Fragments.fr_Al_OH(mol) + Fragments.fr_Ar_OH(mol)
-    num_nh = Fragments.fr_NH0(mol) + Fragments.fr_NH1(mol) + Fragments.fr_NH2(mol)
-    num_aliphatic_oh = Fragments.fr_Al_OH(mol)
-    num_aromatic_oh = Fragments.fr_Ar_OH(mol)
-    num_carboxylic = Fragments.fr_COO(mol)
-    num_ester = Fragments.fr_ester(mol)
-    num_ether = Fragments.fr_ether(mol)
-    num_ketone = Fragments.fr_ketone(mol)
-    num_aldehyde = Fragments.fr_aldehyde(mol)
-    num_halogen = Fragments.fr_halogen(mol)
-    num_sulfonamide = Fragments.fr_sulfonamide(mol)
-    num_nitro = Fragments.fr_nitro(mol)
-    num_phenol = Fragments.fr_phenol(mol)
-    num_amine = Fragments.fr_NH0(mol) + Fragments.fr_NH1(mol)
+    # Functional group counts (safe — tolerates missing rdkit attributes)
+    num_oh = _fg(mol, "fr_Al_OH") + _fg(mol, "fr_Ar_OH")
+    num_nh = _fg(mol, "fr_NH0") + _fg(mol, "fr_NH1") + _fg(mol, "fr_NH2")
+    num_aliphatic_oh = _fg(mol, "fr_Al_OH")
+    num_aromatic_oh = _fg(mol, "fr_Ar_OH")
+    num_carboxylic = _fg(mol, "fr_COO")
+    num_ester = _fg(mol, "fr_ester")
+    num_ether = _fg(mol, "fr_ether")
+    num_ketone = _fg(mol, "fr_ketone")
+    num_aldehyde = _fg(mol, "fr_aldehyde")
+    num_halogen = _fg(mol, "fr_halogen")
+    num_sulfonamide = _fg(mol, "fr_sulfonamide")
+    num_nitro = _fg(mol, "fr_nitro")
+    num_phenol = _fg(mol, "fr_phenol")
+    num_amine = _fg(mol, "fr_NH0") + _fg(mol, "fr_NH1")
 
     # ---- Lipinski Rule of Five ----
     lip_violations = []
@@ -173,17 +185,17 @@ def compute_descriptors(smiles: str) -> dict:
 
     # ---- Brenk structural alerts ----
     brenk_alerts = []
-    if Fragments.fr_halogen(mol) > 0 and Fragments.fr_halogen(mol) > 2:
+    if _fg(mol, "fr_halogen") > 2:
         brenk_alerts.append("Multiple halogen substituents")
-    if Fragments.fr_nitro(mol) > 0:
+    if _fg(mol, "fr_nitro") > 0:
         brenk_alerts.append("Nitro group (mutagenicity concern)")
-    if Fragments.fr_sulfonamide(mol) > 0:
+    if _fg(mol, "fr_sulfonamide") > 0:
         brenk_alerts.append("Sulfonamide (hypersensitivity risk)")
     if n_aromatic_rings > 5:
         brenk_alerts.append(f"Many aromatic rings ({n_aromatic_rings}) — metabolic liability")
-    if Fragments.fr_aldehyde(mol) > 0:
+    if _fg(mol, "fr_aldehyde") > 0:
         brenk_alerts.append("Aldehyde (reactive, toxicity concern)")
-    if Fragments.fr_QuatN(mol) > 0:
+    if _fg(mol, "fr_QuatN") > 0:
         brenk_alerts.append("Quaternary nitrogen (P-gp substrate risk)")
     brenk = {"pass": len(brenk_alerts) == 0, "alerts": brenk_alerts, "alert_count": len(brenk_alerts)}
 
@@ -290,7 +302,7 @@ def compute_descriptors(smiles: str) -> dict:
     # AMES mutagenicity (structural alerts)
     ames_alerts = []
     if num_nitro > 0: ames_alerts.append("Nitro group")
-    if Fragments.fr_Al_OH(mol) > 1: ames_alerts.append("Multiple aliphatic hydroxyls")
+    if _fg(mol, "fr_Al_OH") > 1: ames_alerts.append("Multiple aliphatic hydroxyls")
     if mol.HasSubstructMatch(Chem.MolFromSmarts("c1ccc(-[N+](=O)[O-])cc1")): ames_alerts.append("Nitroaromatic")
     if mol.HasSubstructMatch(Chem.MolFromSmarts("N-N")): ames_alerts.append("Azo compound")
     ames_prediction = "Likely mutagen" if ames_alerts else "Non-mutagen"
@@ -303,8 +315,8 @@ def compute_descriptors(smiles: str) -> dict:
 
     # Skin sensitization (reactive functional groups)
     skin_risk_factors = []
-    if Fragments.fr_aldehyde(mol) > 0: skin_risk_factors.append("Aldehyde")
-    if Fragments.fr_halogen(mol) > 2: skin_risk_factors.append("Multiple halogens")
+    if _fg(mol, "fr_aldehyde") > 0: skin_risk_factors.append("Aldehyde")
+    if _fg(mol, "fr_halogen") > 2: skin_risk_factors.append("Multiple halogens")
     skin_sensitization = "Likely" if skin_risk_factors else "Unlikely"
 
     # Acute toxicity (LD50 rough estimate based on LogP and functional groups)

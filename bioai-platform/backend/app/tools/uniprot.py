@@ -41,7 +41,8 @@ class UniprotTool(BaseTool):
             resp = await client.get(url, params={"format": "json"})
             if resp.status_code == 404:
                 return {"error": f"Accession {accession} not found"}
-            resp.raise_for_status()
+            if resp.status_code >= 400:
+                return {"error": f"UniProt returned {resp.status_code} for {accession}"}
             return resp.json()
 
     def _extract_name(self, data: dict) -> str:

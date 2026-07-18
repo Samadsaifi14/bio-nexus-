@@ -42,34 +42,44 @@ def detect_input_format(text: str) -> str:
 
 
 def detect_source_from_accession(accession: str) -> str:
+    import re
     acc = accession.strip().upper()
     if acc.startswith(("NP_", "XP_", "YP_", "WP_", "AP_", "NM_", "XM_", "NR_", "XR_")):
         return "ncbi"
-    if acc[0] in "PQO" or acc[:2] in ("A0", "A1", "B0", "B1", "C0", "C1"):
-        return "uniprot"
     if acc.startswith("UPI"):
         return "uniparc"
+    if re.match(r"^[OPQ][0-9][A-Z0-9]{3}[0-9]$", acc):
+        return "uniprot"
+    if re.match(r"^A0A[A-Z0-9]{5,}[0-9]$", acc):
+        return "uniprot"
     return "ncbi"
 
 
 async def map_refseq_to_uniprot(refseq_id: str) -> str | None:
     import httpx
-    url = "https://rest.uniprot.org/idmapping/uniprotkb/search"
-    try:
-        async with httpx.AsyncClient(timeout=15) as client:
-            resp = await client.post(url, json={
-                "from": "RefSeq_Protein",
-                "to": "UniProtKB",
-                "ids": refseq_id,
-            })
-            if resp.status_code != 200:
-                return None
-            data = resp.json()
-            results = data.get("results") or []
-            if results:
-                return results[0].get("to", {}).get("primaryAccession", "")
-    except Exception:
-        pass
+
+    is_refseq = refseq_id[:3] in ("NP_", "XP_", "YP_", "WP_", "AP_")
+    sources = ["RefSeq_Protein"] if is_refseq else ["RefSeq_Protein", "EMBL", "PDB"]
+
+    for source in sources:
+        url = "https://rest.uniprot.org/idmapping/uniprotkb/search"
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.post(url, json={
+                    "from": source,
+                    "to": "UniProtKB",
+                    "ids": refseq_id,
+                })
+                if resp.status_code != 200:
+                    continue
+                data = resp.json()
+                results = data.get("results") or []
+                if results:
+                    mapped = results[0].get("to", {}).get("primaryAccession", "")
+                    if mapped:
+                        return mapped
+        except Exception:
+            pass
     return None
 
 

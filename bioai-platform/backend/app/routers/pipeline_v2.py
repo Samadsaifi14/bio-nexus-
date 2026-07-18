@@ -170,13 +170,13 @@ def _run_pipeline(job_id: str, sequence: str, steps: list[str]):
 async def _execute(job_id: str, sequence: str, steps: list[str]):
     context: dict = {"sequence": sequence, "length": len(sequence)}
 
-    try:
-        for step in STEP_ORDER:
-            if step not in steps:
-                continue
+    for step in STEP_ORDER:
+        if step not in steps:
+            continue
 
-            _set_step_status(job_id, step, "running", progress=10)
+        _set_step_status(job_id, step, "running", progress=10)
 
+        try:
             if step == "blast":
                 result = await _run_blast(sequence)
                 _set_step_status(job_id, step, "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
@@ -248,20 +248,14 @@ async def _execute(job_id: str, sequence: str, steps: list[str]):
                 _set_step_status(job_id, step, s, progress=100, data=result)
                 context["interpret"] = result
 
-        with _jobs_lock:
-            if job_id in _jobs:
-                _jobs[job_id]["status"] = "complete"
-                _jobs[job_id]["context"] = context
+        except Exception as step_exc:
+            logger.warning("[%s] Step %s failed: %s", job_id, step, step_exc)
+            _set_step_status(job_id, step, "failed", error=str(step_exc)[:500])
 
-    except Exception as e:
-        logger.error(f"[{job_id}] Pipeline step failed: {e}")
-        current = None
-        with _jobs_lock:
-            if job_id in _jobs:
-                current = _jobs[job_id].get("current_step")
-        if current:
-            _set_step_status(job_id, current, "failed", error=str(e))
-        _set_job_failed(job_id, str(e))
+    with _jobs_lock:
+        if job_id in _jobs:
+            _jobs[job_id]["status"] = "complete"
+            _jobs[job_id]["context"] = context
 
 
 # ---------------------------------------------------------------------------
@@ -345,34 +339,38 @@ async def _run_uniprot(top_hit: dict) -> dict:
     if not accession:
         return {"error": "No accession"}
 
-    source = detect_source_from_accession(accession)
-    if source == "ncbi":
-        mapped = await map_refseq_to_uniprot(accession)
-        if mapped:
-            accession = mapped
+    try:
+        source = detect_source_from_accession(accession)
+        if source == "ncbi":
+            mapped = await map_refseq_to_uniprot(accession)
+            if mapped:
+                accession = mapped
 
-    tool = UniprotTool()
-    result = await tool.run({"accession": accession})
-    if "error" in result:
-        return {"error": result["error"]}
+        tool = UniprotTool()
+        result = await tool.run({"accession": accession})
+        if "error" in result:
+            return {"error": result["error"]}
 
-    return {
-        "accession": result.get("accession", ""),
-        "full_name": result.get("full_name", ""),
-        "organism": result.get("organism", ""),
-        "gene_names": result.get("gene_names", []),
-        "functions": result.get("functions", []),
-        "keywords": result.get("keywords", []),
-        "subcellular_locations": result.get("subcellular_locations", []),
-        "pdb_ids": result.get("pdb_ids", []),
-        "go_terms": result.get("go_terms", []),
-        "sequence": result.get("sequence", ""),
-        "sequence_length": result.get("sequence_length", 0),
-        "features": [
-            f for f in (result.get("features", []) or [])
-            if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES")
-        ],
-    }
+        return {
+            "accession": result.get("accession", ""),
+            "full_name": result.get("full_name", ""),
+            "organism": result.get("organism", ""),
+            "gene_names": result.get("gene_names", []),
+            "functions": result.get("functions", []),
+            "keywords": result.get("keywords", []),
+            "subcellular_locations": result.get("subcellular_locations", []),
+            "pdb_ids": result.get("pdb_ids", []),
+            "go_terms": result.get("go_terms", []),
+            "sequence": result.get("sequence", ""),
+            "sequence_length": result.get("sequence_length", 0),
+            "features": [
+                f for f in (result.get("features", []) or [])
+                if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES")
+            ],
+        }
+    except Exception as e:
+        logger.warning("UniProt lookup failed for %s: %s", accession, e)
+        return {"error": f"UniProt lookup failed: {e}"}
 
 
 async def _run_msa(query_sequence: str, blast_hits: list) -> dict:

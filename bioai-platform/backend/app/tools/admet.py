@@ -276,11 +276,11 @@ def compute_descriptors(smiles: str) -> dict:
     # CYP inhibition likelihood (structural feature based)
     cyp_panel = {}
     # CYP1A2: aromatic amines, planar molecules
-    cyp_panel["CYP1A2"] = "Inhibitor" if (num_aromatic_rings >= 3 or num_nitro > 0) else "Non-inhibitor"
+    cyp_panel["CYP1A2"] = "Inhibitor" if (n_aromatic_rings >= 3 or num_nitro > 0) else "Non-inhibitor"
     # CYP2C9: acidic molecules, sulfonamides
     cyp_panel["CYP2C9"] = "Inhibitor" if (num_carboxylic > 0 or num_sulfonamide > 0) else "Non-inhibitor"
     # CYP2C19: aromatic, basic
-    cyp_panel["CYP2C19"] = "Inhibitor" if (logp > 2 and num_aromatic_rings >= 2) else "Non-inhibitor"
+    cyp_panel["CYP2C19"] = "Inhibitor" if (logp > 2 and n_aromatic_rings >= 2) else "Non-inhibitor"
     # CYP2D6: basic nitrogen
     cyp_panel["CYP2D6"] = "Inhibitor" if (num_nh > 1 or num_amine > 0) else "Non-inhibitor"
     # CYP3A4: large lipophilic molecules

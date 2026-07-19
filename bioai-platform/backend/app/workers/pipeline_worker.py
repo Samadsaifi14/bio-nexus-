@@ -53,6 +53,26 @@ async def _fetch_job(table: str, job_id: str) -> dict | None:
     return rows[0] if rows else None
 
 
+async def _heartbeat(table: str, job_id: str, stop_event: asyncio.Event) -> None:
+    """Periodically touch claimed_at so the sweep doesn't reclaim us."""
+    try:
+        while not stop_event.is_set():
+            await asyncio.sleep(120)
+            if stop_event.is_set():
+                break
+            now = datetime.datetime.utcnow().isoformat()
+            url = f"{_supabase_url}/rest/v1/{table}?id=eq.{job_id}"
+            try:
+                await _get_client().patch(
+                    url, headers=_HEADERS,
+                    json={"claimed_at": now},
+                )
+            except Exception:
+                pass
+    except asyncio.CancelledError:
+        pass
+
+
 async def process_job(job_id: str) -> None:
     """Mark a pipeline job as running, execute steps, PATCH results."""
 
@@ -62,6 +82,9 @@ async def process_job(job_id: str) -> None:
     except Exception:
         logger.exception("Failed to mark job %s as running", job_id)
         return
+
+    stop_event = asyncio.Event()
+    hb_task = asyncio.create_task(_heartbeat("jobs", job_id, stop_event))
 
     try:
         job = await _fetch_job("jobs", job_id)
@@ -117,6 +140,13 @@ async def process_job(job_id: str) -> None:
             )
         except Exception:
             logger.exception("Also failed to PATCH failure for job %s", job_id)
+    finally:
+        stop_event.set()
+        hb_task.cancel()
+        try:
+            await hb_task
+        except asyncio.CancelledError:
+            pass
 
 
 def dispatch_job(job_id: str) -> None:

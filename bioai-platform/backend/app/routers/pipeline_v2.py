@@ -184,14 +184,20 @@ async def _execute(job_id: str, sequence: str, steps: list[str]):
 
             elif step == "uniprot":
                 blast_data = context.get("blast", {})
+                hits = (blast_data.get("hits") if isinstance(blast_data, dict) else []) or []
                 top_hit = blast_data.get("top_hit") if isinstance(blast_data, dict) else None
-                if top_hit:
-                    result = await _run_uniprot(top_hit)
+                candidates = ([top_hit] + hits[:5]) if top_hit else hits[:5]
+                result = None
+                for candidate in candidates:
+                    result = await _run_uniprot(candidate)
+                    if "error" not in result:
+                        break
+                if result:
                     s = "complete" if "error" not in result else "failed"
                     _set_step_status(job_id, step, s, progress=100, data=result)
                     context["uniprot"] = result
                 else:
-                    _set_step_status(job_id, step, "failed", error="No BLAST top hit available")
+                    _set_step_status(job_id, step, "failed", error="No BLAST hits for UniProt lookup")
 
             elif step == "msa":
                 blast_data = context.get("blast", {})

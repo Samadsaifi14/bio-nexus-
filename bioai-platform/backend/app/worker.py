@@ -26,7 +26,7 @@ logger = logging.getLogger(__name__)
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
 POLL_INTERVAL = 3  # seconds
-STUCK_JOB_TIMEOUT_MIN = 10
+STUCK_JOB_TIMEOUT_MIN = 30
 SWEEP_EVERY = 20  # sweep every N poll ticks (~60s)
 
 # Per-type concurrency caps

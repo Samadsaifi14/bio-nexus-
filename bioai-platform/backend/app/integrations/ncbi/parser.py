@@ -5,11 +5,36 @@ Raw XML is always stored to R2 first; parsing happens from
 the stored copy, never inline with the API request.
 """
 
+import re
 import xml.etree.ElementTree as ET
 from typing import List, Optional
 
 
+def _strip_ncbi_preamble(raw_xml: str) -> str:
+    """
+    NCBI's URL API prepends a non-XML info block (and sometimes blank
+    lines / whitespace) before the real <?xml ...?> declaration, e.g.:
+
+        <!--QBlastInfoBegin
+            Status=READY
+        QBlastInfoEnd
+        -->
+
+        <?xml version="1.0"?>
+        <BlastOutput>...
+
+    The XML declaration must be the first thing in the document, so we
+    trim everything before the first '<?xml' or, failing that, the
+    first '<BlastOutput' tag.
+    """
+    match = re.search(r"<\?xml|<BlastOutput", raw_xml)
+    if match:
+        return raw_xml[match.start():]
+    return raw_xml
+
+
 def parse_blast_xml(raw_xml: str) -> dict:
+    raw_xml = _strip_ncbi_preamble(raw_xml)
     try:
         root = ET.fromstring(raw_xml)
     except ET.ParseError as e:

@@ -293,7 +293,7 @@ async def _run_blast(sequence: str) -> dict:
 
     parsed = parse_blast_xml(results["raw"])
     if "error" in parsed:
-        return {"error": parsed["error"], "count": 0, "hits": []}
+        raise RuntimeError(f"BLAST XML parse failed: {parsed['error']}")
 
     hits = parsed.get("hits", [])
     top_hit = hits[0] if hits else None

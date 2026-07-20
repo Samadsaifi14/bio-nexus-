@@ -43,11 +43,14 @@ async def get_job(job_id: str, user_id: str | None = Depends(get_user_id)):
     if user_id and job.get("user_id") and job["user_id"] != user_id:
         raise HTTPException(status_code=403, detail="Access denied")
 
-    # Hydrate from Storage if result was offloaded
-    if job.get("storage_url") and not job.get("results"):
+    # Hydrate from Storage if result was offloaded.
+    # context_json starts as {"sequence": ...} at creation; once the pipeline
+    # finishes, storage_url points to the full assembled context (blast, uniprot, …).
+    if job.get("storage_url") and not job.get("context_json", {}).get("blast"):
         from app.services.artifact_storage import download_json
         results = download_json(job["storage_url"])
         if results:
+            job["context_json"] = results
             job["results"] = results
 
     return job

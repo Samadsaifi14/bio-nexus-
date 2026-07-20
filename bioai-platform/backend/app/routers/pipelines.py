@@ -23,7 +23,7 @@ class PipelineRunRequest(BaseModel):
 
 
 @router.post("/run", response_model=PipelineRunResponse, dependencies=[Depends(check_daily_limit_pipelines)])
-@limiter.limit("3/minute")
+@limiter.limit("10/minute")
 async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str | None = Depends(get_user_id)):
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:

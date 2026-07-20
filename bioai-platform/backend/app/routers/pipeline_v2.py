@@ -570,15 +570,22 @@ async def _run_interpret(context: dict) -> dict:
     prompt = llm_client.build_prompt("protein_analysis", prompt_context)
 
     try:
-        response = await acompletion(
-            model=llm_client.model,
-            messages=[{"role": "user", "content": prompt}],
-            temperature=0.3,
-            max_tokens=2000,
-            timeout=25,
-            api_key=llm_client.api_key,
+        response = await asyncio.wait_for(
+            acompletion(
+                model=llm_client.model,
+                messages=[{"role": "user", "content": prompt}],
+                temperature=0.3,
+                max_tokens=2000,
+                timeout=25,
+                api_key=llm_client.api_key,
+            ),
+            timeout=30,
         )
         text = response.choices[0].message.content if response.choices else ""
         return {"interpretation": text}
+    except asyncio.TimeoutError:
+        logger.warning("GROQ interpret step timed out (restricted API key?)")
+        return {"interpretation": "AI interpretation unavailable: LLM request timed out"}
     except Exception as e:
-        return {"interpretation": f"AI interpretation failed: {e}"}
+        logger.warning("GROQ interpret step failed: %s", e)
+        return {"interpretation": f"AI interpretation unavailable: {e}"}

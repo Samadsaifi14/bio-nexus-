@@ -58,9 +58,16 @@ def run_audit(session_id: str, triggered_by: str | None = None) -> None:
             max_tokens=1000,
             temperature=0.1,
             api_key=settings.GROQ_API_KEY,
+            timeout=15,
         )
 
         raw = response.choices[0].message.content.strip()
+
+        # Strip markdown code fences if present
+        if raw.startswith("```"):
+            raw = raw.split("\n", 1)[-1] if "\n" in raw else raw[3:]
+            raw = raw.rsplit("```", 1)[0].strip()
+
         insight_data = json.loads(raw)
 
         sb.table("audit_insights").insert({
@@ -74,5 +81,7 @@ def run_audit(session_id: str, triggered_by: str | None = None) -> None:
         }).execute()
 
         logger.info(f"Audit insight stored for session {session_id[:8]}...")
+    except json.JSONDecodeError:
+        logger.warning(f"Audit engine failed for session {session_id[:8]}...: LLM returned malformed JSON (key restricted?)")
     except Exception as e:
         logger.warning(f"Audit engine failed for session {session_id[:8]}...: {e}")

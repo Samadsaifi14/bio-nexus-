@@ -51,7 +51,8 @@ def _get_client() -> httpx.AsyncClient:
 
 async def _patch(table: str, job_id: str, payload: dict) -> None:
     url = f"{_supabase_url}/rest/v1/{table}?id=eq.{job_id}"
-    await _get_client().patch(url, headers=_HEADERS, json=payload)
+    resp = await _get_client().patch(url, headers=_HEADERS, json=payload)
+    resp.raise_for_status()
 
 
 async def _fetch_job(table: str, job_id: str) -> dict | None:
@@ -77,8 +78,8 @@ async def _heartbeat(table: str, job_id: str, stop_event: asyncio.Event) -> None
                     url, headers=_HEADERS,
                     json={"claimed_at": now},
                 )
-            except Exception:
-                pass
+            except Exception as exc:
+                logger.warning("Heartbeat PATCH failed for %s: %s", job_id, exc)
     except asyncio.CancelledError:
         pass
 
@@ -134,7 +135,7 @@ async def process_job(job_id: str) -> None:
             {
                 "status": "complete",
                 "storage_url": storage_url,
-                "results": None,
+                "result": None,
                 "completed_at": done_at,
             },
         )

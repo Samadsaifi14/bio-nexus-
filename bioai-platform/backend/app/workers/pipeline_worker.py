@@ -28,14 +28,24 @@ _HEADERS = {
     "Prefer": "return=minimal",
 }
 
-# Reusable async client (created lazily)
+# Reusable async client, rebound on loop change.
+# httpx.AsyncClient binds to the current event loop on creation; if the loop
+# is closed and a new one created (worker.py creates a fresh loop per job),
+# the stale client raises RuntimeError: Event loop is closed.
 _client: httpx.AsyncClient | None = None
+_client_loop_id: int | None = None
 
 
 def _get_client() -> httpx.AsyncClient:
-    global _client
-    if _client is None or _client.is_closed:
+    global _client, _client_loop_id
+    try:
+        current_loop = asyncio.get_running_loop()
+    except RuntimeError:
+        current_loop = None
+    current_id = id(current_loop)
+    if _client is None or _client.is_closed or _client_loop_id != current_id:
         _client = httpx.AsyncClient(timeout=30)
+        _client_loop_id = current_id
     return _client
 
 

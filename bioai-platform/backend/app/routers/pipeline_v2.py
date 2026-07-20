@@ -142,7 +142,15 @@ async def run_pipeline(
     if job and job.get("status") == "failed":
         raise RuntimeError(job.get("error", "Pipeline failed"))
 
-    context: dict = {"sequence": sequence, "length": len(sequence)}
+    context: dict = {
+        "sequence": sequence,
+        "length": len(sequence),
+        "query": {
+            "sequence": sequence,
+            "length": len(sequence),
+            "sequence_type": "protein",
+        },
+    }
     if job:
         for step_name, step_info in job.get("steps", {}).items():
             if step_info.get("data"):

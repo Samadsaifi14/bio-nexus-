@@ -49,6 +49,9 @@ export function ScoreBars({ hits }: ScoreBarsProps) {
                   style={{ width: `${pct}%`, backgroundColor: barColor }}
                 />
               </div>
+              <span className="w-16 text-right text-xs text-text-muted font-mono shrink-0">
+                {hit.bit_score?.toFixed(1)}
+              </span>
               <span className="w-20 text-right text-xs text-text-muted font-mono shrink-0">
                 {formatEvalue(hit.evalue, hit.evalue_raw)}
               </span>

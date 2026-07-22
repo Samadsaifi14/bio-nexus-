@@ -110,6 +110,7 @@ async def run_pipeline(
     sequence: str,
     organism: str = "Homo sapiens",
     analysis_type: str = "comprehensive",
+    status_callback=None,
 ) -> dict:
     """Public async entry point for the pipeline (used by pipeline_worker).
 
@@ -133,7 +134,7 @@ async def run_pipeline(
         }
 
     try:
-        await _execute(job_id, sequence, requested)
+        await _execute(job_id, sequence, requested, status_callback=status_callback)
     finally:
         job = _get_job(job_id)
         with _jobs_lock:
@@ -175,18 +176,35 @@ def _run_pipeline(job_id: str, sequence: str, steps: list[str]):
         asyncio.set_event_loop(None)
 
 
-async def _execute(job_id: str, sequence: str, steps: list[str]):
+async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None):
     context: dict = {"sequence": sequence, "length": len(sequence)}
+
+    # Map pipeline steps to frontend status labels
+    _STEP_FRONTEND = {
+        "blast": "running",
+        "uniprot": "fetching_uniprot",
+        "msa": "running_msa",
+        "phylo": "running_msa",
+        "domains": "fetching_uniprot",
+        "pathway_enrichment": "pathway_enrichment",
+        "alphafold": "fetching_alphafold",
+        "interpret": "interpreting",
+    }
 
     for step in STEP_ORDER:
         if step not in steps:
             continue
 
         _set_step_status(job_id, step, "running", progress=10)
+        if status_callback:
+            try:
+                await status_callback(_STEP_FRONTEND.get(step, "running"))
+            except Exception:
+                pass
 
         try:
             if step == "blast":
-                result = await _run_blast(sequence)
+                result = await _run_blast(sequence, status_callback=status_callback)
                 _set_step_status(job_id, step, "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
                 context["blast"] = result
 
@@ -276,13 +294,25 @@ async def _execute(job_id: str, sequence: str, steps: list[str]):
 # Step implementations
 # ---------------------------------------------------------------------------
 
-async def _run_blast(sequence: str) -> dict:
+async def _run_blast(sequence: str, status_callback=None) -> dict:
+    if status_callback:
+        try:
+            await status_callback("submitted_to_ncbi")
+        except Exception:
+            pass
+
     submit_result = await ncbi_blast.submit_blast(sequence)
     if "error" in submit_result:
         return {"error": submit_result["error"], "count": 0, "hits": []}
 
     rid = submit_result["rid"]
     poll_interval = min(submit_result.get("estimated_seconds", 60) / 2, 15)
+
+    if status_callback:
+        try:
+            await status_callback("polling_ncbi")
+        except Exception:
+            pass
 
     for _ in range(40):
         await asyncio.sleep(poll_interval)
@@ -294,6 +324,12 @@ async def _run_blast(sequence: str) -> dict:
             return {"error": f"NCBI BLAST failed: {s}", "count": 0, "hits": []}
     else:
         return {"error": "NCBI BLAST timed out", "count": 0, "hits": []}
+
+    if status_callback:
+        try:
+            await status_callback("parsing")
+        except Exception:
+            pass
 
     results = await ncbi_blast.fetch_results(rid)
     if "error" in results:

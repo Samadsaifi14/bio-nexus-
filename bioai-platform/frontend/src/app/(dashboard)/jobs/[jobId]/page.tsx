@@ -22,7 +22,7 @@ import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
 
 const STATUS_ORDER: JobStepStatus[] = [
-  'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
+  'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
 ];
 const POLL_TIMEOUT_MS = 10 * 60 * 1000;
 
@@ -113,7 +113,7 @@ export default function JobPage() {
     );
   }
 
-  const isActive = ['queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting', 'pathway_enrichment', 'fetching_alphafold'].includes(job.status);
+  const isActive = ['queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold'].includes(job.status);
   const currentIdx = STATUS_ORDER.indexOf(job.status as JobStepStatus);
 
   if (isActive) {

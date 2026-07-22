@@ -58,15 +58,17 @@ export interface PipelineDefinition {
   default_max_hits: number;
 }
 
-export type JobStepStatus = 'queued' | 'running' | 'submitted_to_ncbi' | 'polling_ncbi' | 'parsing' | 'interpreting' | 'pathway_enrichment' | 'fetching_alphafold' | 'complete' | 'failed';
+export type JobStepStatus = 'queued' | 'running' | 'submitted_to_ncbi' | 'polling_ncbi' | 'parsing' | 'fetching_uniprot' | 'running_msa' | 'interpreting' | 'pathway_enrichment' | 'fetching_alphafold' | 'complete' | 'failed';
 
 export const STEP_LABELS: Record<JobStepStatus, string> = {
   queued: 'Queued',
   running: 'Running BLAST pipeline',
   submitted_to_ncbi: 'Submitted to NCBI BLAST',
   polling_ncbi: 'NCBI is searching — this can take a minute',
-  parsing: 'Reading results',
-  interpreting: 'Writing your explanation',
+  parsing: 'Parsing BLAST results',
+  fetching_uniprot: 'Fetching UniProt annotations',
+  running_msa: 'Running multiple sequence alignment',
+  interpreting: 'Writing AI interpretation',
   pathway_enrichment: 'Running pathway enrichment',
   fetching_alphafold: 'Fetching AlphaFold structure',
   complete: 'Complete',

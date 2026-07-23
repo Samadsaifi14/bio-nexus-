@@ -11,6 +11,8 @@ interface UniprotPanelProps {
 
 export function UniprotPanel({ data }: UniprotPanelProps) {
   if (!data) return null;
+  const isUniprot = /^[OPQ][0-9][A-Z0-9]{3}[0-9]$|^A0A[A-Z0-9]{5,}[0-9]$/.test(data.accession);
+  const isNcbi = /^([NXYP]P_|[NXYP]M_|XM_|XR_|NR_)/.test(data.accession);
   return (
     <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-6">
       <div className="flex items-start justify-between mb-4">
@@ -21,9 +23,16 @@ export function UniprotPanel({ data }: UniprotPanelProps) {
             <span className="text-sm text-text-secondary">{data.organism}</span>
           </div>
         </div>
-        <a href={`https://www.uniprot.org/uniprotkb/${data.accession}`} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-cyan hover:text-accent-cyan/80 transition flex items-center gap-1">
-          UniProt <ExternalLink className="w-3.5 h-3.5" />
-        </a>
+        {isUniprot && (
+          <a href={`https://www.uniprot.org/uniprotkb/${data.accession}`} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-cyan hover:text-accent-cyan/80 transition flex items-center gap-1">
+            UniProt <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
+        {!isUniprot && isNcbi && (
+          <a href={`https://www.ncbi.nlm.nih.gov/protein/${data.accession}`} target="_blank" rel="noopener noreferrer" className="text-sm text-accent-cyan hover:text-accent-cyan/80 transition flex items-center gap-1">
+            NCBI <ExternalLink className="w-3.5 h-3.5" />
+          </a>
+        )}
       </div>
 
       <div className="grid md:grid-cols-2 gap-4">

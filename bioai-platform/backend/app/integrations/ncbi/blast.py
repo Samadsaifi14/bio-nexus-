@@ -28,6 +28,23 @@ def _api_key_param() -> dict:
     return {"api_key": NCBI_API_KEY} if NCBI_API_KEY else {}
 
 
+async def _request_with_retry(method: str, url: str, max_retries: int = 3, **kwargs) -> httpx.Response:
+    """Make an HTTP request with retry on connection errors."""
+    for attempt in range(max_retries):
+        try:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=15.0)) as client:
+                resp = await getattr(client, method)(url, **kwargs)
+                resp.raise_for_status()
+                return resp
+        except (httpx.ReadError, httpx.RemoteProtocolError, httpx.ConnectError) as e:
+            if attempt < max_retries - 1:
+                delay = 2 * (attempt + 1)
+                logger.warning("NCBI request failed (attempt %d/%d): %s — retrying in %ds", attempt + 1, max_retries, e, delay)
+                await asyncio.sleep(delay)
+            else:
+                raise
+
+
 async def submit_blast(
     sequence: str,
     program: str = "blastp",
@@ -55,10 +72,8 @@ async def submit_blast(
     if gapextend > 0:
         params["GAPEXTEND"] = str(gapextend)
 
-    async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.post(NCBI_BLAST_URL, data=params)
-        resp.raise_for_status()
-        text = resp.text
+    resp = await _request_with_retry("post", NCBI_BLAST_URL, data=params)
+    text = resp.text
 
     rid_match = re.search(r"RID\s*=\s*(\S+)", text)
     rtoe_match = re.search(r"RTOE\s*=\s*(\d+)", text)
@@ -74,10 +89,8 @@ async def submit_blast(
 
 async def check_status(rid: str, fmt: str = "XML") -> dict:
     params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
-    async with httpx.AsyncClient(timeout=httpx.Timeout(15.0, connect=10.0)) as client:
-        resp = await client.get(NCBI_BLAST_URL, params=params)
-        resp.raise_for_status()
-        text = resp.text
+    resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params)
+    text = resp.text
 
     if "Status=" in text:
         status_match = re.search(r"Status\s*=\s*(\w+)", text)
@@ -90,10 +103,8 @@ async def check_status(rid: str, fmt: str = "XML") -> dict:
 
 async def fetch_results(rid: str, fmt: str = "XML") -> dict:
     params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
-    async with httpx.AsyncClient(timeout=60) as client:
-        resp = await client.get(NCBI_BLAST_URL, params=params)
-        resp.raise_for_status()
-        text = resp.text
+    resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params)
+    text = resp.text
 
     if "Status=" in text and "Status=READY" not in text:
         return {"error": "Results not ready", "raw": text[:200]}

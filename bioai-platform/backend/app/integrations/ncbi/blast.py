@@ -18,9 +18,9 @@ logger = logging.getLogger(__name__)
 NCBI_BLAST_URL = "https://blast.ncbi.nlm.nih.gov/blast/Blast.cgi"
 RATE_LIMIT_SECONDS = 10
 
-# NCBI API key — free tier gives 3 req/s instead of 1 req/10s.
-# Set NCBI_API_KEY env var in .env or HF Spaces secrets.
-NCBI_API_KEY = os.environ.get("NCBI_API_KEY", "")
+from app.config import settings
+
+NCBI_API_KEY = settings.NCBI_API_KEY
 
 
 def _api_key_param() -> dict:

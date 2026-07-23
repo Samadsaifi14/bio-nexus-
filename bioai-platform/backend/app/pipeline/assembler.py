@@ -73,7 +73,11 @@ class ContextAssembler:
             "pdb_ids": uniprot_result.get("pdb_ids", []),
             "features": [
                 f for f in (uniprot_result.get("features", []) or [])
-                if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS")
+                if f.get("type") in (
+                    "ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES",
+                    "DOMAIN", "HELIX", "STRAND", "TURN", "TRANSMEM",
+                    "SIGNAL", "PROPEPTID", "CHAIN", "REGION",
+                )
             ],
             "go_terms": uniprot_result.get("go_terms", []),
             "sequence_length": uniprot_result.get("sequence_length", 0),

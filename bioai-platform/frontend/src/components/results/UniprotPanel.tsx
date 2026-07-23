@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink } from 'lucide-react';
+import { ExternalLink, Box } from 'lucide-react';
 import type { UniprotSummary } from '@/types/pipeline';
 import { fadeUp, cardHover } from '@/lib/animations';
 
@@ -51,6 +51,23 @@ export function UniprotPanel({ data }: UniprotPanelProps) {
         </div>
       </div>
 
+      {data.pdb_ids?.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-glass-border">
+          <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2 flex items-center gap-1.5">
+            <Box className="w-3.5 h-3.5" /> PDB Structures ({data.pdb_ids.length})
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {data.pdb_ids.slice(0, 12).map(pdb => (
+              <a key={pdb} href={`https://www.rcsb.org/structure/${pdb}`} target="_blank" rel="noopener noreferrer"
+                className="text-xs font-mono bg-accent-cyan/10 text-accent-cyan px-2 py-1 rounded hover:bg-accent-cyan/20 transition flex items-center gap-1">
+                {pdb} <ExternalLink className="w-3 h-3" />
+              </a>
+            ))}
+            {data.pdb_ids.length > 12 && <span className="text-xs text-text-muted px-2 py-1">+{data.pdb_ids.length - 12} more</span>}
+          </div>
+        </div>
+      )}
+
       {data.functions?.length > 0 && (
         <div className="mt-4 pt-4 border-t border-glass-border">
           <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Function</h4>
@@ -68,6 +85,18 @@ export function UniprotPanel({ data }: UniprotPanelProps) {
                 {(f.begin || f.end) && <span className="text-text-muted"> ({f.begin}–{f.end})</span>}
               </div>
             ))}
+          </div>
+        </div>
+      )}
+
+      {data.go_terms?.length > 0 && (
+        <div className="mt-4 pt-4 border-t border-glass-border">
+          <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">GO Terms</h4>
+          <div className="flex flex-wrap gap-1.5">
+            {data.go_terms.slice(0, 15).map((go, i) => (
+              <span key={i} className="text-xs bg-surface-1 text-text-muted px-2 py-0.5 rounded font-mono">{go}</span>
+            ))}
+            {data.go_terms.length > 15 && <span className="text-xs text-text-muted">+{data.go_terms.length - 15} more</span>}
           </div>
         </div>
       )}

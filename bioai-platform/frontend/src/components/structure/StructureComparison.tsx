@@ -17,13 +17,35 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
   const auditedRef = useRef(false);
 
   useEffect(() => {
+    if (!pdbId) return;
     auditedRef.current = false;
-    fetch(`/api/backend/api/structure_analysis/compare/${pdbId}?chain=${chain}`)
+    setLoading(true);
+    setError(null);
+    setMatches([]);
+
+    const controller = new AbortController();
+
+    fetch(`/api/backend/api/structure_analysis/compare/${pdbId}?chain=${chain}`, { signal: controller.signal })
       .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.detail); }))
-      .then(d => { setMatches(d.matches); if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('struct_compare', 'PDBeFold', pdbId, `${d.matches?.length || 0} matches`); } })
-      .catch(e => { setError(e.message); audit.emitFailed('struct_compare', 'PDBeFold', pdbId, e.message); })
-      .finally(() => setLoading(false));
-  }, [pdbId, chain, audit]);
+      .then(d => {
+        if (!controller.signal.aborted) {
+          setMatches(d.matches);
+          if (!auditedRef.current) {
+            auditedRef.current = true;
+            audit.emitSuccess('struct_compare', 'PDBeFold', pdbId, `${d.matches?.length || 0} matches`);
+          }
+        }
+      })
+      .catch(e => {
+        if (!controller.signal.aborted) {
+          setError(e.message);
+          audit.emitFailed('struct_compare', 'PDBeFold', pdbId, e.message);
+        }
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+
+    return () => controller.abort();
+  }, [pdbId, chain]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Searching structural homologs (PDBeFold)&hellip;</div>;
   if (error) return <div className="text-error text-sm">{error}</div>;

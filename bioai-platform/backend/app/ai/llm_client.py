@@ -1,16 +1,29 @@
 import os
+import logging
 from app.config import settings
 from app.ai.prompts import get_prompt
+
+logger = logging.getLogger(__name__)
 
 
 class LLMClient:
     def __init__(self):
         self.api_key = settings.GROQ_API_KEY
+        self.fallback_key = settings.GOOGLE_API_KEY
         self.model = settings.DEFAULT_MODEL
+        self.fallback_model = "gemini/gemini-2.0-flash"
         self.pro_model = settings.PRO_MODEL
 
     def has_api_key(self) -> bool:
-        return bool(self.api_key)
+        return bool(self.api_key) or bool(self.fallback_key)
+
+    def get_providers(self) -> list[dict]:
+        providers = []
+        if self.api_key:
+            providers.append({"model": self.model, "api_key": self.api_key, "name": "groq"})
+        if self.fallback_key:
+            providers.append({"model": self.fallback_model, "api_key": self.fallback_key, "name": "gemini"})
+        return providers
 
     def build_prompt(self, pipeline_type: str, context: dict) -> str:
         template = get_prompt(pipeline_type)

@@ -666,8 +666,9 @@ async def _run_alphafold(context: dict) -> dict | None:
 
 
 async def _run_interpret(context: dict) -> dict:
-    if not llm_client.has_api_key():
-        return {"interpretation": "AI interpretation unavailable: GROQ_API_KEY not configured"}
+    providers = llm_client.get_providers()
+    if not providers:
+        return {"interpretation": "AI interpretation unavailable: no LLM API keys configured"}
 
     prompt_context = {
         "blast": context.get("blast", {}),
@@ -677,24 +678,32 @@ async def _run_interpret(context: dict) -> dict:
     }
 
     prompt = llm_client.build_prompt("protein_analysis", prompt_context)
+    last_error = None
 
-    try:
-        response = await asyncio.wait_for(
-            acompletion(
-                model=llm_client.model,
-                messages=[{"role": "user", "content": prompt}],
-                temperature=0.3,
-                max_tokens=2000,
-                timeout=25,
-                api_key=llm_client.api_key,
-            ),
-            timeout=30,
-        )
-        text = response.choices[0].message.content if response.choices else ""
-        return {"interpretation": text}
-    except asyncio.TimeoutError:
-        logger.warning("GROQ interpret step timed out (restricted API key?)")
-        return {"interpretation": "AI interpretation unavailable: LLM request timed out"}
-    except Exception as e:
-        logger.warning("GROQ interpret step failed: %s", e)
-        return {"interpretation": f"AI interpretation unavailable: {e}"}
+    for provider in providers:
+        try:
+            response = await asyncio.wait_for(
+                acompletion(
+                    model=provider["model"],
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0.3,
+                    max_tokens=2000,
+                    timeout=25,
+                    api_key=provider["api_key"],
+                ),
+                timeout=30,
+            )
+            text = response.choices[0].message.content if response.choices else ""
+            return {"interpretation": text}
+        except asyncio.TimeoutError:
+            logger.warning("LLM provider %s timed out", provider["name"])
+            last_error = "LLM request timed out"
+            continue
+        except Exception as e:
+            logger.warning("LLM provider %s failed: %s", provider["name"], e)
+            last_error = str(e)
+            continue
+
+    if "organization_restricted" in str(last_error) or "Organization has been restricted" in str(last_error):
+        return {"interpretation": "AI interpretation unavailable: provider restriction. Please try again later."}
+    return {"interpretation": f"AI interpretation unavailable: {last_error}"}

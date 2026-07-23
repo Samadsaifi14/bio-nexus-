@@ -15,6 +15,7 @@ _env_supabase_key = _env_file.get("SUPABASE_SERVICE_ROLE_KEY")
 
 class Settings:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
+    GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
     REDIS_URL: str = os.getenv("REDIS_URL", "redis://localhost:6379")
     SUPABASE_URL: str = _env_supabase_url or os.getenv("SUPABASE_URL", "")
     SUPABASE_SERVICE_ROLE_KEY: str = _env_supabase_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")

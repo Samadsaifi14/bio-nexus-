@@ -121,6 +121,18 @@ async def process_job(job_id: str) -> None:
         organism = job.get("organism", "Homo sapiens")
         analysis_type = job.get("analysis_type", "comprehensive")
 
+        # Read fast_mode from context_json (set by pipelines.py)
+        fast_mode = False
+        ctx = job.get("context_json")
+        if isinstance(ctx, str):
+            import json as _json
+            try:
+                ctx = _json.loads(ctx)
+            except Exception:
+                ctx = None
+        if isinstance(ctx, dict):
+            fast_mode = ctx.get("fast_mode", False)
+
         async def _status_cb(new_status: str):
             """Push live pipeline status to Supabase so the frontend polls in real-time."""
             try:
@@ -128,7 +140,7 @@ async def process_job(job_id: str) -> None:
             except Exception:
                 logger.debug("Status callback PATCH failed for %s (%s)", job_id, new_status)
 
-        result = await run_pipeline(query, organism=organism, analysis_type=analysis_type, status_callback=_status_cb)
+        result = await run_pipeline(query, organism=organism, analysis_type=analysis_type, status_callback=_status_cb, fast_mode=fast_mode)
 
         done_at = datetime.datetime.utcnow().isoformat()
 

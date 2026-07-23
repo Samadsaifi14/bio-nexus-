@@ -59,6 +59,7 @@ def _set_job_failed(job_id: str, message: str):
 class PipelineV2RunRequest(BaseModel):
     sequence: str = Field(..., min_length=6, description="Protein sequence (FASTA or raw)")
     steps: list[str] = Field(default_factory=lambda: list(STEP_ORDER), description="Steps to run")
+    fast_mode: bool = Field(default=False, description="Use Swiss-Prot instead of nr for faster results")
 
 
 @router.post("/run", dependencies=[Depends(check_daily_limit_pipelines)])
@@ -92,7 +93,7 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
             "created_at": now,
         }
 
-    t = threading.Thread(target=_run_pipeline, args=(job_id, clean, requested), daemon=True)
+    t = threading.Thread(target=_run_pipeline, args=(job_id, clean, requested), kwargs={"fast_mode": req.fast_mode}, daemon=True)
     t.start()
 
     return {"job_id": job_id}
@@ -111,6 +112,7 @@ async def run_pipeline(
     organism: str = "Homo sapiens",
     analysis_type: str = "comprehensive",
     status_callback=None,
+    fast_mode: bool = False,
 ) -> dict:
     """Public async entry point for the pipeline (used by pipeline_worker).
 
@@ -134,7 +136,7 @@ async def run_pipeline(
         }
 
     try:
-        await _execute(job_id, sequence, requested, status_callback=status_callback)
+        await _execute(job_id, sequence, requested, status_callback=status_callback, fast_mode=fast_mode)
     finally:
         job = _get_job(job_id)
         with _jobs_lock:
@@ -163,11 +165,11 @@ async def run_pipeline(
 # Background pipeline
 # ---------------------------------------------------------------------------
 
-def _run_pipeline(job_id: str, sequence: str, steps: list[str]):
+def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool = False):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(_execute(job_id, sequence, steps))
+        loop.run_until_complete(_execute(job_id, sequence, steps, fast_mode=fast_mode))
     except Exception as e:
         logger.exception(f"[{job_id}] Unhandled pipeline error")
         _set_job_failed(job_id, f"Pipeline error: {e}")
@@ -176,10 +178,9 @@ def _run_pipeline(job_id: str, sequence: str, steps: list[str]):
         asyncio.set_event_loop(None)
 
 
-async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None):
+async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None, fast_mode: bool = False):
     context: dict = {"sequence": sequence, "length": len(sequence)}
 
-    # Map pipeline steps to frontend status labels
     _STEP_FRONTEND = {
         "blast": "running",
         "uniprot": "fetching_uniprot",
@@ -194,114 +195,159 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
     _failed_step = None
     _failed_error = None
 
-    for step in STEP_ORDER:
-        if step not in steps:
-            continue
-
-        _set_step_status(job_id, step, "running", progress=10)
+    async def _notify(step_key: str):
         if status_callback:
             try:
-                await status_callback(_STEP_FRONTEND.get(step, "running"))
+                await status_callback(_STEP_FRONTEND.get(step_key, "running"))
             except Exception:
                 pass
 
-        try:
-            if step == "blast":
-                result = await _run_blast(sequence, status_callback=status_callback)
-                _set_step_status(job_id, step, "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
-                context["blast"] = result
-                if result.get("count", 0) == 0:
-                    _failed_step = step
-                    _failed_error = result.get("error", "No BLAST hits found")
+    def _mark(step_key: str, status: str, **kw):
+        _set_step_status(job_id, step_key, status, **kw)
 
-            elif step == "uniprot":
-                blast_data = context.get("blast", {})
-                hits = (blast_data.get("hits") if isinstance(blast_data, dict) else []) or []
-                top_hit = blast_data.get("top_hit") if isinstance(blast_data, dict) else None
-                candidates = ([top_hit] + hits[:5]) if top_hit else hits[:5]
-                result = None
-                for candidate in candidates:
-                    result = await _run_uniprot(candidate)
-                    if "error" not in result:
-                        break
-                if result:
-                    s = "complete" if "error" not in result else "failed"
-                    _set_step_status(job_id, step, s, progress=100, data=result)
-                    context["uniprot"] = result
-                    if "error" in result:
-                        _failed_step = step
-                        _failed_error = result["error"]
-                else:
-                    _set_step_status(job_id, step, "failed", error="No BLAST hits for UniProt lookup")
-                    _failed_step = step
-                    _failed_error = "No BLAST hits for UniProt lookup"
+    def _fail(step_key: str, msg: str):
+        nonlocal _failed_step, _failed_error
+        _mark(step_key, "failed", error=msg)
+        _failed_step = step_key
+        _failed_error = msg
 
-            elif step == "msa":
-                blast_data = context.get("blast", {})
-                hits = (blast_data.get("hits") if isinstance(blast_data, dict) else []) or []
-                if hits:
-                    result = await _run_msa(sequence, hits)
-                    s = "complete" if result.get("aln_fasta") else "failed"
-                    _set_step_status(job_id, step, s, progress=100, data=result)
-                    context["msa"] = result
-                    if result.get("phylotree"):
-                        context.setdefault("phylo_data", {})["phylotree_newick"] = result["phylotree"]
-                    if not result.get("aln_fasta"):
-                        _failed_step = step
-                        _failed_error = result.get("error", "MSA alignment failed")
-                else:
-                    _set_step_status(job_id, step, "failed", error="No BLAST hits for MSA")
+    # ---- Step 1: BLAST (must run first) ----
+    if "blast" in steps:
+        await _notify("blast")
+        _mark("blast", "running", progress=10)
+        result = await _run_blast(sequence, status_callback=status_callback, fast_mode=fast_mode)
+        _mark("blast", "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
+        context["blast"] = result
+        if result.get("count", 0) == 0:
+            _failed_step = "blast"
+            _failed_error = result.get("error", "No BLAST hits found")
 
-            elif step == "phylo":
-                newick = None
-                msa_data = context.get("msa", {})
-                if isinstance(msa_data, dict):
-                    newick = msa_data.get("phylotree")
-                if not newick:
-                    newick = context.get("phylo_data", {}).get("phylotree_newick")
-                if newick:
-                    _set_step_status(job_id, step, "complete", progress=100, data={"phylotree_newick": newick})
-                    context["phylo"] = {"phylotree_newick": newick}
-                else:
-                    _set_step_status(job_id, step, "failed", error="No phylotree available from MSA")
+    # ---- Step 2: Fan-out — UniProt, MSA, Pathway run in parallel ----
+    #    They all only depend on BLAST results, not on each other.
+    blast_data = context.get("blast", {})
+    hits = (blast_data.get("hits") if isinstance(blast_data, dict) else []) or []
+    top_hit = blast_data.get("top_hit") if isinstance(blast_data, dict) else None
 
-            elif step == "domains":
-                uniprot_data = context.get("uniprot", {})
-                accession = uniprot_data.get("accession") if isinstance(uniprot_data, dict) else None
-                if accession:
-                    result = await _run_domains(accession)
-                    s = "complete" if result.get("domains") is not None else "failed"
-                    _set_step_status(job_id, step, s, progress=100, data=result)
-                    context["domains"] = result
-                else:
-                    _set_step_status(job_id, step, "failed", error="No UniProt accession for domain lookup")
+    async def _do_uniprot():
+        candidates = ([top_hit] + hits[:5]) if top_hit else hits[:5]
+        for candidate in candidates:
+            result = await _run_uniprot(candidate)
+            if "error" not in result:
+                return result
+        return result if result else {"error": "No BLAST hits for UniProt lookup"}
 
-            elif step == "pathway_enrichment":
-                result = await _run_pathway_enrichment(context)
-                s = "complete" if result and result.get("pathways") else "failed"
-                _set_step_status(job_id, step, s, progress=100, data=result or {})
-                context["pathway_enrichment"] = result
+    async def _do_msa():
+        if not hits:
+            return {"error": "No BLAST hits for MSA"}
+        return await _run_msa(sequence, hits)
 
-            elif step == "alphafold":
-                result = await _run_alphafold(context)
-                s = "complete" if result else "failed"
-                _set_step_status(job_id, step, s, progress=100, data=result or {})
-                context["alphafold"] = result
+    async def _do_pathway():
+        return await _run_pathway_enrichment(context)
 
-            elif step == "interpret":
-                result = await _run_interpret(context)
-                s = "complete" if result.get("interpretation") else "failed"
-                _set_step_status(job_id, step, s, progress=100, data=result)
-                context["interpret"] = result
+    fan_out = []
+    fan_names = []
+    if "uniprot" in steps and not _failed_step:
+        fan_out.append(_do_uniprot())
+        fan_names.append("uniprot")
+    if "msa" in steps and not _failed_step:
+        fan_out.append(_do_msa())
+        fan_names.append("msa")
+    if "pathway_enrichment" in steps and not _failed_step:
+        fan_out.append(_do_pathway())
+        fan_names.append("pathway_enrichment")
 
-        except Exception as step_exc:
-            logger.warning("[%s] Step %s failed: %s", job_id, step, step_exc)
-            _set_step_status(job_id, step, "failed", error=str(step_exc)[:500])
-            _failed_step = step
-            _failed_error = str(step_exc)[:500]
+    if fan_out:
+        # Notify for the first active step in the fan-out
+        await _notify(fan_names[0])
+        for name in fan_names:
+            _mark(name, "running", progress=10)
 
-    # If a critical step failed (blast or uniprot), mark job as failed
-    # so the frontend shows the error instead of incomplete results
+        results = await asyncio.gather(*fan_out, return_exceptions=True)
+
+        for name, res in zip(fan_names, results):
+            if isinstance(res, Exception):
+                _fail(name, str(res)[:500])
+                continue
+
+            if name == "uniprot":
+                s = "complete" if "error" not in res else "failed"
+                _mark("uniprot", s, progress=100, data=res)
+                context["uniprot"] = res
+                if "error" in res:
+                    _failed_step = "uniprot"
+                    _failed_error = res["error"]
+
+            elif name == "msa":
+                s = "complete" if res.get("aln_fasta") else "failed"
+                _mark("msa", s, progress=100, data=res)
+                context["msa"] = res
+                if res.get("phylotree"):
+                    context.setdefault("phylo_data", {})["phylotree_newick"] = res["phylotree"]
+
+            elif name == "pathway_enrichment":
+                s = "complete" if res and res.get("pathways") else "failed"
+                _mark("pathway_enrichment", s, progress=100, data=res or {})
+                context["pathway_enrichment"] = res
+
+    # ---- Step 3: Phylo (instant — copies from MSA) ----
+    if "phylo" in steps and not _failed_step:
+        _mark("phylo", "running", progress=10)
+        newick = None
+        msa_data = context.get("msa", {})
+        if isinstance(msa_data, dict):
+            newick = msa_data.get("phylotree")
+        if not newick:
+            newick = context.get("phylo_data", {}).get("phylotree_newick")
+        if newick:
+            _mark("phylo", "complete", progress=100, data={"phylotree_newick": newick})
+            context["phylo"] = {"phylotree_newick": newick}
+        else:
+            _mark("phylo", "failed", error="No phylotree available from MSA")
+
+    # ---- Step 4: Domains + AlphaFold in parallel (both need UniProt accession) ----
+    uniprot_data = context.get("uniprot", {})
+    accession = uniprot_data.get("accession") if isinstance(uniprot_data, dict) else None
+
+    post_uniprot = []
+    post_uniprot_names = []
+    if "domains" in steps and accession and not _failed_step:
+        post_uniprot.append(_run_domains(accession))
+        post_uniprot_names.append("domains")
+    if "alphafold" in steps and accession and not _failed_step:
+        post_uniprot.append(_run_alphafold(context))
+        post_uniprot_names.append("alphafold")
+
+    if post_uniprot:
+        await _notify(post_uniprot_names[0])
+        for name in post_uniprot_names:
+            _mark(name, "running", progress=10)
+
+        results2 = await asyncio.gather(*post_uniprot, return_exceptions=True)
+
+        for name, res in zip(post_uniprot_names, results2):
+            if isinstance(res, Exception):
+                _fail(name, str(res)[:500])
+                continue
+
+            if name == "domains":
+                s = "complete" if res.get("domains") is not None else "failed"
+                _mark("domains", s, progress=100, data=res)
+                context["domains"] = res
+            elif name == "alphafold":
+                s = "complete" if res else "failed"
+                _mark("alphafold", s, progress=100, data=res or {})
+                context["alphafold"] = res
+
+    # ---- Step 5: Interpret (needs all context) ----
+    if "interpret" in steps and not _failed_step:
+        await _notify("interpret")
+        _mark("interpret", "running", progress=10)
+        result = await _run_interpret(context)
+        s = "complete" if result.get("interpretation") else "failed"
+        _mark("interpret", s, progress=100, data=result)
+        context["interpret"] = result
+
+    # ---- Final status ----
     if _failed_step and _failed_step in ("blast", "uniprot"):
         with _jobs_lock:
             if job_id in _jobs:
@@ -318,7 +364,9 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
 # Step implementations
 # ---------------------------------------------------------------------------
 
-async def _run_blast(sequence: str, status_callback=None) -> dict:
+async def _run_blast(sequence: str, status_callback=None, fast_mode: bool = False) -> dict:
+    database = "swissprot" if fast_mode else "nr"
+
     if status_callback:
         try:
             await status_callback("submitted_to_ncbi")
@@ -328,7 +376,8 @@ async def _run_blast(sequence: str, status_callback=None) -> dict:
     results = await ncbi_blast.run_blast_with_retry(
         sequence,
         retries=1,
-        max_wait_seconds=300,
+        max_wait_seconds=180 if fast_mode else 300,
+        database=database,
     )
 
     if "error" in results:
@@ -351,7 +400,7 @@ async def _run_blast(sequence: str, status_callback=None) -> dict:
     return {
         "count": len(hits),
         "source": "ncbi",
-        "database": "nr",
+        "database": database,
         "query_length": query_length,
         "top_hit": {
             "accession": top_hit["accession"],

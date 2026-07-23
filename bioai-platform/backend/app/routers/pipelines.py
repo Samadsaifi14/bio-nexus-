@@ -20,6 +20,7 @@ class PipelineRunRequest(BaseModel):
     database: str = "nr"
     max_hits: int = 10
     query_accession: str = ""
+    fast_mode: bool = False
 
 
 @router.post("/run", response_model=PipelineRunResponse, dependencies=[Depends(check_daily_limit_pipelines)])
@@ -43,7 +44,7 @@ async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str |
         "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],
-        "context_json": {"sequence": clean},
+        "context_json": {"sequence": clean, "fast_mode": req.fast_mode},
         "progress_pct": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None,

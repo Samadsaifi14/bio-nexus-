@@ -59,6 +59,7 @@ export default function BlastWizardPage() {
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedDb, setAdvancedDb] = useState('nr');
   const [advancedProgram, setAdvancedProgram] = useState('');
+  const [fastMode, setFastMode] = useState(false);
 
   useEffect(() => {
     if (inputMode === 'paste') {
@@ -141,7 +142,7 @@ export default function BlastWizardPage() {
     audit.emitStarted('blast_search', 'BLAST', inputSummary);
     setSubmitting(true);
     try {
-      const result = await runPipeline(seq, 'blast', advancedDb || 'nr', 100, queryAccession);
+      const result = await runPipeline(seq, 'blast', fastMode ? 'swissprot' : (advancedDb || 'nr'), 100, queryAccession, fastMode);
       audit.emitSuccess('blast_search', 'BLAST', inputSummary, `job_id:${result.job_id}`);
       router.push(`/jobs/${result.job_id}`);
     } catch (err: unknown) {
@@ -282,6 +283,19 @@ export default function BlastWizardPage() {
             </motion.div>
           )}
 
+          <div className="glass p-4 flex items-center justify-between border border-accent-cyan/20">
+            <div>
+              <p className="text-sm font-medium text-text-primary">Fast mode</p>
+              <p className="text-xs text-text-muted">Search Swiss-Prot (~560K sequences) instead of nr (~300M). Much faster, slightly fewer hits.</p>
+            </div>
+            <button
+              onClick={() => setFastMode(!fastMode)}
+              className={`relative w-11 h-6 rounded-full transition-colors ${fastMode ? 'bg-accent-cyan' : 'bg-surface-2'}`}
+            >
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${fastMode ? 'translate-x-5' : ''}`} />
+            </button>
+          </div>
+
           <div className="border-t border-glass-border pt-4">
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
@@ -367,7 +381,8 @@ export default function BlastWizardPage() {
                 <p className="text-sm text-text-secondary">
                   We'll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
                   <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
-                  {detectedType} sequence against the <strong>{advancedDb || dbLabel}</strong> database.
+                  {detectedType} sequence against the <strong>{fastMode ? 'Swiss-Prot (fast)' : (advancedDb || dbLabel)}</strong> database.
+                  {fastMode && <span className="text-accent-cyan ml-1">~5-10s expected</span>}
                 </p>
               </div>
             </div>

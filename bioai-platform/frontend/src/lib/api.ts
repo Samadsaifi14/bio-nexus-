@@ -26,6 +26,7 @@ export async function runPipeline(
   database: string = 'uniprotkb_swissprot',
   maxHits: number = 10,
   queryAccession?: string,
+  fastMode: boolean = false,
 ): Promise<{ job_id: string; status: string }> {
   const res = await api.post('/api/pipelines/run', {
     sequence,
@@ -33,6 +34,7 @@ export async function runPipeline(
     database,
     max_hits: maxHits,
     query_accession: queryAccession ?? '',
+    fast_mode: fastMode,
   });
   return res.data;
 }

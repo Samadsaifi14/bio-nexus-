@@ -45,7 +45,7 @@ def _detect_sequence_type(seq: str) -> str:
 class NCBIService:
     @ttl_cache(ttl=86400, prefix="ncbi_seq")
     async def fetch_by_accession(self, accession: str) -> dict:
-        accession = accession.strip()
+        accession = accession.strip().upper()
         db = _detect_db(accession)
         try:
             handle = Entrez.efetch(db=db, id=accession, rettype="fasta", retmode="text")

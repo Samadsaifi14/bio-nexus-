@@ -27,7 +27,7 @@ class ValidateRequest(BaseModel):
 
 @router.post("/fetch")
 async def fetch_sequence(req: FetchRequest):
-    accession = req.accession.strip()
+    accession = req.accession.strip().upper()
     db_pref = req.db_preference or detect_source_from_accession(accession)
     if db_pref == "uniprot":
         result = await uniprot_tool.run({"accession": accession})

@@ -10,7 +10,7 @@ class UniprotTool(BaseTool):
 
     @ttl_cache(ttl=86400, prefix="uniprot")
     async def run(self, input: dict) -> dict:
-        accession = input.get("accession", "").strip()
+        accession = input.get("accession", "").strip().upper()
         if not accession:
             return {"error": "No accession provided"}
 

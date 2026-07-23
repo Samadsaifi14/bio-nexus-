@@ -2,9 +2,13 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 from app.services.ncbi_service import NCBIService
-from app.services.sequence_utils import validate_sequence, detect_source_from_accession
+from app.services.sequence_utils import validate_sequence, detect_source_from_accession, detect_sequence_type
 from app.tools.uniprot import UniprotTool
+import httpx
+import re
+import logging
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 ncbi_service = NCBIService()
 uniprot_tool = UniprotTool()
@@ -33,7 +37,6 @@ async def fetch_sequence(req: FetchRequest):
         result = await uniprot_tool.run({"accession": accession})
         if "error" not in result:
             seq = result.get("sequence", "")
-            from app.services.sequence_utils import detect_sequence_type
             return {
                 "accession": result["accession"],
                 "db_source": "uniprot",
@@ -52,6 +55,36 @@ async def fetch_sequence(req: FetchRequest):
             }
         if db_pref == "uniprot" and "error" in result:
             pass
+    if db_pref == "pdb":
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                r = await client.get(f"https://www.rcsb.org/fasta/entry/{accession}")
+                if r.status_code == 200 and r.text.strip().startswith(">"):
+                    lines = r.text.strip().splitlines()
+                    header = lines[0]
+                    seq = "".join(line.strip() for line in lines[1:] if not line.startswith(">"))
+                    desc_match = re.search(r'\|[^|]*\|\s*(.*)', header)
+                    description = desc_match.group(1).strip() if desc_match else header[1:].strip()
+                    organism_match = re.search(r'OS=([^=]+?)(?:\s+OX=|$)', header)
+                    organism = organism_match.group(1).strip() if organism_match else ""
+                    return {
+                        "accession": accession,
+                        "db_source": "pdb",
+                        "sequence_type": detect_sequence_type(seq) if seq else "protein",
+                        "sequence": seq,
+                        "length": len(seq),
+                        "organism": organism,
+                        "description": description,
+                        "gene_names": [],
+                        "functions": [],
+                        "keywords": [],
+                        "go_terms": [],
+                        "features": [],
+                        "pdb_ids": [accession],
+                        "from_cache": False,
+                    }
+        except Exception as e:
+            logger.warning("RCSB FASTA fetch failed for %s: %s", accession, e)
     result = await ncbi_service.fetch_by_accession(accession)
     if "error" in result:
         raise HTTPException(status_code=404, detail=result["error"])

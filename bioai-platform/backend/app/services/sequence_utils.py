@@ -54,6 +54,8 @@ def detect_source_from_accession(accession: str) -> str:
         return "uniprot"
     if re.match(r"^A0A[A-Z0-9]{5,}[0-9]$", acc):
         return "uniprot"
+    if re.fullmatch(r'[A-Za-z0-9]{4}', acc):
+        return "pdb"
     return "ncbi"
 
 

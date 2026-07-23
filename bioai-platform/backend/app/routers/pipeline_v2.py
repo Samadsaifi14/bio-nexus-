@@ -450,8 +450,46 @@ async def _run_uniprot(top_hit: dict) -> dict:
             if mapped:
                 accession = mapped
             else:
-                # Could not map to UniProt — return partial data from BLAST hit
-                # instead of failing the entire pipeline
+                # Could not map to UniProt — try searching by protein name
+                desc = top_hit.get("description", "")
+                gene_name = desc.split(",")[0].split("[" )[0].strip() if desc else ""
+                if gene_name:
+                    logger.info("NCBI mapping failed for %s, searching UniProt by name: %s", accession, gene_name)
+                    try:
+                        async with httpx.AsyncClient(timeout=10) as client:
+                            r = await client.get(
+                                "https://rest.uniprot.org/uniprotkb/search",
+                                params={"query": f"gene:{gene_name} AND reviewed:true", "format": "json", "size": 1},
+                            )
+                            if r.status_code == 200:
+                                data = r.json()
+                                results = data.get("results", [])
+                                if results:
+                                    hit = results[0]
+                                    tool = UniprotTool()
+                                    result = await tool.run({"accession": hit["primaryAccession"]})
+                                    if "error" not in result:
+                                        return {
+                                            "accession": result.get("accession", ""),
+                                            "full_name": result.get("full_name", ""),
+                                            "organism": result.get("organism", ""),
+                                            "gene_names": result.get("gene_names", []),
+                                            "functions": result.get("functions", []),
+                                            "keywords": result.get("keywords", []),
+                                            "subcellular_locations": result.get("subcellular_locations", []),
+                                            "pdb_ids": result.get("pdb_ids", []),
+                                            "go_terms": result.get("go_terms", []),
+                                            "sequence": result.get("sequence", ""),
+                                            "sequence_length": result.get("sequence_length", 0),
+                                            "features": [
+                                                f for f in (result.get("features", []) or [])
+                                                if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES")
+                                            ],
+                                        }
+                    except Exception as e:
+                        logger.warning("UniProt name search failed for %s: %s", gene_name, e)
+
+                # Still no UniProt data — return partial data from BLAST hit
                 logger.info("No UniProt mapping for %s, using BLAST data only", accession)
                 return {
                     "accession": accession,

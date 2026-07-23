@@ -382,7 +382,7 @@ export default function JobPage() {
               </> : null },
               { id: "net",  label: "Interactions", available: !!geneName,   component: geneName ? <StringDBViewer geneName={geneName} initialData={context.interactions ?? null} /> : null },
               { id: "ss",   label: "2° Structure", available: !!uniprotAcc, component: uniprotAcc ? <SecondaryStructureViewer identifier={uniprotAcc} /> : null },
-              { id: "rama", label: "Ramachandran", available: !!pdbId,     component: pdbId ? <RamachandranPlot pdbId={pdbId} /> : null },
+              { id: "rama", label: "Ramachandran", available: !!uniprotAcc, component: uniprotAcc ? <RamachandranPlot pdbId={pdbId} /> : null },
               { id: "comp", label: "Comparison",   available: !!pdbId,     component: pdbId ? <>
                 <StructureComparison pdbId={pdbId} />
                 <div className="mt-3 pt-3 border-t border-glass-border flex items-center justify-end">

@@ -116,7 +116,10 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
                   setModel(payload.meta?.model || '');
                 }
                 if (payload.error) {
-                  setError(payload.error);
+                  const msg = payload.error.includes('organization_restricted')
+                    ? 'AI interpretation is temporarily unavailable due to a provider restriction. Please try again later.'
+                    : payload.error;
+                  setError(msg);
                 }
               } catch {}
             }

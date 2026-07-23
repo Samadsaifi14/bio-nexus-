@@ -10,13 +10,14 @@ const REGION_COLOR: Record<string, string> = {
   outlier:    "#EF4444",
 };
 
-export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string; chain?: string }) {
+export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null; chain?: string }) {
   const [points, setPoints] = useState<RPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [hovered, setHovered] = useState<RPoint | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
+    if (!pdbId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
     fetch(`/api/backend/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`)
@@ -26,6 +27,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string; chain?
       .finally(() => setLoading(false));
   }, [pdbId, chain]);
 
+  if (!pdbId) return <div className="text-text-muted text-sm">No PDB structure available for this protein. Ramachandran analysis requires a 3D structure.</div>;
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Calculating &phi;/&psi; angles&hellip;</div>;
   if (error) return <div className="text-error text-sm">{error}</div>;
 

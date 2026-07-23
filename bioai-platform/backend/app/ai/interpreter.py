@@ -31,7 +31,11 @@ async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[
 
         yield _done_event({"model": model, "pipeline_type": pipeline_type})
     except Exception as e:
-        yield _error_event(str(e))
+        msg = str(e)
+        if "organization_restricted" in msg or "Organization has been restricted" in msg:
+            yield _error_event("AI interpretation is temporarily unavailable due to a provider restriction. Please try again later.")
+        else:
+            yield _error_event(msg)
 
 
 def _chunk_event(text: str) -> str:

@@ -60,8 +60,16 @@ def detect_source_from_accession(accession: str) -> str:
 async def map_refseq_to_uniprot(refseq_id: str) -> str | None:
     import httpx
     import asyncio
+    import logging
 
-    # First try direct UniProtKB lookup — accession might already be a UniProt ID
+    logger = logging.getLogger(__name__)
+    refseq_id = refseq_id.strip()
+
+    # Skip if already a UniProt accession — no mapping needed
+    if re.match(r"^[OPQ][0-9][A-Z0-9]{3}[0-9]$", refseq_id) or re.match(r"^A0A[A-Z0-9]{5,}[0-9]$", refseq_id):
+        return refseq_id
+
+    # Try direct UniProtKB lookup first (works for some cross-referenced IDs)
     try:
         async with httpx.AsyncClient(timeout=10) as client:
             url = f"{UNIPROT_BASE}/{refseq_id}"
@@ -74,8 +82,11 @@ async def map_refseq_to_uniprot(refseq_id: str) -> str | None:
     except Exception:
         pass
 
-    # Fall back to ID mapping API (two-step: submit job, then fetch results)
-    sources = ["RefSeq_Protein", "EMBL", "GenBank", "PDB"]
+    # ID mapping API — two-step: POST /idmapping/run, then GET /results/{jobId}
+    # Try RefSeq_Protein first (most common for NP_/XP_/YP_ accessions)
+    is_refseq = refseq_id[:3] in ("NP_", "XP_", "YP_", "WP_")
+    sources = ["RefSeq_Protein"] if is_refseq else ["RefSeq_Protein", "EMBL", "GenBank", "PDB"]
+
     for source in sources:
         try:
             async with httpx.AsyncClient(timeout=15) as client:
@@ -85,32 +96,41 @@ async def map_refseq_to_uniprot(refseq_id: str) -> str | None:
                     data={"from": source, "to": "UniProtKB", "ids": refseq_id},
                 )
                 if submit.status_code != 200:
+                    logger.debug("ID mapping submit failed for %s (source=%s): %s", refseq_id, source, submit.status_code)
                     continue
                 job_id = submit.json().get("jobId", "")
                 if not job_id:
                     continue
 
-                # Step 2: poll for results
-                for _ in range(10):
+                # Step 2: poll for results (up to 15s)
+                for _ in range(15):
                     await asyncio.sleep(1)
                     result = await client.get(
                         f"https://rest.uniprot.org/idmapping/uniprotkb/results/{job_id}",
                     )
                     if result.status_code == 200:
                         data = result.json()
-                        results = data.get("results") or []
-                        if results:
-                            mapped = results[0].get("to", {}).get("primaryAccession", "")
+                        results_list = data.get("results") or []
+                        if results_list:
+                            mapped = results_list[0].get("to", {}).get("primaryAccession", "")
                             if mapped:
+                                logger.info("Mapped %s -> %s via %s", refseq_id, mapped, source)
                                 return mapped
+                        # No results yet or empty — check if still processing
+                        if not results_list and "jobId" in str(data):
+                            continue
                         break
-                    if result.status_code == 404:
-                        # still processing, keep polling
+                    elif result.status_code == 404:
+                        # Still processing
                         continue
-                    # any other status -> give up on this source
-                    break
-        except Exception:
+                    else:
+                        logger.debug("ID mapping poll failed for %s: %s", refseq_id, result.status_code)
+                        break
+        except Exception as e:
+            logger.debug("ID mapping error for %s (source=%s): %s", refseq_id, source, e)
             pass
+
+    logger.warning("Could not map %s to UniProt via any source", refseq_id)
     return None
 
 

@@ -449,6 +449,25 @@ async def _run_uniprot(top_hit: dict) -> dict:
             mapped = await map_refseq_to_uniprot(accession)
             if mapped:
                 accession = mapped
+            else:
+                # Could not map to UniProt — return partial data from BLAST hit
+                # instead of failing the entire pipeline
+                logger.info("No UniProt mapping for %s, using BLAST data only", accession)
+                return {
+                    "accession": accession,
+                    "full_name": top_hit.get("description", ""),
+                    "organism": top_hit.get("organism", ""),
+                    "gene_names": [],
+                    "functions": [],
+                    "keywords": [],
+                    "subcellular_locations": [],
+                    "pdb_ids": [],
+                    "go_terms": [],
+                    "sequence": "",
+                    "sequence_length": 0,
+                    "features": [],
+                    "_note": f"UniProt mapping unavailable for {accession}",
+                }
 
         tool = UniprotTool()
         result = await tool.run({"accession": accession})

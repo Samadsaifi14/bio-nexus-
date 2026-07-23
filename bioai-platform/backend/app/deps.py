@@ -31,4 +31,4 @@ def _rate_limit_key(request: Request) -> str:
     return get_remote_address(request)
 
 
-limiter = Limiter(key_func=_rate_limit_key, default_limits=["60/minute"])
+limiter = Limiter(key_func=_rate_limit_key, default_limits=[])

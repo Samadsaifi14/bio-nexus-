@@ -62,8 +62,7 @@ class PipelineV2RunRequest(BaseModel):
     fast_mode: bool = Field(default=False, description="Use Swiss-Prot instead of nr for faster results")
 
 
-@router.post("/run", dependencies=[Depends(check_daily_limit_pipelines)])
-@limiter.limit("10/minute")
+@router.post("/run")
 async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:

@@ -132,8 +132,7 @@ async def _worker(job_id: str) -> None:
 VALID_DEMO = {"synthetic", "demo", "test"}
 
 
-@router.post("/run", dependencies=[Depends(check_daily_limit_sequencing)])
-@limiter.limit("10/minute")
+@router.post("/run")
 async def run_sequencing(request: Request, req: SequencingRequest, user_id: str = Depends(require_user_id)):
     if not req.fastq_url.strip():
         raise HTTPException(400, detail="fastq_url is required")

@@ -180,9 +180,12 @@ export default function JobPage() {
 
   if (job.status === 'failed') {
     const errorMsg = job.error_message || job.error || 'An unknown error occurred';
+    const failedStepMatch = errorMsg.match(/Pipeline failed at (\w+):/);
+    const failedStep = failedStepMatch ? failedStepMatch[1] : null;
     const isTimeout = errorMsg.toLowerCase().includes('timed out') || errorMsg.toLowerCase().includes('timeout');
     const isNcbiError = errorMsg.toLowerCase().includes('ncbi') || errorMsg.toLowerCase().includes('blast');
     const isParseError = errorMsg.toLowerCase().includes('parse');
+    const isUniProtError = errorMsg.toLowerCase().includes('uniprot') || errorMsg.toLowerCase().includes('mapping');
     return (
       <div className="max-w-xl mx-auto py-12">
         <div className="glass-card p-8 text-center border border-error/20">

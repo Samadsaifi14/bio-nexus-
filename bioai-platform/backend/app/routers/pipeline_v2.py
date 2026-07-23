@@ -191,6 +191,9 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         "interpret": "interpreting",
     }
 
+    _failed_step = None
+    _failed_error = None
+
     for step in STEP_ORDER:
         if step not in steps:
             continue
@@ -207,6 +210,9 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 result = await _run_blast(sequence, status_callback=status_callback)
                 _set_step_status(job_id, step, "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
                 context["blast"] = result
+                if result.get("count", 0) == 0:
+                    _failed_step = step
+                    _failed_error = result.get("error", "No BLAST hits found")
 
             elif step == "uniprot":
                 blast_data = context.get("blast", {})
@@ -222,8 +228,13 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                     s = "complete" if "error" not in result else "failed"
                     _set_step_status(job_id, step, s, progress=100, data=result)
                     context["uniprot"] = result
+                    if "error" in result:
+                        _failed_step = step
+                        _failed_error = result["error"]
                 else:
                     _set_step_status(job_id, step, "failed", error="No BLAST hits for UniProt lookup")
+                    _failed_step = step
+                    _failed_error = "No BLAST hits for UniProt lookup"
 
             elif step == "msa":
                 blast_data = context.get("blast", {})
@@ -235,6 +246,9 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                     context["msa"] = result
                     if result.get("phylotree"):
                         context.setdefault("phylo_data", {})["phylotree_newick"] = result["phylotree"]
+                    if not result.get("aln_fasta"):
+                        _failed_step = step
+                        _failed_error = result.get("error", "MSA alignment failed")
                 else:
                     _set_step_status(job_id, step, "failed", error="No BLAST hits for MSA")
 
@@ -283,11 +297,21 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         except Exception as step_exc:
             logger.warning("[%s] Step %s failed: %s", job_id, step, step_exc)
             _set_step_status(job_id, step, "failed", error=str(step_exc)[:500])
+            _failed_step = step
+            _failed_error = str(step_exc)[:500]
 
-    with _jobs_lock:
-        if job_id in _jobs:
-            _jobs[job_id]["status"] = "complete"
-            _jobs[job_id]["context"] = context
+    # If a critical step failed (blast or uniprot), mark job as failed
+    # so the frontend shows the error instead of incomplete results
+    if _failed_step and _failed_step in ("blast", "uniprot"):
+        with _jobs_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["status"] = "failed"
+                _jobs[job_id]["error"] = f"Pipeline failed at {_failed_step}: {_failed_error}"
+    else:
+        with _jobs_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["status"] = "complete"
+                _jobs[job_id]["context"] = context
 
 
 # ---------------------------------------------------------------------------
@@ -301,39 +325,20 @@ async def _run_blast(sequence: str, status_callback=None) -> dict:
         except Exception:
             pass
 
-    submit_result = await ncbi_blast.submit_blast(sequence)
-    if "error" in submit_result:
-        return {"error": submit_result["error"], "count": 0, "hits": []}
+    results = await ncbi_blast.run_blast_with_retry(
+        sequence,
+        retries=1,
+        max_wait_seconds=300,
+    )
 
-    rid = submit_result["rid"]
-    poll_interval = min(submit_result.get("estimated_seconds", 60) / 2, 15)
-
-    if status_callback:
-        try:
-            await status_callback("polling_ncbi")
-        except Exception:
-            pass
-
-    for _ in range(40):
-        await asyncio.sleep(poll_interval)
-        status_result = await ncbi_blast.check_status(rid)
-        s = status_result["status"]
-        if s == "READY":
-            break
-        if s in ("ERROR", "FAILED"):
-            return {"error": f"NCBI BLAST failed: {s}", "count": 0, "hits": []}
-    else:
-        return {"error": "NCBI BLAST timed out", "count": 0, "hits": []}
+    if "error" in results:
+        return {"error": results["error"], "count": 0, "hits": []}
 
     if status_callback:
         try:
             await status_callback("parsing")
         except Exception:
             pass
-
-    results = await ncbi_blast.fetch_results(rid)
-    if "error" in results:
-        return {"error": results["error"], "count": 0, "hits": []}
 
     parsed = parse_blast_xml(results["raw"])
     if "error" in parsed:

@@ -146,14 +146,13 @@ async def check_status_until_ready(
 async def run_blast_with_retry(
     sequence: str,
     retries: int = 1,
-    max_wait_seconds: int = 300,
+    max_wait_seconds: int = 600,
     **submit_kwargs,
 ) -> dict:
     """Submit + poll + fetch with one retry on timeout/failure.
 
     If NCBI dropped/lost the RID, no amount of polling helps — a fresh
-    submit_blast() is the right fix.  retries=1 means 2 total attempts
-    (NCBI asks callers not to hammer the API).
+    submit_blast() is the right fix.  retries=1 means 2 total attempts.
     """
     last_error = None
 
@@ -168,9 +167,10 @@ async def run_blast_with_retry(
             continue
 
         rid = submit_result["rid"]
+        est = submit_result.get("estimated_seconds", 0)
         logger.info(
             "BLAST submitted (attempt %d/%d), RID=%s, est=%ds",
-            attempt + 1, retries + 1, rid, submit_result.get("estimated_seconds", 0),
+            attempt + 1, retries + 1, rid, est,
         )
 
         status_result = await check_status_until_ready(rid, max_wait_seconds=max_wait_seconds)

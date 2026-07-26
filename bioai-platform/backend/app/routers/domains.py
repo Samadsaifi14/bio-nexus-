@@ -1,3 +1,4 @@
+import re
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
@@ -5,6 +6,9 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api/domains", tags=["domains"])
 
 INTERPRO_URL = "https://www.ebi.ac.uk/interpro/api/entry/all/protein/UniProt/{accession}/?format=json&page_size=50"
+
+def _sanitize(s: str) -> str:
+    return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
 
 class Domain(BaseModel):
     accession: str
@@ -21,7 +25,8 @@ class DomainsResponse(BaseModel):
 
 @router.get("/{accession}", response_model=DomainsResponse)
 async def get_domains(accession: str):
-    url = INTERPRO_URL.format(accession=accession.upper())
+    accession = _sanitize(accession).upper()
+    url = INTERPRO_URL.format(accession=accession)
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.get(url)
         if r.status_code == 404:

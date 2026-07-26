@@ -11,6 +11,7 @@ Computes 50+ molecular descriptors including:
 from __future__ import annotations
 
 import logging
+import os
 
 logger = logging.getLogger(__name__)
 
@@ -59,6 +60,7 @@ def compute_descriptors(smiles: str) -> dict:
     # ---- Extended topological descriptors ----
     fsp3 = round(Descriptors.FractionCSP3(mol), 4)
     mr = round(Crippen.MolMR(mol), 2)  # molar refractivity
+    mol_volume = 0.0
     try:
         mol_volume = round(rdMolDescriptors.CalcMolecularVolume(mol), 2)
     except AttributeError:
@@ -67,10 +69,14 @@ def compute_descriptors(smiles: str) -> dict:
             mol_volume = round(Descriptors3D.CalcVolume(mol), 2)
         except Exception:
             mol_volume = 0.0
-    try:
-        complexity = round(Descriptors.BalabanJ(mol), 4)
     except Exception:
-        complexity = 0.0
+        mol_volume = 0.0
+    complexity = 0.0
+    if os.name != "nt":
+        try:
+            complexity = round(Descriptors.BalabanJ(mol), 4)
+        except Exception:
+            pass
     try:
         wiener = Descriptors.WeinerIndex(mol)
     except Exception:

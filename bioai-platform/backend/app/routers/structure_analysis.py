@@ -256,48 +256,49 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
 
         for aln in db_alignments:
             if isinstance(aln, list):
-                entry = aln[0] if aln else None
+                hits = aln
             elif isinstance(aln, dict):
-                entry = aln
+                hits = [aln]
             else:
                 logger.warning("foldseek aln unexpected type: %s", type(aln))
                 continue
-            if not isinstance(entry, dict):
-                continue
+            for entry in hits:
+                if not isinstance(entry, dict):
+                    continue
 
-            target = entry.get("target", "")
-            raw_target = target.replace("pdb_", "").replace("PDB_", "")
+                target = entry.get("target", "")
+                raw_target = target.replace("pdb_", "").replace("PDB_", "")
 
-            # Parse PDB ID — handle various Foldseek target formats
-            match_pdb = _parse_pdb_id(raw_target)
-            match_chain = _parse_chain(raw_target)
+                # Parse PDB ID — handle various Foldseek target formats
+                match_pdb = _parse_pdb_id(raw_target)
+                match_chain = _parse_chain(raw_target)
 
-            if not match_pdb:
-                logger.debug("foldseek skip empty pdb target=%s", target[:80])
-                continue
+                if not match_pdb:
+                    logger.debug("foldseek skip empty pdb target=%s", target[:80])
+                    continue
 
-            if match_pdb == pdb_id and (not match_chain or match_chain == chain):
-                logger.debug("foldseek skip self-match %s:%s", match_pdb, match_chain)
-                continue
+                if match_pdb == pdb_id and (not match_chain or match_chain == chain):
+                    logger.debug("foldseek skip self-match %s:%s", match_pdb, match_chain)
+                    continue
 
-            if match_pdb in seen:
-                logger.debug("foldseek skip duplicate %s:%s", match_pdb, match_chain)
-                continue
-            seen.add(match_pdb)
+                if match_pdb in seen:
+                    logger.debug("foldseek skip duplicate %s:%s", match_pdb, match_chain)
+                    continue
+                seen.add(match_pdb)
 
-            results.append(StructureMatch(
-                pdb_id=match_pdb,
-                chain=match_chain,
-                description=target,
-                tm_score=round(entry.get("score", 0) / 100.0, 4),
-                rmsd=0,
-                seq_identity=entry.get("seqId", 0),
-                aligned_length=entry.get("alnLength", 0),
-            ))
+                results.append(StructureMatch(
+                    pdb_id=match_pdb,
+                    chain=match_chain,
+                    description=target,
+                    tm_score=round(entry.get("score", 0) / 100.0, 4),
+                    rmsd=0,
+                    seq_identity=entry.get("seqId", 0),
+                    aligned_length=entry.get("alnLength", 0),
+                ))
+                if len(results) >= max_results:
+                    break
             if len(results) >= max_results:
                 break
-        if len(results) >= max_results:
-            break
 
     logger.info("foldseek parsed=%d results for %s", len(results), pdb_id)
     if not results:

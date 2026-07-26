@@ -1,3 +1,5 @@
+import re
+from urllib.parse import quote as urlquote
 import httpx
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
@@ -5,6 +7,10 @@ from pydantic import BaseModel, Field
 router = APIRouter()
 
 REACTOME_BASE = "https://reactome.org/ContentService"
+
+def _sanitize_for_url(s: str) -> str:
+    """Strip control characters that break URL construction."""
+    return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
 
 
 class PathwaySearchRequest(BaseModel):
@@ -97,13 +103,13 @@ async def pathway_detail(req: PathwayDetailRequest):
 
 @router.post("/kegg/search")
 async def kegg_search(req: KEGGSearchRequest):
-    query = req.query.strip()
+    query = _sanitize_for_url(req.query.strip())
     results = []
     seen = set()
     q_upper = query.upper()
 
     async with httpx.AsyncClient(timeout=15) as client:
-        find_resp = await client.get(f"https://rest.kegg.jp/find/hsa/{query}")
+        find_resp = await client.get(f"https://rest.kegg.jp/find/hsa/{urlquote(query)}")
         kegg_gene_id = None
         if find_resp.status_code == 200:
             for line in find_resp.text.strip().split("\n"):

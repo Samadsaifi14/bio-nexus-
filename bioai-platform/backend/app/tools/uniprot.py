@@ -1,3 +1,4 @@
+import re
 import httpx
 from typing import Any
 from app.tools.base import BaseTool
@@ -36,6 +37,7 @@ class UniprotTool(BaseTool):
         }
 
     async def _fetch(self, accession: str) -> dict:
+        accession = re.sub(r'[\x00-\x1f\x7f-\x9f]', '', accession)
         url = f"{settings.UNIPROT_BASE_URL}/{accession}"
         async with httpx.AsyncClient(timeout=15) as client:
             resp = await client.get(url, params={"format": "json"})

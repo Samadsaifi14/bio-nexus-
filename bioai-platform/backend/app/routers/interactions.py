@@ -1,3 +1,4 @@
+import re
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -5,6 +6,10 @@ from pydantic import BaseModel
 router = APIRouter(prefix="/api/interactions", tags=["interactions"])
 
 STRING_NET = "https://string-db.org/api/json/interaction_partners"
+
+def _sanitize_for_url(s: str) -> str:
+    """Strip control characters that break URL construction."""
+    return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
 
 class Interaction(BaseModel):
     partner_gene: str
@@ -24,6 +29,7 @@ async def get_interactions(
     species: int = Query(default=9606, description="NCBI taxon ID; 9606=human"),
     limit: int = Query(default=15, ge=1, le=50),
 ):
+    gene_name = _sanitize_for_url(gene_name)
     async with httpx.AsyncClient(timeout=20) as client:
         r = await client.get(STRING_NET, params={
             "identifiers": gene_name,

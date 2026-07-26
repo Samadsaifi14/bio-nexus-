@@ -77,6 +77,12 @@ export default function BlastWizardPage() {
       setRawInput(stored);
       setInputMode('paste');
     }
+    const storedAcc = sessionStorage.getItem('domains_accession');
+    if (storedAcc) {
+      sessionStorage.removeItem('domains_accession');
+      setRawInput(storedAcc);
+      setInputMode('accession');
+    }
   }, []);
 
   const handleFetchAccession = async () => {

@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, Beaker, Check, X, AlertTriangle, Loader2, Shield, Activity, Brain, Zap, Droplets } from "lucide-react";
@@ -73,6 +73,29 @@ export default function ADMETPage() {
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
 
+  useEffect(() => {
+    const stored = sessionStorage.getItem('admet_smiles');
+    if (stored) {
+      sessionStorage.removeItem('admet_smiles');
+      setSmiles(stored);
+      setTimeout(() => {
+        (async () => {
+          setLoading(true);
+          setError("");
+          setResult(null);
+          try {
+            const res = await computeADMET(stored);
+            setResult(res.result);
+          } catch (e: any) {
+            setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Computation failed");
+          } finally {
+            setLoading(false);
+          }
+        })();
+      }, 100);
+    }
+  }, []);
+
   const handleSubmit = async () => {
     if (!smiles.trim()) return;
     setLoading(true);
@@ -145,6 +168,12 @@ export default function ADMETPage() {
               <p className="text-xs font-mono text-text-secondary max-w-md truncate">{result.smiles}</p>
             </div>
             <div className="ml-auto flex items-center gap-3">
+              <button
+                onClick={() => { sessionStorage.setItem('docking_smiles', result.smiles); router.push('/analyze/docking'); }}
+                className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border hover:border-accent-cyan/40 hover:text-accent-cyan transition"
+              >
+                Dock this ligand
+              </button>
               <div className="text-right">
                 <p className="text-xs text-text-muted">Drug-likeness Score</p>
                 <p className="text-xl font-bold text-accent-cyan">{result.drug_likeness.overall_score}<span className="text-xs text-text-muted">/100</span></p>

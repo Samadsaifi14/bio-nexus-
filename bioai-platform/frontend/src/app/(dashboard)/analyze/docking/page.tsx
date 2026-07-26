@@ -137,6 +137,15 @@ export default function DockingPage() {
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
 
+  useEffect(() => {
+    const storedPdb = sessionStorage.getItem('docking_pdb_id');
+    const storedSmiles = sessionStorage.getItem('docking_smiles');
+    if (storedPdb) sessionStorage.removeItem('docking_pdb_id');
+    if (storedSmiles) sessionStorage.removeItem('docking_smiles');
+    if (storedPdb && !pdbId) setPdbId(storedPdb);
+    if (storedSmiles) setSmiles(storedSmiles);
+  }, []);
+
   const startDocking = async () => {
     const hasPdbId = pdbId.trim().length > 0;
     const hasPdbUrl = pdbUrl.trim().length > 0;

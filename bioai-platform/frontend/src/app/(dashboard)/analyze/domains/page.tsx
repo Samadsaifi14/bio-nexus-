@@ -128,6 +128,13 @@ export default function DomainsPage() {
                 router.push("/analyze/interactions");
               }}
             />
+            <BridgeLink
+              label="Pathway search"
+              onClick={() => {
+                sessionStorage.setItem("pathway_query", submitted);
+                router.push("/analyze/pathway");
+              }}
+            />
           </div>
         </motion.div>
       )}

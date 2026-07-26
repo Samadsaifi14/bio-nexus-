@@ -1,5 +1,5 @@
 "use client";
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft } from "lucide-react";
@@ -21,6 +21,15 @@ export default function InteractionsPage() {
     setSubmitted(g);
     audit.emitStarted('interactions_search', 'STRING-DB', g);
   }, [audit]);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('interaction_gene');
+    if (stored) {
+      sessionStorage.removeItem('interaction_gene');
+      setGeneName(stored);
+      setTimeout(() => submitGene(stored), 100);
+    }
+  }, [submitGene]);
 
   return (
     <div className="max-w-3xl">

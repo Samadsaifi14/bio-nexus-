@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, LoaderCircle, ExternalLink, GitBranch, ChevronDown, ChevronRight, Dna } from 'lucide-react';
@@ -26,6 +26,28 @@ export default function PathwayPage() {
   const [expandedKEGG, setExpandedKEGG] = useState<string | null>(null);
   const [geneInput, setGeneInput] = useState('');
   const audit = useAuditTrail();
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('pathway_query');
+    if (stored) {
+      sessionStorage.removeItem('pathway_query');
+      setQuery(stored);
+      setTimeout(() => {
+        (async () => {
+          setLoading(true);
+          setError(null);
+          try {
+            const res = await searchPathways(stored);
+            setReactomeResults(res.results);
+          } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Search failed'));
+          } finally {
+            setLoading(false);
+          }
+        })();
+      }, 100);
+    }
+  }, []);
 
   const handleSearch = useCallback(async () => {
     if (!query.trim()) return;

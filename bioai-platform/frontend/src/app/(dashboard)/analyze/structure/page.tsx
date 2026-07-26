@@ -1,9 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, ExternalLink, Dna } from 'lucide-react';
+import { ArrowLeft, LoaderCircle, ExternalLink, Dna, FlaskConical, Brain, Activity } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { fetchStructure, getStructureInventory } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
@@ -19,6 +19,15 @@ export default function StructurePage() {
   const [error, setError] = useState<string | null>(null);
   const [inventory, setInventory] = useState<{ chains: Array<{ id: string; residue_count: number }>; ligands: Array<{ id: string; chain: string; residue_count: number }> } | null>(null);
   const audit = useAuditTrail();
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('structure_query');
+    if (stored) {
+      sessionStorage.removeItem('structure_query');
+      setQuery(stored);
+      setTimeout(() => handleSearch(), 100);
+    }
+  }, []);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -106,6 +115,32 @@ export default function StructurePage() {
               <div className="w-full h-96 rounded-xl bg-surface-0 flex items-center justify-center">
                 <p className="text-sm text-text-muted">3D view not available</p>
               </div>
+            )}
+          </div>
+
+          <div className="glass-card p-4 flex flex-wrap gap-2">
+            <span className="text-xs text-text-muted self-center mr-2">Open in:</span>
+            {pdbId && (
+              <>
+                <button onClick={() => { sessionStorage.setItem('docking_pdb_id', pdbId); router.push('/analyze/docking'); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
+                  <FlaskConical className="w-3 h-3" /> Docking
+                </button>
+                <button onClick={() => { sessionStorage.setItem('md_pdb_id', pdbId); router.push('/analyze/md'); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
+                  <Activity className="w-3 h-3" /> MD Simulation
+                </button>
+                <button onClick={() => { sessionStorage.setItem('function_pdb_id', pdbId); router.push('/analyze/function'); }}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
+                  <Brain className="w-3 h-3" /> Function Prediction
+                </button>
+              </>
+            )}
+            {result?.uniprot_accession && (
+              <button onClick={() => { sessionStorage.setItem('domains_accession', result.uniprot_accession!); router.push('/analyze/domains'); }}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
+                <Dna className="w-3 h-3" /> Domains
+              </button>
             )}
           </div>
         </motion.div>

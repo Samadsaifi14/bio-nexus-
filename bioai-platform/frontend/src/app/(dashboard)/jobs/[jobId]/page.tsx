@@ -342,7 +342,7 @@ export default function JobPage() {
             </motion.div>
           )}
 
-          <div className="flex items-center gap-3 pt-2">
+          <div className="flex items-center gap-3 pt-2 flex-wrap">
             <button
               onClick={() => {
                 const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
@@ -362,6 +362,51 @@ export default function JobPage() {
               <Download className="w-4 h-4" />
               Download CSV
             </button>
+            {(() => {
+              const uniprotAcc = context.uniprot?.accession;
+              const geneName = context.uniprot?.gene_names?.[0] ?? null;
+              const pdbId = context.uniprot?.pdb_ids?.[0] ?? null;
+              return (
+                <>
+                  {uniprotAcc && (
+                    <button onClick={() => { sessionStorage.setItem('domains_accession', uniprotAcc); router.push('/analyze/domains'); }}
+                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
+                      Domains
+                    </button>
+                  )}
+                  {uniprotAcc && (
+                    <button onClick={() => { sessionStorage.setItem('structure_query', uniprotAcc); router.push('/analyze/structure'); }}
+                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
+                      Structure
+                    </button>
+                  )}
+                  {geneName && (
+                    <button onClick={() => { sessionStorage.setItem('interaction_gene', geneName); router.push('/analyze/interactions'); }}
+                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
+                      Interactions
+                    </button>
+                  )}
+                  {pdbId && (
+                    <button onClick={() => { sessionStorage.setItem('docking_pdb_id', pdbId); router.push('/analyze/docking'); }}
+                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
+                      Docking
+                    </button>
+                  )}
+                  {pdbId && (
+                    <button onClick={() => { sessionStorage.setItem('md_pdb_id', pdbId); router.push('/analyze/md'); }}
+                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
+                      MD
+                    </button>
+                  )}
+                  {pdbId && (
+                    <button onClick={() => { sessionStorage.setItem('function_pdb_id', pdbId); router.push('/analyze/function'); }}
+                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
+                      Function
+                    </button>
+                  )}
+                </>
+              );
+            })()}
           </div>
 
           {/* Advanced Analysis section */}

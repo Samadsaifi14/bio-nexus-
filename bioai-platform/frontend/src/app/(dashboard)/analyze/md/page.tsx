@@ -57,6 +57,29 @@ export default function MDPage() {
     return () => clearInterval(iv);
   }, [jobId, poll]);
 
+  useEffect(() => {
+    const stored = sessionStorage.getItem('md_pdb_id');
+    if (stored) {
+      sessionStorage.removeItem('md_pdb_id');
+      setPdbId(stored);
+      setTimeout(() => {
+        (async () => {
+          setLoading(true);
+          setError("");
+          setResult(null);
+          try {
+            const res = await runMD(stored, mode);
+            setJobId(res.job_id);
+            setStatus(res.status);
+          } catch (e: any) {
+            setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Submission failed");
+            setLoading(false);
+          }
+        })();
+      }, 100);
+    }
+  }, []);
+
   const handleSubmit = async () => {
     if (!pdbId.trim()) return;
     setLoading(true);

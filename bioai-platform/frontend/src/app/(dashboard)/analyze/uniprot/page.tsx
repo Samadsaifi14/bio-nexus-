@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
@@ -31,6 +31,34 @@ export default function UniprotLookupPage() {
   const [cdsLoading, setCdsLoading] = useState<string | null>(null);
   const [cdsError, setCdsError] = useState<string | null>(null);
   const audit = useAuditTrail();
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('uniprot_accession');
+    if (stored) {
+      sessionStorage.removeItem('uniprot_accession');
+      setQuery(stored);
+      setTimeout(() => {
+        (async () => {
+          setLoading(true);
+          setError(null);
+          setResults(null);
+          setDetail(null);
+          try {
+            const res = await searchUniprot(stored);
+            if (res.results.length === 1) {
+              handleSelect(res.results[0].accession);
+            } else {
+              setResults(res.results);
+            }
+          } catch (err: unknown) {
+            setError(extractErrorMessage(err, 'Search failed'));
+          } finally {
+            setLoading(false);
+          }
+        })();
+      }, 100);
+    }
+  }, []);
 
   const handleSearch = async () => {
     if (!query.trim()) return;
@@ -390,6 +418,28 @@ export default function UniprotLookupPage() {
                 <Beaker className="w-4 h-4" />
                 Analyze with BLAST
               </button>
+              <button
+                onClick={() => { sessionStorage.setItem('domains_accession', detail.accession); router.push('/analyze/domains'); }}
+                className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"
+              >
+                Domains
+              </button>
+              {detail.pdb_ids.length > 0 && (
+                <button
+                  onClick={() => { sessionStorage.setItem('structure_query', detail.pdb_ids[0]); router.push('/analyze/structure'); }}
+                  className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"
+                >
+                  3D Structure
+                </button>
+              )}
+              {detail.gene_names.length > 0 && (
+                <button
+                  onClick={() => { sessionStorage.setItem('interaction_gene', detail.gene_names[0]); router.push('/analyze/interactions'); }}
+                  className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"
+                >
+                  Interactions
+                </button>
+              )}
             </div>
           </div>
         </motion.div>

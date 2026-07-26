@@ -6,14 +6,15 @@ on:
 
 jobs:
   deploy-backend:
-    name: Deploy Backend to Render
+    name: Deploy Backend to HuggingFace Spaces
     runs-on: ubuntu-latest
-    # Render auto-deploys via Git on push, so a missing deploy-hook secret is non-fatal.
     continue-on-error: true
     steps:
-      - name: Trigger Render deploy
+      - uses: actions/checkout@v4
+      - name: Push to HuggingFace Spaces
         run: |
-          curl -X POST "${{ secrets.RENDER_DEPLOY_HOOK_URL }}"
+          pip install huggingface_hub
+          huggingface-cli upload Samad14/bio-nexus-api bioai-platform/backend --repo-type space
 
   deploy-frontend:
     name: Deploy Frontend to Vercel
@@ -23,6 +24,6 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Ensure backend API URL is set
-        run: npx vercel env add NEXT_PUBLIC_API_URL production https://bio-nexus-api.onrender.com --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --token "$VERCEL_TOKEN" || true
+        run: npx vercel env add NEXT_PUBLIC_API_URL production https://samad14-bio-nexus-api.hf.space --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --token "$VERCEL_TOKEN" || true
       - name: Deploy to Vercel
         run: npx vercel --token "$VERCEL_TOKEN" --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --prod --yes

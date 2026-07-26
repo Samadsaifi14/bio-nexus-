@@ -7,6 +7,11 @@ const api = axios.create({
   timeout: 30_000,
 });
 
+const longApi = axios.create({
+  baseURL: '/api/backend',
+  timeout: 660_000,
+});
+
 api.interceptors.request.use(async (config) => {
   try {
     const supabase = getSupabase();
@@ -20,6 +25,19 @@ api.interceptors.request.use(async (config) => {
   return config;
 });
 
+longApi.interceptors.request.use(async (config) => {
+  try {
+    const supabase = getSupabase();
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.access_token) {
+      config.headers.Authorization = `Bearer ${session.access_token}`;
+    }
+  } catch {
+    // Session fetch failed silently
+  }
+  return config;
+});
+
 export async function runPipeline(
   sequence: string,
   pipelineType: string = 'protein_analysis',
@@ -28,7 +46,7 @@ export async function runPipeline(
   queryAccession?: string,
   fastMode: boolean = false,
 ): Promise<{ job_id: string; status: string }> {
-  const res = await api.post('/api/pipelines/run', {
+  const res = await longApi.post('/api/pipelines/run', {
     sequence,
     pipeline_type: pipelineType,
     database,
@@ -40,7 +58,7 @@ export async function runPipeline(
 }
 
 export async function getJob(jobId: string): Promise<JobStatus> {
-  const res = await api.get(`/api/jobs/${jobId}`);
+  const res = await longApi.get(`/api/jobs/${jobId}`);
   return res.data;
 }
 
@@ -144,12 +162,12 @@ export type AlignmentResult = {
 };
 
 export async function runPipelineV2(sequence: string, steps?: string[]): Promise<{ job_id: string }> {
-  const res = await api.post('/api/pipeline/v2/run', { sequence, steps: steps || undefined });
+  const res = await longApi.post('/api/pipeline/v2/run', { sequence, steps: steps || undefined });
   return res.data;
 }
 
 export async function getPipelineStatusV2(jobId: string): Promise<any> {
-  const res = await api.get(`/api/pipeline/v2/status/${jobId}`);
+  const res = await longApi.get(`/api/pipeline/v2/status/${jobId}`);
   return res.data;
 }
 
@@ -369,12 +387,12 @@ export type DockingResult = {
 };
 
 export async function runDocking(pdbId: string, smiles: string, pdbUrl?: string): Promise<{ job_id: string; status: string }> {
-  const res = await api.post('/api/docking/run', { pdb_id: pdbId, smiles, pdb_url: pdbUrl || '' });
+  const res = await longApi.post('/api/docking/run', { pdb_id: pdbId, smiles, pdb_url: pdbUrl || '' });
   return res.data;
 }
 
 export async function getDockingStatus(jobId: string): Promise<DockingResult> {
-  const res = await api.get(`/api/docking/status/${jobId}`);
+  const res = await longApi.get(`/api/docking/status/${jobId}`);
   return res.data;
 }
 
@@ -570,12 +588,12 @@ export type MDSimulationResult = {
 };
 
 export async function runMD(pdbId: string, mode: string = 'minimize'): Promise<{ job_id: string; status: string }> {
-  const res = await api.post('/api/md/run', { pdb_id: pdbId, mode });
+  const res = await longApi.post('/api/md/run', { pdb_id: pdbId, mode });
   return res.data;
 }
 
 export async function getMDStatus(jobId: string): Promise<{ job_id: string; status: string; result?: MDSimulationResult; error?: string }> {
-  const res = await api.get(`/api/md/status/${jobId}`);
+  const res = await longApi.get(`/api/md/status/${jobId}`);
   return res.data;
 }
 
@@ -594,11 +612,11 @@ export type FunctionPredictionResult = {
 };
 
 export async function predictFunction(pdbId: string): Promise<{ job_id: string; status: string }> {
-  const res = await api.post('/api/function/predict', { pdb_id: pdbId });
+  const res = await longApi.post('/api/function/predict', { pdb_id: pdbId });
   return res.data;
 }
 
 export async function getFunctionStatus(jobId: string): Promise<{ job_id: string; status: string; result?: FunctionPredictionResult; error?: string }> {
-  const res = await api.get(`/api/function/status/${jobId}`);
+  const res = await longApi.get(`/api/function/status/${jobId}`);
   return res.data;
 }

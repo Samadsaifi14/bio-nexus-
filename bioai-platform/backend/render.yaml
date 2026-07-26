@@ -6,6 +6,7 @@ services:
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
     healthCheckPath: /health
+    autoDeploy: true
     envVars:
       - key: SUPABASE_URL
         sync: false
@@ -14,6 +15,10 @@ services:
       - key: GROQ_API_KEY
         sync: false
       - key: DEMO_MODE
-        value: "true"
+        value: "false"
       - key: CORS_ORIGIN
+        value: "https://bio-nexus-samadsaifi14s-projects.vercel.app,https://bio-nexus.vercel.app,https://bioai-platform.vercel.app"
+      - key: NCBI_API_KEY
         sync: false
+      - key: NCBI_EMAIL
+        value: "bioflow@example.com"

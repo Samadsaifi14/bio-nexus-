@@ -866,3 +866,174 @@ class TestScoreDistribution:
         if len(hits) >= 2:
             evalues = [h["evalue"] for h in hits]
             assert evalues == sorted(evalues), "E-values should be sorted ascending"
+
+
+# ============================================================================
+# 20. DOMAIN & MOTIF ANALYSIS — All 12 Endpoints (P00698 Lysozyme)
+# ============================================================================
+
+class TestDomainMotifAnalysis:
+    """Validate all 12 domain/motif analysis endpoints for lysozyme (P00698).
+
+    Lysozyme C (P00698, 147 aa) has:
+      - Glycosyl hydrolase family 22 domain (InterPro)
+      - Active site (Glu35, Asp52 catalytic residues)
+      - Disulfide bonds (4 bonds: 6-127, 30-115, 64-80, 76-94)
+      - Signal peptide (residues 1-18)
+      - Multiple PTMs (glycosylation, etc.)
+      - GO terms: lysozyme activity, antimicrobial, etc.
+      - KEGG/Reactome pathway annotations
+    """
+
+    @pytest.mark.asyncio
+    async def test_features_returns_categories(self):
+        from app.routers.domains import get_features
+        result = await get_features("P00698")
+        assert result.accession == "P00698"
+        assert result.sequence_length == 147
+        assert len(result.categories) > 0, "Lysozyme should have feature categories"
+
+    @pytest.mark.asyncio
+    async def test_features_has_topology(self):
+        from app.routers.domains import get_features
+        result = await get_features("P00698")
+        assert "topology" in result.categories or "active_sites" in result.categories, \
+            "Lysozyme should have topology or active site features"
+
+    @pytest.mark.asyncio
+    async def test_functional_sites_returned(self):
+        from app.routers.domains import get_functional_sites
+        result = await get_functional_sites("P00698")
+        assert len(result) > 0, "Lysozyme has catalytic residues (Glu35, Asp52)"
+        types = {s.type for s in result}
+        assert types & {"Active site", "Catalytic residue", "Binding site", "Metal ion-binding site"}, \
+            f"Expected site types, got {types}"
+
+    @pytest.mark.asyncio
+    async def test_functional_sites_have_positions(self):
+        from app.routers.domains import get_functional_sites
+        result = await get_functional_sites("P00698")
+        for s in result:
+            assert s.begin is not None and s.begin >= 1, f"Site position invalid: {s.begin}"
+
+    @pytest.mark.asyncio
+    async def test_ptms_returned(self):
+        from app.routers.domains import get_ptms
+        result = await get_ptms("P00698")
+        for p in result:
+            assert p.type, "PTM should have a type"
+
+    @pytest.mark.asyncio
+    async def test_topology_has_signal_peptide(self):
+        from app.routers.domains import get_topology
+        result = await get_topology("P00698")
+        assert len(result) > 0, "Lysozyme has topology features (signal peptide, chain)"
+        types = {t.type for t in result}
+        assert "Signal peptide" in types or "Chain" in types, \
+            f"Expected Signal peptide or Chain, got {types}"
+
+    @pytest.mark.asyncio
+    async def test_topology_positions_valid(self):
+        from app.routers.domains import get_topology
+        result = await get_topology("P00698")
+        for t in result:
+            if t.begin and t.end:
+                assert t.end >= t.begin, f"Topology end < begin: {t.end} < {t.begin}"
+
+    @pytest.mark.asyncio
+    async def test_motifs_returned(self):
+        from app.routers.domains import get_motifs
+        result = await get_motifs("P00698")
+        for m in result:
+            assert m.type, "Motif should have a type"
+
+    @pytest.mark.asyncio
+    async def test_variants_or_mutagenesis(self):
+        from app.routers.domains import get_variants
+        result = await get_variants("P00698")
+        for v in result:
+            assert v.type in ("Mutagenesis", "Natural variant"), f"Unexpected variant type: {v.type}"
+
+    @pytest.mark.asyncio
+    async def test_disulfide_bonds(self):
+        from app.routers.domains import get_disulfide_bonds
+        result = await get_disulfide_bonds("P00698")
+        assert len(result) >= 3, f"Lysozyme has 4 disulfide bonds, got {len(result)}"
+        for b in result:
+            assert b.begin is not None and b.end is not None, "Disulfide bond must have positions"
+
+    @pytest.mark.asyncio
+    async def test_composition_bias(self):
+        from app.routers.domains import get_composition_bias
+        result = await get_composition_bias("P00698")
+        for b in result:
+            assert b.type, "Composition bias should have a type"
+
+    @pytest.mark.asyncio
+    async def test_go_terms(self):
+        from app.routers.domains import get_go_terms
+        result = await get_go_terms("P00698")
+        assert len(result) > 0, "Lysozyme should have GO terms"
+        ids = {t.id for t in result}
+        assert any(tid.startswith("GO:") for tid in ids), "GO terms should have GO: prefix"
+        categories = {t.category for t in result}
+        assert "molecular_function" in categories or "biological_process" in categories, \
+            f"Expected GO categories, got {categories}"
+
+    @pytest.mark.asyncio
+    async def test_go_terms_include_lysozyme_activity(self):
+        from app.routers.domains import get_go_terms
+        result = await get_go_terms("P00698")
+        terms_text = " ".join(t.term.lower() for t in result)
+        assert "lysozyme" in terms_text or "hydrolase" in terms_text or "peptidoglycan" in terms_text, \
+            f"Expected lysozyme-related GO terms, got: {terms_text[:200]}"
+
+    @pytest.mark.asyncio
+    async def test_pathways(self):
+        from app.routers.domains import get_pathways
+        result = await get_pathways("P00698")
+        for p in result:
+            assert p.database in ("KEGG", "Reactome", "WikiPathways"), f"Unknown DB: {p.database}"
+            assert p.id, "Pathway should have an ID"
+
+    @pytest.mark.asyncio
+    async def test_full_analysis_combined(self):
+        from app.routers.domains import get_all_features
+        result = await get_all_features("P00698")
+        assert result.accession == "P00698"
+        assert result.sequence_length == 147
+        assert len(result.sequence) == 147
+        assert result.organism == "Gallus gallus"
+        assert len(result.domains) > 0
+        assert len(result.active_sites) > 0
+        assert len(result.topology) > 0
+        assert len(result.go_terms) > 0
+        assert len(result.feature_summary) > 0
+
+    @pytest.mark.asyncio
+    async def test_full_analysis_organism(self):
+        from app.routers.domains import get_all_features
+        result = await get_all_features("P00698")
+        assert "Gallus" in result.organism, f"Expected Gallus gallus, got {result.organism}"
+
+    @pytest.mark.asyncio
+    async def test_full_analysis_protein_name(self):
+        from app.routers.domains import get_all_features
+        result = await get_all_features("P00698")
+        assert "lysozyme" in result.protein_name.lower() or "Lysozyme" in result.protein_name, \
+            f"Expected lysozyme in name, got {result.protein_name}"
+
+    @pytest.mark.asyncio
+    async def test_invalid_accession_404(self):
+        from app.routers.domains import get_features
+        from fastapi import HTTPException
+        with pytest.raises(HTTPException) as exc_info:
+            await get_features("INVALID_XYZ_999")
+        assert exc_info.value.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_disulfide_bonds_1crn(self):
+        """Crambin (1CRN/CRAM) has 3 disulfide bonds."""
+        from app.routers.domains import get_disulfide_bonds
+        result = await get_disulfide_bonds("P01542")
+        assert len(result) >= 2, f"Crambin should have disulfide bonds, got {len(result)}"

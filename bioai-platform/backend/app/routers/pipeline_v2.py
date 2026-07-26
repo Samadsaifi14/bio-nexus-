@@ -619,46 +619,10 @@ async def _run_msa(query_sequence: str, blast_hits: list) -> dict:
 
 
 async def _run_domains(accession: str) -> dict:
+    """Run domain analysis using the shared tool module (eliminates code duplication)."""
     try:
-        url = f"https://www.ebi.ac.uk/interpro/api/entry/all/protein/UniProt/{accession.upper()}/?format=json&page_size=50"
-        async with httpx.AsyncClient(timeout=30) as client:
-            r = await client.get(url)
-            if r.status_code == 404:
-                return {"uniprot_accession": accession, "sequence_length": 0, "domains": []}
-            if r.status_code != 200:
-                return {"error": f"InterPro returned {r.status_code}"}
-            data = r.json()
-
-        domains: list[dict] = []
-        seq_len = 0
-
-        for result in data.get("results", []):
-            entry = result.get("metadata", {})
-            db = entry.get("source_database", "").upper()
-            acc = entry.get("accession", "")
-            name_raw = entry.get("name")
-            name_str = name_raw if isinstance(name_raw, str) else (
-                name_raw.get("name", acc) if isinstance(name_raw, dict) else acc
-            )
-
-            for protein in result.get("proteins", []):
-                if protein.get("accession", "").upper() != accession.upper():
-                    continue
-                seq_len = protein.get("protein_length", seq_len)
-                for loc in protein.get("entry_protein_locations", []):
-                    for fragment in loc.get("fragments", []):
-                        domains.append({
-                            "accession": acc,
-                            "name": name_str,
-                            "source_db": db,
-                            "start": fragment.get("start", 0),
-                            "end": fragment.get("end", 0),
-                            "score": loc.get("score"),
-                        })
-
-        domains.sort(key=lambda d: d["start"])
-        return {"uniprot_accession": accession.upper(), "sequence_length": seq_len, "domains": domains}
-
+        from app.tools.domain_analysis import fetch_interpro_domains
+        return await fetch_interpro_domains(accession)
     except Exception as e:
         return {"error": str(e), "uniprot_accession": accession, "sequence_length": 0, "domains": []}
 

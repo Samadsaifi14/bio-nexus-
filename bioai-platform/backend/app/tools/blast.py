@@ -11,8 +11,8 @@ from app.services.cache import ttl_cache
 class BlastTool(BaseTool):
     name = "blast"
 
-    POLL_INTERVAL = 2.0
-    MAX_POLL_TIME = 120
+    POLL_INTERVAL = 3.0
+    MAX_POLL_TIME = 180
 
     @ttl_cache(ttl=86400, prefix="blast")
     async def run(self, input: dict) -> dict:
@@ -42,14 +42,23 @@ class BlastTool(BaseTool):
 
     async def _poll(self, job_id: str) -> str:
         start = asyncio.get_event_loop().time()
-        async with httpx.AsyncClient(timeout=10) as client:
+        async with httpx.AsyncClient(timeout=15) as client:
+            consecutive_failures = 0
             while True:
                 elapsed = asyncio.get_event_loop().time() - start
                 if elapsed > self.MAX_POLL_TIME:
                     return "TIMEOUT"
-                resp = await client.get(f"{settings.EBI_BASE_URL}/status/{job_id}")
-                resp.raise_for_status()
-                status = resp.text.strip()
+                try:
+                    resp = await client.get(f"{settings.EBI_BASE_URL}/status/{job_id}")
+                    resp.raise_for_status()
+                    status = resp.text.strip()
+                    consecutive_failures = 0
+                except Exception as e:
+                    consecutive_failures += 1
+                    if consecutive_failures >= 5:
+                        return "ERROR"
+                    await asyncio.sleep(self.POLL_INTERVAL)
+                    continue
                 if status in ("FINISHED", "ERROR", "FAILED"):
                     return status
                 await asyncio.sleep(self.POLL_INTERVAL)

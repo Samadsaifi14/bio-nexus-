@@ -42,7 +42,7 @@ const MOTIF_COLORS: Record<string, string> = {
   "default":                    "#9CA3AF",
 };
 
-type Domain = { accession: string; name: string; source_db: string; start: number; end: number };
+type Domain = { accession: string; name: string; source_db: string; start: number; end: number; score?: number | null };
 type DomainsResponse = { uniprot_accession: string; sequence_length: number; domains: Domain[] };
 
 type FeatureItem = { type: string; description: string; begin: number | null; end: number | null; amino_acid?: string[] };

@@ -58,10 +58,11 @@ PRODUCTION_TARGET_PS = 250.0
 PRODUCTION_MAX_PS = 1000.0
 PRODUCTION_MIN_PS = 2.0  # absolute floor so huge systems still produce real dynamics
 # Conservative throughput model: steps/s ~= _EST_STEPS_PER_SEC / n_atoms.
-# Measured locally: 1CRN 642 atoms -> 3652 steps/s, 1AKE 6682 atoms -> 195
-# steps/s. 1.4e6/atoms matches the slowest (large) systems conservatively.
+# Only used as the initial upper bound; _run_openmm recalibrates against the
+# real platform speed at runtime (fast OpenCL/GPU locally, slow CPU-only in
+# free-tier containers), so runs always fit the budget wherever they deploy.
 _EST_STEPS_PER_SEC = 1_400_000.0
-_PRODUCTION_BUDGET_SECONDS = 120.0  # leave room for fetch + minimisation + equilibration
+_PRODUCTION_BUDGET_SECONDS = 180.0  # measured at runtime; leaves room for fetch/minimise/equilibration
 
 
 def _adaptive_production_steps(n_atoms: int) -> int:
@@ -151,8 +152,113 @@ def _compute_rmsf(
 
 
 def _positions_to_np(positions) -> np.ndarray:
-    """Convert OpenMM positions to (N, 3) numpy array."""
-    return np.array([[p.x, p.y, p.z] for p in positions])
+    """Convert OpenMM positions (nm) to an (N, 3) numpy array in Å.
+
+    OpenMM works internally in nanometers; all exported metrics (RMSD, Rg,
+    SASA) use Å, so positions are scaled by 10 here once and for all.
+    """
+    return np.array([[p.x, p.y, p.z] for p in positions]) * 10.0
+
+
+# ---------------------------------------------------------------------------
+# Structural metrics helpers (radius of gyration, solvent-accessible surface)
+# ---------------------------------------------------------------------------
+
+# Van der Waals radii (Å) per element for solvent-accessible surface area.
+_VDW_RADII = {
+    "C": 1.70,
+    "N": 1.55,
+    "O": 1.52,
+    "S": 1.80,
+    "P": 1.80,
+    "H": 1.20,
+    "F": 1.47,
+    "CL": 1.75,
+    "BR": 1.85,
+    "I": 1.98,
+    "FE": 1.80,
+    "ZN": 1.39,
+    "CA": 1.97,
+    "MG": 1.73,
+    "NA": 2.27,
+    "K": 2.75,
+}
+_PROBE_RADIUS_ANGSTROM = 1.4
+_SASA_N_POINTS = 120  # Shrake–Ruger points per atom (benchmark: <1.5 s per 6k-atom frame)
+# Boltzmann constant (kJ/mol/K). Some OpenMM wheels omit State.getTemperature(),
+# so we derive temperature from kinetic energy: T = 2·KE / (k_B · N_dof).
+_BOLTZMANN_KJ = 0.0083144621
+
+
+def _temperature_from_ke(ke_kj_mol: float, n_dof: int) -> float:
+    """Instantaneous temperature (K) from kinetic energy and degrees of freedom."""
+    if n_dof <= 0:
+        return 0.0
+    return 2.0 * ke_kj_mol / (_BOLTZMANN_KJ * n_dof)
+
+
+def _radius_of_gyration(coords: np.ndarray) -> float:
+    """Radius of gyration (Å): RMS distance of atoms from the centroid."""
+    coords = np.asarray(coords, dtype=np.float64)
+    if coords.shape[0] == 0:
+        return 0.0
+    com = coords.mean(axis=0)
+    return float(np.sqrt(np.mean(((coords - com) ** 2).sum(axis=1))))
+
+
+def _sasa_shrake_ruger(
+    coords: np.ndarray,
+    radii: np.ndarray,
+    probe: float = _PROBE_RADIUS_ANGSTROM,
+    n_points: int = _SASA_N_POINTS,
+) -> float:
+    """Solvent-accessible surface area (Å²) via the Shrake–Ruger algorithm.
+
+    Golden-sphere points on each atom's solvent-accessible sphere (radius +
+    probe); a point counts as exposed if it does not fall inside any other
+    atom's accessible sphere. Neighbors are found by chunked pairwise distance
+    search (pure numpy, no scipy dependency).
+    """
+    coords = np.asarray(coords, dtype=np.float64)
+    radii = np.asarray(radii, dtype=np.float64)
+    n = len(coords)
+    if n == 0:
+        return 0.0
+
+    # Golden-sphere (fibonacci spiral) directions, cached-free per call
+    idx = np.arange(n_points) + 0.5
+    z = 1.0 - 2.0 * idx / n_points
+    r = np.sqrt(1.0 - z * z)
+    theta = np.pi * (3.0 - 5.0 ** 0.5) * idx
+    U = np.stack([r * np.cos(theta), r * np.sin(theta), z], axis=1)
+
+    probe_rad = radii + probe
+    cutoff2 = (probe_rad[:, None] + probe_rad[None, :]) ** 2
+
+    neighbors: list[np.ndarray] = []
+    chunk = 1024
+    for s in range(0, n, chunk):
+        seg = coords[s:s + chunk]
+        d2 = ((seg[:, None, :] - coords[None, :, :]) ** 2).sum(-1)
+        for k in range(len(seg)):
+            i = s + k
+            nb = np.flatnonzero(d2[k] < cutoff2[i])
+            neighbors.append(nb[nb != i])
+
+    total = 0.0
+    for i in range(n):
+        R = probe_rad[i]
+        pts = coords[i] + R * U
+        nb = neighbors[i]
+        if len(nb) == 0:
+            total += 4.0 * np.pi * R * R
+            continue
+        nbr_centers = coords[nb]
+        nbr_r2 = probe_rad[nb] ** 2
+        d2 = ((pts[:, None, :] - nbr_centers[None, :, :]) ** 2).sum(-1)
+        exposed = (d2 > nbr_r2[None, :]).all(axis=1)
+        total += (float(exposed.sum()) / n_points) * 4.0 * np.pi * R * R
+    return float(total)
 
 
 # ---------------------------------------------------------------------------
@@ -284,6 +390,10 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
         2 * unit.femtoseconds,
     )
 
+    # Degrees of freedom for temperature from kinetic energy (COM motion + any
+    # position constraints are not thermalized).
+    n_dof = 3 * system.getNumParticles() - system.getNumConstraints() - 3
+
     simulation = Simulation(modeller.topology, system, integrator)
     simulation.context.setPositions(modeller.positions)
 
@@ -292,10 +402,17 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # the added hydrogens vibrating at 2fs timesteps.
     atom_to_residue: dict[int, str] = {}
     ca_indices: list[int] = []
+    heavy_indices: list[int] = []
+    heavy_radii: list[float] = []
     for atom in modeller.topology.atoms():
         atom_to_residue[atom.index] = f"{atom.residue.name}{atom.residue.id}"
         if atom.name == "CA":
             ca_indices.append(atom.index)
+        symbol = atom.element.symbol if atom.element is not None else "X"
+        if symbol != "H":
+            heavy_indices.append(atom.index)
+            heavy_radii.append(_VDW_RADII.get(symbol, 1.5))
+    heavy_radii_arr = np.array(heavy_radii, dtype=np.float64)
 
     # ---- Energy minimization ----
     logger.info("Running energy minimization (%d steps)...", MINIMIZATION_STEPS)
@@ -339,14 +456,29 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
 
     # ---- Production dynamics ----
     frames: list[np.ndarray] = []
+    frame_steps: list[int] = []
     rmsd_data: list[dict] = []
+    temperature_data: list[dict] = []
+    rg_data: list[dict] = []
+    sasa_data: list[dict] = []
     production_steps = _adaptive_production_steps(n_atoms) if mode == "production" else 0
     total_steps = production_steps
     prod_elapsed = 0.0
 
     if mode == "production":
-        logger.info("Running production (%d steps = %.0f ps, recording every %d)...",
-                    production_steps, production_steps / 500, ENERGY_RECORD_INTERVAL)
+        # Calibrate the real platform throughput with a short probe, then size
+        # the run to the wall-clock budget. This keeps production inside the
+        # job/poll timeouts on fast OpenCL/GPU hosts AND on slow CPU-only
+        # free-tier containers (OpenMM Linux CPU ~50 steps/s for 1CRN).
+        simulation.step(200)  # warm up JIT kernels / accelerator context
+        t_cal = time.time()
+        simulation.step(400)
+        cal_rate = 400.0 / max(time.time() - t_cal, 1e-6)
+        planned = _adaptive_production_steps(n_atoms)
+        budget_steps = max(int(cal_rate * _PRODUCTION_BUDGET_SECONDS), int(PRODUCTION_MIN_PS * 500))
+        production_steps = min(planned, budget_steps)
+        logger.info("Measured throughput %.0f steps/s -> production %d steps (%.0f ps)",
+                    cal_rate, production_steps, production_steps / 500)
         t0 = time.time()
 
         # Record ~100 frames spread evenly across the trajectory
@@ -362,10 +494,27 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
 
             st = simulation.context.getState(getEnergy=True, getPositions=True)
             pe = st.getPotentialEnergy().value_in_unit(unit.kilojoule_per_mole)
+            ke = st.getKineticEnergy().value_in_unit(unit.kilojoule_per_mole)
+            temp = _temperature_from_ke(ke, n_dof)
             energy_data["production"].append({"step": steps_done, "energy": round(pe, 2)})
+            temperature_data.append({
+                "step": steps_done,
+                "temperature_k": round(temp, 1),
+                "kinetic_kj_mol": round(ke, 2),
+            })
 
             coords = _positions_to_np(st.getPositions())
             frames.append(coords)
+            frame_steps.append(steps_done)
+
+            if heavy_indices:
+                heavy_coords = coords[heavy_indices]
+                rg_data.append({
+                    "step": steps_done,
+                    "rg_angstrom": round(_radius_of_gyration(heavy_coords), 2),
+                })
+            else:
+                rg_data.append({"step": steps_done, "rg_angstrom": 0.0})
 
             if ca_indices:
                 frame_ca = coords[ca_indices]
@@ -377,6 +526,19 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
 
         prod_elapsed = time.time() - t0
         logger.info("Production complete: %d frames in %.1fs", len(frames), prod_elapsed)
+
+    # Reference (minimized) structure point for Rg/SASA at step 0, plus SASA
+    # sampled on a subset of trajectory frames (SASA is the costly metric).
+    if heavy_indices:
+        ref_rg = _radius_of_gyration(ref_coords[heavy_indices])
+        rg_data.insert(0, {"step": 0, "rg_angstrom": round(ref_rg, 2)})
+        sasa_data.append({"step": 0, "sasa_angstrom2": round(_sasa_shrake_ruger(ref_coords[heavy_indices], heavy_radii_arr), 1)})
+        if frames:
+            n_sasa = min(len(frames), 10)
+            sasa_positions = np.linspace(0, len(frames) - 1, n_sasa).astype(int)
+            for pi in sasa_positions:
+                sasa_val = _sasa_shrake_ruger(frames[pi][heavy_indices], heavy_radii_arr)
+                sasa_data.append({"step": frame_steps[pi], "sasa_angstrom2": round(sasa_val, 1)})
 
     # ---- Final state ----
     final_state = simulation.context.getState(getEnergy=True)
@@ -395,6 +557,11 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
 
     total_elapsed = round(min_elapsed + prod_elapsed, 1)
 
+    rg_vals = [p["rg_angstrom"] for p in rg_data if p["step"] > 0]
+    sasa_vals = [p["sasa_angstrom2"] for p in sasa_data if p["step"] > 0]
+    rg_avg = round(float(np.mean(rg_vals)), 2) if rg_vals else None
+    sasa_avg = round(float(np.mean(sasa_vals)), 1) if sasa_vals else None
+
     return _to_native({
         "pdb_id": pdb_id,
         "mode": mode,
@@ -409,6 +576,11 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
         "production_ps": round(production_steps / 500, 1),
         "final_energy_kj_mol": round(final_energy, 2),
         "energy": energy_data,
+        "temperature": temperature_data,
+        "radius_of_gyration": rg_data,
+        "radius_of_gyration_angstrom": rg_avg if rg_avg is not None else (rg_data[0]["rg_angstrom"] if rg_data else None),
+        "sasa": sasa_data,
+        "sasa_avg_angstrom2": sasa_avg,
         "minimization_drift_angstrom": round(init_rmsd, 3),
         "rmsd": rmsd_data,
         "rmsd_basis": "CA" if ca_indices else "all_atoms",
@@ -487,6 +659,22 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str =
         rg = float(np.sqrt(((coords - centroid) ** 2).sum() / len(coords)))
     else:
         rg = 0.0
+
+    # Static SASA estimate from heavy atoms (single-point series for charts)
+    heavy_coords: list[np.ndarray] = []
+    heavy_radii_list: list[float] = []
+    for atom in atoms:
+        elem = atom.element
+        name = elem.name if elem is not None else ""
+        if name == "H":
+            continue
+        heavy_coords.append(atom.get_vector().get_array())
+        heavy_radii_list.append(_VDW_RADII.get(name.upper(), 1.5))
+    if heavy_coords:
+        sasa_est = round(_sasa_shrake_ruger(
+            np.array(heavy_coords), np.array(heavy_radii_list, dtype=np.float64)), 1)
+    else:
+        sasa_est = 0.0
 
     # Secondary structure from phi/psi angles (Ramachandran classification)
     pp = Polypeptide.Polypeptide(model)
@@ -581,6 +769,9 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str =
         "residue_count": n_residues,
         "chain_count": n_chains,
         "radius_of_gyration_angstrom": round(rg, 2),
+        "radius_of_gyration": [{"step": 0, "rg_angstrom": round(rg, 2)}],
+        "sasa": [{"step": 0, "sasa_angstrom2": sasa_est}],
+        "sasa_avg_angstrom2": sasa_est,
         "avg_bfactor": avg_bfactor,
         "max_bfactor": max_bfactor,
         "secondary_structure": ss_counts,

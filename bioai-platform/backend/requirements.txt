@@ -13,7 +13,7 @@ reportlab
 pydantic[email]
 rdkit
 numpy
-# openmm  # installed separately in Dockerfile
+openmm>=8.0  # OpenMM is on PyPI since 8.0 (pip-installable in Dockerfile and Render)
 # openbabel-wheel  # removed — SMILES→3D via NCI CACTUS API, Vina reads PDB/SDF natively
 # primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)
 

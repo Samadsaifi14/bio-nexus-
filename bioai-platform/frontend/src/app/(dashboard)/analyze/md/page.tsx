@@ -10,7 +10,7 @@ import { runMD, getMDStatus, type MDSimulationResult } from "@/lib/api";
 const MODES = [
   { value: "minimize", label: "Minimization Only", desc: "500 steps, ~5 sec", detail: "Energy minimization using L-BFGS. Removes steric clashes and high-energy contacts." },
   { value: "equilibrate", label: "Minimize + Equilibrate", desc: "1500 steps, ~30 sec", detail: "Minimization followed by NVT equilibration at 300K with Langevin thermostat." },
-  { value: "production", label: "Full Short Run", desc: "3500 steps, ~2-3 min", detail: "Complete MD: minimization, equilibration, and 2000-step production run with trajectory recording." },
+  { value: "production", label: "Full Short Run", desc: "Adaptive, up to ~1 ns", detail: "Complete MD: minimization, equilibration, and an adaptive production run (up to 250-1000 ps) with trajectory recording, temperature, Rg, and SASA." },
 ];
 
 export default function MDPage() {
@@ -282,6 +282,114 @@ export default function MDPage() {
           </div>
           )}
 
+          {/* Temperature / Kinetic Energy */}
+          {result.engine === "openmm" && result.temperature && result.temperature.length > 0 && (
+            <div className="glass-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Temperature — Thermostat Coupling</h3>
+              <p className="text-xs text-text-muted mb-3">Instantaneous temperature (Langevin thermostat, {result.temperature_k} K target). Fluctuations around the target indicate a stable equilibrated ensemble.</p>
+              <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
+                {result.temperature.map((pt, i) => {
+                  const temps = result.temperature!.map(t => t.temperature_k);
+                  const min = Math.min(...temps, 200);
+                  const max = Math.max(...temps, 400);
+                  const range = max - min || 1;
+                  const height = ((pt.temperature_k - min) / range) * 100;
+                  return (
+                    <div key={i} className="flex-1 rounded-t bg-orange-400/60 hover:bg-orange-400 transition-colors"
+                      style={{ height: `${Math.max(height, 2)}%` }}
+                      title={`Step ${pt.step}: ${pt.temperature_k.toFixed(1)} K`} />
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Min Temp</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{Math.min(...result.temperature.map(t => t.temperature_k)).toFixed(1)} K</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Mean Temp</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{(result.temperature.reduce((s, t) => s + t.temperature_k, 0) / result.temperature.length).toFixed(1)} K</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Max Temp</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{Math.max(...result.temperature.map(t => t.temperature_k)).toFixed(1)} K</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Radius of Gyration */}
+          {result.radius_of_gyration && result.radius_of_gyration.length > 1 && (
+            <div className="glass-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Radius of Gyration — Compactness</h3>
+              <p className="text-xs text-text-muted mb-3">Mass-weighted size over time. Rising Rg = expanding/unfolding; stable Rg = compact, folded state.</p>
+              <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
+                {result.radius_of_gyration.slice(-80).map((pt, i) => {
+                  const rgs = result.radius_of_gyration!.map(r => r.rg_angstrom);
+                  const min = Math.min(...rgs);
+                  const max = Math.max(...rgs);
+                  const range = max - min || 1;
+                  const height = ((pt.rg_angstrom - min) / range) * 100;
+                  return (
+                    <div key={i} className="flex-1 rounded-t bg-teal-400/60 hover:bg-teal-400 transition-colors"
+                      style={{ height: `${Math.max(height, 2)}%` }}
+                      title={`Step ${pt.step}: ${pt.rg_angstrom.toFixed(2)} A`} />
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Min Rg</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{Math.min(...result.radius_of_gyration.map(r => r.rg_angstrom)).toFixed(2)} A</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Mean Rg</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{(result.radius_of_gyration.reduce((s, r) => s + r.rg_angstrom, 0) / result.radius_of_gyration.length).toFixed(2)} A</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Max Rg</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{Math.max(...result.radius_of_gyration.map(r => r.rg_angstrom)).toFixed(2)} A</div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Solvent-Accessible Surface Area */}
+          {result.sasa && result.sasa.length > 0 && (
+            <div className="glass-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Solvent-Accessible Surface Area</h3>
+              <p className="text-xs text-text-muted mb-3">Shrake-Rüger SASA with a 1.4 A probe. Decreasing SASA = compaction/burial; increasing = expansion or partial unfolding.</p>
+              <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
+                {result.sasa.slice(-40).map((pt, i) => {
+                  const sasas = result.sasa!.map(s => s.sasa_angstrom2);
+                  const min = Math.min(...sasas);
+                  const max = Math.max(...sasas);
+                  const range = max - min || 1;
+                  const height = ((pt.sasa_angstrom2 - min) / range) * 100;
+                  return (
+                    <div key={i} className="flex-1 rounded-t bg-sky-400/60 hover:bg-sky-400 transition-colors"
+                      style={{ height: `${Math.max(height, 2)}%` }}
+                      title={`Step ${pt.step}: ${pt.sasa_angstrom2.toFixed(1)} A2`} />
+                  );
+                })}
+              </div>
+              <div className="grid grid-cols-3 gap-2 mt-2">
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Min SASA</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{Math.min(...result.sasa.map(s => s.sasa_angstrom2)).toFixed(1)} A2</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Mean SASA</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{(result.sasa.reduce((s, v) => s + v.sasa_angstrom2, 0) / result.sasa.length).toFixed(1)} A2</div>
+                </div>
+                <div className="text-center">
+                  <div className="text-xs text-text-muted">Max SASA</div>
+                  <div className="text-sm font-mono font-medium text-text-primary">{Math.max(...result.sasa.map(s => s.sasa_angstrom2)).toFixed(1)} A2</div>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* RMSD */}
           {result.rmsd.length > 0 && (
             <div className="glass-card p-5">
@@ -396,6 +504,13 @@ export default function MDPage() {
                   <div className="text-sm font-semibold text-text-primary">{result.radius_of_gyration_angstrom} A</div>
                   <div className="text-xs text-text-muted">Compactness measure</div>
                 </div>
+                {result.sasa_avg_angstrom2 !== undefined && (
+                  <div className="bg-surface-1 rounded-lg p-3">
+                    <div className="text-xs text-text-muted">Avg SASA</div>
+                    <div className="text-sm font-semibold text-text-primary">{result.sasa_avg_angstrom2} A2</div>
+                    <div className="text-xs text-text-muted">Solvent exposure</div>
+                  </div>
+                )}
                 {result.avg_bfactor !== undefined && (
                   <div className="bg-surface-1 rounded-lg p-3">
                     <div className="text-xs text-text-muted">Avg B-factor</div>
@@ -427,6 +542,10 @@ export default function MDPage() {
                   <>
                     <p><strong className="text-text-primary">Structural Stability:</strong> {lastRmsd < 2.0 ? "The structure remains stable (RMSD < 2.0 A), indicating the force field and implicit solvent model maintain a reasonable conformation." : lastRmsd < 5.0 ? "Moderate structural drift observed. The protein may be exploring conformational space or transitioning from the initial crystal structure." : "Significant structural drift. This may indicate the need for explicit solvent, longer equilibration, or restraints on key residues."}</p>
                     <p><strong className="text-text-primary">Energy Convergence:</strong> {result.energy.production.length > 2 ? `Production energy spans ${Math.min(...result.energy.production.map(p => p.energy)).toFixed(1)} to ${Math.max(...result.energy.production.map(p => p.energy)).toFixed(1)} kJ/mol.` : "Short production run — limited energy statistics."}</p>
+                    {result.temperature && result.temperature.length > 0 && (() => {
+                      const meanT = result.temperature.reduce((s, t) => s + t.temperature_k, 0) / result.temperature.length;
+                      return <p><strong className="text-text-primary">Thermostat:</strong> Mean temperature {meanT.toFixed(1)} K vs {result.temperature_k} K target {Math.abs(meanT - result.temperature_k) < 15 ? "— well-coupled, stable equilibrium ensemble." : "— deviating; equilibration may be insufficient."}</p>;
+                    })()}
                   </>
                 );
               })()}

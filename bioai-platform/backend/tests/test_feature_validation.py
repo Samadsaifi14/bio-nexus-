@@ -662,6 +662,16 @@ class TestMDSimulation:
         result = run_simulation("1CRN", mode="production")
         assert result["status"] == "complete"
         assert len(result["rmsd"]) > 0
+        if result["engine"] == "openmm":
+            assert len(result["temperature"]) > 0
+            assert result["temperature"][0]["temperature_k"] > 200
+            assert len(result["radius_of_gyration"]) >= 2
+            assert len(result["sasa"]) >= 2
+            assert result["sasa_avg_angstrom2"] > 0
+            assert result["radius_of_gyration_angstrom"] > 0
+        else:
+            assert len(result["radius_of_gyration"]) >= 1
+            assert "sasa" in result
 
 
 # ============================================================================

@@ -575,6 +575,10 @@ export type MDSimulationResult = {
   production_ps?: number;
   final_energy_kj_mol: number;
   energy: { minimization: { step: number; energy: number }[]; production: { step: number; energy: number }[] };
+  temperature?: { step: number; temperature_k: number; kinetic_kj_mol: number }[];
+  radius_of_gyration?: { step: number; rg_angstrom: number }[];
+  sasa?: { step: number; sasa_angstrom2: number }[];
+  sasa_avg_angstrom2?: number;
   rmsd: { frame: number; rmsd: number }[];
   rmsd_basis?: string;
   rmsd_avg_angstrom?: number;

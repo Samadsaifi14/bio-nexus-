@@ -664,12 +664,13 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str =
     heavy_coords: list[np.ndarray] = []
     heavy_radii_list: list[float] = []
     for atom in atoms:
-        elem = atom.element
-        name = elem.name if elem is not None else ""
+        # BioPython Atom.element is already the element string (e.g. "C"),
+        # not an Element object — no .name attribute.
+        name = (atom.element or "").strip().upper()
         if name == "H":
             continue
         heavy_coords.append(atom.get_vector().get_array())
-        heavy_radii_list.append(_VDW_RADII.get(name.upper(), 1.5))
+        heavy_radii_list.append(_VDW_RADII.get(name, 1.5))
     if heavy_coords:
         sasa_est = round(_sasa_shrake_ruger(
             np.array(heavy_coords), np.array(heavy_radii_list, dtype=np.float64)), 1)

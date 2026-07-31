@@ -264,3 +264,32 @@ class TestLangevinTemperature:
             assert 250 < mean_temp < 350, f"mean temperature {mean_temp:.1f} K far from 300 K target"
         finally:
             del context
+
+
+class TestBioPythonFallback:
+    """BioPython structural-analysis fallback (regression for 'str' object has
+    no attribute 'name' — BioPython Atom.element is a string, not an object)."""
+
+    _MINI_PDB = """\
+ATOM      1  N   ALA A   1      11.104   6.134  -6.504  1.00 11.79           N
+ATOM      2  CA  ALA A   1      11.639   6.071  -5.145  1.00 11.80           C
+ATOM      3  C   ALA A   1      12.839   6.979  -4.873  1.00 11.52           C
+ATOM      4  O   ALA A   1      13.419   7.636  -5.737  1.00 11.76           O
+ATOM      5  CB  ALA A   1      10.514   6.523  -4.225  1.00 12.30           C
+ATOM      6  N   GLY A   2      13.220   7.004  -3.610  1.00 11.67           N
+ATOM      7  CA  GLY A   2      14.370   7.807  -3.226  1.00 11.95           C
+ATOM      8  C   GLY A   2      14.359   8.072  -1.730  1.00 12.19           C
+ATOM      9  O   GLY A   2      13.417   8.612  -1.169  1.00 12.34           O
+END
+"""
+
+    def test_fallback_completes_with_sasa(self, tmp_path):
+        from app.tools.md_sim import _run_biopython_analysis
+        pdb_path = tmp_path / "mini.pdb"
+        pdb_path.write_text(self._MINI_PDB)
+        result = _run_biopython_analysis(str(pdb_path), "MINI", "minimize")
+        assert result["status"] == "complete"
+        assert result["engine"] == "biopython_structural"
+        assert len(result["radius_of_gyration"]) >= 1
+        assert result["sasa"][0]["sasa_angstrom2"] > 0
+        assert result["atom_count"] > 0

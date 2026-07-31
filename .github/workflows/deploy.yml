@@ -12,9 +12,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Push to HuggingFace Spaces
+        env:
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
         run: |
-          pip install huggingface_hub
-          huggingface-cli upload Samad14/bio-nexus-api bioai-platform/backend --repo-type space
+          pip install -U huggingface_hub
+          hf upload Samad14/bio-nexus-api bioai-platform/backend --repo-type space --exclude "**/.env" --exclude "**/.env.deploy" --exclude "**/__pycache__/**"
 
   deploy-frontend:
     name: Deploy Frontend to Vercel

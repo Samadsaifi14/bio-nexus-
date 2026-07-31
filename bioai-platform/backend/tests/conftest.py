@@ -79,12 +79,25 @@ def auth_headers():
 
 
 # ---------------------------------------------------------------------------
-# Detect rdkit availability (only on HF Spaces Docker, not local dev)
+# Pre-load OpenMM native libs BEFORE rdkit. OpenMM and RDKit wheels bundle
+# conflicting copies of MSVC runtime DLLs (msvcp140/concrt140); importing
+# rdkit first makes OpenMM's Context creation crash with an access violation.
+# Loading openmm.app first resolves the conflict.
 # ---------------------------------------------------------------------------
 try:
-    from rdkit import Chem
-    HAS_RDKIT = True
-except ImportError:
+    import openmm.app  # noqa: F401
+except Exception:
+    pass
+
+# ---------------------------------------------------------------------------
+# Detect rdkit availability (only on HF Spaces Docker, not local dev)
+# find_spec avoids actually importing rdkit, which would trigger the
+# OpenMM/RDKit runtime conflict above for real-OpenMM tests.
+# ---------------------------------------------------------------------------
+try:
+    import importlib.util
+    HAS_RDKIT = importlib.util.find_spec("rdkit.Chem") is not None
+except (ImportError, ValueError):
     HAS_RDKIT = False
 
 requires_rdkit = pytest.mark.skipif(not HAS_RDKIT, reason="rdkit not installed locally — run on HF Spaces")

@@ -19,6 +19,16 @@ import socket
 import signal
 from datetime import datetime, timezone
 
+# Load OpenMM's native libraries BEFORE any rdkit import. The OpenMM and
+# RDKit wheels bundle conflicting copies of MSVC runtime DLLs
+# (msvcp140/concrt140); if rdkit loads first, OpenMM's Context creation
+# crashes with a native access violation. ADMET/docking jobs import rdkit
+# lazily, so preloading openmm here guarantees safe ordering for MD jobs.
+try:
+    import openmm.app  # noqa: F401
+except Exception:  # pragma: no cover - openmm may be absent in some envs
+    pass
+
 from app.config import settings
 from app.services.supabase import get_client
 

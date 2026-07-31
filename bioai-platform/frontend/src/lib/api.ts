@@ -572,9 +572,14 @@ export type MDSimulationResult = {
   minimization_steps: number;
   equilibration_steps: number;
   production_steps: number;
+  production_ps?: number;
   final_energy_kj_mol: number;
   energy: { minimization: { step: number; energy: number }[]; production: { step: number; energy: number }[] };
   rmsd: { frame: number; rmsd: number }[];
+  rmsd_basis?: string;
+  rmsd_avg_angstrom?: number;
+  minimization_drift_angstrom?: number;
+  rmsd_source?: string;
   rmsf: { residue: string; rmsf_angstrom: number }[];
   atom_count: number;
   residue_count: number;

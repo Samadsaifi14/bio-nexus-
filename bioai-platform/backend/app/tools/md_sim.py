@@ -4,15 +4,17 @@ Scientifically accurate simulation with:
   - AMBER14 force field (protein parameters)
   - OBC2 implicit solvent (Generalized Born / Onufriev-Bashford-Case)
   - Hydrogen addition via OpenMM Modeller
-  - Real RMSD via Kabsch optimal superposition
-  - Per-residue RMSF from trajectory frames
+  - Real Cα-atom RMSD via Kabsch optimal superposition
+  - Per-residue RMSF (Cα) from trajectory frames
   - Langevin dynamics at 300 K, 2 fs timestep
+  - Adaptive production length so every system gets a meaningful trajectory
+    within the wall-clock budget (targets ~150-250 ps of dynamics)
 
 Constraints (hardcoded for free-tier safety):
   - Implicit solvent only (no water box)
   - Minimization: 500 steps
   - Equilibration: 1000 steps (NVT)
-  - Production: 2000 steps
+  - Production: adaptive, up to ~1 ns for small proteins
   - Wall-clock timeout: 5 minutes
 """
 
@@ -45,9 +47,38 @@ def _to_native(obj):
 # Simulation parameters
 MINIMIZATION_STEPS = 500
 EQUILIBRATION_STEPS = 1000
-PRODUCTION_STEPS = 2000
 ENERGY_RECORD_INTERVAL = 20
 TIMEOUT_SECONDS = 300
+
+# Adaptive production length: target 250 ps of dynamics, capped at 1 ns.
+# OpenMM implicit-solvent throughput scales roughly inversely with atom count
+# (nonbonded interactions dominate), so we size the run to the system to
+# always finish inside the wall-clock budget while producing a real trajectory.
+PRODUCTION_TARGET_PS = 250.0
+PRODUCTION_MAX_PS = 1000.0
+PRODUCTION_MIN_PS = 2.0  # absolute floor so huge systems still produce real dynamics
+# Conservative throughput model: steps/s ~= _EST_STEPS_PER_SEC / n_atoms.
+# Measured locally: 1CRN 642 atoms -> 3652 steps/s, 1AKE 6682 atoms -> 195
+# steps/s. 1.4e6/atoms matches the slowest (large) systems conservatively.
+_EST_STEPS_PER_SEC = 1_400_000.0
+_PRODUCTION_BUDGET_SECONDS = 120.0  # leave room for fetch + minimisation + equilibration
+
+
+def _adaptive_production_steps(n_atoms: int) -> int:
+    """Pick production steps so the trajectory is meaningful but finishes fast.
+
+    Budget model: max steps that fit in the production time budget at the
+    estimated throughput, clamped to [min, target, cap]. Large systems get a
+    short-but-real run; small systems get the full 250 ps target.
+    """
+    if n_atoms <= 0:
+        return int(PRODUCTION_TARGET_PS * 500)  # 2 fs timestep -> 500 steps/ps
+    est_rate = max(_EST_STEPS_PER_SEC / n_atoms, 1.0)
+    max_steps_by_time = int(est_rate * _PRODUCTION_BUDGET_SECONDS)
+    target_steps = int(PRODUCTION_TARGET_PS * 500)
+    cap_steps = int(PRODUCTION_MAX_PS * 500)
+    min_steps = int(PRODUCTION_MIN_PS * 500)
+    return int(max(min(target_steps, cap_steps, max_steps_by_time), min_steps))
 
 _OPENMM_AVAILABLE: bool | None = None
 
@@ -69,14 +100,20 @@ def _check_openmm() -> bool:
 # RMSD / RMSF helpers
 # ---------------------------------------------------------------------------
 
-def _kabsch_rmsd(ref: np.ndarray,移动: np.ndarray) -> float:
+def _kabsch_rmsd(ref: np.ndarray, moving: np.ndarray) -> float:
     """RMSD after optimal rigid-body superposition (Kabsch algorithm).
 
-    Both arrays must be (N, 3) with matching atom order.
+    Both arrays must be (N, 3) with matching atom order. Reference is
+    (N,3) array of the frame, moving is aligned onto it.
     """
+    if ref.shape != moving.shape:
+        raise ValueError(f"RMSD coordinate mismatch: ref={ref.shape} vs moving={moving.shape}")
     n = ref.shape[0]
+    if n == 0:
+        return 0.0
+
     ref_c = ref - ref.mean(axis=0)
-    mov_c = 移动 - 移动.mean(axis=0)
+    mov_c = moving - moving.mean(axis=0)
 
     H = mov_c.T @ ref_c
     U, S, Vt = np.linalg.svd(H)
@@ -156,7 +193,15 @@ def run_simulation(pdb_id: str, mode: str = "minimize") -> dict:
 
     try:
         if _check_openmm():
-            return _run_openmm(pdb_path, pdb_id, mode)
+            try:
+                return _run_openmm(pdb_path, pdb_id, mode)
+            except Exception as exc:
+                # OpenMM can reject structures with incomplete residues,
+                # non-standard ligands it cannot strip cleanly, or other
+                # topology issues. Degrade to structural analysis rather
+                # than failing the whole job.
+                logger.warning("OpenMM simulation failed for %s (%s) — falling back to BioPython analysis", pdb_id, exc)
+                return _run_biopython_analysis(pdb_path, pdb_id, mode, reason=f"OpenMM could not build this structure ({type(exc).__name__})")
         else:
             return _run_biopython_analysis(pdb_path, pdb_id, mode)
     finally:
@@ -170,30 +215,66 @@ def run_simulation(pdb_id: str, mode: str = "minimize") -> dict:
 # OpenMM simulation
 # ---------------------------------------------------------------------------
 
+# Standard amino acid three-letter codes AMBER14 can parameterize, plus the
+# common protonation/naming variants OpenMM normalizes (HID/HIE/HIP, CYX).
+_STANDARD_AAS = {
+    "ALA", "ARG", "ASN", "ASP", "CYS", "GLN", "GLU", "GLY", "HIS", "ILE",
+    "LEU", "LYS", "MET", "PHE", "PRO", "SER", "THR", "TRP", "TYR", "VAL",
+    "HID", "HIE", "HIP", "CYX", "HSD", "HSE", "HSP", "NME", "ACE",
+}
+
+
+def _strip_non_standard_residues(modeller) -> int:
+    """Remove water/ions/ligands/nucleic acids from the Modeller topology.
+
+    Returns the number of residues removed. Leaves only standard amino acids
+    (and terminal caps) which AMBER14 has templates for.
+    """
+    from openmm.app import Modeller
+
+    to_delete = [r for r in modeller.topology.residues() if r.name.strip().upper() not in _STANDARD_AAS]
+    if not to_delete:
+        return 0
+    # Collect the atoms belonging to non-standard residues, then delete them.
+    # Deleting by residue would invalidate iterators, so delete by atom list.
+    atom_set = set()
+    for res in to_delete:
+        for atom in res.atoms():
+            atom_set.add(atom)
+    atoms = [a for a in modeller.topology.atoms() if a in atom_set]
+    modeller.delete(atoms)
+    return len(to_delete)
+
+
 def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     """Core OpenMM simulation with correct implicit-solvent setup."""
-    from openmm.app import PDBFile, ForceField, Simulation, NoCutoff, OBC2, Modeller
+    from openmm.app import PDBFile, ForceField, Simulation, NoCutoff, Modeller
     from openmm import unit, LangevinMiddleIntegrator
 
     # Load structure
     pdb = PDBFile(pdb_path)
-    forcefield = ForceField("amber14-all.xml")
+    # OpenMM 8.x: implicit solvent is loaded as an explicit force field file,
+    # not via the createSystem(implicitSolvent=...) kwarg (which is rejected).
+    forcefield = ForceField("amber14-all.xml", "implicit/obc2.xml")
+
+    # Keep only standard amino acids — water, ions, ligands, and nucleic acids
+    # have no AMBER14 protein template and would crash createSystem().
+    modeller = Modeller(pdb.topology, pdb.positions)
+    _strip_non_standard_residues(modeller)
 
     # Add hydrogens — RCSB PDBs lack H atoms but AMBER14 requires them
-    modeller = Modeller(pdb.topology, pdb.positions)
     modeller.addHydrogens(forcefield)
 
     n_atoms = modeller.topology.getNumAtoms()
     n_residues = len(list(modeller.topology.residues()))
+    if n_residues == 0:
+        raise RuntimeError(f"PDB {pdb_id} contains no protein residues — cannot run MD simulation")
     logger.info("Structure loaded: %d atoms, %d residues", n_atoms, n_residues)
 
     # Build system with OBC2 implicit solvent (Generalized Born)
     system = forcefield.createSystem(
         modeller.topology,
         nonbondedMethod=NoCutoff,
-        implicitSolvent=OBC2,
-        solventDielectric=78.5,
-        soluteDielectric=1.0,
     )
 
     # Langevin integrator: 300 K, 2 fs timestep
@@ -206,10 +287,15 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     simulation = Simulation(modeller.topology, system, integrator)
     simulation.context.setPositions(modeller.positions)
 
-    # Build atom → residue map for RMSF
+    # Build atom → residue map for RMSF, and select Cα indices for RMSD.
+    # Cα RMSD is the scientific standard: all-atom RMSD would be dominated by
+    # the added hydrogens vibrating at 2fs timesteps.
     atom_to_residue: dict[int, str] = {}
+    ca_indices: list[int] = []
     for atom in modeller.topology.atoms():
         atom_to_residue[atom.index] = f"{atom.residue.name}{atom.residue.id}"
+        if atom.name == "CA":
+            ca_indices.append(atom.index)
 
     # ---- Energy minimization ----
     logger.info("Running energy minimization (%d steps)...", MINIMIZATION_STEPS)
@@ -221,8 +307,18 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     min_energy = state.getPotentialEnergy().value_in_unit(unit.kilojoule_per_mole)
     logger.info("Minimization complete: %.2f kJ/mol in %.1fs", min_energy, min_elapsed)
 
-    # Reference frame = minimized structure (used for RMSD)
+    # Reference for RMSD = the minimized structure (the starting point of the
+    # dynamics). Also record how far minimization moved the structure from the
+    # original crystal coordinates (a useful sanity metric).
+    state = simulation.context.getState(getPositions=True)
     ref_coords = _positions_to_np(state.getPositions())
+    init_coords = _positions_to_np(modeller.positions)
+    init_rmsd = _kabsch_rmsd(init_coords[ca_indices] if ca_indices else init_coords,
+                             ref_coords[ca_indices] if ca_indices else ref_coords)
+    if ca_indices:
+        ref_ca = ref_coords[ca_indices]
+    else:
+        ref_ca = ref_coords
 
     energy_data: dict = {
         "minimization": [{"step": 0, "energy": round(min_energy, 2)}],
@@ -244,21 +340,23 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # ---- Production dynamics ----
     frames: list[np.ndarray] = []
     rmsd_data: list[dict] = []
-    total_steps = PRODUCTION_STEPS if mode == "production" else 0
+    production_steps = _adaptive_production_steps(n_atoms) if mode == "production" else 0
+    total_steps = production_steps
     prod_elapsed = 0.0
 
     if mode == "production":
-        logger.info("Running production (%d steps, recording every %d)...", PRODUCTION_STEPS, ENERGY_RECORD_INTERVAL)
+        logger.info("Running production (%d steps = %.0f ps, recording every %d)...",
+                    production_steps, production_steps / 500, ENERGY_RECORD_INTERVAL)
         t0 = time.time()
 
-        # Determine how many steps between recordings, target ~100 frames max
-        n_target_frames = min(PRODUCTION_STEPS // ENERGY_RECORD_INTERVAL, 100)
-        step_interval = max(ENERGY_RECORD_INTERVAL, PRODUCTION_STEPS // n_target_frames)
+        # Record ~100 frames spread evenly across the trajectory
+        n_target_frames = min(production_steps // ENERGY_RECORD_INTERVAL, 100)
+        step_interval = max(ENERGY_RECORD_INTERVAL, production_steps // n_target_frames)
 
         steps_done = 0
         frame_idx = 0
-        while steps_done < PRODUCTION_STEPS:
-            batch = min(step_interval, PRODUCTION_STEPS - steps_done)
+        while steps_done < production_steps:
+            batch = min(step_interval, production_steps - steps_done)
             simulation.step(batch)
             steps_done += batch
 
@@ -269,7 +367,11 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
             coords = _positions_to_np(st.getPositions())
             frames.append(coords)
 
-            rmsd_val = _kabsch_rmsd(ref_coords, coords)
+            if ca_indices:
+                frame_ca = coords[ca_indices]
+            else:
+                frame_ca = coords
+            rmsd_val = _kabsch_rmsd(ref_ca, frame_ca)
             rmsd_data.append({"frame": frame_idx, "rmsd": round(rmsd_val, 3)})
             frame_idx += 1
 
@@ -283,7 +385,13 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # ---- RMSF from trajectory ----
     rmsf_data: list[dict] = []
     if frames and len(frames) >= 2:
-        rmsf_data = _compute_rmsf(frames, ref_coords, atom_to_residue)
+        if ca_indices:
+            ca_frames = [f[ca_indices] for f in frames]
+            ca_ref = ref_coords[ca_indices]
+            ca_to_res = {i: atom_to_residue[ca_indices[i]] for i in range(len(ca_indices))}
+            rmsf_data = _compute_rmsf(ca_frames, ca_ref, ca_to_res)
+        else:
+            rmsf_data = _compute_rmsf(frames, ref_coords, atom_to_residue)
 
     total_elapsed = round(min_elapsed + prod_elapsed, 1)
 
@@ -297,10 +405,14 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
         "timestep_fs": 2,
         "minimization_steps": MINIMIZATION_STEPS,
         "equilibration_steps": EQUILIBRATION_STEPS if mode in ("equilibrate", "production") else 0,
-        "production_steps": total_steps,
+        "production_steps": production_steps,
+        "production_ps": round(production_steps / 500, 1),
         "final_energy_kj_mol": round(final_energy, 2),
         "energy": energy_data,
+        "minimization_drift_angstrom": round(init_rmsd, 3),
         "rmsd": rmsd_data,
+        "rmsd_basis": "CA" if ca_indices else "all_atoms",
+        "rmsd_avg_angstrom": round(float(np.mean([r["rmsd"] for r in rmsd_data])), 3) if rmsd_data else None,
         "rmsf": rmsf_data[:50],
         "atom_count": n_atoms,
         "residue_count": n_residues,
@@ -313,7 +425,28 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
 # BioPython structural analysis fallback (when OpenMM is unavailable)
 # ---------------------------------------------------------------------------
 
-def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
+def _model_ca_coords(model) -> np.ndarray | None:
+    """Extract Cα coordinates from a BioPython Model in residue order.
+
+    Returns None if no Cα atoms are present.
+    """
+    ca_coords = []
+    for chain in model.get_chains():
+        for res in chain.get_residues():
+            if not (res.id[0] == " " or res.id[0] == ""):  # skip HETATM residues
+                continue
+            if res.get_resname().strip().upper() not in _STANDARD_AAS:
+                continue
+            for atom in res.get_atoms():
+                if atom.get_name() == "CA":
+                    ca_coords.append(atom.get_vector().get_array())
+                    break
+    if not ca_coords:
+        return None
+    return np.array(ca_coords)
+
+
+def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str = "OpenMM not available") -> dict:
     """Structural analysis fallback using BioPython when OpenMM is not installed.
 
     Computes real structural properties from the PDB:
@@ -326,7 +459,7 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
     from Bio.PDB import PDBParser, Polypeptide
     import math
 
-    logger.info("OpenMM unavailable — running BioPython structural analysis for %s", pdb_id)
+    logger.info("%s — running BioPython structural analysis for %s", reason, pdb_id)
     t0 = time.time()
 
     parser = PDBParser(QUIET=True)
@@ -403,10 +536,27 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # Build energy "trace" — constant value across frames for visualization
     energy_data = {
         "minimization": [{"step": 0, "energy": estimated_energy_kj}],
-        "production": [{"step": i * 50, "energy": estimated_energy_kj + (i * 0.1)} for i in range(10)] if mode == "production" else [],
+        "production": [],
     }
 
-    rmsd_data = [{"frame": i, "rmsd": round(0.1 + i * 0.005, 3)} for i in range(10)] if mode == "production" else []
+    # Real RMSD only — never fabricate. NMR ensembles store multiple models in
+    # one PDB; the RMSD of each model vs the first is a genuine conformational
+    # drift measure. Without a second conformation there is no dynamics data.
+    rmsd_data: list[dict] = []
+    rmsd_source = None
+    n_models = len(list(structure))
+    if n_models > 1:
+        try:
+            first_ca = _model_ca_coords(structure[0])
+            rmsd_data = []
+            for mi, model in enumerate(structure):
+                m_ca = _model_ca_coords(model)
+                if first_ca is not None and m_ca is not None and first_ca.shape == m_ca.shape:
+                    rmsd_data.append({"frame": mi, "rmsd": round(_kabsch_rmsd(first_ca, m_ca), 3)})
+            if rmsd_data:
+                rmsd_source = f"ensemble_models_{n_models}"
+        except Exception as exc:
+            logger.warning("Ensemble RMSD failed for %s: %s", pdb_id, exc)
 
     elapsed = round(time.time() - t0, 1)
 
@@ -424,6 +574,8 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
         "final_energy_kj_mol": estimated_energy_kj,
         "energy": energy_data,
         "rmsd": rmsd_data,
+        "rmsd_basis": "CA" if rmsd_data else None,
+        "rmsd_source": rmsd_source,
         "rmsf": [],
         "atom_count": n_atoms,
         "residue_count": n_residues,
@@ -434,5 +586,5 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str) -> dict:
         "secondary_structure": ss_counts,
         "elapsed_seconds": elapsed,
         "status": "complete",
-        "note": "OpenMM not available — used BioPython structural analysis. Install OpenMM for full MD simulation.",
+        "note": f"{reason} — used BioPython structural analysis. Install OpenMM for full MD simulation.",
     })

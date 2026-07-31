@@ -202,7 +202,7 @@ export default function MDPage() {
               {[
                 { label: "Minimization (L-BFGS)", steps: result.minimization_steps, total: 500, color: "bg-accent-cyan" },
                 { label: "Equilibration (NVT, Langevin)", steps: result.equilibration_steps, total: 1000, color: "bg-accent-purple" },
-                { label: "Production (Langevin)", steps: result.production_steps, total: 2000, color: "bg-accent-amber" },
+                { label: "Production (Langevin)", steps: result.production_steps, total: Math.max(result.production_steps, result.equilibration_steps, 1), color: "bg-accent-amber" },
               ].filter(s => s.steps > 0).map((s) => (
                 <div key={s.label}>
                   <div className="flex items-center justify-between mb-1">

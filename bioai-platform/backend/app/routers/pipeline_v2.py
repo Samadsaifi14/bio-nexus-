@@ -375,7 +375,7 @@ async def _run_blast(sequence: str, status_callback=None, fast_mode: bool = Fals
     results = await ncbi_blast.run_blast_with_retry(
         sequence,
         retries=2,
-        max_wait_seconds=180 if fast_mode else 600,
+        max_wait_seconds=600 if fast_mode else 900,
         database=database,
     )
 

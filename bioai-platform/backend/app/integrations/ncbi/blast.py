@@ -28,11 +28,15 @@ def _api_key_param() -> dict:
     return {"api_key": NCBI_API_KEY} if NCBI_API_KEY else {}
 
 
-async def _request_with_retry(method: str, url: str, max_retries: int = 3, **kwargs) -> httpx.Response:
-    """Make an HTTP request with retry on connection, timeout, and transient errors."""
+async def _request_with_retry(method: str, url: str, max_retries: int = 3, request_timeout: float = 60.0, **kwargs) -> httpx.Response:
+    """Make an HTTP request with retry on connection, timeout, and transient errors.
+
+    request_timeout is the read/write timeout. NCBI's synchronous mode blocks
+    until results are ready, so callers must pass a generous value for it.
+    """
     for attempt in range(max_retries):
         try:
-            async with httpx.AsyncClient(timeout=httpx.Timeout(60.0, connect=15.0)) as client:
+            async with httpx.AsyncClient(timeout=httpx.Timeout(request_timeout, connect=15.0)) as client:
                 resp = await getattr(client, method)(url, **kwargs)
                 resp.raise_for_status()
                 return resp
@@ -79,7 +83,10 @@ async def submit_blast(
     if gapextend > 0:
         params["GAPEXTEND"] = str(gapextend)
 
-    resp = await _request_with_retry("post", NCBI_BLAST_URL, data=params)
+    resp = await _request_with_retry(
+        "post", NCBI_BLAST_URL, data=params,
+        request_timeout=300.0 if not async_flag else 60.0,
+    )
     text = resp.text
 
     rid_match = re.search(r"RID\s*=\s*(\S+)", text)
@@ -91,7 +98,11 @@ async def submit_blast(
     rid = rid_match.group(1)
     rtoe = int(rtoe_match.group(1)) if rtoe_match else 60
 
-    return {"rid": rid, "estimated_seconds": rtoe}
+    result = {"rid": rid, "estimated_seconds": rtoe}
+    if not async_flag and "Status=READY" in text:
+        # NCBI blocked and returned results inline in the submit response.
+        result["raw"] = text
+    return result
 
 
 async def submit_blast_sync(sequence: str, **kwargs) -> dict:
@@ -143,11 +154,13 @@ async def check_status_until_ready(
     than 5x that duration (minimum 60s), it's treated as stuck.
     """
     elapsed = 0
-    delay = 10  # NCBI rate limit: 1 req/10s without API key
+    # With an API key NCBI allows 3 req/s; without, 1 req/10s.
+    delay = 5 if NCBI_API_KEY else 10
     consecutive_failures = 0
     max_consecutive_failures = 3
-    # Stuck-job threshold: 5x the RTOE, but at least 60s
-    stuck_threshold = max(estimated_seconds * 5, 60) if estimated_seconds > 0 else 120
+    # Stuck-job threshold: 5x the RTOE, but at least 180s (NCBI overload can
+    # push legitimate jobs well past their RTOE, so don't give up early).
+    stuck_threshold = max(estimated_seconds * 5, 180) if estimated_seconds > 0 else 240
 
     while elapsed < max_wait_seconds:
         try:
@@ -166,7 +179,7 @@ async def check_status_until_ready(
                 return {"status": "POLL_FAILED", "rid": rid, "error": str(e)}
             await asyncio.sleep(delay)
             elapsed += delay
-            delay = min(delay * 1.5, 25)
+            delay = min(delay * 1.5, 15 if NCBI_API_KEY else 25)
             continue
 
         status = result["status"]
@@ -188,7 +201,7 @@ async def check_status_until_ready(
 
         await asyncio.sleep(delay)
         elapsed += delay
-        delay = min(delay * 1.5, 25)  # back off, cap at 25s
+        delay = min(delay * 1.5, 15 if NCBI_API_KEY else 25)  # back off, cap at 15s (key) / 25s (no key)
 
     logger.warning("BLAST RID %s timed out after %ds", rid, max_wait_seconds)
     return {"status": "TIMEOUT", "rid": rid}
@@ -260,10 +273,11 @@ async def run_blast_with_retry(
             continue
 
         if use_sync:
-            # Sync mode: NCBI blocked and returned the result inline in the submit response.
-            # The response text in submit_result may contain the XML already.
-            # We need to poll once to check if it's actually ready.
-            pass
+            # Sync mode: NCBI blocked and returned the result inline in the
+            # submit response. If the raw XML came back ready, use it directly.
+            if submit_result.get("raw"):
+                logger.info("BLAST sync mode returned results inline for RID %s", rid)
+                return {"raw": submit_result["raw"], "rid": rid}
 
         try:
             status_result = await check_status_until_ready(

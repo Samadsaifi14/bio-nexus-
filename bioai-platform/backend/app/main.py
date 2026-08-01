@@ -216,7 +216,19 @@ async def health():
         "cache": stats,
         "worker": "unknown",
         "queue_depth": {},
+        "openmm": None,
     }
+
+    try:
+        import openmm
+        from openmm import Platform
+        platforms = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
+        health_data["openmm"] = {
+            "version": openmm.__version__,
+            "platforms": platforms,
+        }
+    except Exception as exc:
+        health_data["openmm"] = {"error": str(exc)}
 
     # Check worker health via queue depths
     try:

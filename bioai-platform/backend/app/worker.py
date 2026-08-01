@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
 POLL_INTERVAL = 3  # seconds
-STUCK_JOB_TIMEOUT_MIN = 30
+STUCK_JOB_TIMEOUT_MIN = 90
 SWEEP_EVERY = 20  # sweep every N poll ticks (~60s)
 
 # Per-type concurrency caps
@@ -184,7 +184,7 @@ def _run_md(job: dict) -> None:
 
     try:
         logger.info("Running MD simulation: PDB=%s mode=%s", pdb_id, mode)
-        result = run_simulation(pdb_id, mode)
+        result = run_simulation(pdb_id, mode, platform=payload.get("platform"))
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job["id"], "result", result)
         supabase = get_client()

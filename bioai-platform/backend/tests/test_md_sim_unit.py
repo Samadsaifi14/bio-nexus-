@@ -345,3 +345,40 @@ END
         topo = Topology()
         modeller = Modeller(topo, [] * unit.nanometer)
         assert _add_missing_terminal_oxt(modeller) == 0
+
+    def test_oxt_geometry_does_not_clash_with_sidechain(self, tmp_path):
+        # Regression: the OXT position was originally computed by reflecting O
+        # through C (a point reflection), which sent it straight into the
+        # backbone (OXT ~1.4 A from CA/CB). That clash made the initial GBSA
+        # forces enormous and tipped OpenMM into "Particle coordinate is NaN"
+        # during minimizeEnergy on some platforms. OXT must be placed at the
+        # ~120 deg carboxylate angle, well away from CA/CB.
+        pytest.importorskip("openmm")
+        from app.tools.md_sim import _add_missing_terminal_oxt
+        from openmm.app import PDBFile, Modeller
+        from openmm import unit
+        import math
+        pdb_path = tmp_path / "cterm.pdb"
+        pdb_path.write_text(self._MINI_PDB)
+        pdb = PDBFile(str(pdb_path))
+        modeller = Modeller(pdb.topology, pdb.positions)
+        assert _add_missing_terminal_oxt(modeller) == 1
+
+        pos = {}
+        for atom in modeller.topology.atoms():
+            pos[atom.name] = modeller.positions[atom.index].value_in_unit(unit.nanometer)
+        def dist(a, b):
+            return math.dist(pos[a], pos[b])
+        # Bond to C preserved, and no clash with backbone/sidechain atoms.
+        assert 0.10 < dist("C", "OXT") < 0.16
+        assert dist("CA", "OXT") > 0.20
+        assert dist("CB", "OXT") > 0.20
+        assert dist("O", "OXT") > 0.20
+        # Near-planar carboxylate, ~120 deg O-C-OXT angle (not 180 deg).
+        c, o, oxt = pos["C"], pos["O"], pos["OXT"]
+        v1 = (o[0]-c[0], o[1]-c[1], o[2]-c[2])
+        v2 = (oxt[0]-c[0], oxt[1]-c[1], oxt[2]-c[2])
+        n1 = math.dist(o, c); n2 = math.dist(oxt, c)
+        cosang = (v1[0]*v2[0] + v1[1]*v2[1] + v1[2]*v2[2]) / (n1*n2)
+        angle = math.degrees(math.acos(max(-1.0, min(1.0, cosang))))
+        assert 60.0 < angle < 180.0

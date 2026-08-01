@@ -19,6 +19,7 @@ _TABLE = "docking_jobs"  # reuse docking_jobs table with md_jobs for now
 class MDRunRequest(BaseModel):
     pdb_id: str = Field(..., pattern=r"^[A-Za-z0-9]{4}$", description="4-char PDB ID")
     mode: str = Field(default="minimize", pattern=r"^(minimize|equilibrate|production)$")
+    platform: str | None = Field(default=None, description="Optional OpenMM platform (CPU/Reference)")
 
 
 class MDJobResponse(BaseModel):
@@ -44,6 +45,7 @@ async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(re
         "payload": {
             "pdb_id": body.pdb_id,
             "mode": body.mode,
+            "platform": body.platform,
             "tool_type": "md",
         },
     }
@@ -73,14 +75,14 @@ async def get_md_status(job_id: str, user_id: str = Depends(require_user_id)):
     if data.get("status") in ("queued", "running") and data.get("claimed_at"):
         try:
             claimed = datetime.fromisoformat(data["claimed_at"].replace("Z", "+00:00"))
-            if datetime.now(timezone.utc) - claimed > timedelta(minutes=10):
+            if datetime.now(timezone.utc) - claimed > timedelta(minutes=60):
                 supabase.table(_TABLE).update({
                     "status": "failed",
-                    "error": "Job timed out (exceeded 10 minute limit)",
+                    "error": "Job timed out (exceeded 60 minute limit)",
                     "done_at": datetime.now(timezone.utc).isoformat(),
                 }).eq("id", job_id).execute()
                 data["status"] = "failed"
-                data["error"] = "Job timed out (exceeded 10 minute limit)"
+                data["error"] = "Job timed out (exceeded 60 minute limit)"
         except Exception:
             pass
 

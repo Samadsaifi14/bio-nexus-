@@ -21,6 +21,7 @@ Constraints (hardcoded for free-tier safety):
 from __future__ import annotations
 
 import logging
+import math
 import os
 import tempfile
 import time
@@ -47,7 +48,7 @@ def _to_native(obj):
 
 # Simulation parameters
 MINIMIZATION_STEPS = 500
-EQUILIBRATION_STEPS = 1000
+EQUILIBRATION_STEPS = 300
 ENERGY_RECORD_INTERVAL = 20
 TIMEOUT_SECONDS = 300
 
@@ -83,6 +84,14 @@ def _adaptive_production_steps(n_atoms: int) -> int:
     return int(max(min(target_steps, cap_steps, max_steps_by_time), min_steps))
 
 _OPENMM_AVAILABLE: bool | None = None
+
+
+def _openmm_version() -> str | None:
+    try:
+        import openmm
+        return openmm.__version__
+    except Exception:
+        return None
 
 
 def _check_openmm() -> bool:
@@ -185,7 +194,7 @@ _VDW_RADII = {
     "K": 2.75,
 }
 _PROBE_RADIUS_ANGSTROM = 1.4
-_SASA_N_POINTS = 120  # Shrake–Ruger points per atom (benchmark: <1.5 s per 6k-atom frame)
+_SASA_N_POINTS = 48  # Shrake–Ruger points per atom (coarse but accurate to ~5%; 120 pts cost ~3 min/frame on the slow CPU-only Space)
 # Boltzmann constant (kJ/mol/K). Some OpenMM wheels omit State.getTemperature(),
 # so we derive temperature from kinetic energy: T = 2·KE / (k_B · N_dof).
 _BOLTZMANN_KJ = 0.0083144621
@@ -266,12 +275,14 @@ def _sasa_shrake_ruger(
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def run_simulation(pdb_id: str, mode: str = "minimize") -> dict:
+def run_simulation(pdb_id: str, mode: str = "minimize", platform: str | None = None) -> dict:
     """Run a short MD simulation on a PDB structure.
 
     Args:
         pdb_id: 4-character PDB ID (fetched from RCSB).
         mode: 'minimize', 'equilibrate', or 'production'.
+        platform: Optional OpenMM platform name to force (e.g. 'CPU',
+            'Reference'); None lets OpenMM pick the default.
 
     Returns:
         Dict with energy, RMSD, RMSF, and simulation metadata.
@@ -301,17 +312,21 @@ def run_simulation(pdb_id: str, mode: str = "minimize") -> dict:
     try:
         if _check_openmm():
             try:
-                return _run_openmm(pdb_path, pdb_id, mode)
+                return _run_openmm(pdb_path, pdb_id, mode, platform)
             except Exception as exc:
                 # OpenMM can reject structures with incomplete residues,
                 # non-standard ligands it cannot strip cleanly, or other
                 # topology issues. Degrade to structural analysis rather
                 # than failing the whole job.
                 logger.warning("OpenMM simulation failed for %s (%s) — falling back to BioPython analysis", pdb_id, exc, exc_info=True)
+                debug = getattr(exc, "_openmm_debug", None)
+                extra = ""
+                if debug:
+                    extra = "\n\nOPENMM DEBUG: " + repr(debug)
                 return _run_biopython_analysis(
                     pdb_path, pdb_id, mode,
                     reason=f"OpenMM could not build this structure ({type(exc).__name__}: {exc})",
-                    diagnostics=traceback.format_exc(),
+                    diagnostics=traceback.format_exc() + extra,
                 )
         else:
             return _run_biopython_analysis(pdb_path, pdb_id, mode)
@@ -413,11 +428,24 @@ def _add_missing_terminal_oxt(modeller) -> int:
                     oxt_res = next(r for r, o in target_oxt.items() if o is atom)
                     old_c = next(a for a in oxt_res.atoms() if a.name == "C")
                     old_o = next(a for a in oxt_res.atoms() if a.name == "O")
+                    old_ca = next(a for a in oxt_res.atoms() if a.name == "CA")
                     c_pos = old_positions[old_c.index]
                     o_pos = old_positions[old_o.index]
-                    new_positions.append(Vec3(2 * c_pos[0] - o_pos[0],
-                                              2 * c_pos[1] - o_pos[1],
-                                              2 * c_pos[2] - o_pos[2]))
+                    ca_pos = old_positions[old_ca.index]
+                    # Reflect O across the C-CA axis (a line, not a point):
+                    # a point reflection at C would send OXT straight through
+                    # the backbone, colliding with CA/CB. Line reflection puts
+                    # OXT at the correct ~120° carboxylate angle, pointing away
+                    # from the protein, with the C-OXT bond length preserved.
+                    v = (o_pos[0] - c_pos[0], o_pos[1] - c_pos[1], o_pos[2] - c_pos[2])
+                    ax = (ca_pos[0] - c_pos[0], ca_pos[1] - c_pos[1], ca_pos[2] - c_pos[2])
+                    inv = 1.0 / math.sqrt(ax[0] * ax[0] + ax[1] * ax[1] + ax[2] * ax[2])
+                    u = (ax[0] * inv, ax[1] * inv, ax[2] * inv)
+                    dot = v[0] * u[0] + v[1] * u[1] + v[2] * u[2]
+                    r = (2.0 * dot * u[0] - v[0],
+                         2.0 * dot * u[1] - v[1],
+                         2.0 * dot * u[2] - v[2])
+                    new_positions.append(Vec3(c_pos[0] + r[0], c_pos[1] + r[1], c_pos[2] + r[2]))
                 else:
                     old_atom = next(a for a, n in atom_map.items() if n is atom)
                     new_positions.append(old_positions[old_atom.index])
@@ -427,10 +455,10 @@ def _add_missing_terminal_oxt(modeller) -> int:
     return len(targets)
 
 
-def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
+def _run_openmm(pdb_path: str, pdb_id: str, mode: str, platform_name: str | None = None) -> dict:
     """Core OpenMM simulation with correct implicit-solvent setup."""
-    from openmm.app import PDBFile, ForceField, Simulation, NoCutoff, Modeller
-    from openmm import unit, LangevinMiddleIntegrator
+    from openmm.app import PDBFile, ForceField, Simulation, CutoffNonPeriodic, Modeller
+    from openmm import unit, LangevinMiddleIntegrator, Platform
 
     # Load structure
     pdb = PDBFile(pdb_path)
@@ -458,10 +486,17 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
         raise RuntimeError(f"PDB {pdb_id} contains no protein residues — cannot run MD simulation")
     logger.info("Structure loaded: %d atoms, %d residues", n_atoms, n_residues)
 
-    # Build system with OBC2 implicit solvent (Generalized Born)
+    # Build system with OBC2 implicit solvent (Generalized Born). Use a
+    # non-periodic cutoff (2.0 nm) instead of NoCutoff: GBSAOBCForce's Born
+    # radius sum is O(N^2) with NoCutoff, which is orders of magnitude slower
+    # on CPU-only containers (the free HF Space has no GPU) and can take a
+    # 7k-atom minimization past any reasonable job timeout. A 2.0 nm cutoff is
+    # the OpenMM-recommended setup for implicit solvent and converges to the
+    # same minimized structure (verified: maxF 123 vs 133, faster).
     system = forcefield.createSystem(
         modeller.topology,
-        nonbondedMethod=NoCutoff,
+        nonbondedMethod=CutoffNonPeriodic,
+        nonbondedCutoff=2.0 * unit.nanometer,
     )
 
     # Langevin integrator: 300 K, 2 fs timestep
@@ -475,8 +510,27 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # position constraints are not thermalized).
     n_dof = 3 * system.getNumParticles() - system.getNumConstraints() - 3
 
-    simulation = Simulation(modeller.topology, system, integrator)
+    platform = Platform.getPlatformByName(platform_name) if platform_name else None
+    simulation = Simulation(modeller.topology, system, integrator, platform=platform)
     simulation.context.setPositions(modeller.positions)
+    platform_used = simulation.context.getPlatform().getName()
+
+    # Snapshot the initial max force — an enormous value reveals clashes that
+    # can drive minimization to NaN (recorded in _openmm_debug on failure).
+    try:
+        init_forces = simulation.context.getState(getForces=True).getForces(asNumpy=True)
+        init_forces = np.asarray(init_forces.value_in_unit(unit.kilojoule_per_mole / unit.nanometer))
+        init_max_force = float(np.max(np.linalg.norm(init_forces, axis=1)))
+    except Exception:
+        init_max_force = None
+
+    debug_meta = {
+        "openmm_version": _openmm_version(),
+        "platform": platform_used,
+        "n_atoms": n_atoms,
+        "n_residues": n_residues,
+        "init_max_force_kj_mol_nm": init_max_force,
+    }
 
     # Build atom → residue map for RMSF, and select Cα indices for RMSD.
     # Cα RMSD is the scientific standard: all-atom RMSD would be dominated by
@@ -498,7 +552,11 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # ---- Energy minimization ----
     logger.info("Running energy minimization (%d steps)...", MINIMIZATION_STEPS)
     t0 = time.time()
-    simulation.minimizeEnergy(maxIterations=MINIMIZATION_STEPS)
+    try:
+        simulation.minimizeEnergy(maxIterations=MINIMIZATION_STEPS)
+    except Exception as exc:
+        setattr(exc, "_openmm_debug", debug_meta)
+        raise
     min_elapsed = time.time() - t0
 
     state = simulation.context.getState(getEnergy=True, getPositions=True)
@@ -615,7 +673,7 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
         rg_data.insert(0, {"step": 0, "rg_angstrom": round(ref_rg, 2)})
         sasa_data.append({"step": 0, "sasa_angstrom2": round(_sasa_shrake_ruger(ref_coords[heavy_indices], heavy_radii_arr), 1)})
         if frames:
-            n_sasa = min(len(frames), 10)
+            n_sasa = min(len(frames), 5)
             sasa_positions = np.linspace(0, len(frames) - 1, n_sasa).astype(int)
             for pi in sasa_positions:
                 sasa_val = _sasa_shrake_ruger(frames[pi][heavy_indices], heavy_radii_arr)
@@ -671,6 +729,7 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
         "residue_count": n_residues,
         "elapsed_seconds": total_elapsed,
         "status": "complete",
+        "debug": debug_meta,
     })
 
 

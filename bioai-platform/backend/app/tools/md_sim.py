@@ -352,6 +352,76 @@ def _strip_non_standard_residues(modeller) -> int:
     return len(to_delete)
 
 
+def _add_missing_terminal_oxt(modeller) -> int:
+    """Add missing OXT atoms to C-terminal residues lacking them.
+
+    RCSB PDBs usually omit the terminal carboxylate oxygen (OXT). AMBER14's
+    C-terminal templates require OXT while the internal template requires the
+    next residue's C bond, so an unterminated C-terminus (e.g. HIS 248 of
+    1TIM) matches neither and addHydrogens() raises ValueError. Rebuilds the
+    topology with OXT inserted as the last atom of each affected terminal
+    residue. Its geometry is estimated by reflecting the backbone carbonyl O
+    across C, which the initial energy minimization relaxes.
+    """
+    from openmm.app import Topology, element
+    from openmm import Vec3, unit
+
+    old = modeller.topology
+    targets = []
+    for chain in old.chains():
+        residues = [r for r in chain.residues() if r.name.strip().upper() in _STANDARD_AAS]
+        if not residues:
+            continue
+        term = residues[-1]
+        names = {a.name for a in term.atoms()}
+        if "OXT" not in names and "C" in names and "O" in names:
+            targets.append(term)
+
+    if not targets:
+        return 0
+
+    old_positions = [p.value_in_unit(unit.nanometer) for p in modeller.positions]
+    atom_map: dict = {}
+    target_oxt: dict = {}
+    new_topo = Topology()
+    for chain in old.chains():
+        new_chain = new_topo.addChain()
+        for res in chain.residues():
+            new_res = new_topo.addResidue(res.name, new_chain, id=res.id, insertionCode=res.insertionCode)
+            for atom in res.atoms():
+                atom_map[atom] = new_topo.addAtom(atom.name, atom.element, new_res)
+            if res in targets:
+                target_oxt[res] = new_topo.addAtom("OXT", element.oxygen, new_res)
+    for a1, a2 in old.bonds():
+        new_topo.addBond(atom_map[a1], atom_map[a2])
+    for res, oxt in target_oxt.items():
+        c_atom = next(a for a in res.atoms() if a.name == "C")
+        new_topo.addBond(atom_map[c_atom], oxt)
+
+    # Build positions in the new topology order.
+    new_positions = []
+    for chain in new_topo.chains():
+        for res in chain.residues():
+            for atom in res.atoms():
+                if atom in target_oxt.values():
+                    # find corresponding C and O positions
+                    oxt_res = next(r for r, o in target_oxt.items() if o is atom)
+                    old_c = next(a for a in oxt_res.atoms() if a.name == "C")
+                    old_o = next(a for a in oxt_res.atoms() if a.name == "O")
+                    c_pos = old_positions[old_c.index]
+                    o_pos = old_positions[old_o.index]
+                    new_positions.append(Vec3(2 * c_pos[0] - o_pos[0],
+                                              2 * c_pos[1] - o_pos[1],
+                                              2 * c_pos[2] - o_pos[2]))
+                else:
+                    old_atom = next(a for a, n in atom_map.items() if n is atom)
+                    new_positions.append(old_positions[old_atom.index])
+
+    modeller.topology = new_topo
+    modeller.positions = unit.quantity.Quantity(new_positions, unit.nanometer)
+    return len(targets)
+
+
 def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     """Core OpenMM simulation with correct implicit-solvent setup."""
     from openmm.app import PDBFile, ForceField, Simulation, NoCutoff, Modeller
@@ -367,6 +437,12 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str) -> dict:
     # have no AMBER14 protein template and would crash createSystem().
     modeller = Modeller(pdb.topology, pdb.positions)
     _strip_non_standard_residues(modeller)
+
+    # RCSB PDBs omit the terminal carboxylate oxygen; add it so AMBER14's
+    # C-terminal templates can match (otherwise addHydrogens() raises).
+    n_oxt = _add_missing_terminal_oxt(modeller)
+    if n_oxt:
+        logger.info("Added %d missing C-terminal OXT atom(s)", n_oxt)
 
     # Add hydrogens — RCSB PDBs lack H atoms but AMBER14 requires them
     modeller.addHydrogens(forcefield)

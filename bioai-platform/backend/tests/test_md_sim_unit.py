@@ -293,3 +293,55 @@ END
         assert len(result["radius_of_gyration"]) >= 1
         assert result["sasa"][0]["sasa_angstrom2"] > 0
         assert result["atom_count"] > 0
+
+
+class TestCTerminalOxt:
+    """Regression: RCSB PDBs omit the C-terminal carboxylate oxygen (OXT).
+    AMBER14's C-terminal templates require OXT while the internal template
+    requires the next residue's C bond, so an unterminated C-terminus (seen on
+    1TIM HIS 248) matches neither and addHydrogens() raises ValueError.
+    _add_missing_terminal_oxt must add OXT so the OpenMM path succeeds instead
+    of degrading to the BioPython fallback."""
+
+    _MINI_PDB = """\
+ATOM   1852  N   LYS A 247      53.278  15.624   7.791  1.00  0.00           N
+ATOM   1853  CA  LYS A 247      53.240  14.342   7.088  1.00  0.00           C
+ATOM   1854  C   LYS A 247      52.815  13.161   7.998  1.00  0.00           C
+ATOM   1855  O   LYS A 247      52.797  13.349   9.221  1.00  0.00           O
+ATOM   1856  CB  LYS A 247      54.648  14.071   6.522  1.00  0.00           C
+ATOM   1857  CG  LYS A 247      55.669  13.813   7.643  1.00  0.00           C
+ATOM   1858  CD  LYS A 247      57.068  13.604   7.028  1.00  0.00           C
+ATOM   1859  CE  LYS A 247      58.070  13.199   8.124  1.00  0.00           C
+ATOM   1860  NZ  LYS A 247      59.431  13.100   7.578  1.00  0.00           N
+ATOM   1861  N   HIS A 248      52.499  12.017   7.395  1.00  0.00           N
+ATOM   1862  CA  HIS A 248      52.071  10.790   8.078  1.00  0.00           C
+ATOM   1863  C   HIS A 248      53.091  10.557   9.224  1.00  0.00           C
+ATOM   1864  O   HIS A 248      53.300  11.600  10.100  1.00  0.00           O
+ATOM   1865  CB  HIS A 248      52.029   9.501   7.220  1.00  0.00           C
+ATOM   1866  CG  HIS A 248      50.801   9.422   6.366  1.00  0.00           C
+ATOM   1867  ND1 HIS A 248      49.565   9.056   6.862  1.00  0.00           N
+ATOM   1868  CD2 HIS A 248      50.660   9.717   5.034  1.00  0.00           C
+ATOM   1869  CE1 HIS A 248      48.727   9.129   5.833  1.00  0.00           C
+ATOM   1870  NE2 HIS A 248      49.338   9.522   4.722  1.00  0.00           N
+END
+"""
+
+    def test_c_terminal_his_without_oxt_runs_openmm(self, tmp_path):
+        pytest.importorskip("openmm")
+        from app.tools.md_sim import _run_openmm
+        pdb_path = tmp_path / "cterm.pdb"
+        pdb_path.write_text(self._MINI_PDB)
+        result = _run_openmm(str(pdb_path), "CTERM", "minimize")
+        assert result["status"] == "complete"
+        assert result["engine"] == "openmm"
+        assert result["atom_count"] > 0
+        assert result["residue_count"] == 2
+
+    def test_add_missing_oxt_returns_zero_when_not_needed(self):
+        # A structure without protein residues needs no OXT work.
+        from app.tools.md_sim import _add_missing_terminal_oxt
+        from openmm.app import Topology, Modeller
+        from openmm import unit
+        topo = Topology()
+        modeller = Modeller(topo, [] * unit.nanometer)
+        assert _add_missing_terminal_oxt(modeller) == 0

@@ -24,6 +24,7 @@ import logging
 import os
 import tempfile
 import time
+import traceback
 
 import numpy as np
 
@@ -306,8 +307,12 @@ def run_simulation(pdb_id: str, mode: str = "minimize") -> dict:
                 # non-standard ligands it cannot strip cleanly, or other
                 # topology issues. Degrade to structural analysis rather
                 # than failing the whole job.
-                logger.warning("OpenMM simulation failed for %s (%s) — falling back to BioPython analysis", pdb_id, exc)
-                return _run_biopython_analysis(pdb_path, pdb_id, mode, reason=f"OpenMM could not build this structure ({type(exc).__name__})")
+                logger.warning("OpenMM simulation failed for %s (%s) — falling back to BioPython analysis", pdb_id, exc, exc_info=True)
+                return _run_biopython_analysis(
+                    pdb_path, pdb_id, mode,
+                    reason=f"OpenMM could not build this structure ({type(exc).__name__}: {exc})",
+                    diagnostics=traceback.format_exc(),
+                )
         else:
             return _run_biopython_analysis(pdb_path, pdb_id, mode)
     finally:
@@ -694,7 +699,7 @@ def _model_ca_coords(model) -> np.ndarray | None:
     return np.array(ca_coords)
 
 
-def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str = "OpenMM not available") -> dict:
+def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str = "OpenMM not available", diagnostics: str | None = None) -> dict:
     """Structural analysis fallback using BioPython when OpenMM is not installed.
 
     Computes real structural properties from the PDB:
@@ -855,4 +860,5 @@ def _run_biopython_analysis(pdb_path: str, pdb_id: str, mode: str, reason: str =
         "elapsed_seconds": elapsed,
         "status": "complete",
         "note": f"{reason} — used BioPython structural analysis. Install OpenMM for full MD simulation.",
+        "diagnostics": diagnostics,
     })

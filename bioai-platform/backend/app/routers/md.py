@@ -20,6 +20,9 @@ class MDRunRequest(BaseModel):
     pdb_id: str = Field(..., pattern=r"^[A-Za-z0-9]{4}$", description="4-char PDB ID")
     mode: str = Field(default="minimize", pattern=r"^(minimize|equilibrate|production)$")
     platform: str | None = Field(default=None, description="Optional OpenMM platform (CPU/Reference)")
+    forcefield: str | None = Field(default=None, pattern=r"^[a-z0-9_-]+$", description="Force field; only 'amber14' is currently supported")
+    solvent: str | None = Field(default=None, pattern=r"^(obc1|obc2|gbn2)$", description="Implicit solvent model (explicit water not supported)")
+    run_length_ps: float | None = Field(default=None, ge=50, le=5000, description="Desired production length in ps (production mode only; engine may clamp to wall-clock budget)")
 
 
 class MDJobResponse(BaseModel):
@@ -46,6 +49,9 @@ async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(re
             "pdb_id": body.pdb_id,
             "mode": body.mode,
             "platform": body.platform,
+            "forcefield": body.forcefield,
+            "solvent": body.solvent,
+            "run_length_ps": body.run_length_ps,
             "tool_type": "md",
         },
     }

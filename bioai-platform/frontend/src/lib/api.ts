@@ -596,8 +596,14 @@ export type MDSimulationResult = {
   secondary_structure?: { helix: number; sheet: number; coil: number };
 };
 
-export async function runMD(pdbId: string, mode: string = 'minimize'): Promise<{ job_id: string; status: string }> {
-  const res = await longApi.post('/api/md/run', { pdb_id: pdbId, mode });
+export type MDRunOptions = {
+  forcefield?: string;
+  solvent?: string;
+  run_length_ps?: number;
+};
+
+export async function runMD(pdbId: string, mode: string = 'minimize', options?: MDRunOptions): Promise<{ job_id: string; status: string }> {
+  const res = await longApi.post('/api/md/run', { pdb_id: pdbId, mode, ...options });
   return res.data;
 }
 

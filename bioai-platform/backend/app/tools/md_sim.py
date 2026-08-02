@@ -275,7 +275,14 @@ def _sasa_shrake_ruger(
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def run_simulation(pdb_id: str, mode: str = "minimize", platform: str | None = None) -> dict:
+def run_simulation(
+    pdb_id: str,
+    mode: str = "minimize",
+    platform: str | None = None,
+    forcefield: str | None = None,
+    solvent: str | None = None,
+    run_length_ps: float | None = None,
+) -> dict:
     """Run a short MD simulation on a PDB structure.
 
     Args:
@@ -283,6 +290,13 @@ def run_simulation(pdb_id: str, mode: str = "minimize", platform: str | None = N
         mode: 'minimize', 'equilibrate', or 'production'.
         platform: Optional OpenMM platform name to force (e.g. 'CPU',
             'Reference'); None lets OpenMM pick the default.
+        forcefield: 'amber14' (only AMBER14 protein templates are
+            supported — any other value falls back to AMBER14).
+        solvent: 'obc1', 'obc2', or 'gbn2' implicit-solvent XML file.
+            Explicit solvent is not supported.
+        run_length_ps: Desired production length in picoseconds
+            (production mode only). The engine still clamps the run to
+            the wall-clock budget.
 
     Returns:
         Dict with energy, RMSD, RMSF, and simulation metadata.
@@ -312,7 +326,7 @@ def run_simulation(pdb_id: str, mode: str = "minimize", platform: str | None = N
     try:
         if _check_openmm():
             try:
-                return _run_openmm(pdb_path, pdb_id, mode, platform)
+                return _run_openmm(pdb_path, pdb_id, mode, platform, forcefield, solvent, run_length_ps)
             except Exception as exc:
                 # OpenMM can reject structures with incomplete residues,
                 # non-standard ligands it cannot strip cleanly, or other
@@ -455,16 +469,45 @@ def _add_missing_terminal_oxt(modeller) -> int:
     return len(targets)
 
 
-def _run_openmm(pdb_path: str, pdb_id: str, mode: str, platform_name: str | None = None) -> dict:
+def _run_openmm(
+    pdb_path: str,
+    pdb_id: str,
+    mode: str,
+    platform_name: str | None = None,
+    forcefield_name: str | None = None,
+    solvent_name: str | None = None,
+    run_length_ps: float | None = None,
+) -> dict:
     """Core OpenMM simulation with correct implicit-solvent setup."""
     from openmm.app import PDBFile, ForceField, Simulation, CutoffNonPeriodic, Modeller
     from openmm import unit, LangevinMiddleIntegrator, Platform
+
+    # Implicit-solvent XML files OpenMM ships with the AMBER14 data set.
+    # Explicit water/ions require a periodic box + TIP3P plus ion parameters
+    # that are not set up here — reject (fall back) rather than fake it.
+    _SOLVENT_XML = {
+        "obc1": "implicit/obc1.xml",
+        "obc2": "implicit/obc2.xml",
+        "gbn2": "implicit/gbn2.xml",
+    }
+    forcefield_key = forcefield_name or "amber14"
+    if forcefield_key != "amber14":
+        # Only AMBER14 protein templates exist in the bundled data set.
+        # Never silently run a "different" force field — honor the request
+        # by falling back and recording the fact.
+        logger.warning("Force field %r not supported — falling back to amber14", forcefield_key)
+        forcefield_key = "amber14"
+    solvent_key = (solvent_name or "obc2").lower()
+    solvent_xml = _SOLVENT_XML.get(solvent_key, "implicit/obc2.xml")
+    if solvent_key not in _SOLVENT_XML:
+        logger.warning("Solvent %r not supported — falling back to obc2", solvent_name)
+        solvent_key = "obc2"
 
     # Load structure
     pdb = PDBFile(pdb_path)
     # OpenMM 8.x: implicit solvent is loaded as an explicit force field file,
     # not via the createSystem(implicitSolvent=...) kwarg (which is rejected).
-    forcefield = ForceField("amber14-all.xml", "implicit/obc2.xml")
+    forcefield = ForceField("amber14-all.xml", solvent_xml)
 
     # Keep only standard amino acids — water, ions, ligands, and nucleic acids
     # have no AMBER14 protein template and would crash createSystem().
@@ -613,7 +656,11 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str, platform_name: str | None
         t_cal = time.time()
         simulation.step(400)
         cal_rate = 400.0 / max(time.time() - t_cal, 1e-6)
-        planned = _adaptive_production_steps(n_atoms)
+        # Desired length: user request if provided, otherwise adaptive default.
+        # 2 fs timestep -> 500 steps per picosecond. Only meaningful in
+        # production mode; still clamped below to the wall-clock budget.
+        requested_ps = float(run_length_ps) if run_length_ps else None
+        planned = int(requested_ps * 500) if requested_ps else _adaptive_production_steps(n_atoms)
         budget_steps = max(int(cal_rate * _PRODUCTION_BUDGET_SECONDS), int(PRODUCTION_MIN_PS * 500))
         production_steps = min(planned, budget_steps)
         logger.info("Measured throughput %.0f steps/s -> production %d steps (%.0f ps)",
@@ -701,12 +748,22 @@ def _run_openmm(pdb_path: str, pdb_id: str, mode: str, platform_name: str | None
     rg_avg = round(float(np.mean(rg_vals)), 2) if rg_vals else None
     sasa_avg = round(float(np.mean(sasa_vals)), 1) if sasa_vals else None
 
+    notes: list[str] = []
+    if mode == "production" and run_length_ps and int(run_length_ps * 500) > production_steps:
+        notes.append(
+            f"Requested {int(run_length_ps)} ps of production dynamics, but the engine "
+            f"clamped the run to {production_steps / 500:.0f} ps to fit the wall-clock budget."
+        )
+
     return _to_native({
         "pdb_id": pdb_id,
         "mode": mode,
         "engine": "openmm",
-        "forcefield": "amber14-all",
-        "implicit_solvent": "OBC2",
+        "forcefield": forcefield_key,
+        "forcefield_detail": "amber14-all" if forcefield_key == "amber14" else forcefield_key,
+        "implicit_solvent": solvent_key.upper(),
+        "requested_production_ps": int(run_length_ps) if run_length_ps else None,
+        "note": "\n".join(notes) if notes else None,
         "temperature_k": 300,
         "timestep_fs": 2,
         "minimization_steps": MINIMIZATION_STEPS,

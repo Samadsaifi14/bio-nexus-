@@ -184,7 +184,14 @@ def _run_md(job: dict) -> None:
 
     try:
         logger.info("Running MD simulation: PDB=%s mode=%s", pdb_id, mode)
-        result = run_simulation(pdb_id, mode, platform=payload.get("platform"))
+        result = run_simulation(
+            pdb_id,
+            mode,
+            platform=payload.get("platform"),
+            forcefield=payload.get("forcefield"),
+            solvent=payload.get("solvent"),
+            run_length_ps=payload.get("run_length_ps"),
+        )
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job["id"], "result", result)
         supabase = get_client()

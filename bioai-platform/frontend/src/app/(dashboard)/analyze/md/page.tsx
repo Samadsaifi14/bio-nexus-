@@ -2,15 +2,26 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Play, Loader2, Activity, Clock, Zap, BarChart3, Info } from "lucide-react";
+import { ArrowLeft, Play, Loader2, Activity, Zap, BarChart3, Info } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { runMD, getMDStatus, type MDSimulationResult } from "@/lib/api";
+import { ClaySegmented, ClaySlider, CriticalButton, FlatInput } from "@/components/ui";
 
 const MODES = [
-  { value: "minimize", label: "Minimization Only", desc: "500 steps, ~5 sec", detail: "Energy minimization using L-BFGS. Removes steric clashes and high-energy contacts." },
-  { value: "equilibrate", label: "Minimize + Equilibrate", desc: "1500 steps, ~30 sec", detail: "Minimization followed by NVT equilibration at 300K with Langevin thermostat." },
-  { value: "production", label: "Full Short Run", desc: "Adaptive, up to ~1 ns", detail: "Complete MD: minimization, equilibration, and an adaptive production run (up to 250-1000 ps) with trajectory recording, temperature, Rg, and SASA." },
+  { value: "minimize", label: "Minimization Only", short: "Minimize", desc: "500 steps, ~5 sec", detail: "Energy minimization using L-BFGS. Removes steric clashes and high-energy contacts." },
+  { value: "equilibrate", label: "Minimize + Equilibrate", short: "Equilibrate", desc: "1500 steps, ~30 sec", detail: "Minimization followed by NVT equilibration at 300K with Langevin thermostat." },
+  { value: "production", label: "Full Short Run", short: "Production", desc: "Adaptive, up to ~1 ns", detail: "Complete MD: minimization, equilibration, and an adaptive production run (up to 250-1000 ps) with trajectory recording, temperature, Rg, and SASA." },
+];
+
+const FORCEFIELDS = [
+  { value: "amber14", label: "AMBER14 (ff14SB)" },
+];
+
+const SOLVENTS = [
+  { value: "obc2", label: "Implicit · OBC2" },
+  { value: "gbn2", label: "Implicit · GBN2" },
+  { value: "obc1", label: "Implicit · OBC1" },
 ];
 
 export default function MDPage() {
@@ -19,6 +30,9 @@ export default function MDPage() {
 
   const [pdbId, setPdbId] = useState("");
   const [mode, setMode] = useState("minimize");
+  const [forcefield, setForcefield] = useState("amber14");
+  const [solvent, setSolvent] = useState("obc2");
+  const [runLengthPs, setRunLengthPs] = useState(250);
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
   const [result, setResult] = useState<MDSimulationResult | null>(null);
@@ -68,7 +82,7 @@ export default function MDPage() {
           setError("");
           setResult(null);
           try {
-            const res = await runMD(stored, mode);
+            const res = await runMD(stored, mode, { forcefield, solvent, run_length_ps: runLengthPs });
             setJobId(res.job_id);
             setStatus(res.status);
           } catch (e: any) {
@@ -86,7 +100,7 @@ export default function MDPage() {
     setError("");
     setResult(null);
     try {
-      const res = await runMD(pdbId.trim(), mode);
+      const res = await runMD(pdbId.trim(), mode, { forcefield, solvent, run_length_ps: runLengthPs });
       setJobId(res.job_id);
       setStatus(res.status);
     } catch (e: any) {
@@ -110,34 +124,41 @@ export default function MDPage() {
       </motion.div>
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
-        <div className="glass-card p-5">
+        <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">PDB ID</label>
           <div className="flex gap-2 mb-4">
-            <input value={pdbId} onChange={(e) => setPdbId(e.target.value.toUpperCase())}
+            <FlatInput value={pdbId} onChange={(e) => setPdbId(e.target.value.toUpperCase())}
               placeholder="e.g. 1TIM" maxLength={4}
-              className="w-32 px-3 py-2 rounded-lg bg-surface-1 border border-surface-3 text-text-primary text-sm font-mono uppercase placeholder:text-text-muted focus:outline-none focus:border-accent-cyan"
+              className="w-32 font-mono uppercase"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
           </div>
 
           <label className="block text-sm text-text-secondary mb-2">Simulation Mode</label>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
-            {MODES.map((m) => (
-              <button key={m.value} onClick={() => setMode(m.value)}
-                className={`p-3 rounded-lg border text-left transition-all ${
-                  mode === m.value ? "border-accent-cyan bg-accent-cyan/10" : "border-surface-3 bg-surface-1 hover:bg-surface-2"
-                }`}>
-                <div className="text-sm font-medium text-text-primary">{m.label}</div>
-                <div className="text-xs text-text-muted mt-0.5">{m.desc}</div>
-              </button>
-            ))}
-          </div>
-          <p className="text-xs text-text-muted mb-3">{selectedMode.detail}</p>
+          <ClaySegmented options={MODES.map(m => ({ value: m.value, label: m.short }))} value={mode} onChange={setMode} />
+          <p className="text-xs text-text-muted mt-3 mb-4">{selectedMode.detail}</p>
 
-          <button onClick={handleSubmit} disabled={loading || !pdbId.trim()}
-            className="btn-primary px-4 py-2 text-sm flex items-center gap-2">
+          <div className="clay p-4 mb-5">
+            <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">Simulation Parameters</p>
+
+            <label className="block text-xs text-text-secondary mb-1.5">Force Field</label>
+            <ClaySegmented options={FORCEFIELDS} value={forcefield} onChange={setForcefield} className="mb-4" />
+
+            <label className="block text-xs text-text-secondary mb-1.5">Solvent Model</label>
+            <ClaySegmented options={SOLVENTS} value={solvent} onChange={setSolvent} />
+            <p className="text-xs text-text-muted mt-2 mb-4">Implicit (generalized Born) solvent only. Explicit water/ions aren't supported yet.</p>
+
+            <label className="block text-xs text-text-secondary mb-1.5">Production Length</label>
+            <ClaySlider value={runLengthPs} min={50} max={1000} step={25} unit="ps"
+              disabled={mode !== "production"} onChange={setRunLengthPs} />
+            <p className="text-xs text-text-muted mt-2">
+              {mode === "production" ? `Targets ${runLengthPs} ps of production dynamics; the engine may shorten the run to fit the wall-clock budget.` : "Select Production mode to enable the run-length slider."}
+            </p>
+          </div>
+
+          <CriticalButton onClick={handleSubmit} disabled={loading || !pdbId.trim()}>
             {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Play className="w-4 h-4" />}
             {status === "running" || status === "queued" ? `Status: ${status}...` : "Run Simulation"}
-          </button>
+          </CriticalButton>
         </div>
       </motion.div>
 
@@ -150,7 +171,7 @@ export default function MDPage() {
       {result && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           {/* Simulation Parameters */}
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
               <Activity className="w-4 h-4 text-accent-cyan" /> {result.engine === "openmm" ? "Simulation Parameters" : "Analysis Parameters"}
             </h3>
@@ -194,7 +215,7 @@ export default function MDPage() {
 
           {/* Step Counts — only for OpenMM */}
           {result.engine === "openmm" && (
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-accent-purple" /> Integration Steps
             </h3>
@@ -220,7 +241,7 @@ export default function MDPage() {
 
           {/* Energy */}
           {result.engine === "openmm" && (
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
               <Zap className="w-4 h-4 text-accent-amber" /> Energy Analysis
             </h3>
@@ -284,7 +305,7 @@ export default function MDPage() {
 
           {/* Temperature / Kinetic Energy */}
           {result.engine === "openmm" && result.temperature && result.temperature.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1">Temperature — Thermostat Coupling</h3>
               <p className="text-xs text-text-muted mb-3">Instantaneous temperature (Langevin thermostat, {result.temperature_k} K target). Fluctuations around the target indicate a stable equilibrated ensemble.</p>
               <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
@@ -320,7 +341,7 @@ export default function MDPage() {
 
           {/* Radius of Gyration */}
           {result.radius_of_gyration && result.radius_of_gyration.length > 1 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1">Radius of Gyration — Compactness</h3>
               <p className="text-xs text-text-muted mb-3">Mass-weighted size over time. Rising Rg = expanding/unfolding; stable Rg = compact, folded state.</p>
               <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
@@ -356,7 +377,7 @@ export default function MDPage() {
 
           {/* Solvent-Accessible Surface Area */}
           {result.sasa && result.sasa.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1">Solvent-Accessible Surface Area</h3>
               <p className="text-xs text-text-muted mb-3">Shrake-Rüger SASA with a 1.4 A probe. Decreasing SASA = compaction/burial; increasing = expansion or partial unfolding.</p>
               <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
@@ -392,7 +413,7 @@ export default function MDPage() {
 
           {/* RMSD */}
           {result.rmsd.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1">RMSD — Structural Drift</h3>
               <p className="text-xs text-text-muted mb-3">Root-mean-square deviation vs minimized reference. Lower = more stable.</p>
               <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
@@ -425,7 +446,7 @@ export default function MDPage() {
 
           {/* RMSF */}
           {result.rmsf && result.rmsf.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1">RMSF — Per-Residue Flexibility</h3>
               <p className="text-xs text-text-muted mb-3">Root-mean-square fluctuation per residue. High = flexible region, low = rigid/core.</p>
               <div className="bg-surface-1 rounded-lg p-3 h-40 flex items-end gap-px">
@@ -458,7 +479,7 @@ export default function MDPage() {
 
           {/* Secondary Structure */}
           {result.secondary_structure && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Secondary Structure Composition</h3>
               <div className="flex gap-3 mb-3">
                 {[
@@ -496,7 +517,7 @@ export default function MDPage() {
 
           {/* Structural Metrics (BioPython fallback) */}
           {result.radius_of_gyration_angstrom !== undefined && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Structural Metrics</h3>
               <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                 <div className="bg-surface-1 rounded-lg p-3">
@@ -530,7 +551,7 @@ export default function MDPage() {
           )}
 
           {/* Interpretation */}
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
               <Info className="w-4 h-4 text-accent-cyan" /> Interpretation
             </h3>

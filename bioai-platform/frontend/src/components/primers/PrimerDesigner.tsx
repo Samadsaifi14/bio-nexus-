@@ -3,6 +3,7 @@ import { useState, useRef, useEffect } from "react";
 import { LoaderCircle, Download } from "lucide-react";
 import { downloadTsv } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
+import { CriticalButton, FlatInput, FlatTextarea } from "@/components/ui";
 
 type PrimerPair = {
   pair_index: number;
@@ -80,9 +81,8 @@ export function PrimerDesigner() {
         <h3 className="text-text-primary font-semibold mb-3">Primer Design (Primer3)</h3>
         <p className="text-text-muted text-xs mb-4">Input a DNA/CDS sequence. Primer3 runs locally &mdash; instant results, no rate limits.</p>
 
-        <textarea value={sequence} onChange={e => setSequence(e.target.value)} rows={5}
-          placeholder="ATGCGTACGTAGCTGATCGATCGATCG..."
-          className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-xs resize-none bg-surface-1 text-text-primary" />
+        <FlatTextarea value={sequence} onChange={e => setSequence(e.target.value)} rows={5}
+          placeholder="ATGCGTACGTAGCTGATCGATCGATCG..." className="w-full text-xs" />
 
         <div className="grid grid-cols-3 gap-3 mt-3">
           {[
@@ -92,19 +92,17 @@ export function PrimerDesigner() {
           ].map(({ label, value, set, min, max }) => (
             <div key={label}>
               <label className="text-xs text-text-muted block mb-1">{label}</label>
-              <input type="number" value={value} min={min} max={max}
-                onChange={e => set(+e.target.value)}
-                className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition" />
+              <FlatInput type="number" value={value} min={min} max={max}
+                onChange={e => set(+e.target.value)} />
             </div>
           ))}
         </div>
 
         {error && <p className="mt-2 text-error text-sm">{error}</p>}
 
-        <button onClick={design} disabled={loading || !sequence.trim()}
-          className="mt-4 w-full btn-primary py-2.5 text-sm flex items-center justify-center gap-2 disabled:opacity-40">
+        <CriticalButton onClick={design} disabled={loading || !sequence.trim()} className="mt-4 w-full">
           {loading ? <><LoaderCircle className="w-4 h-4 animate-spin" /> Designing&hellip;</> : "Design Primers"}
-        </button>
+        </CriticalButton>
       </div>
 
       {pairs.length > 0 && (

@@ -1,9 +1,8 @@
 'use client';
 
-import { useState, useMemo } from 'react';
-import { useRouter } from 'next/navigation';
+import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle } from 'lucide-react';
+import { LoaderCircle } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { runAlignment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
@@ -11,6 +10,7 @@ import type { AlignmentResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
+import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 
 function parseAlignedFasta(fasta: string): string[] {
   const seqs: string[] = [];
@@ -75,7 +75,6 @@ function validateFasta(text: string): string | null {
 }
 
 export default function AlignmentPage() {
-  const router = useRouter();
   const [input, setInput] = useState('');
   const [stype, setStype] = useState('protein');
   const [loading, setLoading] = useState(false);
@@ -116,41 +115,28 @@ export default function AlignmentPage() {
 
   return (
     <div className="max-w-3xl">
-      <button
-        onClick={() => router.push('/analyze')}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Multiple Sequence Alignment</h1>
-        <p className="text-sm text-text-secondary">
-          Align two or more protein or DNA sequences using Clustal Omega.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Multiple Sequence Alignment"
+        subtitle="Align two or more protein or DNA sequences using Clustal Omega."
+      />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
-        <div className="flex gap-2">
-          {(['protein', 'dna'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => { setStype(t); setError(null); setResult(null); }}
-              className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                stype === t ? 'btn-primary' : 'glass-card text-text-secondary'
-              }`}
-            >
-              {t === 'protein' ? 'Protein' : 'DNA'}
-            </button>
-          ))}
-        </div>
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
+        <ClaySegmented
+          options={[
+            { value: 'protein', label: 'Protein' },
+            { value: 'dna', label: 'DNA' },
+          ] as { value: string; label: string }[]}
+          value={stype}
+          onChange={(v) => { setStype(v); setError(null); setResult(null); }}
+        />
 
-        <textarea
+        <FlatTextarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={`Paste 2+ sequences in FASTA format...\n\n>sequence_1\nMEEPQSDPSVEPPLSQETFSDLWKLLPENN\n>sequence_2\nMEEPQSDPSIEPPLSQETFSDLWKLLPENN`}
-          className="w-full h-48 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm resize-none bg-surface-1 text-text-primary"
+          className="w-full h-48 font-mono text-sm text-text-primary"
         />
 
         <div className="flex gap-3">
@@ -161,14 +147,10 @@ export default function AlignmentPage() {
             Load sample {stype === 'protein' ? 'p53 (human vs mouse)' : 'DNA sequences'}
           </button>
           <div className="flex-1" />
-          <button
-            onClick={handleSubmit}
-            disabled={loading || !input.trim()}
-            className="btn-primary px-6 py-2.5 flex items-center gap-2 text-sm disabled:opacity-50"
-          >
+          <CriticalButton onClick={handleSubmit} disabled={loading || !input.trim()}>
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : null}
             {loading ? 'Aligning...' : 'Align'}
-          </button>
+          </CriticalButton>
         </div>
       </motion.div>
 
@@ -189,7 +171,7 @@ export default function AlignmentPage() {
         const alignedSeqs = parseAlignedFasta(result.aln_fasta);
         return (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA)</h3>
               <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-80 overflow-auto whitespace-pre-wrap break-all">
                 {result.aln_fasta}
@@ -197,13 +179,13 @@ export default function AlignmentPage() {
             </div>
 
             {result.phylotree && (
-              <div className="glass-card p-5">
+              <div className="data-card p-5">
                 <PhyloTreeViewer newick={result.phylotree} />
               </div>
             )}
 
             {alignedSeqs.length >= 2 && (
-              <div className="glass-card p-5">
+              <div className="data-card p-5">
                 <ConservationTrack alignedSeqs={alignedSeqs} />
               </div>
             )}

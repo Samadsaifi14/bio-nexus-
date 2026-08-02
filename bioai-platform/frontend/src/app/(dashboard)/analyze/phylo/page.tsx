@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useAuditTrail } from '@/hooks/useAuditTrail'
+import { CriticalButton, FlatTextarea, PageHeader } from '@/components/ui'
 
 const PhyloTreeViewer = dynamic(
   () => import('@/components/phylo/PhyloTreeViewer'),
@@ -234,15 +235,13 @@ export default function PhyloPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6 pb-12">
 
-      <div>
-        <h1 className="text-text-primary text-2xl font-bold">Phylogenetic Tree</h1>
-        <p className="text-text-secondary text-sm mt-1">
-          Build evolutionary trees from protein or DNA sequences — Neighbor-Joining, UPGMA, or Maximum Likelihood.
-        </p>
-      </div>
+      <PageHeader
+        title="Phylogenetic Tree"
+        subtitle="Build evolutionary trees from protein or DNA sequences — Neighbor-Joining, UPGMA, or Maximum Likelihood."
+      />
 
       {!jobId && (
-        <div className="glass-card p-6 space-y-5">
+        <div className="data-card p-6 space-y-5">
 
           <div className="flex flex-wrap items-center gap-2">
             <span className="text-text-secondary text-xs">Demo:</span>
@@ -277,13 +276,10 @@ export default function PhyloPage() {
                 ↑ Upload FASTA
               </button>
             </div>
-            <textarea rows={8} value={fasta} onChange={e => setFasta(e.target.value)}
+            <FlatTextarea rows={8} value={fasta} onChange={e => setFasta(e.target.value)}
               placeholder={`>Sequence_1\nMVLSPADKTNVKAAWGK...\n>Sequence_2\nMVLSGEDKSNVKAAWGK...`}
               spellCheck={false}
-              className="w-full rounded-lg px-3 py-2 text-sm font-mono
-                bg-surface-1 border border-glass-border
-                focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10
-                text-text-primary placeholder-text-secondary/40 outline-none resize-y" />
+              className="w-full px-3 py-2 text-sm" />
             {seqCount > 0 && (
               <p className="text-text-secondary text-xs mt-1">
                 {seqCount} sequence{seqCount !== 1 ? 's' : ''} detected
@@ -365,13 +361,13 @@ export default function PhyloPage() {
             </div>
           )}
 
-          <button onClick={handleSubmit} disabled={loading || seqCount < 2}
-            className="btn-primary w-full py-3 text-sm font-semibold
+          <CriticalButton onClick={handleSubmit} disabled={loading || seqCount < 2}
+            className="w-full py-3 text-sm font-semibold
               disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2">
             {loading
               ? <><span className="animate-spin">⟳</span> Starting...</>
               : `▶ Build ${METHOD_INFO[method].label} Tree`}
-          </button>
+          </CriticalButton>
         </div>
       )}
 
@@ -381,13 +377,13 @@ export default function PhyloPage() {
         <div className="glass-card p-6 space-y-4">
           <p className="text-red-400 font-medium">Pipeline error</p>
           <p className="text-text-secondary text-sm">{job.error}</p>
-          <button onClick={handleReset} className="btn-primary text-sm px-4 py-2">← Try again</button>
+          <CriticalButton onClick={handleReset} className="text-sm px-4 py-2">← Try again</CriticalButton>
         </div>
       )}
 
       {isDone && job && (
         <div className="space-y-5">
-          <div className="glass-card p-4 flex flex-wrap gap-4 items-center">
+          <div className="data-card p-4 flex flex-wrap gap-4 items-center">
             <div className="flex gap-4 text-sm flex-wrap flex-1">
               <span className="text-text-secondary">
                 Method: <span className="text-text-primary font-medium">{METHOD_INFO[job.method].label}</span>
@@ -416,7 +412,7 @@ export default function PhyloPage() {
           </div>
 
           {job.newick && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <PhyloTreeViewer
                 newick={job.newick}
                 method={job.method}

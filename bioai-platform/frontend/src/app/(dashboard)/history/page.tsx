@@ -7,6 +7,7 @@ import type { JobStatus } from '@/types/pipeline';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
 import { LoaderCircle, FileText, Dna } from 'lucide-react';
+import { PageHeader } from '@/components/ui';
 
 const STATUS_STYLES: Record<string, string> = {
   complete: 'badge bg-accent-cyan/10 text-accent-cyan',
@@ -50,7 +51,7 @@ export default function HistoryPage() {
         <FileText className="w-16 h-16 text-text-muted mx-auto mb-6" />
         <h3 className="text-xl font-semibold text-text-primary mb-2">No history yet</h3>
         <p className="text-sm text-text-secondary mb-6">Run your first analysis to see results here.</p>
-        <a href="/analyze" className="btn-primary px-6 py-3 inline-flex items-center gap-2 text-sm">
+        <a href="/analyze" className="btn-critical text-sm inline-flex items-center gap-2">
           <Dna className="w-4 h-4" />
           Run your first sequence
         </a>
@@ -60,8 +61,8 @@ export default function HistoryPage() {
 
   return (
     <div className="max-w-4xl">
-      <motion.h1 variants={fadeUp} className="text-2xl font-bold text-text-primary mb-6">Analysis history</motion.h1>
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card overflow-hidden">
+      <PageHeader title="Analysis history" />
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card overflow-hidden">
         <table className="w-full text-sm">
           <thead>
             <tr className="border-b border-glass-border bg-surface-1">

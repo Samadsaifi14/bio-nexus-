@@ -1,10 +1,9 @@
 'use client';
 
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
-import { ArrowLeft } from 'lucide-react';
+import { BackButton, CriticalButton, PageHeader } from '@/components/ui';
 
 type Section = {
   heading: string;
@@ -247,30 +246,17 @@ export default function TopicPage() {
       <div className="text-center py-20">
         <h1 className="text-2xl font-bold text-text-primary mb-2">Topic not found</h1>
         <p className="text-text-muted mb-6">No documentation available for &ldquo;{topic}&rdquo;.</p>
-        <button
-          onClick={() => router.push('/learn')}
-          className="btn-primary px-5 py-2.5 text-sm"
-        >
+        <CriticalButton onClick={() => router.push('/learn')}>
           Back to Documentation
-        </button>
+        </CriticalButton>
       </div>
     );
   }
 
   return (
     <div className="max-w-3xl">
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
-        <Link
-          href="/learn"
-          className="inline-flex items-center gap-1.5 text-sm text-text-muted hover:text-text-primary transition mb-6"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          Back to Documentation
-        </Link>
-
-        <h1 className="text-2xl font-bold text-text-primary mb-2">{data.title}</h1>
-        <p className="text-text-muted mb-10 text-sm">{data.description}</p>
-      </motion.div>
+      <BackButton href="/learn" label="Back to Documentation" />
+      <PageHeader title={data.title} subtitle={data.description} />
 
       <div className="space-y-10">
         {data.sections.map((section, i) => (

@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, CheckCircle, XCircle, AlertTriangle, Dna, BarChart3, Map, Bug, FileText, Search } from 'lucide-react';
+import { LoaderCircle, CheckCircle, XCircle, AlertTriangle, Dna, BarChart3, Map, Bug, FileText, Search } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
 import type { SequencingResult, SequencingReference } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
+import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'Sars Cov 2' },
@@ -110,25 +111,23 @@ export default function SequencingPage() {
 
   return (
     <div className="max-w-3xl">
-      <button onClick={() => router.push('/analyze')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Sequencing Pipeline</h1>
-        <p className="text-sm text-text-secondary">Raw FASTQ → QC → alignment → variant calling → report. Supports viral/bacterial genomes (cpu-basic tier).</p>
-      </motion.div>
+      <PageHeader
+        title="Sequencing Pipeline"
+        subtitle="Raw FASTQ → QC → alignment → variant calling → report. Supports viral/bacterial genomes (cpu-basic tier)."
+      />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">FASTQ URL</label>
-          <input
+          <FlatInput
             type="text"
             value={fastqUrl}
             onChange={(e) => setFastqUrl(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && startPipeline()}
             placeholder="https://example.com/sample.fastq"
-            className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary"
+            className="w-full px-4 py-3 rounded-xl text-sm font-mono"
           />
           <div className="flex gap-2 mt-2 flex-wrap">
             <span className="text-xs text-text-muted">Example:</span>
@@ -157,11 +156,11 @@ export default function SequencingPage() {
           </select>
         </div>
 
-        <button onClick={startPipeline} disabled={loading || !fastqUrl.trim() || polling}
-          className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
+        <CriticalButton onClick={startPipeline} disabled={loading || !fastqUrl.trim() || polling}
+          className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
           {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Dna className="w-4 h-4" />}
           {loading ? 'Starting...' : polling ? 'Running Pipeline...' : 'Run Pipeline'}
-        </button>
+        </CriticalButton>
       </motion.div>
 
       {error && (
@@ -227,7 +226,7 @@ export default function SequencingPage() {
           </div>
 
           {result.result?.qc && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-accent-cyan" /> Quality Control
               </h3>
@@ -286,7 +285,7 @@ export default function SequencingPage() {
           )}
 
           {result.result?.alignment && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <Map className="w-4 h-4 text-accent-cyan" /> Alignment Results
               </h3>
@@ -324,7 +323,7 @@ export default function SequencingPage() {
           )}
 
           {result.result?.variants && result.result.variants.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <Bug className="w-4 h-4 text-accent-cyan" /> Variants Detected ({result.result.variants.length})
               </h3>
@@ -358,7 +357,7 @@ export default function SequencingPage() {
           )}
 
           {result.result?.report && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-accent-cyan" /> Summary Report
               </h3>
@@ -393,7 +392,7 @@ export default function SequencingPage() {
           )}
 
           {result.status === 'complete' && (
-            <div className="glass-card p-4 space-y-3">
+            <div className="data-card p-4 space-y-3">
               {result.result?.consensus_sequence && (
                 <div className="flex items-center justify-between">
                   <span className="text-xs text-text-muted">Consensus Sequence (SNVs applied)</span>

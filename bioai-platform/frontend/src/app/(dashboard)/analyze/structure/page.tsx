@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, ExternalLink, Dna, FlaskConical, Brain, Activity } from 'lucide-react';
+import { LoaderCircle, ExternalLink, Dna, FlaskConical, Brain, Activity } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { fetchStructure, getStructureInventory } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { StructureResult } from '@/lib/api';
 import { DockingViewer } from '@/components/DockingViewer';
+import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 
 export default function StructurePage() {
   const router = useRouter();
@@ -57,29 +58,24 @@ export default function StructurePage() {
 
   return (
     <div className="max-w-3xl">
-      <button onClick={() => router.push('/analyze')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Structure Viewer</h1>
-        <p className="text-sm text-text-secondary">Fetch 3D structures from PDB or AlphaFold by PDB ID or UniProt accession.</p>
-      </motion.div>
+      <PageHeader title="Structure Viewer" subtitle="Fetch 3D structures from PDB or AlphaFold by PDB ID or UniProt accession." />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
         <div className="flex gap-3">
-          <input
+          <FlatInput
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="e.g. 1TIM, P04637, 4HHB"
-            className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm"
+            className="flex-1"
           />
-          <button onClick={handleSearch} disabled={loading || !query.trim()} className="btn-primary px-6 py-3 flex items-center gap-2 disabled:opacity-50">
+          <CriticalButton onClick={handleSearch} disabled={loading || !query.trim()}>
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Dna className="w-4 h-4" />}
             Fetch
-          </button>
+          </CriticalButton>
         </div>
         <div className="flex gap-3 mt-3">
           <button onClick={() => { setQuery('1TIM'); setError(null); setResult(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">1TIM (triosephosphate isomerase)</button>
@@ -92,7 +88,7 @@ export default function StructurePage() {
 
       {result && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
                 <h3 className="font-semibold text-text-primary">{result.title || result.pdb_id || result.uniprot_accession}</h3>

@@ -2,10 +2,11 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, Beaker, Check, X, AlertTriangle, Loader2, Shield, Activity, Brain, Zap, Droplets } from "lucide-react";
+import { Beaker, Check, X, AlertTriangle, Loader2, Shield, Activity, Brain } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { computeADMET, type ADMETResult } from "@/lib/api";
+import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
 
 const EXAMPLES = [
   { name: "Aspirin", smiles: "CC(=O)OC1=CC=CC=C1C(=O)O" },
@@ -44,7 +45,7 @@ function RiskBadge({ level }: { level: string }) {
 
 function SectionCard({ title, children, className = "" }: { title: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className={`glass-card p-5 ${className}`}>
+    <div className={`data-card p-5 ${className}`}>
       <h3 className="text-sm font-semibold text-text-primary mb-3">{title}</h3>
       {children}
     </div>
@@ -113,29 +114,22 @@ export default function ADMETPage() {
 
   return (
     <div className="max-w-4xl">
-      <button onClick={() => router.push("/analyze")}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">ADMET Analysis</h1>
-        <p className="text-sm text-text-secondary">Comprehensive molecular descriptor computation: 50+ properties, ADMET predictions, drug-likeness filters, structural alerts.</p>
-      </motion.div>
+      <PageHeader title="ADMET Analysis" subtitle="Comprehensive molecular descriptor computation: 50+ properties, ADMET predictions, drug-likeness filters, structural alerts." />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
-        <div className="glass-card p-5">
+        <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">SMILES String</label>
           <div className="flex gap-2">
-            <input value={smiles} onChange={(e) => setSmiles(e.target.value)}
+            <FlatInput value={smiles} onChange={(e) => setSmiles(e.target.value)}
               placeholder="e.g. CC(=O)OC1=CC=CC=C1C(=O)O"
-              className="flex-1 px-3 py-2 rounded-lg bg-surface-1 border border-surface-3 text-text-primary text-sm font-mono placeholder:text-text-muted focus:outline-none focus:border-accent-cyan"
+              className="flex-1 font-mono"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-            <button onClick={handleSubmit} disabled={loading || !smiles.trim()}
-              className="btn-primary px-4 py-2 text-sm flex items-center gap-2">
+            <CriticalButton onClick={handleSubmit} disabled={loading || !smiles.trim()}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Beaker className="w-4 h-4" />}
               Analyze
-            </button>
+            </CriticalButton>
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
             {EXAMPLES.map((ex) => (
@@ -157,7 +151,7 @@ export default function ADMETPage() {
       {result && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           {/* Header strip */}
-          <div className="glass-card p-4 flex flex-wrap items-center gap-4">
+          <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>
               <p className="text-xs text-text-muted">Formula</p>
               <p className="text-sm font-mono font-medium text-text-primary">{result.formula}</p>

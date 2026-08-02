@@ -20,6 +20,7 @@ import { StringDBViewer } from '@/components/interactions/StringDBViewer';
 import { SecondaryStructureViewer } from '@/components/structure/SecondaryStructure';
 import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
+import { BackButton, CriticalButton } from '@/components/ui';
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
@@ -94,7 +95,7 @@ export default function JobPage() {
           </p>
           <button
             onClick={() => window.location.reload()}
-            className="btn-primary px-6 py-2.5 text-sm"
+            className="btn-critical text-sm"
           >
             Refresh
           </button>
@@ -212,12 +213,9 @@ export default function JobPage() {
             )}
           </div>
           <div className="flex items-center justify-center gap-3 mt-6">
-            <button
-              onClick={() => router.push('/analyze')}
-              className="btn-primary px-6 py-2.5 text-sm"
-            >
+            <CriticalButton onClick={() => router.push('/analyze')}>
               New Analysis
-            </button>
+            </CriticalButton>
             <button
               onClick={() => window.location.reload()}
               className="glass-card px-6 py-2.5 text-sm text-text-secondary hover:bg-surface-2 transition"
@@ -245,6 +243,8 @@ export default function JobPage() {
 
   return (
     <motion.div variants={stagger} initial={{ y: 24 }} animate="show" className="space-y-6">
+      <BackButton href="/jobs" label="Back to Jobs" />
+
       <motion.div variants={fadeUp} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-text-primary mb-1">Analysis Results</h1>
@@ -255,7 +255,7 @@ export default function JobPage() {
             } ({context.query?.length ?? '?'} {context.query?.sequence_type === 'dna' ? 'bp' : 'aa'})
           </p>
         </div>
-        <button
+        <CriticalButton
           onClick={async () => {
             try {
               const { url } = await createShareLink(jobId);
@@ -263,11 +263,11 @@ export default function JobPage() {
               toast.success('Share link copied!');
             } catch { toast.error('Failed to create share link'); }
           }}
-          className="btn-primary px-4 py-2 text-sm flex items-center gap-2"
+          className="flex items-center gap-2"
         >
           <Copy className="w-4 h-4" />
           Share
-        </button>
+        </CriticalButton>
       </motion.div>
 
       <motion.div variants={fadeUp} whileHover={cardHover}>
@@ -291,12 +291,9 @@ export default function JobPage() {
               <li>Consider checking your sequence for frame-shift errors if it's a nucleotide translation</li>
             </ul>
           </div>
-          <button
-            onClick={() => router.push('/analyze')}
-            className="mt-6 btn-primary px-6 py-2.5 text-sm"
-          >
+          <CriticalButton onClick={() => router.push('/analyze')} className="mt-6">
             New Analysis
-          </button>
+          </CriticalButton>
         </motion.div>
       ) : (
         <>
@@ -357,7 +354,7 @@ export default function JobPage() {
                 URL.revokeObjectURL(url);
                 toast.success('Downloaded as CSV');
               }}
-              className="glass-card px-4 py-2.5 text-sm text-text-secondary flex items-center gap-2 hover:bg-surface-2 transition"
+              className="btn-critical text-sm flex items-center gap-2"
             >
               <Download className="w-4 h-4" />
               Download CSV
@@ -443,7 +440,7 @@ export default function JobPage() {
             if (available.length === 0) return null;
 
             return (
-              <motion.div variants={fadeUp} className="glass-card p-5">
+              <motion.div variants={fadeUp} className="data-card p-5">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-text-primary">Advanced Analysis</h3>
                   <div className="flex gap-2 flex-wrap">

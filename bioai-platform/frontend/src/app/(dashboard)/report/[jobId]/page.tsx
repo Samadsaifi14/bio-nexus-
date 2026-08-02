@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { ArrowLeft, Printer, Download, LoaderCircle, XCircle } from "lucide-react";
+import { Printer, Download, LoaderCircle, XCircle } from "lucide-react";
 import Link from "next/link";
 import { getExportUrl } from "@/lib/api";
 import { BlastPanel } from "@/components/results/BlastPanel";
@@ -9,6 +9,7 @@ import { ScoreBars } from "@/components/results/ScoreBars";
 import { UniprotPanel } from "@/components/results/UniprotPanel";
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
+import { BackButton } from "@/components/ui";
 
 export default function ReportPage() {
   const params = useParams();
@@ -51,9 +52,7 @@ export default function ReportPage() {
     <div className="max-w-4xl mx-auto p-6">
       {/* Toolbar — hidden when printing */}
       <div className="flex items-center justify-between mb-6 print:hidden">
-        <Link href="/wizard" className="inline-flex items-center gap-1.5 text-sm text-text-secondary hover:text-text-primary transition">
-          <ArrowLeft className="w-4 h-4" /> Back to Wizard
-        </Link>
+        <BackButton href="/wizard" label="Back to Wizard" />
         <div className="flex gap-2">
           <a href={getExportUrl(jobId, 'pdf')}
             className="px-4 py-2 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center gap-1.5">
@@ -90,7 +89,7 @@ export default function ReportPage() {
 
       {/* MSA */}
       {msaData?.aln_fasta && (
-        <section className="glass-card p-6 mb-8">
+        <section className="data-card p-6 mb-8">
           <h2 className="font-semibold text-text-primary mb-2">Multiple Sequence Alignment</h2>
           <p className="text-xs text-text-muted mb-2">{msaData.sequence_count} sequences aligned</p>
           <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto whitespace-pre max-h-96 overflow-y-auto">
@@ -101,7 +100,7 @@ export default function ReportPage() {
 
       {/* Phylo Tree */}
       {phyloData?.phylotree_newick && (
-        <section className="glass-card p-6 mb-8">
+        <section className="data-card p-6 mb-8">
           <h2 className="font-semibold text-text-primary mb-3">Phylogenetic Tree</h2>
           <PhyloTreeViewer newick={phyloData.phylotree_newick} />
         </section>
@@ -109,7 +108,7 @@ export default function ReportPage() {
 
       {/* Domain Architecture */}
       {domainsData?.domains && domainsData.domains.length > 0 && (
-        <section className="glass-card p-6 mb-8">
+        <section className="data-card p-6 mb-8">
           <h2 className="font-semibold text-text-primary mb-3">Domain Architecture</h2>
           <p className="text-xs text-text-muted mb-2">{domainsData.uniprot_accession} &middot; {domainsData.sequence_length} aa &middot; {domainsData.domains.length} domain{domainsData.domains.length !== 1 ? "s" : ""}</p>
           <div className="space-y-1.5">
@@ -126,7 +125,7 @@ export default function ReportPage() {
 
       {/* AI Interpretation */}
       {interpretData?.interpretation && (
-        <section className="glass-card p-6 mb-8">
+        <section className="data-card p-6 mb-8">
           <h2 className="font-semibold text-text-primary mb-3">AI Interpretation</h2>
           <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap font-mono">
             {interpretData.interpretation}

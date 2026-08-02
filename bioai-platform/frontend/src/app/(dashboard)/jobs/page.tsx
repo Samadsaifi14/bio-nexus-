@@ -10,6 +10,7 @@ import {
 import { getJobs } from '@/lib/api';
 import type { JobStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
+import { PageHeader } from '@/components/ui';
 
 const STATUS_ICONS: Record<string, typeof Clock> = {
   queued: Clock, submitted_to_ncbi: Clock, polling_ncbi: Clock,
@@ -64,17 +65,19 @@ export default function JobsPage() {
 
   if (jobs.length === 0) return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-bold text-text-primary">Jobs</h1>
-        <Link href="/analyze" className="btn-primary px-4 py-2 text-sm flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Analysis
-        </Link>
-      </div>
+      <PageHeader
+        title="Jobs"
+        actions={
+          <Link href="/analyze" className="btn-critical text-sm flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Analysis
+          </Link>
+        }
+      />
       <div className="glass-card p-16 text-center">
         <FileText className="w-16 h-16 text-text-muted mx-auto mb-6" />
         <h3 className="text-xl font-semibold text-text-primary mb-2">No jobs yet</h3>
         <p className="text-sm text-text-secondary mb-6">Run your first analysis to see results here.</p>
-        <Link href="/analyze" className="inline-flex items-center gap-2 px-6 py-3 btn-primary text-sm">
+        <Link href="/analyze" className="inline-flex items-center gap-2 btn-critical text-sm">
           <Dna className="w-4 h-4" /> Start Analysis
         </Link>
       </div>
@@ -91,17 +94,15 @@ export default function JobsPage() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-start justify-between">
-        <div>
-          <motion.h1 variants={fadeUp} className="text-2xl font-bold text-text-primary">Jobs</motion.h1>
-          <p className="text-sm text-text-muted mt-0.5">
-            {jobs.length} total · {counts.complete} complete · {counts.active} active
-          </p>
-        </div>
-        <Link href="/analyze" className="btn-primary px-4 py-2 text-sm flex items-center gap-2 shrink-0">
-          <Plus className="w-4 h-4" /> New Analysis
-        </Link>
-      </div>
+      <PageHeader
+        title="Jobs"
+        subtitle={`${jobs.length} total · ${counts.complete} complete · ${counts.active} active`}
+        actions={
+          <Link href="/analyze" className="btn-critical text-sm flex items-center gap-2 shrink-0">
+            <Plus className="w-4 h-4" /> New Analysis
+          </Link>
+        }
+      />
 
       {/* Filter tabs */}
       <div className="flex items-center gap-1 p-1 glass-card w-fit rounded-xl">
@@ -143,7 +144,7 @@ export default function JobsPage() {
 
             return (
               <motion.div key={job.id} variants={fadeUp} whileHover={cardHover}>
-                <Link href={`/jobs/${job.id}`} className="flex items-center gap-4 glass-card p-4 hover:bg-surface-2 transition group">
+                <Link href={`/jobs/${job.id}`} className="flex items-center gap-4 data-card p-4 hover:bg-surface-2 transition group">
                   <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${
                     isComplete ? 'bg-accent-cyan/10' : isFailed ? 'bg-error/10' : 'bg-surface-1'
                   }`}>

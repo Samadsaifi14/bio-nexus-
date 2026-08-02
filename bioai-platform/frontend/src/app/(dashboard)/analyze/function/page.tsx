@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
-import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Brain, Loader2, ExternalLink, Dna, Layers, Target } from "lucide-react";
+import { Brain, Loader2, ExternalLink, Dna, Layers, Target } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";
+import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
 
 const NAMESPACE_COLORS: Record<string, { text: string; bg: string; label: string }> = {
   MF: { text: "text-accent-cyan", bg: "bg-accent-cyan/10", label: "Molecular Function" },
@@ -14,7 +14,6 @@ const NAMESPACE_COLORS: Record<string, { text: string; bg: string; label: string
 };
 
 export default function FunctionPage() {
-  const router = useRouter();
   useAuditTrail();
 
   const [pdbId, setPdbId] = useState("");
@@ -102,29 +101,22 @@ export default function FunctionPage() {
 
   return (
     <div className="max-w-4xl">
-      <button onClick={() => router.push("/analyze")}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Function Prediction</h1>
-        <p className="text-sm text-text-secondary">Predict protein function from structure: GO terms, EC numbers, residue importance. DeepFRI-inspired analysis.</p>
-      </motion.div>
+      <PageHeader title="Function Prediction" subtitle="Predict protein function from structure: GO terms, EC numbers, residue importance. DeepFRI-inspired analysis." />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
-        <div className="glass-card p-5">
+        <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">PDB ID</label>
           <div className="flex gap-2">
-            <input value={pdbId} onChange={(e) => setPdbId(e.target.value.toUpperCase())}
+            <FlatInput value={pdbId} onChange={(e) => setPdbId(e.target.value.toUpperCase())}
               placeholder="e.g. 1TIM" maxLength={4}
-              className="w-32 px-3 py-2 rounded-lg bg-surface-1 border border-surface-3 text-text-primary text-sm font-mono uppercase placeholder:text-text-muted focus:outline-none focus:border-accent-cyan"
+              className="w-32 font-mono uppercase"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-            <button onClick={handleSubmit} disabled={loading || !pdbId.trim()}
-              className="btn-primary px-4 py-2 text-sm flex items-center gap-2">
+            <CriticalButton onClick={handleSubmit} disabled={loading || !pdbId.trim()}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
               {status === "running" || status === "queued" ? `Status: ${status}...` : "Predict Function"}
-            </button>
+            </CriticalButton>
           </div>
         </div>
       </motion.div>
@@ -138,7 +130,7 @@ export default function FunctionPage() {
       {result && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           {/* Header */}
-          <div className="glass-card p-4 flex flex-wrap items-center gap-4">
+          <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>
               <p className="text-xs text-text-muted">PDB Entry</p>
               <a href={`https://www.rcsb.org/structure/${result.pdb_id}`} target="_blank" rel="noopener noreferrer"
@@ -165,7 +157,7 @@ export default function FunctionPage() {
 
           {/* GO Terms by Namespace */}
           {(["MF", "BP", "CC"] as const).map(ns => groupedTerms[ns].length > 0 && (
-            <div key={ns} className="glass-card p-5">
+            <div key={ns} className="data-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Target className={`w-4 h-4 ${NAMESPACE_COLORS[ns].text}`} />
                 <h3 className="text-sm font-semibold text-text-primary">{NAMESPACE_COLORS[ns].label}</h3>
@@ -198,7 +190,7 @@ export default function FunctionPage() {
 
           {/* EC Numbers */}
           {result.ec_numbers && result.ec_numbers.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <Layers className="w-4 h-4 text-accent-amber" /> EC Number Predictions
               </h3>
@@ -222,7 +214,7 @@ export default function FunctionPage() {
 
           {/* Saliency Map */}
           {result.saliency.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
                 <Dna className="w-4 h-4 text-green-400" /> Residue Importance (Saliency Map)
               </h3>
@@ -259,7 +251,7 @@ export default function FunctionPage() {
           )}
 
           {/* Sequence Composition Summary */}
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3">Sequence Composition Analysis</h3>
             <p className="text-xs text-text-muted mb-3">Amino acid composition patterns used for prediction. Hydrophobic fraction and charge distribution drive GO term assignment.</p>
             <div className="grid grid-cols-3 gap-3">
@@ -277,7 +269,7 @@ export default function FunctionPage() {
           </div>
 
           {/* Interpretation */}
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3">Interpretation</h3>
             <div className="space-y-2 text-xs text-text-secondary">
               {result.go_terms.length > 0 && (

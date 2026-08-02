@@ -2,9 +2,10 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, ExternalLink, Dna, Search } from "lucide-react";
+import { ExternalLink, Dna, Search } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { DomainArchitecture } from "@/components/domains/DomainArchitecture";
+import { BackButton, CriticalButton, FlatInput, PageHeader } from "@/components/ui";
 
 const EXAMPLE_ACCESSIONS = [
   { id: "P04637", label: "TP53", desc: "Tumor suppressor p53" },
@@ -34,35 +35,26 @@ export default function DomainsPage() {
 
   return (
     <div className="max-w-4xl">
-      <button onClick={() => router.push("/analyze")}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" />
-        Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-6">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Domain &amp; Motif Analysis</h1>
-        <p className="text-sm text-text-secondary max-w-2xl">
-          Comprehensive protein feature analysis powered by InterPro and UniProtKB.
-          Visualize domain architecture, functional sites, post-translational modifications,
-          structural motifs, variants, and pathway annotations for any protein.
-        </p>
-      </motion.div>
+      <PageHeader
+        title="Domain & Motif Analysis"
+        subtitle="Comprehensive protein feature analysis powered by InterPro and UniProtKB. Visualize domain architecture, functional sites, post-translational modifications, structural motifs, variants, and pathway annotations for any protein."
+      />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-4">
         <div className="flex gap-3">
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
-            <input type="text" value={accession}
+            <FlatInput type="text" value={accession}
               onChange={e => setAccession(e.target.value.toUpperCase())}
               onKeyDown={e => e.key === "Enter" && handleSubmit()}
               placeholder="UniProt accession, e.g. P04637, P00698, Q9Y261"
-              className="w-full pl-10 pr-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary" />
+              className="w-full pl-10 pr-4 font-mono" />
           </div>
-          <button onClick={handleSubmit} disabled={!accession.trim()}
-            className="btn-primary px-5 py-3 disabled:opacity-50">
+          <CriticalButton onClick={handleSubmit} disabled={!accession.trim()}>
             Analyze
-          </button>
+          </CriticalButton>
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
@@ -95,7 +87,7 @@ export default function DomainsPage() {
 
       {submitted && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <DomainArchitecture accession={submitted} />
           </div>
 

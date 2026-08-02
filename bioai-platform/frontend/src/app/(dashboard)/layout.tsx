@@ -219,10 +219,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-6 z-10 w-6 h-6 rounded-full flex items-center justify-center transition-all"
+          className="absolute -right-3 top-[18px] z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110"
           style={{
             background: 'var(--bg-surface-2)',
             border:     '1px solid var(--glass-border)',
+            boxShadow:  '0 2px 8px rgba(0,0,0,0.45)',
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,245,212,0.4)';

@@ -1,11 +1,11 @@
 'use client';
 
 import { useState, useRef, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Copy, Check } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
+import { BackButton, PageHeader, CriticalButton, FlatTextarea } from '@/components/ui';
 
 const COMPLEMENT: Record<string, string> = {
   A: 'T', T: 'A', C: 'G', G: 'C',
@@ -39,7 +39,6 @@ const TOOLS = [
 ];
 
 export default function ToolsPage() {
-  const router = useRouter();
   const audit = useAuditTrail();
   const auditedRef = useRef(false);
   const [input, setInput] = useState('');
@@ -148,29 +147,24 @@ export default function ToolsPage() {
 
   return (
     <div className="max-w-2xl">
-      <button onClick={() => router.push('/analyze')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Utility Tools</h1>
-        <p className="text-sm text-text-secondary">Translate CDS, reverse complement, GC content, FASTA formatting, and more.</p>
-      </motion.div>
+      <PageHeader title="Utility Tools" subtitle="Translate CDS, reverse complement, GC content, FASTA formatting, and more." />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
         <div className="flex gap-2 flex-wrap">
           {TOOLS.map((t) => (
-            <button key={t.id} onClick={() => { setTool(t.id); setOutput(''); }} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tool === t.id ? 'btn-primary' : 'glass-card text-text-secondary'}`}>
+            <button key={t.id} onClick={() => { setTool(t.id); setOutput(''); }} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tool === t.id ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30' : 'glass-card text-text-secondary hover:text-text-primary'}`}>
               {t.label}
             </button>
           ))}
         </div>
 
-        <textarea
+        <FlatTextarea
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Paste raw DNA or protein sequence..."
-          className="w-full h-32 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm resize-none bg-surface-1 text-text-primary"
+          className="w-full h-32 text-sm"
         />
 
         <div className="flex gap-3">
@@ -181,14 +175,14 @@ export default function ToolsPage() {
             Load sample
           </button>
           <div className="flex-1" />
-          <button onClick={process} disabled={!input.trim()} className="btn-primary px-6 py-2.5 text-sm disabled:opacity-50">
+          <CriticalButton onClick={process} disabled={!input.trim()}>
             Process
-          </button>
+          </CriticalButton>
         </div>
       </motion.div>
 
       {output && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
           <div className="flex items-center justify-between mb-2">
             <p className="text-xs font-medium text-text-muted uppercase tracking-wider">Result</p>
             <button onClick={handleCopy} className="text-xs text-accent-cyan hover:underline flex items-center gap-1">

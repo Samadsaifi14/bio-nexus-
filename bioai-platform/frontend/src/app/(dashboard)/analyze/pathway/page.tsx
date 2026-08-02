@@ -1,20 +1,19 @@
 'use client';
 
 import { useState, useCallback, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, LoaderCircle, ExternalLink, GitBranch, ChevronDown, ChevronRight, Dna } from 'lucide-react';
+import { LoaderCircle, ExternalLink, GitBranch, ChevronDown, ChevronRight, Dna } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { searchPathways, searchKEGGPathways, runEnrichment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { PathwayResult, KEGGPathwayResult, EnrichmentResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PathwayDiagram from '@/components/results/PathwayDiagram';
+import { BackButton, PageHeader, ClaySegmented, CriticalButton, FlatInput, FlatTextarea } from '@/components/ui';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
 
 export default function PathwayPage() {
-  const router = useRouter();
   const [tab, setTab] = useState<Tab>('reactome');
   const [query, setQuery] = useState('');
   const [reactomeResults, setReactomeResults] = useState<PathwayResult[] | null>(null);
@@ -100,46 +99,36 @@ export default function PathwayPage() {
 
   return (
     <div className="max-w-3xl">
-      <button onClick={() => router.push('/analyze')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Pathway Analysis</h1>
-        <p className="text-sm text-text-secondary">Map your genes or proteins to biological pathways from Reactome and KEGG, or run pathway enrichment analysis.</p>
-      </motion.div>
+      <PageHeader title="Pathway Analysis" subtitle="Map your genes or proteins to biological pathways from Reactome and KEGG, or run pathway enrichment analysis." />
 
-      <div className="flex gap-1 mb-6 border-b border-glass-border">
-        {(['reactome', 'kegg', 'enrichment'] as Tab[]).map((t) => (
-          <button
-            key={t}
-            onClick={() => { setTab(t); setError(null); }}
-            className={`px-4 py-2.5 text-sm font-medium border-b-2 transition -mb-px ${
-              tab === t
-                ? 'border-accent-cyan text-accent-cyan'
-                : 'border-transparent text-text-muted hover:text-text-primary'
-            }`}
-          >
-            {t === 'reactome' ? 'Reactome' : t === 'kegg' ? 'KEGG' : 'Enrichment'}
-          </button>
-        ))}
-      </div>
+      <ClaySegmented
+        className="mb-6"
+        options={[
+          { value: 'reactome', label: 'Reactome' },
+          { value: 'kegg', label: 'KEGG' },
+          { value: 'enrichment', label: 'Enrichment' },
+        ]}
+        value={tab}
+        onChange={(t) => { setTab(t); setError(null); }}
+      />
 
       {tab !== 'enrichment' && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
           <div className="flex gap-3">
-            <input
+            <FlatInput
               type="text"
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder={tab === 'reactome' ? 'e.g. TP53, BRCA1, EGFR' : 'e.g. TP53, BRCA1'}
-              className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm"
+              className="flex-1"
             />
-            <button onClick={handleSearch} disabled={loading || !query.trim()} className="btn-primary px-6 py-3 flex items-center gap-2 disabled:opacity-50">
+            <CriticalButton onClick={handleSearch} disabled={loading || !query.trim()}>
               {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <GitBranch className="w-4 h-4" />}
               Search
-            </button>
+            </CriticalButton>
           </div>
           <div className="flex gap-3 mt-3">
             <button onClick={() => { setQuery('TP53'); setError(null); }} className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline">TP53 (p53)</button>
@@ -150,19 +139,19 @@ export default function PathwayPage() {
       )}
 
       {tab === 'enrichment' && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
           <p className="text-sm text-text-secondary mb-3">Paste gene or protein identifiers (one per line or comma-separated) to find over-represented pathways.</p>
-          <textarea
+          <FlatTextarea
             value={geneInput}
             onChange={(e) => setGeneInput(e.target.value)}
             placeholder={`TP53\nBRCA1\nEGFR\nMYC\nPTEN`}
             rows={6}
-            className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm resize-none mb-3"
+            className="w-full mb-3"
           />
-          <button onClick={handleEnrichment} disabled={loading || !geneInput.trim()} className="btn-primary px-6 py-3 flex items-center gap-2 disabled:opacity-50">
+          <CriticalButton onClick={handleEnrichment} disabled={loading || !geneInput.trim()}>
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Dna className="w-4 h-4" />}
             Analyze
-          </button>
+          </CriticalButton>
         </motion.div>
       )}
 
@@ -175,7 +164,7 @@ export default function PathwayPage() {
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
           ) : (
             reactomeResults.map((p) => (
-              <div key={p.pathway_id} className="glass-card overflow-hidden">
+              <div key={p.pathway_id} className="data-card overflow-hidden">
                 <button
                   onClick={() => setExpandedDiagram(expandedDiagram === p.pathway_id ? null : p.pathway_id)}
                   className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"
@@ -219,7 +208,7 @@ export default function PathwayPage() {
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
           ) : (
             keggResults.map((p) => (
-              <div key={p.pathway_id} className="glass-card overflow-hidden">
+              <div key={p.pathway_id} className="data-card overflow-hidden">
                 <button
                   onClick={() => setExpandedKEGG(expandedKEGG === p.pathway_id ? null : p.pathway_id)}
                   className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"
@@ -266,7 +255,7 @@ export default function PathwayPage() {
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No significantly enriched pathways found</p></div>
           ) : (
             enrichmentResult.pathways.map((pw) => (
-              <div key={pw.stId} className="glass-card overflow-hidden">
+              <div key={pw.stId} className="data-card overflow-hidden">
                 <button
                   onClick={() => setExpandedDiagram(expandedDiagram === pw.stId ? null : pw.stId)}
                   className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"

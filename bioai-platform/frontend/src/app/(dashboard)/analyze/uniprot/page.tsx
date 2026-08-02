@@ -3,13 +3,14 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, ArrowLeft, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
+import { Search, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
 import { searchUniprot, getUniprotDetail, fetchUniprotCds } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { UniprotSummary } from '@/types/pipeline';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
+import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 
 type SearchResult = {
   accession: string;
@@ -122,39 +123,27 @@ export default function UniprotLookupPage() {
 
   return (
     <div className="max-w-3xl">
-      <button
-        onClick={() => router.push('/analyze')}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">UniProt Lookup</h1>
-        <p className="text-sm text-text-secondary">
-          Search by gene name, protein name, or keyword to retrieve comprehensive annotations.
-        </p>
-      </motion.div>
+      <PageHeader title="UniProt Lookup" subtitle="Search by gene name, protein name, or keyword to retrieve comprehensive annotations." />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
         <div className="flex gap-3">
-          <input
+          <FlatInput
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="e.g. p53, BRCA1, TP53 human, kinase"
-            className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm"
+            className="flex-1"
           />
-          <button
+          <CriticalButton
             onClick={handleSearch}
             disabled={loading || !query.trim()}
-            className="btn-primary px-6 py-3 flex items-center gap-2 disabled:opacity-50"
           >
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             Search
-          </button>
+          </CriticalButton>
         </div>
       </motion.div>
 
@@ -176,7 +165,7 @@ export default function UniprotLookupPage() {
               <button
                 key={r.accession}
                 onClick={() => handleSelect(r.accession)}
-                className="glass-card p-4 w-full text-left hover:bg-surface-2 transition cursor-pointer"
+                className="data-card p-4 w-full text-left hover:bg-surface-2 transition cursor-pointer"
               >
                 <div className="flex items-start justify-between gap-4">
                   <div className="min-w-0">
@@ -211,7 +200,7 @@ export default function UniprotLookupPage() {
 
       {detail && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-          <div className="glass-card divide-y divide-glass-border">
+          <div className="data-card divide-y divide-glass-border">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">
                 <div>
@@ -411,13 +400,12 @@ export default function UniprotLookupPage() {
                   <Download className="w-3 h-3" /> CSV
                 </button>
               </div>
-              <button
+              <CriticalButton
                 onClick={() => handleSendToBlast(detail.accession, detail.sequence)}
-                className="btn-primary py-2 px-4 text-sm flex items-center gap-2"
               >
                 <Beaker className="w-4 h-4" />
                 Analyze with BLAST
-              </button>
+              </CriticalButton>
               <button
                 onClick={() => { sessionStorage.setItem('domains_accession', detail.accession); router.push('/analyze/domains'); }}
                 className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"

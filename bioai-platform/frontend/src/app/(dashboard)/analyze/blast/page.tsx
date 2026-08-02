@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { ArrowLeft, Dna, Search, ChevronRight, LoaderCircle, CircleCheck } from 'lucide-react';
+import { Search, ChevronRight, LoaderCircle, CircleCheck } from 'lucide-react';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import toast from 'react-hot-toast';
 import { runPipeline, fetchSequence } from '@/lib/api';
@@ -10,6 +10,7 @@ import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
 import type { SequenceResult, SequenceType } from '@/types/pipeline';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
+import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, FlatInput } from '@/components/ui';
 
 const SAMPLES = [
   {
@@ -169,13 +170,7 @@ export default function BlastWizardPage() {
 
   return (
     <div className="max-w-2xl">
-      <button
-        onClick={() => router.push('/analyze')}
-        className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors"
-      >
-        <ArrowLeft className="w-4 h-4" />
-        Choose a different operation
-      </button>
+      <BackButton />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="flex items-center gap-3 mb-8">
         {[1, 2, 3].map((s) => (
@@ -202,30 +197,22 @@ export default function BlastWizardPage() {
             </p>
           </div>
 
-          <div className="flex gap-2">
-            {([
-              { id: 'paste' as const, label: 'Paste Sequence' },
-              { id: 'accession' as const, label: 'Fetch by Accession' },
-            ]).map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => { setInputMode(tab.id); setAccessionResult(null); }}
-                className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                  inputMode === tab.id ? 'btn-primary' : 'glass-card text-text-secondary'
-                }`}
-              >
-                {tab.label}
-              </button>
-            ))}
-          </div>
+          <ClaySegmented
+            options={[
+              { value: 'paste', label: 'Paste Sequence' },
+              { value: 'accession', label: 'Fetch by Accession' },
+            ]}
+            value={inputMode}
+            onChange={(v) => { setInputMode(v); setAccessionResult(null); }}
+          />
 
           {inputMode === 'paste' ? (
-            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
-              <textarea
+            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
+              <FlatTextarea
                 value={rawInput}
                 onChange={(e) => setRawInput(e.target.value)}
                 placeholder="Paste a FASTA or raw sequence here..."
-                className="w-full h-40 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm text-text-primary bg-surface-1 resize-none"
+                className="w-full h-40 font-mono text-sm text-text-primary"
               />
               <div className="flex items-center justify-between mt-4">
                 <motion.div variants={fadeUp} className="flex items-center gap-3">
@@ -255,24 +242,23 @@ export default function BlastWizardPage() {
               </div>
             </motion.div>
           ) : (
-            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 space-y-4">
+            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 space-y-4">
               <div className="flex gap-3">
-                <input
+                <FlatInput
                   type="text"
                   value={rawInput}
                   onChange={(e) => setRawInput(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && handleFetchAccession()}
                   placeholder="e.g. NP_000509.1, P04637, 1TIM"
-                  className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary"
+                  className="flex-1 font-mono"
                 />
-                <button
+                <CriticalButton
                   onClick={handleFetchAccession}
                   disabled={accessionLoading || !rawInput.trim()}
-                  className="btn-primary px-5 py-3 flex items-center gap-2 disabled:opacity-50"
                 >
                   {accessionLoading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
                   Fetch
-                </button>
+                </CriticalButton>
               </div>
 
               {accessionResult && (
@@ -356,18 +342,16 @@ export default function BlastWizardPage() {
           </div>
 
           <div className="flex justify-end">
-            <motion.button
-              whileHover={{ scale: 1.02 }}
+            <CriticalButton
               onClick={() => setStep(3)}
               disabled={
                 (inputMode === 'paste' && !rawInput.trim()) ||
                 (inputMode === 'accession' && !accessionResult)
               }
-              className="btn-primary px-6 py-3 flex items-center gap-2 disabled:opacity-50"
             >
               Continue
               <ChevronRight className="w-4 h-4" />
-            </motion.button>
+            </CriticalButton>
           </div>
         </motion.div>
       )}
@@ -379,7 +363,7 @@ export default function BlastWizardPage() {
             <p className="text-sm text-text-secondary">Review your analysis settings before submitting.</p>
           </div>
 
-          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-6 space-y-4">
+          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-6 space-y-4">
             <div className="flex items-center gap-3 pb-4 border-b border-glass-border">
               <Search className="w-5 h-5 text-accent-cyan" />
               <div>
@@ -423,18 +407,16 @@ export default function BlastWizardPage() {
             >
               &larr; Change input
             </button>
-            <motion.button
-              whileHover={{ scale: 1.02 }}
+            <CriticalButton
               onClick={handleSubmit}
               disabled={submitting}
-              className="btn-primary px-8 py-3 flex items-center gap-2 disabled:opacity-50"
             >
               {submitting ? (
                 <><LoaderCircle className="w-4 h-4 animate-spin" /> Submitting...</>
               ) : (
                 'Run Analysis'
               )}
-            </motion.button>
+            </CriticalButton>
           </div>
         </motion.div>
       )}

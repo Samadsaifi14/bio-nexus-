@@ -5,6 +5,7 @@ import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskCon
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { ReactNode } from 'react';
+import { CriticalButton } from '@/components/ui';
 
 type Operation = {
   id: string;
@@ -90,16 +91,16 @@ export default function AnalyzePage() {
   return (
     <div>
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <div className="glass-card p-6 border border-accent-cyan/20 bg-accent-cyan/5">
+        <div className="liquid-glass p-6 border border-accent-cyan/20 bg-accent-cyan/5">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-text-primary">New: Guided Analysis Wizard</h2>
               <p className="text-sm text-text-secondary mt-1">A step-by-step 4-step pipeline &mdash; paste a sequence and get BLAST, pathways, and AI interpretation in one flow.</p>
             </div>
-            <button onClick={() => router.push('/wizard')}
-              className="btn-primary px-5 py-2.5 text-sm flex-shrink-0">
+            <CriticalButton onClick={() => router.push('/wizard')}
+              className="px-5 py-2.5 text-sm flex-shrink-0">
               Launch Wizard &rarr;
-            </button>
+            </CriticalButton>
           </div>
         </div>
       </motion.div>

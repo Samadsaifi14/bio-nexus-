@@ -1,10 +1,9 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  ArrowLeft, LoaderCircle, FlaskConical, CheckCircle, XCircle,
+  LoaderCircle, FlaskConical, CheckCircle, XCircle,
   AlertTriangle, Hexagon, FileText, Copy, Check, ChevronDown,
   ChevronRight
 } from 'lucide-react';
@@ -14,6 +13,7 @@ import type { DockingResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { InteractionPanel } from '@/components/InteractionPanel';
+import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
 const SMILES_EXAMPLES = [
@@ -51,7 +51,7 @@ function VinaLog({ log }: { log: string }) {
     .sort((a, b) => a.affinity - b.affinity);
 
   return (
-    <div className="glass-card overflow-hidden">
+    <div className="data-card overflow-hidden">
       {/* Header — always visible */}
       <button
         type="button"
@@ -125,7 +125,6 @@ function VinaLog({ log }: { log: string }) {
 }
 
 export default function DockingPage() {
-  const router = useRouter();
   const searchParams = typeof window !== 'undefined' ? new URLSearchParams(window.location.search) : null;
   const [pdbId, setPdbId] = useState(searchParams?.get('pdb_id') || '');
   const [pdbUrl, setPdbUrl] = useState(searchParams?.get('pdb_url') || '');
@@ -212,25 +211,23 @@ export default function DockingPage() {
 
   return (
     <div className="max-w-3xl">
-      <button onClick={() => router.push('/analyze')} className="flex items-center gap-1 text-sm text-text-muted hover:text-text-primary mb-6 transition-colors">
-        <ArrowLeft className="w-4 h-4" /> Choose a different operation
-      </button>
+      <BackButton />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Molecular Docking</h1>
-        <p className="text-sm text-text-secondary">Dock a small molecule (SMILES) into a protein structure (PDB ID) using AutoDock Vina. CPU-based, runs entirely on our server. Expect 1–5 min for completion.</p>
-      </motion.div>
+      <PageHeader
+        title="Molecular Docking"
+        subtitle="Dock a small molecule (SMILES) into a protein structure (PDB ID) using AutoDock Vina. CPU-based, runs entirely on our server. Expect 1–5 min for completion."
+      />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">PDB ID</label>
-          <input
+          <FlatInput
             type="text"
             value={pdbId}
             onChange={(e) => setPdbId(e.target.value.toUpperCase())}
             onKeyDown={(e) => e.key === 'Enter' && startDocking()}
             placeholder="e.g. 1TIM"
-            className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary"
+            className="w-full px-4 py-3 rounded-xl text-sm font-mono"
           />
           <div className="flex gap-2 mt-2 flex-wrap">
             <span className="text-xs text-text-muted">Examples:</span>
@@ -249,24 +246,24 @@ export default function DockingPage() {
         {pdbUrl && (
           <div>
             <label className="block text-sm font-medium text-text-primary mb-1.5">PDB URL (from AlphaFold)</label>
-            <input
+            <FlatInput
               type="text"
               value={pdbUrl}
               readOnly
-              className="w-full px-4 py-3 rounded-xl border border-accent-cyan/40 text-sm font-mono bg-surface-1 text-accent-cyan"
+              className="w-full px-4 py-3 rounded-xl text-sm font-mono text-accent-cyan"
             />
           </div>
         )}
 
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">Ligand SMILES</label>
-          <input
+          <FlatInput
             type="text"
             value={smiles}
             onChange={(e) => setSmiles(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && startDocking()}
             placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O"
-            className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm font-mono bg-surface-1 text-text-primary"
+            className="w-full px-4 py-3 rounded-xl text-sm font-mono"
           />
           <div className="flex gap-2 mt-2 flex-wrap">
             <span className="text-xs text-text-muted">Examples:</span>
@@ -282,11 +279,11 @@ export default function DockingPage() {
           </div>
         </div>
 
-        <button onClick={startDocking} disabled={loading || (!pdbId.trim() && !pdbUrl.trim()) || !smiles.trim() || polling}
-          className="btn-primary w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
+        <CriticalButton onClick={startDocking} disabled={loading || (!pdbId.trim() && !pdbUrl.trim()) || !smiles.trim() || polling}
+          className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
           {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <FlaskConical className="w-4 h-4" />}
           {loading ? 'Starting...' : polling ? 'Running...' : 'Run Docking'}
-        </button>
+        </CriticalButton>
       </motion.div>
 
       {error && (
@@ -317,7 +314,7 @@ export default function DockingPage() {
           </div>
 
           {result.result?.poses && result.result.poses.length > 0 && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Docking Results</h3>
 
               <div className="grid grid-cols-2 gap-4 mb-4">
@@ -370,7 +367,7 @@ export default function DockingPage() {
           )}
 
           {result.result?.box_center && (
-            <div className="glass-card p-5">
+            <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Binding Site Search Box</h3>
               <div className="grid grid-cols-2 gap-4 text-sm">
                 <div>
@@ -390,7 +387,7 @@ export default function DockingPage() {
           )}
 
           {result.result?.pdb_id && bestLigandPdb && (
-            <div className="glass-card p-5 relative z-10">
+            <div className="data-card p-5 relative z-10">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <Hexagon className="w-4 h-4 text-accent-cyan" />
                 Structure — Best Pose

@@ -9,6 +9,7 @@ import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { useState } from 'react';
 import type { LucideIcon } from 'lucide-react';
+import { PageHeader } from '@/components/ui';
 
 type Topic = {
   id: string;
@@ -85,10 +86,7 @@ export default function LearnPage() {
 
   return (
     <div>
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
-        <h1 className="text-2xl font-bold text-text-primary mb-1">Documentation & Learning</h1>
-        <p className="text-text-muted mb-6">Learn the concepts behind every tool in Bio Nexus.</p>
-      </motion.div>
+      <PageHeader title="Documentation & Learning" subtitle="Learn the concepts behind every tool in Bio Nexus." />
 
       <motion.div variants={fadeUp} className="relative mb-10 max-w-xl">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />

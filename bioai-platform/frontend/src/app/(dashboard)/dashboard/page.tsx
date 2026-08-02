@@ -94,14 +94,14 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-        <Link href="/analyze" className="btn-primary px-5 py-2.5 text-sm flex items-center gap-2 shrink-0">
+        <Link href="/analyze" className="btn-critical text-sm flex items-center gap-2 shrink-0">
           <Play className="w-4 h-4" />
           New Analysis
         </Link>
       </motion.div>
 
       {/* ── Daily usage bar ── */}
-      <motion.div variants={fadeUp} className="glass-card p-5">
+      <motion.div variants={fadeUp} className="data-card p-5">
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <Activity className="w-4 h-4 text-accent-cyan" />
@@ -135,7 +135,7 @@ export default function DashboardPage() {
           { icon: TrendingUp,  label: 'Active',     value: activeCount,     color: 'text-accent-purple', bg: 'bg-accent-purple/10', sub: 'in progress' },
           { icon: XCircle,     label: 'Failed',     value: failedCount,     color: 'text-error',         bg: 'bg-error/10',         sub: 'need review' },
         ].map(s => (
-          <motion.div key={s.label} variants={fadeUp} whileHover={cardHover} className="glass-card p-4">
+          <motion.div key={s.label} variants={fadeUp} whileHover={cardHover} className="data-card p-4">
             <div className={`w-8 h-8 ${s.bg} rounded-lg flex items-center justify-center mb-3`}>
               <s.icon className={`w-4 h-4 ${s.color}`} />
             </div>
@@ -192,7 +192,7 @@ export default function DashboardPage() {
               const isFailed   = job.status === 'failed';
               return (
                 <motion.div key={job.id} variants={fadeUp}>
-                  <Link href={`/jobs/${job.id}`} className="flex items-center gap-3 glass-card p-4 hover:bg-surface-2 transition group">
+                  <Link href={`/jobs/${job.id}`} className="flex items-center gap-3 data-card p-4 hover:bg-surface-2 transition group">
                     <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isComplete ? 'bg-accent-cyan/10' : isFailed ? 'bg-error/10' : 'bg-surface-1'}`}>
                       <Icon className={`w-4 h-4 ${color}`} />
                     </div>
@@ -222,7 +222,7 @@ export default function DashboardPage() {
             <p className="text-sm text-text-secondary mb-6 max-w-sm mx-auto">
               Submit a protein or nucleotide sequence — BLAST, annotate, visualize structure, and get AI interpretation.
             </p>
-            <Link href="/analyze" className="inline-flex items-center gap-2 px-6 py-3 btn-primary text-sm">
+            <Link href="/analyze" className="inline-flex items-center gap-2 btn-critical text-sm">
               <Play className="w-4 h-4" />
               Start Analysis
             </Link>

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { HudPanel, HudLegend, LegendItem } from '@/components/ui';
 
 interface MoleViewer {
   setStyle: (sel: Record<string, unknown>, style: Record<string, unknown>) => void;
@@ -201,9 +202,10 @@ export function AlphaFoldViewer({
   }, [status]);
 
   return (
-    <div className="w-full overflow-hidden rounded-lg border border-white/10 bg-[#0d1117]">
-      <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 px-3 py-2">
-        <span className="font-mono text-xs text-white/60">
+    <div className="relative w-full overflow-hidden rounded-xl border border-glass-border bg-[#0d1117]">
+      {/* HUD toolbar — floats in the viewer's space, near-opaque */}
+      <HudPanel className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
+        <span className="font-mono text-xs text-text-muted">
           {uniprotId ? `AlphaFold model — ${uniprotId}` : 'AlphaFold model'}
         </span>
 
@@ -212,7 +214,7 @@ export function AlphaFoldViewer({
             value={styleMode}
             onChange={(e) => setStyleMode(e.target.value as StyleMode)}
             disabled={status !== 'ready'}
-            className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/80 disabled:opacity-40"
+            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary outline-none disabled:opacity-40 focus:border-accent-cyan/40"
           >
             <option value="confidence">Cartoon · pLDDT</option>
             <option value="spectrum">Cartoon · spectrum</option>
@@ -223,40 +225,37 @@ export function AlphaFoldViewer({
             type="button"
             onClick={() => setSpinning((s) => !s)}
             disabled={status !== 'ready'}
-            className="rounded border border-white/10 bg-black/30 px-2 py-1 text-xs text-white/80 hover:bg-black/50 disabled:opacity-40"
+            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors"
           >
             {spinning ? 'Stop spin' : 'Spin'}
           </button>
         </div>
-      </div>
+      </HudPanel>
 
       <div className="relative" style={{ height }}>
         <div ref={containerRef} className="absolute inset-0" />
 
         {status === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-white/60">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-text-secondary">
             Loading structure...
           </div>
         )}
 
         {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-red-400">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-error">
             {error}
           </div>
         )}
-      </div>
 
-      {status === 'ready' && styleMode !== 'spectrum' && (
-        <div className="flex flex-wrap items-center gap-3 border-t border-white/10 px-3 py-2 text-[11px] text-white/60">
-          <span className="font-mono uppercase tracking-wide text-white/40">pLDDT confidence</span>
-          {CONFIDENCE_BANDS.map((band) => (
-            <span key={band.label} className="flex items-center gap-1">
-              <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ backgroundColor: band.color }} />
-              {band.label}
-            </span>
-          ))}
-        </div>
-      )}
+        {/* Corner-anchored, near-opaque legend — never blurred over the model */}
+        {status === 'ready' && styleMode !== 'spectrum' && (
+          <HudLegend title="pLDDT confidence" className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)]">
+            {CONFIDENCE_BANDS.map((band) => (
+              <LegendItem key={band.label} color={band.color} label={band.label} />
+            ))}
+          </HudLegend>
+        )}
+      </div>
     </div>
   );
 }

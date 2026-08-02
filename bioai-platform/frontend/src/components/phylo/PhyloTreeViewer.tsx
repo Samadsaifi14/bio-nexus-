@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Search } from 'lucide-react'
+import { ClaySegmented } from '@/components/ui/ClaySegmented'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -559,7 +560,7 @@ function NodeInfoPanel({ node, allNodes }: { node: TreeNode; allNodes: TreeNode[
   const isValidAccession = leafName.length >= 4 && /^[A-Z0-9_]+$/.test(leafName)
 
   return (
-    <div className="glass-card p-4 space-y-2 text-sm">
+    <div className="data-card p-4 space-y-2 text-sm">
       <div className="flex items-center justify-between">
         <span className="text-text-primary font-medium">
           {isLeaf ? node.name || 'Leaf' : 'Internal Node'}
@@ -816,18 +817,15 @@ export default function PhyloTreeViewer({
           </span>
         )}
 
-        <div className="flex gap-1 bg-surface-1 rounded-lg p-1 border border-glass-border">
-          {(['rectangular', 'circular'] as Layout[]).map(l => (
-            <button key={l} onClick={() => setLayout(l)}
-              className={`text-xs px-3 py-1 rounded-md transition-colors capitalize ${
-                layout === l
-                  ? 'bg-accent-cyan/20 text-accent-cyan'
-                  : 'text-text-secondary hover:text-text-primary'
-              }`}>
-              {l}
-            </button>
-          ))}
-        </div>
+        <ClaySegmented
+          options={[
+            { value: 'rectangular', label: 'Rectangular' },
+            { value: 'circular',    label: 'Circular' },
+          ]}
+          value={layout}
+          onChange={setLayout}
+          size="sm"
+        />
 
         <button onClick={resetView}
           className="text-xs px-3 py-1.5 rounded-lg border border-glass-border

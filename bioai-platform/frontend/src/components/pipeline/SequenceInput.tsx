@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
+import { CriticalButton, FlatTextarea } from '@/components/ui';
 
 const SAMPLES = [
   {
@@ -38,18 +38,18 @@ export function SequenceInput({ value, onChange, onSubmit, loading, error }: Seq
     .join('').length;
 
   return (
-    <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+    <motion.div variants={fadeUp} className="data-card p-6">
+      <label className="block text-sm font-medium text-text-secondary mb-2">
         Enter protein sequence (FASTA or plain)
       </label>
-      <textarea
+      <FlatTextarea
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        placeholder=">sp|P04637|P53_HUMAN&#10;MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQ..."
-        className="w-full h-40 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition font-mono text-sm text-gray-900 resize-none"
+        rows={10}
+        placeholder={">sp|P04637|P53_HUMAN\nMEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQ..."}
       />
       {error && (
-        <p className="mt-2 text-sm text-red-600">{error}</p>
+        <p className="mt-2 text-sm text-error">{error}</p>
       )}
       <div className="flex items-center justify-between mt-4">
         <div className="flex items-center gap-4">
@@ -58,22 +58,23 @@ export function SequenceInput({ value, onChange, onSubmit, loading, error }: Seq
               key={s.label}
               type="button"
               onClick={() => onChange(s.seq)}
-              className="text-sm text-teal-600 hover:text-teal-700 underline"
+              className="text-sm text-accent-cyan hover:underline underline-offset-2"
             >
               Load {s.label}
             </button>
           ))}
-          <span className="text-xs text-gray-400">
+          <span className="text-xs text-text-muted">
             {value ? `${aaCount} aa` : '0 aa'}
           </span>
         </div>
-        <button
+        <CriticalButton
           onClick={onSubmit}
-          disabled={loading || !value.trim()}
-          className="px-6 py-2.5 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50"
+          disabled={!value.trim()}
+          loading={loading}
+          type="button"
         >
-          {loading ? 'Running pipeline...' : 'Run Pipeline'}
-        </button>
+          {loading ? 'Running pipeline…' : 'Run Pipeline'}
+        </CriticalButton>
       </div>
     </motion.div>
   );

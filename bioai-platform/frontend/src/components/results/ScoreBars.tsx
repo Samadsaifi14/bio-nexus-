@@ -31,7 +31,7 @@ export function ScoreBars({ hits }: ScoreBarsProps) {
   const maxScore = hits[0]?.bit_score || 1;
 
   return (
-    <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-6">
       <h2 className="text-lg font-semibold text-text-primary mb-4">Score Distribution</h2>
       <div className="space-y-2">
         {hits.slice(0, 15).map((hit, i) => {

@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DockingInteraction } from '@/lib/api';
+import { HudPanel, HudLegend } from '@/components/ui';
 import {
   RotateCcw, RotateCw, Camera, FlipHorizontal, Palette,
   Box, Layers, Minus, Circle, Hexagon
@@ -362,10 +363,10 @@ export function DockingViewer({
   }, [spinning, status]);
 
   return (
-    <div className="w-full rounded-lg border border-white/10 bg-[#0d1117] relative z-20">
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 relative z-20">
-        <span className="font-mono text-xs text-white/60 mr-2">{pdbId}</span>
+    <div className="relative z-20 w-full overflow-hidden rounded-xl border border-glass-border bg-[#0d1117]">
+      {/* HUD toolbar — spatial chrome for the viewer */}
+      <HudPanel className="flex flex-wrap items-center gap-2 border-b border-glass-border px-3 py-2">
+        <span className="mr-2 font-mono text-xs text-text-muted">{pdbId}</span>
 
         {/* Representation */}
         <div className="flex items-center gap-1">
@@ -474,12 +475,12 @@ export function DockingViewer({
         >
           <Camera className="w-3.5 h-3.5" />
         </button>
-      </div>
+      </HudPanel>
 
       {/* Interaction legend */}
       {status === 'ready' && interactions && (
-        <div className="flex flex-wrap items-center gap-2 border-b border-white/10 px-3 py-2 text-[10px]">
-          <span className="mr-1 text-white/40">Contacts</span>
+        <HudLegend className="flex flex-wrap items-center gap-2 border-b border-glass-border">
+          <span className="mr-1 text-[10px] text-text-muted">Contacts</span>
           {INTERACTION_LAYERS.map(({ key, label, color }) => {
             const count = interactions[key]?.length || 0;
             if (!count) return null;
@@ -497,11 +498,11 @@ export function DockingViewer({
               </button>
             );
           })}
-        </div>
+        </HudLegend>
       )}
 
       {(chains.length > 0 || ligands.length > 0) && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-white/10 px-3 py-2 text-[10px] text-white/50">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-glass-border bg-[#0d1117]/60 px-3 py-2 text-[10px] text-text-muted">
           {chains.length > 0 && <span>{chains.length} protein chain{chains.length === 1 ? '' : 's'}</span>}
           {ligands.length > 0 && <span>Deposited ligands: {ligands.map(ligand => `${ligand.id}:${ligand.chain}`).join(', ')}</span>}
           {ligandPdb && <span className="text-accent-cyan">Docked ligand loaded</span>}

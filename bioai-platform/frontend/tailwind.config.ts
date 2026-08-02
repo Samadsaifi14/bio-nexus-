@@ -77,6 +77,10 @@ const config: Config = {
         'glass-md':  '0 4px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)',
         'glass-lg':  '0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)',
         'nav-active': 'inset 2px 0 0 #00F5D4',
+        'clay':      '5px 5px 12px rgba(0,0,0,0.5), -3px -3px 8px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.05)',
+        'clay-press':'3px 3px 8px rgba(0,0,0,0.5), -2px -2px 6px rgba(255,255,255,0.02), inset 0 2px 6px rgba(0,0,0,0.35)',
+        'critical':  '0 2px 0 rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.4)',
+        'data-card': '0 1px 2px rgba(0,0,0,0.35)',
       },
       backgroundImage: {
         'grid-subtle':

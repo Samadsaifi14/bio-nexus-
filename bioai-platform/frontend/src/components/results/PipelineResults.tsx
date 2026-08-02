@@ -109,7 +109,7 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
       )}
 
       {steps.includes("msa") && data.steps?.msa?.status === "complete" && data.steps.msa.data?.aln_fasta && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-2">Multiple Sequence Alignment</h3>
           <p className="text-xs text-text-muted mb-2">{data.steps.msa.data.sequence_count} sequences aligned via Clustal Omega</p>
           <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
@@ -119,21 +119,21 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
       )}
 
       {steps.includes("phylo") && data.steps?.phylo?.status === "complete" && data.steps.phylo.data?.phylotree_newick && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-2">Phylogenetic Tree</h3>
           <PhyloTreeViewer newick={data.steps.phylo.data.phylotree_newick} />
         </motion.div>
       )}
 
       {steps.includes("domains") && data.steps?.domains?.status === "complete" && data.steps.domains.data?.uniprot_accession && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-2">Domain Architecture</h3>
           <DomainSummary data={data.steps.domains.data} />
         </motion.div>
       )}
 
       {steps.includes("interpret") && data.steps?.interpret?.status === "complete" && data.steps.interpret.data?.interpretation && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="glass-card p-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-2">AI Interpretation</h3>
           <div className="prose prose-sm max-w-none text-text-secondary whitespace-pre-wrap font-mono text-sm leading-relaxed">
             {data.steps.interpret.data.interpretation}

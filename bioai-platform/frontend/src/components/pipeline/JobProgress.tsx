@@ -32,10 +32,10 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
   const nextPendingIndex = stepsCompleted.length;
 
   return (
-    <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
+    <motion.div variants={fadeUp} className="glass-card p-6">
       <div className="flex items-center justify-between mb-4">
-        <h3 className="text-sm font-semibold text-gray-900">Pipeline progress</h3>
-        <span className="text-xs text-gray-500">{pct}%</span>
+        <h3 className="text-sm font-semibold text-text-primary">Pipeline progress</h3>
+        <span className="text-xs text-text-muted">{pct}%</span>
       </div>
       <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5">
         <div

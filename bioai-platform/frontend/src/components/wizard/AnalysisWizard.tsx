@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Dna, ArrowRight, LoaderCircle, FileText, CircleCheck, Circle } from "lucide-react";
+import { ClayToggle } from "@/components/ui/ClayToggle";
+import { CriticalButton } from "@/components/ui/CriticalButton";
 import { PipelineResults } from "@/components/results/PipelineResults";
 
 type WizardStep = "input" | "running";
@@ -103,32 +105,31 @@ export function AnalysisWizard() {
               className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm resize-none bg-surface-1 text-text-primary"
             />
 
-            {/* Step checkboxes */}
-            <div className="mt-4 space-y-2">
+            {/* Analysis step toggles — clay: discrete, low-stakes choices */}
+            <div className="mt-4 space-y-2.5">
               <p className="text-xs font-semibold text-text-muted uppercase tracking-wider">Analysis Steps</p>
               {ALL_STEPS.map(s => (
-                <label key={s.id} className="flex items-center gap-3 cursor-pointer group">
-                  <input
-                    type="checkbox"
-                    checked={enabledSteps.includes(s.id)}
-                    onChange={() => toggleStep(s.id)}
-                    disabled={s.essential}
-                    className="w-4 h-4 rounded border-glass-border bg-surface-1 accent-accent-cyan disabled:opacity-60"
-                  />
-                  <span className={`text-sm ${s.essential ? "text-text-primary" : "text-text-secondary group-hover:text-text-primary transition"}`}>
-                    {s.label}
-                    {s.essential && <span className="text-xs text-text-muted ml-1">(required)</span>}
-                  </span>
-                </label>
+                <ClayToggle
+                  key={s.id}
+                  checked={enabledSteps.includes(s.id)}
+                  onChange={() => toggleStep(s.id)}
+                  disabled={s.essential}
+                  label={s.label}
+                  hint={s.essential ? 'required' : undefined}
+                  className="rounded-lg px-3 py-2 hover:bg-surface-1/60 transition-colors"
+                />
               ))}
             </div>
 
             {error && <p className="text-error text-sm mt-3">{error}</p>}
 
-            <button onClick={handleSubmit} disabled={loading}
-              className="w-full btn-primary py-3 flex items-center justify-center gap-2 mt-4 disabled:opacity-40">
-              {loading ? <><LoaderCircle className="w-4 h-4 animate-spin" /> Submitting&hellip;</> : <><ArrowRight className="w-4 h-4" /> Run Analysis</>}
-            </button>
+            <CriticalButton
+              onClick={handleSubmit}
+              disabled={loading}
+              className="mt-4 w-full py-3"
+            >
+              {loading ? <>Submitting&hellip;</> : <><ArrowRight className="w-4 h-4" /> Run Analysis</>}
+            </CriticalButton>
           </motion.div>
         ) : (
           <motion.div

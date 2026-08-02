@@ -57,7 +57,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
-        <div className="glass-card relative">
+        <div className="data-card relative">
           <svg viewBox={`0 0 ${W} ${H}`} className="w-80 h-80">
             <ellipse cx={toX(-57)} cy={toY(-47)} rx={30} ry={30}
               fill="#00F5D4" fillOpacity={0.06} stroke="#00F5D4" strokeOpacity={0.15} />

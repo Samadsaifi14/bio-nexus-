@@ -40,6 +40,25 @@
   --error: #EF4444;
   --error-dim: rgba(239, 68, 68, 0.15);
 
+  /* ── Claymorphism (tactile, low-stakes controls) ─────────────────── */
+  --clay-bg:        linear-gradient(145deg, #181830 0%, #0F0F1E 100%);
+  --clay-bg-hover:  linear-gradient(145deg, #1C1C36 0%, #111120 100%);
+  --clay-shadow:    rgba(0, 0, 0, 0.5);
+  --clay-highlight: rgba(255, 255, 255, 0.045);
+  --clay-thumb-bg:  linear-gradient(145deg, #2A2A45 0%, #181830 100%);
+
+  /* ── Liquid glass (hero / nav chrome) ────────────────────────────── */
+  --liquid-border:  rgba(255, 255, 255, 0.10);
+  --liquid-sheen:   rgba(255, 255, 255, 0.08);
+
+  /* ── Flat data cards (near-opaque, for scientific output) ────────── */
+  --data-card-bg:     rgba(8, 8, 18, 0.96);
+  --data-card-border: rgba(100, 110, 180, 0.16);
+
+  /* ── Spatial HUD (3D viewer chrome, near-opaque) ─────────────────── */
+  --hud-bg:     rgba(13, 13, 26, 0.90);
+  --hud-border: rgba(100, 110, 180, 0.20);
+
   --transition-fast:    150ms cubic-bezier(0.25, 0.1, 0.25, 1);
   --transition-default: 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
   --transition-slow:    400ms cubic-bezier(0.25, 1, 0.5, 1);
@@ -147,6 +166,243 @@
     border: 1px solid var(--glass-border);
     backdrop-filter: blur(32px) saturate(180%);
     -webkit-backdrop-filter: blur(32px) saturate(180%);
+  }
+
+  /* ── Claymorphism — discrete, tactile, pressable objects ─────────────
+     Use ONLY for isolated low-stakes choices (toggles, sliders, mode
+     pickers). Never for data, charts, or irreversible/expensive actions.
+     ──────────────────────────────────────────────────────────────────── */
+  .clay {
+    background: var(--clay-bg);
+    border: 1px solid rgba(100, 110, 180, 0.16);
+    border-radius: 0.75rem;
+    box-shadow:
+      5px 5px 12px var(--clay-shadow),
+      -3px -3px 8px rgba(255, 255, 255, 0.03),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    transition:
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast),
+      background var(--transition-fast);
+  }
+
+  .clay:hover {
+    background: var(--clay-bg-hover);
+  }
+
+  .clay:active {
+    transform: translateY(1px);
+    box-shadow:
+      3px 3px 8px var(--clay-shadow),
+      -2px -2px 6px rgba(255, 255, 255, 0.02),
+      inset 0 2px 6px rgba(0, 0, 0, 0.35);
+  }
+
+  .clay-toggle-track {
+    background: linear-gradient(145deg, #181830 0%, #0D0D1A 100%);
+    border: 1px solid rgba(100, 110, 180, 0.20);
+    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+    transition: background var(--transition-fast);
+  }
+
+  .clay-toggle-thumb {
+    background: var(--clay-thumb-bg);
+    border: 1px solid rgba(100, 110, 180, 0.30);
+    box-shadow:
+      0 2px 4px rgba(0, 0, 0, 0.50),
+      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  }
+
+  .clay-slider {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 8px;
+    border-radius: 9999px;
+    background:
+      linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-cyan) var(--fill, 50%),
+        #181830 var(--fill, 50%), #181830 100%);
+    box-shadow:
+      inset 0 2px 5px rgba(0, 0, 0, 0.45),
+      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+    outline: none;
+  }
+
+  .clay-slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--clay-thumb-bg);
+    border: 1px solid rgba(100, 110, 180, 0.30);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    cursor: grab;
+    transition: box-shadow var(--transition-fast);
+  }
+
+  .clay-slider::-webkit-slider-thumb:active {
+    cursor: grabbing;
+    box-shadow:
+      0 1px 3px rgba(0, 0, 0, 0.50),
+      inset 0 2px 4px rgba(0, 0, 0, 0.30);
+  }
+
+  .clay-slider::-moz-range-thumb {
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--clay-thumb-bg);
+    border: 1px solid rgba(100, 110, 180, 0.30);
+    box-shadow:
+      0 2px 6px rgba(0, 0, 0, 0.55),
+      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    cursor: grab;
+  }
+
+  /* ── Liquid glass — premium, alive chrome (hero / nav) ──────────────
+     Expensive to render; reserve for the "wow" surfaces only. Never use
+     over data that must be read precisely. ──────────────────────────── */
+  .liquid-glass {
+    position: relative;
+    overflow: hidden;
+    background: linear-gradient(
+      120deg,
+      rgba(120, 130, 200, 0.10),
+      rgba(255, 255, 255, 0.03) 40%,
+      rgba(0, 245, 212, 0.04) 60%,
+      rgba(120, 130, 200, 0.10)
+    );
+    border: 1px solid var(--liquid-border);
+    border-radius: 1rem;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    box-shadow:
+      inset 0 1px 0 rgba(255, 255, 255, 0.12),
+      inset -1px -1px 2px rgba(255, 255, 255, 0.02),
+      0 8px 32px rgba(0, 0, 0, 0.45);
+  }
+
+  .liquid-glass::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(110deg, transparent 20%, var(--liquid-sheen) 50%, transparent 80%);
+    transform: translateX(-100%);
+    animation: liquid-sheen 7s ease-in-out infinite;
+    pointer-events: none;
+  }
+
+  @keyframes liquid-sheen {
+    0%, 55% { transform: translateX(-100%); }
+    100%     { transform: translateX(100%); }
+  }
+
+  /* ── Flat data cards — opaque, high-contrast, zero blur ─────────────
+     For charts, trees, scores, structures data-ink. Translucency behind
+     data reduces contrast and reads as decoration. ──────────────────── */
+  .data-card {
+    background: var(--data-card-bg);
+    border: 1px solid var(--data-card-border);
+    border-radius: 0.875rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    transition: border-color var(--transition-default);
+  }
+
+  .data-card:hover {
+    border-color: rgba(100, 110, 180, 0.26);
+  }
+
+  /* ── Spatial HUD — chrome that lives in the viewer's space ────────── */
+  .hud {
+    background: var(--hud-bg);
+    border: 1px solid var(--hud-border);
+    border-radius: 0.75rem;
+    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.50);
+  }
+
+  .hud-legend {
+    background: rgba(8, 8, 18, 0.94);
+    border: 1px solid var(--hud-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+  }
+
+  /* ── Critical actions — solid, deliberate, not casually clickable ─── */
+  .btn-critical {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.7rem 1.5rem;
+    border-radius: 0.625rem;
+    background: linear-gradient(180deg, #00E0C0 0%, #00B8A0 100%);
+    color: #04040A;
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    font-size: 0.875rem;
+    letter-spacing: 0.01em;
+    border: 1px solid rgba(255, 255, 255, 0.16);
+    box-shadow:
+      0 2px 0 rgba(0, 0, 0, 0.30),
+      0 6px 16px rgba(0, 0, 0, 0.40);
+    transition:
+      background var(--transition-fast),
+      transform var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .btn-critical:hover:not(:disabled) {
+    background: linear-gradient(180deg, #00F0D0 0%, #00C6AB 100%);
+    transform: translateY(-1px);
+    box-shadow:
+      0 3px 0 rgba(0, 0, 0, 0.30),
+      0 8px 20px rgba(0, 0, 0, 0.45);
+  }
+
+  .btn-critical:active:not(:disabled) {
+    transform: translateY(1px);
+    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.30);
+  }
+
+  .btn-critical:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+  }
+
+  .btn-critical-danger {
+    background: linear-gradient(180deg, #F87171 0%, #DC2626 100%);
+    color: #fff;
+  }
+
+  .btn-critical-danger:hover:not(:disabled) {
+    background: linear-gradient(180deg, #FB8888 0%, #EF4444 100%);
+  }
+
+  /* ── Flat data-entry inputs — neutral, precision over decoration ──── */
+  .input-flat {
+    width: 100%;
+    padding: 0.65rem 0.875rem;
+    background: var(--bg-surface-1);
+    border: 1px solid var(--glass-border);
+    border-radius: 0.5rem;
+    color: var(--text-primary);
+    font-size: 0.875rem;
+    outline: none;
+    transition:
+      border-color var(--transition-fast),
+      box-shadow var(--transition-fast);
+  }
+
+  .input-flat::placeholder {
+    color: var(--text-muted);
+    opacity: 0.7;
+  }
+
+  .input-flat:focus {
+    border-color: var(--accent-cyan-30);
+    box-shadow: 0 0 0 2px var(--accent-cyan-10);
   }
 
   .text-gradient {

@@ -66,30 +66,29 @@ export default function LandingPage() {
 
   return (
     <main className="relative bg-void text-text-primary overflow-x-hidden">
-      <nav
-        className="fixed top-0 inset-x-0 z-50 flex items-center justify-between px-8 py-5"
-        style={{ backdropFilter: 'blur(12px)', WebkitBackdropFilter: 'blur(12px)' }}
-      >
-        <span className="font-display text-sm font-semibold tracking-widest uppercase">
-          Bio <span className="text-gradient">Nexus</span>
-        </span>
+      <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
+        <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
+          <span className="font-display text-sm font-semibold tracking-widest uppercase">
+            Bio <span className="text-gradient">Nexus</span>
+          </span>
 
-        <div className="flex items-center gap-6">
-          <Link href="#features" className="hidden sm:block text-xs text-text-muted hover:text-text-primary transition-colors tracking-wide">
-            Features
-          </Link>
-          <Link href="#pipeline" className="hidden sm:block text-xs text-text-muted hover:text-text-primary transition-colors tracking-wide">
-            Pipeline
-          </Link>
-          <Link
-            href="/auth"
-            className="text-xs px-4 py-2 rounded-full border border-glass-border text-text-secondary hover:border-accent-cyan/40 hover:text-accent-cyan transition-all"
-          >
-            Sign in
-          </Link>
-          <Link href="/dashboard" className="btn-primary text-xs py-2 px-4">
-            Get started
-          </Link>
+          <div className="flex items-center gap-6">
+            <Link href="#features" className="hidden sm:block text-xs text-text-muted hover:text-text-primary transition-colors tracking-wide">
+              Features
+            </Link>
+            <Link href="#pipeline" className="hidden sm:block text-xs text-text-muted hover:text-text-primary transition-colors tracking-wide">
+              Pipeline
+            </Link>
+            <Link
+              href="/auth"
+              className="text-xs px-4 py-2 rounded-full border border-glass-border text-text-secondary hover:border-accent-cyan/40 hover:text-accent-cyan transition-all"
+            >
+              Sign in
+            </Link>
+            <Link href="/dashboard" className="btn-primary text-xs py-2 px-4">
+              Get started
+            </Link>
+          </div>
         </div>
       </nav>
 

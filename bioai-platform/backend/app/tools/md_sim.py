@@ -47,8 +47,8 @@ def _to_native(obj):
     return obj
 
 # Simulation parameters
-MINIMIZATION_STEPS = 500
-EQUILIBRATION_STEPS = 300
+MINIMIZATION_STEPS = 300
+EQUILIBRATION_STEPS = 200
 ENERGY_RECORD_INTERVAL = 20
 TIMEOUT_SECONDS = 300
 
@@ -194,7 +194,7 @@ _VDW_RADII = {
     "K": 2.75,
 }
 _PROBE_RADIUS_ANGSTROM = 1.4
-_SASA_N_POINTS = 48  # Shrake–Ruger points per atom (coarse but accurate to ~5%; 120 pts cost ~3 min/frame on the slow CPU-only Space)
+_SASA_N_POINTS = 36  # Shrake–Ruger points per atom (coarse but accurate to ~5%; 120 pts cost ~3 min/frame on the slow CPU-only Space)
 # Boltzmann constant (kJ/mol/K). Some OpenMM wheels omit State.getTemperature(),
 # so we derive temperature from kinetic energy: T = 2·KE / (k_B · N_dof).
 _BOLTZMANN_KJ = 0.0083144621
@@ -720,7 +720,7 @@ def _run_openmm(
         rg_data.insert(0, {"step": 0, "rg_angstrom": round(ref_rg, 2)})
         sasa_data.append({"step": 0, "sasa_angstrom2": round(_sasa_shrake_ruger(ref_coords[heavy_indices], heavy_radii_arr), 1)})
         if frames:
-            n_sasa = min(len(frames), 5)
+            n_sasa = min(len(frames), 4)
             sasa_positions = np.linspace(0, len(frames) - 1, n_sasa).astype(int)
             for pi in sasa_positions:
                 sasa_val = _sasa_shrake_ruger(frames[pi][heavy_indices], heavy_radii_arr)

@@ -64,7 +64,10 @@ PRODUCTION_MIN_PS = 2.0  # absolute floor so huge systems still produce real dyn
 # real platform speed at runtime (fast OpenCL/GPU locally, slow CPU-only in
 # free-tier containers), so runs always fit the budget wherever they deploy.
 _EST_STEPS_PER_SEC = 1_400_000.0
-_PRODUCTION_BUDGET_SECONDS = 180.0  # measured at runtime; leaves room for fetch/minimise/equilibration
+# Production wall-clock budget. Keep this comfortably inside the job window
+# (status timeout 60 min, worker sweep 90 min) while leaving room for the PDB
+# fetch, minimization, and equilibration that run before production.
+_PRODUCTION_BUDGET_SECONDS = 1500.0  # 25 min of dynamics
 
 
 def _adaptive_production_steps(n_atoms: int) -> int:

@@ -210,7 +210,7 @@ export default function BlastWizardPage() {
             <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
               <FlatTextarea
                 value={rawInput}
-                onChange={(e) => setRawInput(e.target.value)}
+                onChange={(e) => { setRawInput(e.target.value); setAccessionResult(null); }}
                 placeholder="Paste a FASTA or raw sequence here..."
                 className="w-full h-40 font-mono text-sm text-text-primary"
               />
@@ -247,7 +247,7 @@ export default function BlastWizardPage() {
                 <FlatInput
                   type="text"
                   value={rawInput}
-                  onChange={(e) => setRawInput(e.target.value)}
+                  onChange={(e) => { setRawInput(e.target.value); setAccessionResult(null); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleFetchAccession()}
                   placeholder="e.g. NP_000509.1, P04637, 1TIM"
                   className="flex-1 font-mono"

@@ -9,3 +9,4 @@ export { HudLegend, LegendItem } from './HudLegend';
 export { FlatInput, FlatTextarea } from './FlatInput';
 export { BackButton } from './BackButton';
 export { PageHeader } from './PageHeader';
+export { ResultsReadyBanner } from './ResultsReadyBanner';

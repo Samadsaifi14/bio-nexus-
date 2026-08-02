@@ -25,9 +25,8 @@ export default function InteractionsPage() {
     if (stored) {
       sessionStorage.removeItem('interaction_gene');
       setGeneName(stored);
-      setTimeout(() => submitGene(stored), 100);
     }
-  }, [submitGene]);
+  }, []);
 
   return (
     <div className="max-w-3xl">
@@ -41,7 +40,7 @@ export default function InteractionsPage() {
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
         <div className="flex gap-3">
           <FlatInput type="text" value={geneName}
-            onChange={e => setGeneName(e.target.value.toUpperCase())}
+            onChange={e => { setGeneName(e.target.value.toUpperCase()); setSubmitted(""); }}
             onKeyDown={e => e.key === "Enter" && submitGene(geneName)}
             placeholder="e.g. TP53"
             className="flex-1 font-mono" />

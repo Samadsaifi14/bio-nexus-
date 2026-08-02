@@ -31,20 +31,6 @@ export default function PathwayPage() {
     if (stored) {
       sessionStorage.removeItem('pathway_query');
       setQuery(stored);
-      setTimeout(() => {
-        (async () => {
-          setLoading(true);
-          setError(null);
-          try {
-            const res = await searchPathways(stored);
-            setReactomeResults(res.results);
-          } catch (err: unknown) {
-            setError(extractErrorMessage(err, 'Search failed'));
-          } finally {
-            setLoading(false);
-          }
-        })();
-      }, 100);
     }
   }, []);
 
@@ -120,7 +106,7 @@ export default function PathwayPage() {
             <FlatInput
               type="text"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => { setQuery(e.target.value); setReactomeResults(null); setKeggResults(null); setError(null); }}
               onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
               placeholder={tab === 'reactome' ? 'e.g. TP53, BRCA1, EGFR' : 'e.g. TP53, BRCA1'}
               className="flex-1"
@@ -143,7 +129,7 @@ export default function PathwayPage() {
           <p className="text-sm text-text-secondary mb-3">Paste gene or protein identifiers (one per line or comma-separated) to find over-represented pathways.</p>
           <FlatTextarea
             value={geneInput}
-            onChange={(e) => setGeneInput(e.target.value)}
+            onChange={(e) => { setGeneInput(e.target.value); setEnrichmentResult(null); setError(null); }}
             placeholder={`TP53\nBRCA1\nEGFR\nMYC\nPTEN`}
             rows={6}
             className="w-full mb-3"

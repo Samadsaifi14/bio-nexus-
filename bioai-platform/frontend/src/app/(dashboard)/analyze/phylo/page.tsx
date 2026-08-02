@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useAuditTrail } from '@/hooks/useAuditTrail'
-import { CriticalButton, FlatTextarea, PageHeader } from '@/components/ui'
+import { CriticalButton, FlatTextarea, PageHeader, ResultsReadyBanner } from '@/components/ui'
 
 const PhyloTreeViewer = dynamic(
   () => import('@/components/phylo/PhyloTreeViewer'),
@@ -161,6 +161,11 @@ export default function PhyloPage() {
       const data: PhyloJobStatus = await res.json()
       setJob(data)
       if (data.phase === 'complete' || data.phase === 'error') stopPoll()
+      if (data.phase === 'complete') {
+        requestAnimationFrame(() => {
+          document.getElementById('phylo-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+        })
+      }
     } catch { }
   }, [stopPoll])
 
@@ -276,7 +281,7 @@ export default function PhyloPage() {
                 ↑ Upload FASTA
               </button>
             </div>
-            <FlatTextarea rows={8} value={fasta} onChange={e => setFasta(e.target.value)}
+            <FlatTextarea rows={8} value={fasta} onChange={e => { setFasta(e.target.value); stopPoll(); setJob(null); setJobId(null); setSubmitError('') }}
               placeholder={`>Sequence_1\nMVLSPADKTNVKAAWGK...\n>Sequence_2\nMVLSGEDKSNVKAAWGK...`}
               spellCheck={false}
               className="w-full px-3 py-2 text-sm" />
@@ -382,7 +387,11 @@ export default function PhyloPage() {
       )}
 
       {isDone && job && (
-        <div className="space-y-5">
+        <div id="phylo-results" className="space-y-5">
+          <ResultsReadyBanner
+            title="Tree complete"
+            subtitle={`${METHOD_INFO[job.method].label}${job.model ? ` · ${job.model}` : ''}${job.done_at ? ` · ${Math.round(job.done_at - job.created_at)}s` : ''}`}
+          />
           <div className="data-card p-4 flex flex-wrap gap-4 items-center">
             <div className="flex gap-4 text-sm flex-wrap flex-1">
               <span className="text-text-secondary">

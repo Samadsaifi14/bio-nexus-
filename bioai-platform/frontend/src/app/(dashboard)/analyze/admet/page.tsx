@@ -79,21 +79,6 @@ export default function ADMETPage() {
     if (stored) {
       sessionStorage.removeItem('admet_smiles');
       setSmiles(stored);
-      setTimeout(() => {
-        (async () => {
-          setLoading(true);
-          setError("");
-          setResult(null);
-          try {
-            const res = await computeADMET(stored);
-            setResult(res.result);
-          } catch (e: any) {
-            setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Computation failed");
-          } finally {
-            setLoading(false);
-          }
-        })();
-      }, 100);
     }
   }, []);
 
@@ -122,7 +107,7 @@ export default function ADMETPage() {
         <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">SMILES String</label>
           <div className="flex gap-2">
-            <FlatInput value={smiles} onChange={(e) => setSmiles(e.target.value)}
+            <FlatInput value={smiles} onChange={(e) => { setSmiles(e.target.value); setResult(null); setError(""); }}
               placeholder="e.g. CC(=O)OC1=CC=CC=C1C(=O)O"
               className="flex-1 font-mono"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />

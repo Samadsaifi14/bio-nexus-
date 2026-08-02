@@ -23,7 +23,7 @@ export default function ComparePage() {
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
         <div className="flex gap-3">
           <FlatInput type="text" value={pdbId}
-            onChange={e => setPdbId(e.target.value.toUpperCase())}
+            onChange={e => { setPdbId(e.target.value.toUpperCase()); setSubmitted(""); }}
             onKeyDown={e => e.key === "Enter" && setSubmitted(pdbId)}
             placeholder="e.g. 1TUP"
             className="flex-1 font-mono" />

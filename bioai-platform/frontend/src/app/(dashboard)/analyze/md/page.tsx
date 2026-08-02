@@ -6,7 +6,7 @@ import { ArrowLeft, Play, Loader2, Activity, Zap, BarChart3, Info } from "lucide
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { runMD, getMDStatus, type MDSimulationResult } from "@/lib/api";
-import { ClaySegmented, ClaySlider, CriticalButton, FlatInput } from "@/components/ui";
+import { ClaySegmented, ClaySlider, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
 
 const MODES = [
   { value: "minimize", label: "Minimization Only", short: "Minimize", desc: "500 steps, ~5 sec", detail: "Energy minimization using L-BFGS. Removes steric clashes and high-energy contacts." },
@@ -46,6 +46,9 @@ export default function MDPage() {
       if (res.status === "complete" && res.result) {
         setResult(res.result);
         setLoading(false);
+        requestAnimationFrame(() => {
+          document.getElementById('md-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
       } else if (res.status === "failed") {
         setError(res.error || "Simulation failed");
         setLoading(false);
@@ -76,21 +79,6 @@ export default function MDPage() {
     if (stored) {
       sessionStorage.removeItem('md_pdb_id');
       setPdbId(stored);
-      setTimeout(() => {
-        (async () => {
-          setLoading(true);
-          setError("");
-          setResult(null);
-          try {
-            const res = await runMD(stored, mode, { forcefield, solvent, run_length_ps: runLengthPs });
-            setJobId(res.job_id);
-            setStatus(res.status);
-          } catch (e: any) {
-            setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Submission failed");
-            setLoading(false);
-          }
-        })();
-      }, 100);
     }
   }, []);
 
@@ -127,7 +115,7 @@ export default function MDPage() {
         <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">PDB ID</label>
           <div className="flex gap-2 mb-4">
-            <FlatInput value={pdbId} onChange={(e) => setPdbId(e.target.value.toUpperCase())}
+            <FlatInput value={pdbId} onChange={(e) => { setPdbId(e.target.value.toUpperCase()); setResult(null); setError(""); }}
               placeholder="e.g. 1TIM" maxLength={4}
               className="w-32 font-mono uppercase"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
@@ -169,7 +157,11 @@ export default function MDPage() {
       )}
 
       {result && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+        <motion.div id="md-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+          <ResultsReadyBanner
+            title={`Simulation complete · ${result.mode}`}
+            subtitle={`${result.engine === 'openmm' ? 'OpenMM' : 'BioPython'} · ${result.elapsed_seconds}s${result.final_energy_kj_mol ? ` · ${result.final_energy_kj_mol} kJ/mol` : ''}`}
+          />
           {/* Simulation Parameters */}
           <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">

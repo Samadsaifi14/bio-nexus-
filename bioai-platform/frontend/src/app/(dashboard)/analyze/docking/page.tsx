@@ -13,7 +13,7 @@ import type { DockingResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { InteractionPanel } from '@/components/InteractionPanel';
-import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
+import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
 const SMILES_EXAMPLES = [
@@ -177,6 +177,11 @@ export default function DockingPage() {
       if (status.status === 'complete' || status.status === 'completed' || status.status === 'failed') {
         setPolling(false);
       }
+      if (status.status === 'complete' || status.status === 'completed') {
+        requestAnimationFrame(() => {
+          document.getElementById('docking-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
     } catch {
       setPolling(false);
       setError('Failed to check docking status');
@@ -224,7 +229,7 @@ export default function DockingPage() {
           <FlatInput
             type="text"
             value={pdbId}
-            onChange={(e) => setPdbId(e.target.value.toUpperCase())}
+            onChange={(e) => { setPdbId(e.target.value.toUpperCase()); setResult(null); setError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && startDocking()}
             placeholder="e.g. 1TIM"
             className="w-full px-4 py-3 rounded-xl text-sm font-mono"
@@ -260,7 +265,7 @@ export default function DockingPage() {
           <FlatInput
             type="text"
             value={smiles}
-            onChange={(e) => setSmiles(e.target.value)}
+            onChange={(e) => { setSmiles(e.target.value); setResult(null); setError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && startDocking()}
             placeholder="e.g. CC(=O)Oc1ccccc1C(=O)O"
             className="w-full px-4 py-3 rounded-xl text-sm font-mono"
@@ -296,7 +301,13 @@ export default function DockingPage() {
       )}
 
       {result && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+        <motion.div id="docking-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          {(result.status === 'complete' || result.status === 'completed') && (
+            <ResultsReadyBanner
+              title="Docking complete"
+              subtitle={bestPose?.affinity != null ? `Best pose: ${bestPose.affinity.toFixed(2)} kcal/mol · ${result.result?.num_poses ?? ''} poses` : `${result.result?.num_poses ?? ''} poses generated`}
+            />
+          )}
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">

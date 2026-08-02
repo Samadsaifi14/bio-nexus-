@@ -8,7 +8,7 @@ import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
 import type { SequencingResult, SequencingReference } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
-import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
+import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'Sars Cov 2' },
@@ -72,6 +72,11 @@ export default function SequencingPage() {
       if (status.status === 'complete' || status.status === 'failed') {
         setPolling(false);
       }
+      if (status.status === 'complete') {
+        requestAnimationFrame(() => {
+          document.getElementById('sequencing-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
+      }
     } catch {
       setPolling(false);
       setError('Failed to check pipeline status');
@@ -124,7 +129,7 @@ export default function SequencingPage() {
           <FlatInput
             type="text"
             value={fastqUrl}
-            onChange={(e) => setFastqUrl(e.target.value)}
+            onChange={(e) => { setFastqUrl(e.target.value); setResult(null); setError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && startPipeline()}
             placeholder="https://example.com/sample.fastq"
             className="w-full px-4 py-3 rounded-xl text-sm font-mono"
@@ -173,8 +178,13 @@ export default function SequencingPage() {
       )}
 
       {result && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-
+        <motion.div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          {result.status === 'complete' && (
+            <ResultsReadyBanner
+              title="Pipeline complete"
+              subtitle={result.result?.consensus_sequence ? `Consensus sequence ready · ${result.result.reference ?? ''}` : 'All pipeline steps finished'}
+            />
+          )}
           <div className="glass-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">

@@ -26,7 +26,6 @@ export default function StructurePage() {
     if (stored) {
       sessionStorage.removeItem('structure_query');
       setQuery(stored);
-      setTimeout(() => handleSearch(), 100);
     }
   }, []);
 
@@ -67,7 +66,7 @@ export default function StructurePage() {
           <FlatInput
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setResult(null); setError(null); setInventory(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="e.g. 1TIM, P04637, 4HHB"
             className="flex-1"

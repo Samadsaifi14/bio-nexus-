@@ -5,7 +5,7 @@ import { Brain, Loader2, ExternalLink, Dna, Layers, Target } from "lucide-react"
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";
-import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
+import { BackButton, PageHeader, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
 
 const NAMESPACE_COLORS: Record<string, { text: string; bg: string; label: string }> = {
   MF: { text: "text-accent-cyan", bg: "bg-accent-cyan/10", label: "Molecular Function" },
@@ -30,6 +30,9 @@ export default function FunctionPage() {
       if (res.status === "complete" && res.result) {
         setResult(res.result);
         setLoading(false);
+        requestAnimationFrame(() => {
+          document.getElementById('function-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        });
       } else if (res.status === "failed") {
         setError(res.error || "Prediction failed");
         setLoading(false);
@@ -60,21 +63,6 @@ export default function FunctionPage() {
     if (stored) {
       sessionStorage.removeItem('function_pdb_id');
       setPdbId(stored);
-      setTimeout(() => {
-        (async () => {
-          setLoading(true);
-          setError("");
-          setResult(null);
-          try {
-            const res = await predictFunction(stored);
-            setJobId(res.job_id);
-            setStatus(res.status);
-          } catch (e: any) {
-            setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Submission failed");
-            setLoading(false);
-          }
-        })();
-      }, 100);
     }
   }, []);
 
@@ -109,7 +97,7 @@ export default function FunctionPage() {
         <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">PDB ID</label>
           <div className="flex gap-2">
-            <FlatInput value={pdbId} onChange={(e) => setPdbId(e.target.value.toUpperCase())}
+            <FlatInput value={pdbId} onChange={(e) => { setPdbId(e.target.value.toUpperCase()); setResult(null); setError(""); }}
               placeholder="e.g. 1TIM" maxLength={4}
               className="w-32 font-mono uppercase"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
@@ -128,7 +116,11 @@ export default function FunctionPage() {
       )}
 
       {result && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+        <motion.div id="function-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+          <ResultsReadyBanner
+            title={`Prediction complete · ${result.pdb_id}`}
+            subtitle={`${result.method.replace(/_/g, ' ')} · ${result.sequence_length} residues`}
+          />
           {/* Header */}
           <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>

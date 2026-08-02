@@ -120,7 +120,7 @@ export function SequenceRetrieval() {
           <input
             type="text"
             value={input}
-            onChange={(e) => setInput(e.target.value)}
+            onChange={(e) => { setInput(e.target.value); setResult(null); setValidation(null); setSearchResults(null); setError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder={
               mode === 'accession' ? 'e.g. NP_000509.1, P04637, 1TIM' :

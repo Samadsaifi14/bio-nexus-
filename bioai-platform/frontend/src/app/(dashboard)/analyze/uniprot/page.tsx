@@ -38,26 +38,6 @@ export default function UniprotLookupPage() {
     if (stored) {
       sessionStorage.removeItem('uniprot_accession');
       setQuery(stored);
-      setTimeout(() => {
-        (async () => {
-          setLoading(true);
-          setError(null);
-          setResults(null);
-          setDetail(null);
-          try {
-            const res = await searchUniprot(stored);
-            if (res.results.length === 1) {
-              handleSelect(res.results[0].accession);
-            } else {
-              setResults(res.results);
-            }
-          } catch (err: unknown) {
-            setError(extractErrorMessage(err, 'Search failed'));
-          } finally {
-            setLoading(false);
-          }
-        })();
-      }, 100);
     }
   }, []);
 
@@ -132,7 +112,7 @@ export default function UniprotLookupPage() {
           <FlatInput
             type="text"
             value={query}
-            onChange={(e) => setQuery(e.target.value)}
+            onChange={(e) => { setQuery(e.target.value); setResults(null); setDetail(null); setError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="e.g. p53, BRCA1, TP53 human, kinase"
             className="flex-1"

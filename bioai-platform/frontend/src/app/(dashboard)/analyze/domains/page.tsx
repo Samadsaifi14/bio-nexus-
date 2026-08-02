@@ -25,7 +25,6 @@ export default function DomainsPage() {
     if (stored) {
       sessionStorage.removeItem("domains_accession");
       setAccession(stored.toUpperCase());
-      setSubmitted(stored.toUpperCase());
     }
   }, []);
 
@@ -47,7 +46,7 @@ export default function DomainsPage() {
           <div className="flex-1 relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />
             <FlatInput type="text" value={accession}
-              onChange={e => setAccession(e.target.value.toUpperCase())}
+              onChange={e => { setAccession(e.target.value.toUpperCase()); setSubmitted(""); }}
               onKeyDown={e => e.key === "Enter" && handleSubmit()}
               placeholder="UniProt accession, e.g. P04637, P00698, Q9Y261"
               className="w-full pl-10 pr-4 font-mono" />

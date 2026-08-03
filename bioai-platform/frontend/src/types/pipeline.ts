@@ -197,6 +197,7 @@ export interface PairwiseAlignResult {
 
 export interface UniprotSummary {
   accession: string;
+  reviewed?: boolean;
   full_name: string;
   organism: string;
   gene_names: string[];

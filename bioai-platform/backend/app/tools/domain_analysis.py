@@ -7,17 +7,26 @@ functional sites, PTMs, topology, motifs, variants, GO terms, pathways).
 Provides the shared analysis functions used by both the standalone router
 and the pipeline_v2 orchestrator.
 """
+import hashlib
 import re
 import httpx
 from typing import Any
 
+from app.config import settings
+from app.services.cache import cache_get, cache_set
 
 INTERPRO_API = "https://www.ebi.ac.uk/interpro/api/entry/all/protein/UniProt/{accession}/?format=json&page_size=50"
 UNIPROT_API = "https://rest.uniprot.org/uniprotkb/{accession}.json"
+SCANPROSITE_URL = "https://prosite.expasy.org/cgi-bin/prosite/scanprosite/PSScan.cgi"
+INTERPRO_ENTRY_API = "https://www.ebi.ac.uk/interpro/api/entry/prosite/{signature}/"
 
 
 def _sanitize(s: str) -> str:
     return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s).strip().upper()
+
+
+def _clean_sequence(sequence: str) -> str:
+    return "".join(c for c in _sanitize(sequence) if c.isalpha())
 
 
 async def fetch_uniprot_raw(accession: str) -> dict:
@@ -384,7 +393,6 @@ def extract_pathways(raw: dict) -> list[dict]:
 # ---------------------------------------------------------------------------
 # 12. Combined Analysis (all features at once)
 # ---------------------------------------------------------------------------
-
 async def full_analysis(accession: str) -> dict:
     """Run all domain/motif analyses for a UniProt accession."""
     accession = _sanitize(accession)
@@ -429,4 +437,72 @@ async def full_analysis(accession: str) -> dict:
         "feature_summary": {
             cat: len(items) for cat, items in features.items() if items
         },
+    }
+
+
+# ---------------------------------------------------------------------------
+# 13. ScanProsite — raw-sequence motif scan
+# ---------------------------------------------------------------------------
+
+def _signature_cache_key(signature_ac: str) -> str:
+    return f"prosite_signature_name:{hashlib.sha256(signature_ac.encode()).hexdigest()[:16]}"
+
+
+async def _prosite_signature_name(signature_ac: str) -> str:
+    """Best-effort PROSITE signature name resolution via InterPro (cached)."""
+    cached = cache_get(_signature_cache_key(signature_ac))
+    if cached is not None:
+        return cached
+    name = ""
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            resp = await client.get(INTERPRO_ENTRY_API.format(signature=signature_ac))
+            if resp.status_code == 200:
+                md = resp.json().get("metadata") or {}
+                nm = md.get("name") or {}
+                name = str(nm.get("name") or "")
+    except Exception:
+        pass
+    if name:
+        cache_set(_signature_cache_key(signature_ac), name, ttl=86400)
+    return name
+
+
+async def scan_prosite_sequence(sequence: str, email: str = "") -> dict:
+    """Scan a raw protein sequence against PROSITE signatures.
+
+    Contract verified live (2026-08-03): POST the sequence to ScanProsite with
+    ``output=json``; the response is ``{"n_match", "n_seq", "matchset": [...]}``
+    where each match has ``sequence_ac``/``start``/``stop``/``signature_ac``/
+    ``level_tag``. Returns ``{"sequence_length", "count", "matches"}``.
+    """
+    clean = _clean_sequence(sequence)
+    if len(clean) < 10:
+        return {"error": "Sequence too short (min 10 amino acids)"}
+
+    async with httpx.AsyncClient(timeout=60) as client:
+        resp = await client.post(
+            SCANPROSITE_URL,
+            data={"seq": clean, "output": "json", "email": email or "bioflow@example.com"},
+        )
+        if resp.status_code != 200:
+            return {"error": f"ScanProsite returned HTTP {resp.status_code}"}
+        data = resp.json()
+
+    matchset = data.get("matchset") or []
+    matches: list[dict] = []
+    for m in matchset:
+        signature_ac = str(m.get("signature_ac", ""))
+        matches.append({
+            "signature_ac": signature_ac,
+            "name": await _prosite_signature_name(signature_ac),
+            "start": int(m.get("start", 0)),
+            "stop": int(m.get("stop", 0)),
+            "level_tag": str(m.get("level_tag", "")),
+        })
+
+    return {
+        "sequence_length": len(clean),
+        "count": len(matches),
+        "matches": matches,
     }

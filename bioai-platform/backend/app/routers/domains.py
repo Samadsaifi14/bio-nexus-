@@ -15,7 +15,8 @@ Provides comprehensive protein feature analysis:
   - Combined analysis endpoint
 """
 from fastapi import APIRouter, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
+from app.config import settings
 from app.tools.domain_analysis import (
     _sanitize,
     fetch_interpro_domains,
@@ -31,6 +32,7 @@ from app.tools.domain_analysis import (
     extract_go_terms,
     extract_pathways,
     full_analysis,
+    scan_prosite_sequence,
 )
 
 router = APIRouter(prefix="/api/domains", tags=["domains"])
@@ -276,6 +278,38 @@ async def get_all_features(accession: str):
     if not result.get("domains") and not result.get("active_sites"):
         raise HTTPException(404, f"No feature data found for {accession}")
     return FullAnalysisResponse(**result)
+
+
+# ---------------------------------------------------------------------------
+# ScanProsite — raw-sequence motif scanning
+# ---------------------------------------------------------------------------
+
+class ScanPrositeRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, description="Raw protein sequence (no FASTA header required)")
+
+
+class ScanPrositeMatch(BaseModel):
+    signature_ac: str
+    name: str = ""
+    start: int
+    stop: int
+    level_tag: str = ""
+
+
+class ScanPrositeResponse(BaseModel):
+    sequence_length: int
+    count: int
+    matches: list[ScanPrositeMatch]
+
+
+@router.post("/scan", response_model=ScanPrositeResponse)
+async def scan_prosite(req: ScanPrositeRequest):
+    """Scan a raw protein sequence against PROSITE signatures (best-effort)."""
+    email = settings.NCBI_EMAIL or ""
+    result = await scan_prosite_sequence(req.sequence, email)
+    if "error" in result:
+        raise HTTPException(status_code=400, detail=result["error"])
+    return ScanPrositeResponse(**result)
 
 
 # ---------------------------------------------------------------------------

@@ -14,6 +14,8 @@ ncbi_service = NCBIService()
 class UniprotSearchRequest(BaseModel):
     query: str = Field(..., min_length=2, description="Free-text search (gene name, protein name, keyword)")
     max_results: int = Field(20, ge=1, le=50)
+    reviewed: bool = Field(False, description="Only Swiss-Prot (reviewed) entries")
+    organism: str = Field("", description="Restrict results to an organism (e.g. Homo sapiens)")
 
 
 class UniprotAccessionRequest(BaseModel):
@@ -27,7 +29,12 @@ class UniprotCDSRequest(BaseModel):
 @router.post("/search")
 async def search_uniprot(req: UniprotSearchRequest):
     url = f"{settings.UNIPROT_BASE_URL}/search"
-    params = {"query": req.query, "format": "json", "size": req.max_results}
+    query = req.query.strip()
+    if req.organism.strip():
+        query = f'{query} AND organism_name:"{req.organism.strip()}"'
+    if req.reviewed:
+        query = f"{query} AND reviewed:true"
+    params = {"query": query, "format": "json", "size": req.max_results}
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.get(url, params=params)
         if resp.status_code != 200:
@@ -36,12 +43,14 @@ async def search_uniprot(req: UniprotSearchRequest):
     results = data.get("results", [])
     out = []
     for r in results:
+        entry_type = (r.get("entryType", "") or "").lower()
         out.append({
             "accession": r.get("primaryAccession", ""),
             "name": ((r.get("proteinDescription", {}) or {}).get("recommendedName", {}) or {}).get("fullName", {}).get("value", ""),
             "gene_names": [g.get("geneName", {}).get("value", "") for g in (r.get("genes") or []) if g.get("geneName")],
             "organism": (r.get("organism", {}) or {}).get("scientificName", ""),
             "length": ((r.get("sequence", {}) or {}).get("length", 0)),
+            "reviewed": "reviewed" in entry_type and "unreviewed" not in entry_type,
         })
     return {"results": out, "count": len(out)}
 

@@ -2,9 +2,12 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ExternalLink, Dna, Search } from "lucide-react";
+import { ExternalLink, Dna, Search, LoaderCircle } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { DomainArchitecture } from "@/components/domains/DomainArchitecture";
+import { scanPrositeSequence, type ScanPrositeResult } from "@/lib/api";
+import { extractErrorMessage } from "@/lib/errors";
+import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { BackButton, CriticalButton, FlatInput, PageHeader } from "@/components/ui";
 
 const EXAMPLE_ACCESSIONS = [
@@ -19,6 +22,11 @@ export default function DomainsPage() {
   const router = useRouter();
   const [accession, setAccession] = useState("");
   const [submitted, setSubmitted] = useState("");
+  const [scanSeq, setScanSeq] = useState("");
+  const [scanning, setScanning] = useState(false);
+  const [scanResult, setScanResult] = useState<ScanPrositeResult | null>(null);
+  const [scanError, setScanError] = useState<string | null>(null);
+  const audit = useAuditTrail();
 
   useEffect(() => {
     const stored = sessionStorage.getItem("domains_accession");
@@ -30,6 +38,29 @@ export default function DomainsPage() {
 
   const handleSubmit = () => {
     if (accession.trim()) setSubmitted(accession.trim().toUpperCase());
+  };
+
+  const handleScan = async () => {
+    const clean = scanSeq.replace(/[^A-Za-z]/g, "");
+    if (clean.length < 10) {
+      setScanError("Sequence too short (min 10 amino acids)");
+      return;
+    }
+    audit.emitStarted("prosite_scan", "ScanProsite", `len:${clean.length}`);
+    setScanning(true);
+    setScanError(null);
+    setScanResult(null);
+    try {
+      const res = await scanPrositeSequence(clean.toUpperCase());
+      setScanResult(res);
+      audit.emitSuccess("prosite_scan", "ScanProsite", `len:${clean.length}`, `matches:${res.count}`);
+    } catch (err: unknown) {
+      const errMsg = extractErrorMessage(err, "Scan failed");
+      audit.emitFailed("prosite_scan", "ScanProsite", `len:${clean.length}`, errMsg);
+      setScanError(errMsg);
+    } finally {
+      setScanning(false);
+    }
   };
 
   return (
@@ -66,6 +97,54 @@ export default function DomainsPage() {
             </button>
           ))}
         </div>
+      </motion.div>
+
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-4">
+        <h3 className="text-sm font-semibold text-text-primary mb-1">Scan a raw sequence for PROSITE motifs</h3>
+        <p className="text-xs text-text-muted mb-3">No accession needed — paste any protein sequence (FASTA header optional) to find PROSITE pattern matches.</p>
+        <textarea
+          value={scanSeq}
+          onChange={(e) => { setScanSeq(e.target.value); setScanError(null); setScanResult(null); }}
+          placeholder={`MEEPQSDPSVEPPLSQETFSDLWKLLPENN...`}
+          className="w-full h-28 font-mono text-sm text-text-primary bg-surface-0 rounded-xl p-3 border border-glass-border focus:border-accent-cyan/50 outline-none resize-y"
+        />
+        <div className="mt-3 flex items-center justify-end gap-3">
+          {scanning && <span className="text-xs text-text-muted flex items-center gap-1"><LoaderCircle className="w-3 h-3 animate-spin" /> scanning...</span>}
+          <CriticalButton onClick={handleScan} disabled={scanning || scanSeq.replace(/[^A-Za-z]/g, "").length < 10}>
+            <Dna className="w-4 h-4" />
+            Scan
+          </CriticalButton>
+        </div>
+        {scanError && <p className="mt-2 text-xs text-error">{scanError}</p>}
+        {scanResult && (
+          <div className="mt-4">
+            <div className="flex items-center justify-between mb-2">
+              <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
+                {scanResult.count} PROSITE match{scanResult.count !== 1 ? "es" : ""} in a {scanResult.sequence_length}-residue sequence
+              </p>
+            </div>
+            {scanResult.count === 0 ? (
+              <p className="text-sm text-text-secondary">No PROSITE signatures matched this sequence.</p>
+            ) : (
+              <div className="space-y-2">
+                {scanResult.matches.map((m, i) => (
+                  <div key={`${m.signature_ac}-${i}`} className="flex items-center gap-3 bg-surface-1 rounded-xl p-3 border border-glass-border">
+                    <a
+                      href={`https://prosite.expasy.org/${m.signature_ac}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-mono text-sm text-accent-cyan hover:underline flex items-center gap-1 shrink-0"
+                    >
+                      {m.signature_ac} <ExternalLink className="w-3 h-3" />
+                    </a>
+                    <span className="text-sm text-text-primary truncate">{m.name || "PROSITE signature"}</span>
+                    <span className="ml-auto shrink-0 text-xs font-mono text-text-muted">{m.start}–{m.stop}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
       </motion.div>
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-6">

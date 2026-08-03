@@ -21,6 +21,7 @@ class UniprotTool(BaseTool):
 
         return {
             "accession": data.get("primaryAccession", ""),
+            "reviewed": "reviewed" in (data.get("entryType", "") or "").lower() and "unreviewed" not in (data.get("entryType", "") or "").lower(),
             "full_name": self._extract_name(data),
             "ec_number": (data.get("proteinDescription", {}) or {}).get("ecNumbers", [{}])[0].get("ecNumber", "") if data.get("proteinDescription") else "",
             "gene_names": [g.get("geneName", {}).get("value", "") for g in (data.get("genes") or []) if g.get("geneName")],

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Search, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
@@ -10,7 +10,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { UniprotSummary } from '@/types/pipeline';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
-import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
+import { BackButton, PageHeader, CriticalButton, FlatInput, ClaySegmented } from '@/components/ui';
 
 type SearchResult = {
   accession: string;
@@ -18,11 +18,16 @@ type SearchResult = {
   gene_names: string[];
   organism: string;
   length: number;
+  reviewed: boolean;
 };
+
+const ACCESSION_RE = /^[OPQ][0-9][A-Z0-9]{3}[0-9]$|^A0A[A-Z0-9]{5,}[0-9]$|^[A-Z0-9]{6}[0-9]$/i;
 
 export default function UniprotLookupPage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
+  const [organism, setOrganism] = useState('');
+  const [reviewedOnly, setReviewedOnly] = useState(false);
   const [results, setResults] = useState<SearchResult[] | null>(null);
   const [detail, setDetail] = useState<UniprotSummary | null>(null);
   const [loading, setLoading] = useState(false);
@@ -32,6 +37,7 @@ export default function UniprotLookupPage() {
   const [cdsLoading, setCdsLoading] = useState<string | null>(null);
   const [cdsError, setCdsError] = useState<string | null>(null);
   const audit = useAuditTrail();
+  const searchSeq = useRef(0);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('uniprot_accession');
@@ -41,25 +47,63 @@ export default function UniprotLookupPage() {
     }
   }, []);
 
-  const handleSearch = async () => {
-    if (!query.trim()) return;
-    const inputSummary = `query:${query.trim()}`;
+  const runSearch = useCallback(async (rawQuery: string, reviewOnly: boolean, org: string) => {
+    const trimmed = rawQuery.trim();
+    if (!trimmed) return;
+    const seqId = ++searchSeq.current;
+    const inputSummary = `query:${trimmed},reviewed:${reviewOnly ? 'yes' : 'no'},organism:${org || 'any'}`;
+
+    if (ACCESSION_RE.test(trimmed)) {
+      audit.emitStarted('uniprot_fetch', 'UniProt', inputSummary);
+      setDetailLoading(true);
+      setError(null);
+      setResults(null);
+      try {
+        const res = await getUniprotDetail(trimmed.toUpperCase());
+        if (seqId !== searchSeq.current) return;
+        setDetail(res);
+        setLoading(false);
+        audit.emitSuccess('uniprot_fetch', 'UniProt', inputSummary, `name:${res?.full_name ?? ''}`);
+      } catch (err: unknown) {
+        if (seqId !== searchSeq.current) return;
+        setLoading(false);
+        const errMsg = extractErrorMessage(err, 'Failed to fetch details');
+        audit.emitFailed('uniprot_fetch', 'UniProt', inputSummary, errMsg);
+        setError(errMsg);
+      } finally {
+        setDetailLoading(false);
+      }
+      return;
+    }
+
     audit.emitStarted('uniprot_search', 'UniProt', inputSummary);
     setLoading(true);
     setError(null);
     setResults(null);
     setDetail(null);
     try {
-      const res = await searchUniprot(query.trim());
+      const res = await searchUniprot(trimmed, 20, { reviewed: reviewOnly, organism: org });
+      if (seqId !== searchSeq.current) return;
       setResults(res.results);
       audit.emitSuccess('uniprot_search', 'UniProt', inputSummary, `count:${res.results?.length ?? 0}`);
     } catch (err: unknown) {
+      if (seqId !== searchSeq.current) return;
       const errMsg = extractErrorMessage(err, 'Search failed');
       audit.emitFailed('uniprot_search', 'UniProt', inputSummary, errMsg);
       setError(errMsg);
     } finally {
       setLoading(false);
     }
+  }, [audit]);
+
+  useEffect(() => {
+    if (query.trim().length < 2) return;
+    const t = setTimeout(() => { void runSearch(query, reviewedOnly, organism); }, 500);
+    return () => clearTimeout(t);
+  }, [query, reviewedOnly, organism, runSearch]);
+
+  const handleSearch = () => {
+    void runSearch(query, reviewedOnly, organism);
   };
 
   const handleSelect = async (accession: string) => {
@@ -107,14 +151,14 @@ export default function UniprotLookupPage() {
 
       <PageHeader title="UniProt Lookup" subtitle="Search by gene name, protein name, or keyword to retrieve comprehensive annotations." />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-3">
         <div className="flex gap-3">
           <FlatInput
             type="text"
             value={query}
             onChange={(e) => { setQuery(e.target.value); setResults(null); setDetail(null); setError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-            placeholder="e.g. p53, BRCA1, TP53 human, kinase"
+            placeholder="e.g. p53, BRCA1, TP53 human, kinase (or paste an accession)"
             className="flex-1"
           />
           <CriticalButton
@@ -124,6 +168,25 @@ export default function UniprotLookupPage() {
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             Search
           </CriticalButton>
+        </div>
+        <div className="flex flex-wrap items-center gap-3">
+          <ClaySegmented
+            options={[
+              { value: 'all', label: 'All entries' },
+              { value: 'reviewed', label: 'Reviewed (Swiss-Prot)' },
+            ]}
+            value={reviewedOnly ? 'reviewed' : 'all'}
+            onChange={(v) => { setReviewedOnly(v === 'reviewed'); setResults(null); setDetail(null); setError(null); }}
+          />
+          <FlatInput
+            type="text"
+            value={organism}
+            onChange={(e) => { setOrganism(e.target.value); setResults(null); setDetail(null); setError(null); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+            placeholder="Organism filter, e.g. Homo sapiens"
+            className="w-56"
+          />
+          {loading && <span className="text-xs text-text-muted flex items-center gap-1"><LoaderCircle className="w-3 h-3 animate-spin" /> searching...</span>}
         </div>
       </motion.div>
 
@@ -151,6 +214,9 @@ export default function UniprotLookupPage() {
                   <div className="min-w-0">
                     <div className="flex items-center gap-2 mb-1">
                       <code className="text-sm font-mono text-accent-cyan">{r.accession}</code>
+                      {r.reviewed && (
+                        <span className="badge bg-accent-amber/10 text-accent-amber text-[10px]">Reviewed</span>
+                      )}
                       <span className="badge bg-accent-cyan/10 text-accent-cyan text-[10px]">{r.length} aa</span>
                     </div>
                     <p className="text-sm text-text-primary line-clamp-1">{r.name}</p>
@@ -186,6 +252,9 @@ export default function UniprotLookupPage() {
                 <div>
                   <div className="flex items-center gap-3 mb-2">
                     <code className="text-lg font-mono font-bold text-accent-cyan">{detail.accession}</code>
+                    {detail.reviewed && (
+                      <span className="badge bg-accent-amber/10 text-accent-amber text-[10px]">Reviewed (Swiss-Prot)</span>
+                    )}
                     <Globe className="w-4 h-4 text-accent-cyan/60" />
                   </div>
                   <h2 className="text-lg font-semibold text-text-primary">{detail.full_name}</h2>

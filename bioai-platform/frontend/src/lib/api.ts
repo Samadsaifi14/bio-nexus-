@@ -113,8 +113,18 @@ export async function validateSequence(sequence: string): Promise<SequenceValida
   return res.data;
 }
 
-export async function searchUniprot(query: string, maxResults: number = 20): Promise<{ results: UniprotSearchResult[]; count: number }> {
-  const res = await api.post('/api/uniprot/search', { query, max_results: maxResults });
+export type UniprotSearchOptions = {
+  reviewed?: boolean;
+  organism?: string;
+};
+
+export async function searchUniprot(query: string, maxResults: number = 20, opts: UniprotSearchOptions = {}): Promise<{ results: UniprotSearchResult[]; count: number }> {
+  const res = await api.post('/api/uniprot/search', {
+    query,
+    max_results: maxResults,
+    reviewed: opts.reviewed ?? false,
+    organism: opts.organism ?? '',
+  });
   return res.data;
 }
 
@@ -143,7 +153,27 @@ export type UniprotSearchResult = {
   gene_names: string[];
   organism: string;
   length: number;
+  reviewed: boolean;
 };
+
+export type ScanPrositeMatch = {
+  signature_ac: string;
+  name: string;
+  start: number;
+  stop: number;
+  level_tag: string;
+};
+
+export type ScanPrositeResult = {
+  sequence_length: number;
+  count: number;
+  matches: ScanPrositeMatch[];
+};
+
+export async function scanPrositeSequence(sequence: string): Promise<ScanPrositeResult> {
+  const res = await api.post('/api/domains/scan', { sequence });
+  return res.data;
+}
 export async function searchSequences(query: string, db: string = 'protein', maxResults: number = 10): Promise<SequenceSearchResponse> {
   const res = await api.post('/api/sequences/search', {
     query,

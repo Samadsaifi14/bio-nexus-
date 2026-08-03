@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { LoaderCircle } from 'lucide-react';
 import { fadeUp } from '@/lib/animations';
-import { runAlignment } from '@/lib/api';
+import { runAlignment, type AlignmentMethod } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { AlignmentResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
@@ -74,9 +74,20 @@ function validateFasta(text: string): string | null {
   return null;
 }
 
+const METHOD_LABELS: Record<AlignmentMethod, string> = {
+  clustalo: 'Clustal Omega',
+  muscle: 'MUSCLE',
+  kalign: 'Kalign',
+  mafft: 'MAFFT',
+  tcoffee: 'T-Coffee',
+};
+
+const METHOD_OPTIONS = (Object.entries(METHOD_LABELS) as [AlignmentMethod, string][]).map(([value, label]) => ({ value, label }));
+
 export default function AlignmentPage() {
   const [input, setInput] = useState('');
   const [stype, setStype] = useState('protein');
+  const [method, setMethod] = useState<AlignmentMethod>('clustalo');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AlignmentResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -90,17 +101,17 @@ export default function AlignmentPage() {
     }
     const seqCount = parseFasta(input).headers.length;
     const inputSummary = `type:${stype},seqs:${seqCount}`;
-    audit.emitStarted('alignment_run', 'Clustal Omega', inputSummary);
+    audit.emitStarted('alignment_run', METHOD_LABELS[method], inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      const res = await runAlignment(input, stype);
+      const res = await runAlignment(input, stype, method);
       setResult(res);
-      audit.emitSuccess('alignment_run', 'Clustal Omega', inputSummary, `job_id:${res?.job_id ?? ''},stype:${res?.stype ?? ''}`);
+      audit.emitSuccess('alignment_run', METHOD_LABELS[method], inputSummary, `job_id:${res?.job_id ?? ''},stype:${res?.stype ?? ''}`);
     } catch (err: unknown) {
       const errMsg = extractErrorMessage(err, 'Alignment failed');
-      audit.emitFailed('alignment_run', 'Clustal Omega', inputSummary, errMsg);
+      audit.emitFailed('alignment_run', METHOD_LABELS[method], inputSummary, errMsg);
       setError(errMsg);
     } finally {
       setLoading(false);
@@ -119,7 +130,7 @@ export default function AlignmentPage() {
 
       <PageHeader
         title="Multiple Sequence Alignment"
-        subtitle="Align two or more protein or DNA sequences using Clustal Omega."
+        subtitle="Align two or more protein or DNA sequences with a choice of EBI methods."
       />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
@@ -130,6 +141,12 @@ export default function AlignmentPage() {
           ] as { value: string; label: string }[]}
           value={stype}
           onChange={(v) => { setStype(v); setError(null); setResult(null); }}
+        />
+
+        <ClaySegmented
+          options={METHOD_OPTIONS as { value: string; label: string }[]}
+          value={method}
+          onChange={(v) => { setMethod(v as AlignmentMethod); setError(null); setResult(null); }}
         />
 
         <FlatTextarea
@@ -163,7 +180,7 @@ export default function AlignmentPage() {
       {loading && !result && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-8 text-center">
           <LoaderCircle className="w-6 h-6 animate-spin text-accent-cyan mx-auto mb-3" />
-          <p className="text-sm text-text-secondary">Running Clustal Omega on EBI servers...</p>
+          <p className="text-sm text-text-secondary">Running {METHOD_LABELS[method]} on EBI servers...</p>
         </motion.div>
       )}
 
@@ -171,8 +188,8 @@ export default function AlignmentPage() {
         const alignedSeqs = parseAlignedFasta(result.aln_fasta);
         return (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA)</h3>
+          <div className="data-card p-5">
+            <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA) — {METHOD_LABELS[result.method as AlignmentMethod] ?? result.method ?? 'Clustal Omega'}</h3>
               <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-80 overflow-auto whitespace-pre-wrap break-all">
                 {result.aln_fasta}
               </pre>

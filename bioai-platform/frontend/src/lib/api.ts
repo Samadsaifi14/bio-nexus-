@@ -159,6 +159,7 @@ export type AlignmentResult = {
   aln_clustal: string;
   phylotree: string;
   stype: string;
+  method?: string;
 };
 
 export async function runPipelineV2(sequence: string, steps?: string[]): Promise<{ job_id: string }> {
@@ -171,8 +172,10 @@ export async function getPipelineStatusV2(jobId: string): Promise<any> {
   return res.data;
 }
 
-export async function runAlignment(sequence: string, stype: string = 'protein'): Promise<AlignmentResult> {
-  const res = await api.post('/api/alignment/run', { sequence, stype });
+export type AlignmentMethod = 'clustalo' | 'muscle' | 'kalign' | 'mafft' | 'tcoffee';
+
+export async function runAlignment(sequence: string, stype: string = 'protein', method: AlignmentMethod = 'clustalo'): Promise<AlignmentResult> {
+  const res = await api.post('/api/alignment/run', { sequence, stype, method });
   return res.data;
 }
 

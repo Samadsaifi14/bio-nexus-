@@ -22,6 +22,7 @@ from app.integrations.ncbi.parser import parse_blast_xml
 from app.services.validators import validate_fasta
 from app.services.sequence_utils import detect_source_from_accession, map_refseq_to_uniprot, detect_sequence_type
 from app.services.blast_config import resolve_blast_params
+from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
 from app.tools.uniprot import UniprotTool
 from app.ai.llm_client import llm_client
 
@@ -32,8 +33,6 @@ _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
 STEP_ORDER = ["blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment", "alphafold", "interpret"]
-
-EBI_CLUSTALO = "https://www.ebi.ac.uk/Tools/services/rest/clustalo"
 
 
 def _get_job(job_id: str) -> dict | None:
@@ -641,44 +640,17 @@ async def _run_msa(query_sequence: str, blast_hits: list) -> dict:
         email = settings.NCBI_EMAIL or "bioflow@example.com"
         seq_type = detect_sequence_type(query_sequence) or "protein"
         stype = "protein" if seq_type == "protein" else "dna"
-        async with httpx.AsyncClient(timeout=30) as client:
-            submit_resp = await client.post(
-                f"{EBI_CLUSTALO}/run",
-                data={"email": email, "stype": stype, "sequence": fasta_str},
-                headers={"Accept": "text/plain"},
-            )
-            if submit_resp.status_code != 200:
-                return {"error": f"EBI submission failed: {submit_resp.text[:200]}", "aln_fasta": None, "phylotree": None}
-
-            job_id = submit_resp.text.strip()
-
-            for _ in range(120):
-                await asyncio.sleep(2)
-                sr = await client.get(f"{EBI_CLUSTALO}/status/{job_id}")
-                status = sr.text.strip()
-                if status == "FINISHED":
-                    break
-                if status == "ERROR":
-                    return {"error": "EBI alignment failed", "aln_fasta": None, "phylotree": None}
-            else:
-                return {"error": "EBI alignment timed out", "aln_fasta": None, "phylotree": None}
-
-            await asyncio.sleep(1)
-
-            fa_resp = await client.get(f"{EBI_CLUSTALO}/result/{job_id}/fa", headers={"Accept": "text/plain"})
-            aln_fasta = fa_resp.text if fa_resp.status_code == 200 else None
-
-            phylotree = None
-            for _ in range(3):
-                try:
-                    tr = await client.get(f"{EBI_CLUSTALO}/result/{job_id}/phylotree", headers={"Accept": "text/plain"})
-                    if tr.status_code == 200:
-                        phylotree = tr.text
-                        break
-                except Exception:
-                    await asyncio.sleep(1)
-
-        return {"aln_fasta": aln_fasta, "phylotree": phylotree, "sequence_count": len(sequences)}
+        result = await run_ebi_msa(
+            base_url=EBI_TOOLS["clustalo"],
+            sequence=fasta_str,
+            stype=stype,
+            email=email,
+        )
+        return {
+            "aln_fasta": result["aln_fasta"],
+            "phylotree": result["phylotree"],
+            "sequence_count": len(sequences),
+        }
 
     except Exception as e:
         return {"error": str(e), "aln_fasta": None, "phylotree": None}

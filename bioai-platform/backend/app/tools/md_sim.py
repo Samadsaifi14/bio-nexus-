@@ -1,8 +1,10 @@
 """Molecular dynamics simulation using OpenMM (implicit solvent only).
 
 Scientifically accurate simulation with:
-  - AMBER14 force field (protein parameters)
-  - OBC2 implicit solvent (Generalized Born / Onufriev-Bashford-Case)
+  - Verified force field menu (AMBER14, ff14SB, ff15ipq, ff19SB, amberfb15,
+    CHARMM36) — every (force field x solvent) pair passed a real
+    alanine-dipeptide createSystem() probe at startup (see md_config)
+  - Implicit solvent (Generalized Born / OBC1/OBC2/GBN2)
   - Hydrogen addition via OpenMM Modeller
   - Real Cα-atom RMSD via Kabsch optimal superposition
   - Per-residue RMSF (Cα) from trajectory frames
@@ -293,9 +295,10 @@ def run_simulation(
         mode: 'minimize', 'equilibrate', or 'production'.
         platform: Optional OpenMM platform name to force (e.g. 'CPU',
             'Reference'); None lets OpenMM pick the default.
-        forcefield: 'amber14' (only AMBER14 protein templates are
-            supported — any other value falls back to AMBER14).
-        solvent: 'obc1', 'obc2', or 'gbn2' implicit-solvent XML file.
+        forcefield: Force field key from the verified menu ('amber14',
+            'ff14sb', 'ff15ipq', 'ff19sb', 'amberfb15', 'charmm36').
+            An unknown or unverified combination raises ValueError.
+        solvent: 'obc1', 'obc2', or 'gbn2' implicit-solvent model.
             Explicit solvent is not supported.
         run_length_ps: Desired production length in picoseconds
             (production mode only). The engine still clamps the run to
@@ -305,11 +308,18 @@ def run_simulation(
         Dict with energy, RMSD, RMSF, and simulation metadata.
 
     Raises:
+        ValueError if the (forcefield, solvent) combination is unknown or did
+            not pass startup verification.
         RuntimeError if PDB fetch fails or OpenMM is unavailable.
     """
     import urllib.request
 
     pdb_id = pdb_id.upper().strip()
+
+    # Validate the force field / solvent pair up front so an invalid request
+    # fails fast with an explicit error (no silent AMBER14/OBC2 fallback).
+    from app.tools.md_config import resolve_combo
+    resolve_combo(forcefield, solvent)
 
     # Fetch PDB from RCSB
     pdb_url = f"https://files.rcsb.org/view/{pdb_id}.pdb"
@@ -485,39 +495,29 @@ def _run_openmm(
     from openmm.app import PDBFile, ForceField, Simulation, CutoffNonPeriodic, Modeller
     from openmm import unit, LangevinMiddleIntegrator, Platform
 
-    # Implicit-solvent XML files OpenMM ships with the AMBER14 data set.
-    # Explicit water/ions require a periodic box + TIP3P plus ion parameters
-    # that are not set up here — reject (fall back) rather than fake it.
-    _SOLVENT_XML = {
-        "obc1": "implicit/obc1.xml",
-        "obc2": "implicit/obc2.xml",
-        "gbn2": "implicit/gbn2.xml",
-    }
-    forcefield_key = forcefield_name or "amber14"
-    if forcefield_key != "amber14":
-        # Only AMBER14 protein templates exist in the bundled data set.
-        # Never silently run a "different" force field — honor the request
-        # by falling back and recording the fact.
-        logger.warning("Force field %r not supported — falling back to amber14", forcefield_key)
-        forcefield_key = "amber14"
-    solvent_key = (solvent_name or "obc2").lower()
-    solvent_xml = _SOLVENT_XML.get(solvent_key, "implicit/obc2.xml")
-    if solvent_key not in _SOLVENT_XML:
-        logger.warning("Solvent %r not supported — falling back to obc2", solvent_name)
-        solvent_key = "obc2"
+    from app.tools.md_config import FF_XML, SOLVENT_XML, resolve_combo
+
+    # Resolve and validate the requested (force field, solvent) pair. Unknown
+    # or unverified combinations raise ValueError with an explicit message —
+    # there is deliberately no silent AMBER14/OBC2 fallback.
+    forcefield_key, solvent_key = resolve_combo(forcefield_name, solvent_name)
+    forcefield_xml = FF_XML[forcefield_key]
+    solvent_xml = SOLVENT_XML[solvent_key]
+    logger.info("MD config: forcefield=%s (%s) solvent=%s (%s)",
+                forcefield_key, forcefield_xml, solvent_key, solvent_xml)
 
     # Load structure
     pdb = PDBFile(pdb_path)
     # OpenMM 8.x: implicit solvent is loaded as an explicit force field file,
     # not via the createSystem(implicitSolvent=...) kwarg (which is rejected).
-    forcefield = ForceField("amber14-all.xml", solvent_xml)
+    forcefield = ForceField(forcefield_xml, solvent_xml)
 
     # Keep only standard amino acids — water, ions, ligands, and nucleic acids
-    # have no AMBER14 protein template and would crash createSystem().
+    # have no protein template and would crash createSystem().
     modeller = Modeller(pdb.topology, pdb.positions)
     _strip_non_standard_residues(modeller)
 
-    # RCSB PDBs omit the terminal carboxylate oxygen; add it so AMBER14's
+    # RCSB PDBs omit the terminal carboxylate oxygen; add it so the
     # C-terminal templates can match (otherwise addHydrogens() raises).
     n_oxt = _add_missing_terminal_oxt(modeller)
     if n_oxt:
@@ -763,7 +763,7 @@ def _run_openmm(
         "mode": mode,
         "engine": "openmm",
         "forcefield": forcefield_key,
-        "forcefield_detail": "amber14-all" if forcefield_key == "amber14" else forcefield_key,
+        "forcefield_detail": forcefield_xml if forcefield_key == "amber14" else forcefield_key,
         "implicit_solvent": solvent_key.upper(),
         "requested_production_ps": int(run_length_ps) if run_length_ps else None,
         "note": "\n".join(notes) if notes else None,

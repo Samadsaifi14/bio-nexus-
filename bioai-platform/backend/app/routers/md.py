@@ -20,7 +20,7 @@ class MDRunRequest(BaseModel):
     pdb_id: str = Field(..., pattern=r"^[A-Za-z0-9]{4}$", description="4-char PDB ID")
     mode: str = Field(default="minimize", pattern=r"^(minimize|equilibrate|production)$")
     platform: str | None = Field(default=None, description="Optional OpenMM platform (CPU/Reference)")
-    forcefield: str | None = Field(default=None, pattern=r"^[a-z0-9_-]+$", description="Force field; only 'amber14' is currently supported")
+    forcefield: str | None = Field(default=None, pattern=r"^[a-z0-9_-]+$", description="Force field from the verified menu (GET /api/md/forcefields)")
     solvent: str | None = Field(default=None, pattern=r"^(obc1|obc2|gbn2)$", description="Implicit solvent model (explicit water not supported)")
     run_length_ps: float | None = Field(default=None, ge=50, le=5000, description="Desired production length in ps (production mode only; engine may clamp to wall-clock budget)")
 
@@ -32,10 +32,26 @@ class MDJobResponse(BaseModel):
     error: str | None = None
 
 
+@router.get("/forcefields")
+async def get_md_forcefields():
+    """Return the force field / solvent menu (verified combos only)."""
+    from app.tools.md_config import get_forcefields_menu
+
+    return get_forcefields_menu()
+
+
 @router.post("/run", response_model=MDJobResponse)
 async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(require_user_id)):
     """Submit an MD simulation job (queued through the durable worker)."""
     from app.services.ssrf import validate_url
+    from app.tools.md_config import resolve_combo
+
+    # Reject invalid force field / solvent combinations immediately with an
+    # explicit error (no silent AMBER14/OBC2 fallback).
+    try:
+        resolve_combo(body.forcefield, body.solvent)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     supabase = get_client()
     job_id = str(uuid.uuid4())

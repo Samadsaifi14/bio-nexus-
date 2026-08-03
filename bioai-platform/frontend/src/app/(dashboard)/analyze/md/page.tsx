@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { ArrowLeft, Play, Loader2, Activity, Zap, BarChart3, Info } from "lucide-react";
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
-import { runMD, getMDStatus, type MDSimulationResult } from "@/lib/api";
+import { runMD, getMDStatus, getMDForceFields, type MDSimulationResult, type MDForceFieldsMenu } from "@/lib/api";
 import { ClaySegmented, ClaySlider, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
 
 const MODES = [
@@ -14,11 +14,11 @@ const MODES = [
   { value: "production", label: "Full Short Run", short: "Production", desc: "Adaptive, up to ~1 ns", detail: "Complete MD: minimization, equilibration, and an adaptive production run (up to 250-1000 ps) with trajectory recording, temperature, Rg, and SASA." },
 ];
 
-const FORCEFIELDS = [
+const FALLBACK_FORCEFIELDS = [
   { value: "amber14", label: "AMBER14 (ff14SB)" },
 ];
 
-const SOLVENTS = [
+const FALLBACK_SOLVENTS = [
   { value: "obc2", label: "Implicit · OBC2" },
   { value: "gbn2", label: "Implicit · GBN2" },
   { value: "obc1", label: "Implicit · OBC1" },
@@ -32,6 +32,9 @@ export default function MDPage() {
   const [mode, setMode] = useState("minimize");
   const [forcefield, setForcefield] = useState("amber14");
   const [solvent, setSolvent] = useState("obc2");
+  const [forcefields, setForcefields] = useState(FALLBACK_FORCEFIELDS);
+  const [solvents, setSolvents] = useState(FALLBACK_SOLVENTS);
+  const [menuNote, setMenuNote] = useState("");
   const [runLengthPs, setRunLengthPs] = useState(250);
   const [jobId, setJobId] = useState<string | null>(null);
   const [status, setStatus] = useState<string>("");
@@ -82,6 +85,25 @@ export default function MDPage() {
     }
   }, []);
 
+  useEffect(() => {
+    let active = true;
+    getMDForceFields()
+      .then((menu: MDForceFieldsMenu) => {
+        if (!active) return;
+        const ffs = menu.forcefields.length ? menu.forcefields : FALLBACK_FORCEFIELDS;
+        const sols = menu.solvents.length ? menu.solvents : FALLBACK_SOLVENTS;
+        setForcefields(ffs);
+        setSolvents(sols);
+        setForcefield(menu.defaults?.forcefield ?? "amber14");
+        setSolvent(menu.defaults?.solvent ?? "obc2");
+        setMenuNote(menu.probe
+          ? `Force field × solvent pairs verified at startup with a ${menu.probe.system} createSystem() probe.`
+          : "");
+      })
+      .catch(() => { /* keep fallback menus */ });
+    return () => { active = false; };
+  }, []);
+
   const handleSubmit = async () => {
     if (!pdbId.trim()) return;
     setLoading(true);
@@ -108,7 +130,7 @@ export default function MDPage() {
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
         <h1 className="text-2xl font-bold text-text-primary mb-1">MD Simulation</h1>
-        <p className="text-sm text-text-secondary">Implicit solvent molecular dynamics using OpenMM/BioPython. AMBER14 force field, OBC2 generalized Born solvent model.</p>
+        <p className="text-sm text-text-secondary">Implicit solvent molecular dynamics using OpenMM/BioPython. Multiple force fields (AMBER14, ff14SB, ff15ipq, ff19SB, amberfb15, CHARMM36) with OBC1/OBC2/GBN2 generalized Born solvent models.</p>
       </motion.div>
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
@@ -129,11 +151,11 @@ export default function MDPage() {
             <p className="text-xs font-semibold uppercase tracking-wide text-text-muted mb-3">Simulation Parameters</p>
 
             <label className="block text-xs text-text-secondary mb-1.5">Force Field</label>
-            <ClaySegmented options={FORCEFIELDS} value={forcefield} onChange={setForcefield} className="mb-4" />
+            <ClaySegmented options={forcefields} value={forcefield} onChange={setForcefield} className="mb-4 flex-wrap" />
 
             <label className="block text-xs text-text-secondary mb-1.5">Solvent Model</label>
-            <ClaySegmented options={SOLVENTS} value={solvent} onChange={setSolvent} />
-            <p className="text-xs text-text-muted mt-2 mb-4">Implicit (generalized Born) solvent only. Explicit water/ions aren't supported yet.</p>
+            <ClaySegmented options={solvents} value={solvent} onChange={setSolvent} />
+            <p className="text-xs text-text-muted mt-2 mb-4">{menuNote || "Implicit (generalized Born) solvent only. Explicit water/ions aren't supported yet."}</p>
 
             <label className="block text-xs text-text-secondary mb-1.5">Production Length</label>
             <ClaySlider value={runLengthPs} min={50} max={1000} step={25} unit="ps"

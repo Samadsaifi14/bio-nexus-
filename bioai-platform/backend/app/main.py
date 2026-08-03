@@ -198,6 +198,15 @@ async def startup():
     except ImportError as e:
         logger.warning("OpenMM not available (%s) — MD will use BioPython fallback", e)
 
+    # Verify MD force field / solvent combinations at startup (real
+    # alanine-dipeptide createSystem probe). Failures never block boot.
+    try:
+        from app.tools.md_config import verify_ff_solvent_combos
+        combos = verify_ff_solvent_combos()
+        logger.info("MD force field verification: %d verified force fields", len(combos))
+    except Exception as e:
+        logger.warning("MD force field verification failed during startup: %s", e)
+
     # Launch durable worker (in-process)
     from app.worker import start_worker
     await start_worker()

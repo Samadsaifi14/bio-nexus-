@@ -602,6 +602,19 @@ export type MDRunOptions = {
   run_length_ps?: number;
 };
 
+export type MDForceFieldsMenu = {
+  forcefields: { value: string; label: string }[];
+  solvents: { value: string; label: string }[];
+  combos: Record<string, string[]>;
+  defaults: { forcefield: string; solvent: string };
+  probe?: { system: string; forcefields_tested: number; solvents_tested: number };
+};
+
+export async function getMDForceFields(): Promise<MDForceFieldsMenu> {
+  const res = await api.get('/api/md/forcefields');
+  return res.data;
+}
+
 export async function runMD(pdbId: string, mode: string = 'minimize', options?: MDRunOptions): Promise<{ job_id: string; status: string }> {
   const res = await longApi.post('/api/md/run', { pdb_id: pdbId, mode, ...options });
   return res.data;

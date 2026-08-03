@@ -20,7 +20,8 @@ from app.services.rate_limit import check_daily_limit_pipelines
 from app.integrations.ncbi import blast as ncbi_blast
 from app.integrations.ncbi.parser import parse_blast_xml
 from app.services.validators import validate_fasta
-from app.services.sequence_utils import detect_source_from_accession, map_refseq_to_uniprot
+from app.services.sequence_utils import detect_source_from_accession, map_refseq_to_uniprot, detect_sequence_type
+from app.services.blast_config import resolve_blast_params
 from app.tools.uniprot import UniprotTool
 from app.ai.llm_client import llm_client
 
@@ -60,6 +61,10 @@ class PipelineV2RunRequest(BaseModel):
     sequence: str = Field(..., min_length=6, description="Protein sequence (FASTA or raw)")
     steps: list[str] = Field(default_factory=lambda: list(STEP_ORDER), description="Steps to run")
     fast_mode: bool = Field(default=False, description="Use Swiss-Prot instead of nr for faster results")
+    database: str = Field("", description="BLAST database override")
+    program: str = Field("", description="BLAST program override")
+    max_hits: int = Field(100, description="Max BLAST hits to return")
+    query_accession: str = Field("", description="Optional query accession for display")
 
 
 @router.post("/run")
@@ -80,6 +85,13 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
 
     steps_dict = {s: {"status": "pending", "progress": 0, "data": None, "error": None} for s in STEP_ORDER}
 
+    blast_params = {
+        "database": req.database,
+        "program": req.program,
+        "max_hits": req.max_hits,
+        "query_accession": req.query_accession,
+    }
+
     with _jobs_lock:
         _jobs[job_id] = {
             "job_id": job_id,
@@ -88,11 +100,17 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
             "steps": steps_dict,
             "requested_steps": requested,
             "sequence": clean,
+            "blast_params": blast_params,
             "error": None,
             "created_at": now,
         }
 
-    t = threading.Thread(target=_run_pipeline, args=(job_id, clean, requested), kwargs={"fast_mode": req.fast_mode}, daemon=True)
+    t = threading.Thread(
+        target=_run_pipeline,
+        args=(job_id, clean, requested),
+        kwargs={"fast_mode": req.fast_mode, "blast_params": blast_params},
+        daemon=True,
+    )
     t.start()
 
     return {"job_id": job_id}
@@ -112,6 +130,7 @@ async def run_pipeline(
     analysis_type: str = "comprehensive",
     status_callback=None,
     fast_mode: bool = False,
+    blast_params: dict | None = None,
 ) -> dict:
     """Public async entry point for the pipeline (used by pipeline_worker).
 
@@ -130,12 +149,20 @@ async def run_pipeline(
             "steps": steps_dict,
             "requested_steps": requested,
             "sequence": sequence,
+            "blast_params": blast_params or {},
             "error": None,
             "created_at": datetime.now(timezone.utc).isoformat(),
         }
 
     try:
-        await _execute(job_id, sequence, requested, status_callback=status_callback, fast_mode=fast_mode)
+        await _execute(
+            job_id,
+            sequence,
+            requested,
+            status_callback=status_callback,
+            fast_mode=fast_mode,
+            blast_params=blast_params,
+        )
     finally:
         job = _get_job(job_id)
         with _jobs_lock:
@@ -144,15 +171,18 @@ async def run_pipeline(
     if job and job.get("status") == "failed":
         raise RuntimeError(job.get("error", "Pipeline failed"))
 
+    query_accession = ((blast_params or {}).get("query_accession") or "").strip()
     context: dict = {
         "sequence": sequence,
         "length": len(sequence),
         "query": {
             "sequence": sequence,
             "length": len(sequence),
-            "sequence_type": "protein",
+            "sequence_type": detect_sequence_type(sequence) or "protein",
         },
     }
+    if query_accession:
+        context["query"]["accession"] = query_accession
     if job:
         for step_name, step_info in job.get("steps", {}).items():
             if step_info.get("data"):
@@ -164,11 +194,13 @@ async def run_pipeline(
 # Background pipeline
 # ---------------------------------------------------------------------------
 
-def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool = False):
+def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool = False, blast_params: dict | None = None):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
-        loop.run_until_complete(_execute(job_id, sequence, steps, fast_mode=fast_mode))
+        loop.run_until_complete(
+            _execute(job_id, sequence, steps, fast_mode=fast_mode, blast_params=blast_params)
+        )
     except Exception as e:
         logger.exception(f"[{job_id}] Unhandled pipeline error")
         _set_job_failed(job_id, f"Pipeline error: {e}")
@@ -177,7 +209,7 @@ def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool 
         asyncio.set_event_loop(None)
 
 
-async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None, fast_mode: bool = False):
+async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None, fast_mode: bool = False, blast_params: dict | None = None):
     context: dict = {"sequence": sequence, "length": len(sequence)}
 
     _STEP_FRONTEND = {
@@ -214,7 +246,12 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
     if "blast" in steps:
         await _notify("blast")
         _mark("blast", "running", progress=10)
-        result = await _run_blast(sequence, status_callback=status_callback, fast_mode=fast_mode)
+        result = await _run_blast(
+            sequence,
+            status_callback=status_callback,
+            fast_mode=fast_mode,
+            blast_params=blast_params,
+        )
         _mark("blast", "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
         context["blast"] = result
         if result.get("count", 0) == 0:
@@ -363,8 +400,30 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
 # Step implementations
 # ---------------------------------------------------------------------------
 
-async def _run_blast(sequence: str, status_callback=None, fast_mode: bool = False) -> dict:
-    database = "swissprot" if fast_mode else "nr"
+async def _run_blast(
+    sequence: str,
+    status_callback=None,
+    fast_mode: bool = False,
+    blast_params: dict | None = None,
+) -> dict:
+    blast_params = blast_params or {}
+    try:
+        program, database, seq_type = resolve_blast_params(
+            sequence,
+            program=blast_params.get("program"),
+            database=blast_params.get("database"),
+            fast_mode=fast_mode,
+        )
+    except ValueError as e:
+        logger.warning("BLAST param resolution failed: %s", e)
+        return {"error": str(e), "count": 0, "hits": []}
+
+    try:
+        max_hits = int(blast_params.get("max_hits") or 100)
+    except (TypeError, ValueError):
+        max_hits = 100
+    max_hits = max(5, min(max_hits, 100))
+    query_accession = (blast_params.get("query_accession") or "").strip()
 
     if status_callback:
         try:
@@ -377,6 +436,8 @@ async def _run_blast(sequence: str, status_callback=None, fast_mode: bool = Fals
         retries=2,
         max_wait_seconds=600 if fast_mode else 900,
         database=database,
+        program=program,
+        hitlist_size=max_hits,
     )
 
     if "error" in results:
@@ -392,7 +453,7 @@ async def _run_blast(sequence: str, status_callback=None, fast_mode: bool = Fals
     if "error" in parsed:
         raise RuntimeError(f"BLAST XML parse failed: {parsed['error']}")
 
-    hits = parsed.get("hits", [])
+    hits = parsed.get("hits", [])[:max_hits]
     top_hit = hits[0] if hits else None
     query_length = parsed.get("query_length", 0)
 
@@ -400,6 +461,9 @@ async def _run_blast(sequence: str, status_callback=None, fast_mode: bool = Fals
         "count": len(hits),
         "source": "ncbi",
         "database": database,
+        "program": program,
+        "query_sequence_type": seq_type,
+        "query_accession": query_accession,
         "query_length": query_length,
         "top_hit": {
             "accession": top_hit["accession"],
@@ -575,10 +639,12 @@ async def _run_msa(query_sequence: str, blast_hits: list) -> dict:
 
     try:
         email = settings.NCBI_EMAIL or "bioflow@example.com"
+        seq_type = detect_sequence_type(query_sequence) or "protein"
+        stype = "protein" if seq_type == "protein" else "dna"
         async with httpx.AsyncClient(timeout=30) as client:
             submit_resp = await client.post(
                 f"{EBI_CLUSTALO}/run",
-                data={"email": email, "stype": "protein", "sequence": fasta_str},
+                data={"email": email, "stype": stype, "sequence": fasta_str},
                 headers={"Accept": "text/plain"},
             )
             if submit_resp.status_code != 200:

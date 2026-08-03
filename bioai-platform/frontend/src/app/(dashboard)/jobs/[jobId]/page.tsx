@@ -25,7 +25,7 @@ import { BackButton, CriticalButton } from '@/components/ui';
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
 ];
-const POLL_TIMEOUT_MS = 10 * 60 * 1000;
+const POLL_TIMEOUT_MS = 65 * 60 * 1000;
 
 export default function JobPage() {
   const params = useParams();

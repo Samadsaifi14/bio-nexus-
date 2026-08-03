@@ -17,8 +17,9 @@ router = APIRouter()
 class PipelineRunRequest(BaseModel):
     sequence: str
     pipeline_type: str = "protein_analysis"
-    database: str = "nr"
-    max_hits: int = 10
+    database: str = ""
+    program: str = ""
+    max_hits: int = 100
     query_accession: str = ""
     fast_mode: bool = False
 
@@ -43,7 +44,14 @@ async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str |
         "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],
-        "context_json": {"sequence": clean, "fast_mode": req.fast_mode},
+        "context_json": {
+            "sequence": clean,
+            "fast_mode": req.fast_mode,
+            "database": req.database,
+            "program": req.program,
+            "max_hits": req.max_hits,
+            "query_accession": req.query_accession,
+        },
         "progress_pct": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
         "completed_at": None,

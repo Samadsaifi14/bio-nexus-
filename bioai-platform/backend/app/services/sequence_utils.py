@@ -13,16 +13,14 @@ def detect_sequence_type(seq: str) -> str:
     dna_chars = set("ACGTN")
     rna_chars = set("ACGUN")
     seq_set = set(clean)
-    extra_chars = seq_set - protein_chars
-    if not extra_chars:
-        return "protein"
-    if seq_set.issubset(rna_chars):
+    # Nucleotide check first: an ACGT(U)N-only string is nucleotide even
+    # though it is also a subset of the protein alphabet.
+    if seq_set.issubset(rna_chars) or seq_set.issubset(dna_chars):
         if "U" in seq_set and "T" not in seq_set:
             return "rna"
-    if seq_set.issubset(dna_chars):
         return "dna"
-    if seq_set.issubset(dna_chars | {"U"}):
-        return "rna"
+    if not (seq_set - protein_chars):
+        return "protein"
     return "unknown"
 
 

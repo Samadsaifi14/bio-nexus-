@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { JobStatus, UniprotSummary, SequenceResult, SequenceValidation, SequenceSearchResponse } from '@/types/pipeline';
+import type { JobStatus, UniprotSummary, SequenceResult, SequenceValidation, SequenceSearchResponse, PairwiseAlignResult } from '@/types/pipeline';
 import { getSupabase } from './supabase';
 
 const api = axios.create({
@@ -173,6 +173,25 @@ export async function getPipelineStatusV2(jobId: string): Promise<any> {
 
 export async function runAlignment(sequence: string, stype: string = 'protein'): Promise<AlignmentResult> {
   const res = await api.post('/api/alignment/run', { sequence, stype });
+  return res.data;
+}
+
+export type PairwiseAlignOptions = {
+  hit_accession: string;
+  query_sequence?: string;
+  query_accession?: string;
+  mode?: 'global' | 'local';
+  matrix?: 'blosum62' | 'pam250';
+};
+
+export async function runPairwiseAlignment(options: PairwiseAlignOptions): Promise<PairwiseAlignResult> {
+  const res = await api.post('/api/alignment/pairwise', {
+    hit_accession: options.hit_accession,
+    query_sequence: options.query_sequence ?? '',
+    query_accession: options.query_accession ?? '',
+    mode: options.mode ?? 'global',
+    matrix: options.matrix ?? 'blosum62',
+  });
   return res.data;
 }
 

@@ -97,7 +97,7 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
       {/* Step results */}
       {steps.includes("blast") && data.steps?.blast?.status === "complete" && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
-          <BlastPanel hits={data.steps.blast.data?.hits as BlastHitSummary[]} count={data.steps.blast.data?.count ?? 0} source={data.steps.blast.data?.source} />
+          <BlastPanel hits={data.steps.blast.data?.hits as BlastHitSummary[]} count={data.steps.blast.data?.count ?? 0} source={data.steps.blast.data?.source} querySequence={data.sequence} />
           <ScoreBars hits={data.steps.blast.data?.hits as BlastHitSummary[]} />
         </motion.div>
       )}

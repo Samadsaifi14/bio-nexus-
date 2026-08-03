@@ -75,7 +75,7 @@ export default function ReportPage() {
       {/* BLAST */}
       {blastData && (
         <section className="mb-8">
-          <BlastPanel hits={blastData.hits as BlastHitSummary[]} count={blastData.count ?? 0} source={blastData.source} />
+          <BlastPanel hits={blastData.hits as BlastHitSummary[]} count={blastData.count ?? 0} source={blastData.source} querySequence={data.sequence} />
           <ScoreBars hits={blastData.hits as BlastHitSummary[]} />
         </section>
       )}

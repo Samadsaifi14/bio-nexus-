@@ -303,6 +303,7 @@ export default function JobPage() {
                 hits={context.blast.hits}
                 count={context.blast.count}
                 source={context.blast?.source ?? 'NCBI BLAST'}
+                querySequence={context.query?.sequence}
               />
               {context.uniprot && <UniprotPanel data={context.uniprot} />}
             </div>

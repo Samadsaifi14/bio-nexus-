@@ -175,6 +175,26 @@ export interface BlastHitSummary {
   midline?: string;
 }
 
+export interface PairwiseAlignResult {
+  mode: 'global' | 'local';
+  matrix: string;
+  score: number;
+  aligned_query: string;
+  aligned_hit: string;
+  alignment_length: number;
+  identity: number;
+  pct_identity: number;
+  gaps_total: number;
+  gap_positions: Array<{ seq: 'query' | 'subject'; inserted_after: number; length: number }>;
+  query_start: number;
+  query_end: number;
+  hit_start: number;
+  hit_end: number;
+  query_length: number;
+  hit_length: number;
+  hit_source: string;
+}
+
 export interface UniprotSummary {
   accession: string;
   full_name: string;

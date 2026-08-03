@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import { ChevronDown, ChevronUp, ExternalLink, Download } from 'lucide-react';
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
+import { PairwiseAlignView } from './PairwiseAlignView';
 import { downloadTsv } from '@/lib/export-utils';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
@@ -13,6 +14,7 @@ interface BlastPanelProps {
   count: number;
   source?: string;
   queryLength?: number;
+  querySequence?: string;
 }
 
 function confidenceBand(evalue: number): { label: string; color: string; bg: string } {
@@ -38,7 +40,7 @@ function coverageColor(pct: number): string {
   return 'text-text-muted';
 }
 
-export function BlastPanel({ hits, count, source }: BlastPanelProps) {
+export function BlastPanel({ hits, count, source, querySequence }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const safeHits = hits ?? [];
 
@@ -104,6 +106,7 @@ export function BlastPanel({ hits, count, source }: BlastPanelProps) {
               {isExpanded && (
                 <div className="px-6 pb-4">
                   <AlignmentView hit={hit} />
+                  <PairwiseAlignView hit={hit} querySequence={querySequence} />
                   <a
                     href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`}
                     target="_blank"

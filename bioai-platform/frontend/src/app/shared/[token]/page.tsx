@@ -90,7 +90,7 @@ export default function SharedResultPage() {
 
             <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-6">
               {context.blast?.hits && context.blast.hits.length > 0 && (
-                <BlastPanel hits={context.blast.hits} count={context.blast.count} source={context.blast.source} />
+                <BlastPanel hits={context.blast.hits} count={context.blast.count} source={context.blast.source} querySequence={context.query.sequence} />
               )}
               {context.uniprot && <UniprotPanel data={context.uniprot} />}
             </motion.div>

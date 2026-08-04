@@ -137,7 +137,7 @@ function SidebarContent({
 
         <button
           onClick={signOut}
-          className={`nav-item w-full text-left hover:!text-red-400 hover:!bg-red-500/10 ${collapsed ? 'justify-center' : ''} group`}
+          className={`nav-item w-full text-left hover:bg-surface-2 hover:text-text-primary ${collapsed ? 'justify-center' : ''} group`}
         >
           <LogOut size={15} className="flex-shrink-0" weight="regular" />
           <AnimatePresence>
@@ -168,6 +168,19 @@ function SidebarContent({
             </div>
           )}
         </button>
+
+        {!collapsed && (
+          <div className="px-3 pt-2">
+            <div className="divider mb-3" />
+            <div className="flex items-center justify-between px-3">
+              <span className="text-[10px] font-mono text-text-muted/70">NEXUS-CORE</span>
+              <span className="flex items-center gap-1.5 text-[10px] font-mono text-accent-cyan/80">
+                <span className="w-1 h-1 rounded-full bg-accent-cyan" />
+                v2.1
+              </span>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

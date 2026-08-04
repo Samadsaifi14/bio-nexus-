@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { CheckCircle2, XCircle } from 'lucide-react';
+import { CheckCircle as CheckCircle2, XCircle } from '@phosphor-icons/react';
 import { fadeUp, fadeIn } from '@/lib/animations';
 
 interface Step {

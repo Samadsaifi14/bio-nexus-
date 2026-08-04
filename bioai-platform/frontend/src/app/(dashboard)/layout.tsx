@@ -4,19 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import {
-  LayoutDashboard,
-  FlaskConical,
-  Clock,
-  History,
-  Search,
-  Settings,
-  BookOpen,
-  ChevronRight,
-  LogOut,
-  Dna,
-  Menu,
-} from 'lucide-react';
+import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, CaretRight as ChevronRight, SignOut as LogOut, Dna, List as Menu } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
@@ -102,7 +90,7 @@ function SidebarContent({
               <Icon
                 size={16}
                 className="flex-shrink-0"
-                strokeWidth={active ? 2 : 1.75}
+                weight={active ? 'bold' : 'regular'}
               />
 
               <AnimatePresence>
@@ -152,7 +140,7 @@ function SidebarContent({
           onClick={signOut}
           className={`nav-item w-full text-left hover:!text-red-400 hover:!bg-red-500/10 ${collapsed ? 'justify-center' : ''} group`}
         >
-          <LogOut size={15} className="flex-shrink-0" strokeWidth={1.75} />
+          <LogOut size={15} className="flex-shrink-0" weight="regular" />
           <AnimatePresence>
             {!collapsed && (
               <motion.span

@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dna, ArrowRight, LoaderCircle, FileText, CircleCheck, Circle } from "lucide-react";
+import { Dna, ArrowRight, CircleNotch as LoaderCircle, FileText, CheckCircle as CircleCheck, Circle } from '@phosphor-icons/react';
 import { ClayToggle } from "@/components/ui/ClayToggle";
 import { CriticalButton } from "@/components/ui/CriticalButton";
 import { PipelineResults } from "@/components/results/PipelineResults";

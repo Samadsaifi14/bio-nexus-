@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { LoaderCircle, Dna, AlertCircle, Copy, Download, Search, Clock, WifiOff, FlaskConical } from 'lucide-react';
+import { CircleNotch as LoaderCircle, Dna, WarningCircle as AlertCircle, Copy, Download, MagnifyingGlass as Search, Clock, WifiSlash as WifiOff, TestTube as FlaskConical } from '@phosphor-icons/react';
 import toast from 'react-hot-toast';
 import type { JobStatus, JobStepStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Search, ChevronRight, LoaderCircle, CircleCheck } from 'lucide-react';
+import { MagnifyingGlass as Search, CaretRight as ChevronRight, CircleNotch as LoaderCircle, CheckCircle as CircleCheck } from '@phosphor-icons/react';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import toast from 'react-hot-toast';
 import { runPipeline, fetchSequence } from '@/lib/api';

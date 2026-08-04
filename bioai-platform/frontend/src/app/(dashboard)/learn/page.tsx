@@ -1,21 +1,18 @@
 'use client';
 
 import Link from 'next/link';
-import {
-  Search, Dna, Layout, Layers, GitFork, Globe,
-  GitBranch, Share2, FlaskConical, Beaker, BookOpen, ArrowRight,
-} from 'lucide-react';
+import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { useState } from 'react';
-import type { LucideIcon } from 'lucide-react';
+import type { Icon } from '@phosphor-icons/react';
 import { PageHeader } from '@/components/ui';
 
 type Topic = {
   id: string;
   title: string;
   description: string;
-  icon: LucideIcon;
+  icon: Icon;
 };
 
 const groups: { title: string; items: Topic[] }[] = [

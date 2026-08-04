@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Brain, Loader2, ExternalLink, Dna, Layers, Target } from "lucide-react";
+import { Brain, CircleNotch as Loader2, ArrowSquareOut as ExternalLink, Dna, Stack as Layers, Target } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";

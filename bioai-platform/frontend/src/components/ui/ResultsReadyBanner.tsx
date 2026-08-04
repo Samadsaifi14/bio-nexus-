@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle as CheckCircle2 } from '@phosphor-icons/react';
 
 /**
  * Distinct "results arrived" notification shown at the top of a tool's

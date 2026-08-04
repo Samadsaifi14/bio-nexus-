@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
-import { Beaker, Waves, Hexagon, Zap, ChevronDown, ChevronRight } from 'lucide-react';
+import { Flask as Beaker, WaveSine as Waves, Hexagon, Lightning as Zap, CaretDown as ChevronDown, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import type { DockingInteraction } from '@/lib/api';
 
 interface InteractionPanelProps {

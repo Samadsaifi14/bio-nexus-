@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dna, ArrowRight, ChevronRight } from 'lucide-react';
+import { Dna, ArrowRight, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 
 interface PipelineOption {

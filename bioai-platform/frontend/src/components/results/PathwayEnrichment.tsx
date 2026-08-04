@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { GitBranch, ChevronDown, ChevronRight, ExternalLink, AlertCircle, Download } from 'lucide-react';
+import { GitBranch, CaretDown as ChevronDown, CaretRight as ChevronRight, ArrowSquareOut as ExternalLink, WarningCircle as AlertCircle, Download } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import type { PathwayEnrichment as PathwayEnrichmentData } from '@/types/pipeline';
 import { downloadTsv, copyText } from '@/lib/export-utils';

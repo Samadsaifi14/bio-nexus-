@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Search, LoaderCircle, Globe, Dna, Beaker, ChevronRight, ExternalLink, BookOpen, Download } from 'lucide-react';
+import { MagnifyingGlass as Search, CircleNotch as LoaderCircle, Globe, Dna, Flask as Beaker, CaretRight as ChevronRight, ArrowSquareOut as ExternalLink, BookOpen, Download } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { searchUniprot, getUniprotDetail, fetchUniprotCds } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';

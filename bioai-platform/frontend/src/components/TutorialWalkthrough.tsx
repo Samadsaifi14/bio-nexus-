@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ChevronLeft, ChevronRight, BookOpen } from 'lucide-react';
+import { X, CaretLeft as ChevronLeft, CaretRight as ChevronRight, BookOpen } from '@phosphor-icons/react';
 
 const STEPS = [
   {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { AlertTriangle, Info, AlertCircle, X, ChevronUp } from 'lucide-react';
+import { Warning as AlertTriangle, Info, WarningCircle as AlertCircle, X, CaretUp as ChevronUp } from '@phosphor-icons/react';
 import type { AuditInsight } from '@/types/audit';
 
 const SEVERITY_CONFIG = {

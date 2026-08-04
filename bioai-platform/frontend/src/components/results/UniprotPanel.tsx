@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { ExternalLink, Box } from 'lucide-react';
+import { ArrowSquareOut as ExternalLink, Cube as Box } from '@phosphor-icons/react';
 import type { UniprotSummary } from '@/types/pipeline';
 import { fadeUp, cardHover } from '@/lib/animations';
 

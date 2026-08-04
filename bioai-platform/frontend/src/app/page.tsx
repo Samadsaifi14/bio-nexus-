@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, Database, Zap, Brain, ChevronDown } from 'lucide-react';
+import { ArrowRight, Database, Lightning as Zap, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -260,7 +260,7 @@ export default function LandingPage() {
                 <div
                   className="w-10 h-10 rounded-xl flex items-center justify-center mb-6 bg-accent-cyan/10 border border-accent-cyan/20"
                 >
-                  <Icon size={18} className="text-accent-cyan" strokeWidth={1.8} />
+                  <Icon size={18} className="text-accent-cyan" weight="regular" />
                 </div>
 
                 <h3 className="font-display text-base font-semibold mb-2 text-text-primary">

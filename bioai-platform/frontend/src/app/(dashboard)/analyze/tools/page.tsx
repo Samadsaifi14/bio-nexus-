@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check } from 'lucide-react';
+import { Copy, Check } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, PageHeader, CriticalButton, FlatTextarea } from '@/components/ui';

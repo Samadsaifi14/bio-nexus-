@@ -2,7 +2,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import Link from 'next/link';
-import { HelpCircle } from 'lucide-react';
+import { Question as HelpCircle } from '@phosphor-icons/react';
 
 interface LearnPopoverProps {
   term: string;

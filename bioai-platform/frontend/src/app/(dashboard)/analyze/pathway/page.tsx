@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { LoaderCircle, ExternalLink, GitBranch, ChevronDown, ChevronRight, Dna } from 'lucide-react';
+import { CircleNotch as LoaderCircle, ArrowSquareOut as ExternalLink, GitBranch, CaretDown as ChevronDown, CaretRight as ChevronRight, Dna } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { searchPathways, searchKEGGPathways, runEnrichment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';

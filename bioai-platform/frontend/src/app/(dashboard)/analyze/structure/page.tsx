@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LoaderCircle, ExternalLink, Dna, FlaskConical, Brain, Activity } from 'lucide-react';
+import { CircleNotch as LoaderCircle, ArrowSquareOut as ExternalLink, Dna, TestTube as FlaskConical, Brain, Pulse as Activity } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { fetchStructure, getStructureInventory } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';

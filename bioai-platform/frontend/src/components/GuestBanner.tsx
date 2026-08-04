@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { X, User } from 'lucide-react';
+import { X, User } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { useAuth } from '@/contexts/auth';
 

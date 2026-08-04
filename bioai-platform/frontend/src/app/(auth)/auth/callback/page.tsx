@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LoaderCircle } from 'lucide-react';
+import { CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { getSupabase } from '@/lib/supabase';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';

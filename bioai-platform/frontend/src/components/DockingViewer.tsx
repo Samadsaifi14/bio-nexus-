@@ -3,10 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DockingInteraction } from '@/lib/api';
 import { HudPanel, HudLegend } from '@/components/ui';
-import {
-  RotateCcw, RotateCw, Camera, FlipHorizontal, Palette,
-  Box, Layers, Minus, Circle, Hexagon
-} from 'lucide-react';
+import { ArrowCounterClockwise as RotateCcw, ArrowClockwise as RotateCw, Camera, FlipHorizontal, Palette, Cube as Box, Stack as Layers, Minus, Circle, Hexagon } from '@phosphor-icons/react';
 
 interface DockingViewerProps {
   pdbId: string;

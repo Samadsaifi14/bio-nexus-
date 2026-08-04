@@ -2,11 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import {
-  LoaderCircle, FlaskConical, CheckCircle, XCircle,
-  AlertTriangle, Hexagon, FileText, Copy, Check, ChevronDown,
-  ChevronRight
-} from 'lucide-react';
+import { CircleNotch as LoaderCircle, TestTube as FlaskConical, CheckCircle, XCircle, Warning as AlertTriangle, Hexagon, FileText, Copy, Check, CaretDown as ChevronDown, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';

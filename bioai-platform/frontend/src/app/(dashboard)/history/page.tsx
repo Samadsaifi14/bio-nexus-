@@ -6,7 +6,7 @@ import { getJobs } from '@/lib/api';
 import type { JobStatus } from '@/types/pipeline';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
-import { LoaderCircle, FileText, Dna } from 'lucide-react';
+import { CircleNotch as LoaderCircle, FileText, Dna } from '@phosphor-icons/react';
 import { PageHeader } from '@/components/ui';
 
 const STATUS_STYLES: Record<string, string> = {

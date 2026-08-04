@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { LoaderCircle, CheckCircle, XCircle, AlertTriangle, Dna, BarChart3, Map, Bug, FileText, Search } from 'lucide-react';
+import { CircleNotch as LoaderCircle, CheckCircle, XCircle, Warning as AlertTriangle, Dna, ChartBar as BarChart3, MapTrifold as Map, Bug, FileText, MagnifyingGlass as Search } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
 import type { SequencingResult, SequencingReference } from '@/lib/api';

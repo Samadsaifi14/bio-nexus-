@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, Layout, Search, Globe, GitBranch, Beaker, Layers, Share2, FlaskConical, Shuffle, GitFork, Atom, Pill, Activity, Brain } from 'lucide-react';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { ReactNode } from 'react';

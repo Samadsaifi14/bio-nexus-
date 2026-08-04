@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ExternalLink, Dna, Search, LoaderCircle } from "lucide-react";
+import { ArrowSquareOut as ExternalLink, Dna, MagnifyingGlass as Search, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { DomainArchitecture } from "@/components/domains/DomainArchitecture";
 import { scanPrositeSequence, type ScanPrositeResult } from "@/lib/api";

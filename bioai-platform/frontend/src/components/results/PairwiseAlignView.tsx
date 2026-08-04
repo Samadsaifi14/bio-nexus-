@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { GitCompareArrows, LoaderCircle } from 'lucide-react';
+import { GitMerge as GitCompareArrows, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { runPairwiseAlignment } from '@/lib/api';
 import type { BlastHitSummary, PairwiseAlignResult } from '@/types/pipeline';
 

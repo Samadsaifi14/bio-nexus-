@@ -3,7 +3,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { Brain, Loader2, Dna, Search } from 'lucide-react';
+import { Brain, CircleNotch as Loader2, Dna, MagnifyingGlass as Search } from '@phosphor-icons/react';
 import type { AssembledContext } from '@/types/pipeline';
 import type { StreamEvent } from '@/types/results';
 import { interpretStream } from '@/lib/api';

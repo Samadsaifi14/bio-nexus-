@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { useRouter } from 'next/navigation';
-import { Search, Dna, LoaderCircle, CheckCircle, AlertCircle, BookOpen, ArrowRight, Beaker } from 'lucide-react';
+import { MagnifyingGlass as Search, Dna, CircleNotch as LoaderCircle, CheckCircle, WarningCircle as AlertCircle, BookOpen, ArrowRight, Flask as Beaker } from '@phosphor-icons/react';
 import { fadeUp, stagger } from '@/lib/animations';
 import { fetchSequence, validateSequence, searchSequences } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';

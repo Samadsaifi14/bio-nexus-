@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { Printer, Download, LoaderCircle, XCircle } from "lucide-react";
+import { Printer, Download, CircleNotch as LoaderCircle, XCircle } from '@phosphor-icons/react';
 import Link from "next/link";
 import { getExportUrl } from "@/lib/api";
 import { BlastPanel } from "@/components/results/BlastPanel";

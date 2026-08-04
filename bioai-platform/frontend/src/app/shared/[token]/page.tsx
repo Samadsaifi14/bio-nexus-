@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
-import { Dna, LoaderCircle } from 'lucide-react';
+import { Dna, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import type { JobStatus } from '@/types/pipeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { getSharedResult } from '@/lib/api';

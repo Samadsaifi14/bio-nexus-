@@ -1,6 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
-import { LoaderCircle, Download } from "lucide-react";
+import { CircleNotch as LoaderCircle, Download } from '@phosphor-icons/react';
 import { downloadTsv } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { CriticalButton, FlatInput, FlatTextarea } from "@/components/ui";

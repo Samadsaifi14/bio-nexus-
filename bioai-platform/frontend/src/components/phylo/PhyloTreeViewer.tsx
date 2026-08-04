@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Search } from 'lucide-react'
+import { MagnifyingGlass as Search } from '@phosphor-icons/react'
 import { ClaySegmented } from '@/components/ui/ClaySegmented'
 
 // ─── Types ────────────────────────────────────────────────────────────────────

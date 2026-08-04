@@ -5,10 +5,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
-import {
-  User, BarChart3, Key, Shield, LoaderCircle, Save, Sun,
-  Mail, Building2, LogOut, ChevronRight, Zap, Trash2, Plus, Copy,
-} from 'lucide-react';
+import { User, ChartBar as BarChart3, Key, Shield, CircleNotch as LoaderCircle, FloppyDisk as Save, Sun, Envelope as Mail, Building as Building2, SignOut as LogOut, CaretRight as ChevronRight, Lightning as Zap, Trash as Trash2, Plus, Copy } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
 import { getSupabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';

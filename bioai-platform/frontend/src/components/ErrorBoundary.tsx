@@ -1,7 +1,7 @@
 'use client';
 
 import { Component } from 'react';
-import { AlertCircle } from 'lucide-react';
+import { WarningCircle as AlertCircle } from '@phosphor-icons/react';
 
 interface Props {
   children: React.ReactNode;

@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle2, Circle, LoaderCircle, XCircle, ArrowRight, Dna } from "lucide-react";
+import { CheckCircle as CheckCircle2, Circle, CircleNotch as LoaderCircle, XCircle, ArrowRight, Dna } from '@phosphor-icons/react';
 import { BlastPanel } from "./BlastPanel";
 import { ScoreBars } from "./ScoreBars";
 import { UniprotPanel } from "./UniprotPanel";

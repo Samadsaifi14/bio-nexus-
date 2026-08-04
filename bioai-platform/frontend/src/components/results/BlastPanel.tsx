@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronDown, ChevronUp, ExternalLink, Download } from 'lucide-react';
+import { CaretDown as ChevronDown, CaretUp as ChevronUp, ArrowSquareOut as ExternalLink, Download } from '@phosphor-icons/react';
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
 import { PairwiseAlignView } from './PairwiseAlignView';

@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Beaker, Check, X, AlertTriangle, Loader2, Shield, Activity, Brain } from "lucide-react";
+import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { computeADMET, type ADMETResult } from "@/lib/api";

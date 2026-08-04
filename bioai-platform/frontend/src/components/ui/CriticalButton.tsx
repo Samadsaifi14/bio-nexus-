@@ -1,6 +1,6 @@
 'use client';
 
-import { Loader2 } from 'lucide-react';
+import { CircleNotch as Loader2 } from '@phosphor-icons/react';
 
 /**
  * Solid, deliberate action button for irreversible / expensive actions

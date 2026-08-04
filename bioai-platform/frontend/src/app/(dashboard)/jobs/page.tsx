@@ -4,9 +4,7 @@ import { useEffect, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
-import {
-  LoaderCircle, Dna, FileText, Clock, CheckCircle, XCircle, Plus, ChevronRight,
-} from 'lucide-react';
+import { CircleNotch as LoaderCircle, Dna, FileText, Clock, CheckCircle, XCircle, Plus, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { getJobs } from '@/lib/api';
 import type { JobStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';

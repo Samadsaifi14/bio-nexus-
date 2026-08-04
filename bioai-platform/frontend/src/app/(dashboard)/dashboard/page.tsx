@@ -4,11 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
-import {
-  LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle,
-  TrendingUp, BarChart3, GitBranch, AlignLeft, FlaskConical,
-  Network, Search, ChevronRight, Activity, Calendar,
-} from 'lucide-react';
+import { CircleNotch as LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle, TrendUp as TrendingUp, ChartBar as BarChart3, GitBranch, TextAlignLeft as AlignLeft, TestTube as FlaskConical, Network, MagnifyingGlass as Search, CaretRight as ChevronRight, Pulse as Activity, Calendar } from '@phosphor-icons/react';
 import { getJobs, getJobCount } from '@/lib/api';
 import { useAuth } from '@/contexts/auth';
 import type { JobStatus } from '@/types/pipeline';

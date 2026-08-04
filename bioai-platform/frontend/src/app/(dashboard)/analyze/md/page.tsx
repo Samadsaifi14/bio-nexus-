@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Play, Loader2, Activity, Zap, BarChart3, Info } from "lucide-react";
+import { ArrowLeft, Play, CircleNotch as Loader2, Pulse as Activity, Lightning as Zap, ChartBar as BarChart3, Info } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { runMD, getMDStatus, getMDForceFields, type MDSimulationResult, type MDForceFieldsMenu } from "@/lib/api";

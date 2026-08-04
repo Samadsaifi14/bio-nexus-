@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { LoaderCircle } from 'lucide-react';
+import { CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runAlignment, type AlignmentMethod } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { LoaderCircle } from 'lucide-react';
+import { CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 
 interface Props {
   stId: string;

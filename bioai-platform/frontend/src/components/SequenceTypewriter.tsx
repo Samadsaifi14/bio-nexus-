@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Dna } from 'lucide-react';
+import { Dna } from '@phosphor-icons/react';
 
 const SEQUENCES = [
   {

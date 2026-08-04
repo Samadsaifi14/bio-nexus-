@@ -11,7 +11,7 @@ from typing import Optional
 
 # AutoDock Vina binary location
 _VINA_BINARY: str | None = None
-_VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.3/vina_1.2.3_linux_x86_64"
+_VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _EXE_NAME = "vina"
 _VINA_SHA256 = ""
 
@@ -211,6 +211,83 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
 # Vina execution + multi-pose parsing
 # ---------------------------------------------------------------------------
 
+_VINA_MODE_RE = re.compile(r"^\s*(\d+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s+([-\d.eE+]+)\s*$")
+_GRID_CENTER_RE = re.compile(r"Grid center:\s*X\s+(-?[\d.]+)\s+Y\s+(-?[\d.]+)\s+Z\s+(-?[\d.]+)")
+_GRID_SIZE_RE = re.compile(r"Grid size\s*:\s*X\s+(-?[\d.]+)\s+Y\s+(-?[\d.]+)\s+Z\s+(-?[\d.]+)")
+
+
+def parse_vina_log(vina_log: str) -> dict:
+    """Parse AutoDock Vina 1.2.x stdout into structured metadata + mode table.
+
+    Handles the literal Vina 1.2.7 header layout:
+
+        AutoDock Vina v1.2.7
+        Grid center: X 2 Y 2 Z 2
+        Grid size  : X 20 Y 20 Z 20
+        Exhaustiveness: 8
+        Performing docking (random seed: 1431381492) ...
+        mode |   affinity | dist from best mode
+             | (kcal/mol) | rmsd l.b.| rmsd u.b.
+        -----+------------+----------+----------
+           1            0          0          0
+           2            0      6.008      8.028
+    """
+    version = ""
+    grid_center: list[float] = []
+    grid_size: list[float] = []
+    exhaustiveness: int | None = None
+    random_seed: int | None = None
+    modes: list[dict] = []
+
+    in_table = False
+    for line in vina_log.splitlines():
+        if not version:
+            m = re.match(r"AutoDock Vina v([0-9.]+)", line)
+            if m:
+                version = m.group(1)
+
+        m = _GRID_CENTER_RE.match(line)
+        if m:
+            grid_center = [float(m.group(1)), float(m.group(2)), float(m.group(3))]
+            continue
+        m = _GRID_SIZE_RE.match(line)
+        if m:
+            grid_size = [float(m.group(1)), float(m.group(2)), float(m.group(3))]
+            continue
+        m = re.match(r"Exhaustiveness:\s+(\d+)", line)
+        if m:
+            exhaustiveness = int(m.group(1))
+            continue
+        m = re.search(r"random seed:\s+(-?\d+)", line)
+        if m:
+            random_seed = int(m.group(1))
+            continue
+
+        if re.match(r"^\s*-{5,}", line):
+            in_table = True
+            continue
+        if in_table:
+            m = _VINA_MODE_RE.match(line)
+            if m:
+                modes.append({
+                    "model": int(m.group(1)),
+                    "affinity": float(m.group(2)),
+                    "rmsd_lb": float(m.group(3)),
+                    "rmsd_ub": float(m.group(4)),
+                })
+            else:
+                in_table = False
+
+    return {
+        "vina_version": version,
+        "grid_center": grid_center,
+        "grid_size": grid_size,
+        "exhaustiveness": exhaustiveness,
+        "random_seed": random_seed,
+        "modes": modes,
+    }
+
+
 def run_vina(
     protein_pdbqt: str | bytes,
     ligand_pdbqt: str,
@@ -261,6 +338,7 @@ def run_vina(
             output_pdbqt = f.read()
 
         vina_log = result.stdout
+        parsed = parse_vina_log(vina_log)
         poses = _parse_vina_poses(output_pdbqt, vina_log)
         ligand_pdb = _extract_ligand_pdb(output_pdbqt)
 
@@ -273,19 +351,21 @@ def run_vina(
             "num_poses": len(poses),
             "affinity": best_affinity,
             "vina_log": vina_log,
+            "vina_version": parsed.get("vina_version", ""),
+            "vina_meta": parsed,
             "ligand_pdb": ligand_pdb,
             "result_sdf": output_pdbqt,
         }
 
 
 def _parse_vina_poses(output_pdbqt: str, vina_log: str) -> list[dict]:
-    """Parse Vina output PDBQT into a list of per-pose dicts."""
-    affinity_from_log: dict[int, float] = {}
-    for line in vina_log.splitlines():
-        m = re.match(r"\s*(\d+)\s+([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)", line)
-        if m:
-            mode = int(m.group(1))
-            affinity_from_log[mode] = float(m.group(2))
+    """Parse Vina output PDBQT into a list of per-pose dicts.
+
+    Affinity + RMSD (l.b./u.b.) come from the scored mode table in the log;
+    atom counts come from the multi-model output PDBQT.
+    """
+    parsed = parse_vina_log(vina_log)
+    mode_table = {m["model"]: m for m in parsed["modes"]}
 
     models: dict[int, list[str]] = {}
     current_model: int | None = None
@@ -303,11 +383,13 @@ def _parse_vina_poses(output_pdbqt: str, vina_log: str) -> list[dict]:
     poses = []
     for model_id in sorted(models.keys()):
         atom_count = sum(1 for l in models[model_id] if l.startswith("HETATM") or l.startswith("ATOM"))
-        affinity = affinity_from_log.get(model_id, None)
+        entry = mode_table.get(model_id, {})
         poses.append({
             "model": model_id,
             "atoms": atom_count,
-            "affinity": affinity,
+            "affinity": entry.get("affinity"),
+            "rmsd_lb": entry.get("rmsd_lb"),
+            "rmsd_ub": entry.get("rmsd_ub"),
         })
 
     return poses

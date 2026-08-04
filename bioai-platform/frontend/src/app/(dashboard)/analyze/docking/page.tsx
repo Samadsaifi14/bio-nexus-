@@ -42,10 +42,15 @@ function VinaLog({ log }: { log: string }) {
   const lines = log.split('\n');
 
   const poseData = lines
-    .filter(l => /^\s*\d+\s+-?\d+/.test(l))
+    .filter(l => /^\s*\d+\s+-?\d/.test(l))
     .map(l => {
       const parts = l.trim().split(/\s+/);
-      return { mode: parseInt(parts[0]), affinity: parseFloat(parts[1]) };
+      return {
+        mode: parseInt(parts[0]),
+        affinity: parseFloat(parts[1]),
+        rmsdLb: parts.length >= 3 ? parseFloat(parts[2]) : null,
+        rmsdUb: parts.length >= 4 ? parseFloat(parts[3]) : null,
+      };
     })
     .filter(p => !isNaN(p.affinity))
     .sort((a, b) => a.affinity - b.affinity);
@@ -97,8 +102,45 @@ function VinaLog({ log }: { log: string }) {
                   <span className={`font-mono font-medium ${affinityColor(pose.affinity)}`}>
                     {pose.affinity.toFixed(1)} kcal/mol
                   </span>
+                  {pose.rmsdLb != null && (
+                    <span className="text-text-muted font-mono">
+                      RMSD {pose.rmsdLb.toFixed(1)}/{pose.rmsdUb?.toFixed(1)} Å
+                    </span>
+                  )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Scoring table */}
+          {poseData.length > 0 && (
+            <div className="px-5 py-3 border-b border-white/5 overflow-x-auto">
+              <table className="w-full text-xs font-mono">
+                <thead>
+                  <tr className="text-text-muted uppercase text-[10px]">
+                    <th className="text-left py-1 pr-4">Mode</th>
+                    <th className="text-left py-1 pr-4">Affinity (kcal/mol)</th>
+                    <th className="text-left py-1 pr-4">RMSD l.b. (Å)</th>
+                    <th className="text-left py-1">RMSD u.b. (Å)</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {poseData.map((pose) => (
+                    <tr key={pose.mode} className="text-text-primary">
+                      <td className="py-1 pr-4">{pose.mode}</td>
+                      <td className={`py-1 pr-4 ${affinityColor(pose.affinity)}`}>
+                        {pose.affinity.toFixed(4)}
+                      </td>
+                      <td className="py-1 pr-4 text-accent-amber">
+                        {pose.rmsdLb != null ? pose.rmsdLb.toFixed(3) : '—'}
+                      </td>
+                      <td className="py-1 text-accent-amber">
+                        {pose.rmsdUb != null ? pose.rmsdUb.toFixed(3) : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           )}
 
@@ -348,6 +390,8 @@ export default function DockingPage() {
                       <th className="text-left py-2 pr-4">Pose</th>
                       <th className="text-left py-2 pr-4">Atoms</th>
                       <th className="text-left py-2 pr-4">Affinity (kcal/mol)</th>
+                      <th className="text-left py-2 pr-4">RMSD l.b. (Å)</th>
+                      <th className="text-left py-2 pr-4">RMSD u.b. (Å)</th>
                       <th className="text-left py-2">Interactions</th>
                     </tr>
                   </thead>
@@ -360,6 +404,12 @@ export default function DockingPage() {
                           <td className="py-2 pr-4 font-mono">{pose.atoms}</td>
                           <td className={`py-2 pr-4 font-mono ${affinityColor(pose.affinity)}`}>
                             {pose.affinity !== null ? pose.affinity.toFixed(2) : '—'}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-accent-amber">
+                            {pose.rmsd_lb != null ? pose.rmsd_lb.toFixed(2) : '—'}
+                          </td>
+                          <td className="py-2 pr-4 font-mono text-accent-amber">
+                            {pose.rmsd_ub != null ? pose.rmsd_ub.toFixed(2) : '—'}
                           </td>
                           <td className="py-2 font-mono text-xs text-text-muted">
                             {pi ? `${pi.hbonds}H / ${pi.hydrophobic}HP / ${pi.pi_stacking}π` : '—'}
@@ -394,6 +444,29 @@ export default function DockingPage() {
                   </p>
                 </div>
               </div>
+
+              {(result.result.vina_version || result.result.vina_exhaustiveness != null || result.result.vina_seed != null) && (
+                <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-glass-border text-sm">
+                  {result.result.vina_version && (
+                    <div>
+                      <p className="text-xs text-text-muted mb-1">Vina version</p>
+                      <p className="text-text-primary font-mono">v{result.result.vina_version}</p>
+                    </div>
+                  )}
+                  {result.result.vina_exhaustiveness != null && (
+                    <div>
+                      <p className="text-xs text-text-muted mb-1">Exhaustiveness</p>
+                      <p className="text-text-primary font-mono">{result.result.vina_exhaustiveness}</p>
+                    </div>
+                  )}
+                  {result.result.vina_seed != null && (
+                    <div>
+                      <p className="text-xs text-text-muted mb-1">Random seed</p>
+                      <p className="text-text-primary font-mono text-xs">{result.result.vina_seed}</p>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           )}
 

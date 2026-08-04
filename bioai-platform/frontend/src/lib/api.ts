@@ -358,6 +358,8 @@ export type DockingPose = {
   atoms: number;
   coords?: DockingAtom[];
   affinity: number | null;
+  rmsd_lb?: number | null;
+  rmsd_ub?: number | null;
 };
 
 export type DockingInteraction = {
@@ -430,6 +432,9 @@ export type DockingResult = {
     box_center: { x: number; y: number; z: number };
     box_size: { x: number; y: number; z: number };
     vina_log?: string;
+    vina_version?: string;
+    vina_seed?: number | null;
+    vina_exhaustiveness?: number | null;
     from_cache?: boolean;
     interactions?: DockingInteraction;
     pose_interactions?: DockingPoseInteractions[];

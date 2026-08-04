@@ -3,7 +3,7 @@ import { useEffect, useState } from "react";
 
 type SSResidue = { position: number; residue: string; ss: string; source: string };
 
-const SS_COLOR: Record<string, string> = { H: "#00F5D4", E: "#7C3AED", C: "rgba(255,255,255,0.15)" };
+const SS_COLOR: Record<string, string> = { H: "#2DD4BF", E: "#7C3AED", C: "rgba(255,255,255,0.15)" };
 const SS_LABEL: Record<string, string> = { H: "&alpha;-Helix", E: "&beta;-Sheet", C: "Coil" };
 
 export function SecondaryStructureViewer({ identifier }: { identifier: string }) {

@@ -38,7 +38,7 @@ export function ClayToggle({
         className="clay-toggle-track relative h-6 w-11 shrink-0 rounded-full transition-colors"
         style={{
           background: checked
-            ? 'rgba(0,245,212,0.18)'
+            ? 'rgba(45,212,191,0.18)'
             : 'linear-gradient(145deg, #181830 0%, #0D0D1A 100%)',
         }}
       >

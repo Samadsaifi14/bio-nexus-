@@ -24,8 +24,8 @@ export default function DNAHelix({ className }: { className?: string }) {
     camera.position.set(0, 0, 10);
 
     const matCyan = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color('#00F5D4'),
-      emissive:          new THREE.Color('#00F5D4'),
+      color:             new THREE.Color('#2DD4BF'),
+      emissive:          new THREE.Color('#2DD4BF'),
       emissiveIntensity: 0.25,
       roughness:         0.3,
       metalness:         0.6,
@@ -33,8 +33,8 @@ export default function DNAHelix({ className }: { className?: string }) {
       opacity:           0.30,
     });
     const matPurple = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color('#8B5CF6'),
-      emissive:          new THREE.Color('#8B5CF6'),
+      color:             new THREE.Color('#8B93D6'),
+      emissive:          new THREE.Color('#8B93D6'),
       emissiveIntensity: 0.25,
       roughness:         0.3,
       metalness:         0.6,
@@ -42,8 +42,8 @@ export default function DNAHelix({ className }: { className?: string }) {
       opacity:           0.30,
     });
     const matAmber = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color('#F59E0B'),
-      emissive:          new THREE.Color('#F59E0B'),
+      color:             new THREE.Color('#E0A94E'),
+      emissive:          new THREE.Color('#E0A94E'),
       emissiveIntensity: 0.15,
       roughness:         0.5,
       metalness:         0.3,
@@ -102,8 +102,8 @@ export default function DNAHelix({ className }: { className?: string }) {
     const P_COUNT = 320;
     const pPositions = new Float32Array(P_COUNT * 3);
     const pColors    = new Float32Array(P_COUNT * 3);
-    const cCyan   = new THREE.Color('#00F5D4');
-    const cPurple = new THREE.Color('#8B5CF6');
+    const cCyan   = new THREE.Color('#2DD4BF');
+    const cPurple = new THREE.Color('#8B93D6');
 
     for (let i = 0; i < P_COUNT; i++) {
       pPositions[i * 3]     = (Math.random() - 0.5) * 24;
@@ -130,15 +130,15 @@ export default function DNAHelix({ className }: { className?: string }) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
-    const l1 = new THREE.PointLight('#00F5D4', 1.2, 25);
+    const l1 = new THREE.PointLight('#2DD4BF', 0.6, 25);
     l1.position.set(4, 4, 5);
     scene.add(l1);
 
-    const l2 = new THREE.PointLight('#8B5CF6', 1.2, 25);
+    const l2 = new THREE.PointLight('#8B93D6', 0.6, 25);
     l2.position.set(-4, -4, 5);
     scene.add(l2);
 
-    const l3 = new THREE.PointLight('#F59E0B', 0.6, 18);
+    const l3 = new THREE.PointLight('#E0A94E', 0.35, 18);
     l3.position.set(0, 0, 7);
     scene.add(l3);
 

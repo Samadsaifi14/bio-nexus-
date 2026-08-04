@@ -11,17 +11,17 @@
   --bg-surface-2: #111122;
   --bg-surface-3: #151528;
 
-  --accent-cyan:   #00F5D4;
-  --accent-purple:    #8B5CF6;
-  --accent-amber:     #F59E0B;
+  --accent-cyan:      #2DD4BF;
+  --accent-purple:    #8B93D6;
+  --accent-amber:     #E0A94E;
 
-  --accent-cyan-10:   rgba(0, 245, 212, 0.10);
-  --accent-cyan-20:   rgba(0, 245, 212, 0.20);
-  --accent-cyan-30:   rgba(0, 245, 212, 0.30);
-  --accent-purple-10: rgba(139, 92, 246, 0.10);
-  --accent-purple-20: rgba(139, 92, 246, 0.20);
-  --accent-amber-10:  rgba(245, 158, 11, 0.10);
-  --accent-amber-20:  rgba(245, 158, 11, 0.20);
+  --accent-cyan-10:   rgba(45, 212, 191, 0.10);
+  --accent-cyan-20:   rgba(45, 212, 191, 0.20);
+  --accent-cyan-30:   rgba(45, 212, 191, 0.30);
+  --accent-purple-10: rgba(139, 147, 214, 0.10);
+  --accent-purple-20: rgba(139, 147, 214, 0.20);
+  --accent-amber-10:  rgba(224, 169, 78, 0.10);
+  --accent-amber-20:  rgba(224, 169, 78, 0.20);
 
   --text-primary:   #F0F0FF;
   --text-secondary: #8890AA;
@@ -32,10 +32,6 @@
   --glass-border:       rgba(100, 110, 180, 0.12);
   --glass-border-hover: rgba(100, 110, 180, 0.22);
   --glass-blur:         20px;
-
-  --glow-cyan:   rgba(0, 245, 212, 0.18);
-  --glow-purple: rgba(139, 92, 246, 0.18);
-  --glow-amber:  rgba(245, 158, 11, 0.18);
 
   --error: #EF4444;
   --error-dim: rgba(239, 68, 68, 0.15);
@@ -271,7 +267,7 @@
       120deg,
       rgba(120, 130, 200, 0.10),
       rgba(255, 255, 255, 0.03) 40%,
-      rgba(0, 245, 212, 0.04) 60%,
+      rgba(45, 212, 191, 0.04) 60%,
       rgba(120, 130, 200, 0.10)
     );
     border: 1px solid var(--liquid-border);
@@ -405,47 +401,12 @@
     box-shadow: 0 0 0 2px var(--accent-cyan-10);
   }
 
-  .text-gradient {
-    background: linear-gradient(135deg, var(--accent-cyan) 0%, var(--accent-purple) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .text-gradient-warm {
-    background: linear-gradient(135deg, var(--accent-amber) 0%, var(--accent-cyan) 100%);
-    -webkit-background-clip: text;
-    -webkit-text-fill-color: transparent;
-    background-clip: text;
-  }
-
-  .glow-cyan {
-    box-shadow:
-      0 0 20px var(--glow-cyan),
-      0 0 60px rgba(0, 245, 212, 0.06);
-  }
-
-  .glow-purple {
-    box-shadow:
-      0 0 20px var(--glow-purple),
-      0 0 60px rgba(139, 92, 246, 0.06);
-  }
-
-  .glow-amber {
-    box-shadow:
-      0 0 20px var(--glow-amber),
-      0 0 40px rgba(245, 158, 11, 0.05);
-  }
-
-  .text-glow-cyan   { text-shadow: 0 0 16px var(--glow-cyan); }
-  .text-glow-purple { text-shadow: 0 0 16px var(--glow-purple); }
-
   .btn-primary {
     display: inline-flex;
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.75rem;
-    border-radius: 9999px;
+    border-radius: 0.625rem;
     background: var(--accent-cyan);
     color: var(--bg-void);
     font-family: 'Space Grotesk', sans-serif;
@@ -456,13 +417,13 @@
       background var(--transition-fast),
       box-shadow var(--transition-default),
       transform var(--transition-fast);
-    box-shadow: 0 0 20px var(--glow-cyan);
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(45, 212, 191, 0.12);
   }
 
   .btn-primary:hover {
-    background: #00dbbe;
+    background: #5EEAD4;
     transform: translateY(-1px);
-    box-shadow: 0 0 30px var(--accent-cyan-30), 0 4px 20px rgba(0, 0, 0, 0.4);
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(45, 212, 191, 0.18);
   }
 
   .btn-primary:active {
@@ -474,7 +435,7 @@
     align-items: center;
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
-    border-radius: 9999px;
+    border-radius: 0.625rem;
     border: 1px solid var(--glass-border);
     color: var(--text-secondary);
     font-size: 0.875rem;
@@ -599,7 +560,7 @@
 .hover\:border-gray-300:hover { border-color: var(--glass-border) !important; }
 
 .bg-teal-50 { background-color: var(--accent-cyan-10) !important; }
-.bg-teal-100 { background-color: rgba(0, 245, 212, 0.12) !important; }
+.bg-teal-100 { background-color: rgba(45, 212, 191, 0.12) !important; }
 .bg-teal-200 { background-color: var(--accent-cyan-20) !important; }
 .border-teal-200 { border-color: var(--accent-cyan-20) !important; }
 .border-teal-300,
@@ -675,8 +636,8 @@
 
   .glow-accent {
     box-shadow:
-      0 0 20px rgba(0, 245, 212, 0.18),
-      0 0 60px rgba(0, 245, 212, 0.06);
+      0 1px 2px rgba(0, 0, 0, 0.35),
+      0 10px 28px rgba(45, 212, 191, 0.10);
   }
 
   .scan-line {

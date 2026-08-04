@@ -47,8 +47,8 @@ export function ConservationTrack({ alignedSeqs }: Props) {
   }
 
   const scoreColor = (s: number) => {
-    if (s > 0.9) return "#00F5D4";
-    if (s > 0.7) return "#F59E0B";
+    if (s > 0.9) return "#2DD4BF";
+    if (s > 0.7) return "#E0A94E";
     if (s > 0.4) return "#7C3AED";
     return "rgba(255,255,255,0.1)";
   };
@@ -84,8 +84,8 @@ export function ConservationTrack({ alignedSeqs }: Props) {
 
       <div className="flex gap-4 text-xs text-text-muted">
         {[
-          { color: "#00F5D4", label: ">90% conserved" },
-          { color: "#F59E0B", label: ">70% conserved" },
+          { color: "#2DD4BF", label: ">90% conserved" },
+          { color: "#E0A94E", label: ">70% conserved" },
           { color: "#7C3AED", label: ">40% conserved" },
           { color: "rgba(255,255,255,0.2)", label: "Variable" },
         ].map(({ color, label }) => (

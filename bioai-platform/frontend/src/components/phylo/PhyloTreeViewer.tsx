@@ -285,7 +285,7 @@ function buildCircularLayout(root: TreeNode, collapsed: Set<number>):
 // ─── Bootstrap colour scale ────────────────────────────────────────────────────
 
 function bootstrapColour(val: number): string {
-  if (val >= 90) return '#00F5D4'
+  if (val >= 90) return '#2DD4BF'
   if (val >= 70) return '#a3e635'
   if (val >= 50) return '#fb923c'
   return '#f87171'
@@ -315,16 +315,16 @@ function RectangularTree({
         return (
           <g key={`b-${i}`}>
             <line x1={n.px} y1={n.py} x2={n.px} y2={n.y}
-              stroke={bright ? '#00F5D4' : '#334155'}
+              stroke={bright ? '#2DD4BF' : '#334155'}
               strokeWidth={bright ? 2 : dim ? 0.5 : 1.2}
               opacity={dim ? 0.12 : 1} />
             <line x1={n.px} y1={n.y} x2={n.x} y2={n.y}
-              stroke={bright ? '#00F5D4' : '#475569'}
+              stroke={bright ? '#2DD4BF' : '#475569'}
               strokeWidth={bright ? 2.5 : dim ? 0.5 : 1.5}
               opacity={dim ? 0.12 : 1} />
             {n.length > 0.001 && (
               <text x={(n.px + n.x) / 2} y={n.y - 5} fontSize={8}
-                fill={bright ? '#00F5D4' : '#64748b'}
+                fill={bright ? '#2DD4BF' : '#64748b'}
                 opacity={dim ? 0.12 : 0.8}
                 textAnchor="middle" fontFamily="sans-serif">
                 {n.length.toFixed(4)}
@@ -352,12 +352,12 @@ function RectangularTree({
             {isLeaf ? (
               <>
                 <circle cx={n.x} cy={n.y} r={isSelected ? 5 : 3}
-                  fill="#00F5D4"
+                  fill="#2DD4BF"
                   opacity={dim ? 0.12 : isSelected ? 1 : 0.8}
                   stroke={isSelected ? '#fff' : 'none'}
                   strokeWidth={isSelected ? 1.5 : 0} />
                 <text x={n.x + 8} y={n.y + 4} fontSize={11}
-                  fill={bright ? '#00F5D4' : '#94a3b8'}
+                  fill={bright ? '#2DD4BF' : '#94a3b8'}
                   opacity={dim ? 0.12 : 1}
                   fontFamily="'JetBrains Mono', monospace"
                   fontWeight={isSelected ? 'bold' : 'normal'}>
@@ -368,8 +368,8 @@ function RectangularTree({
             ) : (
               <>
                 <circle cx={n.x} cy={n.y} r={isSelected ? 7 : 5}
-                  fill={dim ? '#1e293b' : isSelected ? '#00F5D4' : '#1e293b'}
-                  stroke={isSelected ? '#fff' : bright ? '#00F5D4' : '#475569'}
+                  fill={dim ? '#1e293b' : isSelected ? '#2DD4BF' : '#1e293b'}
+                  stroke={isSelected ? '#fff' : bright ? '#2DD4BF' : '#475569'}
                   strokeWidth={isSelected ? 2 : bright ? 2 : 1.5}
                   opacity={dim ? 0.12 : 0.85} />
                 {n.bootstrap !== null && n.bootstrap >= 50 && (
@@ -381,7 +381,7 @@ function RectangularTree({
                   </text>
                 )}
                 <text x={n.x} y={n.y + 4} fontSize={7}
-                  fill={bright ? '#00F5D4' : '#64748b'}
+                  fill={bright ? '#2DD4BF' : '#64748b'}
                   opacity={dim ? 0.12 : 0.7}
                   textAnchor="middle" fontFamily="sans-serif">
                   {n.name || `N${i}`}
@@ -435,12 +435,12 @@ function CircularTree({
         return (
           <g key={`b-${i}`}>
             <line x1={n.px} y1={n.py} x2={n.x} y2={n.y}
-              stroke={bright ? '#00F5D4' : '#475569'}
+              stroke={bright ? '#2DD4BF' : '#475569'}
               strokeWidth={bright ? 2.5 : dim ? 0.5 : 1.4}
               opacity={dim ? 0.12 : 1} />
             {n.length > 0.001 && (
               <text x={midX} y={midY - 4} fontSize={7}
-                fill={bright ? '#00F5D4' : '#64748b'}
+                fill={bright ? '#2DD4BF' : '#64748b'}
                 opacity={dim ? 0.12 : 0.8}
                 textAnchor="middle" fontFamily="sans-serif">
                 {n.length.toFixed(4)}
@@ -467,7 +467,7 @@ function CircularTree({
         return (
           <path key={`arc-${i}`}
             d={`M ${x0} ${y0} A ${r} ${r} 0 ${largeArc} 1 ${x1} ${y1}`}
-            fill="none" stroke={bright ? '#00F5D4' : '#334155'}
+            fill="none" stroke={bright ? '#2DD4BF' : '#334155'}
             strokeWidth={bright ? 2 : dim ? 0.5 : 1.2}
             opacity={dim ? 0.12 : 1} />
         )
@@ -498,14 +498,14 @@ function CircularTree({
             {isLeaf ? (
               <>
                 <circle cx={n.x} cy={n.y} r={isSelected ? 5 : 3}
-                  fill="#00F5D4"
+                  fill="#2DD4BF"
                   opacity={dim ? 0.12 : isSelected ? 1 : 0.8}
                   stroke={isSelected ? '#fff' : 'none'}
                   strokeWidth={isSelected ? 1.5 : 0} />
                 <text
                   x={labelX} y={labelY + 4}
                   fontSize={10}
-                  fill={bright ? '#00F5D4' : '#94a3b8'}
+                  fill={bright ? '#2DD4BF' : '#94a3b8'}
                   opacity={dim ? 0.12 : 1}
                   fontFamily="'JetBrains Mono', monospace"
                   fontWeight={isSelected ? 'bold' : 'normal'}
@@ -519,8 +519,8 @@ function CircularTree({
             ) : (
               <>
                 <circle cx={n.x} cy={n.y} r={isSelected ? 7 : 5}
-                  fill={dim ? '#1e293b' : isSelected ? '#00F5D4' : '#1e293b'}
-                  stroke={isSelected ? '#fff' : bright ? '#00F5D4' : '#475569'}
+                  fill={dim ? '#1e293b' : isSelected ? '#2DD4BF' : '#1e293b'}
+                  stroke={isSelected ? '#fff' : bright ? '#2DD4BF' : '#475569'}
                   strokeWidth={isSelected ? 2 : bright ? 2 : 1.5}
                   opacity={dim ? 0.12 : 0.85} />
                 {n.bootstrap !== null && n.bootstrap >= 50 && (
@@ -531,7 +531,7 @@ function CircularTree({
                   </text>
                 )}
                 <text x={n.x} y={n.y + 4} fontSize={6}
-                  fill={bright ? '#00F5D4' : '#64748b'}
+                  fill={bright ? '#2DD4BF' : '#64748b'}
                   opacity={dim ? 0.12 : 0.7}
                   textAnchor="middle" fontFamily="sans-serif">
                   {n.name || `N${i}`}
@@ -836,7 +836,7 @@ export default function PhyloTreeViewer({
         {method === 'ml' && (
           <div className="flex items-center gap-2 text-[10px] text-text-secondary">
             <span className="font-medium">Bootstrap:</span>
-            {[['≥90', '#00F5D4'], ['70–89', '#a3e635'], ['50–69', '#fb923c'], ['<50', '#f87171']]
+            {[['≥90', '#2DD4BF'], ['70–89', '#a3e635'], ['50–69', '#fb923c'], ['<50', '#f87171']]
               .map(([label, colour]) => (
                 <span key={label} className="flex items-center gap-0.5">
                   <span style={{ color: colour }}>■</span> {label}

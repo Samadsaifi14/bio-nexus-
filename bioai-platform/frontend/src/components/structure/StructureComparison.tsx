@@ -79,7 +79,7 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
                 className="h-full rounded-full transition-all duration-700"
                 style={{
                   width: `${m.tm_score * 100}%`,
-                  background: m.tm_score > 0.5 ? "#00F5D4" : m.tm_score > 0.3 ? "#F59E0B" : "#EF4444",
+                  background: m.tm_score > 0.5 ? "#2DD4BF" : m.tm_score > 0.3 ? "#E0A94E" : "#EF4444",
                   opacity: 0.7,
                 }} />
             </div>

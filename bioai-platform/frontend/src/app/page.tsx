@@ -24,19 +24,16 @@ const PIPELINE = [
 const FEATURES = [
   {
     icon:  Database,
-    color: '#00F5D4',
     title: 'Unified Access',
     body:  'NCBI, UniProt, PDB, KEGG, Ensembl — one plain-English query retrieves across every major database simultaneously.',
   },
   {
     icon:  Zap,
-    color: '#8B5CF6',
     title: 'Pipeline Automation',
     body:  'BLAST → UniProt → AlphaFold runs sequentially, hands-free. Real-time progress via SSE, results assembled automatically.',
   },
   {
     icon:  Brain,
-    color: '#F59E0B',
     title: 'AI Interpretation',
     body:  'Every result is narrated in plain language. Clinical relevance, evolutionary context, functional insights — streamed live.',
   },
@@ -69,7 +66,7 @@ export default function LandingPage() {
       <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
           <span className="font-display text-sm font-semibold tracking-widest uppercase">
-            Bio <span className="text-gradient">Nexus</span>
+            Bio <span className="text-accent-cyan">Nexus</span>
           </span>
 
           <div className="flex items-center gap-6">
@@ -94,7 +91,7 @@ export default function LandingPage() {
 
       <section
         ref={heroRef}
-        className="relative h-screen flex items-center justify-center overflow-hidden"
+        className="relative min-h-[100dvh] flex items-center justify-center overflow-hidden"
       >
         <motion.div
           style={{ y: helixY, opacity: helixOpacity }}
@@ -103,40 +100,12 @@ export default function LandingPage() {
           <DNAHelix className="w-full h-full" />
         </motion.div>
 
-        <div className="absolute inset-0 z-[1] bg-grid pointer-events-none opacity-40" />
         <div className="absolute inset-0 z-[2] bg-vignette pointer-events-none" />
-
-        <div
-          className="absolute z-[1] w-[40vw] h-[40vw] rounded-full pointer-events-none"
-          style={{
-            top: '20%', left: '10%',
-            background: 'radial-gradient(circle, rgba(0,245,212,0.07) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-        />
-        <div
-          className="absolute z-[1] w-[35vw] h-[35vw] rounded-full pointer-events-none"
-          style={{
-            bottom: '15%', right: '8%',
-            background: 'radial-gradient(circle, rgba(139,92,246,0.07) 0%, transparent 70%)',
-            filter: 'blur(40px)',
-          }}
-        />
 
         <motion.div
           style={{ y: textY, opacity: textOpacity }}
           className="relative z-10 text-center max-w-4xl px-6"
         >
-          <motion.p
-            variants={fadeUp}
-            initial={{ y: 24 }}
-            animate="show"
-            transition={{ delay: 0.2 }}
-            className="text-[10px] tracking-[0.35em] uppercase text-accent-cyan mb-7 font-mono"
-          >
-            Bioinformatics · Automated · AI-powered
-          </motion.p>
-
           <motion.h1
             variants={fadeUp}
             initial={{ y: 24 }}
@@ -147,7 +116,7 @@ export default function LandingPage() {
           >
             One query.{' '}
             <br className="hidden sm:block" />
-            <span className="text-gradient">Every database.</span>
+            <span className="text-accent-cyan">Every database.</span>
           </motion.h1>
 
           <motion.p
@@ -190,9 +159,6 @@ export default function LandingPage() {
       <section className="relative py-14 border-y border-glass-border overflow-hidden">
         <div className="absolute inset-0 bg-surface-0/60" />
         <div className="relative z-10">
-          <p className="text-center text-[10px] tracking-[0.35em] uppercase text-text-muted font-mono mb-8">
-            Unified access to
-          </p>
           <motion.div
             variants={stagger}
             initial="hidden"
@@ -221,9 +187,6 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="text-center mb-20"
         >
-          <p className="text-[10px] tracking-[0.35em] uppercase text-accent-cyan font-mono mb-4">
-            How it works
-          </p>
           <h2 className="font-display text-4xl font-bold tracking-tight">
             From sequence to insight
           </h2>
@@ -273,9 +236,6 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="text-center mb-20"
         >
-          <p className="text-[10px] tracking-[0.35em] uppercase text-accent-purple font-mono mb-4">
-            Features
-          </p>
           <h2 className="font-display text-4xl font-bold tracking-tight">
             Everything you need
           </h2>
@@ -298,13 +258,9 @@ export default function LandingPage() {
                 className="glass-card p-7 cursor-default"
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-6"
-                  style={{
-                    background: `${f.color}12`,
-                    border:     `1px solid ${f.color}28`,
-                  }}
+                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-6 bg-accent-cyan/10 border border-accent-cyan/20"
                 >
-                  <Icon size={18} style={{ color: f.color }} strokeWidth={1.8} />
+                  <Icon size={18} className="text-accent-cyan" strokeWidth={1.8} />
                 </div>
 
                 <h3 className="font-display text-base font-semibold mb-2 text-text-primary">
@@ -314,12 +270,7 @@ export default function LandingPage() {
                   {f.body}
                 </p>
 
-                <div
-                  className="mt-6 h-px rounded-full"
-                  style={{
-                    background: `linear-gradient(90deg, ${f.color}40 0%, transparent 100%)`,
-                  }}
-                />
+                <div className="mt-6 h-px rounded-full bg-gradient-to-r from-accent-cyan/25 to-transparent" />
               </motion.div>
             );
           })}
@@ -330,7 +281,7 @@ export default function LandingPage() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(0,245,212,0.05) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(45,212,191,0.05) 0%, transparent 70%)',
           }}
         />
 
@@ -341,9 +292,6 @@ export default function LandingPage() {
           viewport={{ once: true }}
           className="relative z-10 text-center max-w-xl mx-auto"
         >
-          <p className="text-[10px] tracking-[0.35em] uppercase text-accent-amber font-mono mb-6">
-            Get started
-          </p>
           <h2 className="font-display text-4xl font-bold tracking-tight mb-5">
             Ready to decode your sequences?
           </h2>

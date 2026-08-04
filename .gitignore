@@ -38,3 +38,8 @@ tsconfig.tsbuildinfo
 
 # --- Temp / scratch ---
 tmp_hf/
+
+# --- Installed agent skills (restore via `npx skills experimental_install`) ---
+.agents/
+agent/
+.claude/

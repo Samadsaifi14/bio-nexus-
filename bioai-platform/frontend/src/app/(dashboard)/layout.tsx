@@ -55,9 +55,8 @@ function SidebarContent({
         <div
           className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
           style={{
-            background: 'rgba(0,245,212,0.1)',
-            border:     '1px solid rgba(0,245,212,0.25)',
-            boxShadow:  '0 0 12px rgba(0,245,212,0.1)',
+            background: 'rgba(45,212,191,0.10)',
+            border:     '1px solid rgba(45,212,191,0.25)',
           }}
         >
           <Dna size={14} className="text-accent-cyan" />
@@ -73,7 +72,7 @@ function SidebarContent({
               exit="hidden"
               className="font-display text-sm font-semibold overflow-hidden whitespace-nowrap"
             >
-              Bio <span className="text-gradient">Nexus</span>
+              Bio <span className="text-accent-cyan">Nexus</span>
             </motion.span>
           )}
         </AnimatePresence>
@@ -226,7 +225,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             boxShadow:  '0 2px 8px rgba(0,0,0,0.45)',
           }}
           onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(0,245,212,0.4)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(45,212,191,0.4)';
           }}
           onMouseLeave={(e) => {
             (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--glass-border)';

@@ -34,9 +34,9 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
   }, [geneName, initialData, audit]);
 
   const scoreChannels = [
-    { key: "escore" as const, label: "Experimental", color: "#00F5D4" },
+    { key: "escore" as const, label: "Experimental", color: "#2DD4BF" },
     { key: "dscore" as const, label: "Database", color: "#7C3AED" },
-    { key: "ascore" as const, label: "Co-expression", color: "#F59E0B" },
+    { key: "ascore" as const, label: "Co-expression", color: "#E0A94E" },
     { key: "tscore" as const, label: "Text mining", color: "#EF4444" },
   ];
 

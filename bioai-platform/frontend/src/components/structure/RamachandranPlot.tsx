@@ -4,9 +4,9 @@ import { useEffect, useState } from "react";
 type RPoint = { residue: string; chain: string; resnum: number; phi: number; psi: number; region: string };
 
 const REGION_COLOR: Record<string, string> = {
-  core_alpha: "#00F5D4",
+  core_alpha: "#2DD4BF",
   core_beta:  "#7C3AED",
-  allowed:    "#F59E0B",
+  allowed:    "#E0A94E",
   outlier:    "#EF4444",
 };
 
@@ -60,7 +60,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
         <div className="data-card relative">
           <svg viewBox={`0 0 ${W} ${H}`} className="w-80 h-80">
             <ellipse cx={toX(-57)} cy={toY(-47)} rx={30} ry={30}
-              fill="#00F5D4" fillOpacity={0.06} stroke="#00F5D4" strokeOpacity={0.15} />
+              fill="#2DD4BF" fillOpacity={0.06} stroke="#2DD4BF" strokeOpacity={0.15} />
             <ellipse cx={toX(-119)} cy={toY(113)} rx={30} ry={30}
               fill="#7C3AED" fillOpacity={0.06} stroke="#7C3AED" strokeOpacity={0.15} />
 

@@ -9,9 +9,9 @@ interface ScoreBarsProps {
 }
 
 function confidenceColor(evalue: number): string {
-  if (evalue < 1e-50) return '#00F5D4';
-  if (evalue < 1e-10) return '#8B5CF6';
-  if (evalue < 1e-3) return '#F59E0B';
+  if (evalue < 1e-50) return '#2DD4BF';
+  if (evalue < 1e-10) return '#8B93D6';
+  if (evalue < 1e-3) return '#E0A94E';
   return '#4A5568';
 }
 

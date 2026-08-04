@@ -4,7 +4,6 @@ import { useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import { Dna, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import type { JobStatus } from '@/types/pipeline';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { getSharedResult } from '@/lib/api';
 import { AIInterpretation } from '@/components/results/AIInterpretation';
 import { BlastPanel } from '@/components/results/BlastPanel';
@@ -31,25 +30,19 @@ export default function SharedResultPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle compact />
-        </div>
-        <LoaderCircle className="w-8 h-8 text-teal-600 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-void">
+        <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
       </div>
     );
   }
 
   if (error || !job) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle compact />
-        </div>
-        <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center max-w-sm">
-          <Dna className="w-12 h-12 text-gray-200 mx-auto mb-4" />
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">Not Found</h2>
-          <p className="text-sm text-gray-500">This shared result does not exist or has been removed.</p>
+      <div className="min-h-screen flex items-center justify-center bg-void">
+        <div className="bg-surface-0 rounded-2xl border border-glass-border p-8 text-center max-w-sm">
+          <Dna className="w-12 h-12 text-text-muted mx-auto mb-4" />
+          <h2 className="text-lg font-semibold text-text-primary mb-2">Not Found</h2>
+          <p className="text-sm text-text-muted">This shared result does not exist or has been removed.</p>
         </div>
       </div>
     );
@@ -58,27 +51,24 @@ export default function SharedResultPage() {
   const context = job.context_json;
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-teal-50 to-white">
-      <div className="absolute top-4 right-4 z-10">
-        <ThemeToggle compact />
-      </div>
+    <div className="min-h-screen bg-void">
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
-          <Dna className="w-7 h-7 text-teal-600" />
-          <span className="text-lg font-bold text-gray-900">Bio Nexus — Shared Result</span>
+          <Dna className="w-7 h-7 text-accent-cyan" />
+          <span className="text-lg font-bold text-text-primary">Bio Nexus — Shared Result</span>
         </div>
 
         {!context ? (
-          <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
-            <p className="text-sm text-gray-500">This result is from an older version and cannot be displayed in full.</p>
+          <div className="bg-surface-0 rounded-2xl border border-glass-border p-8 text-center">
+            <p className="text-sm text-text-muted">This result is from an older version and cannot be displayed in full.</p>
           </div>
         ) : (
           <motion.div variants={stagger} animate="show" className="space-y-6">
             <motion.div variants={fadeUp}>
-              <h1 className="text-2xl font-bold text-gray-900 mb-1">Analysis Results</h1>
-              <p className="text-sm text-gray-500">
+              <h1 className="text-2xl font-bold text-text-primary mb-1">Analysis Results</h1>
+              <p className="text-sm text-text-muted">
                 {context.query.accession
-                  ? <>Query: <code className="font-mono text-cyan-600">{context.query.accession}</code></>
+                  ? <>Query: <code className="font-mono text-accent-cyan">{context.query.accession}</code></>
                   : <>Query: {context.query.sequence.slice(0, 80)}...</>
                 } ({context.query.length} {context.query.sequence_type === 'dna' ? 'bp' : 'aa'})
               </p>

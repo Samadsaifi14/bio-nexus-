@@ -37,7 +37,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
         <h3 className="text-sm font-semibold text-text-primary">Pipeline progress</h3>
         <span className="text-xs text-text-muted">{pct}%</span>
       </div>
-      <div className="w-full bg-gray-100 rounded-full h-1.5 mb-5">
+      <div className="w-full bg-surface-0 rounded-full h-1.5 mb-5">
         <div
           className={`h-1.5 rounded-full transition-all duration-500 ${isFailed ? 'bg-error' : 'bg-accent'}`}
           style={{ width: `${pct}%` }}
@@ -50,15 +50,15 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
           return (
             <motion.div key={step.name} variants={fadeIn} className="flex items-center gap-3">
               {done ? (
-                <CheckCircle2 className="w-5 h-5 text-teal-600 shrink-0" />
+                <CheckCircle2 className="w-5 h-5 text-accent-cyan shrink-0" />
               ) : isFailed ? (
-                <XCircle className="w-5 h-5 text-red-500 shrink-0" />
+                <XCircle className="w-5 h-5 text-error shrink-0" />
               ) : active ? (
                 <div className="w-5 h-5 rounded-full bg-accent animate-pulse shrink-0" />
               ) : (
-                <div className="w-5 h-5 rounded-full border-2 border-gray-300 shrink-0" />
+                <div className="w-5 h-5 rounded-full border-2 border-glass-border shrink-0" />
               )}
-              <span className={`text-sm ${done ? 'text-gray-900 font-medium' : active ? 'text-teal-700' : 'text-gray-400'}`}>
+              <span className={`text-sm ${done ? 'text-text-primary font-medium' : active ? 'text-accent-cyan' : 'text-text-muted'}`}>
                 {step.label}
               </span>
             </motion.div>
@@ -69,7 +69,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
         <p className="text-xs text-accent mt-3 font-medium">All steps complete</p>
       )}
       {isFailed && (
-        <p className="text-xs text-red-500 mt-3 font-medium">Pipeline failed</p>
+        <p className="text-xs text-error mt-3 font-medium">Pipeline failed</p>
       )}
     </motion.div>
   );

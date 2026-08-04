@@ -30,7 +30,7 @@ export function PipelineSelector({ onSelect }: PipelineSelectorProps) {
 
   return (
     <div>
-      <h2 className="text-lg font-semibold text-gray-900 mb-4">Choose a pipeline</h2>
+      <h2 className="text-lg font-semibold text-text-primary mb-4">Choose a pipeline</h2>
       <motion.div animate="show" variants={stagger} className="grid gap-4">
         {pipelines.map((p) => {
           const active = selected === p.id;
@@ -43,20 +43,20 @@ export function PipelineSelector({ onSelect }: PipelineSelectorProps) {
                 }}
                 className={`w-full text-left p-5 rounded-2xl border-2 transition ${
                   active
-                    ? 'border-teal-500 bg-teal-50 shadow-sm'
-                    : 'border-gray-200 bg-white hover:border-teal-300 hover:shadow-sm'
+                    ? 'border-accent-cyan bg-accent-cyan/10'
+                    : 'border-glass-border bg-surface-0 hover:border-accent-cyan/30'
                 }`}
               >
                 <div className="flex items-start gap-4">
-                  <div className={`p-3 rounded-xl ${active ? 'bg-teal-100' : 'bg-gray-100'}`}>
-                    <p.icon className={`w-6 h-6 ${active ? 'text-teal-600' : 'text-gray-500'}`} />
+                  <div className={`p-3 rounded-xl ${active ? 'bg-accent-cyan/10' : 'bg-surface-0'}`}>
+                    <p.icon className={`w-6 h-6 ${active ? 'text-accent-cyan' : 'text-text-muted'}`} />
                   </div>
                   <div className="flex-1">
                     <div className="flex items-center gap-2">
-                      <h3 className={`font-semibold ${active ? 'text-teal-900' : 'text-gray-900'}`}>{p.name}</h3>
-                      <ChevronRight className={`w-4 h-4 ${active ? 'text-teal-600' : 'text-gray-300'}`} />
+                      <h3 className={`font-semibold ${active ? 'text-accent-cyan' : 'text-text-primary'}`}>{p.name}</h3>
+                      <ChevronRight className={`w-4 h-4 ${active ? 'text-accent-cyan' : 'text-text-muted'}`} />
                     </div>
-                    <p className="text-sm text-gray-500 mt-1">{p.description}</p>
+                    <p className="text-sm text-text-muted mt-1">{p.description}</p>
                   </div>
                 </div>
               </button>

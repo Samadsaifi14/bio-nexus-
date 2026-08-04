@@ -28,7 +28,7 @@ function renderInlineMarkdown(text: string): React.ReactNode {
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     parts.push(
-      <a key={match.index} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-teal-600 hover:text-teal-700 underline">{match[1]}</a>
+      <a key={match.index} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-accent-cyan hover:text-accent-cyan underline">{match[1]}</a>
     );
     lastIndex = regex.lastIndex;
   }
@@ -51,17 +51,17 @@ function renderMarkdown(text: string) {
     const line = lines[i];
     if (line.startsWith('## ')) {
       flushList();
-      elements.push(<h3 key={i} className="text-sm font-semibold text-gray-900 mt-4 mb-2">{line.slice(3)}</h3>);
+      elements.push(<h3 key={i} className="text-sm font-semibold text-text-primary mt-4 mb-2">{line.slice(3)}</h3>);
     } else if (line.startsWith('- ')) {
-      listItems.push(<li key={i} className="text-sm text-gray-700">{renderInlineMarkdown(line.slice(2))}</li>);
+      listItems.push(<li key={i} className="text-sm text-text-secondary">{renderInlineMarkdown(line.slice(2))}</li>);
     } else if (line.match(/^\d+\.\s/)) {
       flushList();
-      elements.push(<p key={i} className="text-sm text-gray-700 mb-1">{renderInlineMarkdown(line)}</p>);
+      elements.push(<p key={i} className="text-sm text-text-secondary mb-1">{renderInlineMarkdown(line)}</p>);
     } else if (line.trim() === '') {
       flushList();
     } else {
       flushList();
-      elements.push(<p key={i} className="text-sm text-gray-700 mb-2">{renderInlineMarkdown(line)}</p>);
+      elements.push(<p key={i} className="text-sm text-text-secondary mb-2">{renderInlineMarkdown(line)}</p>);
     }
   }
   flushList();
@@ -136,44 +136,44 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
   }, [context, pipelineType, loading]);
 
   return (
-    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-gradient-to-br from-teal-50 to-teal-50 rounded-2xl border border-teal-200 p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="bg-accent-cyan/[0.06] rounded-2xl border border-accent-cyan/20 p-6">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-teal-600" />
-          <h2 className="font-semibold text-gray-900">AI Interpretation</h2>
+          <Brain className="w-5 h-5 text-accent-cyan" />
+          <h2 className="font-semibold text-text-primary">AI Interpretation</h2>
           {model && model !== 'fallback-static' && (
-            <span className="text-xs bg-teal-100 text-teal-700 px-2 py-0.5 rounded-full font-medium">
+            <span className="text-xs bg-accent-cyan/10 text-accent-cyan px-2 py-0.5 rounded-full font-medium">
               Llama 3.3 70B
             </span>
           )}
         </div>
         {!text && !loading && (
-          <motion.button variants={fadeIn} onClick={handleInterpret} className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition">
+          <motion.button variants={fadeIn} onClick={handleInterpret} className="px-4 py-2 bg-accent-cyan text-void text-sm font-medium rounded-lg hover:bg-accent-hover transition">
             Interpret results
           </motion.button>
         )}
         {loading && (
-          <button onClick={() => abortRef.current?.abort()} className="px-4 py-2 bg-gray-200 text-gray-700 text-sm font-medium rounded-lg hover:bg-gray-300 transition">
+          <button onClick={() => abortRef.current?.abort()} className="px-4 py-2 bg-surface-2 text-text-secondary text-sm font-medium rounded-lg hover:bg-surface-3 transition">
             Stop
           </button>
         )}
       </div>
 
       {error && (
-        <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-4">
-          <p className="text-sm text-amber-800">{error}</p>
+        <div className="bg-accent-amber/10 border border-accent-amber/20 rounded-xl p-4 mb-4">
+          <p className="text-sm text-accent-amber">{error}</p>
         </div>
       )}
 
       {text ? (
         <motion.div variants={fadeIn}>
           {renderMarkdown(text)}
-          {model && <div className="mt-3 text-xs text-gray-400">Model: {model}</div>}
-          <div className="mt-4 pt-3 border-t border-teal-200 space-y-2">
-            <div className="flex items-center gap-2 text-xs text-teal-700 font-medium mb-2">Bridges</div>
+          {model && <div className="mt-3 text-xs text-text-muted">Model: {model}</div>}
+          <div className="mt-4 pt-3 border-t border-accent-cyan/20 space-y-2">
+            <div className="flex items-center gap-2 text-xs text-accent-cyan font-medium mb-2">Bridges</div>
             <div className="flex flex-wrap gap-2">
               <button onClick={() => router.push('/analyze/primers')}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-teal-600 text-white text-xs font-medium hover:bg-teal-700 transition">
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan text-void text-xs font-medium hover:bg-accent-hover transition">
                 <Dna className="w-3.5 h-3.5" /> Design Primers (F4)
               </button>
               <button onClick={() => router.push('/analyze')}
@@ -184,12 +184,12 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
           </div>
         </motion.div>
       ) : loading ? (
-        <div className="flex items-center gap-2 text-sm text-gray-500">
+        <div className="flex items-center gap-2 text-sm text-text-muted">
           <Loader2 className="w-4 h-4 animate-spin" />
           Interpreting results...
         </div>
       ) : (
-        <p className="text-sm text-gray-500">Click to get an AI explanation combining BLAST, UniProt, and AlphaFold data</p>
+        <p className="text-sm text-text-muted">Click to get an AI explanation combining BLAST, UniProt, and AlphaFold data</p>
       )}
     </motion.div>
   );

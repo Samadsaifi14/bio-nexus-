@@ -83,18 +83,18 @@ export function SequenceRetrieval() {
 
   const seqTypeColor = (type?: string) => {
     switch (type) {
-      case 'protein': return 'text-blue-600 bg-blue-50';
-      case 'dna': return 'text-purple-600 bg-purple-50';
+      case 'protein': return 'text-[#60A5FA] bg-[#60A5FA]/10';
+      case 'dna': return 'text-accent-purple bg-accent-purple/10';
       case 'rna': return 'text-orange-600 bg-orange-50';
-      default: return 'text-gray-600 bg-gray-50';
+      default: return 'text-text-muted bg-surface-0';
     }
   };
 
   return (
     <motion.div initial={{ y: 24 }} animate="show" variants={stagger} className="space-y-6">
-      <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
-        <h2 className="text-lg font-semibold text-gray-900 mb-1">Sequence Retrieval</h2>
-        <p className="text-sm text-gray-500 mb-6">
+      <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-6">
+        <h2 className="text-lg font-semibold text-text-primary mb-1">Sequence Retrieval</h2>
+        <p className="text-sm text-text-muted mb-6">
           Look up a sequence by accession number, paste raw sequence data, or search by gene/protein name
         </p>
 
@@ -108,7 +108,7 @@ export function SequenceRetrieval() {
               key={m.id}
               onClick={() => { setMode(m.id); setResult(null); setValidation(null); setSearchResults(null); setError(null); }}
               className={`px-4 py-2 text-sm font-medium rounded-lg transition ${
-                mode === m.id ? 'bg-teal-600 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                mode === m.id ? 'bg-accent-cyan text-void' : 'bg-surface-0 text-text-muted hover:bg-surface-2'
               }`}
             >
               {m.label}
@@ -127,12 +127,12 @@ export function SequenceRetrieval() {
               mode === 'name' ? 'e.g. p53, BRCA1, TP53 human' :
               'Paste FASTA or raw sequence...'
             }
-            className="flex-1 px-4 py-3 rounded-xl border border-gray-300 focus:border-teal-500 focus:ring-2 focus:ring-teal-200 outline-none transition text-sm"
+            className="flex-1 px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan focus:ring-2 focus:ring-accent-cyan/20 outline-none transition text-sm"
           />
           <button
             onClick={handleSearch}
             disabled={loading || !input.trim()}
-            className="px-6 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition disabled:opacity-50 flex items-center gap-2"
+            className="px-6 py-3 bg-accent-cyan text-void font-medium rounded-xl hover:bg-accent-hover transition disabled:opacity-50 flex items-center gap-2"
           >
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
             {loading ? 'Searching...' : 'Search'}
@@ -141,47 +141,47 @@ export function SequenceRetrieval() {
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} className="bg-red-50 border border-red-200 rounded-2xl p-4 flex items-start gap-3">
-          <AlertCircle className="w-5 h-5 text-red-500 mt-0.5 shrink-0" />
-          <p className="text-sm text-red-700">{error}</p>
+        <motion.div variants={fadeUp} className="bg-error-dim border border-error/20 rounded-2xl p-4 flex items-start gap-3">
+          <AlertCircle className="w-5 h-5 text-error mt-0.5 shrink-0" />
+          <p className="text-sm text-error">{error}</p>
         </motion.div>
       )}
 
       {validation && mode === 'sequence' && (
-        <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
+        <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-6">
           <div className="flex items-center gap-3 mb-4">
             {validation.valid ? (
-              <CheckCircle className="w-5 h-5 text-teal-500" />
+              <CheckCircle className="w-5 h-5 text-accent-cyan" />
             ) : (
-              <AlertCircle className="w-5 h-5 text-red-500" />
+              <AlertCircle className="w-5 h-5 text-error" />
             )}
-            <h3 className="font-semibold text-gray-900">
+            <h3 className="font-semibold text-text-primary">
               {validation.valid ? 'Valid Sequence' : 'Invalid Sequence'}
             </h3>
           </div>
           <div className="grid grid-cols-3 gap-4">
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <div className="text-xs text-gray-500 mb-1">Type</div>
-              <div className="text-sm font-medium text-gray-900">
+            <div className="p-3 bg-surface-0 rounded-xl">
+              <div className="text-xs text-text-muted mb-1">Type</div>
+              <div className="text-sm font-medium text-text-primary">
                 <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${seqTypeColor(validation.sequence_type)}`}>
                   {validation.sequence_type}
                 </span>
               </div>
             </div>
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <div className="text-xs text-gray-500 mb-1">Length</div>
-              <div className="text-sm font-medium text-gray-900">{validation.length.toLocaleString()} residues</div>
+            <div className="p-3 bg-surface-0 rounded-xl">
+              <div className="text-xs text-text-muted mb-1">Length</div>
+              <div className="text-sm font-medium text-text-primary">{validation.length.toLocaleString()} residues</div>
             </div>
-            <div className="p-3 bg-gray-50 rounded-xl">
-              <div className="text-xs text-gray-500 mb-1">Format</div>
-              <div className="text-sm font-medium text-gray-900">{validation.format}</div>
+            <div className="p-3 bg-surface-0 rounded-xl">
+              <div className="text-xs text-text-muted mb-1">Format</div>
+              <div className="text-sm font-medium text-text-primary">{validation.format}</div>
             </div>
           </div>
           {validation.issues.length > 0 && (
-            <div className="mt-4 p-3 bg-red-50 rounded-xl">
-              <p className="text-xs text-red-600 font-medium mb-1">Issues</p>
+            <div className="mt-4 p-3 bg-error-dim rounded-xl">
+              <p className="text-xs text-error font-medium mb-1">Issues</p>
               {validation.issues.map((issue, i) => (
-                <p key={i} className="text-sm text-red-700">{issue}</p>
+                <p key={i} className="text-sm text-error">{issue}</p>
               ))}
             </div>
           )}
@@ -189,27 +189,27 @@ export function SequenceRetrieval() {
       )}
 
       {searchResults && mode === 'name' && (
-        <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 p-6">
-          <h3 className="font-semibold text-gray-900 mb-4">Search Results ({searchResults.length})</h3>
+        <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-6">
+          <h3 className="font-semibold text-text-primary mb-4">Search Results ({searchResults.length})</h3>
           {searchResults.length === 0 ? (
-            <p className="text-sm text-gray-500">No results found</p>
+            <p className="text-sm text-text-muted">No results found</p>
           ) : (
             <motion.div animate="show" variants={stagger} className="space-y-2">
               {searchResults.map((r, i) => (
                 <motion.div key={i} variants={fadeUp}>
                   <button
                     onClick={() => handleSelectAccession(r.accession)}
-                    className="w-full text-left p-4 rounded-xl border border-gray-200 hover:border-teal-300 hover:bg-teal-50 transition"
+                    className="w-full text-left p-4 rounded-xl border border-glass-border hover:border-accent-cyan/30 hover:bg-accent-cyan/10 transition"
                   >
                     <div className="flex items-center justify-between">
                       <div>
                         <div className="flex items-center gap-2">
-                          <code className="text-sm font-mono text-teal-700">{r.accession}</code>
-                          <ArrowRight className="w-3 h-3 text-gray-300" />
+                          <code className="text-sm font-mono text-accent-cyan">{r.accession}</code>
+                          <ArrowRight className="w-3 h-3 text-text-muted" />
                         </div>
-                        <p className="text-sm text-gray-700 mt-1 line-clamp-1">{r.title}</p>
+                        <p className="text-sm text-text-secondary mt-1 line-clamp-1">{r.title}</p>
                       </div>
-                      <div className="text-right text-xs text-gray-500">
+                      <div className="text-right text-xs text-text-muted">
                         <div>{r.organism}</div>
                         <div>{r.length} aa</div>
                       </div>
@@ -223,39 +223,39 @@ export function SequenceRetrieval() {
       )}
 
       {result && mode === 'accession' && (
-        <motion.div variants={fadeUp} className="bg-white rounded-2xl border border-gray-200 divide-y divide-gray-100">
+        <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border divide-y divide-glass-border">
           <div className="p-6">
             <div className="flex items-start justify-between mb-4">
               <div>
                 <div className="flex items-center gap-3 mb-2">
-                  <code className="text-lg font-mono font-bold text-teal-700">{result.accession}</code>
+                  <code className="text-lg font-mono font-bold text-accent-cyan">{result.accession}</code>
                   <span className={`inline-flex items-center px-2 py-0.5 rounded-full text-xs font-medium ${seqTypeColor(result.sequence_type)}`}>
                     {result.sequence_type}
                   </span>
-                  <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded-full">{result.db_source}</span>
+                  <span className="text-xs bg-surface-0 text-text-muted px-2 py-0.5 rounded-full">{result.db_source}</span>
                 </div>
-                <p className="text-sm text-gray-700">{result.description}</p>
+                <p className="text-sm text-text-secondary">{result.description}</p>
                 {result.organism && (
-                  <p className="text-xs text-gray-500 mt-1">{result.organism}</p>
+                  <p className="text-xs text-text-muted mt-1">{result.organism}</p>
                 )}
               </div>
               <div className="text-right">
-                <div className="text-2xl font-bold text-gray-900">{result.length.toLocaleString()}</div>
-                <div className="text-xs text-gray-500">residues</div>
+                <div className="text-2xl font-bold text-text-primary">{result.length.toLocaleString()}</div>
+                <div className="text-xs text-text-muted">residues</div>
               </div>
             </div>
 
-            <div className="bg-gray-50 rounded-xl p-4">
+            <div className="bg-surface-0 rounded-xl p-4">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">Sequence</span>
+                <span className="text-xs font-medium text-text-muted">Sequence</span>
                 <button
                   onClick={copySequence}
-                  className="text-xs text-teal-600 hover:text-teal-700 font-medium"
+                  className="text-xs text-accent-cyan hover:text-accent-cyan font-medium"
                 >
                   {copied ? 'Copied!' : 'Copy'}
                 </button>
               </div>
-              <pre className="font-mono text-xs text-gray-700 overflow-auto max-h-32 break-all whitespace-pre-wrap">
+              <pre className="font-mono text-xs text-text-secondary overflow-auto max-h-32 break-all whitespace-pre-wrap">
                 {result.sequence}
               </pre>
             </div>
@@ -263,10 +263,10 @@ export function SequenceRetrieval() {
 
           {(result.gene_names && result.gene_names.length > 0) && (
             <div className="px-6 py-4">
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Gene Names</h4>
+              <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Gene Names</h4>
               <div className="flex flex-wrap gap-2">
                 {result.gene_names.map((g, i) => (
-                  <span key={i} className="px-2 py-1 bg-gray-100 text-gray-700 rounded-lg text-xs font-mono">{g}</span>
+                  <span key={i} className="px-2 py-1 bg-surface-0 text-text-secondary rounded-lg text-xs font-mono">{g}</span>
                 ))}
               </div>
             </div>
@@ -274,16 +274,16 @@ export function SequenceRetrieval() {
 
           {result.functions && result.functions.length > 0 && (
             <div className="px-6 py-4">
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Functions</h4>
+              <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Functions</h4>
               {result.functions.map((f, i) => (
-                <p key={i} className="text-sm text-gray-700 mb-1">{f}</p>
+                <p key={i} className="text-sm text-text-secondary mb-1">{f}</p>
               ))}
             </div>
           )}
 
           {result.pdb_ids && result.pdb_ids.length > 0 && (
             <div className="px-6 py-4">
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">PDB Structures</h4>
+              <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">PDB Structures</h4>
               <div className="flex flex-wrap gap-2">
                 {result.pdb_ids.map((pdb, i) => (
                   <a
@@ -291,7 +291,7 @@ export function SequenceRetrieval() {
                     href={`https://www.rcsb.org/structure/${pdb}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2 py-1 bg-blue-50 text-blue-700 rounded-lg text-xs font-mono hover:bg-blue-100"
+                    className="px-2 py-1 bg-[#60A5FA]/10 text-[#60A5FA] rounded-lg text-xs font-mono hover:bg-[#60A5FA]/10"
                   >
                     {pdb}
                   </a>
@@ -302,26 +302,26 @@ export function SequenceRetrieval() {
 
           {result.features && result.features.length > 0 && (
             <div className="px-6 py-4">
-              <h4 className="text-xs font-medium text-gray-500 uppercase tracking-wider mb-2">Features</h4>
+              <h4 className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Features</h4>
               <div className="space-y-1">
                 {result.features.slice(0, 10).map((f, i) => (
                   <div key={i} className="flex items-center gap-3 text-sm">
-                    <span className="px-2 py-0.5 bg-gray-100 text-gray-600 rounded text-xs font-mono">{f.type}</span>
-                    <span className="text-gray-700">{f.description}</span>
+                    <span className="px-2 py-0.5 bg-surface-0 text-text-muted rounded text-xs font-mono">{f.type}</span>
+                    <span className="text-text-secondary">{f.description}</span>
                     {f.begin && f.end && (
-                      <span className="text-xs text-gray-400 ml-auto">{f.begin}-{f.end}</span>
+                      <span className="text-xs text-text-muted ml-auto">{f.begin}-{f.end}</span>
                     )}
                   </div>
                 ))}
                 {result.features.length > 10 && (
-                  <p className="text-xs text-gray-400 mt-1">+{result.features.length - 10} more features</p>
+                  <p className="text-xs text-text-muted mt-1">+{result.features.length - 10} more features</p>
                 )}
               </div>
             </div>
           )}
 
           <div className="px-6 py-4 flex items-center justify-between">
-            <div className="flex items-center gap-2 text-xs text-gray-400">
+            <div className="flex items-center gap-2 text-xs text-text-muted">
               <BookOpen className="w-3 h-3" />
               <span>Source: {result.db_source} {result.from_cache && '(cached)'}</span>
             </div>
@@ -331,7 +331,7 @@ export function SequenceRetrieval() {
                   sessionStorage.setItem('blast_sequence', `>${result.accession}\n${result.sequence}`);
                   router.push('/analyze/blast');
                 }}
-                className="flex items-center gap-2 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-xl hover:bg-teal-700 transition"
+                className="flex items-center gap-2 px-4 py-2 bg-accent-cyan text-void text-sm font-medium rounded-xl hover:bg-accent-hover transition"
               >
                 <Beaker className="w-4 h-4" />
                 Analyze with BLAST

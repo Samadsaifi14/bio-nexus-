@@ -498,9 +498,9 @@ function TopologyView({ topology, seqLen }: { topology: TopologyItem[]; seqLen: 
   if (!topology.length) return <p className="text-sm text-text-muted">No topological features annotated.</p>;
   const TYPE_STYLE: Record<string, string> = {
     "Signal peptide": "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    "Transmembrane region": "bg-blue-500/15 text-blue-400 border-blue-500/30",
-    "Chain": "bg-purple-500/15 text-purple-400 border-purple-500/30",
-    "Propeptide": "bg-amber-500/15 text-amber-400 border-amber-500/30",
+    "Transmembrane region": "bg-[#60A5FA]/15 text-blue-400 border-blue-500/30",
+    "Chain": "bg-accent-purple/15 text-purple-400 border-purple-500/30",
+    "Propeptide": "bg-accent-amber/15 text-amber-400 border-amber-500/30",
     "Peptide": "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
   };
   return (
@@ -518,7 +518,7 @@ function TopologyView({ topology, seqLen }: { topology: TopologyItem[]; seqLen: 
             {topology.map((t, i) => (
               <tr key={i} className="border-t border-glass-border hover:bg-surface-1">
                 <td className="px-3 py-2">
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${TYPE_STYLE[t.type] ?? "bg-gray-500/15 text-gray-400 border-gray-500/30"}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${TYPE_STYLE[t.type] ?? "bg-surface-3/15 text-text-muted border-glass-border"}`}>
                     {t.type}
                   </span>
                 </td>
@@ -552,7 +552,7 @@ function VariantsTable({ variants }: { variants: VariantItem[] }) {
             <tr key={i} className="border-t border-glass-border hover:bg-surface-1">
               <td className="px-3 py-2">
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                  v.type === "Mutagenesis" ? "bg-red-500/15 text-red-400 border-red-500/30" : "bg-blue-500/15 text-blue-400 border-blue-500/30"
+                  v.type === "Mutagenesis" ? "bg-error-dim/15 text-red-400 border-red-500/30" : "bg-[#60A5FA]/15 text-blue-400 border-blue-500/30"
                 }`}>{v.type}</span>
               </td>
               <td className="px-3 py-2 text-text-muted">{v.begin}</td>
@@ -629,7 +629,7 @@ function StructureInfoView({ data }: { data: FullAnalysis }) {
           <h4 className="text-xs font-semibold text-text-primary mb-2">Disulfide Bonds ({data.disulfide_bonds.length})</h4>
           <div className="flex flex-wrap gap-1.5">
             {data.disulfide_bonds.map((b, i) => (
-              <span key={i} className="px-2 py-1 text-[10px] rounded-lg bg-amber-500/10 border border-amber-500/30 text-amber-400">
+              <span key={i} className="px-2 py-1 text-[10px] rounded-lg bg-accent-amber/10 border border-amber-500/30 text-amber-400">
                 Cys{b.begin}\u2013Cys{b.end}
               </span>
             ))}

@@ -15,7 +15,7 @@ function HbondTable({ data, onHighlight }: { data: DockingInteraction['hbonds'];
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Hydrogen Bonds" icon={<Beaker className="w-4 h-4 text-blue-400" />} count={data.length} color="bg-blue-500/20 text-blue-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Hydrogen Bonds" icon={<Beaker className="w-4 h-4 text-blue-400" />} count={data.length} color="bg-[#60A5FA]/20 text-blue-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -34,7 +34,7 @@ function HbondTable({ data, onHighlight }: { data: DockingInteraction['hbonds'];
                   <td className="px-3 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                       item.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                      item.confidence === 'moderate' ? 'bg-amber-500/20 text-amber-400' :
+                      item.confidence === 'moderate' ? 'bg-accent-amber/20 text-amber-400' :
                       'bg-yellow-500/20 text-yellow-400'
                     }`}>{item.confidence}</span>
                   </td>
@@ -52,7 +52,7 @@ function HydrophobicTable({ data, onHighlight }: { data: DockingInteraction['hyd
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Hydrophobic Contacts" icon={<Waves className="w-4 h-4 text-amber-400" />} count={data.length} color="bg-amber-500/20 text-amber-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Hydrophobic Contacts" icon={<Waves className="w-4 h-4 text-amber-400" />} count={data.length} color="bg-accent-amber/20 text-amber-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -82,7 +82,7 @@ function PiStackTable({ data, onHighlight }: { data: DockingInteraction['pi_stac
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Pi-Stacking" icon={<Hexagon className="w-4 h-4 text-purple-400" />} count={data.length} color="bg-purple-500/20 text-purple-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Pi-Stacking" icon={<Hexagon className="w-4 h-4 text-purple-400" />} count={data.length} color="bg-accent-purple/20 text-purple-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -102,7 +102,7 @@ function PiStackTable({ data, onHighlight }: { data: DockingInteraction['pi_stac
                   <td className="px-3 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] ${
                       item.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                      'bg-amber-500/20 text-amber-400'
+                      'bg-accent-amber/20 text-amber-400'
                     }`}>{item.confidence}</span>
                   </td>
                 </tr>

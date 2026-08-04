@@ -176,7 +176,7 @@ export default function BlastWizardPage() {
         {[1, 2, 3].map((s) => (
           <div key={s} className="flex items-center gap-3">
             <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
-              s < step ? 'bg-accent-cyan text-white' : s === step ? 'bg-accent-cyan text-white' : 'bg-surface-1 text-text-muted'
+              s < step ? 'bg-accent-cyan text-void' : s === step ? 'bg-accent-cyan text-void' : 'bg-surface-1 text-text-muted'
             }`}>
               {s < step ? '✓' : s}
             </div>
@@ -284,7 +284,7 @@ export default function BlastWizardPage() {
               onClick={() => setFastMode(!fastMode)}
               className={`relative w-11 h-6 rounded-full transition-colors ${fastMode ? 'bg-accent-cyan' : 'bg-surface-2'}`}
             >
-              <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-white transition-transform ${fastMode ? 'translate-x-5' : ''}`} />
+              <div className={`absolute top-0.5 left-0.5 w-5 h-5 rounded-full bg-surface-3 transition-transform ${fastMode ? 'translate-x-5' : ''}`} />
             </button>
           </div>
 

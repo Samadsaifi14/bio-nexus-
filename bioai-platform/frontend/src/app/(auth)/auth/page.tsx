@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Dna, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
 
@@ -20,34 +19,28 @@ export default function AuthPage() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
-        <div className="absolute top-4 right-4">
-          <ThemeToggle compact />
-        </div>
-        <LoaderCircle className="w-8 h-8 text-teal-600 animate-spin" />
+      <div className="min-h-screen flex items-center justify-center bg-void">
+        <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-b from-teal-50 to-white">
-      <div className="absolute top-4 right-4">
-        <ThemeToggle compact />
-      </div>
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="bg-white rounded-2xl border border-gray-200 p-8 w-full max-w-sm shadow-sm">
+    <div className="min-h-screen flex items-center justify-center bg-void">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="bg-surface-0 rounded-2xl border border-glass-border p-8 w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
-          <Dna className="w-8 h-8 text-teal-600" />
-          <span className="text-xl font-bold text-gray-900">Bio Nexus</span>
+          <Dna className="w-8 h-8 text-accent-cyan" />
+          <span className="text-xl font-bold text-text-primary">Bio Nexus</span>
         </div>
 
-        <h1 className="text-xl font-semibold text-gray-900 text-center mb-2">Welcome to Bio Nexus</h1>
-        <p className="text-sm text-gray-500 text-center mb-8">
+        <h1 className="text-xl font-semibold text-text-primary text-center mb-2">Welcome to Bio Nexus</h1>
+        <p className="text-sm text-text-muted text-center mb-8">
           Bioinformatics tools for sequence analysis
         </p>
 
         <button
           onClick={signIn}
-          className="w-full px-6 py-3 bg-teal-600 text-white font-medium rounded-xl hover:bg-teal-700 transition flex items-center justify-center gap-2"
+          className="w-full px-6 py-3 bg-accent-cyan text-void font-medium rounded-xl hover:bg-accent-hover transition flex items-center justify-center gap-2"
         >
           <svg className="w-5 h-5" viewBox="0 0 24 24" fill="currentColor">
             <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"/>
@@ -60,21 +53,21 @@ export default function AuthPage() {
 
         <div className="relative my-6">
           <div className="absolute inset-0 flex items-center">
-            <div className="w-full border-t border-gray-200" />
+            <div className="w-full border-t border-glass-border" />
           </div>
           <div className="relative flex justify-center text-xs">
-            <span className="bg-white px-2 text-gray-400">or</span>
+            <span className="bg-surface-0 px-2 text-text-muted">or</span>
           </div>
         </div>
 
         <button
           onClick={() => router.replace('/analyze')}
-          className="w-full px-6 py-3 bg-white border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition"
+          className="w-full px-6 py-3 bg-surface-1 border border-glass-border text-text-secondary font-medium rounded-xl hover:bg-surface-2 transition"
         >
           Continue without signing in
         </button>
 
-        <p className="mt-6 text-xs text-gray-400 text-center leading-relaxed">
+        <p className="mt-6 text-xs text-text-muted text-center leading-relaxed">
           Free for academic researchers. No spam, ever.<br />
           Guest results are saved for 24 hours.
         </p>

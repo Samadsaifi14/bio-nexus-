@@ -45,21 +45,21 @@ export function SequenceTypewriter() {
   }, [current, typing]);
 
   return (
-    <div className="bg-gray-900 rounded-2xl border border-gray-700 p-6 shadow-xl">
+    <div className="bg-surface-1 rounded-2xl border border-glass-border p-6 shadow-glass-md">
       <div className="flex items-center gap-2 mb-3">
-        <Dna className="w-4 h-4 text-teal-400" />
-        <span className="text-xs text-teal-400 font-medium font-mono uppercase tracking-wider">
+        <Dna className="w-4 h-4 text-accent-cyan/80" />
+        <span className="text-xs text-accent-cyan/80 font-medium font-mono uppercase tracking-wider">
           Query: {SEQUENCES[current].label}
         </span>
       </div>
       <div className="relative">
-        <code className="font-mono text-sm leading-relaxed text-teal-300 break-all">
+        <code className="font-mono text-sm leading-relaxed text-accent-cyan/70 break-all">
           {displayed}
-          {showCursor && <span className="inline-block w-[2px] h-4 bg-teal-400 ml-0.5 animate-blink align-middle" />}
+          {showCursor && <span className="inline-block w-[2px] h-4 bg-accent-cyan/40 ml-0.5 animate-blink align-middle" />}
         </code>
       </div>
-      <div className="mt-3 flex items-center gap-2 text-xs text-gray-500">
-        <span className="inline-block w-2 h-2 rounded-full bg-teal-500 animate-pulse" />
+      <div className="mt-3 flex items-center gap-2 text-xs text-text-muted">
+        <span className="inline-block w-2 h-2 rounded-full bg-accent-cyan animate-pulse" />
         <span>Live sequence analysis ready — paste your own sequence above</span>
       </div>
     </div>

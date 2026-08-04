@@ -90,7 +90,7 @@ export default function JobPage() {
           <Clock className="w-12 h-12 text-accent-amber mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-text-primary mb-2">Still processing</h3>
           <p className="text-sm text-text-secondary mb-6">
-            This job is taking longer than expected. It's still running — your results will be saved.
+            This job is taking longer than expected. It&apos;s still running — your results will be saved.
             Check back later at this URL.
           </p>
           <button
@@ -208,7 +208,7 @@ export default function JobPage() {
             )}
             {isParseError && (
               <p className="text-sm text-accent-amber bg-accent-amber/5 rounded-lg p-3 border border-accent-amber/20">
-                We couldn't read the results from NCBI. The data may have been in an unexpected format.
+                We couldn&apos;t read the results from NCBI. The data may have been in an unexpected format.
               </p>
             )}
           </div>
@@ -280,7 +280,7 @@ export default function JobPage() {
           <h3 className="text-lg font-semibold text-text-primary mb-2">No significant similarity found</h3>
           <p className="text-sm text-text-secondary max-w-md mx-auto">
             BLAST completed but found no statistically significant matches in the database.
-            This could mean your sequence is novel, highly divergent, or the database doesn't contain close relatives.
+            This could mean your sequence is novel, highly divergent, or the database doesn&apos;t contain close relatives.
           </p>
           <div className="mt-6 glass p-4 text-left text-sm text-text-secondary">
             <p className="font-medium text-text-primary mb-2">What this can mean:</p>
@@ -288,7 +288,7 @@ export default function JobPage() {
               <li>Your sequence may be from a poorly characterized organism</li>
               <li>The protein could be a novel family member with low sequence conservation</li>
               <li>Try searching against a different database (e.g., nr instead of Swiss-Prot)</li>
-              <li>Consider checking your sequence for frame-shift errors if it's a nucleotide translation</li>
+              <li>Consider checking your sequence for frame-shift errors if it&apos;s a nucleotide translation</li>
             </ul>
           </div>
           <CriticalButton onClick={() => router.push('/analyze')} className="mt-6">

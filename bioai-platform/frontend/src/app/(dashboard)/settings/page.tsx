@@ -324,7 +324,7 @@ export default function SettingsPage() {
               {/* Generate new key */}
               {newKeyValue ? (
                 <div className="p-4 rounded-xl bg-accent-cyan/5 border border-accent-cyan/15">
-                  <p className="text-xs font-semibold text-accent-cyan mb-2">Key generated — copy it now. You won't see it again.</p>
+                  <p className="text-xs font-semibold text-accent-cyan mb-2">Key generated — copy it now. You won&apos;t see it again.</p>
                   <div className="flex items-center gap-2">
                     <code className="flex-1 text-xs font-mono bg-surface-0 px-3 py-2 rounded-lg border border-glass-border text-text-primary break-all">
                       {newKeyValue}

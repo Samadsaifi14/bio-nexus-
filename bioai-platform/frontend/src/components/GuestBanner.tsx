@@ -17,7 +17,7 @@ export function GuestBanner() {
       <div className="flex items-start gap-3">
         <User className="w-5 h-5 text-accent-amber shrink-0 mt-0.5" />
         <div>
-          <p className="text-sm font-medium text-text-primary">You're browsing as a guest</p>
+          <p className="text-sm font-medium text-text-primary">You&apos;re browsing as a guest</p>
           <p className="text-sm text-text-secondary mt-1">
             Your results are saved for 24 hours.{' '}
             <button

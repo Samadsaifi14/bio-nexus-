@@ -369,7 +369,7 @@ export default function BlastWizardPage() {
               <div>
                 <p className="font-medium text-text-primary">BLAST Search</p>
                 <p className="text-sm text-text-secondary">
-                  We'll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
+                  We&apos;ll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
                   <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
                   {detectedType} sequence against the <strong>{fastMode ? 'Swiss-Prot (fast)' : (advancedDb || dbLabel)}</strong> database.
                   {fastMode && <span className="text-accent-cyan ml-1">~5-10s expected</span>}

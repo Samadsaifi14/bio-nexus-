@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, Database, Lightning as Zap, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
+import { ArrowRight, Database, FlowArrow, Brain, Dna, CaretDown as ChevronDown } from '@phosphor-icons/react';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -14,11 +14,11 @@ const DNAHelix = dynamic(
 const DATABASES = ['NCBI', 'UniProt', 'PDB', 'KEGG', 'Ensembl', 'STRING', 'EMBL', 'Pfam'];
 
 const PIPELINE = [
-  { step: '01', label: 'Sequence Input',       sub: 'FASTA / accession ID'   },
-  { step: '02', label: 'BLAST Search',         sub: 'EBI BLAST + NCBI'       },
-  { step: '03', label: 'UniProt Lookup',       sub: 'Annotation & function'  },
-  { step: '04', label: 'Structure Prediction', sub: 'AlphaFold 3D viewer'    },
-  { step: '05', label: 'AI Interpretation',    sub: 'Plain-language insight' },
+  { tag: 'input',    label: 'Sequence Input',       sub: 'FASTA / accession ID'  },
+  { tag: 'blast',    label: 'BLAST Search',         sub: 'EBI BLAST + NCBI'      },
+  { tag: 'uniprot',  label: 'UniProt Lookup',       sub: 'Annotation & function' },
+  { tag: 'fold',     label: 'Structure Prediction', sub: 'AlphaFold 3D viewer'   },
+  { tag: 'ai',       label: 'AI Interpretation',    sub: 'Plain-language insight' },
 ];
 
 const FEATURES = [
@@ -26,27 +26,21 @@ const FEATURES = [
     icon:  Database,
     title: 'Unified Access',
     body:  'NCBI, UniProt, PDB, KEGG, Ensembl — one plain-English query retrieves across every major database simultaneously.',
+    span:  'md:col-span-2',
   },
   {
-    icon:  Zap,
+    icon:  FlowArrow,
     title: 'Pipeline Automation',
     body:  'BLAST → UniProt → AlphaFold runs sequentially, hands-free. Real-time progress via SSE, results assembled automatically.',
+    span:  'md:col-span-1',
   },
   {
     icon:  Brain,
     title: 'AI Interpretation',
     body:  'Every result is narrated in plain language. Clinical relevance, evolutionary context, functional insights — streamed live.',
+    span:  'md:col-span-3',
   },
 ];
-
-const fadeUp = {
-  hidden: { opacity: 0, y: 24 },
-  show:   { opacity: 1, y: 0, transition: { duration: 0.6, ease: [0.25, 1, 0.5, 1] as const } },
-};
-
-const stagger = {
-  show: { transition: { staggerChildren: 0.1 } },
-};
 
 export default function LandingPage() {
   const heroRef = useRef<HTMLDivElement>(null);
@@ -56,10 +50,8 @@ export default function LandingPage() {
     offset:  ['start start', 'end start'],
   });
 
-  const helixY       = useTransform(scrollYProgress, [0, 1], ['0%', '28%']);
-  const helixOpacity = useTransform(scrollYProgress, [0, 0.55], [1, 0]);
-  const textY        = useTransform(scrollYProgress, [0, 1], ['0%', '18%']);
-  const textOpacity  = useTransform(scrollYProgress, [0, 0.4], [1, 0]);
+  const contentY      = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
+  const contentOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0.2]);
 
   return (
     <main className="relative bg-void text-text-primary overflow-x-hidden">
@@ -91,60 +83,101 @@ export default function LandingPage() {
 
       <section
         ref={heroRef}
-        className="relative min-h-[100dvh] flex items-center justify-center overflow-hidden"
+        className="relative min-h-[100dvh] flex items-center overflow-hidden"
       >
+        <div className="absolute inset-0 z-0 pointer-events-none">
+          <div
+            className="absolute inset-0"
+            style={{
+              background:
+                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(45,212,191,0.06) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(139,147,214,0.05) 0%, transparent 70%)',
+            }}
+          />
+        </div>
+
         <motion.div
-          style={{ y: helixY, opacity: helixOpacity }}
-          className="absolute inset-0 z-0"
+          style={{ y: contentY, opacity: contentOpacity }}
+          className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24 grid lg:grid-cols-[1.1fr_0.9fr] gap-14 items-center"
         >
-          <DNAHelix className="w-full h-full" />
-        </motion.div>
+          <div>
+            <motion.h1
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+              className="font-display font-bold leading-[0.95] tracking-tight"
+              style={{ fontSize: 'clamp(2.75rem, 5.5vw, 6rem)' }}
+            >
+              One query.
+              <br />
+              <span className="text-accent-cyan">Every database.</span>
+            </motion.h1>
 
-        <div className="absolute inset-0 z-[2] bg-vignette pointer-events-none" />
+            <motion.p
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 1, 0.5, 1] }}
+              className="text-text-secondary text-lg max-w-[480px] mt-8 leading-relaxed"
+            >
+              BioNexus unifies NCBI, UniProt, PDB, and KEGG into a single plain-language
+              interface — with AI-interpreted visual results, instantly.
+            </motion.p>
 
-        <motion.div
-          style={{ y: textY, opacity: textOpacity }}
-          className="relative z-10 text-center max-w-4xl px-6"
-        >
-          <motion.h1
-            variants={fadeUp}
-            initial={{ y: 24 }}
-            animate="show"
-            transition={{ delay: 0.4 }}
-            className="font-display font-bold leading-[0.92] tracking-tight mb-8"
-            style={{ fontSize: 'clamp(3.2rem, 8.5vw, 7.5rem)' }}
-          >
-            One query.{' '}
-            <br className="hidden sm:block" />
-            <span className="text-accent-cyan">Every database.</span>
-          </motion.h1>
+            <motion.div
+              initial={{ opacity: 0, y: 24 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 1, 0.5, 1] }}
+              className="flex flex-col sm:flex-row items-start gap-4 mt-10"
+            >
+              <Link href="/dashboard" className="btn-primary">
+                Start analyzing
+                <ArrowRight size={15} />
+              </Link>
+              <Link href="#pipeline" className="btn-ghost">
+                See the pipeline
+              </Link>
+            </motion.div>
 
-          <motion.p
-            variants={fadeUp}
-            initial={{ y: 24 }}
-            animate="show"
-            transition={{ delay: 0.6 }}
-            className="text-text-secondary text-lg max-w-[520px] mx-auto mb-10 leading-relaxed"
-          >
-            BioNexus unifies NCBI, UniProt, PDB, and KEGG into a single plain-language
-            interface — with AI-interpreted visual results, instantly.
-          </motion.p>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ duration: 0.8, delay: 0.5 }}
+              className="flex items-center gap-2 mt-10 text-[11px] font-mono text-text-muted"
+            >
+              <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
+              <span>8 services online · results streamed live</span>
+            </motion.div>
+          </div>
 
-          <motion.div
-            variants={fadeUp}
-            initial={{ y: 24 }}
-            animate="show"
-            transition={{ delay: 0.75 }}
-            className="flex flex-col sm:flex-row items-center justify-center gap-4"
-          >
-            <Link href="/dashboard" className="btn-primary">
-              Start analyzing
-              <ArrowRight size={15} />
-            </Link>
-            <Link href="#pipeline" className="btn-ghost">
-              See the pipeline
-            </Link>
-          </motion.div>
+          <div className="relative">
+            <div className="relative rounded-2xl border border-glass-border bg-surface-0 overflow-hidden shadow-glass-md aspect-[4/5] max-h-[560px]">
+              <span className="absolute top-3 left-3 w-4 h-4 border-t border-l border-accent-cyan/40 z-20" />
+              <span className="absolute top-3 right-3 w-4 h-4 border-t border-r border-accent-cyan/40 z-20" />
+              <span className="absolute bottom-3 left-3 w-4 h-4 border-b border-l border-accent-cyan/40 z-20" />
+              <span className="absolute bottom-3 right-3 w-4 h-4 border-b border-r border-accent-cyan/40 z-20" />
+
+              <div className="absolute top-0 inset-x-0 z-10 h-11 border-b border-glass-border flex items-center justify-between px-4 bg-surface-1/80 backdrop-blur">
+                <span className="text-[10px] font-mono text-text-muted">P01162 · ALPHA-LACTALBUMIN</span>
+                <span className="flex items-center gap-1.5 text-[10px] font-mono text-accent-cyan">
+                  <span className="w-1 h-1 rounded-full bg-accent-cyan animate-pulse" />
+                  SIGNAL
+                </span>
+              </div>
+
+              <div className="absolute inset-0 z-0 pt-11 pb-10">
+                <DNAHelix className="w-full h-full" />
+              </div>
+
+              <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
+                <div className="h-[30%] w-full bg-gradient-to-b from-transparent via-accent-cyan/10 to-transparent animate-scan" />
+              </div>
+
+              <div className="absolute bottom-0 inset-x-0 z-10 border-t border-glass-border bg-surface-1/80 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-2">
+                <span className="text-[10px] font-mono text-text-muted">E-value 1e-82</span>
+                <span className="text-[10px] font-mono text-accent-amber">42% identity</span>
+                <span className="text-[10px] font-mono text-accent-purple">AF · Q5XXK5</span>
+              </div>
+            </div>
+          </div>
         </motion.div>
 
         <motion.div
@@ -159,122 +192,110 @@ export default function LandingPage() {
       <section className="relative py-14 border-y border-glass-border overflow-hidden">
         <div className="absolute inset-0 bg-surface-0/60" />
         <div className="relative z-10">
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true }}
-            className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6"
-          >
+          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6">
             {DATABASES.map((db) => (
-              <motion.span
+              <span
                 key={db}
-                variants={fadeUp}
                 className="text-sm font-mono text-text-muted hover:text-accent-cyan transition-colors cursor-default select-none"
               >
                 {db}
-              </motion.span>
+              </span>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      <section id="pipeline" className="py-28 px-6 max-w-5xl mx-auto">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="text-center mb-20"
-        >
-          <h2 className="font-display text-4xl font-bold tracking-tight">
+      <section id="pipeline" className="py-24 px-6 max-w-5xl mx-auto">
+        <div className="text-center mb-16">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
             From sequence to insight
           </h2>
-          <p className="text-text-secondary mt-4 max-w-md mx-auto text-sm leading-relaxed">
+          <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
             Five automated stages, zero manual database switching.
           </p>
-        </motion.div>
+        </div>
 
         <div className="relative">
-          <div className="absolute top-10 left-0 right-0 h-px hidden md:block">
-            <div className="h-full bg-gradient-to-r from-transparent via-glass-border to-transparent mx-12" />
-          </div>
+          <div className="hidden md:block absolute top-[13px] left-10 right-10 h-px bg-gradient-to-r from-transparent via-glass-border to-transparent" />
 
-          <motion.div
-            variants={stagger}
-            initial="hidden"
-            whileInView="show"
-            viewport={{ once: true, margin: '-60px' }}
-            className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-5"
-          >
-            {PIPELINE.map(({ step, label, sub }) => (
-              <motion.div
-                key={step}
-                variants={fadeUp}
-                whileHover={{ y: -4, transition: { duration: 0.2 } }}
-                className="glass-card p-5 text-center relative cursor-default"
-              >
-                <div className="w-8 h-8 rounded-full bg-accent-cyan/10 border border-accent-cyan/25 flex items-center justify-center mx-auto mb-4">
-                  <span className="text-accent-cyan text-[10px] font-mono font-semibold">{step}</span>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 md:gap-4">
+            {PIPELINE.map(({ tag, label, sub }) => (
+              <div key={tag} className="relative text-center">
+                <div className="hidden md:flex w-[26px] h-[26px] rounded-full border border-accent-cyan/40 bg-surface-0 items-center justify-center relative z-10 mx-auto">
+                  <span className="w-[6px] h-[6px] rounded-full bg-accent-cyan/70" />
                 </div>
-
-                <p className="font-display text-[13px] font-semibold mb-1 text-text-primary">
-                  {label}
-                </p>
-                <p className="text-[11px] text-text-muted font-mono">{sub}</p>
-              </motion.div>
+                <div className="mt-4 md:mt-5">
+                  <p className="text-[10px] font-mono tracking-widest uppercase text-accent-cyan/80">{tag}</p>
+                  <p className="text-sm font-medium text-text-primary mt-1">{label}</p>
+                  <p className="text-[11px] text-text-muted mt-0.5 font-mono">{sub}</p>
+                </div>
+              </div>
             ))}
-          </motion.div>
+          </div>
         </div>
       </section>
 
-      <section id="features" className="py-28 px-6 max-w-5xl mx-auto">
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="text-center mb-20"
-        >
-          <h2 className="font-display text-4xl font-bold tracking-tight">
+      <section id="features" className="py-24 px-6 max-w-5xl mx-auto">
+        <div className="mb-16">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
             Everything you need
           </h2>
-        </motion.div>
+        </div>
 
-        <motion.div
-          variants={stagger}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true, margin: '-60px' }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
-        >
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
           {FEATURES.map((f) => {
             const Icon = f.icon;
+            const wide = f.span === 'md:col-span-2';
+            const full = f.span === 'md:col-span-3';
             return (
-              <motion.div
+              <div
                 key={f.title}
-                variants={fadeUp}
-                whileHover={{ y: -6, transition: { duration: 0.25 } }}
-                className="glass-card p-7 cursor-default"
+                className={`glass-card p-8 cursor-default ${f.span} ${full ? 'flex flex-col md:flex-row md:items-center gap-8' : ''}`}
               >
                 <div
-                  className="w-10 h-10 rounded-xl flex items-center justify-center mb-6 bg-accent-cyan/10 border border-accent-cyan/20"
+                  className={`w-10 h-10 rounded-xl flex items-center justify-center bg-accent-cyan/10 border border-accent-cyan/20 shrink-0 ${full ? 'mb-0' : 'mb-6'}`}
                 >
                   <Icon size={18} className="text-accent-cyan" weight="regular" />
                 </div>
 
-                <h3 className="font-display text-base font-semibold mb-2 text-text-primary">
-                  {f.title}
-                </h3>
-                <p className="text-sm text-text-secondary leading-relaxed">
-                  {f.body}
-                </p>
+                <div className={wide ? 'grid lg:grid-cols-2 gap-8 items-start' : ''}>
+                  <div>
+                    <h3 className={`font-display font-semibold mb-2 text-text-primary ${wide ? 'text-xl' : 'text-base'}`}>
+                      {f.title}
+                    </h3>
+                    <p className="text-sm text-text-secondary leading-relaxed max-w-[46ch]">
+                      {f.body}
+                    </p>
+                  </div>
 
-                <div className="mt-6 h-px rounded-full bg-gradient-to-r from-accent-cyan/25 to-transparent" />
-              </motion.div>
+                  {wide && (
+                    <div className="flex flex-wrap gap-2 lg:pt-1">
+                      {DATABASES.map((db) => (
+                        <span
+                          key={db}
+                          className="px-3 py-1 rounded-lg border border-glass-border bg-surface-1 text-[11px] font-mono text-text-secondary"
+                        >
+                          {db}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {full && (
+                    <div className="min-w-0 md:ml-auto">
+                      <p className="font-mono text-[13px] text-text-secondary leading-relaxed">
+                        <span className="text-accent-cyan">&gt; </span>clinical relevance: insulin regulation in
+                        lactation<span className="inline-block w-[2px] h-3 bg-accent-cyan/70 ml-1 animate-blink align-middle" />
+                      </p>
+                    </div>
+                  )}
+                </div>
+
+                <div className={`mt-6 h-px rounded-full bg-gradient-to-r from-accent-cyan/25 to-transparent ${full ? 'md:hidden' : ''}`} />
+              </div>
             );
           })}
-        </motion.div>
+        </div>
       </section>
 
       <section className="py-32 px-6 relative overflow-hidden">
@@ -285,14 +306,8 @@ export default function LandingPage() {
           }}
         />
 
-        <motion.div
-          variants={fadeUp}
-          initial="hidden"
-          whileInView="show"
-          viewport={{ once: true }}
-          className="relative z-10 text-center max-w-xl mx-auto"
-        >
-          <h2 className="font-display text-4xl font-bold tracking-tight mb-5">
+        <div className="relative z-10 text-center max-w-xl mx-auto">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-5">
             Ready to decode your sequences?
           </h2>
           <p className="text-text-secondary mb-10 leading-relaxed">
@@ -302,7 +317,7 @@ export default function LandingPage() {
             Open Bio Nexus
             <ArrowRight size={17} />
           </Link>
-        </motion.div>
+        </div>
       </section>
 
       <footer className="border-t border-glass-border py-8 px-8 flex flex-col sm:flex-row items-center justify-between gap-4">

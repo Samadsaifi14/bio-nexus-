@@ -27,7 +27,7 @@ function affinityColor(affinity: number | null): string {
 
 function VinaLog({ log }: { log: string }) {
   const [copied, setCopied] = useState(false);
-  const [open, setOpen] = useState(false);
+  const [open, setOpen] = useState(true);
 
   const copyToClipboard = () => {
     navigator.clipboard.writeText(log);
@@ -140,8 +140,8 @@ function VinaLog({ log }: { log: string }) {
             </div>
           )}
 
-          {/* Log body */}
-          <div className="max-h-80 overflow-y-auto">
+          {/* Log body — shown in full, no truncation */}
+          <div>
             <pre className="px-5 py-4 text-xs font-mono whitespace-pre-wrap leading-relaxed">
               {lines.map((line, i) => {
                 let className = 'text-text-muted';

@@ -2,8 +2,6 @@
 @tailwind components;
 @tailwind utilities;
 
-@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&family=Inter:wght@300;400;500;600&family=JetBrains+Mono:wght@400;500&display=swap');
-
 :root {
   --bg-void:      #04040A;
   --bg-surface-0: #080812;
@@ -23,9 +21,15 @@
   --accent-amber-10:  rgba(224, 169, 78, 0.10);
   --accent-amber-20:  rgba(224, 169, 78, 0.20);
 
+  /* Scientific confidence bands — never red (red is reserved for real errors) */
+  --confidence-very-high: #2DD4BF;
+  --confidence-high:      #60A5FA;
+  --confidence-moderate:  #FBBF24;
+  --confidence-low:       #94A3B8;
+
   --text-primary:   #F0F0FF;
-  --text-secondary: #8890AA;
-  --text-muted:     #4A4F6A;
+  --text-secondary: #A5AEC6;
+  --text-muted:     #848CA4;
 
   --glass-bg:           rgba(13, 13, 26, 0.55);
   --glass-bg-hover:     rgba(17, 17, 34, 0.70);
@@ -70,14 +74,14 @@
   body {
     background-color: var(--bg-void);
     color: var(--text-primary);
-    font-family: 'Inter', system-ui, sans-serif;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overflow-x: hidden;
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: -0.02em;
     color: var(--text-primary);
@@ -91,11 +95,11 @@
 
   input::placeholder, textarea::placeholder {
     color: var(--text-muted);
-    opacity: 0.7;
+    opacity: 0.85;
   }
 
   code, pre, kbd, samp {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
   }
 
   ::-webkit-scrollbar       { width: 4px; height: 4px; }
@@ -335,7 +339,7 @@
     border-radius: 0.625rem;
     background: linear-gradient(180deg, #00E0C0 0%, #00B8A0 100%);
     color: #04040A;
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
     letter-spacing: 0.01em;
@@ -409,7 +413,7 @@
     border-radius: 0.625rem;
     background: var(--accent-cyan);
     color: var(--bg-void);
-    font-family: 'Space Grotesk', sans-serif;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
     letter-spacing: 0.01em;
@@ -458,7 +462,7 @@
     border: 1px solid var(--glass-border);
     border-radius: 0.625rem;
     color: var(--text-primary);
-    font-family: 'Inter', sans-serif;
+    font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-size: 0.875rem;
     transition:
       border-color var(--transition-fast),
@@ -506,7 +510,7 @@
     padding: 0.2rem 0.6rem;
     border-radius: 9999px;
     font-size: 0.65rem;
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-geist-mono), ui-monospace, monospace;
     font-weight: 500;
     letter-spacing: 0.05em;
     text-transform: uppercase;

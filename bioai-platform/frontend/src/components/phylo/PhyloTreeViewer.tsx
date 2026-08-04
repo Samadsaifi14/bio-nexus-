@@ -359,7 +359,7 @@ function RectangularTree({
                 <text x={n.x + 8} y={n.y + 4} fontSize={11}
                   fill={bright ? '#2DD4BF' : '#94a3b8'}
                   opacity={dim ? 0.12 : 1}
-                  fontFamily="'JetBrains Mono', monospace"
+                  fontFamily="var(--font-geist-mono), monospace"
                   fontWeight={isSelected ? 'bold' : 'normal'}>
                   {n.name}
                 </text>
@@ -507,7 +507,7 @@ function CircularTree({
                   fontSize={10}
                   fill={bright ? '#2DD4BF' : '#94a3b8'}
                   opacity={dim ? 0.12 : 1}
-                  fontFamily="'JetBrains Mono', monospace"
+                  fontFamily="var(--font-geist-mono), monospace"
                   fontWeight={isSelected ? 'bold' : 'normal'}
                   textAnchor={flip ? 'end' : 'start'}
                   transform={`rotate(${-(deg - (flip ? 180 : 0))}, ${labelX}, ${labelY})`}

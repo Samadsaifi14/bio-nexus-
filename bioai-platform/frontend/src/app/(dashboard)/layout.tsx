@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
 import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, CaretRight as ChevronRight, SignOut as LogOut, Dna, List as Menu } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
-import { ThemeToggle } from '@/components/ThemeToggle';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 import { AuditInsightPanel } from '@/components/AuditInsightPanel';
@@ -285,7 +284,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
           </div>
 
-          <ThemeToggle />
+          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent-cyan/20 bg-accent-cyan/5">
+            <span className="relative flex w-1.5 h-1.5">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-cyan opacity-60" />
+              <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-accent-cyan" />
+            </span>
+            <span className="text-[11px] font-mono text-text-muted">systems live</span>
+          </div>
         </header>
 
         <main className="flex-1 overflow-y-auto relative">

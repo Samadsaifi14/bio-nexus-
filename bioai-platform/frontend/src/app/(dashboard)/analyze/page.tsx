@@ -62,7 +62,7 @@ function OperationCard({ op, router }: { op: Operation; router: ReturnType<typeo
       <button
         onClick={() => op.active && router.push(`/analyze/${op.id}`)}
         disabled={!op.active}
-        className="relative text-left p-5 rounded-2xl border border-glass-border bg-glass-card cursor-pointer hover:bg-surface-1 transition w-full disabled:opacity-50"
+        className="relative text-left p-5 rounded-2xl glass-card cursor-pointer hover:bg-surface-1 transition w-full disabled:opacity-50"
       >
         <div className="flex items-start gap-4">
           <div className="p-3 rounded-xl bg-accent-cyan/10">
@@ -91,7 +91,7 @@ export default function AnalyzePage() {
   return (
     <div>
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <div className="liquid-glass p-6 border border-accent-cyan/20 bg-accent-cyan/5">
+        <div className="glass-card p-6 border border-accent-cyan/20 bg-accent-cyan/5">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-lg font-semibold text-text-primary">New: Guided Analysis Wizard</h2>

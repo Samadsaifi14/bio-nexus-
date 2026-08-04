@@ -49,7 +49,7 @@ function TopicCard({ topic }: { topic: Topic }) {
     <motion.div variants={fadeUp} whileHover={cardHover}>
       <Link
         href={`/learn/${topic.id}`}
-        className="relative block p-5 rounded-2xl border border-glass-border bg-glass-card hover:bg-surface-1 transition h-full"
+        className="relative block p-5 rounded-2xl glass-card hover:bg-surface-1 transition h-full"
       >
         <div className="flex items-start gap-4">
           <div className="p-3 rounded-xl bg-accent-cyan/10 flex-shrink-0">
@@ -92,7 +92,7 @@ export default function LearnPage() {
           value={query}
           onChange={e => setQuery(e.target.value)}
           placeholder="Search topics..."
-          className="w-full pl-11 pr-4 py-3 rounded-2xl border border-glass-border bg-glass-card text-text-primary text-sm placeholder:text-text-muted/50 outline-none focus:border-accent-cyan/30 transition"
+          className="w-full pl-11 pr-4 py-3 rounded-2xl border border-glass-border bg-surface-1 text-text-primary text-sm placeholder:text-text-muted/50 outline-none focus:border-accent-cyan/30 transition"
         />
       </motion.div>
 

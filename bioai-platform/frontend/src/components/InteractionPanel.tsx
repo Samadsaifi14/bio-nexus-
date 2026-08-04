@@ -33,9 +33,9 @@ function HbondTable({ data, onHighlight }: { data: DockingInteraction['hbonds'];
                   <td className="px-3 py-1.5 font-mono">{item.distance.toFixed(2)}Å</td>
                   <td className="px-3 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                      item.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                      item.confidence === 'moderate' ? 'bg-accent-amber/20 text-amber-400' :
-                      'bg-yellow-500/20 text-yellow-400'
+                      item.confidence === 'high' ? 'bg-confidence-high/20 text-confidence-high' :
+                      item.confidence === 'moderate' ? 'bg-confidence-moderate/20 text-confidence-moderate' :
+                      'bg-confidence-low/20 text-confidence-low'
                     }`}>{item.confidence}</span>
                   </td>
                 </tr>
@@ -101,8 +101,8 @@ function PiStackTable({ data, onHighlight }: { data: DockingInteraction['pi_stac
                   <td className="px-3 py-1.5 font-mono">{item.angle.toFixed(1)}°</td>
                   <td className="px-3 py-1.5">
                     <span className={`px-1.5 py-0.5 rounded text-[10px] ${
-                      item.confidence === 'high' ? 'bg-green-500/20 text-green-400' :
-                      'bg-accent-amber/20 text-amber-400'
+                      item.confidence === 'high' ? 'bg-confidence-high/20 text-confidence-high' :
+                      'bg-confidence-moderate/20 text-confidence-moderate'
                     }`}>{item.confidence}</span>
                   </td>
                 </tr>

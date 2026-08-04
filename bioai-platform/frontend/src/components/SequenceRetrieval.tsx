@@ -85,7 +85,7 @@ export function SequenceRetrieval() {
     switch (type) {
       case 'protein': return 'text-[#60A5FA] bg-[#60A5FA]/10';
       case 'dna': return 'text-accent-purple bg-accent-purple/10';
-      case 'rna': return 'text-orange-600 bg-orange-50';
+      case 'rna': return 'text-orange-400 bg-orange-500/10';
       default: return 'text-text-muted bg-surface-0';
     }
   };
@@ -343,7 +343,7 @@ export function SequenceRetrieval() {
                       sessionStorage.setItem('primer_sequence', result.sequence);
                       router.push('/analyze/primers');
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white text-sm font-medium rounded-xl hover:bg-purple-700 transition"
+                    className="flex items-center gap-2 px-4 py-2 border border-accent-purple/40 text-accent-purple text-sm font-medium rounded-xl hover:bg-accent-purple/10 transition"
                   >
                     <Dna className="w-4 h-4" />
                     Design Primers
@@ -353,7 +353,7 @@ export function SequenceRetrieval() {
                       sessionStorage.setItem('cds_sequence', result.sequence);
                       router.push('/analyze/tools');
                     }}
-                    className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white text-sm font-medium rounded-xl hover:bg-amber-700 transition"
+                    className="flex items-center gap-2 px-4 py-2 border border-accent-amber/40 text-accent-amber text-sm font-medium rounded-xl hover:bg-accent-amber/10 transition"
                   >
                     <Dna className="w-4 h-4" />
                     Translate CDS

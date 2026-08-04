@@ -134,7 +134,7 @@ export default function JobPage() {
               <div className="relative w-16 h-16 mx-auto mb-6">
                 <div className="absolute inset-0 rounded-full bg-accent-cyan/20 animate-ping" />
                 <div className="relative w-16 h-16 rounded-full bg-accent-cyan flex items-center justify-center">
-                  <Dna className="w-8 h-8 text-white" />
+                  <Dna className="w-8 h-8 text-void" />
                 </div>
               </div>
               <p className="text-lg font-semibold text-text-primary mb-2">
@@ -155,7 +155,7 @@ export default function JobPage() {
                   <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 ${
                     isDone ? 'bg-accent-cyan' : isActiveStep ? 'bg-accent-cyan/20 border-2 border-accent-cyan' : 'bg-surface-1'
                   }`}>
-                    {isDone && <span className="text-white text-xs">✓</span>}
+                    {isDone && <span className="text-void text-xs">✓</span>}
                     {isActiveStep && <div className="w-2 h-2 rounded-full bg-accent-cyan animate-pulse" />}
                   </div>
                   <span className={`text-sm ${isActiveStep ? 'font-medium text-text-primary' : isDone ? 'text-text-secondary' : 'text-text-muted'}`}>

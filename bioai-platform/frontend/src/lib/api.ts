@@ -210,7 +210,8 @@ export async function runAlignment(sequence: string, stype: string = 'protein', 
 }
 
 export type PairwiseAlignOptions = {
-  hit_accession: string;
+  hit_accession?: string;
+  subject_sequence?: string;
   query_sequence?: string;
   query_accession?: string;
   mode?: 'global' | 'local';
@@ -219,7 +220,8 @@ export type PairwiseAlignOptions = {
 
 export async function runPairwiseAlignment(options: PairwiseAlignOptions): Promise<PairwiseAlignResult> {
   const res = await api.post('/api/alignment/pairwise', {
-    hit_accession: options.hit_accession,
+    hit_accession: options.hit_accession ?? '',
+    subject_sequence: options.subject_sequence ?? '',
     query_sequence: options.query_sequence ?? '',
     query_accession: options.query_accession ?? '',
     mode: options.mode ?? 'global',

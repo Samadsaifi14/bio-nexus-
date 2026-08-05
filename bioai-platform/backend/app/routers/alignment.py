@@ -23,7 +23,8 @@ class AlignRequest(BaseModel):
 
 
 class PairwiseAlignRequest(BaseModel):
-    hit_accession: str = Field(..., min_length=1, description="Subject accession to fetch and align against")
+    hit_accession: str = Field("", description="Subject accession to fetch and align against (optional when subject_sequence is given)")
+    subject_sequence: str = Field("", description="Full subject sequence (overrides hit_accession)")
     query_sequence: str = Field("", description="Full query sequence (overrides query_accession)")
     query_accession: str = Field("", description="Query accession; used when query_sequence is empty")
     mode: str = Field("global", description="global (Needleman-Wunsch, default) or local (Smith-Waterman)")
@@ -31,6 +32,13 @@ class PairwiseAlignRequest(BaseModel):
     open_gap_score: float = Field(-10, description="Gap-open penalty")
     extend_gap_score: float = Field(-1, description="Gap-extension penalty")
     source: str = Field("auto", description="auto|ncbi|uniprot — where to fetch sequences")
+
+
+def _strip_fasta_header(seq: str) -> str:
+    """Return the sequence body of a raw or FASTA-formatted sequence (no header letters)."""
+    lines = (seq or "").strip().splitlines()
+    lines = [ln for ln in lines if not ln.strip().startswith(">")]
+    return "\n".join(lines)
 
 
 class PairwiseAlignResponse(BaseModel):
@@ -60,7 +68,7 @@ async def run_pairwise(req: PairwiseAlignRequest):
     if req.matrix not in ("blosum62", "pam250"):
         raise HTTPException(status_code=400, detail="matrix must be 'blosum62' or 'pam250'")
 
-    query_seq = (req.query_sequence or "").strip()
+    query_seq = _strip_fasta_header(req.query_sequence or "")
     if not query_seq:
         if not req.query_accession:
             raise HTTPException(status_code=400, detail="Provide a query_sequence or query_accession")
@@ -69,17 +77,27 @@ async def run_pairwise(req: PairwiseAlignRequest):
             raise HTTPException(status_code=400, detail=f"Query fetch failed: {query['error']}")
         query_seq = query["sequence"]
 
-    hit = await fetch_sequence_by_accession(req.hit_accession, req.source)
-    if "error" in hit:
-        raise HTTPException(
-            status_code=400,
-            detail=f"Could not fetch subject sequence for {req.hit_accession}: {hit['error']}",
-        )
+    hit_seq = _strip_fasta_header(req.subject_sequence or "")
+    hit_source = ""
+    if not hit_seq:
+        if not req.hit_accession:
+            raise HTTPException(
+                status_code=400,
+                detail="Provide a subject_sequence or hit_accession",
+            )
+        hit = await fetch_sequence_by_accession(req.hit_accession, req.source)
+        if "error" in hit:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Could not fetch subject sequence for {req.hit_accession}: {hit['error']}",
+            )
+        hit_seq = hit["sequence"]
+        hit_source = hit.get("source", "")
 
     try:
         result = pairwise_align(
             seq_a=query_seq,
-            seq_b=hit["sequence"],
+            seq_b=hit_seq,
             mode=req.mode,
             matrix=req.matrix,
             open_gap_score=req.open_gap_score,
@@ -88,7 +106,7 @@ async def run_pairwise(req: PairwiseAlignRequest):
     except PairwiseAlignError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    result["hit_source"] = hit.get("source", "")
+    result["hit_source"] = hit_source
     return result
 
 

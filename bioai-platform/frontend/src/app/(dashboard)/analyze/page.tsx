@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain } from '@phosphor-icons/react';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { ReactNode } from 'react';
@@ -21,6 +21,7 @@ const groups: { title: string; items: Operation[] }[] = [
     title: 'Sequence Analysis',
     items: [
       { id: 'blast',     name: 'BLAST Search',             description: 'Find similar sequences across organisms.',                 icon: Search,    active: true },
+      { id: 'pairwise',  name: 'Pairwise Alignment',       description: 'Align two sequences directly — global (NW) or local (SW) with full-length match, mismatch and gap views.', icon: ArrowSwap, active: true },
       { id: 'uniprot',   name: 'UniProt Lookup',           description: 'Retrieve detailed annotations for a known protein.',       icon: Globe,     active: true },
       { id: 'alignment', name: 'Multiple Sequence Alignment', description: 'Align sequences to find conserved regions and relationships.', icon: Layout, active: true },
       { id: 'domains',   name: 'Domain Analysis',          description: 'Fetch domain/motif annotations from InterPro.',             icon: Layers,    active: true },

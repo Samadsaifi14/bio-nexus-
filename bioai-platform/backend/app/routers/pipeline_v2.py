@@ -25,6 +25,7 @@ from app.services.sequence_utils import detect_source_from_accession, map_refseq
 from app.services.blast_config import resolve_blast_params
 from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
 from app.tools.uniprot import UniprotTool
+from app.tools.pairwise_alignment import pairwise_align, VALID_MODES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -101,6 +102,7 @@ class PipelineV2RunRequest(BaseModel):
     program: str = Field("", description="BLAST program override")
     max_hits: int = Field(100, description="Max BLAST hits to return")
     query_accession: str = Field("", description="Optional query accession for display")
+    alignment_mode: str = Field("global", description="Alignment mode for the MSA step: 'global' (full-length) or 'local' (Smith-Waterman refinement of query vs top hit)")
 
 
 @router.post("/run")
@@ -108,6 +110,10 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)
+
+    alignment_mode = req.alignment_mode.lower()
+    if alignment_mode not in VALID_MODES:
+        raise HTTPException(status_code=400, detail=f"alignment_mode must be one of {list(VALID_MODES)}, got {alignment_mode!r}")
 
     seq = str(validation.sequences[0].seq).upper()
     clean = "".join(c for c in seq if c.isalpha())
@@ -137,6 +143,7 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
             "requested_steps": requested,
             "sequence": clean,
             "blast_params": blast_params,
+            "alignment_mode": alignment_mode,
             "error": None,
             "created_at": now,
         }
@@ -158,7 +165,7 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
     t = threading.Thread(
         target=_run_pipeline,
         args=(job_id, clean, requested),
-        kwargs={"fast_mode": req.fast_mode, "blast_params": blast_params},
+        kwargs={"fast_mode": req.fast_mode, "blast_params": blast_params, "alignment_mode": alignment_mode},
         daemon=True,
     )
     t.start()
@@ -244,12 +251,12 @@ async def run_pipeline(
 # Background pipeline
 # ---------------------------------------------------------------------------
 
-def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool = False, blast_params: dict | None = None):
+def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool = False, blast_params: dict | None = None, alignment_mode: str = "global"):
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         loop.run_until_complete(
-            _execute(job_id, sequence, steps, fast_mode=fast_mode, blast_params=blast_params)
+            _execute(job_id, sequence, steps, fast_mode=fast_mode, blast_params=blast_params, alignment_mode=alignment_mode)
         )
     except Exception as e:
         logger.exception(f"[{job_id}] Unhandled pipeline error")
@@ -259,7 +266,7 @@ def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool 
         asyncio.set_event_loop(None)
 
 
-async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None, fast_mode: bool = False, blast_params: dict | None = None):
+async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None, fast_mode: bool = False, blast_params: dict | None = None, alignment_mode: str = "global"):
     context: dict = {
         "sequence": sequence,
         "length": len(sequence),
@@ -333,7 +340,7 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
     async def _do_msa():
         if not hits:
             return {"error": "No BLAST hits for MSA"}
-        return await _run_msa(sequence, hits)
+        return await _run_msa(sequence, hits, alignment_mode)
 
     async def _do_pathway():
         return await _run_pathway_enrichment(context)
@@ -657,7 +664,7 @@ async def _run_uniprot(top_hit: dict) -> dict:
         return {"error": f"UniProt lookup failed: {e}"}
 
 
-async def _run_msa(query_sequence: str, blast_hits: list) -> dict:
+async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = "global") -> dict:
     sequences = [("query", query_sequence)]
 
     for hit in blast_hits[:5]:
@@ -707,11 +714,25 @@ async def _run_msa(query_sequence: str, blast_hits: list) -> dict:
             stype=stype,
             email=email,
         )
-        return {
+        payload = {
             "aln_fasta": result["aln_fasta"],
             "phylotree": result["phylotree"],
             "sequence_count": len(sequences),
+            "alignment_mode": alignment_mode,
         }
+
+        # Local mode: refine query vs the best non-query sequence with an
+        # in-process Smith-Waterman alignment so the wizard can show which
+        # region actually matches (EBI MSA itself is always global).
+        if alignment_mode == "local" and len(sequences) > 1:
+            subject_id, subject_seq = sequences[1]
+            try:
+                payload["pairwise"] = pairwise_align(query_sequence, subject_seq, mode="local")
+                payload["pairwise_subject"] = subject_id
+            except Exception as e:
+                logger.warning("Local pairwise refinement failed: %s", e)
+
+        return payload
 
     except Exception as e:
         return {"error": str(e), "aln_fasta": None, "phylotree": None}

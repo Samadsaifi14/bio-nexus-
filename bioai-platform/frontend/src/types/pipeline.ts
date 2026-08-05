@@ -201,7 +201,17 @@ export interface PairwiseAlignResult {
   hit_end: number;
   query_length: number;
   hit_length: number;
-  hit_source: string;
+  hit_source?: string;
+}
+
+export interface MsaStepResult {
+  aln_fasta?: string | null;
+  phylotree?: string | null;
+  sequence_count?: number;
+  alignment_mode?: 'global' | 'local';
+  pairwise?: PairwiseAlignResult | null;
+  pairwise_subject?: string | null;
+  error?: string | null;
 }
 
 export interface UniprotSummary {

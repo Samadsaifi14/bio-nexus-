@@ -29,10 +29,31 @@ def _retry_delay_seconds(error: BaseException) -> float | None:
     return None
 
 
+def _is_model_missing(error: BaseException) -> bool:
+    """True when the provider reports the model doesn't exist / isn't enabled —
+    retrying it is pointless, so move on to the next provider immediately."""
+    text = str(error).lower()
+    return any(
+        needle in text
+        for needle in (
+            "not found",
+            "not support",
+            "notfounderror",
+            "modelnotfound",
+            "models/",
+            "is not found",
+            "not accessible",
+            "does not exist",
+        )
+    )
+
+
 def _friendly_error(error: BaseException) -> str:
     text = str(error)
     if "organization_restricted" in text or "Organization has been restricted" in text:
         return "AI interpretation is temporarily unavailable due to a provider restriction. Please try again later."
+    if _is_model_missing(error):
+        return "AI interpretation unavailable: the configured AI model is not available on its provider. Check the PRO_MODEL / API key settings."
     if "QUOTA_EXCEEDED" in text or "429" in text or "rate limit" in text.lower() or "too many requests" in text.lower():
         delay = _retry_delay_seconds(error)
         if delay:
@@ -84,6 +105,8 @@ async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[
                     attempt + 1,
                     e,
                 )
+                if _is_model_missing(e):
+                    break
                 delay = _retry_delay_seconds(e) or (2 ** attempt)
                 if attempt < 2:
                     yield _retry_event(candidate["name"], attempt + 1, delay)
@@ -123,6 +146,8 @@ async def interpret_text(pipeline_type: str, context: dict) -> dict:
             except Exception as e:
                 last_error = e
                 logger.warning("LLM provider %s attempt %d failed: %s", candidate["name"], attempt + 1, e)
+                if _is_model_missing(e):
+                    break
                 delay = _retry_delay_seconds(e) or (2 ** attempt)
                 if attempt < 2:
                     await asyncio.sleep(delay)

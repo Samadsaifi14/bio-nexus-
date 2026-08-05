@@ -6,10 +6,10 @@ import toast from 'react-hot-toast';
 import { ClayToggle } from "@/components/ui/ClayToggle";
 import { CriticalButton } from "@/components/ui/CriticalButton";
 import { PipelineResults } from "@/components/results/PipelineResults";
-import { createShareLink } from "@/lib/api";
+import { createShareLink, getPipelineStatusV2 } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
 import { extractErrorMessage } from "@/lib/errors";
-import { shareResult } from "@/lib/share";
+import { shareResult, buildShareDetails } from "@/lib/share";
 
 type WizardStep = "input" | "running";
 
@@ -69,7 +69,14 @@ export function AnalysisWizard() {
     if (!jobId) return;
     try {
       const { url } = await createShareLink(jobId);
-      const mode = await shareResult(url);
+      let details;
+      try {
+        const status = await getPipelineStatusV2(jobId);
+        details = buildShareDetails(status?.context ?? null);
+      } catch {
+        // Details are optional — share still works without them.
+      }
+      const mode = await shareResult(url, details);
       toast.success(mode === 'shared' ? 'Shared successfully!' : 'Share message copied to clipboard!');
     } catch (e) {
       toast.error(extractErrorMessage(e, 'Failed to create share link'));

@@ -14,7 +14,7 @@ import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { getJob, createShareLink } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
-import { shareResult } from '@/lib/share';
+import { shareResult, buildShareDetails } from '@/lib/share';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { DomainArchitecture } from '@/components/domains/DomainArchitecture';
@@ -262,7 +262,7 @@ export default function JobPage() {
           onClick={async () => {
             try {
               const { url } = await createShareLink(jobId);
-              const mode = await shareResult(url);
+              const mode = await shareResult(url, buildShareDetails(context));
               toast.success(mode === 'shared' ? 'Shared successfully!' : 'Share message copied to clipboard!');
             } catch (err) {
               toast.error(extractErrorMessage(err, 'Failed to create share link'));

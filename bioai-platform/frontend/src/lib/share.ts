@@ -1,10 +1,58 @@
+import type { AssembledContext } from '@/types/pipeline';
+
+export interface ShareDetails {
+  queryLabel?: string;
+  topHit?: string;
+  hitCount?: number;
+  length?: number;
+  sequenceType?: string;
+}
+
 export function buildShareUrl(tokenOrUrl: string): string {
   if (tokenOrUrl.startsWith('http')) return tokenOrUrl;
   return `${window.location.origin}/shared/${tokenOrUrl}`;
 }
 
-export function buildShareMessage(shareLink: string): string {
-  return `Check out my bioinformatics analysis result on BioNexus:\n${shareLink}\n\nPowered by BioNexus — sequence analysis, docking, and beyond.`;
+/** Extracts a short human-readable summary from a results context. */
+export function buildShareDetails(context?: AssembledContext | null): ShareDetails | undefined {
+  if (!context) return undefined;
+  const details: ShareDetails = {};
+  const query = context.query;
+  const blast = context.blast;
+
+  if (blast) {
+    const top = blast.top_hit;
+    if (top?.accession) {
+      const pct = typeof top.identity_pct === 'number' ? `${Math.round(top.identity_pct)}% identity` : '';
+      const label = (top.description || '').split(',')[0]?.split('[')[0]?.trim() || '';
+      details.topHit = [top.accession, label, pct].filter(Boolean).join(' · ');
+    }
+    if (typeof blast.count === 'number') details.hitCount = blast.count;
+  }
+
+  if (query?.accession) {
+    details.queryLabel = query.accession;
+  } else if (query?.sequence) {
+    details.queryLabel = query.sequence.length > 32 ? `${query.sequence.slice(0, 32)}…` : query.sequence;
+  }
+
+  details.length = query?.length ?? context.length;
+  details.sequenceType = query?.sequence_type ?? (context.sequence ? undefined : 'protein');
+  return details;
+}
+
+export function buildShareMessage(shareLink: string, details?: ShareDetails): string {
+  const lines: string[] = ['My BioNexus analysis result is ready.'];
+  if (details?.topHit) lines.push(`Best match: ${details.topHit}`);
+  if (typeof details?.hitCount === 'number') {
+    lines.push(`${details.hitCount} similar sequence${details.hitCount === 1 ? '' : 's'} found.`);
+  }
+  if (details?.queryLabel) lines.push(`Query: ${details.queryLabel}`);
+  if (typeof details?.length === 'number') {
+    lines.push(`Length: ${details.length} ${details.sequenceType === 'dna' ? 'bp' : 'aa'}`);
+  }
+  lines.push('', shareLink, '', 'Powered by BioNexus — sequence analysis, docking, and AI interpretation.');
+  return lines.join('\n');
 }
 
 /**
@@ -12,9 +60,9 @@ export function buildShareMessage(shareLink: string): string {
  * otherwise copies a pre-filled share message to the clipboard.
  * Returns 'shared' when the native share dialog was used (not cancelled).
  */
-export async function shareResult(tokenOrUrl: string): Promise<'shared' | 'copied'> {
+export async function shareResult(tokenOrUrl: string, details?: ShareDetails): Promise<'shared' | 'copied'> {
   const shareLink = buildShareUrl(tokenOrUrl);
-  const message = buildShareMessage(shareLink);
+  const message = buildShareMessage(shareLink, details);
 
   if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
     try {

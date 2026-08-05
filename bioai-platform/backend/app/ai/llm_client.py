@@ -26,23 +26,23 @@ class LLMClient:
         return providers
 
     def get_all_candidates(self) -> list[dict]:
-        """Primary providers plus any configured backups, in preference order.
+        """Primary providers plus any explicitly-configured backups, in preference order.
 
         Used by the streaming interpreter so a rate-limited provider can fall
         back to another model without the user seeing a raw litellm error.
+
+        Only models actually configured in the environment are added — never
+        guessed names, and never the built-in PRO_MODEL default (an Anthropic
+        model) which would be routed through the Google API key.
         """
         candidates = self.get_providers()
         seen = {(c["model"], c["api_key"]) for c in candidates}
         backups = []
-        if self.fallback_key:
-            backup_models = []
-            if self.pro_model and self.pro_model != self.fallback_model:
-                backup_models.append(self.pro_model)
-            backup_models.append("gemini/gemini-1.5-flash")
-            for model in backup_models:
-                if (model, self.fallback_key) not in seen:
-                    backups.append({"model": model, "api_key": self.fallback_key, "name": "gemini-fallback"})
-                    seen.add((model, self.fallback_key))
+        pro = os.getenv("PRO_MODEL", "").strip()
+        if self.fallback_key and pro:
+            if (pro, self.fallback_key) not in seen:
+                backups.append({"model": pro, "api_key": self.fallback_key, "name": "gemini-fallback"})
+                seen.add((pro, self.fallback_key))
         return candidates + backups
 
     def build_prompt(self, pipeline_type: str, context: dict) -> str:

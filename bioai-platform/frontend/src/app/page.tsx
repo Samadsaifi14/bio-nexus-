@@ -4,7 +4,7 @@ import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
-import { ArrowRight, Database, FlowArrow, Brain, Dna, CaretDown as ChevronDown } from '@phosphor-icons/react';
+import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -52,6 +52,7 @@ export default function LandingPage() {
 
   const contentY      = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0.2]);
+  const helixY         = useTransform(scrollYProgress, [0, 1], ['0%', '22%']);
 
   return (
     <main className="relative bg-void text-text-primary overflow-x-hidden">
@@ -85,7 +86,14 @@ export default function LandingPage() {
         ref={heroRef}
         className="relative min-h-[100dvh] flex items-center overflow-hidden"
       >
-        <div className="absolute inset-0 z-0 pointer-events-none">
+        <motion.div
+          style={{ y: helixY }}
+          className="absolute inset-0 z-0 pointer-events-none"
+        >
+          <div className="absolute inset-0 opacity-50">
+            <DNAHelix className="w-full h-full" />
+          </div>
+
           <div
             className="absolute inset-0"
             style={{
@@ -93,13 +101,16 @@ export default function LandingPage() {
                 'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(45,212,191,0.06) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(139,147,214,0.05) 0%, transparent 70%)',
             }}
           />
-        </div>
+
+          <div className="absolute inset-0 bg-gradient-to-r from-void via-void/55 to-transparent" />
+          <div className="absolute inset-0 bg-gradient-to-b from-void/70 via-transparent to-void/70" />
+        </motion.div>
 
         <motion.div
           style={{ y: contentY, opacity: contentOpacity }}
-          className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24 grid lg:grid-cols-[1.1fr_0.9fr] gap-14 items-center"
+          className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24"
         >
-          <div>
+          <div className="max-w-3xl">
             <motion.h1
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
@@ -146,37 +157,6 @@ export default function LandingPage() {
               <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
               <span>8 services online · results streamed live</span>
             </motion.div>
-          </div>
-
-          <div className="relative">
-            <div className="relative rounded-2xl border border-glass-border bg-surface-0 overflow-hidden shadow-glass-md aspect-[4/5] max-h-[560px]">
-              <span className="absolute top-3 left-3 w-4 h-4 border-t border-l border-accent-cyan/40 z-20" />
-              <span className="absolute top-3 right-3 w-4 h-4 border-t border-r border-accent-cyan/40 z-20" />
-              <span className="absolute bottom-3 left-3 w-4 h-4 border-b border-l border-accent-cyan/40 z-20" />
-              <span className="absolute bottom-3 right-3 w-4 h-4 border-b border-r border-accent-cyan/40 z-20" />
-
-              <div className="absolute top-0 inset-x-0 z-10 h-11 border-b border-glass-border flex items-center justify-between px-4 bg-surface-1/80 backdrop-blur">
-                <span className="text-[10px] font-mono text-text-muted">P01162 · ALPHA-LACTALBUMIN</span>
-                <span className="flex items-center gap-1.5 text-[10px] font-mono text-accent-cyan">
-                  <span className="w-1 h-1 rounded-full bg-accent-cyan animate-pulse" />
-                  SIGNAL
-                </span>
-              </div>
-
-              <div className="absolute inset-0 z-0 pt-11 pb-10">
-                <DNAHelix className="w-full h-full" />
-              </div>
-
-              <div className="absolute inset-0 z-[5] overflow-hidden pointer-events-none">
-                <div className="h-[30%] w-full bg-gradient-to-b from-transparent via-accent-cyan/10 to-transparent animate-scan" />
-              </div>
-
-              <div className="absolute bottom-0 inset-x-0 z-10 border-t border-glass-border bg-surface-1/80 backdrop-blur px-4 py-2.5 flex items-center justify-between gap-2">
-                <span className="text-[10px] font-mono text-text-muted">E-value 1e-82</span>
-                <span className="text-[10px] font-mono text-accent-amber">42% identity</span>
-                <span className="text-[10px] font-mono text-accent-purple">AF · Q5XXK5</span>
-              </div>
-            </div>
           </div>
         </motion.div>
 

@@ -14,7 +14,7 @@ export function UniprotPanel({ data }: UniprotPanelProps) {
   const isUniprot = /^[OPQ][0-9][A-Z0-9]{3}[0-9]$|^A0A[A-Z0-9]{5,}[0-9]$/.test(data.accession);
   const isNcbi = /^([NXYP]P_|[NXYP]M_|XM_|XR_|NR_)/.test(data.accession);
   return (
-    <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-6">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-6">
       <div className="flex items-start justify-between mb-4">
         <div>
           <h3 className="font-medium text-text-primary">{data.full_name}</h3>

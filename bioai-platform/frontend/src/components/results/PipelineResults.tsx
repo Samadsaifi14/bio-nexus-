@@ -142,7 +142,7 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
       )}
 
       {data.status === "failed" && (
-        <div className="glass-card p-4 border border-error/30 bg-error/5">
+        <div className="data-card p-4 border border-error/30 bg-error/5">
           <div className="flex items-center gap-2 text-error">
             <XCircle className="w-5 h-5" />
             <span className="font-semibold text-sm">Pipeline Failed</span>

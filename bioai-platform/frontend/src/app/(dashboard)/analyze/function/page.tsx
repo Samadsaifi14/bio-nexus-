@@ -110,8 +110,8 @@ export default function FunctionPage() {
       </motion.div>
 
       {error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-red-500/30">
-          <p className="text-red-400 text-sm">{error}</p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-error/30">
+          <p className="text-error text-sm">{error}</p>
         </motion.div>
       )}
 
@@ -169,7 +169,7 @@ export default function FunctionPage() {
                             style={{ width: `${go.confidence * 100}%` }} />
                         </div>
                         <span className="text-xs font-mono text-text-muted">{(go.confidence * 100).toFixed(1)}%</span>
-                        <span className={`text-xs ${go.confidence > 0.8 ? "text-green-400" : go.confidence > 0.6 ? "text-amber-400" : "text-text-muted"}`}>
+                        <span className={`text-xs ${go.confidence > 0.8 ? "text-good" : go.confidence > 0.6 ? "text-warn" : "text-text-muted"}`}>
                           {go.confidence > 0.8 ? "High" : go.confidence > 0.6 ? "Medium" : "Low"} confidence
                         </span>
                       </div>
@@ -208,7 +208,7 @@ export default function FunctionPage() {
           {result.saliency.length > 0 && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
-                <Dna className="w-4 h-4 text-green-400" /> Residue Importance (Saliency Map)
+                <Dna className="w-4 h-4 text-good" /> Residue Importance (Saliency Map)
               </h3>
               <p className="text-xs text-text-muted mb-3">Per-residue contribution to function prediction. Higher = more important. Charged/polar residues on the surface typically dominate.</p>
               <div className="bg-surface-1 rounded-lg p-3 overflow-x-auto">

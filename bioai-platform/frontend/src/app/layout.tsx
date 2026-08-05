@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import Script from 'next/script';
+import { MotionConfig } from 'framer-motion';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
@@ -23,7 +24,9 @@ export default function RootLayout({
       </head>
       <body className="font-sans antialiased">
         <Providers>
-          {children}
+          <MotionConfig reducedMotion="user">
+            {children}
+          </MotionConfig>
         </Providers>
         <Toaster position="bottom-right" />
         <Script src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar-component.js" strategy="lazyOnload" />

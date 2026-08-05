@@ -15,7 +15,7 @@ function HbondTable({ data, onHighlight }: { data: DockingInteraction['hbonds'];
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Hydrogen Bonds" icon={<Beaker className="w-4 h-4 text-blue-400" />} count={data.length} color="bg-[#60A5FA]/20 text-blue-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Hydrogen Bonds" icon={<Beaker className="w-4 h-4 text-interaction-hbond" />} count={data.length} color="bg-interaction-hbond/20 text-interaction-hbond" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -52,7 +52,7 @@ function HydrophobicTable({ data, onHighlight }: { data: DockingInteraction['hyd
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Hydrophobic Contacts" icon={<Waves className="w-4 h-4 text-amber-400" />} count={data.length} color="bg-accent-amber/20 text-amber-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Hydrophobic Contacts" icon={<Waves className="w-4 h-4 text-interaction-hydrophobic" />} count={data.length} color="bg-interaction-hydrophobic/20 text-interaction-hydrophobic" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -82,7 +82,7 @@ function PiStackTable({ data, onHighlight }: { data: DockingInteraction['pi_stac
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Pi-Stacking" icon={<Hexagon className="w-4 h-4 text-purple-400" />} count={data.length} color="bg-accent-purple/20 text-purple-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Pi-Stacking" icon={<Hexagon className="w-4 h-4 text-interaction-pi" />} count={data.length} color="bg-interaction-pi/20 text-interaction-pi" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -119,7 +119,7 @@ function SaltBridgeTable({ data, onHighlight }: { data: DockingInteraction['salt
   const [collapsed, setCollapsed] = useState(false);
   if (!data.length) return null;
   return (
-    <Section title="Salt Bridges" icon={<Zap className="w-4 h-4 text-cyan-400" />} count={data.length} color="bg-cyan-500/20 text-cyan-400" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
+    <Section title="Salt Bridges" icon={<Zap className="w-4 h-4 text-interaction-salt" />} count={data.length} color="bg-interaction-salt/20 text-interaction-salt" collapsed={collapsed} onToggle={() => setCollapsed(!collapsed)}>
       {!collapsed && (
         <div className="overflow-x-auto">
           <table className="w-full text-xs">
@@ -180,7 +180,7 @@ export function InteractionPanel({ interactions, onHighlight }: InteractionPanel
   if (!total) return null;
 
   return (
-    <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
+    <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
       <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
         <Hexagon className="w-4 h-4 text-accent-cyan" />
         Interaction Fingerprint

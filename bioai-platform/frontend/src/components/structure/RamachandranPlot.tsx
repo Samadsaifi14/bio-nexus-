@@ -48,8 +48,8 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
       <div className="flex items-center justify-between">
         <h3 className="text-text-primary font-semibold">Ramachandran Plot</h3>
         <span className={`text-xs px-2 py-0.5 rounded-full ${
-          +outlierPct < 2 ? "text-emerald-400 bg-emerald-400/10"
-            : +outlierPct < 5 ? "text-amber-400 bg-amber-400/10"
+          +outlierPct < 2 ? "text-good bg-good/10"
+            : +outlierPct < 5 ? "text-warn bg-warn/10"
             : "text-error bg-error/10"
         }`}>
           {outlierPct}% outliers
@@ -88,7 +88,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
           </svg>
 
           {hovered && (
-            <div className="absolute top-2 right-2 bg-[#04040A]/90 border border-glass-border rounded-lg p-2 text-xs text-text-secondary pointer-events-none">
+            <div className="absolute top-2 right-2 bg-[#06060B]/90 border border-glass-border rounded-lg p-2 text-xs text-text-secondary pointer-events-none">
               <p className="text-accent-cyan font-bold">{hovered.residue}{hovered.resnum}</p>
               <p>&phi; {hovered.phi.toFixed(1)}&deg; &middot; &psi; {hovered.psi.toFixed(1)}&deg;</p>
               <p className="capitalize">{hovered.region.replace("_", " ")}</p>

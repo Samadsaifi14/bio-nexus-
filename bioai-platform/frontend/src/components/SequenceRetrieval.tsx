@@ -83,9 +83,9 @@ export function SequenceRetrieval() {
 
   const seqTypeColor = (type?: string) => {
     switch (type) {
-      case 'protein': return 'text-[#60A5FA] bg-[#60A5FA]/10';
-      case 'dna': return 'text-accent-purple bg-accent-purple/10';
-      case 'rna': return 'text-orange-400 bg-orange-500/10';
+      case 'protein': return 'text-molecule-protein bg-molecule-protein/10';
+      case 'dna': return 'text-molecule-dna bg-molecule-dna/10';
+      case 'rna': return 'text-molecule-rna bg-molecule-rna/10';
       default: return 'text-text-muted bg-surface-0';
     }
   };
@@ -291,7 +291,7 @@ export function SequenceRetrieval() {
                     href={`https://www.rcsb.org/structure/${pdb}`}
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="px-2 py-1 bg-[#60A5FA]/10 text-[#60A5FA] rounded-lg text-xs font-mono hover:bg-[#60A5FA]/10"
+                    className="px-2 py-1 bg-info/10 text-info rounded-lg text-xs font-mono hover:bg-info/10"
                   >
                     {pdb}
                   </a>

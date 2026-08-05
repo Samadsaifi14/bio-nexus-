@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { CircleNotch as LoaderCircle, TestTube as FlaskConical, CheckCircle, XCircle, Warning as AlertTriangle, Hexagon, FileText, Copy, Check, CaretDown as ChevronDown, CaretRight as ChevronRight } from '@phosphor-icons/react';
+import { CircleNotch as LoaderCircle, TestTube as FlaskConical, CheckCircle, XCircle, Warning as AlertTriangle, Hexagon, FileText, Copy, Check, DownloadSimple, CaretDown as ChevronDown, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
@@ -20,9 +20,9 @@ const SMILES_EXAMPLES = [
 
 function affinityColor(affinity: number | null): string {
   if (affinity === null) return 'text-text-muted';
-  if (affinity <= -8) return 'text-green-400';
-  if (affinity <= -5) return 'text-amber-400';
-  return 'text-red-400';
+  if (affinity <= -8) return 'text-good';
+  if (affinity <= -5) return 'text-warn';
+  return 'text-text-muted';
 }
 
 function VinaLog({ log }: { log: string }) {
@@ -33,6 +33,18 @@ function VinaLog({ log }: { log: string }) {
     navigator.clipboard.writeText(log);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  };
+
+  const downloadLog = () => {
+    const blob = new Blob([log], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'vina_log.txt';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
   };
 
   const lines = log.split('\n');
@@ -74,11 +86,19 @@ function VinaLog({ log }: { log: string }) {
         <div className="flex items-center gap-2">
           <button
             type="button"
+            onClick={(e) => { e.stopPropagation(); downloadLog(); }}
+            className="p-2 rounded-lg hover:bg-white/5 transition-colors text-text-muted hover:text-text-primary"
+            title="Download log"
+          >
+            <DownloadSimple className="w-4 h-4" />
+          </button>
+          <button
+            type="button"
             onClick={(e) => { e.stopPropagation(); copyToClipboard(); }}
             className="p-2 rounded-lg hover:bg-white/5 transition-colors text-text-muted hover:text-text-primary"
             title="Copy log"
           >
-            {copied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
+            {copied ? <Check className="w-4 h-4 text-good" /> : <Copy className="w-4 h-4" />}
           </button>
           <div className="text-text-muted">
             {open ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
@@ -140,8 +160,8 @@ function VinaLog({ log }: { log: string }) {
             </div>
           )}
 
-          {/* Log body — shown in full, no truncation */}
-          <div>
+          {/* Log body — scrollable, full log rendered on mount */}
+          <div className="max-h-[420px] overflow-y-auto">
             <pre className="px-5 py-4 text-xs font-mono whitespace-pre-wrap leading-relaxed">
               {lines.map((line, i) => {
                 let className = 'text-text-muted';
@@ -149,7 +169,7 @@ function VinaLog({ log }: { log: string }) {
                 else if (line.includes('affinity') || line.includes('kcal/mol')) className = 'text-accent-cyan';
                 else if (line.includes('RMSD') || line.includes('rmsd')) className = 'text-accent-amber';
                 else if (line.includes('mode') || line.includes('MODE')) className = 'text-accent-purple';
-                else if (line.includes('WARNING') || line.includes('error')) className = 'text-red-400';
+                else if (line.includes('WARNING') || line.includes('error')) className = 'text-error';
                 else if (line.includes('-----') || line.includes('===') || line.includes('+++')) className = 'text-text-secondary';
                 else if (line.trim().length === 0) return <br key={i} />;
                 return <div key={i} className={className}>{line}</div>;
@@ -238,8 +258,8 @@ export default function DockingPage() {
 
   const statusIcon = () => {
     if (!result) return null;
-    if (result.status === 'complete' || result.status === 'completed') return <CheckCircle className="w-5 h-5 text-green-400" />;
-    if (result.status === 'failed') return <XCircle className="w-5 h-5 text-red-400" />;
+    if (result.status === 'complete' || result.status === 'completed') return <CheckCircle className="w-5 h-5 text-good" />;
+    if (result.status === 'failed') return <XCircle className="w-5 h-5 text-error" />;
     return <LoaderCircle className="w-5 h-5 text-accent-cyan animate-spin" />;
   };
 
@@ -330,10 +350,10 @@ export default function DockingPage() {
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-red-400/20">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-400">{error}</p>
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-error/30">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-error">{error}</p>
           </div>
         </motion.div>
       )}
@@ -346,7 +366,7 @@ export default function DockingPage() {
               subtitle={bestPose?.affinity != null ? `Best pose: ${bestPose.affinity.toFixed(2)} kcal/mol · ${result.result?.num_poses ?? ''} poses` : `${result.result?.num_poses ?? ''} poses generated`}
             />
           )}
-          <div className="glass-card p-5">
+          <div className="data-card p-5">
             <div className="flex items-center justify-between mb-3">
               <div className="flex items-center gap-2">
                 {statusIcon()}
@@ -356,8 +376,8 @@ export default function DockingPage() {
             </div>
 
             {result.status === 'failed' && result.error && (
-              <div className="p-3 rounded-lg bg-red-400/5 border border-red-400/20 mt-3">
-                <pre className="text-xs text-red-400 whitespace-pre-wrap font-mono">{result.error}</pre>
+              <div className="p-3 rounded-lg bg-error/5 border border-error/20 mt-3">
+                <pre className="text-xs text-error whitespace-pre-wrap font-mono">{result.error}</pre>
               </div>
             )}
           </div>

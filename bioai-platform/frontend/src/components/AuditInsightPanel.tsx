@@ -8,7 +8,7 @@ import type { AuditInsight } from '@/types/audit';
 const SEVERITY_CONFIG = {
   info:     { border: 'border-accent-cyan/40',  bg: 'bg-accent-cyan/5',  icon: Info,          glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(45,212,191,0.08)' },
   warning:  { border: 'border-yellow-500/40',   bg: 'bg-yellow-500/5',  icon: AlertTriangle,  glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(234,179,8,0.08)' },
-  critical: { border: 'border-red-500/40',      bg: 'bg-error-dim/5',     icon: AlertCircle,    glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(239,68,68,0.08)' },
+  critical: { border: 'border-error/40',      bg: 'bg-error-dim/5',     icon: AlertCircle,    glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(239,68,68,0.08)' },
 } as const;
 
 export function AuditInsightPanel({ sessionId }: { sessionId: string }) {

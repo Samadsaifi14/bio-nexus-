@@ -12,7 +12,7 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        void: '#04040A',
+        void: '#06060B',
         surface: {
           0: '#080812',
           1: '#0D0D1A',
@@ -23,9 +23,33 @@ const config: Config = {
         'accent-hover': '#3BDCC7',
         'accent-purple': '#8B93D6',
         'accent-amber': '#E0A94E',
-        'text-primary': '#F0F0FF',
+        'text-primary': '#DDE0EE',
         'text-secondary': '#A5AEC6',
         'text-muted': '#848CA4',
+        /* ── Semantic roles ───────────────────────────────────────────────
+           good        favorable scientific outcomes (strong hits, passing QC)
+           warn        data-unfavorable but NOT errors (weak hits, low confidence)
+           info        neutral scientific information (accessions, chain features)
+           error       real errors only (red is reserved for genuine failures)
+           molecule / interaction  domain-specific data channel colours     */
+        good: '#34D399',
+        warn: '#FBBF24',
+        info: '#60A5FA',
+        error: {
+          DEFAULT: '#EF4444',
+          dim:     'rgba(239,68,68,0.15)',
+        },
+        molecule: {
+          protein: '#60A5FA',
+          dna:     '#8B93D6',
+          rna:     '#FB923C',
+        },
+        interaction: {
+          hbond:       '#60A5FA',
+          hydrophobic: '#FBBF24',
+          pi:          '#A78BFA',
+          salt:        '#22D3EE',
+        },
         glass: 'rgba(100,110,180,0.07)',
         'glass-hover': 'rgba(100,110,180,0.13)',
         'glass-border': 'rgba(100,110,180,0.12)',
@@ -36,10 +60,6 @@ const config: Config = {
           moderate:    '#FBBF24',
           low:         '#94A3B8',
         },
-        error: {
-          DEFAULT: '#EF4444',
-          dim:     'rgba(239,68,68,0.15)',
-        },
       },
       fontFamily: {
         display: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
@@ -48,9 +68,9 @@ const config: Config = {
         sans:    ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        'glow-cyan':   '0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(45,212,191,0.10)',
-        'glow-purple': '0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(139,147,214,0.10)',
-        'glow-amber':  '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(224,169,78,0.10)',
+        'glow-cyan':   '0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(45,212,191,0.07)',
+        'glow-purple': '0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(139,147,214,0.07)',
+        'glow-amber':  '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(224,169,78,0.07)',
         'glass-sm':  '0 2px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
         'glass-md':  '0 4px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)',
         'glass-lg':  '0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)',
@@ -64,11 +84,11 @@ const config: Config = {
         'grid-subtle':
           'linear-gradient(rgba(100,110,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(100,110,255,0.05) 1px, transparent 1px)',
         'radial-vignette':
-          'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, rgba(4,4,10,0.65) 70%, rgba(4,4,10,0.97) 100%)',
+          'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, rgba(6,6,11,0.65) 70%, rgba(6,6,11,0.97) 100%)',
         'gradient-cyan-purple':
           'linear-gradient(135deg, #2DD4BF 0%, #8B93D6 100%)',
         'gradient-surface':
-          'linear-gradient(180deg, #080812 0%, #04040A 100%)',
+          'linear-gradient(180deg, #080812 0%, #06060B 100%)',
       },
       backgroundSize: {
         grid: '50px 50px',

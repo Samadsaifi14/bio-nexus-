@@ -3,7 +3,7 @@
 @tailwind utilities;
 
 :root {
-  --bg-void:      #04040A;
+  --bg-void:      #06060B;
   --bg-surface-0: #080812;
   --bg-surface-1: #0D0D1A;
   --bg-surface-2: #111122;
@@ -27,7 +27,26 @@
   --confidence-moderate:  #FBBF24;
   --confidence-low:       #94A3B8;
 
-  --text-primary:   #F0F0FF;
+  /* ── Semantic roles ───────────────────────────────────────────────
+     good   favorable scientific outcomes   warn  data-unfavorable (not errors)
+     info   neutral scientific information   error  genuine failures only       */
+  --good:      #34D399;
+  --good-dim:  rgba(52, 211, 153, 0.15);
+  --warn:      #FBBF24;
+  --warn-dim:  rgba(251, 191, 36, 0.15);
+  --info:      #60A5FA;
+  --info-dim:  rgba(96, 165, 250, 0.15);
+
+  /* Domain-specific data channels */
+  --molecule-protein:   #60A5FA;
+  --molecule-dna:       #8B93D6;
+  --molecule-rna:       #FB923C;
+  --interaction-hbond:       #60A5FA;
+  --interaction-hydrophobic: #FBBF24;
+  --interaction-pi:          #A78BFA;
+  --interaction-salt:        #22D3EE;
+
+  --text-primary:   #DDE0EE;
   --text-secondary: #A5AEC6;
   --text-muted:     #848CA4;
 
@@ -59,9 +78,18 @@
   --hud-bg:     rgba(13, 13, 26, 0.90);
   --hud-border: rgba(100, 110, 180, 0.20);
 
-  --transition-fast:    150ms cubic-bezier(0.25, 0.1, 0.25, 1);
-  --transition-default: 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
-  --transition-slow:    400ms cubic-bezier(0.25, 1, 0.5, 1);
+  /* ── Motion tiers ──────────────────────────────────────────────────
+     micro = hover/press feedback   standard = layout & reveal
+     deliberate = dramatic entrances (hero, transitions)             */
+  --motion-micro:     120ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-fast:      150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-standard:  250ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-deliberate: 450ms cubic-bezier(0.25, 1, 0.5, 1);
+
+  --transition-micro:   var(--motion-micro);
+  --transition-fast:    var(--motion-fast);
+  --transition-default: var(--motion-standard);
+  --transition-slow:    var(--motion-deliberate);
 }
 
 @layer base {
@@ -338,7 +366,7 @@
     padding: 0.7rem 1.5rem;
     border-radius: 0.625rem;
     background: linear-gradient(180deg, #00E0C0 0%, #00B8A0 100%);
-    color: #04040A;
+    color: #06060B;
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
@@ -431,7 +459,7 @@
   }
 
   .btn-primary:active {
-    transform: translateY(0);
+    transform: translateY(0) scale(0.98);
   }
 
   .btn-ghost {
@@ -446,13 +474,19 @@
     transition:
       border-color var(--transition-fast),
       color var(--transition-fast),
-      background var(--transition-fast);
+      background var(--transition-fast),
+      transform var(--transition-micro);
   }
 
   .btn-ghost:hover {
     border-color: var(--accent-cyan-30);
     color: var(--accent-cyan);
     background: var(--accent-cyan-10);
+    transform: translateY(-1px);
+  }
+
+  .btn-ghost:active {
+    transform: translateY(0) scale(0.98);
   }
 
   .input-glass {
@@ -551,8 +585,8 @@
     background: radial-gradient(
       ellipse 80% 80% at 50% 50%,
       transparent 20%,
-      rgba(4, 4, 10, 0.6) 65%,
-      rgba(4, 4, 10, 0.97) 100%
+      rgba(6, 6, 11, 0.6) 65%,
+      rgba(6, 6, 11, 0.97) 100%
     );
   }
 

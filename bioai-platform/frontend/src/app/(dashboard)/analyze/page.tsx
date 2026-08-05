@@ -73,7 +73,7 @@ function OperationCard({ op, router }: { op: Operation; router: ReturnType<typeo
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-text-primary">{op.name}</h3>
               {op.badge && (
-                <span className="text-[10px] font-medium text-amber-400 bg-amber-400/10 px-2 py-0.5 rounded-full whitespace-nowrap">
+                <span className="text-[10px] font-medium text-warn bg-warn/10 px-2 py-0.5 rounded-full whitespace-nowrap">
                   {op.badge}
                 </span>
               )}

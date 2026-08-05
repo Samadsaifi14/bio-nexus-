@@ -17,8 +17,8 @@ interface ResultsReadyBannerProps {
 
 export function ResultsReadyBanner({ title = 'Results ready', subtitle, className = '' }: ResultsReadyBannerProps) {
   return (
-    <div className={`rounded-xl bg-green-500/10 border border-green-500/25 px-4 py-3 flex items-center gap-3 ${className}`}>
-      <CheckCircle2 className="w-5 h-5 text-green-500 shrink-0" />
+    <div className={`rounded-xl bg-good/10 border border-good/25 px-4 py-3 flex items-center gap-3 ${className}`}>
+      <CheckCircle2 className="w-5 h-5 text-good shrink-0" />
       <div className="min-w-0">
         <p className="text-sm font-semibold text-text-primary">{title}</p>
         {subtitle && <p className="text-xs text-text-muted mt-0.5 truncate">{subtitle}</p>}

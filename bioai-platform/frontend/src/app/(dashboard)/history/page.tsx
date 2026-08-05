@@ -8,13 +8,7 @@ import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
 import { CircleNotch as LoaderCircle, FileText, Dna } from '@phosphor-icons/react';
 import { PageHeader } from '@/components/ui';
-
-const STATUS_STYLES: Record<string, string> = {
-  complete: 'badge bg-accent-cyan/10 text-accent-cyan',
-  running:  'badge bg-accent-purple/10 text-accent-purple',
-  queued:   'badge bg-accent-amber/10 text-accent-amber',
-  failed:   'badge bg-error/10 text-error',
-};
+import { STATUS_BADGE } from '@/lib/status-colors';
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -87,7 +81,7 @@ export default function HistoryPage() {
                   {(job.pipeline_type ?? 'protein_analysis').replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3">
-                  <span className={STATUS_STYLES[job.status] ?? 'badge bg-surface-2 text-text-muted text-[10px]'}>
+                  <span className={STATUS_BADGE[job.status] ?? 'badge bg-surface-2 text-text-muted text-[10px]'}>
                     {job.status}
                   </span>
                 </td>

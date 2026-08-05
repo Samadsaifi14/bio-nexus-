@@ -69,7 +69,7 @@ export function PrimerDesigner() {
         <span className="text-text-muted">{seq.slice(0, pair.left_pos)}</span>
         <span className="bg-accent-cyan/20 text-accent-cyan font-bold">{seq.slice(pair.left_pos, lEnd)}</span>
         <span className="text-text-muted">{seq.slice(lEnd, rStart)}</span>
-        <span className="bg-purple-500/20 text-purple-300 font-bold">{seq.slice(rStart, pair.right_pos + 1)}</span>
+        <span className="bg-accent-purple/20 text-accent-purple font-bold">{seq.slice(rStart, pair.right_pos + 1)}</span>
         <span className="text-text-muted">{seq.slice(pair.right_pos + 1)}</span>
       </>
     );
@@ -179,7 +179,7 @@ export function PrimerDesigner() {
                   </div>
                   <div className="flex gap-4 mt-2 text-xs">
                     <span className="flex items-center gap-1"><span className="w-3 h-2 bg-accent-cyan/30 rounded inline-block" />Forward</span>
-                    <span className="flex items-center gap-1"><span className="w-3 h-2 bg-purple-500/30 rounded inline-block" />Reverse</span>
+                    <span className="flex items-center gap-1"><span className="w-3 h-2 bg-accent-purple/30 rounded inline-block" />Reverse</span>
                   </div>
                 </div>
               </div>

@@ -173,8 +173,8 @@ export default function MDPage() {
       </motion.div>
 
       {error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-red-500/30">
-          <p className="text-red-400 text-sm">{error}</p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-error/30">
+          <p className="text-error text-sm">{error}</p>
         </motion.div>
       )}
 
@@ -497,8 +497,8 @@ export default function MDPage() {
               <h3 className="text-sm font-semibold text-text-primary mb-3">Secondary Structure Composition</h3>
               <div className="flex gap-3 mb-3">
                 {[
-                  { label: "alpha-helix", count: result.secondary_structure.helix, color: "bg-blue-400", textColor: "text-blue-400" },
-                  { label: "beta-sheet", count: result.secondary_structure.sheet, color: "bg-yellow-400", textColor: "text-yellow-400" },
+                  { label: "alpha-helix", count: result.secondary_structure.helix, color: "bg-molecule-protein", textColor: "text-molecule-protein" },
+                  { label: "beta-sheet", count: result.secondary_structure.sheet, color: "bg-warn", textColor: "text-warn" },
                   { label: "coil", count: result.secondary_structure.coil, color: "bg-surface-3", textColor: "text-text-muted" },
                 ].map((ss) => {
                   const total = result.secondary_structure!.helix + result.secondary_structure!.sheet + result.secondary_structure!.coil;
@@ -605,7 +605,7 @@ export default function MDPage() {
 
           {result.note && (
             <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg px-4 py-3">
-              <p className="text-xs text-amber-400">{result.note}</p>
+              <p className="text-xs text-warn">{result.note}</p>
             </div>
           )}
 

@@ -106,7 +106,7 @@ function ProgressTracker({ job }: { job: PhyloJobStatus }) {
             || (i === 1 && (job.phase === 'msa_done' || job.phase === 'tree_running'))
             || (i === 2 && job.phase === 'complete')
           const cls = job.phase === 'error'
-            ? 'border-red-500/40 bg-red-500/10 text-red-400'
+            ? 'border-error/40 bg-error/10 text-error'
             : done
               ? 'border-accent-cyan bg-accent-cyan/10 text-accent-cyan'
               : active
@@ -122,7 +122,7 @@ function ProgressTracker({ job }: { job: PhyloJobStatus }) {
       </div>
 
       {job.aln_fasta && job.phase !== 'complete' && (
-        <p className="text-emerald-400 text-xs">
+        <p className="text-good text-xs">
           ✓ Alignment ready — {job.aln_fasta.split('\n').filter(l => l.startsWith('>')).length} sequences aligned
         </p>
       )}
@@ -288,7 +288,7 @@ export default function PhyloPage() {
             {seqCount > 0 && (
               <p className="text-text-secondary text-xs mt-1">
                 {seqCount} sequence{seqCount !== 1 ? 's' : ''} detected
-                {seqCount < 2 && <span className="text-amber-400 ml-2">— need at least 2</span>}
+                {seqCount < 2 && <span className="text-warn ml-2">— need at least 2</span>}
               </p>
             )}
             <input ref={fileRef} type="file" accept=".fasta,.fa,.faa,.fna,.txt"
@@ -350,7 +350,7 @@ export default function PhyloPage() {
           )}
 
           {submitError && (
-            <p className="text-red-400 text-sm bg-red-500/10 border border-red-500/30 rounded-lg px-3 py-2">
+            <p className="text-error text-sm bg-error/10 border border-error/30 rounded-lg px-3 py-2">
               {submitError}
             </p>
           )}
@@ -380,7 +380,7 @@ export default function PhyloPage() {
 
       {job?.phase === 'error' && (
         <div className="glass-card p-6 space-y-4">
-          <p className="text-red-400 font-medium">Pipeline error</p>
+          <p className="text-error font-medium">Pipeline error</p>
           <p className="text-text-secondary text-sm">{job.error}</p>
           <CriticalButton onClick={handleReset} className="text-sm px-4 py-2">← Try again</CriticalButton>
         </div>

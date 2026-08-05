@@ -80,7 +80,7 @@ export function DockingViewer({
   ligandPdb,
   interactions,
   height = 480,
-  backgroundColor = '#0d1117',
+  backgroundColor = '#0B0C14',
   chains = [],
   ligands = [],
 }: DockingViewerProps) {
@@ -360,7 +360,7 @@ export function DockingViewer({
   }, [spinning, status]);
 
   return (
-    <div className="relative z-20 w-full overflow-hidden rounded-xl border border-glass-border bg-[#0d1117]">
+    <div className="relative z-20 w-full overflow-hidden rounded-xl border border-glass-border bg-[#0B0C14]">
       {/* HUD toolbar — spatial chrome for the viewer */}
       <HudPanel className="flex flex-wrap items-center gap-2 border-b border-glass-border px-3 py-2">
         <span className="mr-2 font-mono text-xs text-text-muted">{pdbId}</span>
@@ -499,7 +499,7 @@ export function DockingViewer({
       )}
 
       {(chains.length > 0 || ligands.length > 0) && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-glass-border bg-[#0d1117]/60 px-3 py-2 text-[10px] text-text-muted">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-glass-border bg-[#0B0C14]/60 px-3 py-2 text-[10px] text-text-muted">
           {chains.length > 0 && <span>{chains.length} protein chain{chains.length === 1 ? '' : 's'}</span>}
           {ligands.length > 0 && <span>Deposited ligands: {ligands.map(ligand => `${ligand.id}:${ligand.chain}`).join(', ')}</span>}
           {ligandPdb && <span className="text-accent-cyan">Docked ligand loaded</span>}
@@ -514,7 +514,7 @@ export function DockingViewer({
         </div>
       )}
       {status === 'error' && (
-        <div className="flex items-center justify-center py-4 px-6 text-center text-sm text-red-400">
+        <div className="flex items-center justify-center py-4 px-6 text-center text-sm text-error">
           {error}
         </div>
       )}

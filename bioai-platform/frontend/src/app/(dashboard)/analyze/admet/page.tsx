@@ -29,8 +29,8 @@ type TabKey = typeof TABS[number]["key"];
 
 function PassFail({ pass }: { pass: boolean }) {
   return pass
-    ? <span className="inline-flex items-center gap-1 text-xs text-green-400"><Check className="w-3 h-3" />Pass</span>
-    : <span className="inline-flex items-center gap-1 text-xs text-amber-400"><AlertTriangle className="w-3 h-3" />Fail</span>;
+    ? <span className="inline-flex items-center gap-1 text-xs text-good"><Check className="w-3 h-3" />Pass</span>
+    : <span className="inline-flex items-center gap-1 text-xs text-warn"><AlertTriangle className="w-3 h-3" />Fail</span>;
 }
 
 function RiskBadge({ level }: { level: string }) {
@@ -38,7 +38,7 @@ function RiskBadge({ level }: { level: string }) {
   const high = ["High", "Likely", "Toxic", "Unfavorable"].some(s => level.includes(s));
   return (
     <span className={`text-xs font-medium px-2 py-0.5 rounded ${
-      low ? "bg-green-500/15 text-green-400" : high ? "bg-red-500/15 text-red-400" : "bg-amber-500/15 text-amber-400"
+      low ? "bg-good/15 text-good" : high ? "bg-molecule-rna/15 text-molecule-rna" : "bg-warn/15 text-warn"
     }`}>{level}</span>
   );
 }
@@ -128,8 +128,8 @@ export default function ADMETPage() {
       </motion.div>
 
       {error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-red-500/30">
-          <p className="text-red-400 text-sm">{error}</p>
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-error/30">
+          <p className="text-error text-sm">{error}</p>
         </motion.div>
       )}
 
@@ -161,7 +161,7 @@ export default function ADMETPage() {
                 <svg viewBox="0 0 36 36" className="w-14 h-14 -rotate-90">
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" className="text-surface-3" strokeWidth="3" />
                   <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor"
-                    className={result.drug_likeness.overall_score > 60 ? "text-green-400" : result.drug_likeness.overall_score > 40 ? "text-amber-400" : "text-red-400"}
+                    className={result.drug_likeness.overall_score > 60 ? "text-good" : result.drug_likeness.overall_score > 40 ? "text-warn" : "text-molecule-rna"}
                     strokeWidth="3" strokeDasharray={`${result.drug_likeness.overall_score} 100`} />
                 </svg>
                 <span className="absolute inset-0 flex items-center justify-center text-xs font-bold text-text-primary">
@@ -176,7 +176,7 @@ export default function ADMETPage() {
             <p className="text-xs text-text-muted">
               <span className="text-accent-cyan font-semibold">3a</span> Core descriptors & drug-likeness — RDKit, production-ready.
               <span className="mx-2 text-surface-3">|</span>
-              <span className="text-amber-400 font-semibold">3b</span> ADMET & toxicity — rule-based heuristics, research screening only (no ML classifiers).
+              <span className="text-warn font-semibold">3b</span> ADMET & toxicity — rule-based heuristics, research screening only (no ML classifiers).
             </p>
           </div>
 
@@ -233,7 +233,7 @@ export default function ADMETPage() {
                       { label: "hERG Risk", value: result.toxicity.herg_liability, rule: true },
                     ].map((p) => (
                       <div key={p.label} className="bg-surface-1 rounded-lg p-3 text-center">
-                        <div className="text-xs text-text-muted mb-1">{p.label}{(p as any).rule && <span className="text-amber-400/50 ml-1 text-[10px]">(rule)</span>}</div>
+                        <div className="text-xs text-text-muted mb-1">{p.label}{(p as any).rule && <span className="text-warn/50 ml-1 text-[10px]">(rule)</span>}</div>
                         <RiskBadge level={p.value} />
                       </div>
                     ))}
@@ -257,7 +257,7 @@ export default function ADMETPage() {
                         {filter.data.violations.length > 0 && (
                           <ul className="mt-1 space-y-0.5">
                             {filter.data.violations.map((v, i) => (
-                              <li key={i} className="text-xs text-amber-400/80">{v}</li>
+                              <li key={i} className="text-xs text-warn/80">{v}</li>
                             ))}
                           </ul>
                         )}
@@ -324,7 +324,7 @@ export default function ADMETPage() {
                       <svg viewBox="0 0 36 36" className="w-20 h-20 -rotate-90">
                         <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor" className="text-surface-3" strokeWidth="3" />
                         <circle cx="18" cy="18" r="15.9" fill="none" stroke="currentColor"
-                          className={result.qed_score > 0.5 ? "text-green-400" : result.qed_score > 0.3 ? "text-amber-400" : "text-red-400"}
+                          className={result.qed_score > 0.5 ? "text-good" : result.qed_score > 0.3 ? "text-warn" : "text-molecule-rna"}
                           strokeWidth="3" strokeDasharray={`${result.qed_score * 100} 100`} />
                       </svg>
                       <span className="absolute inset-0 flex items-center justify-center text-lg font-bold text-text-primary">{result.qed_score.toFixed(3)}</span>
@@ -359,7 +359,7 @@ export default function ADMETPage() {
                         {filter.data.violations.length > 0 && (
                           <ul className="space-y-0.5">
                             {filter.data.violations.map((v, i) => (
-                              <li key={i} className="text-xs text-amber-400/80 flex items-start gap-1">
+                              <li key={i} className="text-xs text-warn/80 flex items-start gap-1">
                                 <X className="w-3 h-3 mt-0.5 shrink-0" /> {v}
                               </li>
                             ))}
@@ -445,7 +445,7 @@ export default function ADMETPage() {
 
                 {/* Toxicity — 3b: Rule-based heuristics */}
                 <SectionCard title="Toxicity (Rule-based Estimation)">
-                  <p className="text-xs text-amber-400/70 mb-3 -mt-1">Simplified heuristics — no ML classifiers. For research screening only.</p>
+                  <p className="text-xs text-warn/70 mb-3 -mt-1">Simplified heuristics — no ML classifiers. For research screening only.</p>
                   <div className="space-y-0">
                     <PropRow label="AMES Mutagenicity" value="" />
                     <div className="flex items-center gap-2 py-1.5 border-b border-surface-3">
@@ -506,14 +506,14 @@ export default function ADMETPage() {
                     <div className="bg-surface-1 rounded-lg p-3">
                       <ul className="space-y-1">
                         {result.structural_alerts.pains.alerts.map((a, i) => (
-                          <li key={i} className="text-xs text-amber-400 flex items-center gap-1">
+                          <li key={i} className="text-xs text-warn flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" /> {a}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ) : (
-                    <p className="text-xs text-green-400">No PAINS patterns detected</p>
+                    <p className="text-xs text-good">No PAINS patterns detected</p>
                   )}
                 </SectionCard>
 
@@ -526,14 +526,14 @@ export default function ADMETPage() {
                     <div className="bg-surface-1 rounded-lg p-3">
                       <ul className="space-y-1">
                         {result.structural_alerts.brenk.alerts.map((a, i) => (
-                          <li key={i} className="text-xs text-amber-400 flex items-center gap-1">
+                          <li key={i} className="text-xs text-warn flex items-center gap-1">
                             <AlertTriangle className="w-3 h-3" /> {a}
                           </li>
                         ))}
                       </ul>
                     </div>
                   ) : (
-                    <p className="text-xs text-green-400">No Brenk alerts detected</p>
+                    <p className="text-xs text-good">No Brenk alerts detected</p>
                   )}
                 </SectionCard>
 
@@ -541,12 +541,12 @@ export default function ADMETPage() {
                   <div className="bg-surface-1 rounded-lg p-3">
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-sm font-medium text-text-primary">Total Structural Alerts</span>
-                      <span className={`text-lg font-bold ${result.structural_alerts.total_alert_count === 0 ? "text-green-400" : result.structural_alerts.total_alert_count <= 2 ? "text-amber-400" : "text-red-400"}`}>
+                      <span className={`text-lg font-bold ${result.structural_alerts.total_alert_count === 0 ? "text-good" : result.structural_alerts.total_alert_count <= 2 ? "text-warn" : "text-molecule-rna"}`}>
                         {result.structural_alerts.total_alert_count}
                       </span>
                     </div>
                     <div className="w-full h-2 bg-surface-3 rounded-full">
-                      <div className={`h-full rounded-full transition-all ${result.structural_alerts.total_alert_count === 0 ? "bg-green-400" : result.structural_alerts.total_alert_count <= 2 ? "bg-amber-400" : "bg-red-400"}`}
+                      <div className={`h-full rounded-full transition-all ${result.structural_alerts.total_alert_count === 0 ? "bg-good" : result.structural_alerts.total_alert_count <= 2 ? "bg-warn" : "bg-molecule-rna"}`}
                         style={{ width: `${Math.min(result.structural_alerts.total_alert_count * 15, 100)}%` }} />
                     </div>
                     <p className="text-xs text-text-muted mt-2">
@@ -562,14 +562,14 @@ export default function ADMETPage() {
                     <div className="flex items-center justify-between">
                       <div>
                         <p className="text-sm font-medium text-text-primary">Overall ADMET Risk</p>
-                        <p className="text-xs text-text-muted mt-0.5">Composite of AMES, hERG, DILI, skin sensitization <span className="text-amber-400/60">(rule-based)</span></p>
+                        <p className="text-xs text-text-muted mt-0.5">Composite of AMES, hERG, DILI, skin sensitization <span className="text-warn/60">(rule-based)</span></p>
                       </div>
-                      <div className={`text-2xl font-bold ${result.toxicity.risk_score <= 2 ? "text-green-400" : result.toxicity.risk_score <= 5 ? "text-amber-400" : "text-red-400"}`}>
+                      <div className={`text-2xl font-bold ${result.toxicity.risk_score <= 2 ? "text-good" : result.toxicity.risk_score <= 5 ? "text-warn" : "text-molecule-rna"}`}>
                         {result.toxicity.risk_score}<span className="text-sm text-text-muted">/10</span>
                       </div>
                     </div>
                     <div className="w-full h-3 bg-surface-3 rounded-full mt-3">
-                      <div className={`h-full rounded-full transition-all ${result.toxicity.risk_score <= 2 ? "bg-green-400" : result.toxicity.risk_score <= 5 ? "bg-amber-400" : "bg-red-400"}`}
+                      <div className={`h-full rounded-full transition-all ${result.toxicity.risk_score <= 2 ? "bg-good" : result.toxicity.risk_score <= 5 ? "bg-warn" : "bg-molecule-rna"}`}
                         style={{ width: `${result.toxicity.risk_score * 10}%` }} />
                     </div>
                   </div>

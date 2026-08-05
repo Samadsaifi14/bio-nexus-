@@ -26,7 +26,7 @@ export function exportSvgPng(svgEl: SVGSVGElement | null, filename: string) {
   img.onload = () => {
     canvas.width = img.width;
     canvas.height = img.height;
-    ctx.fillStyle = "#04040A";
+    ctx.fillStyle = "#06060B";
     ctx.fillRect(0, 0, canvas.width, canvas.height);
     ctx.drawImage(img, 0, 0);
     const a = document.createElement("a");

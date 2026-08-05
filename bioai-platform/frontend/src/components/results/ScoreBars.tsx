@@ -3,26 +3,10 @@
 import { motion } from 'framer-motion';
 import type { BlastHitSummary } from '@/types/pipeline';
 import { fadeUp, cardHover } from '@/lib/animations';
+import { confidenceColor, formatEvalue } from '@/lib/confidence';
 
 interface ScoreBarsProps {
   hits: BlastHitSummary[] | undefined | null;
-}
-
-function confidenceColor(evalue: number): string {
-  if (evalue < 1e-50) return '#2DD4BF';
-  if (evalue < 1e-10) return '#8B93D6';
-  if (evalue < 1e-3) return '#E0A94E';
-  return '#4A5568';
-}
-
-function formatEvalue(evalue: number, evalue_raw?: string): string {
-  if (evalue === 0) {
-    const raw = evalue_raw?.trim();
-    if (raw && raw !== '0') return raw;
-    return '≈ 0';
-  }
-  if (evalue < 0.0001) return evalue.toExponential(2);
-  return evalue.toFixed(4);
 }
 
 export function ScoreBars({ hits }: ScoreBarsProps) {

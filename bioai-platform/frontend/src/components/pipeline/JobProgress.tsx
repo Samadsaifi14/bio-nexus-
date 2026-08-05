@@ -39,7 +39,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
       </div>
       <div className="w-full bg-surface-0 rounded-full h-1.5 mb-5">
         <div
-          className={`h-1.5 rounded-full transition-all duration-500 ${isFailed ? 'bg-error' : 'bg-accent'}`}
+          className={`h-1.5 rounded-full transition-all duration-500 ${isFailed ? 'bg-error' : 'bg-accent-cyan'}`}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -54,7 +54,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
               ) : isFailed ? (
                 <XCircle className="w-5 h-5 text-error shrink-0" />
               ) : active ? (
-                <div className="w-5 h-5 rounded-full bg-accent animate-pulse shrink-0" />
+                <div className="w-5 h-5 rounded-full bg-accent-cyan animate-pulse shrink-0" />
               ) : (
                 <div className="w-5 h-5 rounded-full border-2 border-glass-border shrink-0" />
               )}
@@ -66,7 +66,7 @@ export function JobProgress({ stepsCompleted, status }: JobProgressProps) {
         })}
       </div>
       {isComplete && (
-        <p className="text-xs text-accent mt-3 font-medium">All steps complete</p>
+        <p className="text-xs text-accent-cyan mt-3 font-medium">All steps complete</p>
       )}
       {isFailed && (
         <p className="text-xs text-error mt-3 font-medium">Pipeline failed</p>

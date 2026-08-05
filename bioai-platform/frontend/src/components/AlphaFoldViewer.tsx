@@ -92,7 +92,7 @@ export function AlphaFoldViewer({
   pdbUrl,
   uniprotId,
   height = 420,
-  backgroundColor = '#0d1117',
+  backgroundColor = '#0B0C14',
 }: AlphaFoldViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<MoleViewer | null>(null);
@@ -202,7 +202,7 @@ export function AlphaFoldViewer({
   }, [status]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-glass-border bg-[#0d1117]">
+    <div className="relative w-full overflow-hidden rounded-xl border border-glass-border bg-[#0B0C14]">
       {/* HUD toolbar — floats in the viewer's space, near-opaque */}
       <HudPanel className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <span className="font-mono text-xs text-text-muted">
@@ -236,13 +236,13 @@ export function AlphaFoldViewer({
         <div ref={containerRef} className="absolute inset-0" />
 
         {status === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/80 text-sm text-text-secondary">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0C14]/80 text-sm text-text-secondary">
             Loading structure...
           </div>
         )}
 
         {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0d1117]/90 px-6 text-center text-sm text-error">
+          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0C14]/90 px-6 text-center text-sm text-error">
             {error}
           </div>
         )}

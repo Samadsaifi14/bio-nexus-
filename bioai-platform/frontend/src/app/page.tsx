@@ -114,7 +114,7 @@ export default function LandingPage() {
             <motion.h1
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, ease: [0.25, 1, 0.5, 1] }}
+              transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
               className="font-display font-bold leading-[0.95] tracking-tight"
               style={{ fontSize: 'clamp(2.75rem, 5.5vw, 6rem)' }}
             >
@@ -126,7 +126,7 @@ export default function LandingPage() {
             <motion.p
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.15, ease: [0.25, 1, 0.5, 1] }}
+              transition={{ duration: 0.35, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
               className="text-text-secondary text-lg max-w-[480px] mt-8 leading-relaxed"
             >
               BioNexus unifies NCBI, UniProt, PDB, and KEGG into a single plain-language
@@ -136,7 +136,7 @@ export default function LandingPage() {
             <motion.div
               initial={{ opacity: 0, y: 24 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6, delay: 0.3, ease: [0.25, 1, 0.5, 1] }}
+              transition={{ duration: 0.35, delay: 0.2, ease: [0.25, 1, 0.5, 1] }}
               className="flex flex-col sm:flex-row items-start gap-4 mt-10"
             >
               <Link href="/dashboard" className="btn-primary">
@@ -151,7 +151,7 @@ export default function LandingPage() {
             <motion.div
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              transition={{ duration: 0.8, delay: 0.5 }}
+              transition={{ duration: 0.5, delay: 0.3 }}
               className="flex items-center gap-2 mt-10 text-[11px] font-mono text-text-muted"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />

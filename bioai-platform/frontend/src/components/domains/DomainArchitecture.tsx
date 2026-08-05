@@ -7,14 +7,14 @@ const DB_COLORS: Record<string, string> = {
   PFAM:    "#2DD4BF",
   PANTHER: "#7C3AED",
   PRINTS:  "#E0A94E",
-  PROSITE: "#EF4444",
+  PROSITE: "#FBBF24",
   SMART:   "#3B82F6",
   CDD:     "#10B981",
 };
 
 const SITE_COLORS: Record<string, string> = {
-  "Active site":          "#FF6B6B",
-  "Catalytic residue":    "#FF4444",
+  "Active site":          "#FBBF24",
+  "Catalytic residue":    "#FB923C",
   "Binding site":         "#FFB84D",
   "Metal ion-binding site": "#FFD700",
 };
@@ -208,7 +208,7 @@ export function DomainArchitecture({ accession }: { accession: string }) {
       {activeTab === "structure" && data && <StructureInfoView data={data} />}
 
       {tooltip && (
-        <div className="fixed z-50 bg-[#04040A] border border-glass-border rounded-xl p-3 text-xs text-text-primary shadow-2xl pointer-events-none max-w-xs"
+        <div className="fixed z-50 bg-[#06060B] border border-glass-border rounded-xl p-3 text-xs text-text-primary shadow-2xl pointer-events-none max-w-xs"
           style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
           <p className="font-bold text-accent-cyan">{tooltip.text}</p>
           <p className="text-text-muted">{tooltip.sub}</p>
@@ -497,11 +497,11 @@ function MotifsTrack({ motifs, seqLen, svgRef, setTooltip }: {
 function TopologyView({ topology, seqLen }: { topology: TopologyItem[]; seqLen: number }) {
   if (!topology.length) return <p className="text-sm text-text-muted">No topological features annotated.</p>;
   const TYPE_STYLE: Record<string, string> = {
-    "Signal peptide": "bg-emerald-500/15 text-emerald-400 border-emerald-500/30",
-    "Transmembrane region": "bg-[#60A5FA]/15 text-blue-400 border-blue-500/30",
-    "Chain": "bg-accent-purple/15 text-purple-400 border-purple-500/30",
-    "Propeptide": "bg-accent-amber/15 text-amber-400 border-amber-500/30",
-    "Peptide": "bg-cyan-500/15 text-cyan-400 border-cyan-500/30",
+    "Signal peptide": "bg-good/15 text-good border-good/30",
+    "Transmembrane region": "bg-info/15 text-info border-info/30",
+    "Chain": "bg-accent-purple/15 text-accent-purple border-accent-purple/30",
+    "Propeptide": "bg-accent-amber/15 text-accent-amber border-accent-amber/30",
+    "Peptide": "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30",
   };
   return (
     <div className="space-y-3">
@@ -552,7 +552,7 @@ function VariantsTable({ variants }: { variants: VariantItem[] }) {
             <tr key={i} className="border-t border-glass-border hover:bg-surface-1">
               <td className="px-3 py-2">
                 <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium border ${
-                  v.type === "Mutagenesis" ? "bg-error-dim/15 text-red-400 border-red-500/30" : "bg-[#60A5FA]/15 text-blue-400 border-blue-500/30"
+                  v.type === "Mutagenesis" ? "bg-warn/15 text-warn border-warn/30" : "bg-info/15 text-info border-info/30"
                 }`}>{v.type}</span>
               </td>
               <td className="px-3 py-2 text-text-muted">{v.begin}</td>
@@ -568,9 +568,9 @@ function VariantsTable({ variants }: { variants: VariantItem[] }) {
 function GOTermsView({ terms }: { terms: GOTerm[] }) {
   if (!terms.length) return <p className="text-sm text-text-muted">No Gene Ontology terms.</p>;
   const cats = [
-    { id: "molecular_function", label: "Molecular Function", color: "text-blue-400" },
-    { id: "biological_process", label: "Biological Process", color: "text-green-400" },
-    { id: "cellular_component", label: "Cellular Component", color: "text-purple-400" },
+    { id: "molecular_function", label: "Molecular Function", color: "text-info" },
+    { id: "biological_process", label: "Biological Process", color: "text-good" },
+    { id: "cellular_component", label: "Cellular Component", color: "text-accent-purple" },
   ];
   return (
     <div className="space-y-4">
@@ -629,7 +629,7 @@ function StructureInfoView({ data }: { data: FullAnalysis }) {
           <h4 className="text-xs font-semibold text-text-primary mb-2">Disulfide Bonds ({data.disulfide_bonds.length})</h4>
           <div className="flex flex-wrap gap-1.5">
             {data.disulfide_bonds.map((b, i) => (
-              <span key={i} className="px-2 py-1 text-[10px] rounded-lg bg-accent-amber/10 border border-amber-500/30 text-amber-400">
+              <span key={i} className="px-2 py-1 text-[10px] rounded-lg bg-accent-amber/10 border border-accent-amber/30 text-accent-amber">
                 Cys{b.begin}\u2013Cys{b.end}
               </span>
             ))}

@@ -150,10 +150,10 @@ export default function DomainsPage() {
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-6">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
           {[
-            { icon: <Dna className="w-3.5 h-3.5" />, label: "Domain Architecture", color: "text-cyan-400" },
-            { icon: <span className="text-xs">⚡</span>, label: "Functional Sites", color: "text-amber-400" },
-            { icon: <span className="text-xs">🔧</span>, label: "PTMs &amp; Modifications", color: "text-purple-400" },
-            { icon: <span className="text-xs">🏷️</span>, label: "GO Terms &amp; Pathways", color: "text-green-400" },
+            { icon: <Dna className="w-3.5 h-3.5" />, label: "Domain Architecture", color: "text-accent-cyan" },
+            { icon: <span className="text-xs">⚡</span>, label: "Functional Sites", color: "text-warn" },
+            { icon: <span className="text-xs">🔧</span>, label: "PTMs &amp; Modifications", color: "text-accent-purple" },
+            { icon: <span className="text-xs">🏷️</span>, label: "GO Terms &amp; Pathways", color: "text-good" },
           ].map(item => (
             <div key={item.label} className="flex items-center gap-2 px-3 py-2 rounded-xl border border-glass-border bg-surface-1">
               <span className={item.color}>{item.icon}</span>

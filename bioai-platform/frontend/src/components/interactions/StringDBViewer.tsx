@@ -37,7 +37,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
     { key: "escore" as const, label: "Experimental", color: "#2DD4BF" },
     { key: "dscore" as const, label: "Database", color: "#7C3AED" },
     { key: "ascore" as const, label: "Co-expression", color: "#E0A94E" },
-    { key: "tscore" as const, label: "Text mining", color: "#EF4444" },
+    { key: "tscore" as const, label: "Text mining", color: "#FBBF24" },
   ];
 
   const stringDbUrl = `https://string-db.org/api/image/network?identifiers=${geneName}&species=${species}`;
@@ -51,7 +51,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       canvas.width = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = "#04040A";
+      ctx.fillStyle = "#06060B";
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       const a = document.createElement("a");
@@ -111,7 +111,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
         </div>
       </div>
 
-      <div className="glass-card p-2 flex items-center justify-center bg-[#04040A] min-h-[300px]">
+      <div className="data-card p-2 flex items-center justify-center bg-[#06060B] min-h-[300px]">
         {!imgError ? (
           <img
             src={stringDbUrl}

@@ -21,7 +21,7 @@ export default function StructureViewer({ pdbId, height = 'h-96' }: Props) {
     el.setAttribute('molecule-id', pdbId.toLowerCase());
     el.setAttribute('hide-controls', '');
     el.setAttribute('loading-overlay', '');
-    el.setAttribute('background-color', '#04040A');
+    el.setAttribute('background-color', '#06060B');
     el.id = viewerId;
     container.appendChild(el);
 

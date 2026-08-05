@@ -633,7 +633,7 @@ function exportPNG(svgEl: SVGSVGElement, filename: string) {
   const data = 'data:image/svg+xml;base64,' +
     btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(svgEl))))
   img.onload = () => {
-    ctx.fillStyle = '#04040A'
+    ctx.fillStyle = '#06060B'
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.scale(scale, scale)
     ctx.drawImage(img, 0, 0)
@@ -795,7 +795,7 @@ export default function PhyloTreeViewer({
 
   if (treeData.error) {
     return (
-      <div className="glass-card p-6 text-red-400">
+      <div className="glass-card p-6 text-error">
         <p className="font-medium mb-1">Failed to parse Newick string</p>
         <pre className="text-xs opacity-70 overflow-auto">{treeData.error}</pre>
         <pre className="text-xs opacity-40 mt-2 overflow-auto">{newick.slice(0, 200)}</pre>
@@ -885,7 +885,7 @@ export default function PhyloTreeViewer({
             ? `0 0 ${SVG_W} ${treeData.height}`
             : `0 0 ${CIRC_SIZE} ${CIRC_SIZE}`}
           width="100%"
-          style={{ maxHeight: '70vh', background: '#04040A', cursor: isDragging ? 'grabbing' : 'grab' }}
+          style={{ maxHeight: '70vh', background: '#06060B', cursor: isDragging ? 'grabbing' : 'grab' }}
           xmlns="http://www.w3.org/2000/svg"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -893,7 +893,7 @@ export default function PhyloTreeViewer({
           onMouseLeave={handleMouseUp}
           onClick={handleSvgClick}
         >
-          <rect width="100%" height="100%" fill="#04040A" />
+          <rect width="100%" height="100%" fill="#06060B" />
 
           <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
             {layout === 'rectangular' ? (
@@ -943,7 +943,7 @@ export default function PhyloTreeViewer({
             <span className="text-xs opacity-60">{showAlignment ? '▲ hide' : '▼ show'}</span>
           </button>
           {showAlignment && (
-            <pre className="overflow-auto p-4 text-[11px] font-mono text-emerald-400
+            <pre className="overflow-auto p-4 text-[11px] font-mono text-molecule-dna
               bg-surface-1 max-h-60 leading-relaxed">
               {alignment}
             </pre>

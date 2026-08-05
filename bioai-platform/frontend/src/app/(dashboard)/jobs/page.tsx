@@ -9,15 +9,11 @@ import { getJobs } from '@/lib/api';
 import type { JobStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
 import { PageHeader } from '@/components/ui';
+import { STATUS_TEXT } from '@/lib/status-colors';
 
 const STATUS_ICONS: Record<string, typeof Clock> = {
   queued: Clock, submitted_to_ncbi: Clock, polling_ncbi: Clock,
   parsing: Clock, interpreting: Clock, complete: CheckCircle, failed: XCircle,
-};
-const STATUS_COLORS: Record<string, string> = {
-  queued: 'text-text-muted', submitted_to_ncbi: 'text-accent-cyan',
-  polling_ncbi: 'text-accent-cyan', parsing: 'text-accent-cyan',
-  interpreting: 'text-accent-cyan', complete: 'text-accent-cyan', failed: 'text-error',
 };
 
 const ACTIVE_STATUSES = ['queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting'];
@@ -134,7 +130,7 @@ export default function JobsPage() {
         <motion.div variants={stagger} animate="show" className="space-y-2">
           {filtered.map(job => {
             const Icon       = STATUS_ICONS[job.status] || Clock;
-            const color      = STATUS_COLORS[job.status] || 'text-text-muted';
+            const color      = STATUS_TEXT[job.status] || 'text-text-muted';
             const label      = job.current_step_label || STEP_LABELS[job.status as keyof typeof STEP_LABELS] || job.status;
             const isComplete = job.status === 'complete';
             const isFailed   = job.status === 'failed';

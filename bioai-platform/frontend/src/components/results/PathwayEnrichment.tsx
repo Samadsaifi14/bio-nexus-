@@ -18,7 +18,7 @@ export function PathwayEnrichment({ data }: Props) {
   if (!data || !data.pathways || data.pathways.length === 0) return null;
 
   return (
-    <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-5">
+    <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
       <div className="flex items-center justify-between mb-4">
         <div className="flex items-center gap-2">
           <GitBranch className="w-5 h-5 text-accent-cyan" />
@@ -52,7 +52,7 @@ export function PathwayEnrichment({ data }: Props) {
                 <p className="text-sm font-medium text-text-primary truncate">{pw.name}</p>
                 <p className="text-xs text-text-muted mt-0.5">
                   <span className="text-accent-cyan">{pw.entitiesFound}/{pw.entitiesTotal}</span> genes · FDR{' '}
-                  <span className={pw.entitiesFDR < 0.05 ? 'text-emerald-400' : 'text-text-muted'}>
+                  <span className={pw.entitiesFDR < 0.05 ? 'text-good' : 'text-text-muted'}>
                     {pw.entitiesFDR.toExponential(2)}
                   </span>
                   {' · '}{pw.species}
@@ -91,7 +91,7 @@ export function PathwayEnrichment({ data }: Props) {
       </div>
       {data.pathways.length > 0 && data.pathways[0].entitiesFDR >= 0.05 && (
         <div className="flex items-start gap-2 mt-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
-          <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+          <AlertCircle className="w-4 h-4 text-warn mt-0.5 shrink-0" />
           <p className="text-xs text-amber-300">No pathways passed the 0.05 FDR significance threshold. Results shown for reference.</p>
         </div>
       )}

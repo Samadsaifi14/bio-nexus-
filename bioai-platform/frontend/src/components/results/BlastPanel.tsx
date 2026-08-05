@@ -8,6 +8,7 @@ import { AlignmentView } from './AlignmentView';
 import { PairwiseAlignView } from './PairwiseAlignView';
 import { downloadTsv } from '@/lib/export-utils';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
+import { confidenceBand, formatEvalue, coverageColor } from '@/lib/confidence';
 
 interface BlastPanelProps {
   hits: BlastHitSummary[] | undefined | null;
@@ -17,35 +18,12 @@ interface BlastPanelProps {
   querySequence?: string;
 }
 
-function confidenceBand(evalue: number): { label: string; color: string; bg: string } {
-  if (evalue < 1e-50) return { label: 'Very High', color: 'text-accent-cyan', bg: 'bg-accent-cyan/10' };
-  if (evalue < 1e-10) return { label: 'High', color: 'text-accent-purple', bg: 'bg-accent-purple/10' };
-  if (evalue < 1e-3) return { label: 'Moderate', color: 'text-accent-amber', bg: 'bg-accent-amber/10' };
-  return { label: 'Low', color: 'text-text-muted', bg: 'bg-surface-1' };
-}
-
-function formatEvalue(evalue: number, evalue_raw?: string): string {
-  if (evalue === 0) {
-    const raw = evalue_raw?.trim();
-    if (raw && raw !== '0') return raw;
-    return '≈ 0';
-  }
-  if (evalue < 0.0001) return evalue.toExponential(2);
-  return evalue.toFixed(4);
-}
-
-function coverageColor(pct: number): string {
-  if (pct >= 90) return 'text-accent-cyan';
-  if (pct >= 50) return 'text-accent-amber';
-  return 'text-text-muted';
-}
-
 export function BlastPanel({ hits, count, source, querySequence }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const safeHits = hits ?? [];
 
   return (
-    <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card overflow-hidden">
+    <motion.div variants={fadeUp} whileHover={cardHover} className="data-card overflow-hidden">
       <div className="px-6 py-4 border-b border-glass-border bg-surface-1 flex items-center justify-between">
         <h2 className="font-semibold text-text-primary">
           BLAST Hits

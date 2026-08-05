@@ -95,8 +95,8 @@ export default function SequencingPage() {
 
   const statusIcon = (status?: string) => {
     if (!status || status === 'queued') return <LoaderCircle className="w-4 h-4 text-text-muted animate-pulse" />;
-    if (status === 'complete') return <CheckCircle className="w-5 h-5 text-green-400" />;
-    if (status === 'failed') return <XCircle className="w-5 h-5 text-red-400" />;
+    if (status === 'complete') return <CheckCircle className="w-5 h-5 text-good" />;
+    if (status === 'failed') return <XCircle className="w-5 h-5 text-error" />;
     return <LoaderCircle className="w-5 h-5 text-accent-cyan animate-spin" />;
   };
 
@@ -169,10 +169,10 @@ export default function SequencingPage() {
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-red-400/20">
-          <div className="flex items-start gap-3">
-            <AlertTriangle className="w-5 h-5 text-red-400 flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-red-400">{error}</p>
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-error/20">
+          <div className="flex items-center gap-2">
+            <AlertTriangle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
+            <p className="text-sm text-error">{error}</p>
           </div>
         </motion.div>
       )}
@@ -185,7 +185,7 @@ export default function SequencingPage() {
               subtitle={result.result?.consensus_sequence ? `Consensus sequence ready · ${result.result.reference ?? ''}` : 'All pipeline steps finished'}
             />
           )}
-          <div className="glass-card p-5">
+            <div className="data-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
                 {statusIcon(result.status)}
@@ -201,9 +201,9 @@ export default function SequencingPage() {
                 return (
                   <div key={step.id} className="flex items-center gap-3">
                     <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      s === 'done' ? 'bg-green-400/10 text-green-400' :
+                      s === 'done' ? 'bg-good/10 text-good' :
                       s === 'running' ? 'bg-accent-cyan/10 text-accent-cyan' :
-                      s === 'failed' ? 'bg-red-400/10 text-red-400' :
+                      s === 'failed' ? 'bg-error/10 text-error' :
                       'bg-surface-1 text-text-muted'
                     }`}>
                       {s === 'done' ? <CheckCircle className="w-4 h-4" /> :
@@ -212,15 +212,15 @@ export default function SequencingPage() {
                     </div>
                     <div className="flex-1">
                       <p className={`text-sm font-medium ${
-                        s === 'done' ? 'text-green-400' :
+                        s === 'done' ? 'text-good' :
                         s === 'running' ? 'text-accent-cyan' :
-                        s === 'failed' ? 'text-red-400' :
+                        s === 'failed' ? 'text-error' :
                         'text-text-muted'
                       }`}>{step.label}</p>
                     </div>
                     {i < STEPS.length - 1 && (
                       <div className={`w-px h-4 mx-2 ${
-                        s === 'done' ? 'bg-green-400/30' : 'bg-glass-border'
+                        s === 'done' ? 'bg-good/30' : 'bg-glass-border'
                       }`} />
                     )}
                   </div>
@@ -229,8 +229,8 @@ export default function SequencingPage() {
             </div>
 
             {result.status === 'failed' && result.error && (
-              <div className="p-3 rounded-lg bg-red-400/5 border border-red-400/20 mt-4">
-                <pre className="text-xs text-red-400 whitespace-pre-wrap font-mono">{result.error}</pre>
+              <div className="p-3 rounded-lg bg-error/5 border border-error/20 mt-4">
+                <pre className="text-xs text-error whitespace-pre-wrap font-mono">{result.error}</pre>
               </div>
             )}
           </div>
@@ -260,8 +260,8 @@ export default function SequencingPage() {
                 <div className="p-3 rounded-xl bg-surface-1">
                   <p className="text-xs text-text-muted">Mean Quality</p>
                   <p className={`text-lg font-bold font-mono ${
-                    result.result.qc.mean_quality >= 30 ? 'text-green-400' :
-                    result.result.qc.mean_quality >= 20 ? 'text-amber-400' : 'text-red-400'
+                    result.result.qc.mean_quality >= 30 ? 'text-good' :
+                    result.result.qc.mean_quality >= 20 ? 'text-warn' : 'text-text-muted'
                   }`}>{result.result.qc.mean_quality}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
@@ -306,11 +306,11 @@ export default function SequencingPage() {
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
                   <p className="text-xs text-text-muted">Mapped</p>
-                  <p className="text-lg font-bold text-green-400 font-mono">{result.result.alignment.mapped_reads.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-good font-mono">{result.result.alignment.mapped_reads.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
                   <p className="text-xs text-text-muted">Unmapped</p>
-                  <p className="text-lg font-bold text-red-400 font-mono">{result.result.alignment.unmapped_reads.toLocaleString()}</p>
+                  <p className="text-lg font-bold text-warn font-mono">{result.result.alignment.unmapped_reads.toLocaleString()}</p>
                 </div>
               </div>
               {result.result.alignment.total_alignments > 0 && (
@@ -353,11 +353,11 @@ export default function SequencingPage() {
                     {result.result.variants.map((v, i) => (
                       <tr key={i} className="text-text-primary">
                         <td className="py-2 pr-4 font-mono">{v.pos.toLocaleString()}</td>
-                        <td className="py-2 pr-4 font-mono text-green-400">{v.ref}</td>
+                        <td className="py-2 pr-4 font-mono text-good">{v.ref}</td>
                         <td className="py-2 pr-4 font-mono text-accent-cyan">{v.alt}</td>
                         <td className="py-2 pr-4 font-mono">{v.depth}</td>
                         <td className="py-2 pr-4 font-mono">{v.alt_count}</td>
-                        <td className="py-2 font-mono text-amber-400">{(v.freq * 100).toFixed(1)}%</td>
+                        <td className="py-2 font-mono text-warn">{(v.freq * 100).toFixed(1)}%</td>
                       </tr>
                     ))}
                   </tbody>
@@ -393,9 +393,9 @@ export default function SequencingPage() {
           )}
 
           {result.result?.variants && result.result.variants.length === 0 && (
-            <div className="glass-card p-5">
+          <div className="data-card p-5">
               <div className="flex items-center gap-2 text-text-muted">
-                <CheckCircle className="w-4 h-4 text-green-400" />
+                <CheckCircle className="w-4 h-4 text-good" />
                 <p className="text-sm">No variants detected in the sample.</p>
               </div>
             </div>

@@ -1,10 +1,15 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dna, ArrowRight, CircleNotch as LoaderCircle, FileText, CheckCircle as CircleCheck, Circle } from '@phosphor-icons/react';
+import { Dna, ArrowRight, CircleNotch as LoaderCircle, FileText, CheckCircle as CircleCheck, Circle, Copy } from '@phosphor-icons/react';
+import toast from 'react-hot-toast';
 import { ClayToggle } from "@/components/ui/ClayToggle";
 import { CriticalButton } from "@/components/ui/CriticalButton";
 import { PipelineResults } from "@/components/results/PipelineResults";
+import { createShareLink } from "@/lib/api";
+import { getSupabase } from "@/lib/supabase";
+import { extractErrorMessage } from "@/lib/errors";
+import { shareResult } from "@/lib/share";
 
 type WizardStep = "input" | "running";
 
@@ -38,9 +43,15 @@ export function AnalysisWizard() {
     setLoading(true);
     setError(null);
     try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = { "Content-Type": "application/json" };
+      if (session?.access_token) {
+        headers["Authorization"] = `Bearer ${session.access_token}`;
+      }
       const res = await fetch("/api/backend/api/pipeline/v2/run", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers,
         body: JSON.stringify({ sequence: sequence.trim(), steps: enabledSteps }),
       });
       if (!res.ok) throw new Error((await res.json()).detail || "Submit failed");
@@ -51,6 +62,17 @@ export function AnalysisWizard() {
       setError(e.message);
     } finally {
       setLoading(false);
+    }
+  }
+
+  async function handleShare() {
+    if (!jobId) return;
+    try {
+      const { url } = await createShareLink(jobId);
+      const mode = await shareResult(url);
+      toast.success(mode === 'shared' ? 'Shared successfully!' : 'Share message copied to clipboard!');
+    } catch (e) {
+      toast.error(extractErrorMessage(e, 'Failed to create share link'));
     }
   }
 
@@ -140,16 +162,24 @@ export function AnalysisWizard() {
           >
             {jobId && <PipelineResults jobId={jobId} steps={enabledSteps} onComplete={() => setDone(true)} />}
             {done && (
-              <div className="mt-4 flex gap-3">
-                <a href={`/report/${jobId}`}
-                  className="flex-1 text-center py-2.5 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition">
-                  <FileText className="w-4 h-4 inline mr-1.5" />Export Report
-                </a>
-                {jobId && <a href={`/jobs/${jobId}`}
-                  className="flex-1 text-center py-2.5 rounded-xl border border-glass-border text-text-secondary text-sm hover:bg-surface-1 transition">
-                  View Full Results
-                </a>}
-              </div>
+              <>
+                <div className="mt-4 flex gap-3">
+                  <a href={`/report/${jobId}`}
+                    className="flex-1 text-center py-2.5 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition">
+                    <FileText className="w-4 h-4 inline mr-1.5" />Export Report
+                  </a>
+                  {jobId && <a href={`/jobs/${jobId}`}
+                    className="flex-1 text-center py-2.5 rounded-xl border border-glass-border text-text-secondary text-sm hover:bg-surface-1 transition">
+                    View Full Results
+                  </a>}
+                </div>
+                <div className="mt-3">
+                  <button onClick={handleShare}
+                    className="w-full text-center py-2.5 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center justify-center gap-2">
+                    <Copy className="w-4 h-4" />Share Result
+                  </button>
+                </div>
+              </>
             )}
           </motion.div>
         )}

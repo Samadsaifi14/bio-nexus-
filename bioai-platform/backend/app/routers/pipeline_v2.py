@@ -12,11 +12,12 @@ from datetime import datetime, timezone
 import httpx
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
-from litellm import acompletion
 
 from app.config import settings
 from app.deps import limiter
 from app.services.rate_limit import check_daily_limit_pipelines
+from app.services.auth import get_user_id
+from app.services.supabase import get_supabase
 from app.integrations.ncbi import blast as ncbi_blast
 from app.integrations.ncbi.parser import parse_blast_xml
 from app.services.validators import validate_fasta
@@ -24,7 +25,6 @@ from app.services.sequence_utils import detect_source_from_accession, map_refseq
 from app.services.blast_config import resolve_blast_params
 from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
 from app.tools.uniprot import UniprotTool
-from app.ai.llm_client import llm_client
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -38,6 +38,43 @@ STEP_ORDER = ["blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment
 def _get_job(job_id: str) -> dict | None:
     with _jobs_lock:
         return _jobs.get(job_id)
+
+
+def _is_real_uuid(job_id: str) -> bool:
+    try:
+        uuid.UUID(job_id)
+        return True
+    except (ValueError, AttributeError):
+        return False
+
+
+def _persist_v2_final(job_id: str, status: str, context: dict, error: str | None = None):
+    """Update the persisted wizard job row with the final status + full context."""
+    if not _is_real_uuid(job_id):
+        return
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "status": status,
+        "progress_pct": 100,
+        "completed_at": now,
+        "context_json": context,
+        "error_message": error,
+    }
+    if error:
+        payload["error"] = error
+    try:
+        get_supabase().table("jobs").update(payload).eq("id", job_id).execute()
+    except Exception as e:
+        logger.warning("Could not update v2 job %s to Supabase: %s", job_id, e)
+
+
+def _persist_v2_job(job_id: str, payload: dict):
+    """Persist a wizard v2 job to Supabase (best-effort) so it shows up in
+    the user's job history and can be shared. Uses the service role key."""
+    try:
+        get_supabase().table("jobs").insert(payload).execute()
+    except Exception as e:
+        logger.warning("Could not persist v2 job %s to Supabase: %s", job_id, e)
 
 
 def _set_step_status(job_id: str, step: str, status: str, progress: int = 0, data: dict | None = None, error: str | None = None):
@@ -67,7 +104,7 @@ class PipelineV2RunRequest(BaseModel):
 
 
 @router.post("/run")
-async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
+async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: str | None = Depends(get_user_id)):
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)
@@ -103,6 +140,20 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest):
             "error": None,
             "created_at": now,
         }
+
+    # Best-effort persistence so wizard jobs appear in history and can be shared.
+    _persist_v2_job(job_id, {
+        "id": job_id,
+        "user_id": user_id,
+        "tool": "wizard_v2",
+        "pipeline_type": "wizard_v2",
+        "query_preview": clean[:60],
+        "status": "running",
+        "progress_pct": 0,
+        "title": "Wizard pipeline",
+        "description": "Pipeline v2 wizard run",
+        "created_at": now,
+    })
 
     t = threading.Thread(
         target=_run_pipeline,
@@ -209,7 +260,15 @@ def _run_pipeline(job_id: str, sequence: str, steps: list[str], fast_mode: bool 
 
 
 async def _execute(job_id: str, sequence: str, steps: list[str], status_callback=None, fast_mode: bool = False, blast_params: dict | None = None):
-    context: dict = {"sequence": sequence, "length": len(sequence)}
+    context: dict = {
+        "sequence": sequence,
+        "length": len(sequence),
+        "query": {
+            "sequence": sequence,
+            "length": len(sequence),
+            "sequence_type": detect_sequence_type(sequence) or "protein",
+        },
+    }
 
     _STEP_FRONTEND = {
         "blast": "running",
@@ -388,11 +447,13 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
             if job_id in _jobs:
                 _jobs[job_id]["status"] = "failed"
                 _jobs[job_id]["error"] = f"Pipeline failed at {_failed_step}: {_failed_error}"
+        _persist_v2_final(job_id, "failed", context, error=f"Pipeline failed at {_failed_step}: {_failed_error}")
     else:
         with _jobs_lock:
             if job_id in _jobs:
                 _jobs[job_id]["status"] = "complete"
                 _jobs[job_id]["context"] = context
+        _persist_v2_final(job_id, "complete", context)
 
 
 # ---------------------------------------------------------------------------
@@ -705,44 +766,11 @@ async def _run_alphafold(context: dict) -> dict | None:
 
 
 async def _run_interpret(context: dict) -> dict:
-    providers = llm_client.get_providers()
-    if not providers:
-        return {"interpretation": "AI interpretation unavailable: no LLM API keys configured"}
-
+    from app.ai.interpreter import interpret_text
     prompt_context = {
         "blast": context.get("blast", {}),
         "uniprot": context.get("uniprot", {}),
         "alphafold": context.get("alphafold", {}),
         "pathway_enrichment": context.get("pathway_enrichment", {}),
     }
-
-    prompt = llm_client.build_prompt("protein_analysis", prompt_context)
-    last_error = None
-
-    for provider in providers:
-        try:
-            response = await asyncio.wait_for(
-                acompletion(
-                    model=provider["model"],
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.3,
-                    max_tokens=2000,
-                    timeout=25,
-                    api_key=provider["api_key"],
-                ),
-                timeout=30,
-            )
-            text = response.choices[0].message.content if response.choices else ""
-            return {"interpretation": text}
-        except asyncio.TimeoutError:
-            logger.warning("LLM provider %s timed out", provider["name"])
-            last_error = "LLM request timed out"
-            continue
-        except Exception as e:
-            logger.warning("LLM provider %s failed: %s", provider["name"], e)
-            last_error = str(e)
-            continue
-
-    if "organization_restricted" in str(last_error) or "Organization has been restricted" in str(last_error):
-        return {"interpretation": "AI interpretation unavailable: provider restriction. Please try again later."}
-    return {"interpretation": f"AI interpretation unavailable: {last_error}"}
+    return await interpret_text("protein_analysis", prompt_context)

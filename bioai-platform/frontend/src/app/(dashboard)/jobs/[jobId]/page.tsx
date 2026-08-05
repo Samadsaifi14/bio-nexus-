@@ -13,10 +13,13 @@ import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { getJob, createShareLink } from '@/lib/api';
+import { extractErrorMessage } from '@/lib/errors';
+import { shareResult } from '@/lib/share';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { DomainArchitecture } from '@/components/domains/DomainArchitecture';
 import { StringDBViewer } from '@/components/interactions/StringDBViewer';
+import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { SecondaryStructureViewer } from '@/components/structure/SecondaryStructure';
 import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
@@ -259,9 +262,11 @@ export default function JobPage() {
           onClick={async () => {
             try {
               const { url } = await createShareLink(jobId);
-              navigator.clipboard.writeText(`${window.location.origin}${url}`);
-              toast.success('Share link copied!');
-            } catch { toast.error('Failed to create share link'); }
+              const mode = await shareResult(url);
+              toast.success(mode === 'shared' ? 'Shared successfully!' : 'Share message copied to clipboard!');
+            } catch (err) {
+              toast.error(extractErrorMessage(err, 'Failed to create share link'));
+            }
           }}
           className="flex items-center gap-2"
         >
@@ -312,6 +317,46 @@ export default function JobPage() {
           <motion.div variants={fadeUp} whileHover={cardHover}>
             <ScoreBars hits={context.blast.hits} />
           </motion.div>
+
+          {context.msa?.aln_fasta && (
+            <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-4">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
+                  <p className="text-xs text-text-muted mt-0.5">{context.msa.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+                </div>
+                <button
+                  onClick={() => {
+                    const fasta = context.msa?.aln_fasta;
+                    if (!fasta) return;
+                    const blob = new Blob([fasta], { type: 'text/plain' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `msa-${jobId.slice(0, 8)}.fasta`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                  }}
+                  className="px-3 py-1.5 rounded-lg border border-glass-border text-xs text-text-secondary hover:bg-surface-1 transition"
+                >
+                  <Download className="w-3.5 h-3.5 inline mr-1" />FASTA
+                </button>
+              </div>
+              <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
+                {context.msa.aln_fasta}
+              </pre>
+            </motion.div>
+          )}
+
+          {(() => {
+            const newick = context.phylo?.phylotree_newick || context.phylo_data?.phylotree_newick || context.msa?.phylotree;
+            return newick ? (
+              <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-4">
+                <h3 className="text-sm font-semibold text-text-primary mb-2">Phylogenetic Tree</h3>
+                <PhyloTreeViewer newick={newick} />
+              </motion.div>
+            ) : null;
+          })()}
 
           {context.alphafold && context.alphafold.structure_available && (
             <motion.div variants={fadeUp} whileHover={cardHover}>

@@ -11,6 +11,7 @@ import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
+import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
 
@@ -67,10 +68,10 @@ export default function SharedResultPage() {
             <motion.div variants={fadeUp}>
               <h1 className="text-2xl font-bold text-text-primary mb-1">Analysis Results</h1>
               <p className="text-sm text-text-muted">
-                {context.query.accession
+                {context.query?.accession
                   ? <>Query: <code className="font-mono text-accent-cyan">{context.query.accession}</code></>
-                  : <>Query: {context.query.sequence.slice(0, 80)}...</>
-                } ({context.query.length} {context.query.sequence_type === 'dna' ? 'bp' : 'aa'})
+                  : <>Query: {(context.query?.sequence ?? context.sequence ?? 'Unknown sequence').slice(0, 80)}...</>
+                } ({context.query?.length ?? context.length ?? '?'} {context.query?.sequence_type === 'dna' ? 'bp' : 'aa'})
               </p>
             </motion.div>
 
@@ -80,7 +81,7 @@ export default function SharedResultPage() {
 
             <motion.div variants={fadeUp} className="grid lg:grid-cols-2 gap-6">
               {context.blast?.hits && context.blast.hits.length > 0 && (
-                <BlastPanel hits={context.blast.hits} count={context.blast.count} source={context.blast.source} querySequence={context.query.sequence} />
+                <BlastPanel hits={context.blast.hits} count={context.blast.count} source={context.blast.source} querySequence={context.query?.sequence} />
               )}
               {context.uniprot && <UniprotPanel data={context.uniprot} />}
             </motion.div>
@@ -90,6 +91,28 @@ export default function SharedResultPage() {
                 <ScoreBars hits={context.blast.hits} />
               </motion.div>
             )}
+
+            {context.msa?.aln_fasta && (
+              <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-5">
+                <h3 className="text-sm font-semibold text-text-primary mb-1">Multiple Sequence Alignment</h3>
+                <p className="text-xs text-text-muted mb-2">{context.msa.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+                <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
+                  {context.msa.aln_fasta}
+                </pre>
+              </motion.div>
+            )}
+
+            {(() => {
+              const newick = context.phylo?.phylotree_newick
+                || context.phylo_data?.phylotree_newick
+                || context.msa?.phylotree;
+              return newick ? (
+                <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-5">
+                  <h3 className="text-sm font-semibold text-text-primary mb-2">Phylogenetic Tree</h3>
+                  <PhyloTreeViewer newick={newick} />
+                </motion.div>
+              ) : null;
+            })()}
 
             {context.alphafold?.structure_available && (
               <motion.div variants={fadeUp}>

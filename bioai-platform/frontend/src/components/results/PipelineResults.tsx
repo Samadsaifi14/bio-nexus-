@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle as CheckCircle2, Circle, CircleNotch as LoaderCircle, XCircle, ArrowRight, Dna } from '@phosphor-icons/react';
+import { CheckCircle as CheckCircle2, Circle, CircleNotch as LoaderCircle, XCircle, ArrowRight, Dna, Download } from '@phosphor-icons/react';
 import { BlastPanel } from "./BlastPanel";
 import { ScoreBars } from "./ScoreBars";
 import { UniprotPanel } from "./UniprotPanel";
@@ -110,11 +110,39 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
 
       {steps.includes("msa") && data.steps?.msa?.status === "complete" && data.steps.msa.data?.aln_fasta && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
-          <h3 className="text-sm font-semibold text-text-primary mb-2">Multiple Sequence Alignment</h3>
-          <p className="text-xs text-text-muted mb-2">{data.steps.msa.data.sequence_count} sequences aligned via Clustal Omega</p>
+          <div className="flex items-center justify-between mb-2">
+            <div>
+              <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
+              <p className="text-xs text-text-muted mt-0.5">{data.steps.msa.data.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+            </div>
+            <button
+              onClick={() => {
+                const blob = new Blob([data.steps.msa.data.aln_fasta], { type: "text/plain" });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `msa-${jobId.slice(0, 8)}.fasta`;
+                a.click();
+                URL.revokeObjectURL(url);
+              }}
+              className="px-3 py-1.5 rounded-lg border border-glass-border text-xs text-text-secondary hover:bg-surface-1 transition"
+            >
+              <Download className="w-3.5 h-3.5 inline mr-1" />FASTA
+            </button>
+          </div>
           <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
             {data.steps.msa.data.aln_fasta}
           </pre>
+        </motion.div>
+      )}
+
+      {steps.includes("msa") && data.steps?.msa?.status === "failed" && data.steps.msa.error && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4 border border-error/30 bg-error/5">
+          <div className="flex items-center gap-2 text-error mb-1">
+            <XCircle className="w-5 h-5" />
+            <span className="font-semibold text-sm">Multiple Sequence Alignment failed</span>
+          </div>
+          <p className="text-sm text-text-secondary">{data.steps.msa.error}</p>
         </motion.div>
       )}
 

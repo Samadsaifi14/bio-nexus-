@@ -126,6 +126,8 @@ export interface InteractionsResult {
 }
 
 export interface AssembledContext {
+  sequence?: string;
+  length?: number;
   query: {
     sequence: string;
     length: number;
@@ -137,6 +139,13 @@ export interface AssembledContext {
   alphafold: AlphaFoldResult | null;
   pathway_enrichment?: PathwayEnrichment | null;
   interactions?: InteractionsResult | null;
+  msa?: {
+    aln_fasta?: string | null;
+    phylotree?: string | null;
+    sequence_count?: number;
+  };
+  phylo?: { phylotree_newick?: string };
+  phylo_data?: { phylotree_newick?: string };
 }
 
 export interface BlastSummary {

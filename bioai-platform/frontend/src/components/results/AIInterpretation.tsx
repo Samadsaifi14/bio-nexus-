@@ -79,6 +79,7 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
   const [model, setModel] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [notice, setNotice] = useState<string | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   const handleInterpret = useCallback(async () => {
@@ -89,6 +90,7 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
     setText('');
     setModel('');
     setError(null);
+    setNotice(null);
 
     try {
       const response = await interpretStream({ pipeline_type: pipelineType, context });
@@ -114,6 +116,9 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
                 }
                 if (payload.done) {
                   setModel(payload.meta?.model || '');
+                }
+                if (payload.notice) {
+                  setNotice(payload.notice);
                 }
                 if (payload.error) {
                   const msg = payload.error.includes('organization_restricted')
@@ -149,7 +154,7 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
         </div>
         {!text && !loading && (
           <motion.button variants={fadeIn} onClick={handleInterpret} className="px-4 py-2 bg-accent-cyan text-void text-sm font-medium rounded-lg hover:bg-accent-hover transition">
-            Interpret results
+            {error ? 'Retry' : 'Interpret results'}
           </motion.button>
         )}
         {loading && (
@@ -159,9 +164,16 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
         )}
       </div>
 
-      {error && (
-        <div className="bg-accent-amber/10 border border-accent-amber/20 rounded-xl p-4 mb-4">
-          <p className="text-sm text-accent-amber">{error}</p>
+      {error && !loading && (
+        <div className="bg-error/10 border border-error/30 rounded-xl p-4 mb-4">
+          <p className="text-sm text-error">{error}</p>
+        </div>
+      )}
+
+      {loading && notice && (
+        <div className="flex items-center gap-2 text-xs text-accent-amber mb-3">
+          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+          {notice}
         </div>
       )}
 

@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
+import { TiltCard } from '@/components/ui/TiltCard';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -12,6 +13,8 @@ const DNAHelix = dynamic(
 );
 
 const DATABASES = ['NCBI', 'UniProt', 'PDB', 'KEGG', 'Ensembl', 'STRING', 'EMBL', 'Pfam'];
+
+const REVEAL = { initial: { opacity: 0, y: 28 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '-80px' } };
 
 const PIPELINE = [
   { tag: 'input',    label: 'Sequence Input',       sub: 'FASTA / accession ID'  },
@@ -98,7 +101,7 @@ export default function LandingPage() {
             className="absolute inset-0"
             style={{
               background:
-                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(45,212,191,0.06) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(139,147,214,0.05) 0%, transparent 70%)',
+                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(96,165,250,0.07) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(52,211,153,0.05) 0%, transparent 70%), radial-gradient(ellipse 42% 42% at 55% 15%, rgba(45,212,191,0.06) 0%, transparent 70%)',
             }}
           />
 
@@ -171,11 +174,11 @@ export default function LandingPage() {
 
       <section className="relative py-14 border-y border-glass-border overflow-hidden">
         <div className="absolute inset-0 bg-surface-0/60" />
-        <div className="relative z-10">
-          <div className="flex flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6">
-            {DATABASES.map((db) => (
+        <div className="relative z-10 marquee-mask">
+          <div className="marquee-track items-center gap-x-10 gap-y-3">
+            {[...DATABASES, ...DATABASES].map((db, i) => (
               <span
-                key={db}
+                key={`${db}-${i}`}
                 className="text-sm font-mono text-text-muted hover:text-accent-cyan transition-colors cursor-default select-none"
               >
                 {db}
@@ -186,93 +189,109 @@ export default function LandingPage() {
       </section>
 
       <section id="pipeline" className="py-24 px-6 max-w-5xl mx-auto">
-        <div className="text-center mb-16">
+        <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="text-center mb-16">
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
             From sequence to insight
           </h2>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
             Five automated stages, zero manual database switching.
           </p>
-        </div>
+        </motion.div>
 
         <div className="relative">
           <div className="hidden md:block absolute top-[13px] left-10 right-10 h-px bg-gradient-to-r from-transparent via-glass-border to-transparent" />
+          <div className="hidden md:block absolute top-[13px] left-10 right-10 h-px pipeline-line" />
 
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-5 gap-8 md:gap-4">
-            {PIPELINE.map(({ tag, label, sub }) => (
-              <div key={tag} className="relative text-center">
-                <div className="hidden md:flex w-[26px] h-[26px] rounded-full border border-accent-cyan/40 bg-surface-0 items-center justify-center relative z-10 mx-auto">
+            {PIPELINE.map(({ tag, label, sub }, i) => (
+              <motion.div
+                key={tag}
+                {...REVEAL}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="relative text-center"
+              >
+                <motion.div
+                  className="hidden md:flex w-[26px] h-[26px] rounded-full border border-accent-cyan/40 bg-surface-0 items-center justify-center relative z-10 mx-auto"
+                  animate={{ boxShadow: ['0 0 0 0 rgba(45,212,191,0)', '0 0 14px 2px rgba(45,212,191,0.25)', '0 0 0 0 rgba(45,212,191,0)'] }}
+                  transition={{ repeat: Infinity, duration: 3, delay: i * 0.35, ease: 'easeInOut' }}
+                >
                   <span className="w-[6px] h-[6px] rounded-full bg-accent-cyan/70" />
-                </div>
+                </motion.div>
                 <div className="mt-4 md:mt-5">
                   <p className="text-[10px] font-mono tracking-widest uppercase text-accent-cyan/80">{tag}</p>
                   <p className="text-sm font-medium text-text-primary mt-1">{label}</p>
                   <p className="text-[11px] text-text-muted mt-0.5 font-mono">{sub}</p>
                 </div>
-              </div>
+              </motion.div>
             ))}
           </div>
         </div>
       </section>
 
       <section id="features" className="py-24 px-6 max-w-5xl mx-auto">
-        <div className="mb-16">
+        <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="mb-16">
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
             Everything you need
           </h2>
-        </div>
+        </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-          {FEATURES.map((f) => {
+          {FEATURES.map((f, i) => {
             const Icon = f.icon;
             const wide = f.span === 'md:col-span-2';
             const full = f.span === 'md:col-span-3';
             return (
-              <div
+              <motion.div
                 key={f.title}
-                className={`glass-card p-8 cursor-default ${f.span} ${full ? 'flex flex-col md:flex-row md:items-center gap-8' : ''}`}
+                {...REVEAL}
+                transition={{ duration: 0.4, delay: (i % 3) * 0.08 }}
+                className={`${f.span}`}
               >
-                <div
-                  className={`w-10 h-10 rounded-xl flex items-center justify-center bg-accent-cyan/10 border border-accent-cyan/20 shrink-0 ${full ? 'mb-0' : 'mb-6'}`}
+                <TiltCard
+                  className={`glass-card p-8 cursor-default h-full ${full ? 'flex flex-col md:flex-row md:items-center gap-8' : ''}`}
                 >
-                  <Icon size={18} className="text-accent-cyan" weight="regular" />
-                </div>
-
-                <div className={wide ? 'grid lg:grid-cols-2 gap-8 items-start' : ''}>
-                  <div>
-                    <h3 className={`font-display font-semibold mb-2 text-text-primary ${wide ? 'text-xl' : 'text-base'}`}>
-                      {f.title}
-                    </h3>
-                    <p className="text-sm text-text-secondary leading-relaxed max-w-[46ch]">
-                      {f.body}
-                    </p>
+                  <div
+                    className={`w-10 h-10 rounded-xl flex items-center justify-center bg-accent-cyan/10 border border-accent-cyan/20 shrink-0 ${full ? 'mb-0' : 'mb-6'}`}
+                  >
+                    <Icon size={18} className="text-accent-cyan" weight="regular" />
                   </div>
 
-                  {wide && (
-                    <div className="flex flex-wrap gap-2 lg:pt-1">
-                      {DATABASES.map((db) => (
-                        <span
-                          key={db}
-                          className="px-3 py-1 rounded-lg border border-glass-border bg-surface-1 text-[11px] font-mono text-text-secondary"
-                        >
-                          {db}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-
-                  {full && (
-                    <div className="min-w-0 md:ml-auto">
-                      <p className="font-mono text-[13px] text-text-secondary leading-relaxed">
-                        <span className="text-accent-cyan">&gt; </span>clinical relevance: insulin regulation in
-                        lactation<span className="inline-block w-[2px] h-3 bg-accent-cyan/70 ml-1 animate-blink align-middle" />
+                  <div className={wide ? 'grid lg:grid-cols-2 gap-8 items-start' : ''}>
+                    <div>
+                      <h3 className={`font-display font-semibold mb-2 text-text-primary ${wide ? 'text-xl' : 'text-base'}`}>
+                        {f.title}
+                      </h3>
+                      <p className="text-sm text-text-secondary leading-relaxed max-w-[46ch]">
+                        {f.body}
                       </p>
                     </div>
-                  )}
-                </div>
 
-                <div className={`mt-6 h-px rounded-full bg-gradient-to-r from-accent-cyan/25 to-transparent ${full ? 'md:hidden' : ''}`} />
-              </div>
+                    {wide && (
+                      <div className="flex flex-wrap gap-2 lg:pt-1">
+                        {DATABASES.map((db) => (
+                          <span
+                            key={db}
+                            className="px-3 py-1 rounded-lg border border-glass-border bg-surface-1 text-[11px] font-mono text-text-secondary"
+                          >
+                            {db}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+
+                    {full && (
+                      <div className="min-w-0 md:ml-auto">
+                        <p className="font-mono text-[13px] text-text-secondary leading-relaxed">
+                          <span className="text-accent-cyan">&gt; </span>clinical relevance: insulin regulation in
+                          lactation<span className="inline-block w-[2px] h-3 bg-accent-cyan/70 ml-1 animate-blink align-middle" />
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className={`mt-6 h-px rounded-full bg-gradient-to-r from-accent-cyan/25 to-transparent ${full ? 'md:hidden' : ''}`} />
+                </TiltCard>
+              </motion.div>
             );
           })}
         </div>
@@ -282,7 +301,7 @@ export default function LandingPage() {
         <div
           className="absolute inset-0 pointer-events-none"
           style={{
-            background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(45,212,191,0.05) 0%, transparent 70%)',
+            background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(96,165,250,0.06) 0%, transparent 70%), radial-gradient(ellipse 40% 40% at 68% 62%, rgba(52,211,153,0.04) 0%, transparent 70%)',
           }}
         />
 

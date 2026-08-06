@@ -11,8 +11,12 @@ from typing import Optional
 
 # AutoDock Vina binary location
 _VINA_BINARY: str | None = None
-_VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
-_EXE_NAME = "vina"
+_IS_WINDOWS = os.name == "nt"
+if _IS_WINDOWS:
+    _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_win.exe"
+else:
+    _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
+_EXE_NAME = "vina.exe" if _IS_WINDOWS else "vina"
 _VINA_SHA256 = ""
 
 
@@ -40,6 +44,7 @@ def _ensure_vina() -> str:
         return _VINA_BINARY
 
     import shutil
+
     for candidate in ["/usr/local/bin/vina", shutil.which("vina") or ""]:
         if candidate and os.path.isfile(candidate):
             _VINA_BINARY = candidate
@@ -57,6 +62,44 @@ def _ensure_vina() -> str:
 
     _VINA_BINARY = str(exe_path)
     return _VINA_BINARY
+
+
+_OBABEL_BINARY: str | None = None
+
+
+def _ensure_obabel() -> str:
+    """Locate the Open Babel (`obabel`) binary.
+
+    Checks PATH first (Linux/Docker), then the current Python interpreter's
+    directory (Windows venvs keep `obabel.exe` in ``Scripts/`` next to
+    ``python.exe``, which is not on PATH when uvicorn is launched via the
+    interpreter directly).
+    """
+    global _OBABEL_BINARY
+    if _OBABEL_BINARY and os.path.isfile(_OBABEL_BINARY):
+        return _OBABEL_BINARY
+
+    import shutil
+    import sys
+
+    candidates: list[str] = []
+    which = shutil.which("obabel")
+    if which:
+        candidates.append(which)
+    exe_dir = Path(sys.executable).resolve().parent
+    for name in ("obabel.exe", "obabel", "obabel.bat"):
+        candidates.append(str(exe_dir / name))
+
+    for candidate in candidates:
+        if candidate and os.path.isfile(candidate):
+            _OBABEL_BINARY = candidate
+            return _OBABEL_BINARY
+
+    raise RuntimeError(
+        "Open Babel (`obabel`) is not installed. "
+        "Install it (e.g. `pip install openbabel-wheel` on Windows, or "
+        "`RUN apt-get update && apt-get install -y openbabel` in the Dockerfile)."
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -131,7 +174,7 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
     try:
         result = subprocess.run(
             [
-                "obabel",
+                _ensure_obabel(),
                 sdf_path,
                 "-O", pdbqt_path,
                 "--partialcharge", "gasteiger",
@@ -151,10 +194,7 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
             raise RuntimeError("PDBQT conversion produced empty output")
         return content
     except FileNotFoundError:
-        raise RuntimeError(
-            "Open Babel (`obabel`) is not installed. "
-            "Add it to the Dockerfile: RUN apt-get update && apt-get install -y openbabel"
-        )
+        raise RuntimeError(_ensure_obabel())
     finally:
         if os.path.isfile(pdbqt_path):
             os.unlink(pdbqt_path)
@@ -176,7 +216,7 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
 
         result = subprocess.run(
             [
-                "obabel",
+                _ensure_obabel(),
                 in_path,
                 "-O", out_path,
                 "-xr",
@@ -196,10 +236,7 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
             raise RuntimeError("Receptor PDBQT conversion produced empty output")
         return content
     except FileNotFoundError:
-        raise RuntimeError(
-            "Open Babel (`obabel`) is not installed. "
-            "Add it to the Dockerfile: RUN apt-get update && apt-get install -y openbabel"
-        )
+        raise RuntimeError(_ensure_obabel())
     finally:
         if in_path and os.path.isfile(in_path):
             os.unlink(in_path)

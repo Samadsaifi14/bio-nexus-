@@ -14,7 +14,7 @@ pydantic[email]
 rdkit
 numpy
 openmm>=8.0  # OpenMM is on PyPI since 8.0 (pip-installable in Dockerfile and Render)
-# openbabel-wheel  # removed — SMILES→3D via NCI CACTUS API, Vina reads PDB/SDF natively
+openbabel-wheel  # obabel CLI — PDBQT prep for docking (SMILES→PDBQT, PDB→PDBQT receptor)
 # primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)
 
 # dev / testing

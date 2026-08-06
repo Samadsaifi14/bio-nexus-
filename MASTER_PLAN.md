@@ -1,11 +1,14 @@
-# Bio Nexus Platform — Master Plan v4.0
+# Bio Nexus — Master Plan
+
+**Version:** 4.1
+**Last Updated:** August 2026
 
 > A bioinformatics pipeline engine that removes the need for expertise to get expert results.
 > User arrives with a biological question and raw data. Leaves with a complete, interpreted answer — having touched nothing in between.
 >
 > Solo founder · Indian M.Sc. bioinformatics grad · Product-first
 
-**Current status (v4.0, 2026-08-05):** Full toolset milestone — every core module from Phases 1–3 plus docking, MD simulation, ADMET, function prediction and a sequencing MVP are shipped and running through the pipeline engine. Platform hardened (shares, exports, API keys, caching, monitoring) and rebuilt on the dark-only OLED design system. See [§9 — What's New in v4.0](#9-whats-new-in-v40).
+**Current status:** Every core module through Phase 3 is shipped and running through the pipeline engine — see [`IMPLEMENTATION_LOG.md`](./IMPLEMENTATION_LOG.md) for the full sprint-by-sprint build history and what's live as of today. This document covers *why* the product exists and *how* it's architected — it does not track sprint status.
 
 ---
 
@@ -16,8 +19,8 @@ Not a tool aggregator. Not a BLAST wrapper with AI on top.
 The current experience:
 
 ```
-NCBI → paste sequence → BLAST → confusing output → copy accession → 
-open UniProt → new tab → scroll entry → open AlphaFold → new tab → 
+NCBI → paste sequence → BLAST → confusing output → copy accession →
+open UniProt → new tab → scroll entry → open AlphaFold → new tab →
 download PDB → open PyMOL → read 3 papers → give up or ask a senior
 ```
 
@@ -78,7 +81,7 @@ You beat them on:
 User input
 ├── Sequence (FASTA)
 ├── Gene list
-├── FASTQ files (Phase 3)
+├── FASTQ files
 └── Structure (PDB ID)
        │
        ▼
@@ -90,23 +93,16 @@ Pipeline engine
   Task DAG · async workers · Redis queue · Supabase Realtime progress
        │
        ├── BLAST (EBI REST API: nr, swissprot, pdb)
-       │     E-value · bit score · % identity · coverage
-       │
-       ├── UniProt (REST lookup)
-       │     Function · domains · disease associations · 24h Redis cache
-       │
-       ├── AlphaFold DB (Phase 1)
-       │     3Dmol.js render · in-browser only · no downloads
-       │
-       ├── Phase 2 modules
-       │     MSA · Phylogenetic tree · Pfam domains
-       │     KEGG pathways · Primer3 · DiffDock (via Replicate)
-       │
-       └── Phase 3 modules
-             RNA-seq · Variant calling · ChIP-seq
+       ├── UniProt (REST lookup, 24h Redis cache)
+       ├── AlphaFold DB (3Dmol.js render, in-browser only, no downloads)
+       ├── MSA · Phylogenetic tree · Pfam domains
+       ├── KEGG/Reactome pathways · Primer3
+       ├── Docking (AutoDock Vina) · MD simulation · ADMET
+       ├── Function prediction · protein interactions
+       └── Sequencing (FASTQ QC → variant calling)
        │
        ▼
-Results aggregator        ◄── THE KEY PIECE YOUR CURRENT CODEBASE MISSES
+Results aggregator        ◄── THE KEY PIECE A TOOL AGGREGATOR WOULD MISS
   Merges all tool outputs into structured JSON
   Normalises formats · resolves cross-references (accession→UniProt→PDB)
   Hands complete picture to AI + visualisation simultaneously
@@ -115,8 +111,8 @@ Results aggregator        ◄── THE KEY PIECE YOUR CURRENT CODEBASE MISSES
        │     MSA viewer · 3D structure · Phylogenetic tree
        │     All in-browser · nothing downloads
        │
-       └── AI interpretation (LiteLLM · streaming)
-             Plain language report · citation links · confidence indicators
+       └── AI interpretation (Groq → Gemini → Ollama fallback, streaming)
+             Plain language report · confidence indicators
        │
        ▼
 Unified result page
@@ -125,137 +121,51 @@ Unified result page
 
 ---
 
-## 5. Phase Breakdown
+## 5. Roadmap Phases
 
-### Phase 1 — Prove the pipeline engine works (Months 1–4) ✅
+Full build history and what's shipped in each phase lives in `IMPLEMENTATION_LOG.md`. This is the phase *definition* only:
 
-One workflow. Done better than anyone else has done it. No feature creep.
-
-**Workflow**: Protein sequence → BLAST (EBI) → UniProt annotation → AlphaFold structure → AI report
-**Status: Shipped** — BLAST → UniProt → AlphaFold → AI report is live end to end.
-
-**Output**: A single result page:
-- Top BLAST hits with E-value and identity clearly explained
-- UniProt entry distilled to what matters (function, disease associations, active sites, organism)
-- AlphaFold structure rendered in-browser with 3Dmol.js — nothing downloads
-- AI section that ties it all together in plain language a first-year M.Sc. student can read and act on
-
-No one offers this. Galaxy makes you build a workflow manually. EMBL-EBI runs each tool separately. Nobody gives a unified interpreted result.
-
-### Phase 2 — Expand the pipeline library (Months 5–10) ✅
-
-**Completed:**
-- **MSA + phylogenetic tree** — ClustalOmega MSA, NJ/UPGMA/ML tree methods, interactive PhyloTreeViewer with rectangular/circular layout, bootstrap colour scale, SVG/PNG/Newick export ✅
-- **Domain & motif analysis** — Pfam/InterPro domain fetching via InterProScan API ✅
-- **Gene ontology + KEGG enrichment** — Reactome pathway search + enrichment analysis ✅
-- **Primer design** — Primer3 integration with configurable parameters ✅
-- **Pipeline wizard & v2 engine** — 8-step in-memory pipeline (BLAST → UniProt → MSA → Phylo → Domains → Pathway Enrichment → AlphaFold → AI), step checkboxes in wizard, progressive reveal results ✅
-- **API Key System** — `sk_bio_` prefix keys, SHA-256 hashing, X-API-Key auth middleware ✅
-- **Share Links** — Token-based sharing for any job result ✅
-- **Export** — PDF/JSON export via `/api/export/job/{id}` endpoint ✅
-- **Guest → Account upgrade** — Guest session to permanent Google account via `linkIdentity` ✅
-- **Enhanced Dashboard/Jobs/Settings** — Quick tools grid, filter tabs, usage bars, avatar, API key management UI ✅
-- **Structure retrieval + analysis suite** — PDB retrieval, AlphaFold prediction, 3Dmol.js viewer, Ramachandran plot, secondary structure assignment, Foldseek structure comparison ✅
-- **Molecular docking** — AutoDock Vina on server, full 1.2.7 log parsing, RMSD table, run-config UI (no external compute dependency) ✅
-- **MD simulation** — Amber-style implicit solvent, verified force field/solvent matrix (ff14SB/ff15ipq/ff19SB/amberfb15/CHARMM36 × OBC1/OBC2/GBN2), alanine-dipeptide startup probe, 25 min run budget ✅
-- **ADMET prediction** — RDKit descriptor computation, Lipinski screening, traffic-light property output ✅
-- **Protein function prediction** — sequence → function inference endpoint + job status ✅
-- **Protein interactions** — interaction lookup module ✅
-- **Sequencing MVP** — FASTQ upload → QC → trimming → assembly/consensus → variant calling → annotation (SARS-CoV-2 reference) ✅
-- **Multi-method MSA** — ClustalOmega / MUSCLE / Kalign / MAFFT / T-Coffee with method selector ✅
-- **Pairwise alignment** — standalone global/local tool + "Align pair" from BLAST hits, full-length alignment view ✅
-- **BLAST modes** — global/local database modes, DNA query support, honors program/db/max_hits params, 65-min poll cap ✅
-- **Domain scanning** — PROSITE raw-sequence scan, reviewed/organism UniProt filters ✅
-
-**Remaining:**
-- None from Phase 2 — the original "Not started: DiffDock via Replicate" was replaced by self-hosted AutoDock Vina
-
-### Phase 2.5 — Platform Hardening (Ongoing) ✅
-
-- **Documentation site (`/learn`)** — 10+ topic docs, glossary, inline LearnPopover help tooltips ✅
-- **First-run tutorial** — 5-step onboarding walkthrough on first login, re-accessible from Settings ✅
-- **Sentry error monitoring** — Frontend (`@sentry/nextjs`) + Backend (`sentry-sdk`) with DSN config ✅
-- **Cache-hit checks** — Cache metrics tracking, `from_cache` flag on results, `/api/admin/cache-stats` endpoint ✅
-- **Cache coverage** — `@ttl_cache` added to `pathway_enrichment.run_enrichment()`, `ncbi_service.search_by_name()` ✅
-- **Design system overhaul** — dark-only (OLED) theme, semantic color tokens, AA-verified text tiers, 4-band confidence bands, Geist fonts, Phosphor icons, HUD glass components, tiered motion ✅
-- **Landing redesign** — full-window DNA-helix hero, bento feature grid, route-style pipeline visualization, restrained motion ✅
-- **AI model fallback chain** — Groq → Gemini → Ollama, honest visible banner on failure, enriched share message ✅
-- **Wizard job persistence** — wizard runs persist as real jobs on the dashboard ✅
-- **Share links hardened** — token-based sharing works across all job types ✅
-
-### Phase 3 — Handle raw sequencing data (Months 11–18) 🚧
-
-- Sequencing MVP shipped (FASTQ QC → variant calling, SARS-CoV-2 reference) ✅
-- RNA-seq differential expression, larger file storage and more compute still ahead 🔜
-
-### Phase 4 — Platform + collaboration (Months 19–30) 🔜
-
-- Lab workspaces (PI + students share a project)
-- Custom pipeline builder for advanced users
-- Institution licensing
-- API access for programmatic use
+| Phase | Scope | Status |
+|---|---|---|
+| 1 | Prove the pipeline engine: sequence → BLAST → UniProt → AlphaFold → AI report | ✅ Shipped |
+| 2 | Expand the pipeline library: MSA/phylo, domains, pathways, primers, structure, docking, MD, ADMET, function prediction, sequencing MVP | ✅ Shipped |
+| 2.5 | Platform hardening: docs, onboarding, monitoring, caching, design system | ✅ Shipped (ongoing) |
+| 3 | Handle raw sequencing data at scale: RNA-seq differential expression, larger storage/compute | 🚧 In progress (MVP shipped, depth remaining) |
+| 4 | Platform + collaboration: lab workspaces, custom pipeline builder, institution licensing, public API | 🔜 Not started |
 
 ---
 
-## 6. What Changes Right Now
+## 6. Current Priorities
 
 | Principle | Action |
 |-----------|--------|
-| Pipeline engine | Build results aggregator that merges BLAST + UniProt + AlphaFold + AI into one output |
-| Unified result page | Replace separate BLAST/UniProt tabs with single pipeline results view |
+| Real user conversations | Two weeks without a user call → stop building, make calls |
 | Student-first | `.edu.in` free tier, ₹299 individual, ₹999 lab |
-| Honest AI | Working Groq key installed. Fallback shows visible banner, not fake analysis |
-| Outreach | Target M.Sc./PhD/MBBS students. One question: "Walk me through the last sequence you tried to analyze" |
-| Architecture | Aggregator layer normalises cross-tool output. AI sees the complete picture, not just one tool's output |
+| Honest AI | Fallback chain shows a visible banner on failure, never fake analysis |
+| Outreach | Target M.Sc./PhD/MBBS students directly — "walk me through the last sequence you tried to analyze" |
+| Architecture discipline | New tools become new pipeline modules; the aggregator/AI/viz layers never get bolted-on special cases |
 
 ---
 
 ## 7. Weekly Rhythm
 
 ```
-Mon–Thu    Build (pipeline engine, aggregator, one module at a time)
+Mon–Thu    Build (one module or hardening item at a time)
 Fri        2–3 user calls (students, not faculty)
 Sat        Feedback → incorporate → build-in-public post
 Sun        Plan next week — no coding
 ```
-
-**Hard rule**: Two weeks without a user call → stop building, make calls.
 
 ---
 
 ## 8. The Honest Challenges
 
 1. **Working AI key** — Groq is installed and tested. If API calls fail, the user sees a visible yellow banner, not fake analysis.
-2. **Real user conversations** — Before Phase 2, need 10 conversations with students who tried to analyze a sequence. Ask: "What did you open, what went wrong, how long did it take?"
-3. **GPU budgeting** — DiffDock requires a paid inference API (Replicate). Student tier won't include it. Lab tier ($999/mo) covers the cost.
-4. **Galaxy comparison** — Deep answer: Galaxy gives power users flexibility. Bio Nexus gives non-experts answers. The markets barely overlap.
+2. **Real user conversations** — need a steady cadence of conversations with students who tried to analyze a sequence: "What did you open, what went wrong, how long did it take?"
+3. **GPU budgeting** — deep-learning docking (e.g. DiffDock) requires a paid inference API. Student tier won't include it; Lab tier covers the cost if/when added.
+4. **Galaxy comparison** — Galaxy gives power users flexibility. Bio Nexus gives non-experts answers. The markets barely overlap.
 
 ---
 
-## 9. What's New in v4.0
-
-Shipped since the v3.0 plan. Every item below is running code, not roadmap.
-
-### Tools & modules
-- **Docking** — AutoDock Vina 1.2.7, full log (RMSD l.b./u.b., version, seed), RMSD table, run configuration UI
-- **MD simulation** — verified force-field × solvent matrix, startup integrity probe, 25-min production budget
-- **ADMET** — RDKit descriptor computation with traffic-light property readout
-- **Function prediction** — sequence → inferred function
-- **Protein interactions** — interaction lookup
-- **Sequencing (MVP)** — FASTQ QC → trimming → consensus → variant calling → annotation, SARS-CoV-2 reference
-- **Multi-method MSA** — ClustalOmega / MUSCLE / Kalign / MAFFT / T-Coffee
-- **Pairwise alignment** — standalone tool + "Align pair" from any BLAST hit, full-length view
-- **Structure analysis** — Ramachandran plot, secondary structure assignment, Foldseek structure comparison
-- **BLAST upgrades** — global/local modes, DNA queries, honor program/db/max_hits, 65-min poll cap
-
-### Platform
-- **AI interpretation with fallback chain** — Groq → Gemini → Ollama; honest visible banner on failure
-- **Share links hardened** — working for every job type, enriched share message with result details
-- **Wizard jobs persisted** — wizard runs appear in job history
-- **Dark-only OLED design system** — semantic color tokens, confidence bands, Geist fonts, Phosphor icons, tiered motion
-- **Landing rebuild** — DNA-helix hero, bento features, route-style pipeline graphic
-
----
-
-*Bio Nexus Platform — Master Plan v4.0*
+*Bio Nexus Master Plan*
 *Pipeline engine · Student-first · India-built*

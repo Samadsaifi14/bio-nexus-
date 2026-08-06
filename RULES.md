@@ -1,15 +1,16 @@
 # Bio Nexus — Rules
 
-**Version:** 3.0  
-**Scope:** Monorepo at `bio-nexus/bioai-platform/` — `frontend/` (Next.js 14 App Router + TS) and `backend/` (FastAPI).  
+**Version:** 3.1
+**Scope:** Monorepo at `bio-nexus/bioai-platform/` — `frontend/` (Next.js 14 App Router + TS) and `backend/` (FastAPI).
 **Last Updated:** August 2026
 
 ---
 
 ## 0 — The Prime Rule
 
-**The v4.0 toolset is shipped:** docking, MD simulation, ADMET, function prediction, sequencing, and the pipeline wizard all run through the durable worker; the pipeline engine and AI interpretation chain are live.  
-Docs are current. Phase 4+ items (RNA-seq/Variant-calling depth, lab workspaces, custom pipeline builder, monetization) must be planned before building — see `MASTER_PLAN.md`.
+The v4.0 toolset is shipped: docking, MD simulation, ADMET, function prediction, sequencing, and the pipeline wizard all run through the durable worker; the pipeline engine and AI interpretation chain are live.
+
+Before building anything in Phase 4+ (RNA-seq/variant-calling depth, lab workspaces, custom pipeline builder, monetization), write down scope and acceptance criteria in `MASTER_PLAN.md` §5/§6 first — do not start a Phase 4 item from a bare bullet point.
 
 ---
 
@@ -24,9 +25,6 @@ feature/*     → new features (branch from dev)
 fix/*         → bug fixes (branch from dev)
 hotfix/*      → production hotfixes only (branch from main)
 ```
-
-During the prototype sprint (until June 30): work directly on `dev`.  
-Only push to `main` when something is demo-ready.
 
 ### Commit Messages
 
@@ -58,7 +56,7 @@ No commit messages like "fix stuff", "wip", "updates". Every commit must be unde
 
 ### Tags
 
-No release tags exist yet — versioning is tracked in `MASTER_PLAN.md` (currently v4.0) and in each doc header. When the first production release is tagged, use `v0.x.y`. (Old docs referenced `v0.1.0`–`v0.3.0`; those tags were never created.)
+No release has been tagged yet. Versioning lives in `MASTER_PLAN.md` and each doc's own header. First production release uses `v0.x.y`, cut fresh — do not backfill tags for past versions.
 
 ---
 
@@ -218,11 +216,11 @@ async def fetch_sequence(
     cached = await cache_service.get_sequence(body.accession)
     if cached:
         return SequenceResponse(**cached, from_cache=True)
-    
+
     result = await ncbi_service.fetch_sequence(body.accession)
     if result.get("error"):
         raise HTTPException(status_code=502, detail=result["error"])
-    
+
     parsed = sequence_parser.parse_fasta(result["raw_response"])
     await cache_service.set_sequence(body.accession, parsed)
     return SequenceResponse(**parsed, from_cache=False)
@@ -255,7 +253,7 @@ Model naming:
 class FetchSequenceRequest(BaseModel):
     accession: str
     db_preference: Literal["ncbi", "uniprot", "pdb"] | None = None
-    
+
     @field_validator("accession")
     @classmethod
     def validate_accession(cls, v: str) -> str:
@@ -307,7 +305,7 @@ NCBI Entrez requires:
 Always set in NCBIService:
 ```python
 params = {
-    "tool": "bioflow-ai",
+    "tool": "bio-nexus",
     "email": settings.NCBI_EMAIL,
     "api_key": settings.NCBI_API_KEY,
     ...
@@ -360,7 +358,7 @@ async def fetch_sequence(accession: str) -> SequenceData:
     if cached:
         await db.increment_cache_hit(cached.id)
         return cached.sequence_data
-    
+
     result = await ncbi_service.fetch_sequence(accession)
     await db.cache_sequence(accession, result)
     return result
@@ -381,13 +379,9 @@ The frontend Supabase client uses the `anon` key for **auth only** — it must n
 These are non-negotiable and exist to prevent scientific misinformation.
 
 1. **AI interpretations are always labeled** as "AI-generated explanation" in the UI. Never presented as ground truth.
-
 2. **AI prompts are factual, not speculative.** Prompts include the actual numerical output. The model explains the numbers; it does not invent numbers.
-
 3. **Uncertainty language is mandatory.** Prompts instruct the model to use phrases like "suggests", "indicates", "may be", "consistent with". The model must not say "this protein IS a hemoglobin" — it says "this protein is likely a hemoglobin based on X% identity with known hemoglobin sequences."
-
 4. **No hallucination of citations.** Prompts explicitly state: "Do not cite any papers, databases, or sources. Only describe what the numerical results show."
-
 5. **Prompt templates are versioned.** When a prompt is changed, add a comment with the date and reason.
 
 ```python
@@ -395,7 +389,7 @@ These are non-negotiable and exist to prevent scientific misinformation.
 # Changed: removed "significant" as too vague; added specific threshold language
 BLAST_INTERPRETATION_PROMPT = """
 You are explaining bioinformatics results to a biology student.
-Based only on the data provided below, write 2-3 sentences explaining what these 
+Based only on the data provided below, write 2-3 sentences explaining what these
 BLAST results suggest about the query sequence. Use clear, educational language.
 Do not cite papers or invent information not present in the data.
 Use hedged language: 'suggests', 'indicates', 'consistent with', 'likely'.
@@ -417,15 +411,10 @@ Data:
 ## 7 — Security Rules
 
 1. **NCBI API key, Groq API key, Gemini API key** — never logged, never returned in API responses, never committed to git.
-
 2. **Guest session IDs** — treated as sensitive. Not logged in plaintext. The ID is a secret that controls access to a job.
-
 3. **Sequence data** — user sequences are private. Never returned in error messages. Never logged in application logs at INFO level (DEBUG only, and debug logging disabled in production).
-
 4. **No sequence data in URLs.** Sequences are never passed as query parameters. Always in request body (POST).
-
 5. **Artifacts** — use `services/artifact_storage.py` only. The bucket is public (needed for share links), so **never upload private data** (user sequence reads, auth tokens, keys) to it; those stay auth-gated in the database.
-
 6. **CORS** — `CORS_ORIGINS` is explicitly set. Never use `allow_origins=["*"]` in production.
 
 ---
@@ -433,11 +422,8 @@ Data:
 ## 8 — Monitoring & Observability Rules (Sentry)
 
 1. **Errors must be captured.** Every unhandled exception in production should reach Sentry. Frontend: `@sentry/nextjs` with `beforeSend` filtering. Backend: `sentry_sdk.init()` in startup.
-
 2. **No secrets in Sentry.** Ensure `beforeSend` strips auth tokens, API keys, and sequence data from Sentry events.
-
 3. **Traces** at `tracesSampleRate: 0.1` (10%) — enough for debugging, cheap enough for free tier.
-
 4. **Environment tagging.** All Sentry events must be tagged with `environment: development | production`.
 
 ---
@@ -445,20 +431,10 @@ Data:
 ## 9 — Caching Rules
 
 1. **Cache-first architecture.** Every external API call must check the corresponding cache before executing. Use `@ttl_cache` decorator from `services/cache.py`.
-
 2. **Cache key format.** `{prefix}:{sha256_first_16_chars_of_json_input}` — consistent, deterministic.
-
-3. **TTL guidelines:**
-   - BLAST results: 24h
-   - UniProt records: 24h
-   - AlphaFold predictions: 30 days
-   - Pathway enrichment: 12h
-   - NCBI sequence/search: 24h
-
+3. **TTL guidelines:** BLAST 24h · UniProt 24h · AlphaFold 30 days · pathway enrichment 12h · NCBI sequence/search 24h.
 4. **Cache misses are tracked.** `get_cache_stats()` exposes hit/miss counts. Monitor via `/api/admin/cache-stats`.
-
 5. **`from_cache` flag.** All cached results include `from_cache: true/false` in the response dict for observability.
-
 6. **Graceful fallback.** If Redis is unavailable (`_redis = None`), caching is silently disabled — the app still works.
 
 ---
@@ -466,25 +442,20 @@ Data:
 ## 10 — Documentation & Learning Rules
 
 1. **`/learn` is the canonical docs source.** All inline "Learn more →" links must point to a valid `/learn/{topic}` route.
-
 2. **LearnPopover consistency.** Every scientific term shown to users (E-value, bit score, pLDDT, bootstrap, etc.) must have a LearnPopover component available.
-
 3. **First-run tutorial.** New users see the TutorialWalkthrough once. It must be re-accessible from the Settings page.
-
 4. **Plain language.** All docs and help text must be understandable by a first-year M.Sc. student. No jargon without explanation.
 
 ---
 
 ## 11 — What NOT To Build (Current)
 
-This list keeps scope in check for Phase 4+.
+Scope guard for Phase 4+. See `MASTER_PLAN.md` §5 for phase definitions and `IMPLEMENTATION_LOG.md` for what's already shipped.
 
-❌ **Phase 1–2 items** — already built (BLAST, MSA, Phylo, Domains, Pathways, Primers, API keys, Share, Export, Guest upgrade, Docs, Sentry, Cache checks)  
-❌ **Phase 3 items** — already built (pipeline wizard v2, docking, MD simulation, ADMET, function prediction, sequencing + durable worker, artifact storage)  
-❌ **RNA-seq pipeline / variant-calling depth** — Phase 4, requires heavier compute + storage  
-❌ **Lab workspaces** — Phase 4, requires institution licensing  
-❌ **Custom pipeline builder** — Phase 4  
-❌ **Mobile app** — not planned  
-❌ **Email notifications** — not planned until Phase 4  
-❌ **Admin panel** — not needed until 100+ users  
-❌ **DiffDock (deep-learning docking)** — requires paid API / heavy GPU
+❌ RNA-seq pipeline / variant-calling depth — Phase 4, requires heavier compute + storage
+❌ Lab workspaces — Phase 4, requires institution licensing
+❌ Custom pipeline builder — Phase 4
+❌ Mobile app — not planned
+❌ Email notifications — not planned until Phase 4
+❌ Admin panel — not needed until 100+ users
+❌ DiffDock (deep-learning docking) — requires paid API / heavy GPU

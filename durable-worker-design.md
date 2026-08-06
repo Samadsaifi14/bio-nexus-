@@ -93,12 +93,12 @@ Set aside: vendor lock-in / Supabase-specific cron tooling, not worth it for sin
 - **Worker** (`app/worker.py`) claims one job per table per tick, bounded by per-type semaphores, executes, writes results, requeues on transient failure, permanently fails after `max_attempts`.
 - **Job tables** are the single source of truth and the queue itself — no separate broker.
 
-### 4.2 Where the worker runs — **both options live**
+### 4.2 Where the worker runs — both options live
 
 Both launch paths are implemented; application code is identical:
 
-- **4.2a — In-process background task:** `app/main.py` startup calls `await start_worker()` (an `asyncio.create_task` on `_loop()`). Zero extra deploy surface. Redploy still interrupts in-flight jobs, but `FOR UPDATE SKIP LOCKED` + the stuck-job sweep makes them safely reclaimable on the next boot.
-- **4.2b — Separate worker process:** `python -m app.worker` (module `__main__` calls `main()`), which installs `SIGTERM`/`SIGINT` handlers for graceful shutdown and runs the same `_loop()`. Decouples job execution from web redeploys entirely.
+- **4.2a — In-process background task:** `app/main.py` startup calls `await start_worker()` (an `asyncio.create_task` on `_loop()`). Zero extra deploy surface. Redeploy still interrupts in-flight jobs, but `FOR UPDATE SKIP LOCKED` + the stuck-job sweep makes them safely reclaimable on the next boot.
+- **4.2b — Separate worker process:** `python -m app.worker` (module `__main__` calls `main()`), which installs `SIGTERM`/`SIGINT` handlers for graceful shutdown and runs the same `_loop()`. Decouples job execution from web redeploys entirely. Use this on a long-lived host for full durability.
 
 ### 4.3 Worker configuration (constants in `worker.py`)
 
@@ -138,7 +138,7 @@ _DISPATCH = {
 ### 4.5 Failure & retry semantics
 
 `_handle_failure(table, job, exc)`:
-- `attempts >= max_attempts` → patch `status='failed'` (plus `done_at` for non-`jobs` tables) with a **user-facing, traceback-free** error: `"Job failed: {exc}. Reference ID: {job_id[:8]}"`. Full tracebacks go only to server logs via `logger.exception` (this bundled the audit item about not leaking `str(exc)` tracebacks to the frontend).
+- `attempts >= max_attempts` → patch `status='failed'` (plus `done_at` for non-`jobs` tables) with a **user-facing, traceback-free** error: `"Job failed: {exc}. Reference ID: {job_id[:8]}"`. Full tracebacks go only to server logs via `logger.exception`.
 - otherwise → patch `status='queued'`, clear `claimed_at/claimed_by` so the next poll picks it up again.
 
 ### 4.6 Stuck-job recovery
@@ -165,10 +165,9 @@ Every `SWEEP_EVERY` ticks, `_sweep_stuck(table)` finds rows with `status='runnin
 | 1. Columns + RPC functions in Supabase (`005_worker_durable.sql`) | ✅ done |
 | 2. `app/worker.py` claim/run/sweep loop | ✅ done |
 | 3. Submit routes stop calling `run_in_executor`; just insert and return | ✅ done |
-| 4. In-process launch at startup (`app/main.py`) + standalone entrypoint | ✅ both |
-| 5. `MAX_CONCURRENT` caps from day one | ✅ done |
+| 4. In-process launch at startup (`app/main.py`) + standalone entrypoint | ✅ both shipped — use standalone on a long-lived host for full durability |
+| 5. `MAX_CONCURRENT` caps from day one | ✅ done — docking 2, everything else 1, tuned per observed memory/CPU |
 | 6. Verify concurrent submit + kill-mid-job → sweep reclaims | ✅ tested |
-| 7. Evaluate moving to separate worker process (4.2b) | ✅ both entrypoints ship; deploy whichever fits |
 
 ---
 
@@ -178,11 +177,3 @@ Every `SWEEP_EVERY` ticks, `_sweep_stuck(table)` finds rows with `status='runnin
 - ~~SSRF protection on URLs~~ — **done** (`services/ssrf.py`).
 - Chemically-accurate interaction detection — separate scientific-quality item.
 - New tool modules (MD, ADMET, function prediction, etc.) — built and queued **through this worker** (`tool_type` dispatch on `docking_jobs`), so no longer gated on worker existence.
-
----
-
-## 7. Resolved decisions
-
-1. **In-process first, standalone later?** — Resolved: *both* shipped (4.2a in `main.py` startup, 4.2b via `python -m app.worker`). Use the standalone entrypoint on a long-lived host for full durability.
-2. **`MAX_CONCURRENT` value** — docking 2, everything else 1, tuned per observed memory/CPU per job.
-3. **Sequencing + pipeline on the same worker?** — Yes, all three tables claim through the same loop (with the `jobs` table getting `claim_next_pipeline_job`).

@@ -98,7 +98,9 @@ export interface PathwayEnrichmentPathway {
   species: string;
   entitiesFound: number;
   entitiesTotal: number;
+  geneRatio: number;
   entitiesFDR: number;
+  entitiesPValue: number;
 }
 
 export interface PathwayEnrichment {

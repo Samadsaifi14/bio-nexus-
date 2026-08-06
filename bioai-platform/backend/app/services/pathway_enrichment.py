@@ -43,24 +43,30 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
                 logger.warning("No analysis token returned from Reactome")
                 return None
 
-            pathways_resp = await client.get(
-                f"{ANALYSIS_BASE}/token/{token}/pathways",
-                params={"pageSize": "20", "page": "1"},
-            )
-            if pathways_resp.status_code != 200:
-                logger.warning(f"Failed to fetch pathways for token {token}")
-                return None
-
-            pathways_data = pathways_resp.json()
+            # The projection response already carries the enriched pathways;
+            # the separate /token/{token}/pathways call is unnecessary (and
+            # currently 404s for tokens returned with a trailing %3D).
+            pathways_data = data
             pathways = []
-            for item in pathways_data.get("items", []):
+            for item in pathways_data.get("pathways", []):
+                species = item.get("species", {})
+                species_name = (
+                    species.get("name", "")
+                    if isinstance(species, dict)
+                    else (species or "")
+                )
+                entities = item.get("entities", {})
+                found = entities.get("found", 0)
+                total = entities.get("total", 0)
                 pathways.append({
                     "stId": item.get("stId", ""),
                     "name": item.get("name", ""),
-                    "species": item.get("species", ""),
-                    "entitiesFound": item.get("entities", {}).get("found", 0),
-                    "entitiesTotal": item.get("entities", {}).get("total", 0),
-                    "entitiesFDR": item.get("entities", {}).get("fdr", 1.0),
+                    "species": species_name,
+                    "entitiesFound": found,
+                    "entitiesTotal": total,
+                    "geneRatio": round(found / total, 4) if total else 0.0,
+                    "entitiesFDR": entities.get("fdr", 1.0),
+                    "entitiesPValue": entities.get("pValue", 1.0),
                 })
 
             pathways.sort(key=lambda p: p["entitiesFDR"])

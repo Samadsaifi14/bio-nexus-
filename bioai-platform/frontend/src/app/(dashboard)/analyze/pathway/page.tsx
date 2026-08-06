@@ -249,7 +249,7 @@ export default function PathwayPage() {
                   <div>
                     <p className="text-sm font-medium text-text-primary">{pw.name}</p>
                     <p className="text-xs text-text-muted mt-0.5">
-                      {pw.stId} · {pw.species} · {pw.entitiesFound}/{pw.entitiesTotal} genes · FDR {pw.entitiesFDR.toExponential(2)}
+                      {pw.stId} · {pw.species} · {pw.entitiesFound}/{pw.entitiesTotal} genes · gene ratio {pw.geneRatio ? pw.geneRatio.toFixed(3) : '—'} · p {pw.entitiesPValue ? pw.entitiesPValue.toExponential(2) : '—'} · FDR {pw.entitiesFDR.toExponential(2)}
                     </p>
                   </div>
                   {expandedDiagram === pw.stId ? <ChevronDown className="w-4 h-4 text-text-muted" /> : <ChevronRight className="w-4 h-4 text-text-muted" />}

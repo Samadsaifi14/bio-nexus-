@@ -30,8 +30,8 @@ export function PathwayEnrichment({ data }: Props) {
             <Download className="w-3 h-3" /> Copy links
           </button>
           <button onClick={() => downloadTsv(
-            ["ID", "Name", "Species", "Found/Total", "FDR"],
-            data.pathways.map(p => [p.stId, p.name, p.species, `${p.entitiesFound}/${p.entitiesTotal}`, p.entitiesFDR.toExponential(2)]),
+            ["ID", "Name", "Species", "Found/Total", "Gene Ratio", "p-value", "FDR"],
+            data.pathways.map(p => [p.stId, p.name, p.species, `${p.entitiesFound}/${p.entitiesTotal}`, p.geneRatio?.toString() ?? '', p.entitiesPValue?.toExponential(2) ?? '', p.entitiesFDR.toExponential(2)]),
             "pathways.tsv"
           )} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
             <Download className="w-3 h-3" /> Export TSV
@@ -51,7 +51,9 @@ export function PathwayEnrichment({ data }: Props) {
               <div className="min-w-0 flex-1">
                 <p className="text-sm font-medium text-text-primary truncate">{pw.name}</p>
                 <p className="text-xs text-text-muted mt-0.5">
-                  <span className="text-accent-cyan">{pw.entitiesFound}/{pw.entitiesTotal}</span> genes · FDR{' '}
+                  <span className="text-accent-cyan">{pw.entitiesFound}/{pw.entitiesTotal}</span> genes · gene ratio{' '}
+                  <span className="text-text-primary">{pw.geneRatio?.toFixed(3) ?? '—'}</span> · p{' '}
+                  <span className="text-text-primary">{pw.entitiesPValue ? pw.entitiesPValue.toExponential(2) : '—'}</span> · FDR{' '}
                   <span className={pw.entitiesFDR < 0.05 ? 'text-good' : 'text-text-muted'}>
                     {pw.entitiesFDR.toExponential(2)}
                   </span>

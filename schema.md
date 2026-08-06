@@ -1,54 +1,46 @@
-# BioFlow AI — Database Schema
+# Bio Nexus — Database Schema
 
-**Version:** 1.0  
-**Database:** Supabase (PostgreSQL 15)  
-**Storage:** Cloudflare R2 (large binary/text responses)  
-**Last Updated:** June 2026
+**Version:** 2.0
+**Database:** Supabase (PostgreSQL 15)
+**Storage:** Supabase Storage (public bucket) for large artifacts · Redis (optional) for TTL caching
+**Last Updated:** August 2026
+
+> Canonical source of truth: migrations in `bioai-platform/supabase/migrations/` (`001`–`007`) plus backend-side `bioai-platform/backend/migrations/` (`001_docking_jobs_columns`, `004_auth_user_id`, `005_worker_durable`, `006_artifact_storage`). Run with `supabase db push`.
 
 ---
 
 ## Design Decisions
 
-### Why fine-grained step-level tracking?
-Every bioinformatics pipeline is a chain of operations. A BLAST→MSA→Tree workflow
-has three distinct steps, each of which can succeed, fail, or be retried independently.
-Step-level tracking means:
-- Users see exactly which step is running ("Running ClustalOmega alignment...")
-- A failed step can be retried without re-running the whole pipeline
-- Results for each step are stored and accessible independently
-- The platform can resume mid-pipeline on service recovery
+### Jobs are tool-scoped rows, not multi-step DAG rows
+`jobs` is one row per analysis with a `tool` column and a `status` CHECK constraint that enumerates the live intermediate states (`submitted_to_ncbi`, `polling_ncbi`, `parsing`, `interpreting`, `pathway_enrichment`, `fetching_alphafold`). The pipeline wizard (`tool = 'wizard_v2'`) persists a lightweight `jobs` row for history/share while the heavy step payload lives in-memory in the API process (see `pipeline_v2`).
 
-### Why store raw API responses?
-NCBI BLAST returns XML. PDB returns JSON. AlphaFold returns mmCIF/JSON.
-Storing the raw response means:
-- We can reparse and reprocess without re-calling the external API
-- Database schema changes do not invalidate past analyses
-- Debugging API parser bugs is possible after the fact
-- Large responses (BLAST XML can be 10MB+) go to Cloudflare R2; small ones inline
+### Long-running jobs are their own tables + a durable worker
+Docking, MD simulation, function prediction, and sequencing are not rows in `jobs` — they live in `docking_jobs` and `sequencing_jobs` and are executed by `app/worker.py`, which claims them atomically (`FOR UPDATE SKIP LOCKED`), retries up to `max_attempts`, and sweeps stuck rows. `claimed_at / claimed_by / attempts / max_attempts` columns enable this without a separate queue (see `durable-worker-design.md`).
 
-### Why separate cache tables?
-Sequence data and BLAST results are expensive to fetch (rate-limited, slow).
-Dedicated cache tables with TTL-based expiry and deterministic cache keys
-allow cache-first architecture without polluting job tables.
+### Large artifacts go to Supabase Storage, not inline
+`result_sdf` (docking), `consensus_sequence`/large result JSON (sequencing), and large `jobs.result / context_json` payloads are offloaded to a Supabase Storage bucket via `services/artifact_storage.py`; the row keeps only a `storage_url`. `_read` hydrates the payload back from storage when the inline column is empty.
+
+### Caching is Redis-first, database-backed where useful
+Hot external lookups are wrapped with `@ttl_cache` (`services/cache.py`). Redis is optional — if unreachable the cache silently no-ops. `cached_queries` and `sequence_cache`/`structure_cache` are DB-side caches for deterministic inputs.
 
 ---
 
 ## Table Reference
 
 ```
-users (Supabase Auth managed)
-  └── profiles
-        └── jobs
-              └── pipeline_steps
-                    ├── raw_api_responses
-                    └── processed_results
+auth.users (Supabase-managed)
+  └── profiles                 (auto-created by handle_new_user trigger)
+        ├── jobs               (tool-scoped rows; share_token for public links)
+        ├── api_keys           (sk_bio_ keys, SHA-256 hashed)
+        ├── guest_sessions     (guest session link)
+        ├── saved_analyses     (bookmarks)
+        └── usage_log          (tokens / cost per tool)
 
-guest_sessions
-  └── jobs (guest_session_id link)
-
-sequence_cache (global, keyed by accession)
-blast_cache (global, keyed by MD5 of inputs)
-structure_cache (global, keyed by PDB ID)
+docking_jobs   (docking + MD + function prediction via payload.tool_type)
+sequencing_jobs
+cached_queries · sequence_cache · structure_cache   (DB caches)
+ai_interpretations · pipeline_steps · raw_api_responses · processed_results
+waitlist
 ```
 
 ---
@@ -57,567 +49,372 @@ structure_cache (global, keyed by PDB ID)
 
 ```sql
 -- ============================================================
--- EXTENSIONS
+-- PROFILES — extends Supabase auth.users (trigger-created on signup)
 -- ============================================================
-create extension if not exists "uuid-ossp";
-create extension if not exists "pg_trgm"; -- for text search on sequences
-
-
--- ============================================================
--- PROFILES
--- Extends Supabase auth.users. Created automatically on signup.
--- ============================================================
-create table profiles (
-  id                    uuid primary key references auth.users(id) on delete cascade,
-  username              text unique,
-  display_name          text,
-  institution           text,
-  onboarding_complete   boolean not null default false,
-  tooltips_enabled      boolean not null default true,
-  -- quota tracking
-  jobs_this_month       int not null default 0,
-  blast_calls_today     int not null default 0,
-  quota_reset_at        timestamptz not null default (now() + interval '1 month'),
-  created_at            timestamptz not null default now(),
-  updated_at            timestamptz not null default now()
+create table if not exists profiles (
+  id            uuid primary key references auth.users(id) on delete cascade,
+  email         text,
+  full_name     text,
+  institution   text,
+  role          text default 'researcher',
+  username      text,                    -- added by 005_phase1_tables
+  display_name  text,
+  avatar_url    text,
+  onboarding_complete boolean default false,
+  tooltips_enabled   boolean default true,
+  jobs_this_month    int  default 0,
+  blast_calls_today  int  default 0,
+  quota_reset_at     timestamptz,
+  created_at    timestamptz default now()
 );
 
-comment on table profiles is 'User profile data extending Supabase auth';
-
-
 -- ============================================================
--- GUEST SESSIONS
--- Anonymous users get one session token (stored in cookie).
--- They can run 1 job before being prompted to create an account.
+-- JOBS — one row per analysis request
 -- ============================================================
-create table guest_sessions (
-  id            text primary key,            -- UUID v4, stored in browser cookie
-  job_count     int not null default 0,      -- max 1 for guests
-  ip_hash       text,                        -- hashed for abuse prevention
-  created_at    timestamptz not null default now(),
-  expires_at    timestamptz not null default (now() + interval '24 hours')
+create table if not exists jobs (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid references profiles(id) on delete cascade,
+  tool            text not null,         -- 'blast', 'wizard_v2', 'pairwise', ...
+  query_preview   text,                  -- truncated query for list views
+  status          text default 'queued' check (status in (
+                    'queued','running','complete','failed',
+                    'submitted_to_ncbi','polling_ncbi','parsing',
+                    'interpreting','pathway_enrichment','fetching_alphafold'
+                  )),
+  progress_pct    int default 0,
+  result          jsonb,                 -- may be NULL when offloaded to storage_url
+  error           text,
+  created_at      timestamptz default now(),
+  completed_at    timestamptz,
+
+  -- added by 002_add_share_token
+  share_token     text unique,           -- token for public /share/{token} links
+
+  -- added by 003_pipeline_engine
+  pipeline_type   text not null default 'protein_analysis',
+  context_json    jsonb,
+  steps_completed text[] default '{}',
+
+  -- added by 004_fix_jobs_status_check
+  current_step_label text,
+  error_message      text,
+
+  -- added by 005_phase1_tables
+  title         text,
+  description   text,
+
+  -- added by 005_worker_durable (backend migrations)
+  claimed_at    timestamptz,
+  claimed_by    text,
+  attempts      integer not null default 0,
+  max_attempts  integer not null default 3,
+
+  -- added by 006_artifact_storage
+  storage_url   text
 );
 
-comment on table guest_sessions is 'Anonymous session tracking for guest users (1 job limit)';
-
-
 -- ============================================================
--- JOBS
--- One row per analysis request. Parent of all pipeline steps.
+-- CACHING
 -- ============================================================
-create type workflow_type as enum (
-  'blast',
-  'pairwise_alignment',
-  'msa',
-  'phylogenetics',
-  'msa_phylogenetics',   -- combined MSA + tree pipeline
-  'structure_retrieval',
-  'structure_prediction',
-  'structural_comparison',
-  'structural_analysis',
-  'homology_modeling',
-  'pathway_analysis',
-  'compound_search',
-  'admet_screening',
-  'docking',
-  'custom'               -- multi-step user-defined pipeline
+create table if not exists cached_queries (
+  id          uuid primary key default gen_random_uuid(),
+  query_hash  text unique not null,
+  tool        text not null,
+  result      jsonb not null,
+  created_at  timestamptz default now(),
+  expires_at  timestamptz default (now() + interval '24 hours')
 );
 
-create type job_status as enum (
-  'queued',
-  'running',
-  'completed',
-  'failed',
-  'partial',             -- some steps succeeded, some failed
-  'cancelled'
+create table if not exists sequence_cache (
+  id          uuid primary key default gen_random_uuid(),
+  accession   text unique not null,
+  source      text not null,             -- 'ncbi' | 'uniprot' | 'pdb'
+  result_json jsonb not null,
+  cached_at   timestamptz default now(),
+  expires_at  timestamptz default (now() + interval '7 days')
 );
 
-create table jobs (
-  id                uuid primary key default uuid_generate_v4(),
-  -- ownership: either user or guest, never both null
-  user_id           uuid references profiles(id) on delete cascade,
-  guest_session_id  text references guest_sessions(id) on delete cascade,
-  -- job metadata
-  workflow_type     workflow_type not null,
-  title             text not null,            -- auto-generated: "BLAST search: NP_000509.1"
-  description       text,                     -- user-facing summary of what was requested
-  status            job_status not null default 'queued',
-  -- progress tracking
-  total_steps       int not null default 1,
-  completed_steps   int not null default 0,
-  current_step_label text,                    -- "Running BLAST search..." shown in UI
-  -- input parameters (what the user asked for)
-  input_params      jsonb not null default '{}',
-  -- error info
-  error_message     text,
-  error_step        int,                      -- which step number failed
-  -- timing
-  created_at        timestamptz not null default now(),
-  started_at        timestamptz,
-  completed_at      timestamptz,
-  expires_at        timestamptz not null default (now() + interval '30 days'),
-  -- constraints
-  constraint job_has_owner check (
-    (user_id is not null and guest_session_id is null) or
-    (user_id is null and guest_session_id is not null)
-  )
+create table if not exists structure_cache (
+  id                uuid primary key default gen_random_uuid(),
+  pdb_id            text,
+  uniprot_accession text,
+  source            text not null,
+  result_json       jsonb not null,
+  cached_at         timestamptz default now(),
+  expires_at        timestamptz default (now() + interval '30 days')
 );
 
-create index idx_jobs_user_id on jobs(user_id) where user_id is not null;
-create index idx_jobs_guest_session on jobs(guest_session_id) where guest_session_id is not null;
-create index idx_jobs_status on jobs(status);
-create index idx_jobs_created_at on jobs(created_at desc);
-
-comment on table jobs is 'Parent job record for every analysis request';
-comment on column jobs.input_params is 'User-provided inputs: sequences, accession numbers, settings, etc.';
-comment on column jobs.expires_at is 'Guest jobs expire in 24h; user jobs in 30 days';
-
-
 -- ============================================================
--- PIPELINE STEPS
--- One row per tool execution within a job.
--- E.g. a BLAST job has 2 steps: sequence_fetch → blast_search
+-- AI + AUDIT + GUESTS
 -- ============================================================
-create type step_type as enum (
-  'sequence_fetch',        -- NCBI Entrez / UniProt retrieval
-  'format_convert',        -- FASTA ↔ GenBank ↔ raw conversion
-  'blast_search',          -- NCBI BLAST or EMBL-EBI BLAST
-  'pairwise_align',        -- NW or SW alignment
-  'msa',                   -- ClustalOmega / MUSCLE
-  'phylotree',             -- PHYLIP / IQ-TREE
-  'conservation_analysis', -- per-position conservation from MSA
-  'primer_design',         -- degenerate primer from nucleotide alignment
-  'structure_fetch',       -- PDB retrieval
-  'alphafold_predict',     -- AlphaFold EBI prediction
-  'secondary_struct',      -- PSIPred prediction
-  'structural_align',      -- DALI / TM-Align / PDBeFold
-  'dssp_analysis',         -- H-bonds, secondary structure assignment
-  'ramachandran',          -- phi/psi angle computation
-  'homology_model',        -- SWISS-MODEL submission
-  'pathway_fetch',         -- Reactome / WikiPathways / KEGG
-  'compound_fetch',        -- PubChem / ChEMBL
-  'admet_screen',          -- SwissADME / pkCSM
-  'docking',               -- SwissDock / AutoDock Vina
-  'ai_interpret'           -- Groq/Claude interpretation generation
+create table if not exists ai_interpretations (
+  id              uuid primary key default gen_random_uuid(),
+  job_id          uuid references jobs(id) on delete cascade,
+  tool            text not null,
+  prompt_version  text,
+  model           text,
+  response        text,
+  tokens_used     int,
+  context_snapshot jsonb,                 -- added by 003
+  created_at      timestamptz default now()
 );
 
-create type step_status as enum (
-  'pending',
-  'running',
-  'completed',
-  'failed',
-  'skipped',
-  'retrying'
+create table if not exists usage_log (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references profiles(id),
+  tool        text not null,
+  tokens      int default 0,
+  model       text,
+  cost_usd    numeric(10,6) default 0,
+  created_at  timestamptz default now()
 );
 
-create table pipeline_steps (
-  id                  uuid primary key default uuid_generate_v4(),
-  job_id              uuid not null references jobs(id) on delete cascade,
-  step_number         int not null,           -- 1-indexed order within the job
-  step_type           step_type not null,
-  step_label          text not null,          -- "Fetching sequence from NCBI"
-  status              step_status not null default 'pending',
-  -- external job tracking (for async external APIs like EMBL-EBI)
-  external_job_id     text,                   -- job ID returned by EMBL-EBI, NCBI, etc.
-  external_service    text,                   -- 'ncbi_blast', 'embl_ebi_clustalo', 'alphafold_ebi'
-  poll_url            text,                   -- URL to poll for async job status
-  poll_attempts       int not null default 0,
-  -- step-level input (may differ from job.input_params for chained pipelines)
-  step_input          jsonb not null default '{}',
-  -- retry logic
-  retry_count         int not null default 0,
-  max_retries         int not null default 3,
-  -- error
-  error_message       text,
-  error_code          text,                   -- machine-readable: 'rate_limit', 'timeout', 'parse_error'
-  -- timing
-  created_at          timestamptz not null default now(),
-  started_at          timestamptz,
-  completed_at        timestamptz,
-  duration_ms         int,                    -- computed on completion
-  unique(job_id, step_number)
+create table if not exists guest_sessions (
+  id             uuid primary key default gen_random_uuid(),
+  session_id     text unique not null,
+  user_id        uuid references profiles(id) on delete set null,
+  created_at     timestamptz default now(),
+  expires_at     timestamptz default (now() + interval '24 hours'),
+  last_active_at timestamptz default now()
 );
 
-create index idx_steps_job_id on pipeline_steps(job_id);
-create index idx_steps_status on pipeline_steps(status);
-create index idx_steps_external_job on pipeline_steps(external_job_id) where external_job_id is not null;
-
-comment on table pipeline_steps is 'Individual tool execution steps within a pipeline job';
-comment on column pipeline_steps.external_job_id is 'ID from external async service (EMBL-EBI, NCBI). Used for status polling.';
-
-
--- ============================================================
--- RAW API RESPONSES
--- Stores unprocessed responses from external APIs.
--- Large responses (>50KB) stored in Cloudflare R2; small ones inline.
--- ============================================================
-create type response_format as enum (
-  'json', 'xml', 'fasta', 'pdb', 'mmcif', 'newick',
-  'clustal', 'phylip', 'text', 'tsv', 'csv'
+create table if not exists waitlist (
+  id         uuid primary key default gen_random_uuid(),
+  email      text unique not null,
+  created_at timestamptz default now()
 );
 
-create table raw_api_responses (
-  id              uuid primary key default uuid_generate_v4(),
-  step_id         uuid not null references pipeline_steps(id) on delete cascade,
-  service         text not null,              -- 'ncbi_entrez', 'embl_ebi_blast', 'pdb_rest', etc.
-  endpoint        text,                       -- the actual URL called
-  response_format response_format not null,
-  -- storage: one of these two is populated, never both
-  response_data   jsonb,                      -- inline storage for small JSON responses (<50KB)
-  storage_key     text,                       -- Cloudflare R2 object key for large responses
-  -- metadata
-  size_bytes      int,
-  http_status     int,
-  response_time_ms int,
-  created_at      timestamptz not null default now(),
-  constraint raw_response_storage check (
-    (response_data is not null and storage_key is null) or
-    (response_data is null and storage_key is not null)
-  )
+-- ============================================================
+-- PIPELINE STEP LOGGING (diagnostics; step payloads live in jobs)
+-- ============================================================
+create table if not exists pipeline_steps (
+  id            uuid primary key default gen_random_uuid(),
+  job_id        uuid references jobs(id) on delete cascade,
+  step_name     text not null,
+  status        text not null default 'queued',
+  started_at    timestamptz,
+  completed_at  timestamptz,
+  error_message text,
+  output_json   jsonb,
+  created_at    timestamptz default now()
 );
 
-create index idx_raw_responses_step_id on raw_api_responses(step_id);
-
-comment on table raw_api_responses is 'Raw unprocessed API responses. Large files stored in R2, small JSON inline.';
-comment on column raw_api_responses.storage_key is 'R2 key format: raw/{step_id}/{service}.{ext}';
-
-
--- ============================================================
--- PROCESSED RESULTS
--- Parsed, structured output from a pipeline step.
--- This is what the frontend reads to render visualizations.
--- ============================================================
-create type result_type as enum (
-  'sequence_data',        -- retrieved sequence with annotations
-  'blast_hits',           -- parsed BLAST hit list
-  'pairwise_alignment',   -- formatted alignment with scores
-  'msa_result',           -- multiple sequence alignment
-  'phylo_tree',           -- Newick tree + metadata
-  'conservation_scores',  -- per-position conservation array
-  'primer_data',          -- designed primer with properties
-  'structure_metadata',   -- PDB metadata (resolution, method, chains)
-  'structure_coordinates',-- 3D coordinates (stored in R2 as PDB/mmCIF)
-  'alphafold_result',     -- AlphaFold prediction + pLDDT scores
-  'secondary_struct',     -- per-residue helix/strand/coil prediction
-  'structural_alignment', -- TM-score, RMSD, aligned pairs
-  'dssp_analysis',        -- H-bonds, salt bridges, DSSP assignment
-  'ramachandran_data',    -- phi/psi angles per residue
-  'homology_model',       -- model quality scores + structure key
-  'pathway_data',         -- pathway name, genes, reactions
-  'compound_data',        -- PubChem/ChEMBL compound info
-  'admet_properties',     -- ADMET screening results
-  'docking_result',       -- binding poses + energies
-  'ai_interpretation'     -- AI-generated natural language explanation
+create table if not exists raw_api_responses (
+  id              uuid primary key default gen_random_uuid(),
+  job_id          uuid references jobs(id) on delete cascade,
+  source          text not null,
+  endpoint        text,
+  response_body   text,
+  response_format text default 'xml',
+  stored_at       timestamptz default now()
 );
 
-create table processed_results (
-  id                  uuid primary key default uuid_generate_v4(),
-  step_id             uuid not null references pipeline_steps(id) on delete cascade,
-  job_id              uuid not null references jobs(id) on delete cascade,
-  result_type         result_type not null,
-  -- structured result data (always stored here — parsed and typed)
-  result_data         jsonb not null default '{}',
-  -- for large binary data (3D structures, large alignments)
-  storage_key         text,                   -- R2 key if result is also stored as file
-  -- AI interpretation
-  ai_interpretation   text,
-  ai_model            text,                   -- 'groq/llama-3.1-8b-instant', 'claude-sonnet-4-6'
-  ai_generated_at     timestamptz,
-  -- metadata
-  is_cached           boolean not null default false,
-  created_at          timestamptz not null default now()
+create table if not exists processed_results (
+  id          uuid primary key default gen_random_uuid(),
+  job_id      uuid references jobs(id) on delete cascade,
+  result_type text not null,
+  result_data jsonb not null,
+  created_at  timestamptz default now()
 );
 
-create index idx_results_step_id on processed_results(step_id);
-create index idx_results_job_id on processed_results(job_id);
-create index idx_results_type on processed_results(result_type);
-
-comment on table processed_results is 'Parsed, structured results ready for frontend rendering';
-
-
--- ============================================================
--- SEQUENCE CACHE
--- Global cache for sequence lookups. Keyed by accession + database.
--- Prevents redundant NCBI Entrez API calls.
--- ============================================================
-create table sequence_cache (
-  id              uuid primary key default uuid_generate_v4(),
-  cache_key       text unique not null,       -- MD5(accession + ':' + db_source)
-  accession       text not null,
-  db_source       text not null,              -- 'ncbi', 'uniprot', 'pdb'
-  sequence_type   text,                       -- 'protein', 'dna', 'rna'
-  sequence_data   jsonb not null,             -- { sequence, length, organism, description, ... }
-  raw_fasta       text,                       -- original FASTA string
-  raw_genbank     text,                       -- original GenBank record (if fetched)
-  hit_count       int not null default 0,     -- cache hit counter
-  created_at      timestamptz not null default now(),
-  expires_at      timestamptz not null default (now() + interval '24 hours'),
-  last_accessed   timestamptz not null default now()
+create table if not exists saved_analyses (
+  id      uuid primary key default gen_random_uuid(),
+  user_id uuid references profiles(id) on delete cascade not null,
+  job_id  uuid references jobs(id) on delete cascade,
+  title   text,
+  notes   text,
+  created_at timestamptz default now()
 );
 
-create index idx_seq_cache_key on sequence_cache(cache_key);
-create index idx_seq_cache_expires on sequence_cache(expires_at);
-
-comment on table sequence_cache is 'TTL cache for sequence data from NCBI/UniProt. 24-hour expiry.';
-
-
 -- ============================================================
--- BLAST CACHE
--- Global cache for BLAST results. Keyed by MD5 of inputs.
--- BLAST is expensive and slow — cache aggressively.
+-- API KEYS  (006_api_keys) — sk_bio_ prefix, SHA-256 hashed
 -- ============================================================
-create table blast_cache (
-  id              uuid primary key default uuid_generate_v4(),
-  cache_key       text unique not null,       -- MD5(sequence + db + program + evalue + matrix)
-  blast_program   text not null,              -- 'blastp', 'blastn', 'blastx', etc.
-  database        text not null,              -- 'nr', 'swissprot', 'pdbaa', etc.
-  hit_count       int not null default 0,
-  top_hit_accession text,                     -- quick preview for cache listing
-  storage_key     text not null,              -- R2 key for raw XML response
-  created_at      timestamptz not null default now(),
-  expires_at      timestamptz not null default (now() + interval '24 hours')
+create table if not exists api_keys (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid not null,
+  name        text not null,
+  key_hash    text not null,
+  key_prefix  text not null,
+  created_at  timestamptz default now(),
+  last_used_at timestamptz
 );
 
-create index idx_blast_cache_key on blast_cache(cache_key);
-create index idx_blast_cache_expires on blast_cache(expires_at);
-
-
 -- ============================================================
--- STRUCTURE CACHE
--- Global cache for PDB structure metadata.
--- PDB structures change rarely — longer TTL.
+-- DOCKING JOBS  (docking + MD + function prediction)
+-- `payload` jsonb carries tool_type ("docking" | "md" | "function_predict")
+-- plus run params (pdb_id, smiles, grid_center, grid_size, exhaustiveness,
+-- num_modes, forcefield, solvent, run_length_ps, ...)
 -- ============================================================
-create table structure_cache (
-  id              uuid primary key default uuid_generate_v4(),
-  pdb_id          text unique not null,       -- e.g. '1TIM', '6LU7'
-  metadata        jsonb not null,             -- resolution, method, chains, organism, etc.
-  structure_key   text,                       -- R2 key for .pdb / .mmcif file
-  created_at      timestamptz not null default now(),
-  expires_at      timestamptz not null default (now() + interval '7 days')
+create table if not exists docking_jobs (
+  id              uuid primary key default gen_random_uuid(),
+  user_id         uuid references profiles(id) on delete cascade,   -- 004
+  ligand_smiles   text,
+  status          text,                  -- queued | running | complete | failed
+  result_sdf      text default '',       -- superseded by storage_url
+  storage_url     text,                  -- 006: offloaded result JSON
+  error           text default '',
+  created_at      timestamptz,
+  updated_at      timestamptz,
+  done_at         timestamptz,
+  payload         jsonb,                 -- 005
+  claimed_at      timestamptz,           -- 005 worker columns
+  claimed_by      text,
+  attempts        integer not null default 0,
+  max_attempts    integer not null default 3
 );
 
-create index idx_structure_cache_pdb_id on structure_cache(pdb_id);
-
-
 -- ============================================================
--- SAVED ANALYSES
--- Users can pin/save any job result for long-term access.
--- Saved jobs do not expire.
+-- SEQUENCING JOBS  (FASTQ QC → variant calling)
 -- ============================================================
-create table saved_analyses (
-  id          uuid primary key default uuid_generate_v4(),
-  user_id     uuid not null references profiles(id) on delete cascade,
-  job_id      uuid not null references jobs(id) on delete cascade,
-  title       text,                           -- user-editable title
-  notes       text,                           -- user notes
-  tags        text[],                         -- e.g. ['coursework', 'assignment-3']
-  is_pinned   boolean not null default false,
-  created_at  timestamptz not null default now(),
-  unique(user_id, job_id)
+create table if not exists sequencing_jobs (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references profiles(id) on delete cascade,       -- 004
+  fastq_url   text,
+  reference   text,                  -- 'sars-cov-2' default
+  status      text,                  -- queued | downloading | ... | complete | failed
+  result      jsonb,
+  error       text,
+  done_at     timestamptz,
+  storage_url text,                  -- 006
+  payload     jsonb,                 -- 005
+  claimed_at  timestamptz,           -- 005 worker columns
+  claimed_by  text,
+  attempts    integer not null default 0,
+  max_attempts integer not null default 3
 );
-
-create index idx_saved_user_id on saved_analyses(user_id);
 ```
 
 ---
 
-## Row Level Security (RLS) Policies
+## Row Level Security (RLS)
 
 ```sql
--- Enable RLS on all user-facing tables
 alter table profiles enable row level security;
 alter table jobs enable row level security;
+alter table ai_interpretations enable row level security;
+alter table usage_log enable row level security;
 alter table pipeline_steps enable row level security;
 alter table raw_api_responses enable row level security;
 alter table processed_results enable row level security;
 alter table saved_analyses enable row level security;
-
--- profiles: users can only read/update their own profile
-create policy "profiles_self_access" on profiles
-  for all using (auth.uid() = id);
-
--- jobs: users see only their own jobs
-create policy "jobs_owner_access" on jobs
-  for all using (
-    auth.uid() = user_id or
-    guest_session_id is not null  -- guest jobs readable by session (handled in app layer)
-  );
-
--- pipeline_steps: readable if user owns the parent job
-create policy "steps_via_job" on pipeline_steps
-  for select using (
-    exists (
-      select 1 from jobs
-      where jobs.id = pipeline_steps.job_id
-        and jobs.user_id = auth.uid()
-    )
-  );
-
--- processed_results: same pattern
-create policy "results_via_job" on processed_results
-  for select using (
-    exists (
-      select 1 from jobs
-      where jobs.id = processed_results.job_id
-        and jobs.user_id = auth.uid()
-    )
-  );
-
--- raw_api_responses: backend service role only (never exposed to frontend directly)
--- Frontend never calls raw_api_responses directly — always through processed_results
-
--- Cache tables: public read (no PII), backend write only
 alter table sequence_cache enable row level security;
-create policy "seq_cache_public_read" on sequence_cache for select using (true);
-
-alter table blast_cache enable row level security;
-create policy "blast_cache_public_read" on blast_cache for select using (true);
-
 alter table structure_cache enable row level security;
-create policy "structure_cache_public_read" on structure_cache for select using (true);
-```
-
----
-
-## Supabase Functions (Database Triggers)
-
-```sql
--- Auto-create profile on user signup
-create or replace function handle_new_user()
-returns trigger language plpgsql security definer as $$
-begin
-  insert into profiles (id, display_name)
-  values (new.id, coalesce(new.raw_user_meta_data->>'full_name', 'Researcher'));
-  return new;
-end;
-$$;
-
-create trigger on_auth_user_created
-  after insert on auth.users
-  for each row execute procedure handle_new_user();
-
--- Auto-update updated_at on profiles
-create or replace function update_updated_at()
-returns trigger language plpgsql as $$
-begin
-  new.updated_at = now();
-  return new;
-end;
-$$;
-
-create trigger profiles_updated_at
-  before update on profiles
-  for each row execute procedure update_updated_at();
-
--- Auto-expire guest sessions (called by a scheduled job)
-create or replace function cleanup_expired_data()
-returns void language plpgsql as $$
-begin
-  delete from guest_sessions where expires_at < now();
-  delete from jobs where expires_at < now();
-  delete from sequence_cache where expires_at < now();
-  delete from blast_cache where expires_at < now();
-  delete from structure_cache where expires_at < now();
-end;
-$$;
--- Schedule via Supabase pg_cron: SELECT cron.schedule('cleanup', '0 2 * * *', 'SELECT cleanup_expired_data()');
-```
-
----
-
-## Cloudflare R2 Key Convention
-
-All objects stored in R2 follow this naming pattern:
-
-```
-raw/{step_id}/{service}.{ext}
-  e.g. raw/abc123/ncbi_blast.xml
-  e.g. raw/abc123/pdb_rest.json
-
-results/{job_id}/{result_type}.{ext}
-  e.g. results/xyz789/structure_coordinates.pdb
-  e.g. results/xyz789/msa_result.fasta
-
-cache/blast/{cache_key}.xml
-cache/structure/{pdb_id}.pdb
-```
-
----
-
-## Input Params Schema (Per Workflow Type)
-
-These are stored in `jobs.input_params` as JSONB:
-
-```typescript
-// blast
-{
-  sequence: string,           // raw sequence or null if accession provided
-  accession: string | null,   // e.g. "NP_000509.1"
-  db_source: string | null,   // where accession was fetched from
-  blast_database: string,     // "nr" | "swissprot" | "pdbaa" | "refseq_protein"
-  blast_program: string,      // "blastp" | "blastn" | "blastx" | "tblastn"
-  evalue_threshold: number,   // default 0.001
-  max_hits: number,           // default 100
-  scoring_matrix: string      // "BLOSUM62" | "PAM30" etc.
-}
-
-// pairwise_alignment
-{
-  sequence_a: string,
-  sequence_b: string,
-  accession_a: string | null,
-  accession_b: string | null,
-  algorithm: "needleman_wunsch" | "smith_waterman",
-  scoring_matrix: string,
-  gap_open: number,
-  gap_extend: number
-}
-
-// structure_retrieval
-{
-  pdb_id: string | null,
-  protein_name: string | null,
-  uniprot_accession: string | null,
-  fetch_alphafold_if_missing: boolean
-}
-```
-
----
-
-## Migration Notes
-
-## Additional Tables (Phase 2)
-
-### API Keys
-
-Applied via migration `006_api_keys.sql`:
-
-```sql
-create table if not exists api_keys (
-  id uuid primary key default gen_random_uuid(),
-  user_id uuid not null,
-  name text not null,
-  key_hash text not null,
-  key_prefix text not null,
-  created_at timestamptz default now(),
-  last_used_at timestamptz
-);
-
-create index if not exists idx_api_keys_user on api_keys(user_id);
-create index if not exists idx_api_keys_hash on api_keys(key_hash);
-
+alter table guest_sessions enable row level security;
 alter table api_keys enable row level security;
 
+create policy "Users can view own profile"      on profiles for select using (auth.uid() = id);
+create policy "Users can update own profile"    on profiles for update using (auth.uid() = id);
+create policy "Users can view own jobs"         on jobs for select using (auth.uid() = user_id);
+create policy "Users can create own jobs"       on jobs for insert with check (auth.uid() = user_id);
+create policy "Users can delete own jobs"       on jobs for delete using (auth.uid() = user_id);
+create policy "Users can view own AI results"   on ai_interpretations for select
+  using (job_id in (select id from jobs where user_id = auth.uid()));
+create policy "Users can view own usage"        on usage_log for select using (auth.uid() = user_id);
+
+create policy "Users can view own pipeline steps" on pipeline_steps for select
+  using (job_id in (select id from jobs where user_id = auth.uid()));
+create policy "Users can view own raw responses"  on raw_api_responses for select
+  using (job_id in (select id from jobs where user_id = auth.uid()));
+create policy "Users can view own processed results" on processed_results for select
+  using (job_id in (select id from jobs where user_id = auth.uid()));
+create policy "Users can manage own saved analyses" on saved_analyses for all
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+
 create policy "Users can manage own API keys" on api_keys for all
-  using (auth.uid() = user_id)
-  with check (auth.uid() = user_id);
+  using (auth.uid() = user_id) with check (auth.uid() = user_id);
+```
+
+The backend uses the **service-role key** (`SUPABASE_SERVICE_ROLE_KEY`), bypassing RLS — job ownership is enforced in application code via `user_id` filters (`require_user_id` → `.eq("user_id", user_id)`), and shared results are read through the `share_token` endpoints instead of RLS.
+
+---
+
+## Functions & Triggers
+
+```sql
+-- Auto-create profile on signup
+create or replace function public.handle_new_user()
+returns trigger as $$
+begin
+  insert into public.profiles (id, email, full_name)
+  values (new.id, new.email, new.raw_user_meta_data->>'full_name');
+  return new;
+end;
+$$ language plpgsql security definer;
+
+create or replace trigger on_auth_user_created
+  after insert on auth.users
+  for each row execute procedure public.handle_new_user();
+
+-- Expire caches and guest sessions (schedule via pg_cron)
+create or replace function public.cleanup_expired_data()
+returns void as $$
+begin
+  delete from sequence_cache where expires_at < now();
+  delete from structure_cache where expires_at < now();
+  delete from guest_sessions where expires_at < now();
+end;
+$$ language plpgsql security definer;
+```
+
+---
+
+## Durable Worker RPCs (005_worker_durable)
+
+Atomic claim using `FOR UPDATE SKIP LOCKED` — PostgREST cannot express this through the normal REST interface, so it is exposed as `SECURITY DEFINER` functions called via `/rest/v1/rpc/{name}`:
+
+- `claim_next_docking_job(worker_id text)` → `docking_jobs`
+- `claim_next_sequencing_job(worker_id text)` → `sequencing_jobs`
+- `claim_next_pipeline_job(worker_id text)` → `jobs`
+
+Each returns the oldest row with `status = 'queued' AND attempts < max_attempts`, flips it to `running`, stamps `claimed_at/claimed_by`, and increments `attempts`. The worker requeues on failure (`status → 'queued'`, clear claim) and permanently fails once `attempts >= max_attempts`. A periodic sweep resets rows stuck in `running` for > 90 min.
+
+---
+
+## Storage Conventions
+
+Large results are offloaded to a Supabase Storage bucket (`artifact_storage.py`, bucket auto-created, public).
+
+```
+{dockseq}/{job_id}/{kind}.json        # upload_json(job_id, 'result', payload)
+  e.g. {bucket}/docking-abc123/result.json
+```
+
+`storage_url` on the row stores the public object URL; readers hydrate with `download_json(storage_url)`. The old `result_sdf` inline column is deprecated in favor of `storage_url`.
+
+Redis keys (optional cache): `{prefix}:{sha256_first_16}` with TTLs — BLAST 24h, UniProt 24h, AlphaFold 30d, pathway enrichment 12h, NCBI sequence/search 24h. Cache stats tracked in-process and served at `/api/admin/cache-stats`.
+
+---
+
+## Input Params Conventions
+
+Tool inputs are stored in `jobs.result` / `jobs.context_json` / `payload` as JSONB. Representative shapes:
+
+```jsonc
+// docking_jobs.payload
+{ "tool_type": "docking", "pdb_id": "1TIM", "smiles": "CCO",
+  "grid_center": [0,0,0], "grid_size": [20,20,20],
+  "exhaustiveness": 8, "num_modes": 9 }
+
+// md payload
+{ "tool_type": "md", "pdb_id": "1TIM", "mode": "minimize",
+  "forcefield": "ff14SB", "solvent": "OBC1", "run_length_ps": 1000 }
+
+// function_predict payload
+{ "tool_type": "function_predict", "pdb_id": "1TIM" }
+
+// sequencing_jobs row
+{ "fastq_url": "https://.../reads.fastq", "reference": "sars-cov-2" }
+
+// jobs row for wizard_v2
+{ "tool": "wizard_v2", "pipeline_type": "wizard_v2",
+  "query_preview": "MKTAY...", "status": "running", "share_token": null }
 ```
 
 ---
 
 ## Migration Notes
 
-- Run migrations in order via Supabase SQL editor or `supabase db push`
-- Never modify enum types after data exists — add new values only
-- Cache tables do not need migrations for TTL changes — update application config
-- R2 bucket name: `bioflow-raw-responses` (create in Cloudflare dashboard before deploying)
+- Migrations run in order via `supabase db push` (canonical copy in `bioai-platform/supabase/migrations/`).
+- `jobs.status` uses an explicit CHECK constraint — extending it requires drop + recreate (see `004` and `007`). Do not append statuses ad hoc; add a migration.
+- Backend `migrations/` SQL (`001`, `004`, `005`, `006`) is applied manually via the Supabase SQL editor and is idempotent (`IF NOT EXISTS`).
+- Never modify enum/CHECK values after data exists without a migration that recreates the constraint.

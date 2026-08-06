@@ -7,8 +7,8 @@ import os
 import sys
 import subprocess
 
-from fastapi import APIRouter, HTTPException, Depends
-from pydantic import BaseModel, Field
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field, model_validator
 
 from app.services.auth import get_user_id
 
@@ -16,7 +16,15 @@ router = APIRouter(prefix="/api/admet", tags=["ADMET"])
 
 
 class ADMETRequest(BaseModel):
-    smiles: str = Field(..., min_length=1, max_length=500, description="SMILES string")
+    smiles: str | None = Field(None, min_length=1, max_length=500, description="SMILES string")
+    name: str | None = Field(None, min_length=1, max_length=200, description="Chemical name (resolved via PubChem)")
+    cid: int | None = Field(None, ge=1, description="PubChem compound CID")
+
+    @model_validator(mode="after")
+    def _require_one(self) -> "ADMETRequest":
+        if not any([self.smiles, self.name, self.cid]):
+            raise ValueError("Provide one of: smiles, name, or cid")
+        return self
 
 
 class ADMETResponse(BaseModel):
@@ -24,6 +32,18 @@ class ADMETResponse(BaseModel):
     status: str = "complete"
     result: dict | None = None
     error: str | None = None
+
+
+class SearchHit(BaseModel):
+    cid: int
+    name: str
+    formula: str | None = None
+    smiles: str | None = None
+
+
+class SearchResponse(BaseModel):
+    query: str
+    results: list[SearchHit]
 
 
 def _compute_in_subprocess(smiles: str) -> dict:
@@ -57,20 +77,71 @@ def _compute_in_subprocess(smiles: str) -> dict:
             pass
 
 
+async def _resolve_input(body: ADMETRequest) -> tuple[str, str | None, int | None]:
+    """Resolve the request to (smiles, chemical_name, cid)."""
+    from app.tools.pubchem import cid_to_record, name_to_cid, PubChemError
+
+    if body.smiles:
+        return body.smiles.strip(), None, None
+
+    if body.cid:
+        try:
+            rec = await cid_to_record(body.cid)
+        except PubChemError as e:
+            raise HTTPException(status_code=404, detail=str(e))
+        if not rec.get("smiles"):
+            raise HTTPException(status_code=404, detail="PubChem has no SMILES for this CID")
+        return rec["smiles"], rec.get("name"), rec["cid"]
+
+    # name given: resolve name -> CID -> SMILES
+    try:
+        cid = await name_to_cid(body.name or "")
+    except PubChemError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if not cid:
+        raise HTTPException(status_code=404, detail=f"'{body.name}' not found in PubChem")
+    try:
+        rec = await cid_to_record(cid)
+    except PubChemError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    if not rec.get("smiles"):
+        raise HTTPException(status_code=404, detail="PubChem has no SMILES for this compound")
+    return rec["smiles"], rec.get("name") or body.name, rec["cid"]
+
+
 @router.post("/descriptors", response_model=ADMETResponse)
 async def compute_descriptors(body: ADMETRequest, user_id: str | None = Depends(get_user_id)):
-    """Compute molecular descriptors from SMILES using RDKit.
+    """Compute molecular descriptors from SMILES / chemical name / PubChem CID.
 
     Returns Lipinski/Veber compliance, QED score, and key properties.
     """
     try:
         from app.tools.admet import compute_descriptors as _compute
+        smiles, chemical_name, cid = await _resolve_input(body)
         if os.name == "nt":
-            result = _compute_in_subprocess(body.smiles)
+            result = _compute_in_subprocess(smiles)
         else:
-            result = _compute(body.smiles)
+            result = _compute(smiles)
+        if chemical_name:
+            result["chemical_name"] = chemical_name
+        if cid is not None:
+            result["pubchem_cid"] = cid
         return ADMETResponse(result=result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Descriptor computation failed: {e}")
+
+
+@router.get("/search", response_model=SearchResponse)
+async def search_compounds(
+    q: str = Query(..., min_length=2, max_length=200, description="Name fragment"),
+    limit: int = Query(10, ge=1, le=25),
+    user_id: str | None = Depends(get_user_id),
+):
+    """PubChem autocomplete for chemical name search."""
+    from app.tools.pubchem import search_suggestions
+    hits = await search_suggestions(q, limit)
+    return SearchResponse(query=q, results=hits)

@@ -1,9 +1,11 @@
-# Bio Nexus Platform — Master Plan v3.0
+# Bio Nexus Platform — Master Plan v4.0
 
 > A bioinformatics pipeline engine that removes the need for expertise to get expert results.
 > User arrives with a biological question and raw data. Leaves with a complete, interpreted answer — having touched nothing in between.
 >
 > Solo founder · Indian M.Sc. bioinformatics grad · Product-first
+
+**Current status (v4.0, 2026-08-05):** Full toolset milestone — every core module from Phases 1–3 plus docking, MD simulation, ADMET, function prediction and a sequencing MVP are shipped and running through the pipeline engine. Platform hardened (shares, exports, API keys, caching, monitoring) and rebuilt on the dark-only OLED design system. See [§9 — What's New in v4.0](#9-whats-new-in-v40).
 
 ---
 
@@ -125,11 +127,12 @@ Unified result page
 
 ## 5. Phase Breakdown
 
-### Phase 1 — Prove the pipeline engine works (Months 1–4)
+### Phase 1 — Prove the pipeline engine works (Months 1–4) ✅
 
 One workflow. Done better than anyone else has done it. No feature creep.
 
 **Workflow**: Protein sequence → BLAST (EBI) → UniProt annotation → AlphaFold structure → AI report
+**Status: Shipped** — BLAST → UniProt → AlphaFold → AI report is live end to end.
 
 **Output**: A single result page:
 - Top BLAST hits with E-value and identity clearly explained
@@ -152,9 +155,20 @@ No one offers this. Galaxy makes you build a workflow manually. EMBL-EBI runs ea
 - **Export** — PDF/JSON export via `/api/export/job/{id}` endpoint ✅
 - **Guest → Account upgrade** — Guest session to permanent Google account via `linkIdentity` ✅
 - **Enhanced Dashboard/Jobs/Settings** — Quick tools grid, filter tabs, usage bars, avatar, API key management UI ✅
+- **Structure retrieval + analysis suite** — PDB retrieval, AlphaFold prediction, 3Dmol.js viewer, Ramachandran plot, secondary structure assignment, Foldseek structure comparison ✅
+- **Molecular docking** — AutoDock Vina on server, full 1.2.7 log parsing, RMSD table, run-config UI (no external compute dependency) ✅
+- **MD simulation** — Amber-style implicit solvent, verified force field/solvent matrix (ff14SB/ff15ipq/ff19SB/amberfb15/CHARMM36 × OBC1/OBC2/GBN2), alanine-dipeptide startup probe, 25 min run budget ✅
+- **ADMET prediction** — RDKit descriptor computation, Lipinski screening, traffic-light property output ✅
+- **Protein function prediction** — sequence → function inference endpoint + job status ✅
+- **Protein interactions** — interaction lookup module ✅
+- **Sequencing MVP** — FASTQ upload → QC → trimming → assembly/consensus → variant calling → annotation (SARS-CoV-2 reference) ✅
+- **Multi-method MSA** — ClustalOmega / MUSCLE / Kalign / MAFFT / T-Coffee with method selector ✅
+- **Pairwise alignment** — standalone global/local tool + "Align pair" from BLAST hits, full-length alignment view ✅
+- **BLAST modes** — global/local database modes, DNA query support, honors program/db/max_hits params, 65-min poll cap ✅
+- **Domain scanning** — PROSITE raw-sequence scan, reviewed/organism UniProt filters ✅
 
-**Not started:**
-- **Molecular docking** — DiffDock via Replicate (GPU inference API, lab-tier feature — requires revenue)
+**Remaining:**
+- None from Phase 2 — the original "Not started: DiffDock via Replicate" was replaced by self-hosted AutoDock Vina
 
 ### Phase 2.5 — Platform Hardening (Ongoing) ✅
 
@@ -163,13 +177,16 @@ No one offers this. Galaxy makes you build a workflow manually. EMBL-EBI runs ea
 - **Sentry error monitoring** — Frontend (`@sentry/nextjs`) + Backend (`sentry-sdk`) with DSN config ✅
 - **Cache-hit checks** — Cache metrics tracking, `from_cache` flag on results, `/api/admin/cache-stats` endpoint ✅
 - **Cache coverage** — `@ttl_cache` added to `pathway_enrichment.run_enrichment()`, `ncbi_service.search_by_name()` ✅
+- **Design system overhaul** — dark-only (OLED) theme, semantic color tokens, AA-verified text tiers, 4-band confidence bands, Geist fonts, Phosphor icons, HUD glass components, tiered motion ✅
+- **Landing redesign** — full-window DNA-helix hero, bento feature grid, route-style pipeline visualization, restrained motion ✅
+- **AI model fallback chain** — Groq → Gemini → Ollama, honest visible banner on failure, enriched share message ✅
+- **Wizard job persistence** — wizard runs persist as real jobs on the dashboard ✅
+- **Share links hardened** — token-based sharing works across all job types ✅
 
-### Phase 3 — Handle raw sequencing data (Months 11–18) 🔜
+### Phase 3 — Handle raw sequencing data (Months 11–18) 🚧
 
-- FASTQ → QC → trimming → alignment → variant calling → annotation → interpreted report
-- RNA-seq differential expression
-- Larger infrastructure: file storage, longer jobs, more compute
-- Significantly expands user base from coursework students to researchers doing published work
+- Sequencing MVP shipped (FASTQ QC → variant calling, SARS-CoV-2 reference) ✅
+- RNA-seq differential expression, larger file storage and more compute still ahead 🔜
 
 ### Phase 4 — Platform + collaboration (Months 19–30) 🔜
 
@@ -215,5 +232,30 @@ Sun        Plan next week — no coding
 
 ---
 
-*Bio Nexus Platform — Master Plan v3.0*
+## 9. What's New in v4.0
+
+Shipped since the v3.0 plan. Every item below is running code, not roadmap.
+
+### Tools & modules
+- **Docking** — AutoDock Vina 1.2.7, full log (RMSD l.b./u.b., version, seed), RMSD table, run configuration UI
+- **MD simulation** — verified force-field × solvent matrix, startup integrity probe, 25-min production budget
+- **ADMET** — RDKit descriptor computation with traffic-light property readout
+- **Function prediction** — sequence → inferred function
+- **Protein interactions** — interaction lookup
+- **Sequencing (MVP)** — FASTQ QC → trimming → consensus → variant calling → annotation, SARS-CoV-2 reference
+- **Multi-method MSA** — ClustalOmega / MUSCLE / Kalign / MAFFT / T-Coffee
+- **Pairwise alignment** — standalone tool + "Align pair" from any BLAST hit, full-length view
+- **Structure analysis** — Ramachandran plot, secondary structure assignment, Foldseek structure comparison
+- **BLAST upgrades** — global/local modes, DNA queries, honor program/db/max_hits, 65-min poll cap
+
+### Platform
+- **AI interpretation with fallback chain** — Groq → Gemini → Ollama; honest visible banner on failure
+- **Share links hardened** — working for every job type, enriched share message with result details
+- **Wizard jobs persisted** — wizard runs appear in job history
+- **Dark-only OLED design system** — semantic color tokens, confidence bands, Geist fonts, Phosphor icons, tiered motion
+- **Landing rebuild** — DNA-helix hero, bento features, route-style pipeline graphic
+
+---
+
+*Bio Nexus Platform — Master Plan v4.0*
 *Pipeline engine · Student-first · India-built*

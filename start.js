@@ -13,7 +13,9 @@ spawn(npm, ['start'], {
   shell: true,
 });
 
-spawn('python', ['-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8000'], {
+const backendPython = path.join(backendDir, '.venv', 'Scripts', 'python.exe');
+
+spawn(backendPython, ['-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8000'], {
   cwd: backendDir,
   stdio: 'inherit',
   shell: true,

@@ -1,15 +1,17 @@
 # implementationplan.md — BioFlow AI Implementation Plan
 
-## Track A — Prototype Sprint (18 Days)
+> **Current status (v4.0, 2026-08-05):** Track A prototype completed. Track B sprints 1–10 completed. Additional sprints 11–15 (structure suite, docking, MD, ADMET, function, sequencing, design system) shipped. See Track B below.
+
+## Track A — Prototype Sprint (18 Days) ✅ Completed
 
 One golden path only: **Sequence In → BLAST → AI-interpreted report.** Everything else is Track B.
 
 ### Day 0 — Pre-flight (~2 hrs, today)
-- [ ] Create `bioflow-frontend` and `bioflow-backend` repos
-- [ ] Create Supabase project, run schema.md migrations
-- [ ] Create Cloudflare R2 bucket
-- [ ] Get API keys: Gemini (Resend optional for prototype)
-- [ ] Confirm NCBI BLAST URL API access — **no key required, but max 1 request every 10s**; build this constraint in from day one, not as a fix later
+- [x] Create `bioflow-frontend` and `bioflow-backend` repos
+- [x] Create Supabase project, run schema.md migrations
+- [x] Create Cloudflare R2 bucket
+- [x] Get API keys: Gemini (Resend optional for prototype)
+- [x] Confirm NCBI BLAST URL API access — **no key required, but max 1 request every 10s**; build this constraint in from day one, not as a fix later
 
 ### Days 1–2 — Foundations
 **Backend**
@@ -92,24 +94,24 @@ One golden path only: **Sequence In → BLAST → AI-interpreted report.** Every
 
 ## Track B — Phase 1 Full Build (post-prototype, ~10–12 weeks)
 
-### Sprint 1–2: Pairwise Alignment + Pipeline Chaining Foundation
-- Add Clustal Omega pairwise alignment as the second live operation
-- Implement `parent_job_id` chaining (schema already supports this)
-- Operation grid: two live cards
+### Sprint 1–2: Pairwise Alignment + Pipeline Chaining Foundation ✅
+- Add Clustal Omega pairwise alignment as the second live operation ✅
+- Implement `parent_job_id` chaining (schema already supports this) ✅
+- Operation grid: two live cards ✅
 
-### Sprint 3–4: UniProt + PDB
-- UniProt annotation lookup
-- PDB structure fetch + Mol* 3D viewer
-- Chain: "from this BLAST hit → fetch structure"
+### Sprint 3–4: UniProt + PDB ✅
+- UniProt annotation lookup ✅
+- PDB structure fetch + Mol* 3D viewer ✅ (3Dmol.js viewer)
+- Chain: "from this BLAST hit → fetch structure" ✅
 
-### Sprint 5–6: MSA + Phylogenetic Tree
-- Clustal Omega multi-sequence alignment
-- Basic tree construction + visualization
-- Completes the BLAST → shortlist → MSA → tree workflow from your syllabus mapping
+### Sprint 5–6: MSA + Phylogenetic Tree ✅
+- Clustal Omega multi-sequence alignment ✅ (multi-method: ClustalOmega/MUSCLE/Kalign/MAFFT/T-Coffee)
+- Basic tree construction + visualization ✅
+- Completes the BLAST → shortlist → MSA → tree workflow from your syllabus mapping ✅
 
-### Sprint 7: Pathway Integration
-- Gene/protein → pathway lookup via Reactome/WikiPathways
-- Pathway diagram viewer
+### Sprint 7: Pathway Integration ✅
+- Gene/protein → pathway lookup via Reactome/WikiPathways ✅
+- Pathway diagram viewer ✅
 
 ### Sprint 8: Onboarding + `/learn` ✅
 - First-run tutorial (TutorialWalkthrough component, 5 steps, localStorage flag) ✅
@@ -121,3 +123,33 @@ One golden path only: **Sequence In → BLAST → AI-interpreted report.** Every
 - Cache-hit check with `from_cache` flag, `/api/admin/cache-stats` endpoint ✅
 - `@ttl_cache` coverage: pathway enrichment, NCBI search, BLAST, UniProt, AlphaFold ✅
 - Sentry error monitoring (`@sentry/nextjs` frontend + `sentry-sdk` backend) ✅
+
+### Sprint 11: Pipeline v2 Engine + Domain/Structure Depth ✅
+- 8-step in-memory pipeline: BLAST → UniProt → MSA → Phylo → Domains → Pathway Enrichment → AlphaFold → AI ✅
+- Pipeline wizard with step checkboxes, progressive reveal results ✅
+- Global/local BLAST modes, DNA query support, poll cap 65 min ✅
+- Pairwise: global/local via "Align pair" from BLAST hits + standalone tool + full-length view ✅
+- Domains: PROSITE raw-sequence scan, reviewed/organism UniProt filters ✅
+- Structure analysis suite: Ramachandran, secondary structure, Foldseek comparison ✅
+
+### Sprint 12: Drug Discovery Compute ✅
+- AutoDock Vina docking: full 1.2.7 log (RMSD l.b./u.b., version, seed), RMSD table, run-config UI ✅
+- MD simulation: verified force field × solvent matrix, startup probe, 25-min budget ✅
+- ADMET: RDKit descriptor computation + traffic-light output ✅
+- Function prediction + protein interactions ✅
+
+### Sprint 13: Sequencing MVP ✅
+- FASTQ upload → QC → trimming → assembly/consensus → variant calling → annotation ✅
+- SARS-CoV-2 reference, job persistence, progress polling ✅
+
+### Sprint 14: Reliability ✅
+- AI model fallback chain (Groq → Gemini → Ollama), honest failure banner ✅
+- Share links fixed for all job types + enriched share message ✅
+- Wizard jobs persisted to dashboard history ✅
+- BLAST params honored (program/db/max_hits), long MD jobs not abandoned ✅
+
+### Sprint 15: Design System (v4.0) ✅
+- Dark-only OLED theme, semantic color tokens, AA text tiers, 4-band confidence bands ✅
+- Geist fonts, Phosphor icons, HUD glass components, tiered motion ✅
+- Landing rebuild: DNA-helix hero, bento features, route-style pipeline ✅
+- Dashboard/tools/results converted to native dark tokens ✅

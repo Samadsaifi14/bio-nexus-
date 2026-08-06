@@ -25,9 +25,46 @@ EBI_TOOLS: dict[str, str] = {
     "tcoffee": "https://www.ebi.ac.uk/Tools/services/rest/tcoffee",
 }
 
-POLL_INTERVAL = 2
-MAX_POLLS = 120
+POLL_INTERVAL = 1
+MAX_POLLS = 60
 TREE_TYPES = ["phylotree"]
+
+# Tools tried in order when the primary EBI job fails (all share the same REST contract).
+EBI_FALLBACK_ORDER = ["clustalo", "muscle"]
+
+
+async def run_ebi_msa_best_effort(
+    sequence: str,
+    stype: str = "protein",
+    email: str = "bioflow@example.com",
+    tools: list[str] | None = None,
+) -> dict:
+    """Run EBI MSA trying each tool in ``tools`` until one succeeds.
+
+    Raises ValueError only when every tool fails, with a combined message.
+    Returns the same shape as :func:`run_ebi_msa` (``method`` names the tool
+    that actually produced the alignment).
+    """
+    tools = tools or EBI_FALLBACK_ORDER
+    errors: list[str] = []
+    for tool in tools:
+        base_url = EBI_TOOLS.get(tool)
+        if not base_url:
+            errors.append(f"unknown tool {tool!r}")
+            continue
+        try:
+            result = await run_ebi_msa(
+                base_url=base_url,
+                sequence=sequence,
+                stype=stype,
+                email=email,
+            )
+            result["method"] = tool
+            return result
+        except Exception as e:
+            errors.append(f"{tool}: {e}")
+            logger.warning("EBI MSA tool %s failed (%s); trying next…", tool, e)
+    raise ValueError("EBI MSA failed on all tools: " + " | ".join(errors))
 
 
 async def run_ebi_msa(

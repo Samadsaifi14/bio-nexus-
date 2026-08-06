@@ -382,11 +382,17 @@ def _parse_vina_poses(output_pdbqt: str, vina_log: str) -> list[dict]:
 
     poses = []
     for model_id in sorted(models.keys()):
-        atom_count = sum(1 for l in models[model_id] if l.startswith("HETATM") or l.startswith("ATOM"))
+        atom_lines = [l for l in models[model_id] if l.startswith("HETATM") or l.startswith("ATOM")]
+        atom_count = len(atom_lines)
+        hydrogen_count = sum(
+            1 for l in atom_lines
+            if (l.split()[2].startswith("H") if len(l.split()) > 2 else False)
+        )
         entry = mode_table.get(model_id, {})
         poses.append({
             "model": model_id,
             "atoms": atom_count,
+            "hydrogens": hydrogen_count,
             "affinity": entry.get("affinity"),
             "rmsd_lb": entry.get("rmsd_lb"),
             "rmsd_ub": entry.get("rmsd_ub"),

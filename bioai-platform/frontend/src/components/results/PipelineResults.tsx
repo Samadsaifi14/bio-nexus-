@@ -31,15 +31,30 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
 
   useEffect(() => {
     setError(null);
+    let consecutiveFailures = 0;
     const iv = setInterval(async () => {
       try {
         const res = await fetch(`/api/backend/api/pipeline/v2/status/${jobId}`);
-        if (!res.ok) { clearInterval(iv); setError("Pipeline job not found"); return; }
+        if (!res.ok) {
+          clearInterval(iv);
+          setError("Pipeline job not found");
+          return;
+        }
         const d = await res.json();
+        consecutiveFailures = 0;
         setData(d);
         if (d.status === "complete") { clearInterval(iv); onComplete?.(); }
         if (d.status === "failed") clearInterval(iv);
-      } catch { /* poll retry */ }
+      } catch {
+        // Transient network hiccup: keep polling, but surface the problem if
+        // the backend is unreachable for a sustained period so the user is
+        // never left staring at an infinite spinner.
+        consecutiveFailures += 1;
+        if (consecutiveFailures >= 8) {
+          clearInterval(iv);
+          setError("Lost connection to the analysis server. Check that the backend is running, then start the analysis again.");
+        }
+      }
     }, 3000);
     return () => clearInterval(iv);
   }, [jobId]);
@@ -113,7 +128,10 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
           <div className="flex items-center justify-between mb-2">
             <div>
               <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
-              <p className="text-xs text-text-muted mt-0.5">{data.steps.msa.data.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+              <p className="text-xs text-text-muted mt-0.5">
+                {data.steps.msa.data.sequence_count ?? 0} sequences aligned
+                {data.steps.msa.data.method && ` via ${data.steps.msa.data.method}`}
+              </p>
             </div>
             <button
               onClick={() => {

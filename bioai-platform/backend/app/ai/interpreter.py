@@ -4,12 +4,34 @@ import logging
 import re
 from typing import AsyncGenerator
 
-from litellm import acompletion
 from app.config import settings
 from app.ai.llm_client import llm_client
 from app.ai.prompts import get_prompt
 
 logger = logging.getLogger(__name__)
+
+_litellm = None
+_litellm_tried = False
+
+
+def _get_acompletion():
+    """Lazily import litellm so a missing/broken install never breaks import.
+
+    Returns the ``acompletion`` callable or None (callers turn that into a
+    friendly error instead of a stack trace)."""
+    global _litellm, _litellm_tried
+    if _litellm_tried:
+        return getattr(_litellm, "acompletion", None) if _litellm else None
+    _litellm_tried = True
+    try:
+        import litellm as _m  # noqa: PLC0415 - deliberate lazy import
+
+        _litellm = _m
+        return _m.acompletion
+    except Exception as e:  # pragma: no cover - env dependent
+        logger.warning("litellm not importable, AI interpretation disabled: %s", e)
+        _litellm = None
+        return None
 
 
 def _retry_delay_seconds(error: BaseException) -> float | None:
@@ -69,6 +91,11 @@ def _friendly_error(error: BaseException) -> str:
 
 
 async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[str, None]:
+    acompletion = _get_acompletion()
+    if acompletion is None:
+        yield _error_event("AI interpretation unavailable: LLM provider library is not installed.")
+        return
+
     candidates = llm_client.get_all_candidates()
     if not candidates:
         yield _error_event("No LLM API keys configured. AI interpretation unavailable.")
@@ -119,6 +146,10 @@ async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[
 
 async def interpret_text(pipeline_type: str, context: dict) -> dict:
     """Non-streaming interpretation for pipeline runs — same retry/fallback logic."""
+    acompletion = _get_acompletion()
+    if acompletion is None:
+        return {"interpretation": "AI interpretation unavailable: LLM provider library is not installed."}
+
     candidates = llm_client.get_all_candidates()
     if not candidates:
         return {"interpretation": "AI interpretation unavailable: no LLM API keys configured"}

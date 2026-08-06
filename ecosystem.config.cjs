@@ -12,10 +12,13 @@ module.exports = {
     {
       name: 'bio-nexus-backend',
       cwd: './bioai-platform/backend',
-      script: 'python',
+      script: './bioai-platform/backend/.venv/Scripts/python.exe',
       args: ['-m', 'uvicorn', 'app.main:app', '--host', '0.0.0.0', '--port', '8000'],
       autorestart: true,
       watch: false,
+      env: {
+        PATH: `${process.env.PATH};${require('path').join(__dirname, 'bioai-platform', 'backend', '.venv', 'Scripts')}`,
+      },
     },
   ],
 };

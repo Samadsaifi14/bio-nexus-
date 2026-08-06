@@ -358,6 +358,7 @@ export type DockingAtom = {
 export type DockingPose = {
   model: number;
   atoms: number;
+  hydrogens?: number;
   coords?: DockingAtom[];
   affinity: number | null;
   rmsd_lb?: number | null;
@@ -431,6 +432,18 @@ export type DockingResult = {
     smiles: string;
     poses: DockingPose[];
     num_poses: number;
+    ligand_properties?: {
+      molecular_formula: string;
+      molecular_weight: number;
+      heavy_atoms: number;
+      hydrogen_count: number;
+      total_atoms: number;
+      rotatable_bonds: number;
+      tpsa: number;
+      hbd: number;
+      hba: number;
+      logp: number;
+    };
     box_center: { x: number; y: number; z: number };
     box_size: { x: number; y: number; z: number };
     vina_log?: string;
@@ -533,9 +546,77 @@ export async function listSequencingReferences(): Promise<SequencingReference[]>
 // ADMET descriptors
 // ---------------------------------------------------------------------------
 
+export type ADMETSwissADME = {
+  physicochemical: {
+    formula: string;
+    molecular_weight: number;
+    fraction_csp3: number;
+    rotatable_bonds: number;
+    hba: number;
+    hbd: number;
+    tpsa: number;
+  };
+  lipophilicity: {
+    ilogp: number | null;
+    xlogp3: number | null;
+    wlogp: number;
+    mlogp: number | null;
+    silicos_it: number | null;
+    consensus_log_p: number;
+    note: string;
+  };
+  water_solubility: {
+    esol_log_s: number;
+    esol_class: string;
+    esol_mol_per_l: number;
+    esol_mg_per_ml: number;
+    note: string;
+  };
+  pharmacokinetics: {
+    gi_absorption: string;
+    bbb_permeant: string;
+    pgp_substrate: string;
+    cyp1a2_inhibitor: string;
+    cyp2c19_inhibitor: string;
+    cyp2c9_inhibitor: string;
+    cyp2d6_inhibitor: string;
+    cyp3a4_inhibitor: string;
+    log_kp_skin: number;
+    boiled_egg: {
+      tpsa: number;
+      wlogp: number;
+      in_white_gia: boolean;
+      in_yolk_bbb: boolean;
+      region: string;
+      polygons: { white: [number, number][]; yolk: [number, number][] };
+    };
+  };
+  drug_likeness: {
+    lipinski: { pass: boolean; violations: string[]; violation_count: number };
+    ghose: { pass: boolean; violations: string[]; violation_count: number };
+    veber: { pass: boolean; violations: string[]; violation_count: number };
+    egan: { pass: boolean; violations: string[]; violation_count: number };
+    muegge: { pass: boolean; violations: string[]; violation_count: number };
+    bioavailability_score: number;
+  };
+  medicinal_chemistry: {
+    pains_alerts: { pass: boolean; alerts: string[]; alert_count: number };
+    brenk_alerts: { pass: boolean; alerts: string[]; alert_count: number };
+    lead_likeness_violations: number;
+    synthetic_accessibility: number | null;
+  };
+  bioavailability_radar: {
+    axes: { axis: string; label: string; value: number; min: number; max: number; note: string }[];
+    all_optimal: boolean;
+  };
+};
+
 export type ADMETResult = {
   smiles: string;
+  chemical_name?: string;
+  pubchem_cid?: number;
   formula: string;
+  swissadme?: ADMETSwissADME;
   heavy_atoms: number;
   molecular_weight: number;
   logp: number;
@@ -611,9 +692,28 @@ export type ADMETResult = {
   };
 };
 
-export async function computeADMET(smiles: string): Promise<{ result: ADMETResult }> {
-  const res = await api.post('/api/admet/descriptors', { smiles });
+export type ADMETInput = {
+  smiles?: string;
+  name?: string;
+  cid?: number;
+};
+
+export async function computeADMET(input: ADMETInput): Promise<{ result: ADMETResult }> {
+  const res = await api.post('/api/admet/descriptors', input);
   return res.data;
+}
+
+export type ADMETSearchHit = {
+  cid: number;
+  name: string;
+  formula?: string;
+  smiles?: string;
+};
+
+export async function searchCompounds(query: string, limit = 10): Promise<ADMETSearchHit[]> {
+  if (!query.trim()) return [];
+  const res = await api.get('/api/admet/search', { params: { q: query, limit } });
+  return res.data.results || [];
 }
 
 // ---------------------------------------------------------------------------

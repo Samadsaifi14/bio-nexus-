@@ -5,7 +5,7 @@ echo ========================================
 echo.
 
 :: Start backend in new window
-start "Bio Nexus Backend" cmd /c "cd /d "%~dp0bioai-platform\backend" && python -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+start "Bio Nexus Backend" cmd /c "cd /d "%~dp0bioai-platform\backend" && "%~dp0bioai-platform\backend\.venv\Scripts\python.exe" -m uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
 
 :: Wait for backend to start
 timeout /t 3 /nobreak >nul

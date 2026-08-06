@@ -23,7 +23,7 @@ from app.integrations.ncbi.parser import parse_blast_xml
 from app.services.validators import validate_fasta
 from app.services.sequence_utils import detect_source_from_accession, map_refseq_to_uniprot, detect_sequence_type
 from app.services.blast_config import resolve_blast_params
-from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
+from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa, run_ebi_msa_best_effort
 from app.tools.uniprot import UniprotTool
 from app.tools.pairwise_alignment import pairwise_align, VALID_MODES
 
@@ -708,17 +708,31 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
         email = settings.NCBI_EMAIL or "bioflow@example.com"
         seq_type = detect_sequence_type(query_sequence) or "protein"
         stype = "protein" if seq_type == "protein" else "dna"
-        result = await run_ebi_msa(
-            base_url=EBI_TOOLS["clustalo"],
-            sequence=fasta_str,
-            stype=stype,
-            email=email,
-        )
+        try:
+            result = await run_ebi_msa_best_effort(
+                sequence=fasta_str,
+                stype=stype,
+                email=email,
+            )
+            method = result["method"]
+            aln_fasta = result["aln_fasta"]
+            phylotree = result["phylotree"]
+        except Exception as e:
+            logger.warning("EBI MSA unavailable (%s) — using in-process fallback", e)
+            from app.tools.msa_fallback import progressive_msa
+            fallback = await asyncio.get_running_loop().run_in_executor(
+                None, progressive_msa, sequences, stype
+            )
+            aln_fasta, phylotree = fallback
+            method = "in-process fallback"
+
         payload = {
-            "aln_fasta": result["aln_fasta"],
-            "phylotree": result["phylotree"],
+            "aln_fasta": aln_fasta,
+            "phylotree": phylotree,
             "sequence_count": len(sequences),
             "alignment_mode": alignment_mode,
+            "method": method,
+            "_fallback": method != "clustalo",
         }
 
         # Local mode: refine query vs the best non-query sequence with an

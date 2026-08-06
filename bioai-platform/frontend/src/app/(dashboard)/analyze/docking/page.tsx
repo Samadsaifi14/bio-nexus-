@@ -399,12 +399,49 @@ export default function DockingPage() {
                 </div>
               </div>
 
+              {result.result.ligand_properties && (
+                <div className="mb-5">
+                  <p className="text-xs text-text-secondary mb-2">Ligand Essential Data <span className="text-text-muted">(RDKit)</span></p>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-xs">
+                      <thead>
+                        <tr className="text-text-muted uppercase text-[10px] border-b border-glass-border">
+                          <th className="text-left py-1.5 pr-4">Formula</th>
+                          <th className="text-left py-1.5 pr-4">MW</th>
+                          <th className="text-left py-1.5 pr-4">Heavy atoms</th>
+                          <th className="text-left py-1.5 pr-4">Hydrogens</th>
+                          <th className="text-left py-1.5 pr-4">HBA</th>
+                          <th className="text-left py-1.5 pr-4">HBD</th>
+                          <th className="text-left py-1.5 pr-4">TPSA</th>
+                          <th className="text-left py-1.5 pr-4">Rot. bonds</th>
+                          <th className="text-left py-1.5">LogP</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-glass-border">
+                        <tr className="text-text-primary font-mono">
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.molecular_formula}</td>
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.molecular_weight}</td>
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.heavy_atoms}</td>
+                          <td className="py-1.5 pr-4 text-accent-cyan">{result.result.ligand_properties.hydrogen_count}</td>
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.hba}</td>
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.hbd}</td>
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.tpsa}</td>
+                          <td className="py-1.5 pr-4">{result.result.ligand_properties.rotatable_bonds}</td>
+                          <td className="py-1.5">{result.result.ligand_properties.logp}</td>
+                        </tr>
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
                     <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
                       <th className="text-left py-2 pr-4">Pose</th>
                       <th className="text-left py-2 pr-4">Atoms</th>
+                      <th className="text-left py-2 pr-4">H</th>
                       <th className="text-left py-2 pr-4">Affinity (kcal/mol)</th>
                       <th className="text-left py-2 pr-4">RMSD l.b. (Å)</th>
                       <th className="text-left py-2 pr-4">RMSD u.b. (Å)</th>
@@ -418,6 +455,7 @@ export default function DockingPage() {
                         <tr key={pose.model} className="text-text-primary">
                           <td className="py-2 pr-4 font-mono">{pose.model}</td>
                           <td className="py-2 pr-4 font-mono">{pose.atoms}</td>
+                          <td className="py-2 pr-4 font-mono text-accent-cyan">{pose.hydrogens ?? '—'}</td>
                           <td className={`py-2 pr-4 font-mono ${affinityColor(pose.affinity)}`}>
                             {pose.affinity !== null ? pose.affinity.toFixed(2) : '—'}
                           </td>

@@ -1,8 +1,9 @@
-# BioFlow AI — Technical Specification
+# Bio Nexus — Technical Specification
 
-**Version:** 2.0  
-**Repos:** Monorepo at `bio-nexus/bioai-platform/` — `frontend/` (Next.js 14) · `backend/` (FastAPI)  
-**Last Updated:** June 2026
+**Version:** 3.0
+**Repos:** Monorepo at `bioai-platform/` — `frontend/` (Next.js 14 App Router, TypeScript) · `backend/` (FastAPI, async + thread workers)
+**Last Updated:** August 2026
+**Runtime status:** Phase 1–2 shipped, Phase 3 partial, Phase 4 partial, sequencing MVP, durable worker live, dark-only design system.
 
 ---
 
@@ -14,64 +15,66 @@
 bioai-platform/frontend/
 ├── src/
 │   ├── app/
-│   │   ├── (auth)/
-│   │   │   ├── auth/
-│   │   │   │   ├── callback/page.tsx
-│   │   │   │   └── page.tsx
-│   │   │   └── layout.tsx
+│   │   ├── (auth)/                       # auth, auth/callback
 │   │   ├── (dashboard)/
-│   │   │   ├── layout.tsx                # App shell with collapsible sidebar + header
-│   │   │   ├── dashboard/page.tsx        # Stats, quick tools grid, recent jobs
+│   │   │   ├── layout.tsx                # App shell: collapsible sidebar + header
+│   │   │   ├── dashboard/page.tsx        # Stats, quick-tools grid, recent jobs
 │   │   │   ├── analyze/page.tsx          # Operation hub (all tools listed)
-│   │   │   ├── analyze/blast/page.tsx
-│   │   │   ├── analyze/uniprot/page.tsx
-│   │   │   ├── analyze/structure/page.tsx
-│   │   │   ├── analyze/alignment/page.tsx
-│   │   │   ├── analyze/domains/page.tsx
-│   │   │   ├── analyze/phylo/page.tsx
-│   │   │   ├── analyze/pathway/page.tsx
-│   │   │   ├── analyze/interactions/page.tsx
-│   │   │   ├── analyze/compare/page.tsx
-│   │   │   ├── analyze/tools/page.tsx
-│   │   │   ├── analyze/primers/page.tsx
-│   │   │   ├── wizard/page.tsx           # 4-step guided pipeline wizard
+│   │   │   ├── analyze/{tool}/page.tsx   # 17 tool pages:
+│   │   │   │   │                         #   admet alignment blast compare docking
+│   │   │   │   │                         #   domains function interactions md pairwise
+│   │   │   │   │                         #   pathway phylo primers sequencing structure
+│   │   │   │   │                         #   tools uniprot
+│   │   │   ├── wizard/page.tsx           # 8-step guided pipeline wizard
 │   │   │   ├── jobs/page.tsx             # Job list with filter tabs
 │   │   │   ├── jobs/[jobId]/page.tsx     # Job detail + share
-│   │   │   ├── results/[jobId]/page.tsx
+│   │   │   ├── results/[jobId]/page.tsx  # Unified results page
 │   │   │   ├── report/[jobId]/page.tsx   # Print-to-PDF report
 │   │   │   ├── history/page.tsx
-│   │   │   ├── retrieve/page.tsx
-│   │   │   ├── settings/page.tsx         # API keys, profile, guest upgrade, usage
-│   │   │   ├── shared/[token]/page.tsx
-│   │   │   └── learn/                    # Documentation site
-│   │   │       ├── page.tsx              # Docs landing with topic grid
-│   │   │       └── [topic]/page.tsx      # Dynamic topic pages
-│   │   ├── layout.tsx                    # Root layout (fonts, providers)
-│   │   ├── providers.tsx                 # Theme + Auth providers
-│   │   └── globals.css                   # Tailwind + glassmorphism overrides
+│   │   │   ├── retrieve/page.tsx         # Fetch-by-accession
+│   │   │   ├── settings/page.tsx         # API keys, profile, guest upgrade, tutorial replay
+│   │   │   ├── learn/                    # Docs: page.tsx + [topic]/page.tsx
+│   │   │   └── shared/[token]/page.tsx   # Public share link viewer
+│   │   ├── layout.tsx                    # Root layout (Geist fonts, providers)
+│   │   ├── providers.tsx                 # Auth + toast providers
+│   │   └── globals.css                   # Tailwind + dark semantic tokens + HUD glass
 │   ├── components/
+│   │   ├── ui/                           # Design-system kit: GlassPanel, HudPanel, HudLegend,
+│   │   │   │                             #   ClaySegmented, ClaySlider, ClayToggle, CriticalButton,
+│   │   │   │                             #   FlatInput, DataCard, TiltCard, PageHeader, BackButton,
+│   │   │   │                             #   ResultsReadyBanner, index.ts
+│   │   ├── results/                      # PipelineResults, AIInterpretation, BlastPanel, ScoreBars,
+│   │   │   │                             #   AlignmentView, PairwiseAlignView, UniprotPanel,
+│   │   │   │                             #   PathwayDiagram, PathwayEnrichment
+│   │   ├── structure/                    # RamachandranPlot, SecondaryStructure, StructureComparison
 │   │   ├── phylo/PhyloTreeViewer.tsx
-│   │   ├── results/PipelineResults.tsx
+│   │   ├── alignment/                    # ConservationTrack, PairwiseResultDisplay
+│   │   ├── domains/DomainArchitecture.tsx
+│   │   ├── interactions/StringDBViewer.tsx
+│   │   ├── primers/PrimerDesigner.tsx
+│   │   ├── pipeline/                     # JobProgress, PipelineSelector, SequenceInput
+│   │   ├── wizard/AnalysisWizard.tsx
+│   │   ├── three/DNAHelix.tsx            # Landing hero background (three.js)
+│   │   ├── AlphaFoldViewer.tsx · DockingViewer.tsx · StructureViewer.tsx
 │   │   ├── learn/LearnPopover.tsx        # Inline help popover
 │   │   ├── TutorialWalkthrough.tsx       # First-run onboarding modal
-│   │   ├── ErrorBoundary.tsx
-│   │   ├── GuestBanner.tsx
-│   │   ├── ThemeToggle.tsx
-│   │   └── ... (BlastPanel, ScoreBars, UniprotPanel, DomainSummary, etc.)
-│   ├── contexts/
-│   │   ├── auth.tsx                      # Auth context (Supabase session)
-│   │   └── theme.tsx                     # Theme context + localStorage
+│   │   ├── SequenceTypewriter.tsx · SequenceRetrieval.tsx · AuditInsightPanel.tsx
+│   │   ├── InteractionPanel.tsx · GuestBanner.tsx · ErrorBoundary.tsx
+│   │   └── SmoothScrollProvider.tsx      # lenis smooth scroll
+│   ├── contexts/auth.tsx                 # Supabase session context
+│   ├── hooks/useAuditTrail.ts
 │   ├── lib/
-│   │   ├── api.ts                        # Type-safe backend API client
-│   │   ├── supabase.ts                   # Supabase client (browser)
-│   │   ├── types.ts
-│   │   └── animations.ts                # Framer motion variants
-│   └── hooks/
-│       └── useJobPolling.ts
-├── sentry.client.config.ts              # Sentry client config
-├── sentry.server.config.ts              # Sentry server config
-├── next.config.js                       # Sentry-wrapped Next config
-└── package.json
+│   │   ├── api.ts                        # axios client (baseURL /api/backend, 30s/660s timeouts)
+│   │   ├── supabase.ts                   # Supabase browser client (PKCE)
+│   │   ├── confidence.ts                 # 4-band confidence token logic
+│   │   ├── share.ts · errors.ts · export-utils.ts · status-colors.ts
+│   │   └── animations.ts
+│   ├── types/                            # pipeline.ts, results.ts, audit.ts
+├── sentry.client.config.ts · sentry.server.config.ts
+├── next.config.js                       # /api/backend rewrite → backend + Sentry wrapper
+└── package.json                         # deps: @phosphor-icons/react, @sentry/nextjs,
+                                          #   @supabase/ssr, @supabase/supabase-js, axios,
+                                          #   framer-motion, geist, lenis, three, react-hot-toast
 ```
 
 ### `bioai-platform/backend` (Current Structure)
@@ -79,623 +82,288 @@ bioai-platform/frontend/
 ```
 bioai-platform/backend/
 ├── app/
-│   ├── main.py                   # FastAPI app, CORS, lifespan (Sentry init, Redis init)
-│   ├── config.py                 # Settings via pydantic-settings + dotenv
-│   ├── routers/                  # 19 route modules
-│   │   ├── pipelines.py          # POST /api/pipelines/run
-│   │   ├── pipeline_v2.py        # POST /api/pipeline/v2/run, GET /status/{job_id}
-│   │   ├── ai.py                 # POST /api/ai/interpret, /interpret/stream
-│   │   ├── jobs.py               # GET/POST/DELETE /api/jobs
-│   │   ├── share.py              # POST /api/share, GET /api/share/{token}
-│   │   ├── profile.py            # GET/PUT /api/profile
-│   │   ├── sequences.py          # POST /api/sequences/fetch, /validate, /search
-│   │   ├── uniprot.py            # POST /api/uniprot/search, /detail
-│   │   ├── alignment.py          # POST /api/alignment/run
-│   │   ├── structures.py         # POST /api/structures/fetch, /search
-│   │   ├── pathways.py           # POST /api/pathways/search, /detail, /kegg/search, /enrichment
-│   │   ├── domains.py            # GET /api/domains/{accession}
-│   │   ├── interactions.py       # GET /api/interactions/{gene_name}
-│   │   ├── primers.py            # POST /api/primers/design
-│   │   ├── structure_analysis.py # GET /api/structure_analysis/ramachandran, /secondary, /compare
-│   │   ├── phylo.py              # POST /phylo/run, GET /status/{job_id}, /models
-│   │   ├── export.py             # GET /api/export/job/{id}?format=pdf|json
-│   │   ├── api_keys.py           # GET/POST /api/keys, DELETE /api/keys/{id}
-│   │   └── cache_stats.py        # GET /api/admin/cache-stats, POST /reset
+│   ├── main.py                    # FastAPI app, CORS, Sentry init, startup resume sweeps,
+│   │                              #   MD probe, in-process durable worker launch
+│   ├── config.py                  # Settings loaded from .env.deploy → .env → env vars
+│   ├── deps.py                    # slowapi Limiter (per-user JWT sub, else IP)
+│   ├── logging_config.py          # JSON logging + request_id var
+│   ├── middleware.py              # RequestIDMiddleware (X-Request-Id)
+│   ├── worker.py                  # Durable job worker: python -m app.worker
+│   ├── routers/                   # 26 route modules (see API surface below)
 │   ├── services/
-│   │   ├── cache.py              # Redis cache wrapper, @ttl_cache decorator, stats tracking
-│   │   ├── auth.py               # JWT auth, X-API-Key middleware
-│   │   ├── export.py             # PDF/JSON report generation (reportlab)
-│   │   ├── ncbi_service.py       # NCBI Entrez (fetch, search) — @ttl_cache on both
-│   │   ├── pathway_enrichment.py # Reactome enrichment — cached via cache_get/set
-│   │   ├── supabase.py           # Supabase REST client
-│   │   ├── rate_limit.py         # Per-user rate limiting
-│   │   ├── redis.py              # Redis connection
-│   │   ├── sequence_utils.py     # Sequence validation, type detection
-│   │   └── validators.py         # Input validation
-│   ├── tools/                    # Tool classes with @ttl_cache on run()
-│   │   ├── blast.py              # EBI BLAST submit/poll/parse
-│   │   ├── uniprot.py            # UniProt REST lookup
-│   │   ├── alphafold.py          # AlphaFold DB query
-│   │   ├── base.py               # Abstract BaseTool
-│   │   └── registration.py       # Tool registry
-│   ├── pipeline/                 # Pipeline v1 engine (deprecated in favor of v2)
-│   ├── workers/
-│   │   ├── pipeline_worker.py    # Thread-based pipeline execution
-│   │   └── celery_app.py         # Celery app config (unused, kept for reference)
-│   ├── ai/                       # AI interpretation layer
-│   │   ├── interpreter.py
-│   │   ├── llm_client.py         # LiteLLM wrapper (Groq)
-│   │   └── prompts.py            # Prompt templates
-│   ├── models/responses.py       # Pydantic response models
-│   ├── integrations/ncbi/        # NCBI-specific modules
-│   │   ├── blast.py              # BLAST submission & polling
-│   │   └── parser.py             # XML parsing
-│   ├── data/demo_results.py      # Demo mode fallback sequences
-│   └── core/storage.py           # R2 storage wrapper
-├── requirements.txt              # + sentry-sdk
-├── .env.deploy                   # Deployment env template (+ SENTRY_DSN)
-├── Dockerfile                    # Pre-compiled PhyML binary download
-└── railway.json / render.yaml    # Deploy configs
+│   │   ├── auth.py                # get_user_id / require_user_id (Supabase JWT),
+│   │   │                          #   X-API-Key auth (SHA-256 hashed keys)
+│   │   ├── supabase.py            # get_supabase() service-role client (+ get_client alias)
+│   │   ├── cache.py               # Redis wrapper, @ttl_cache, cache stats (optional Redis)
+│   │   ├── artifact_storage.py    # Large-result offload to Supabase Storage (public bucket)
+│   │   ├── audit_engine.py        # Usage/audit event capture
+│   │   ├── export.py              # PDF/JSON report generation (reportlab)
+│   │   ├── ncbi_service.py        # NCBI Entrez fetch/search (@ttl_cache)
+│   │   ├── pathway_enrichment.py  # Reactome enrichment (cached)
+│   │   ├── ssrf.py                # SSRF validation for user-supplied URLs
+│   │   ├── rate_limit.py · sequence_utils.py · validators.py · blast_config.py
+│   ├── tools/                     # Tool classes (many @ttl_cache on run()):
+│   │   ├── blast.py · uniprot.py · alphafold.py · sequence_fetch.py
+│   │   ├── ebi_msa.py · pairwise_alignment.py · domain_analysis.py
+│   │   ├── admet.py (RDKit) · docking.py (AutoDock Vina) · md_sim.py + md_config.py (OpenMM)
+│   │   ├── function_predict.py · sequencing.py
+│   │   ├── base.py · registration.py
+│   ├── ai/
+│   │   ├── interpreter.py · llm_client.py (Groq → Gemini fallback chain) · prompts.py
+│   ├── pipeline/                  # assembler.py, registry.py, definitions/protein_analysis.py
+│   ├── workers/pipeline_worker.py # process_job(): runs `jobs`-table pipelines (heartbeat, live status PATCH)
+│   ├── integrations/ncbi/         # blast.py (submit/poll), parser.py
+│   ├── data/demo_results.py
+│   ├── models/responses.py
+│   └── core/storage.py            # (kept; artifacts now go to Supabase Storage)
+├── migrations/                    # 001_docking_jobs_columns, 004_auth_user_id,
+│                                  #   005_worker_durable (claim RPCs), 006_artifact_storage
+├── requirements.txt               # fastapi, uvicorn, slowapi, redis, httpx, biopython,
+│                                  #   litellm, sentry-sdk, supabase, reportlab, rdkit,
+│                                  #   openmm, pytest
+├── Dockerfile · render.yaml
+└── supabase/                      # canonical DB migrations (001–007)
 ```
 
 ---
 
 ## Authentication Architecture
 
-### Flow
+Auth is Supabase-native (no NextAuth, no custom JWT signing).
 
 ```
 [Browser]
-  1. User clicks "Continue with Google"
-  2. NextAuth handles OAuth redirect → Google → callback
-  3. NextAuth creates JWT (signed with NEXTAUTH_SECRET)
-  4. JWT stored in httpOnly cookie
+  1. getSupabase() creates a Supabase client (anon key, PKCE flow).
+  2. First visit: signInAnonymously() → guest session.
+  3. "Sign in with Google" → supabase.auth.signInWithOAuth('google').
+
+[Guest → Account upgrade]
+  4. Guest upgrades via linkIdentity({ provider: 'google' }) — same user_id,
+     zero data migration.
 
 [Frontend → Backend API call]
-  5. lib/api.ts reads session token from NextAuth
-  6. Sends as Authorization: Bearer {token} header
-
-[FastAPI Backend]
-  7. deps.py validates JWT signature
-  8. Extracts user_id (sub claim)
-  9. Looks up profiles table in Supabase
-  10. Injects user context into route handlers
+  5. lib/api.ts axios interceptor attaches Authorization: Bearer {access_token}
+     (from supabase.auth.getSession()) on every request.
+  6. Backend deps (app/services/auth.py) decode the Supabase JWT payload
+     (base64url, unverified signature — trusted because requests arrive over
+     the private service-role backend and Supabase is the source of truth),
+     and return claims['sub'] as user_id.
 ```
 
 ### Guest Flow
 
-```
-[Browser - no account]
-  1. useGuestSession hook checks cookie 'bioflow_guest_id'
-  2. If not present: POST /api/guest/session → returns session_id
-  3. Session_id stored in cookie (24h expiry, SameSite=Strict)
-  4. All API calls include X-Guest-Session-Id header
-  5. After 1 job: GuestBanner shows "Save your analysis — create account"
-```
+- Anonymous Supabase session from first visit.
+- Guests can run jobs; the guest banner invites conversion.
+- `get_user_id` returns `None` for anonymous requests → routes use `get_user_id` (optional auth) or `require_user_id` (401 if absent).
+- **API keys** are an alternative auth path: `X-API-Key` header → SHA-256 hashed → `api_keys.key_hash` lookup → user_id (`get_user_id_from_api_key`, `require_user_or_api_key`).
 
 ### Environment Variables
 
-**`bioflow-frontend/.env.local`**
+**`bioai-platform/frontend/.env.local`**
 
 ```env
-# NextAuth
-NEXTAUTH_URL=http://localhost:3000
-NEXTAUTH_SECRET=                      # openssl rand -base64 32
-
-# Google OAuth
-GOOGLE_CLIENT_ID=
-GOOGLE_CLIENT_SECRET=
-
-# Supabase
+NEXT_PUBLIC_API_URL=http://localhost:8000   # backend origin; /api/backend rewrites to it
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_ANON_KEY=
-SUPABASE_SERVICE_ROLE_KEY=            # server-side only, never exposed to browser
-
-# Backend
-NEXT_PUBLIC_API_URL=http://localhost:8000
+NEXT_PUBLIC_SENTRY_DSN=
 ```
 
-**`bioflow-backend/.env`**
+**`bioai-platform/backend/.env.deploy`** (loaded first by `config.py`)
 
 ```env
-# Supabase
 SUPABASE_URL=
-SUPABASE_SERVICE_ROLE_KEY=            # backend uses service role for RLS bypass
+SUPABASE_SERVICE_ROLE_KEY=        # backend uses service role (RLS bypass) — never exposed
 
-# External APIs
-NCBI_API_KEY=                         # register at ncbi.nlm.nih.gov/account
-NCBI_EMAIL=                           # required by NCBI Entrez policy
-GROQ_API_KEY=
-ANTHROPIC_API_KEY=
+GROQ_API_KEY=                     # primary AI provider (DEFAULT_MODEL)
+GOOGLE_API_KEY=                   # fallback AI provider (gemini-2.0-flash, and pro model route)
+SENTRY_DSN=
 
-# Cloudflare R2
-R2_ACCOUNT_ID=
-R2_ACCESS_KEY_ID=
-R2_SECRET_ACCESS_KEY=
-R2_BUCKET_NAME=bioflow-raw-responses
-R2_PUBLIC_URL=                        # optional CDN URL for public assets
+NCBI_EMAIL=                       # required by NCBI Entrez policy
+NCBI_API_KEY=                     # optional, raises rate ceiling to 10 req/s
+REDIS_URL=                        # optional — caching silently disabled if unreachable
 
-# Redis (Upstash)
-REDIS_URL=                            # rediss://... from Upstash dashboard
-
-# App
-SECRET_KEY=                           # for JWT verification (same as NEXTAUTH_SECRET)
-ENVIRONMENT=development               # development | production
-CORS_ORIGINS=http://localhost:3000
+CORS_ORIGIN=https://bioai-platform.vercel.app
+ENVIRONMENT=development
+DEFAULT_MODEL=groq/llama-3.3-70b-versatile
+PRO_MODEL=claude-sonnet-4-20250514
+DEMO_MODE=false
 ```
 
 ---
 
-## API Contracts
+## API Surface
 
-### Base URL: `{API_URL}/api/v1`
+There is **no `/api/v1` prefix**. The frontend proxies every backend call through a Next.js rewrite:
 
-All responses follow:
-
-```typescript
-// Success
-{ data: T, error: null }
-
-// Error
-{ data: null, error: { code: string, message: string, details?: any } }
+```
+Browser → /api/backend/{path}  →  {NEXT_PUBLIC_API_URL}/{path}
 ```
 
----
+Routers are mounted in `app/main.py` (many declare their own `prefix`):
 
-### Jobs
+| Prefix | Module | Endpoints |
+|---|---|---|
+| `/api/pipelines` | pipelines | `POST /run`, `GET /definitions`, `GET /{pipeline_type}/definition` |
+| `/api/pipeline/v2` | pipeline_v2 | `POST /run`, `GET /status/{job_id}` |
+| `/api/ai` | ai | `POST /interpret`, `POST /interpret/stream` |
+| `/api/jobs` | jobs | `GET /`, `GET /count`, `GET /{job_id}`, `DELETE /{job_id}` |
+| `/api/share` | share | `POST /`, `GET /{token}` |
+| `/api/profile` | profile | `GET/PUT /` |
+| `/api/sequences` | sequences | `POST /fetch`, `POST /validate`, `POST /search` |
+| `/api/uniprot` | uniprot | `POST /search`, `POST /detail`, `POST /cds` |
+| `/api/alignment` | alignment | `POST /run` (MSA, 5 methods), `POST /pairwise` |
+| `/api/structures` | structures | `POST /fetch`, `POST /search`, `POST /inventory` |
+| `/api/pathways` | pathways | `POST /search`, `POST /detail`, `POST /kegg/search`, `POST /enrichment` |
+| `/api/domains` | domains | `GET /{accession}` + `/features /sites /ptm /topology /motifs /variants /disulfide /composition /go /pathways /all`, `POST /scan` |
+| `/api/interactions` | interactions | `GET /{gene_name}` |
+| `/api/primers` | primers | `POST /design` |
+| `/api/structure_analysis` | structure_analysis | `GET /ramachandran/{pdb_id}`, `GET /secondary_structure/{identifier}`, `GET /compare/{pdb_id}` |
+| `/phylo` | phylo | `POST /run`, `GET /status/{job_id}`, `GET /models` |
+| `/api/export` | export | `GET /job/{job_id}?format=pdf\|json` |
+| `/api/keys` | api_keys | `GET /`, `POST /`, `DELETE /{key_id}` |
+| `/api/admin` | cache_stats | `GET /cache-stats`, `POST /cache-stats/reset` |
+| `/api/docking` | docking | `POST /run`, `GET /status/{job_id}`, `GET /result/{job_id}/pdb` |
+| `/api/sequencing` | sequencing | `POST /run`, `GET /status/{job_id}`, `GET /references` |
+| `/api/md` | md | `GET /forcefields`, `POST /run`, `GET /status/{job_id}` |
+| `/api/function` | function_predict | `POST /predict`, `GET /status/{job_id}` |
+| `/api/admet` | admet | `POST /descriptors` |
+| `/api/audit` | audit | `POST /event`, `GET /insights` |
+| `/health` | main | `GET /health` (cache stats, queue depth, OpenMM status) |
 
-**`POST /jobs`**  
-Create a new job and enqueue it.
+**Response envelope:** plain JSON bodies per endpoint (no generic `{data, error}` wrapper). Errors return `{"detail": ..., "request_id": ...}`; the frontend normalizes them in `lib/errors.ts`.
 
-```typescript
+### Representative contracts
+
+**`POST /api/pipeline/v2/run`**
+```jsonc
 // Request
-{
-  workflow_type: WorkflowType,
-  input_params: Record<string, any>,   // workflow-specific (see schema.md)
-  title?: string                        // auto-generated if omitted
-}
-
+{ "sequence": ">id\nMKTAY...", "steps": ["blast","uniprot","msa","phylo","domains","pathway","alphafold","ai"] }
 // Response
-{
-  job_id: string,
-  status: "queued",
-  total_steps: number,
-  estimated_duration_seconds: number   // rough estimate shown in UI
-}
+{ "job_id": "uuid" }
 ```
 
-**`GET /jobs/{job_id}`**  
-Poll job status. Called every 5–10 seconds by frontend.
+**`GET /api/pipeline/v2/status/{job_id}`**
+```jsonc
+{ "job_id": "uuid", "status": "running", "current_step": "blast",
+  "steps": { "blast": {"status":"complete","progress":100,"data":{...}} } }
+```
+Pipeline v2 jobs are **in-memory** (`_jobs` dict, daemon thread executor) with best-effort persistence into the `jobs` table so wizard runs appear in history and are shareable.
 
-```typescript
-// Response
-{
-  id: string,
-  status: JobStatus,
-  workflow_type: WorkflowType,
-  title: string,
-  total_steps: number,
-  completed_steps: number,
-  current_step_label: string | null,
-  steps: PipelineStep[],
-  created_at: string,
-  completed_at: string | null,
-  error_message: string | null
-}
+**`GET /api/jobs`**
+```jsonc
+{ "jobs": [ { "id": "...", "tool": "blast", "status": "complete", "result": {...} } ] }
 ```
 
-**`GET /jobs/{job_id}/results`**  
-Fetch all processed results once job is complete.
+**`GET /api/docking/status/{job_id}`** returns `{ job_id, status, result?: { poses, vina_log, vina_version, rmsd_*, interactions, from_cache }, error? }`.
 
-```typescript
-// Response
-{
-  job_id: string,
-  results: {
-    step_id: string,
-    result_type: ResultType,
-    result_data: Record<string, any>,  // workflow-specific shape
-    ai_interpretation: string | null,
-    created_at: string
-  }[]
-}
-```
+**`GET /api/sequencing/status/{job_id}`** returns `{ job_id, status, result?: { qc, alignment, variants, consensus_sequence, report, steps_completed }, error? }`.
 
-**`GET /dashboard/jobs`**  
-Paginated job history for authenticated user.
-
-```typescript
-// Query params: ?page=1&limit=20&status=completed
-// Response
-{
-  jobs: JobSummary[],
-  total: number,
-  page: number,
-  has_more: boolean
-}
-```
+**`POST /api/md/run`** `{ pdb_id, mode, forcefield?, solvent?, run_length_ps? }` → `{ job_id }`; status returns the full OpenMM trajectory summary (energy, rmsd, rmsf, temperature, radius_of_gyration, sasa).
 
 ---
 
-### Sequences
+## Job Execution Architecture
 
-**`POST /sequences/fetch`**  
-Fetch sequence by accession number. Cache-first.
+Two execution paths coexist.
 
-```typescript
-// Request
-{
-  accession: string,         // "NP_000509.1", "P12345", "1TIM"
-  db_preference?: string     // "ncbi" | "uniprot" | "pdb" — auto-detected if omitted
-}
+### 1. Durable worker (docking, sequencing, pipeline jobs) — `app/worker.py`
 
-// Response
-{
-  accession: string,
-  db_source: string,
-  sequence_type: "protein" | "dna" | "rna",
-  sequence: string,
-  length: number,
-  organism: string,
-  description: string,
-  gene_name: string | null,
-  go_terms: string[],
-  from_cache: boolean
-}
-```
+Runs as an **in-process background task launched in the FastAPI startup** (`await start_worker()`) and can also run standalone (`python -m app.worker`). See `durable-worker-design.md`.
 
-**`POST /sequences/validate`**  
-Validate raw sequence string (format, type detection).
+- **Claim:** `claim_next_docking_job` / `claim_next_sequencing_job` / `claim_next_pipeline_job` RPCs use `FOR UPDATE SKIP LOCKED` against `status = 'queued' AND attempts < max_attempts`.
+- **Tables:** `docking_jobs` (also carries `tool_type="md"` and `tool_type="function_predict"` jobs), `sequencing_jobs`, `jobs`.
+- **Concurrency caps:** `docking: 2`, `sequencing: 1`, `pipeline: 1`, `md: 1`, `function_predict: 1`.
+- **Retry:** `attempts` increments per claim; on failure, job is re-queued unless `attempts >= max_attempts` (→ `failed`).
+- **Stuck-job sweep:** every 20 poll ticks (~60s), rows stuck in `running` with `claimed_at` older than 90 min are reset to `queued`.
+- **Live progress:** `workers/pipeline_worker.process_job()` PATCHes job status to Supabase via a callback and heartbeats `claimed_at` so the sweep never reclaims a live job.
 
-```typescript
-// Request
-{ sequence: string }
+### 2. In-memory thread executor (pipeline v2 / interactive)
 
-// Response
-{
-  valid: boolean,
-  sequence_type: "protein" | "dna" | "rna" | "unknown",
-  length: number,
-  issues: string[]           // e.g. ["Contains non-standard residue 'X' at position 42"]
-}
-```
+`pipeline_v2` runs each job in a daemon `threading.Thread` (`_run_pipeline`), storing progress in a process-local `_jobs` dict guarded by a lock. It persists a lightweight `jobs` row for history/share.
 
----
+### Startup resilience (`app/main.py`)
 
-## Job Queue Architecture
-
-### Stack
-- **Broker:** Upstash Redis (serverless Redis, no infra to manage)
-- **Worker:** Celery (Python) running on Railway alongside FastAPI
-- **Task:** `pipeline_worker.execute_pipeline(job_id: str)`
-
-### Worker Logic
-
-```python
-# Simplified pipeline_worker.py
-@celery.task
-def execute_pipeline(job_id: str):
-    job = db.get_job(job_id)
-    db.update_job_status(job_id, "running")
-
-    for step in db.get_pending_steps(job_id):
-        try:
-            db.update_step_status(step.id, "running")
-            
-            # Execute the step
-            result = execute_step(step)
-            
-            # Store raw response
-            raw_key = store_raw_response(step.id, result.raw)
-            
-            # Parse and store structured result
-            parsed = parse_result(step.step_type, result.raw)
-            db.store_processed_result(step.id, job_id, parsed)
-            
-            # Generate AI interpretation (async, non-blocking)
-            generate_interpretation.delay(step.id, parsed)
-            
-            db.update_step_status(step.id, "completed")
-            db.increment_job_progress(job_id)
-
-        except ExternalAPIError as e:
-            if step.retry_count < step.max_retries:
-                # Exponential backoff retry
-                execute_pipeline.apply_async(
-                    args=[job_id], 
-                    countdown=2 ** step.retry_count * 30
-                )
-                return
-            db.update_step_status(step.id, "failed", error=str(e))
-            db.update_job_status(job_id, "partial")
-            return
-
-    db.update_job_status(job_id, "completed")
-```
-
-### Async External Job Polling
-
-EMBL-EBI BLAST, ClustalOmega, etc. return a job ID and require polling.
-
-```python
-@celery.task
-def poll_external_job(step_id: str, external_job_id: str, service: str):
-    result = check_external_status(service, external_job_id)
-    
-    if result.status == "running":
-        # Re-schedule poll in 15 seconds
-        poll_external_job.apply_async(
-            args=[step_id, external_job_id, service],
-            countdown=15
-        )
-    elif result.status == "completed":
-        handle_completed_external_job(step_id, result)
-    elif result.status == "failed":
-        handle_failed_external_job(step_id, result)
-```
+- `_fail_stuck_jobs()` — non-terminal `jobs` left from a previous process are marked `failed` on boot.
+- `_fail_stuck_dockseq_jobs()` — same for `docking_jobs` / `sequencing_jobs` older than a 30-min grace period.
+- MD force-field/solvent matrix verified at startup (real alanine-dipeptide `createSystem` probe); OpenMM presence checked.
 
 ---
 
 ## External Service Wrappers
 
-Every external service wrapper follows this contract:
+External calls live in `app/tools/*` and `app/services/*` as thin clients (httpx/async). Most `run()`/`fetch_*` methods are wrapped with `@ttl_cache` from `services/cache.py`.
 
-```python
-# Standard service result type
-@dataclass
-class ServiceResult:
-    success: bool
-    raw_response: str | bytes    # always stored as-is
-    response_format: str         # 'json', 'xml', 'fasta', etc.
-    parsed_data: dict | None     # None if parsing should happen in parser layer
-    error: str | None
-    http_status: int
-    response_time_ms: int
+| Service | Client | Notes |
+|---|---|---|
+| NCBI Entrez | `services/ncbi_service.py` | `tool` + `email` params, optional API key, cached |
+| EMBL-EBI Tools | `tools/blast.py`, `tools/ebi_msa.py` | job-based submit/poll; BLAST honors program/db/max_hits, DNA queries, 65-min poll cap |
+| UniProt REST | `tools/uniprot.py` | reviewed/organism filters, fast-path + debounce |
+| AlphaFold DB | `tools/alphafold.py` | prediction retrieval via PDB/AlphaFold |
+| RCSB PDB | `routers/structures.py`, `structure_analysis.py` | fetch, inventory, Ramachandran, DSSP, Foldseek compare |
+| InterProScan / PROSITE | `tools/domain_analysis.py` | domains + raw-sequence scan |
+| Reactome / KEGG | `services/pathway_enrichment.py`, `routers/pathways.py` | search, detail, enrichment (cached) |
+| STRING | `routers/interactions.py` | interaction lookup |
+| AutoDock Vina | `tools/docking.py` | local subprocess; parses 1.2.7 log (RMSD l.b./u.b., version, seed) |
+| OpenMM | `tools/md_sim.py` | implicit-solvent MD; validated ff×solvent matrix |
+| RDKit | `tools/admet.py` | in-process descriptor computation |
+| LiteLLM | `ai/llm_client.py` | Groq (primary) → Gemini (fallback) → pro model; only configured providers are added |
 
-# Standard wrapper pattern
-class NCBIService:
-    BASE_URL = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
-    
-    async def fetch_sequence(self, accession: str) -> ServiceResult:
-        start = time.time()
-        try:
-            response = await self.client.get(
-                f"{self.BASE_URL}efetch.fcgi",
-                params={"db": "protein", "id": accession, "rettype": "fasta"}
-            )
-            return ServiceResult(
-                success=True,
-                raw_response=response.text,
-                response_format="fasta",
-                parsed_data=None,
-                error=None,
-                http_status=response.status_code,
-                response_time_ms=int((time.time() - start) * 1000)
-            )
-        except Exception as e:
-            return ServiceResult(success=False, error=str(e), ...)
+### AI fallback chain (`ai/llm_client.py`)
+
 ```
+provider list (in order):
+  groq/{DEFAULT_MODEL}          if GROQ_API_KEY set
+  gemini/gemini-2.0-flash       if GOOGLE_API_KEY set
+  pro model (claude-sonnet-4)   via Google key, for pro prompts
+```
+On provider failure the client advances to the next configured model. If none succeed the endpoint returns an honest error the UI surfaces as a visible banner — never fabricated analysis.
 
 ---
 
-## Frontend API Client
+## Frontend API Client (`lib/api.ts`)
 
-```typescript
-// lib/api.ts — centralized, type-safe API client
-
-const API_BASE = process.env.NEXT_PUBLIC_API_URL + '/api/v1'
-
-async function apiCall<T>(
-  endpoint: string,
-  options?: RequestInit
-): Promise<{ data: T | null; error: ApiError | null }> {
-  const session = await getSession()
-  
-  const res = await fetch(`${API_BASE}${endpoint}`, {
-    ...options,
-    headers: {
-      'Content-Type': 'application/json',
-      ...(session?.accessToken 
-        ? { Authorization: `Bearer ${session.accessToken}` }
-        : {}),
-      ...options?.headers
-    }
-  })
-
-  const json = await res.json()
-  return json
-}
-
-// Typed exports
-export const api = {
-  jobs: {
-    create: (payload: CreateJobRequest) =>
-      apiCall<CreateJobResponse>('/jobs', { method: 'POST', body: JSON.stringify(payload) }),
-    
-    getStatus: (jobId: string) =>
-      apiCall<JobStatusResponse>(`/jobs/${jobId}`),
-    
-    getResults: (jobId: string) =>
-      apiCall<JobResultsResponse>(`/jobs/${jobId}/results`),
-    
-    list: (params?: { page?: number; status?: JobStatus }) =>
-      apiCall<JobListResponse>(`/dashboard/jobs?${new URLSearchParams(params as any)}`),
-  },
-  
-  sequences: {
-    fetch: (accession: string) =>
-      apiCall<SequenceResponse>('/sequences/fetch', {
-        method: 'POST',
-        body: JSON.stringify({ accession })
-      }),
-    
-    validate: (sequence: string) =>
-      apiCall<ValidationResponse>('/sequences/validate', {
-        method: 'POST',
-        body: JSON.stringify({ sequence })
-      })
-  }
-}
-```
-
----
+- Two axios instances: `api` (30s timeout) and `longApi` (660s) — both `baseURL: '/api/backend'`.
+- Request interceptor attaches `Authorization: Bearer` from `supabase.auth.getSession()`.
+- Typed function exports per resource: `runPipelineV2`, `getPipelineStatusV2`, `runBlast`, `runAlignment`, `runPairwiseAlignment`, `fetchStructure`, `runDocking`, `runSequencing`, `computeADMET`, `runMD`, `predictFunction`, `searchUniprot`, `scanPrositeSequence`, `searchPathways`, `runEnrichment`, `getApiKeys`, `createShareLink`, `getExportUrl`, etc.
+- Streaming AI text uses `fetch('/api/backend/api/ai/interpret/stream')` directly.
 
 ## Job Status Polling (Frontend)
 
-```typescript
-// hooks/useJobPolling.ts
-export function useJobPolling(jobId: string | null) {
-  return useQuery({
-    queryKey: ['job', jobId],
-    queryFn: () => api.jobs.getStatus(jobId!),
-    enabled: !!jobId,
-    refetchInterval: (data) => {
-      const status = data?.state?.data?.status
-      if (!status) return 5000
-      if (['completed', 'failed', 'cancelled'].includes(status)) return false
-      return status === 'running' ? 5000 : 10000
-    },
-    staleTime: 0
-  })
-}
-```
-
----
+Tool pages poll their job-status endpoint with `setInterval` while `status` is non-terminal (`queued`, `running`, and the intermediate states like `submitted_to_ncbi`, `polling_ncbi`, `parsing`, `interpreting`, `pathway_enrichment`, `fetching_alphafold`), and stop on `complete` / `failed`. Terminal statuses are `complete` + `failed`.
 
 ## TypeScript Types
 
-```typescript
-// lib/types.ts
-
-export type WorkflowType =
-  | 'blast' | 'pairwise_alignment' | 'msa'
-  | 'phylogenetics' | 'msa_phylogenetics'
-  | 'structure_retrieval' | 'structure_prediction'
-  | 'structural_comparison' | 'structural_analysis'
-  | 'homology_modeling' | 'pathway_analysis'
-  | 'compound_search' | 'admet_screening' | 'docking'
-
-export type JobStatus = 'queued' | 'running' | 'completed' | 'failed' | 'partial' | 'cancelled'
-
-export type StepStatus = 'pending' | 'running' | 'completed' | 'failed' | 'skipped' | 'retrying'
-
-export interface Job {
-  id: string
-  workflowType: WorkflowType
-  status: JobStatus
-  title: string
-  totalSteps: number
-  completedSteps: number
-  currentStepLabel: string | null
-  steps: PipelineStep[]
-  createdAt: string
-  completedAt: string | null
-  errorMessage: string | null
-}
-
-export interface PipelineStep {
-  id: string
-  stepNumber: number
-  stepType: string
-  stepLabel: string
-  status: StepStatus
-  startedAt: string | null
-  completedAt: string | null
-  durationMs: number | null
-  errorMessage: string | null
-}
-
-export interface ProcessedResult {
-  stepId: string
-  resultType: string
-  resultData: Record<string, unknown>
-  aiInterpretation: string | null
-}
-
-// BLAST-specific result shape
-export interface BlastResult {
-  hits: BlastHit[]
-  queryLength: number
-  database: string
-  program: string
-  totalHits: number
-}
-
-export interface BlastHit {
-  accession: string
-  description: string
-  organism: string
-  length: number
-  score: number
-  bitScore: number
-  evalue: number
-  identity: number          // percentage
-  similarity: number        // percentage
-  gaps: number              // percentage
-  alignmentLength: number
-  queryStart: number
-  queryEnd: number
-  hitStart: number
-  hitEnd: number
-  queryAlignment: string
-  hitAlignment: string
-  midline: string
-}
-```
-
----
+Types live in `src/types/` (`pipeline.ts`, `results.ts`, `audit.ts`) — e.g. `JobStatus`, `BlastResult`, `DockingResult` (poses, vina log, interactions), `SequencingResult` (QC, variants, consensus), `ADMETResult` (Lipinski/Veber/Ghose/Egan/MDDR, PAINS/Brenk, absorption/distribution/metabolism/toxicity), `MDSimulationResult` (energy/RMSD/RMSF/Rg/SASA), `FunctionPredictionResult` (GO terms, EC numbers). No `any` in new code; unknown external JSON is narrowed explicitly.
 
 ## CORS Configuration
 
-```python
-# app/main.py
-from fastapi.middleware.cors import CORSMiddleware
-
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS.split(","),  # ["http://localhost:3000"]
-    allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "DELETE"],
-    allow_headers=["Authorization", "Content-Type", "X-Guest-Session-Id"],
-)
-```
-
----
+`app/main.py` allows `http://localhost:3000`, `http://localhost:3001`, `CORS_ORIGIN`, and `https://bioai-platform.vercel.app` with `allow_methods=["*"]`, `allow_headers=["*"]`, credentials enabled.
 
 ## Error Codes Reference
 
 ```
-SEQUENCE_NOT_FOUND       — accession number not found in database
-SEQUENCE_INVALID         — sequence contains invalid characters
-BLAST_TIMEOUT            — external BLAST job exceeded 20-minute limit
-BLAST_QUEUE_FULL         — NCBI/EMBL-EBI queue at capacity, retry later
-EXTERNAL_API_DOWN        — external service unavailable
-PARSE_ERROR              — failed to parse tool output (report to dev)
-JOB_NOT_FOUND            — job_id does not exist
-UNAUTHORIZED             — missing or invalid token
-GUEST_LIMIT_REACHED      — guest user has used their 1 free job
-RATE_LIMIT_EXCEEDED      — user has exceeded daily job quota
+AUTH_REQUIRED        — missing/invalid Supabase JWT (401)
+JOB_NOT_FOUND        — job_id does not exist or is not owned by the caller (404)
+SEQUENCE_INVALID     — FASTA/sequence fails validation (400)
+BLAST_TIMEOUT        — external BLAST job exceeded poll cap (65 min)
+EXTERNAL_API_DOWN    — external service unavailable
+RATE_LIMIT_EXCEEDED  — slowapi 429 (per-user by JWT sub, else IP)
+WORKER_LOST_ON_RESTART — job stranded by a previous process (marked failed at boot)
 ```
-
----
+Errors carry `request_id` (from `RequestIDMiddleware`) so support can correlate logs/Sentry.
 
 ## Deployment
 
 ### Frontend — Vercel
-- Deployed from `bioai-platform/` (Root Directory: auto-detect)
+- Deployed from `bioai-platform/frontend/`; `NEXT_PUBLIC_API_URL` read at build time (rewrite forces clean rebuild).
+- Sentry DSN as `NEXT_PUBLIC_SENTRY_DSN`.
 - Production URL: https://bioai-platform.vercel.app
-- Environment variables: set in Vercel dashboard
-- Sentry DSN set as `NEXT_PUBLIC_SENTRY_DSN` + `SENTRY_DSN`
 
 ### Backend — Hugging Face Spaces
-- Space: `Samad14/bio-nexus-api`
-- Public URL: https://samad14-bio-nexus-api.hf.space
-- SDK: Docker (cpu-basic, sleeps after 48h)
-- Deployed via `hf upload --type space ...` from local
-- Env vars set in HF Space dashboard (secrets)
-- PhyML binary: downloaded pre-compiled from bioconda in Dockerfile
+- Space: `Samad14/bio-nexus-api` (SDK docker, `app_port: 7860`); Dockerfile installs OpenMM, RDKit, and pre-compiled PhyML from bioconda.
+- Env vars set as Space secrets.
 
-### Staging vs Production
-- Single Vercel deployment: `main` → production
-- Single HF Space: `samad14-bio-nexus-api`
-- Supabase project: `bjbktegnmkljhuzlsvrf` (single project, RLS on tables)
+### Data — Supabase
+- Single project; RLS enabled; migrations in `bioai-platform/supabase/migrations/` (run via `supabase db push`).
+- Large artifacts offloaded to a Supabase Storage bucket (`services/artifact_storage.py`) with `storage_url` recorded on `docking_jobs`, `sequencing_jobs`, `jobs`.
+- Redis optional; if `REDIS_URL` is unreachable, `@ttl_cache` degrades to no-op and the app still works.

@@ -90,6 +90,34 @@ def _row_to_list_response(row: dict) -> dict:
     }
 
 
+def _ligand_properties(smiles: str) -> dict:
+    """Compute essential ligand properties from SMILES using RDKit.
+
+    Uses the same descriptor conventions as the ADMET tool (HBA = N+O count).
+    """
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return {}
+        hydrogen_count = sum(a.GetTotalNumHs() for a in mol.GetAtoms())
+        return {
+            "molecular_formula": rdMolDescriptors.CalcMolFormula(mol),
+            "molecular_weight": round(Descriptors.MolWt(mol), 2),
+            "heavy_atoms": int(mol.GetNumHeavyAtoms()),
+            "hydrogen_count": int(hydrogen_count),
+            "total_atoms": int(mol.GetNumHeavyAtoms() + hydrogen_count),
+            "rotatable_bonds": int(Lipinski.NumRotatableBonds(mol)),
+            "tpsa": round(Descriptors.TPSA(mol, includeSandP=True), 2),
+            "hbd": int(Lipinski.NumHDonors(mol)),
+            "hba": int(rdMolDescriptors.CalcNumLipinskiHBA(mol)),
+            "logp": round(Descriptors.MolLogP(mol), 2),
+        }
+    except Exception:
+        return {}
+
+
 # ---------------------------------------------------------------------------
 # Background worker
 # ---------------------------------------------------------------------------
@@ -173,11 +201,15 @@ def _run_docking_sync(job_id: str, payload: dict):
             protein_pdb, vina_result.get("result_sdf", "")
         )
 
+        # 8. Ligand essential data (from SMILES, RDKit)
+        ligand_properties = _ligand_properties(smiles)
+
         result_obj = {
             "pdb_id": pdb_id,
             "smiles": smiles,
             "poses": vina_result["poses"],
             "num_poses": vina_result["num_poses"],
+            "ligand_properties": ligand_properties,
             "box_center": {
                 "x": grid_center[0],
                 "y": grid_center[1],

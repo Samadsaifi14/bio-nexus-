@@ -1,12 +1,13 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain } from '@phosphor-icons/react';
+import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain, MagnifyingGlass, ChartPolar } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
-import { computeADMET, type ADMETResult } from "@/lib/api";
+import { computeADMET, searchCompounds, type ADMETResult } from "@/lib/api";
 import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
+import SwissADMEView from "@/components/admet/SwissADMEView";
 
 const EXAMPLES = [
   { name: "Aspirin", smiles: "CC(=O)OC1=CC=CC=C1C(=O)O" },
@@ -19,6 +20,7 @@ const EXAMPLES = [
 
 const TABS = [
   { key: "overview", label: "Overview", icon: Activity },
+  { key: "swissadme", label: "SwissADME", icon: ChartPolar },
   { key: "properties", label: "Properties", icon: Brain },
   { key: "druglikeness", label: "Drug-likeness", icon: Beaker },
   { key: "admet", label: "ADMET", icon: Shield },
@@ -73,6 +75,13 @@ export default function ADMETPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [activeTab, setActiveTab] = useState<TabKey>("overview");
+  const [query, setQuery] = useState("");
+  const [suggestions, setSuggestions] = useState<{ cid: number; name: string }[]>([]);
+  const [showDropdown, setShowDropdown] = useState(false);
+  const [searching, setSearching] = useState(false);
+  const [selected, setSelected] = useState<{ name: string; cid: number } | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const stored = sessionStorage.getItem('admet_smiles');
@@ -82,16 +91,70 @@ export default function ADMETPage() {
     }
   }, []);
 
+  useEffect(() => {
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (query.trim().length < 2) {
+      setSuggestions([]);
+      setShowDropdown(false);
+      return;
+    }
+    debounceRef.current = setTimeout(async () => {
+      setSearching(true);
+      try {
+        const hits = await searchCompounds(query, 8);
+        setSuggestions(hits);
+        setShowDropdown(true);
+      } catch {
+        setSuggestions([]);
+      } finally {
+        setSearching(false);
+      }
+    }, 350);
+    return () => { if (debounceRef.current) clearTimeout(debounceRef.current); };
+  }, [query]);
+
+  useEffect(() => {
+    const onClick = (e: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) setShowDropdown(false);
+    };
+    document.addEventListener("mousedown", onClick);
+    return () => document.removeEventListener("mousedown", onClick);
+  }, []);
+
+  const handlePick = (hit: { cid: number; name: string; smiles?: string }) => {
+    setSelected({ name: hit.name, cid: hit.cid });
+    if (hit.smiles) setSmiles(hit.smiles);
+    setQuery(hit.name);
+    setShowDropdown(false);
+    setError("");
+  };
+
   const handleSubmit = async () => {
-    if (!smiles.trim()) return;
+    const payload: { smiles?: string; name?: string; cid?: number } = {};
+    if (selected && selected.name) {
+      payload.name = selected.name;
+    } else if (smiles.trim()) {
+      payload.smiles = smiles.trim();
+    } else {
+      return;
+    }
     setLoading(true);
     setError("");
     setResult(null);
     try {
-      const res = await computeADMET(smiles.trim());
+      const res = await computeADMET(payload);
       setResult(res.result);
     } catch (e: any) {
       setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Computation failed");
+      if (payload.name && smiles.trim()) {
+        try {
+          const res = await computeADMET({ smiles: smiles.trim() });
+          setError("");
+          setResult(res.result);
+        } catch (e2: any) {
+          setError(typeof e2?.response?.data?.detail === "string" ? e2.response.data.detail : "Computation failed");
+        }
+      }
     } finally {
       setLoading(false);
     }
@@ -103,15 +166,46 @@ export default function ADMETPage() {
 
       <PageHeader title="ADMET Analysis" subtitle="Comprehensive molecular descriptor computation: 50+ properties, ADMET predictions, drug-likeness filters, structural alerts." />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
+        <div className="data-card p-5">
+          <label className="block text-sm text-text-secondary mb-2 flex items-center gap-1.5">
+            <MagnifyingGlass className="w-4 h-4 text-accent-cyan" /> Search compound by name (PubChem)
+          </label>
+          <div ref={dropdownRef} className="relative">
+            <FlatInput value={query}
+              onChange={(e) => { setQuery(e.target.value); setSelected(null); setError(""); setResult(null); }}
+              placeholder="e.g. fluconazole, aspirin, metformin…"
+              className="w-full font-mono text-sm"
+              onKeyDown={(e) => { if (e.key === "Enter") { setShowDropdown(false); if (query.trim()) handleSubmit(); } }} />
+            {showDropdown && (
+              <div className="absolute z-20 mt-1 w-full bg-surface-2 border border-glass-border rounded-lg shadow-xl max-h-64 overflow-auto">
+                {searching && <div className="px-3 py-2 text-xs text-text-muted flex items-center gap-2"><Loader2 className="w-3 h-3 animate-spin" />Searching…</div>}
+                {!searching && suggestions.length === 0 && (
+                  <div className="px-3 py-2 text-xs text-text-muted">No matches</div>
+                )}
+                {!searching && suggestions.map((s) => (
+                  <button key={`${s.cid}-${s.name}`} onClick={() => handlePick(s)}
+                    className="w-full text-left px-3 py-2 hover:bg-surface-3 transition-colors">
+                    <span className="text-sm text-text-primary">{s.name}</span>
+                    <span className="text-[11px] text-text-muted ml-2">CID {s.cid}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <p className="text-[11px] text-text-muted mt-1.5">
+            {selected ? `Analyzing “${selected.name}” (PubChem CID ${selected.cid}).` : "Type a name — results resolve to canonical SMILES via PubChem. Or paste SMILES below."}
+          </p>
+        </div>
+
         <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">SMILES String</label>
           <div className="flex gap-2">
-            <FlatInput value={smiles} onChange={(e) => { setSmiles(e.target.value); setResult(null); setError(""); }}
+            <FlatInput value={smiles} onChange={(e) => { setSmiles(e.target.value); setSelected(null); setResult(null); setError(""); }}
               placeholder="e.g. CC(=O)OC1=CC=CC=C1C(=O)O"
               className="flex-1 font-mono"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-            <CriticalButton onClick={handleSubmit} disabled={loading || !smiles.trim()}>
+            <CriticalButton onClick={handleSubmit} disabled={loading || (!smiles.trim() && !selected)}>
               {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Beaker className="w-4 h-4" />}
               Analyze
             </CriticalButton>
@@ -138,8 +232,11 @@ export default function ADMETPage() {
           {/* Header strip */}
           <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>
-              <p className="text-xs text-text-muted">Formula</p>
-              <p className="text-sm font-mono font-medium text-text-primary">{result.formula}</p>
+              <p className="text-xs text-text-muted">{result.chemical_name ? "Compound" : "Formula"}</p>
+              <p className="text-sm font-mono font-medium text-text-primary">
+                {result.chemical_name || result.formula}
+                {result.pubchem_cid && <span className="text-xs text-text-muted ml-2">CID {result.pubchem_cid}</span>}
+              </p>
             </div>
             <div className="h-6 w-px bg-surface-3" />
             <div>
@@ -199,6 +296,17 @@ export default function ADMETPage() {
           </div>
 
           <AnimatePresence mode="wait">
+            {/* ---- SWISSADME TAB ---- */}
+            {activeTab === "swissadme" && (
+              <motion.div key="swissadme" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                {result.swissadme ? (
+                  <SwissADMEView data={result.swissadme} />
+                ) : (
+                  <div className="glass-card p-4 text-sm text-text-muted">SwissADME panel unavailable for this result.</div>
+                )}
+              </motion.div>
+            )}
+
             {/* ---- OVERVIEW TAB ---- */}
             {activeTab === "overview" && (
               <motion.div key="overview" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="space-y-4">

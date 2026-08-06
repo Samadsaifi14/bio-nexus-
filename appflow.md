@@ -1,19 +1,32 @@
 # appflow.md — BioFlow AI Application Flow
 
-## 1. Two Tracks
-- **Prototype Track (Days 1–18):** one golden path — Sequence In → BLAST → AI-interpreted report.
-- **Full Build Track:** additional operations, pipeline chaining, learning section, projects.
+## 1. Two Tracks ✅ Both shipped
+- **Prototype Track (Days 1–18):** one golden path — Sequence In → BLAST → AI-interpreted report. ✅
+- **Full Build Track:** additional operations, pipeline chaining, learning section, projects. ✅
 
-## 2. Sitemap (Prototype)
-/                    Landing
+## 2. Sitemap (Current)
+/                    Landing (DNA-helix hero, bento features, pipeline route)
 
-/analyze             Wizard — Step 1: Choose Operation
+/analyze             Tool catalog — operation cards (all active)
 
-/analyze/blast       Wizard — Step 2 & 3: Input + Confirm
+/analyze/[tool]      Individual tools: blast, alignment, pairwise, compare, docking, domains,
+                     function, interactions, md, pathway, phylo, primers, sequencing,
+                     structure, uniprot, admet
 
-/jobs/[id]           Processing → Results (shareable, persistent)
+/wizard              Pipeline wizard (8-step: BLAST → UniProt → MSA → Phylo → Domains →
+                     Pathway → AlphaFold → AI)
 
-/dashboard           Job history (guest + authed)
+/jobs                Job history (guest + authed)
+
+/jobs/[jobId]        Processing → Results (shareable, persistent)
+
+/results/[jobId]     Unified results page
+
+/report/[jobId]      PDF/JSON report export
+
+/learn               Documentation (10+ topic pages + glossary)
+
+/settings            Profile, guest→account upgrade, API key management, tutorial replay
 
 /auth/*              Sign-up / sign-in (triggered from guest banner)
 
@@ -24,9 +37,8 @@
 - Single CTA: **Analyze a Sequence** → `/analyze`. No login wall.
 
 ### 3.2 Wizard Step 1 — Choose Operation (`/analyze`)
-- Grid of operation cards. For the prototype, **BLAST Search** is the only active card.
-- All others (UniProt lookup, MSA, Structure lookup, Pathway lookup) render with a "Coming in Phase 1" badge — this doubles as your operation catalog and a roadmap teaser for the demo.
-- State: `selectedOperation: 'blast' | null`
+- Grid of operation cards. **All cards active**: BLAST, Pairwise, MSA, Phylo, Domains, Pathway, Structure, Docking, MD, ADMET, Function, Interactions, Primers, Sequencing, UniProt.
+- State: `selectedOperation: 'blast' | 'pairwise' | ... | null`
 
 ### 3.3 Wizard Step 2 — Provide Input (`/analyze/blast`)
 - Two tabs:
@@ -75,10 +87,10 @@
 | `complete`           | results render                               | — |
 | `failed`             | error state + retry button                   | — |
 
-## 5. Full Build Additions (not in prototype)
-- Operation catalog expands: UniProt annotation, PDB structure + Mol* 3D viewer, pairwise alignment, Clustal Omega MSA, Reactome/WikiPathways lookup.
-- **Pipeline chaining**: Wizard Step 1 gains "I want to do multiple things" → builds a step sequence (BLAST → top hit → MSA → tree), each step a `job_steps` row linked via `parent_job_id`.
-- `/learn` documentation section (generated from the same explanation content used in §3.6.5 — write once, reuse).
-- Onboarding tutorial (first-run modal series).
-- "Projects" — group related jobs.
-- `/settings`.
+## 5. Full Build Additions (originally "not in prototype") — ✅ All shipped
+- Operation catalog expands: UniProt annotation, PDB structure + Mol* 3D viewer, pairwise alignment, Clustal Omega MSA, Reactome/WikiPathways lookup ✅ — plus docking, MD, ADMET, function, interactions, primers, sequencing
+- **Pipeline chaining**: Wizard builds a step sequence (BLAST → UniProt → MSA → Phylo → Domains → Pathway → AlphaFold → AI), each step a `job_steps` row linked via `parent_job_id` ✅ (pipeline v2 engine)
+- `/learn` documentation section (generated from the same explanation content used in §3.6.5 — write once, reuse) ✅
+- Onboarding tutorial (first-run modal series) ✅
+- "Projects" — group related jobs 🔜 (jobs/dashboard shipped; grouping not yet)
+- `/settings` ✅ (profile, guest→account, API keys, tutorial replay)

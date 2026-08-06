@@ -1,9 +1,9 @@
 # BioFlow AI — Product Requirements Document
 
-**Version:** 2.0  
+**Version:** 3.0  
 **Author:** Samad (Founder)  
-**Date:** June 2026  
-**Status:** Phase 2 Complete — Hardening In Progress  
+**Date:** August 2026  
+**Status:** Phases 1–2 Complete · Phase 3 partial (structure suite shipped, homology modeling pending) · Phase 4 partial (docking + ADMET shipped) · Sequencing MVP shipped · Hardening + design system shipped  
 
 ---
 
@@ -317,18 +317,19 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 
 ---
 
-### Phase 1 — Foundation: Database Access & Sequence Operations (Months 1–3)
+### Phase 1 — Foundation: Database Access & Sequence Operations (Months 1–3) ✅
 
 **Goal:** Ship a working product that handles the most common student workflow — retrieve a sequence and run BLAST — end to end, with guided wizard and explained results.
+**Status: Shipped**
 
-#### F1.1 — Intent Capture & Workflow Router
+#### F1.1 — Intent Capture & Workflow Router ✅
 
 - User lands on the platform and sees: "What do you want to do today?" with suggested starting points
 - Guided wizard categorizes intent into one of: sequence analysis / structure analysis / pathway analysis / drug discovery
 - Within each category, wizard walks through required inputs step by step
 - At each step: what is this field? why do we need it? example values shown
 
-#### F1.2 — Sequence Retrieval Engine
+#### F1.2 — Sequence Retrieval Engine ✅
 
 - Input: accession number (NP_, NM_, P12345, etc.), protein/gene name, or raw sequence
 - Platform queries NCBI Entrez or UniProt to retrieve the sequence
@@ -337,7 +338,7 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - **No file download required by user.** Sequence is held server-side for downstream operations.
 - Supported formats returned internally: FASTA, GenBank, raw sequence
 
-#### F1.3 — BLAST Search
+#### F1.3 — BLAST Search ✅
 
 - Inputs: sequence (from F1.2 or pasted by user), database selection (guided), BLAST program (auto-selected based on sequence type)
 - BLAST program auto-selection logic:
@@ -349,7 +350,7 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - Results: hit table with E-value, identity %, alignment length, organism, accession
 - Result caching: same sequence + same database = cached for 24 hours
 
-#### F1.4 — Pairwise Sequence Alignment
+#### F1.4 — Pairwise Sequence Alignment ✅
 
 - Inputs: two sequences (manual paste, accession lookup, or from BLAST hit selection)
 - Algorithm selection (guided):
@@ -360,14 +361,14 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - Results: alignment visualization with highlighted matches, mismatches, gaps
 - Score, identity %, similarity % displayed with explanations
 
-#### F1.5 — File Format Converter
+#### F1.5 — File Format Converter (partial — sequence auto-detect + accession retrieval shipped; standalone cross-format converter not yet built)
 
 - Inputs: user can paste or upload any of: FASTA, GenBank, FASTQ, raw sequence, PDB
 - Auto-detects format
 - Converts to any target format on request
 - This is a supporting utility, always available regardless of wizard path
 
-#### F1.6 — Basic Results Page (Phase 1 version)
+#### F1.6 — Basic Results Page (Phase 1 version) ✅
 
 - BLAST results rendered as interactive table
 - Click any hit → expand alignment view inline
@@ -467,11 +468,12 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 
 ---
 
-### Phase 3 — Protein Structure & Visualization (Months 7–10)
+### Phase 3 — Protein Structure & Visualization (Months 7–10) 🚧
 
 **Goal:** Complete the sequence-to-structure workflow with full 3D visualization and structural analysis tools.
+**Status: Shipped except F3.6 (homology modeling).** All structure viewers render in-browser via 3Dmol.js — nothing downloads.
 
-#### F3.1 — Structure Retrieval
+#### F3.1 — Structure Retrieval ✅
 
 - Input: protein name, accession number, or PDB ID
 - Queries RCSB PDB REST API
@@ -482,7 +484,7 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
   - Toggle: cartoon, surface, ball-and-stick, ribbon modes
 - Direct link to original PDB page for reference
 
-#### F3.2 — Structure Prediction (AlphaFold)
+#### F3.2 — Structure Prediction (AlphaFold) ✅
 
 - Input: protein sequence (from F1.2 or pasted)
 - Queries AlphaFold EBI API
@@ -490,7 +492,7 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - pLDDT color-coded in 3D viewer (dark blue = very high, orange/red = low confidence)
 - AI interpretation: "Regions with low confidence scores suggest structural disorder or flexible loops, which may be functionally significant..."
 
-#### F3.3 — Secondary Structure Prediction
+#### F3.3 — Secondary Structure Prediction ✅
 
 - Input: protein sequence
 - Queries PSIPred API
@@ -498,51 +500,51 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - Visualization: linear secondary structure diagram above the sequence
 - Comparison view if experimental structure (PDB) is available alongside prediction
 
-#### F3.4 — Structural Comparison (TM-Align / DALI)
+#### F3.4 — Structural Comparison (TM-Align / DALI) ✅
 
 - Inputs: two protein structures (PDB IDs, AlphaFold predictions, or uploaded PDB files)
-- Queries PDBeFold or EMBL-EBI structural alignment service
-- Results:
-  - TM-score (0–1; >0.5 suggests same fold)
-  - RMSD value with interpretation
-  - Superimposed structure displayed in 3D viewer
-  - Aligned residue pairs highlighted
+- **Implemented via Foldseek** (`/api/structure-analysis/compare`) — returns structural neighbors with alignment metrics
+- TM-score / RMSD with interpretation
+- Superimposed structure displayed in 3D viewer
+- Aligned residue pairs highlighted
 
-#### F3.5 — Structural Analysis Suite
+#### F3.5 — Structural Analysis Suite ✅
 
 - Input: PDB structure (from retrieval or prediction)
 - Available analyses (user selects):
-  - **Ramachandran Plot:** phi/psi angles for all residues, interactive D3.js plot, outliers highlighted
-  - **H-bond Analysis:** all hydrogen bonds listed with donor/acceptor, distance
-  - **Salt Bridge Analysis:** charged residue pairs within distance threshold
-  - **Secondary Structure Assignment (DSSP):** helix/sheet/coil assignment per residue
-  - **Inter-atomic Distances:** user selects two residues, platform calculates distance
+  - **Ramachandran Plot:** phi/psi angles for all residues, interactive D3.js plot, outliers highlighted ✅
+  - **H-bond Analysis:** all hydrogen bonds listed with donor/acceptor, distance — pending
+  - **Salt Bridge Analysis:** charged residue pairs within distance threshold — pending
+  - **Secondary Structure Assignment (DSSP):** helix/sheet/coil assignment per residue ✅
+  - **Inter-atomic Distances:** user selects two residues, platform calculates distance — pending
 - All analyses run via BioPython DSSP wrapper or PDB REST API
 
-#### F3.6 — Homology Modeling
+#### F3.6 — Homology Modeling 🔜
 
 - Input: target sequence (no known structure), template PDB structure (user selects or platform suggests from BLAST)
 - Platform submits to SWISS-MODEL API or ModWeb API
 - Returns modeled structure with QMEAN quality score
 - Quality visualization: residue-level quality in 3D viewer
 - Ramachandran analysis auto-run on resulting model
+- **Status: Not started**
 
 ---
 
-### Phase 4 — Drug Discovery & Design (Months 11–18)
+### Phase 4 — Drug Discovery & Design (Months 11–18) 🚧
 
 **Goal:** Add ADMET screening, ligand-receptor docking, and pharmacophore analysis. This phase is compute-heavy and cost-intensive — approach after revenue or compute sponsorship is secured.
 
 **Note:** Full AutoDock Vina docking requires server-side GPU/CPU compute. Plan cloud compute budget before building this phase. Estimated cost: ~$50–200/month for on-demand compute instances.
+**Status: F4.2 (ADMET) + F4.3 (docking) shipped — F4.1, F4.4, F4.5 pending. MD simulation and function prediction shipped beyond the original PRD scope.**
 
-#### F4.1 — Compound Search & Retrieval
+#### F4.1 — Compound Search & Retrieval 🔜
 
 - Input: compound name, SMILES, InChI, or compound ID
 - Queries PubChem REST API and ChEMBL REST API
 - Returns: structure, molecular formula, molecular weight, known bioactivity data
 - 2D structure rendered in browser (RDKit.js)
 
-#### F4.2 — ADMET Property Prediction
+#### F4.2 — ADMET Property Prediction ✅
 
 - Input: compound SMILES (from F4.1 or user-provided)
 - Integrates SwissADME (form-based submission, parse response) or pkCSM API
@@ -550,28 +552,51 @@ Return: "Pathway not yet annotated in public databases" + suggest manual search
 - Traffic-light visualization: green/yellow/red for each property
 - Lipinski violations explained in plain English
 
-#### F4.3 — Molecular Docking
+#### F4.3 — Molecular Docking ✅ (V2 — self-hosted AutoDock Vina)
 
 - Inputs: protein structure (PDB ID or predicted), ligand (SMILES or PDB format)
 - V1: Submit to SwissDock web service (async job)
-- V2 (with compute): Run AutoDock Vina on server
+- V2 (with compute): Run AutoDock Vina on server — **shipped**
 - Results: binding energy (kcal/mol), binding poses ranked by score
+- Full Vina 1.2.7 log (RMSD l.b./u.b., version, seed), RMSD table, run-configuration UI
 - Top 3 poses visualized in 3D viewer
 - AI interpretation: "A binding energy of -8.5 kcal/mol indicates strong binding affinity..."
 
-#### F4.4 — Pharmacophore Analysis
+#### F4.4 — Pharmacophore Analysis 🔜
 
 - Input: set of active ligands for a target (from ChEMBL or user-provided)
 - Platform identifies common pharmacophoric features (H-bond donors/acceptors, hydrophobic regions, aromatic rings)
 - 3D pharmacophore model displayed
 - Virtual screening against PubChem compound library (limited scope at V1)
 
-#### F4.5 — Drug Likeness Screening
+#### F4.5 — Drug Likeness Screening 🔜
 
 - Input: list of compounds (SMILES list or CSV)
 - Batch ADMET screening
 - Ranked output with drug-likeness score
 - Filter by: MW, LogP, H-bond donors/acceptors, rotatable bonds, PSA
+
+#### F4.6 — Molecular Dynamics Simulation ✅
+
+- Input: protein structure (PDB ID or predicted), force field + solvent selection
+- Amber-style implicit solvent with verified matrix: ff14SB / ff15ipq / ff19SB / amberfb15 / CHARMM36 × OBC1 / OBC2 / GBN2
+- Alanine-dipeptide `createSystem` startup probe validates every combo; explicit errors for invalid pairs
+- Run length + parameter controls, 25-minute production budget
+- **Shipped beyond original PRD scope**
+
+#### F4.7 — Protein Function Prediction & Interactions ✅
+
+- Sequence → function inference with job status polling
+- Protein interaction lookup module
+- **Shipped beyond original PRD scope**
+
+---
+
+## 10.5 Sequencing (shipped MVP, extends Phase 3/4 scope)
+
+- FASTQ upload → QC → trimming → assembly/consensus → variant calling → annotation
+- SARS-CoV-2 reference genome, progress polling, job persistence
+- **Status: Shipped** — full RNA-seq differential expression (DESeq2) remains future work
 
 ---
 
@@ -883,8 +908,8 @@ Renders results page
 
 ## 18. Milestone Roadmap
 
-### Phase 1 — Foundation (Months 1–3)
-*Goal: Ship MVP that handles BLAST + pairwise alignment end to end*
+### Phase 1 — Foundation (Months 1–3) ✅
+*Goal: Ship MVP that handles BLAST + pairwise alignment end to end* — **Shipped**
 
 | Month | Milestones |
 |---|---|
@@ -896,7 +921,8 @@ Renders results page
 
 ---
 
-### Phase 2 — Alignment & Phylogenetics (Months 4–6)
+### Phase 2 — Alignment & Phylogenetics (Months 4–6) ✅
+**Shipped.** Includes MSA (multi-method), phylo tree, primer design, pipeline v2 engine, domains, pathway enrichment.
 
 | Month | Milestones |
 |---|---|
@@ -906,7 +932,8 @@ Renders results page
 
 ---
 
-### Phase 3 — Protein Structure & Visualization (Months 7–10)
+### Phase 3 — Protein Structure & Visualization (Months 7–10) 🚧
+**Shipped:** PDB retrieval, AlphaFold, secondary structure, Foldseek comparison, Ramachandran/DSSP. **Pending:** homology modeling (F3.6), H-bond/salt-bridge/inter-atomic analysis.
 
 | Month | Milestones |
 |---|---|
@@ -917,7 +944,8 @@ Renders results page
 
 ---
 
-### Phase 4 — Drug Discovery (Months 11–18)
+### Phase 4 — Drug Discovery (Months 11–18) 🚧
+**Shipped:** ADMET (RDKit), AutoDock Vina docking with full log + RMSD table, MD simulation, function prediction, interactions. **Pending:** compound search, pharmacophore analysis, drug-likeness batch screening.
 
 | Month | Milestones |
 |---|---|
@@ -928,14 +956,14 @@ Renders results page
 
 ---
 
-### Parallel Track — Platform (Ongoing)
+### Parallel Track — Platform (Ongoing) ✅
 
 | Quarter | Milestones |
 |---|---|
-| Q1 | Core infrastructure, auth, job queue |
-| Q2 | Documentation site, onboarding, practical templates, feedback system |
-| Q3 | Performance optimization, caching layer, monitoring (Sentry + Uptime) |
-| Q4 | University partnership outreach, feedback integration, accessibility audit |
+| Q1 | Core infrastructure, auth, job queue ✅ |
+| Q2 | Documentation site, onboarding, practical templates, feedback system ✅ (docs + onboarding shipped; templates/feedback pending) |
+| Q3 | Performance optimization, caching layer, monitoring (Sentry + Uptime) ✅ (caching + Sentry shipped) |
+| Q4 | University partnership outreach, feedback integration, accessibility audit 🔜 |
 
 ---
 
@@ -943,21 +971,23 @@ Renders results page
 
 ### Open Questions (Resolve Before Phase 2)
 
-1. **Compute for Phase 4:** What is the budget for a Railway/Render compute instance capable of running AutoDock Vina? This decision determines the docking architecture.
-2. **Domain name:** BioFlow AI as the final name? Register domain early.
-3. **Authentication:** Google OAuth (fastest) vs email-password vs both? Recommendation: Google OAuth for V1 using NextAuth, consistent with NutriScan.
-4. **KEGG commercial licensing:** Define exactly when this becomes an issue — is the V1 platform ever monetized? If yes, remove KEGG immediately and rely solely on Reactome + WikiPathways.
-5. **Lab report PDF template:** Design the PDF export template before Phase 1 ships. Students will use this for coursework submission — it must be formatted correctly.
+> ✅ Resolved since v2.0: **(1)** docking compute → self-hosted AutoDock Vina on the existing backend (no external inference API). **(3)** auth → Supabase anonymous session upgraded to Google via `linkIdentity`. **(5)** export → PDF/JSON report endpoint shipped.
+
+1. **Domain name:** BioFlow AI as the final name? Register domain early.
+2. **KEGG commercial licensing:** Define exactly when this becomes an issue — is the V1 platform ever monetized? If yes, remove KEGG immediately and rely solely on Reactome + WikiPathways.
+3. **RNA-seq scope:** sequencing MVP (QC → variant calling) shipped — decide whether full DESeq2 differential expression is worth the compute + storage cost now.
 
 ### Future Scope (Post V1)
 
-- **RNA-seq pipeline:** DESeq2/edgeR analysis, gene expression heatmaps
+- **RNA-seq differential expression:** DESeq2/edgeR analysis, gene expression heatmaps (base sequencing MVP already shipped)
 - **Genome browser:** UCSC/Ensembl integration for genomic context
 - **Literature integration:** PubMed abstract retrieval linked to analysis results
 - **Collaboration:** Share analyses with classmates or supervisors, with commenting
 - **Instructor mode:** Faculty create template practicals, students submit analyses through the platform
 - **Mobile app:** React Native for viewing results on mobile
 - **Public API:** Allow other developers to build on BioFlow workflows
+- **Homology modeling:** SWISS-MODEL integration (F3.6)
+- **Pharmacophore analysis + batch drug-likeness screening:** F4.4 / F4.5
 - **Grant applications:** BIRAC, DST NIDHI PRAYAS after platform has validated user base
 
 ---

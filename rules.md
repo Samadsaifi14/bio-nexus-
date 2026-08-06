@@ -1,15 +1,15 @@
-# BioFlow AI — Rules
+# Bio Nexus — Rules
 
-**Version:** 2.0  
-**Scope:** Both repos — `bioflow-frontend` and `bioflow-backend` (monorepo at `bio-nexus/bioai-platform/`)  
-**Last Updated:** June 2026
+**Version:** 3.0  
+**Scope:** Monorepo at `bio-nexus/bioai-platform/` — `frontend/` (Next.js 14 App Router + TS) and `backend/` (FastAPI).  
+**Last Updated:** August 2026
 
 ---
 
 ## 0 — The Prime Rule
 
-**The prototype shipped June 30 — Phase 2 is complete.**  
-Hardening (docs, Sentry, cache checks) is done. Phase 3+ items should be planned before building.
+**The v4.0 toolset is shipped:** docking, MD simulation, ADMET, function prediction, sequencing, and the pipeline wizard all run through the durable worker; the pipeline engine and AI interpretation chain are live.  
+Docs are current. Phase 4+ items (RNA-seq/Variant-calling depth, lab workspaces, custom pipeline builder, monetization) must be planned before building — see `MASTER_PLAN.md`.
 
 ---
 
@@ -42,12 +42,15 @@ Types:
   docs      — documentation only
 
 Scope examples:
-  blast, msa, structure, auth, wizard, results, db, cache, worker, ci
+  blast, msa, structure, auth, wizard, results, db, cache, worker,
+  docking, md, admet, function-predict, sequencing, pipeline, api-keys,
+  share, export, guest, storage, ssrf, ai, docs
 
 Examples:
   feat(blast): add EMBL-EBI BLAST submission and polling
   fix(cache): prevent duplicate sequence_cache entries on concurrent requests
-  feat(wizard): add sequence type auto-detection in step 1
+  feat(worker): claim jobs via FOR UPDATE SKIP LOCKED RPCs
+  feat(docking): add MD tool_type dispatch on docking_jobs
   chore(deps): add biopython and httpx to requirements
 ```
 
@@ -55,15 +58,11 @@ No commit messages like "fix stuff", "wip", "updates". Every commit must be unde
 
 ### Tags
 
-```
-v0.1.0-prototype    → demo day commit (June 30)
-v0.2.0              → Phase 1 complete (pairwise alignment)
-v0.3.0              → Phase 2 complete (MSA + phylogenetics)
-```
+No release tags exist yet — versioning is tracked in `MASTER_PLAN.md` (currently v4.0) and in each doc header. When the first production release is tagged, use `v0.x.y`. (Old docs referenced `v0.1.0`–`v0.3.0`; those tags were never created.)
 
 ---
 
-## 2 — Frontend Rules (`bioflow-frontend`)
+## 2 — Frontend Rules (`bioai-platform/frontend`)
 
 ### File Naming
 
@@ -121,21 +120,13 @@ Color classes must use the custom tokens defined in tailwind.config.ts. Never ha
 ### State Management Rules
 
 - UI state (open/closed, hover, active): `useState` in the component
-- Server state (jobs, results): React Query (`useQuery`, `useMutation`)
-- Cross-component state: React Context (only for auth session and theme)
+- Server state (jobs, results): custom hooks (e.g. `useJobPolling`) backed by axios — see `lib/api.ts`
+- Cross-component state: React Context (only for auth session and theme, see `contexts/auth.tsx`)
 - No Redux, no Zustand — they're not needed at this scale
 
 ### API Call Rules
 
-All backend calls go through `lib/api.ts`. No direct `fetch()` calls in components.
-
-```typescript
-// ✓ Correct
-const { data, error } = await api.jobs.create(payload)
-
-// ✗ Wrong
-const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/v1/jobs`, { ... })
-```
+All backend calls go through `lib/api.ts` (`api` = 30s timeout, `longApi` = 660s timeout for slow tools). No direct `fetch()` calls in components. The frontend never talks to Supabase data tables directly — everything proxies through `/api/backend/*` (rewritten in `next.config.js`) so the backend's auth/ownership checks apply.
 
 ### Type Rules
 
@@ -177,26 +168,26 @@ return <ResultsDisplay data={data} />
 
 ---
 
-## 3 — Backend Rules (`bioflow-backend`)
+## 3 — Backend Rules (`bioai-platform/backend`)
 
 ### File Naming
 
 ```
 Services:    snake_case_service.py    ncbi_service.py
-Parsers:     snake_case_parser.py     blast_parser.py
-Routes:      snake_case.py            jobs.py, sequences.py
-Models:      schemas.py               (all Pydantic models in one file per domain)
-Workers:     snake_case_worker.py     pipeline_worker.py
+Tools:       snake_case.py            md_sim.py, docking.py, admet.py
+Routes:      snake_case.py            jobs.py, sequences.py, docking.py
+Models:      responses.py             (Pydantic models in app/models/responses.py)
+Workers:     snake_case_worker.py     worker.py (durable), pipeline_worker.py
 ```
 
 ### Service Layer Rules
 
-Every external API call is wrapped in its own service class. Route handlers never call `httpx` or `requests` directly.
+Every external API call is wrapped in its own service or tool module. Route handlers never call `httpx` or `requests` directly.
 
 ```python
 # ✓ Correct
 @router.post("/sequences/fetch")
-async def fetch_sequence(body: FetchSequenceRequest, db = Depends(get_db)):
+async def fetch_sequence(body: FetchSequenceRequest, user=Depends(require_user_id)):
     result = await ncbi_service.fetch_sequence(body.accession)
     ...
 
@@ -209,25 +200,7 @@ async def fetch_sequence(body: FetchSequenceRequest):
 
 ### Service Result Rule
 
-Every service method returns a `ServiceResult` dataclass (defined in `app/core/types.py`). Services never raise exceptions for external API failures — they return `ServiceResult(success=False, error=...)`. Only programming errors (bugs) raise exceptions.
-
-```python
-# ✓ Correct
-async def fetch_sequence(self, accession: str) -> ServiceResult:
-    try:
-        response = await self.client.get(...)
-        if response.status_code != 200:
-            return ServiceResult(success=False, error=f"HTTP {response.status_code}")
-        return ServiceResult(success=True, raw_response=response.text, ...)
-    except httpx.TimeoutException:
-        return ServiceResult(success=False, error="Request timed out", error_code="timeout")
-
-# ✗ Wrong
-async def fetch_sequence(self, accession: str) -> str:
-    response = await self.client.get(...)
-    response.raise_for_status()
-    return response.text
-```
+Service/tool methods return structured dicts (typed in `app/models/responses.py`). External API failures are handled explicitly — a service may return an error-shaped result, raise a typed exception that the route turns into an `HTTPException`, or both. Services never leak raw tracebacks; user-facing errors carry a short reference ID (see the worker rule below).
 
 ### Route Handler Rules
 
@@ -240,59 +213,42 @@ Maximum 20 lines per route handler. If longer, extract to a service or helper.
 @router.post("/sequences/fetch", response_model=SequenceResponse)
 async def fetch_sequence(
     body: FetchSequenceRequest,
-    db=Depends(get_db),
-    user=Depends(get_optional_user)
+    user=Depends(require_user_id)
 ):
     cached = await cache_service.get_sequence(body.accession)
     if cached:
         return SequenceResponse(**cached, from_cache=True)
     
     result = await ncbi_service.fetch_sequence(body.accession)
-    if not result.success:
-        raise HTTPException(status_code=502, detail=result.error)
+    if result.get("error"):
+        raise HTTPException(status_code=502, detail=result["error"])
     
-    parsed = sequence_parser.parse_fasta(result.raw_response)
+    parsed = sequence_parser.parse_fasta(result["raw_response"])
     await cache_service.set_sequence(body.accession, parsed)
     return SequenceResponse(**parsed, from_cache=False)
 ```
 
-### Celery Worker Rules
+### Durable Worker Rules (`app/worker.py`)
 
-Workers are the most critical code in the backend. Rules:
+The durable worker owns all long-running jobs (docking, MD, function prediction, sequencing, pipeline). Rules:
 
-1. Every step update is immediately persisted to the database. No batching.
-2. Every raw API response is stored before parsing begins. If parsing fails, the raw response is still there for debugging.
-3. Workers catch all exceptions and update job/step status accordingly. A worker crash must never leave a job stuck in "running" forever.
-4. Workers never make direct HTTP calls to external APIs. They call service methods.
-
-```python
-# ✓ Correct pattern
-try:
-    db.update_step_status(step.id, "running")
-    result = await service.call_external_api(...)
-    
-    # Store raw FIRST
-    raw_key = await r2_service.store_raw_response(step.id, result.raw_response)
-    db.store_raw_api_response(step.id, raw_key=raw_key)
-    
-    # Then parse
-    parsed = parser.parse(result.raw_response)
-    db.store_processed_result(step.id, job.id, parsed)
-    db.update_step_status(step.id, "completed")
-
-except Exception as e:
-    db.update_step_status(step.id, "failed", error_message=str(e))
-    raise  # re-raise so Celery marks task as failed
-```
+1. **Submit routes never execute the heavy work.** They insert a `queued` row and return immediately. Execution belongs to the worker only.
+2. **Claiming is atomic.** Jobs are claimed via the `claim_next_*` `SECURITY DEFINER` RPCs (`FOR UPDATE SKIP LOCKED`) — never by naive `WHERE status='queued'` SELECT (that double-processes).
+3. **Respect the per-type concurrency caps.** `MAX_CONCURRENT` in `worker.py` is the memory/CPU budget; don't add a new job type without a cap. Raising caps without measuring risks a repeat of the OOM incident.
+4. **Every failure branches on attempts.** Requeue (`status='queued'`, clear claim) if `attempts < max_attempts`; only then mark `failed` permanently.
+5. **Full tracebacks go to server logs only.** The `error` column the frontend reads must never contain `str(exc)` tracebacks — use `"Job failed: {exc}. Reference ID: {job_id[:8]}"`.
+6. **Import native libs in safe order.** `worker.py` imports `openmm.app` before any rdkit import — the OpenMM/RDKit wheels ship conflicting MSVC runtime DLLs. Preserve that ordering.
+7. **Long results go to Supabase Storage.** Store `storage_url` on the row (via `services/artifact_storage.py`), not megabytes in JSONB columns.
+8. In-process `start_worker()` vs standalone `python -m app.worker`: both are valid; the standalone entrypoint is the durable one. See `durable-worker-design.md`.
 
 ### Pydantic Schema Rules
 
-All request bodies and response models are Pydantic v2 models. No raw dicts as API contracts.
+All request bodies and response models are Pydantic v2 models (in `app/models/responses.py`). No raw dicts as API contracts.
 
 Model naming:
 - Request body: `{Action}Request` (e.g. `FetchSequenceRequest`)
 - Response body: `{Thing}Response` (e.g. `SequenceResponse`, `JobStatusResponse`)
-- DB model: `{Thing}` (e.g. `Job`, `PipelineStep`)
+- DB row: the Supabase table row dict (typed in `responses.py`)
 
 ```python
 # ✓ Correct
@@ -310,11 +266,11 @@ class FetchSequenceRequest(BaseModel):
 
 ### Environment Variable Rules
 
-All config comes from `app/core/config.py` via pydantic-settings. Never read `os.environ` directly in service or route files.
+All config comes from `app/config.py` via pydantic-settings. Never read `os.environ` directly in service or route files.
 
 ```python
 # ✓ Correct
-from app.core.config import settings
+from app.config import settings
 api_key = settings.NCBI_API_KEY
 
 # ✗ Wrong
@@ -331,13 +287,13 @@ api_key = os.environ.get("NCBI_API_KEY")
 | Service | Limit | Our handling |
 |---|---|---|
 | NCBI Entrez (no key) | 3 req/s | Register API key immediately. With key: 10 req/s |
-| NCBI Entrez (with key) | 10 req/s | Celery task queue naturally spaces requests |
+| NCBI Entrez (with key) | 10 req/s | Sequential service calls + cache; worker per-job polling spaces requests |
 | EMBL-EBI Tools | Job-based (no strict limit) | Single job per step, poll at 15s intervals |
 | UniProt REST | 200 req/s | Cache aggressively (24h TTL) |
 | RCSB PDB | No stated limit | Cache (7-day TTL) |
 | AlphaFold EBI | Job-based | Cache predictions (30-day TTL) |
 | Reactome | No stated limit | Cache (12h TTL) |
-| Groq API | Depends on plan | Cache AI interpretations per result hash |
+| Groq / Gemini AI | Depends on plan | Cache AI interpretations per result hash |
 
 Never hit any external API without checking cache first.
 
@@ -367,9 +323,10 @@ BLAST:       EMBL-EBI BLAST → NCBI BLAST → error (log both failures)
 Sequence:    sequence_cache → NCBI Entrez → UniProt REST → error
 Pathways:    Reactome → WikiPathways → error (never fall back to KEGG if monetized)
 Structure:   structure_cache → RCSB PDB → error
+AI:          Groq (primary) → Gemini (fallback) → pro model → error
 ```
 
-Fallback must be transparent to the user: "We're using a backup service — results may take slightly longer."
+Fallback must be transparent to the user: "We're using a backup service — results may take slightly longer." The AI chain only uses providers that are actually configured (see `app/ai/llm_client.py`) — never fabricate a fallback that isn't wired up.
 
 ---
 
@@ -377,10 +334,10 @@ Fallback must be transparent to the user: "We're using a backup service — resu
 
 ### Query Rules
 
-All DB operations go through the Supabase Python client. No raw SQL in route handlers or service files. SQL belongs only in:
+All DB operations go through the Supabase Python client. No raw SQL in route handlers or service files. SQL lives only in:
 - `schema.md` (the schema itself)
-- `app/core/database.py` (connection setup)
-- Supabase SQL editor (migrations)
+- Supabase migrations (`bioai-platform/supabase/migrations/`, plus `backend/migrations/` applied via the Supabase SQL editor)
+- The `claim_next_*` RPC functions and worker sweep in `worker.py` (via `httpx` against `/rest/v1/rpc` and PATCH — the only places raw REST calls are allowed)
 
 ### Job Status Rule
 
@@ -415,7 +372,7 @@ async def fetch_sequence(accession: str) -> SequenceData:
 
 ### RLS Rule
 
-The frontend Supabase client uses the `anon` key. It must never access `raw_api_responses` directly — this table is backend/service-role only. The frontend reads only `processed_results`, `jobs`, `pipeline_steps`, and `profiles`.
+The frontend Supabase client uses the `anon` key for **auth only** — it must never read data tables directly. All data access goes through `/api/backend/*` so the backend applies ownership checks. The backend uses the service-role key (`SUPABASE_SERVICE_ROLE_KEY`), which bypasses RLS — **ownership is enforced in application code** via `require_user_id` / `require_user_or_api_key` (see `services/auth.py`) and `.eq("user_id", user_id)` filters. Never trust `auth.uid()` from a raw service-role query without a user filter.
 
 ---
 
@@ -453,13 +410,13 @@ Data:
 """
 ```
 
-6. **Groq for speed, Claude for depth.** Groq (llama-3.1-8b-instant) generates the inline paragraph interpretation (shown immediately on results page). Claude API generates the full PDF report interpretation (triggered only when user requests PDF). Never reverse these.
+6. **AI provider chain.** Groq (primary) generates inline interpretations for speed; Gemini is the fallback, with a pro model as the last resort (see `app/ai/llm_client.py` and the fallback-chain table in §4). Only providers present in config are used; if the chain is empty, show an honest "AI unavailable" banner — never a fabricated interpretation.
 
 ---
 
 ## 7 — Security Rules
 
-1. **NCBI API key, Groq API key, Anthropic API key** — never logged, never returned in API responses, never committed to git.
+1. **NCBI API key, Groq API key, Gemini API key** — never logged, never returned in API responses, never committed to git.
 
 2. **Guest session IDs** — treated as sensitive. Not logged in plaintext. The ID is a secret that controls access to a job.
 
@@ -467,7 +424,7 @@ Data:
 
 4. **No sequence data in URLs.** Sequences are never passed as query parameters. Always in request body (POST).
 
-5. **R2 objects** — never publicly readable. Always accessed via signed URLs with 1-hour expiry. The R2 bucket is private.
+5. **Artifacts** — use `services/artifact_storage.py` only. The bucket is public (needed for share links), so **never upload private data** (user sequence reads, auth tokens, keys) to it; those stay auth-gated in the database.
 
 6. **CORS** — `CORS_ORIGINS` is explicitly set. Never use `allow_origins=["*"]` in production.
 
@@ -520,14 +477,14 @@ Data:
 
 ## 11 — What NOT To Build (Current)
 
-This list keeps scope in check for Phase 3+.
+This list keeps scope in check for Phase 4+.
 
-❌ **Phase 2 items** — already built (MSA, Phylo, Domains, Pathways, Primers, API keys, Share, Export, Guest upgrade, Docs, Sentry, Cache checks)  
-❌ **Molecular docking / DiffDock** — requires revenue for paid Replicate API  
-❌ **RNA-seq pipeline** — Phase 3, requires file storage infrastructure  
-❌ **FASTQ / variant calling** — Phase 3, requires compute  
+❌ **Phase 1–2 items** — already built (BLAST, MSA, Phylo, Domains, Pathways, Primers, API keys, Share, Export, Guest upgrade, Docs, Sentry, Cache checks)  
+❌ **Phase 3 items** — already built (pipeline wizard v2, docking, MD simulation, ADMET, function prediction, sequencing + durable worker, artifact storage)  
+❌ **RNA-seq pipeline / variant-calling depth** — Phase 4, requires heavier compute + storage  
 ❌ **Lab workspaces** — Phase 4, requires institution licensing  
 ❌ **Custom pipeline builder** — Phase 4  
 ❌ **Mobile app** — not planned  
 ❌ **Email notifications** — not planned until Phase 4  
-❌ **Admin panel** — not needed until 100+ users
+❌ **Admin panel** — not needed until 100+ users  
+❌ **DiffDock (deep-learning docking)** — requires paid API / heavy GPU

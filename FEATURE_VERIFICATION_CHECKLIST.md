@@ -8,17 +8,17 @@
 
 ## 🔴 Protein Interactions — AUDIT FIRST (spec: "interaction lookup module")
 
-*Last verified: never*
+*Last verified: 2026-08-06*
 
-- [ ] Interaction partners list renders with source database attribution
-- [ ] Confidence/evidence score shown per interaction (and explained via LearnPopover)
-- [ ] Network graph visualization (or explicit decision that this tool is text/table-only, documented here)
-- [ ] Filter by evidence type (experimental / database / text-mining / co-expression) — or documented as out of scope
-- [ ] Export (JSON/CSV/image) works
-- [ ] Loading / error / empty states present
-- [ ] Chains from a BLAST/UniProt result (cross-tool entry point) or documented as standalone-only
-- [ ] Appears in pipeline wizard step list, or documented as intentionally excluded
-- [ ] `/learn` entry exists for interaction confidence scoring
+- [x] Interaction partners list renders with source database attribution (header + JSON export both state STRING-DB)
+- [x] Confidence/evidence score shown per interaction (and explained via LearnPopover)
+- [x] Network graph visualization (or explicit decision that this tool is text/table-only, documented here) — **Decision:** network is rendered as the STRING-DB network *image* (with graceful fallback link if the image fails); full interactive graph is out of scope for now
+- [x] Filter by evidence type (experimental / database / text-mining / co-expression) — client-side filter over the four STRING score channels, threshold 0.3
+- [x] Export (JSON/CSV/image) works — PNG (network image), TSV (score table), JSON (raw payload) via `fix(interactions)` `d2ea003`
+- [x] Loading / error / empty states present
+- [x] Chains from a BLAST/UniProt result (cross-tool entry point) — chains exist from UniProt page, Domains page, and job detail page via `sessionStorage["interaction_gene"]`
+- [x] Appears in pipeline wizard step list, or documented as intentionally excluded — **Documented exclusion:** not in the 5-step wizard chain (BLAST/UniProt → MSA → Phylo → Domains → AI Interpretation); interactions takes a single gene name, not a sequence, and is reachable as a standalone analyze tool + cross-tool chain
+- [x] `/learn` entry exists for interaction confidence scoring — `learn/interactions` (STRING, score channels, network topology) wired to LearnPopover in the score table headers
 
 ## 🔴 Function Prediction — AUDIT FIRST (spec: "sequence → function inference endpoint + job status")
 

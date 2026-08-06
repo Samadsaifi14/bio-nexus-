@@ -51,6 +51,13 @@ Goal: one golden path — sequence in → BLAST → AI-interpreted report. Every
 - Enhanced dashboard/jobs/settings UI
 - Durable job worker (see `durable-worker-design.md`) — replaced in-request job execution for docking/MD/function-predict/sequencing/pipeline
 
+## Tool Verification Audit (Aug 2026)
+
+Live audit of the four 🔴 tools from `FEATURE_VERIFICATION_CHECKLIST.md`; every fix is a `fix(...)` commit.
+
+- `fix(pathways)` `bde6aea` — Pathway enrichment no longer depends on the Reactome `/token/{token}/pathways` endpoint (which 404s on the URL-encoded token). Reads the `pathways` array directly from the projection response, parses species, and surfaces `geneRatio` + per-pathway p-value to the UI and TSV export. Live-verified: 20 pathways for the TP53 gene set.
+- `fix(interactions)` `d2ea003` — STRING-DB viewer upgraded: evidence-type filter (experimental / database / co-expression / text-mining, threshold 0.3), JSON export alongside PNG/TSV, and LearnPopover tooltips on the combined + evidence score headers linking to `learn/interactions`. Backend endpoint live-verified (TP53 → 5 partners).
+
 ## Open / Next
 
 - Phase 3 depth: RNA-seq differential expression, larger file storage and compute

@@ -234,7 +234,19 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
             content = f.read()
         if not content.strip():
             raise RuntimeError("Receptor PDBQT conversion produced empty output")
-        return content
+
+        # Flatten to a single rigid model. Open Babel wraps each chain of a
+        # multi-chain/NMR structure in MODEL/ENDMDL blocks, and Vina rejects
+        # multi-model rigid receptors ("Unexpected multi-MODEL tag found in
+        # rigid receptor"). Dropping the block markers keeps every atom as one
+        # receptor. TORSDOF/ROOT/BRANCH markers are dropped too so the output
+        # is always a plain rigid receptor.
+        flattened = "\n".join(
+            l for l in content.splitlines()
+            if not l.startswith(("MODEL", "ENDMDL", "ROOT", "ENDROOT",
+                                 "BRANCH", "ENDBRANCH", "TORSDOF"))
+        )
+        return flattened
     except FileNotFoundError:
         raise RuntimeError(_ensure_obabel())
     finally:

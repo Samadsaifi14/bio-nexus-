@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
-import { fadeUp, stagger, cardHover } from '@/lib/animations';
+import { fadeUp, stagger, cardHover, hoverLift, press } from '@/lib/animations';
+import { Parallax } from '@/components/effects/Parallax';
 import { CircleNotch as LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle, TrendUp as TrendingUp, ChartBar as BarChart3, GitBranch, TextAlignLeft as AlignLeft, TestTube as FlaskConical, Network, MagnifyingGlass as Search, CaretRight as ChevronRight, Pulse as Activity, Calendar } from '@phosphor-icons/react';
 import { getJobs, getJobCount } from '@/lib/api';
 import { useAuth } from '@/contexts/auth';
@@ -93,31 +94,33 @@ export default function DashboardPage() {
       </motion.div>
 
       {/* ── Daily usage bar ── */}
-      <motion.div variants={fadeUp} className="data-card p-5">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            <Activity className="w-4 h-4 text-accent-cyan" />
-            <span className="text-sm font-medium text-text-primary">Daily Usage</span>
+      <Parallax speed={0.06}>
+        <motion.div variants={fadeUp} className="data-card p-5">
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <Activity className="w-4 h-4 text-accent-cyan" />
+              <span className="text-sm font-medium text-text-primary">Daily Usage</span>
+            </div>
+            <span className="text-sm text-text-muted">{usage.count} / {usage.limit} analyses</span>
           </div>
-          <span className="text-sm text-text-muted">{usage.count} / {usage.limit} analyses</span>
-        </div>
-        <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden border border-glass-border">
-          <motion.div
-            className={`h-full rounded-full ${usagePercent >= 80 ? 'bg-accent-amber' : 'bg-accent-cyan'}`}
-            initial={{ width: 0 }}
-            animate={{ width: `${usagePercent}%` }}
-            transition={{ duration: 0.9, ease: 'easeOut' }}
-          />
-        </div>
-        <p className="text-xs text-text-muted mt-2">
-          {usage.remaining} {usage.remaining === 1 ? 'analysis' : 'analyses'} remaining today
-          {isGuest && (
-            <span className="ml-2 text-accent-cyan">
-              · <Link href="/auth" className="underline underline-offset-2 hover:text-accent-cyan/80 transition">Sign in to keep history</Link>
-            </span>
-          )}
-        </p>
-      </motion.div>
+          <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden border border-glass-border">
+            <motion.div
+              className={`h-full rounded-full ${usagePercent >= 80 ? 'bg-accent-amber' : 'bg-accent-cyan'}`}
+              initial={{ width: 0 }}
+              animate={{ width: `${usagePercent}%` }}
+              transition={{ duration: 0.9, ease: 'easeOut' }}
+            />
+          </div>
+          <p className="text-xs text-text-muted mt-2">
+            {usage.remaining} {usage.remaining === 1 ? 'analysis' : 'analyses'} remaining today
+            {isGuest && (
+              <span className="ml-2 text-accent-cyan">
+                · <Link href="/auth" className="underline underline-offset-2 hover:text-accent-cyan/80 transition">Sign in to keep history</Link>
+              </span>
+            )}
+          </p>
+        </motion.div>
+      </Parallax>
 
       {/* ── Stats ── */}
       <motion.div variants={stagger} animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-4">
@@ -148,7 +151,7 @@ export default function DashboardPage() {
         </motion.div>
         <motion.div variants={stagger} animate="show" className="grid grid-cols-2 md:grid-cols-3 gap-3">
           {QUICK_TOOLS.map(t => (
-            <motion.div key={t.label} variants={fadeUp} whileHover={cardHover}>
+            <motion.div key={t.label} variants={fadeUp} whileHover={hoverLift} whileTap={press}>
               <Link href={t.href} className="glass-card p-4 flex items-center gap-3 hover:bg-surface-2 transition group">
                 <div className={`w-9 h-9 ${t.bg} rounded-xl flex items-center justify-center shrink-0`}>
                   <t.icon className={`w-4 h-4 ${t.color}`} />

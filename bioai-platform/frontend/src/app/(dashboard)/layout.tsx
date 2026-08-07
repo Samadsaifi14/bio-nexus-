@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/auth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 import { AuditInsightPanel } from '@/components/AuditInsightPanel';
+import { CursorGlow } from '@/components/effects/CursorGlow';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
@@ -315,6 +316,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <TutorialWalkthrough />
       <AuditInsightPanel sessionId={typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`} />
+      <CursorGlow />
     </div>
   );
 }

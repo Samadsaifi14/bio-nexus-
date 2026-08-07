@@ -14,7 +14,7 @@ export default function PrimersPage() {
 
       <PageHeader
         title="Primer Design"
-        subtitle="Design PCR primers using Primer3. Runs locally — instant results."
+        subtitle="Search NCBI for a gene, retrieve its mRNA/CDS, and design PCR primers with Primer3 — with hairpin/dimer QC and in-silico PCR verification."
       />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">

@@ -92,12 +92,16 @@ class NCBIService:
             results = []
             for docsum in summaries:
                 if hasattr(docsum, "items"):
+                    # Field names differ between databases:
+                    #   protein: AccessionVersion, Title, Organism, Length
+                    #   nucleotide: Caption (accession), Title, Slen, Organism
+                    #   gene:     Name, Description, Organism, NomenclatureSymbol
                     results.append({
-                        "accession": str(docsum.get("AccessionVersion", "")),
-                        "title": str(docsum.get("Title", "")),
-                        "organism": str(docsum.get("Organism", "")),
-                        "length": int(docsum.get("Length", 0) or 0),
+                        "accession": str(docsum.get("Caption", "") or docsum.get("AccessionVersion", "") or ""),
+                        "title": str(docsum.get("Title", "") or docsum.get("Description", "") or docsum.get("Name", "")),
+                        "organism": str(docsum.get("Organism", "") or ""),
+                        "length": int(docsum.get("Slen", 0) or docsum.get("Length", 0) or 0),
                     })
-            return {"results": results, "count": len(results), "query": term}
+            return {"results": results, "count": len(results), "query": term, "db": db}
         except Exception as e:
             return {"error": str(e)}

@@ -1,7 +1,19 @@
+import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from typing import Optional
+
+from app.services.ncbi_service import NCBIService
+from app.tools.oligo_qc import (
+    clean,
+    is_dna,
+    oligo_report,
+    dimer_analysis,
+    in_silico_pcr,
+)
 
 router = APIRouter(prefix="/api/primers", tags=["primers"])
+ncbi_service = NCBIService()
 
 try:
     import primer3
@@ -84,3 +96,167 @@ async def design_primers(req: PrimerRequest):
     if not pairs:
         raise HTTPException(404, "No primer pairs found. Try relaxing GC%, Tm, or product size constraints.")
     return pairs
+
+
+def _record_type(accession: str) -> str:
+    acc = (accession or "").upper()
+    if acc.startswith(("NM_", "XM_")):
+        return "mRNA"
+    if acc.startswith(("NR_", "XR_")):
+        return "non-coding RNA"
+    if acc.startswith("NG_"):
+        return "genomic DNA"
+    if acc.startswith("NC_"):
+        return "chromosome"
+    if acc.startswith(("NT_", "NW_", "AC_", "AE_")):
+        return "genomic (assembly)"
+    return "nucleotide"
+
+
+class PrimerSearchRequest(BaseModel):
+    query: str = Field(..., min_length=2, description="Gene symbol or nucleotide search term (e.g. TP53, BRCA1 human)")
+    max_results: int = Field(12, ge=1, le=50)
+
+
+# Organism hints a user might append to a plain gene query, mapped to the
+# canonical NCBI [Organism] taxonomy string.
+_ORGANISM_HINTS = {
+    "human": "Homo sapiens",
+    "homo sapiens": "Homo sapiens",
+    "mouse": "Mus musculus",
+    "mus musculus": "Mus musculus",
+    "rat": "Rattus norvegicus",
+    "rattus norvegicus": "Rattus norvegicus",
+    "zebrafish": "Danio rerio",
+    "danio rerio": "Danio rerio",
+    "fly": "Drosophila melanogaster",
+    "drosophila": "Drosophila melanogaster",
+    "yeast": "Saccharomyces cerevisiae",
+    "saccharomyces cerevisiae": "Saccharomyces cerevisiae",
+    "worm": "Caenorhabditis elegans",
+    "c elegans": "Caenorhabditis elegans",
+    "e coli": "Escherichia coli",
+    "escherichia coli": "Escherichia coli",
+    "arabidopsis": "Arabidopsis thaliana",
+    "plant": "Arabidopsis thaliana",
+    "bovine": "Bos taurus",
+    "cow": "Bos taurus",
+    "dog": "Canis lupus familiaris",
+    "pig": "Sus scrofa",
+}
+
+
+def _build_nucleotide_query(term: str) -> str:
+    """Turn a plain gene query like 'TP53 human' into a proper NCBI query.
+
+    'TP53 human' handled verbatim by NCBI's phrase search returns irrelevant
+    taxa; translating to 'TP53[Gene Name] AND Homo sapiens[Organism]' returns
+    the actual reference mRNAs. Queries that already contain field tags
+    (square brackets) are passed through untouched, and accession-style
+    queries are turned into exact [ACCN] lookups.
+    """
+    term = term.strip()
+    if not term or "[" in term:
+        return term
+    first = term.split()[0].upper()
+    if re.match(r"^(NM_|XM_|NR_|XR_|NG_|NC_|NT_|NW_|AC_|AE_|AF_|AY_)", first):
+        return f"{term.strip()}[ACCN]"
+    tokens = [t for t in term.split() if t]
+    gene = tokens[0]
+    for i, tok in enumerate(tokens[1:], start=1):
+        hint = _ORGANISM_HINTS.get(tok.lower())
+        if hint:
+            organism = hint
+            extra = " ".join(t for t in tokens[1:i] + tokens[i + 1:] if t)
+            break
+    else:
+        organism = None
+        extra = " ".join(tokens[1:])
+    parts = [f"{gene}[Gene Name]"]
+    if extra:
+        parts.append(extra)
+    if organism:
+        parts.append(f"{organism}[Organism]")
+    return " AND ".join(parts)
+
+
+def _result_priority(r: dict) -> int:
+    """Rank search hits so the most useful primer templates come first."""
+    rt = r.get("record_type", "")
+    title = r.get("title", "").lower()
+    if "complete cds" in title and rt == "mRNA":
+        return 0
+    if "complete cds" in title:
+        return 1
+    if rt == "mRNA":
+        return 2
+    if rt == "genomic DNA":
+        return 3
+    if rt == "non-coding RNA":
+        return 4
+    return 5
+
+
+@router.post("/search")
+async def search_primer_targets(req: PrimerSearchRequest):
+    """Search NCBI Nucleotide for a gene/sequence to design primers against.
+
+    Mirrors the 'NCBI Gene / NCBI Nucleotide' step of the primer design
+    workflow: find the gene of interest, then retrieve its mRNA/DNA sequence.
+    """
+    query = _build_nucleotide_query(req.query)
+    result = await ncbi_service.search_by_name(query, db="nucleotide", max_results=req.max_results)
+    if "error" in result:
+        raise HTTPException(status_code=404, detail=result["error"])
+    for r in result["results"]:
+        r["record_type"] = _record_type(r.get("accession", ""))
+        r["suggested_use"] = "ideal" if r["record_type"] == "mRNA" else "ok"
+    result["results"].sort(key=_result_priority)
+    result["query"] = req.query
+    result["ncbi_query"] = query
+    return result
+
+
+class PrimerAnalyzeRequest(BaseModel):
+    left_seq: str = Field(..., min_length=5, description="Forward primer 5'->3'")
+    right_seq: str = Field(..., min_length=5, description="Reverse primer 5'->3'")
+    template: Optional[str] = Field(None, description="Template sequence for in-silico PCR")
+    left_pos: Optional[int] = Field(None, description="Primer3 0-based left primer start")
+    right_pos: Optional[int] = Field(None, description="Primer3 0-based right primer start")
+    expected_product: Optional[int] = Field(None, ge=1, description="Primer3-reported product size")
+
+
+@router.post("/analyze")
+async def analyze_primer(req: PrimerAnalyzeRequest):
+    """Run oligo QC (hairpin, self-/hetero-dimer, Tm, GC) and in-silico PCR.
+
+    Mirrors the IDT OligoAnalyzer + Primer-BLAST + in-silico PCR steps of the
+    primer design workflow for a single candidate pair.
+    """
+    left = clean(req.left_seq)
+    right = clean(req.right_seq)
+    if not is_dna(left) or not is_dna(right):
+        raise HTTPException(400, "Primers must be DNA (A/T/G/C/N only).")
+    if len(left) < 5 or len(right) < 5:
+        raise HTTPException(400, "Primers must be at least 5 bases.")
+
+    qc = {
+        "left": oligo_report(left),
+        "right": oligo_report(right),
+        "hetero_dimer": dimer_analysis(left, right),
+    }
+    response = {"qc": qc}
+
+    if req.template:
+        template = clean(req.template)
+        if not template:
+            raise HTTPException(400, "Template sequence is required for in-silico PCR.")
+        response["pcr"] = in_silico_pcr(
+            template,
+            left,
+            right,
+            expected_product=req.expected_product,
+            left_expected=req.left_pos,
+            right_expected=req.right_pos,
+        )
+    return response

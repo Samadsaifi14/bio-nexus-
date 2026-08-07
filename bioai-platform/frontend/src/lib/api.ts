@@ -183,6 +183,80 @@ export async function searchSequences(query: string, db: string = 'protein', max
   return res.data;
 }
 
+export type PrimerSearchHit = {
+  accession: string;
+  title: string;
+  organism: string;
+  length: number;
+  record_type: string;
+  suggested_use: string;
+};
+
+export type PrimerSearchResponse = {
+  query: string;
+  db: string;
+  count: number;
+  results: PrimerSearchHit[];
+  error?: string;
+};
+
+export type PrimerStructure = {
+  dg: number;
+  stem_length: number;
+  stem: string;
+  loop?: string;
+  involves_a3?: boolean;
+  involves_b3?: boolean;
+  risk: string;
+  note: string;
+};
+
+export type PrimerQC = {
+  sequence: string;
+  length: number;
+  gc: number;
+  tm_50mM: number;
+  hairpin: PrimerStructure;
+  self_dimer: PrimerStructure;
+};
+
+export type PrimerAnalyzeResponse = {
+  qc: {
+    left: PrimerQC;
+    right: PrimerQC;
+    hetero_dimer: PrimerStructure;
+  };
+  pcr?: {
+    template_length: number;
+    forward_binding_sites: number;
+    reverse_binding_sites: number;
+    forward_positions: number[];
+    reverse_positions: number[];
+    specific: boolean;
+    amplicons: { start: number; end: number; length: number }[];
+    primer3_consistent: boolean | null;
+    matches_product_size: boolean | null;
+    note: string | null;
+  };
+};
+
+export async function searchPrimerTargets(query: string, maxResults: number = 12): Promise<PrimerSearchResponse> {
+  const res = await api.post('/api/primers/search', { query, max_results: maxResults });
+  return res.data;
+}
+
+export async function analyzePrimer(payload: {
+  left_seq: string;
+  right_seq: string;
+  template?: string;
+  left_pos?: number;
+  right_pos?: number;
+  expected_product?: number;
+}): Promise<PrimerAnalyzeResponse> {
+  const res = await api.post('/api/primers/analyze', payload);
+  return res.data;
+}
+
 export type AlignmentResult = {
   job_id: string;
   aln_fasta: string;

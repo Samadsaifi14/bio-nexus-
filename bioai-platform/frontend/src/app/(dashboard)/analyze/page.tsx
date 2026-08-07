@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
-import { fadeUp, stagger, cardHover } from '@/lib/animations';
+import { fadeUp, stagger, hoverGlow, press } from '@/lib/animations';
 import { ReactNode } from 'react';
 import { CriticalButton } from '@/components/ui';
 
@@ -59,16 +59,20 @@ const groups: { title: string; items: Operation[] }[] = [
 function OperationCard({ op, router }: { op: Operation; router: ReturnType<typeof useRouter> }) {
   const Icon = op.icon;
   return (
-    <motion.div variants={fadeUp} whileHover={op.active ? cardHover : undefined}>
+    <motion.div variants={fadeUp} whileHover={op.active ? hoverGlow : undefined} whileTap={op.active ? press : undefined}>
       <button
         onClick={() => op.active && router.push(`/analyze/${op.id}`)}
         disabled={!op.active}
         className="relative text-left p-5 rounded-2xl glass-card cursor-pointer hover:bg-surface-1 transition w-full disabled:opacity-50"
       >
         <div className="flex items-start gap-4">
-          <div className="p-3 rounded-xl bg-accent-cyan/10">
+          <motion.div
+            className="p-3 rounded-xl bg-accent-cyan/10"
+            whileHover={{ scale: 1.08, rotate: 3 }}
+            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+          >
             <Icon className="w-5 h-5 text-accent-cyan" />
-          </div>
+          </motion.div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <h3 className="font-semibold text-text-primary">{op.name}</h3>

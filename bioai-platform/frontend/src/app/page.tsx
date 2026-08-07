@@ -6,6 +6,7 @@ import { useRef } from 'react';
 import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
+import { CursorGlow } from '@/components/effects/CursorGlow';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -59,6 +60,7 @@ export default function LandingPage() {
 
   return (
     <main className="relative bg-void text-text-primary overflow-x-hidden">
+      <CursorGlow />
       <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
           <span className="font-display text-sm font-semibold tracking-widest uppercase">

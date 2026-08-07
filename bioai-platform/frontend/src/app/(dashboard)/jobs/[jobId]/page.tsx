@@ -20,6 +20,8 @@ import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { DomainArchitecture } from '@/components/domains/DomainArchitecture';
 import { StringDBViewer } from '@/components/interactions/StringDBViewer';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
+import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
+import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
 import { SecondaryStructureViewer } from '@/components/structure/SecondaryStructure';
 import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
@@ -342,6 +344,10 @@ export default function JobPage() {
                   <Download className="w-3.5 h-3.5 inline mr-1" />FASTA
                 </button>
               </div>
+              <AlignmentStatsBar
+                stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)}
+                className="mb-2"
+              />
               <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
                 {context.msa.aln_fasta}
               </pre>

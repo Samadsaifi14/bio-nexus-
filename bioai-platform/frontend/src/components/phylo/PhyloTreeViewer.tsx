@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MagnifyingGlass as Search } from '@phosphor-icons/react'
 import { ClaySegmented } from '@/components/ui/ClaySegmented'
+import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar'
+import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -665,6 +667,11 @@ export default function PhyloTreeViewer({
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set())
 
+  const alignmentStats = useMemo(
+    () => (alignment ? computeAlignmentStats(parseAlignedFasta(alignment).seqs) : null),
+    [alignment],
+  )
+
   // zoom / pan
   const [transform, setTransform] = useState({ scale: 1, x: 0, y: 0 })
   const [isDragging, setIsDragging] = useState(false)
@@ -943,10 +950,13 @@ export default function PhyloTreeViewer({
             <span className="text-xs opacity-60">{showAlignment ? '▲ hide' : '▼ show'}</span>
           </button>
           {showAlignment && (
-            <pre className="overflow-auto p-4 text-[11px] font-mono text-molecule-dna
-              bg-surface-1 max-h-60 leading-relaxed">
-              {alignment}
-            </pre>
+            <>
+              {alignmentStats && <AlignmentStatsBar stats={alignmentStats} className="px-4 pt-3" />}
+              <pre className="overflow-auto p-4 text-[11px] font-mono text-molecule-dna
+                bg-surface-1 max-h-60 leading-relaxed">
+                {alignment}
+              </pre>
+            </>
           )}
         </div>
       )}

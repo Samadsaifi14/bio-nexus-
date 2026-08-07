@@ -76,6 +76,7 @@ export function AlignmentView({ hit }: AlignmentViewProps) {
   const pctId = alignLen > 0 ? Math.round((identities / alignLen) * 100) : 0;
   const positives = hit.positive || 0;
   const gaps = hit.gaps || 0;
+  const mismatches = Math.max(0, alignLen - identities - gaps);
 
   const totalLines = Math.ceil(qSeq.length / 60);
   const displayLines = showAll ? totalLines : Math.min(totalLines, 3);
@@ -90,7 +91,9 @@ export function AlignmentView({ hit }: AlignmentViewProps) {
       <div className="flex items-center gap-4 mb-3 text-xs text-text-muted">
         <span>Identities: <strong className="text-text-primary">{identities}/{alignLen} ({pctId}%)</strong></span>
         <span>Positives: <strong className="text-text-primary">{positives}</strong></span>
+        <span>Mismatches: <strong className="text-text-primary">{mismatches}</strong></span>
         {gaps > 0 && <span>Gaps: <strong className="text-text-primary">{gaps}</strong></span>}
+        <span>Length: <strong className="text-text-primary">{alignLen}</strong> bp</span>
       </div>
 
       <div className="bg-surface-1 rounded-lg p-3 overflow-x-auto">

@@ -11,7 +11,9 @@ import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
-import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
+import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
+import { AlignmentStatsBar } from "@/components/alignment/AlignmentStatsBar";
+import { computeAlignmentStats, parseAlignedFasta } from "@/lib/alignment-stats";
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
 
@@ -96,6 +98,10 @@ export default function SharedResultPage() {
               <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-5">
                 <h3 className="text-sm font-semibold text-text-primary mb-1">Multiple Sequence Alignment</h3>
                 <p className="text-xs text-text-muted mb-2">{context.msa.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+                <AlignmentStatsBar
+                  stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)}
+                  className="mb-2"
+                />
                 <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
                   {context.msa.aln_fasta}
                 </pre>

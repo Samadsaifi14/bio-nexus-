@@ -4,6 +4,8 @@ import { useMemo } from 'react';
 import { DownloadSimple as Download } from '@phosphor-icons/react';
 import type { PairwiseAlignResult } from '@/types/pipeline';
 import { downloadText, downloadTsv } from '@/lib/export-utils';
+import { computeAlignmentStats } from '@/lib/alignment-stats';
+import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 
 const BLOCK_SIZE = 60;
 
@@ -180,6 +182,11 @@ export function PairwiseResultDisplay({
   queryLabel?: string;
   subjectLabel?: string;
 }) {
+  const stats = useMemo(
+    () => computeAlignmentStats([result.aligned_query, result.aligned_hit]),
+    [result],
+  );
+
   if (result.alignment_length === 0) {
     return <CoverageNote result={result} />;
   }
@@ -196,10 +203,13 @@ export function PairwiseResultDisplay({
         ['Mode', result.mode],
         ['Matrix', result.matrix],
         ['Score', String(result.score)],
+        ['Matched', String(stats.matched)],
+        ['Mismatched', String(stats.mismatched)],
+        ['Gapped columns', String(stats.gapped)],
+        ['Gap characters', String(result.gaps_total)],
+        ['Alignment length', String(stats.length)],
         ['Identity (%)', String(result.pct_identity)],
         ['Identical residues', String(result.identity)],
-        ['Gaps', String(result.gaps_total)],
-        ['Alignment length', String(result.alignment_length)],
         ['Query start', String(result.query_start)],
         ['Query end', String(result.query_end)],
         ['Query length', String(result.query_length)],
@@ -221,12 +231,6 @@ export function PairwiseResultDisplay({
           Identity: <strong className="text-accent-cyan">{result.pct_identity}%</strong> ({result.identity}/{result.alignment_length})
         </span>
         <span>
-          Gaps: <strong className="text-text-primary">{result.gaps_total}</strong>
-        </span>
-        <span>
-          Length: <strong className="text-text-primary">{result.alignment_length}</strong> columns
-        </span>
-        <span>
           Matrix: <strong className="text-text-primary">{result.matrix.toUpperCase()}</strong>
         </span>
         <span>
@@ -243,6 +247,12 @@ export function PairwiseResultDisplay({
           </button>
         </span>
       </div>
+
+      <AlignmentStatsBar
+        stats={stats}
+        gapDetail={`${result.gaps_total} gap chars`}
+        className="mb-3"
+      />
 
       <div className="mb-3 space-y-1.5">
         <CoverageStrip label="Query" start={result.query_start} end={result.query_end} length={result.query_length} />

@@ -6,6 +6,8 @@ import type { PairwiseAlignResult } from '@/types/pipeline';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisplay';
+import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
+import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
 
 const AA_COLORS: Record<string, string> = {
   A: '#8B93D6', C: '#E0A94E', D: '#EF4444', E: '#EF4444',
@@ -18,31 +20,6 @@ const AA_COLORS: Record<string, string> = {
 function aaColor(ch: string): string {
   if (ch === '-') return 'rgba(132,140,164,0.25)';
   return AA_COLORS[ch.toUpperCase()] ?? 'var(--text-primary)';
-}
-
-function parseAlignedFasta(fasta: string): { headers: string[]; seqs: string[] } {
-  const headers: string[] = [];
-  const seqs: string[] = [];
-  let header = '';
-  let seq = '';
-  for (const line of fasta.split('\n')) {
-    const t = line.trim();
-    if (t.startsWith('>')) {
-      if (header) {
-        headers.push(header);
-        seqs.push(seq);
-      }
-      header = t.slice(1);
-      seq = '';
-    } else if (header) {
-      seq += t;
-    }
-  }
-  if (header) {
-    headers.push(header);
-    seqs.push(seq);
-  }
-  return { headers, seqs };
 }
 
 interface MSAResultPanelProps {
@@ -66,6 +43,7 @@ export function MSAResultPanel({
 }: MSAResultPanelProps) {
   const { headers, seqs } = useMemo(() => parseAlignedFasta(alnFasta), [alnFasta]);
   const length = seqs[0]?.length ?? 0;
+  const stats = useMemo(() => computeAlignmentStats(seqs), [seqs]);
 
   const download = () => {
     const blob = new Blob([alnFasta], { type: 'text/plain' });
@@ -99,6 +77,8 @@ export function MSAResultPanel({
             <Download className="w-3.5 h-3.5 inline mr-1" />FASTA
           </button>
         </div>
+
+        <AlignmentStatsBar stats={stats} className="mb-3" />
 
         <div className="rounded-xl border border-glass-border bg-surface-1 overflow-x-auto">
           <div className="min-w-max p-3 font-mono text-xs leading-[1.7]">

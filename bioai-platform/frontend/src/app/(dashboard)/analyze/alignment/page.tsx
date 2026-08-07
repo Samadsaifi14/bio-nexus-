@@ -10,6 +10,8 @@ import type { AlignmentResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
+import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
+import { computeAlignmentStats } from '@/lib/alignment-stats';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 
 function parseAlignedFasta(fasta: string): string[] {
@@ -190,6 +192,7 @@ export default function AlignmentPage() {
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA) — {METHOD_LABELS[result.method as AlignmentMethod] ?? result.method ?? 'Clustal Omega'}</h3>
+              <AlignmentStatsBar stats={computeAlignmentStats(alignedSeqs)} className="mb-3" />
               <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-80 overflow-auto whitespace-pre-wrap break-all">
                 {result.aln_fasta}
               </pre>

@@ -2,10 +2,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
-import { ArrowLeft, Play, CircleNotch as Loader2, Pulse as Activity, Lightning as Zap, ChartBar as BarChart3, Info } from '@phosphor-icons/react';
+import { ArrowLeft, Play, CircleNotch as Loader2, Pulse as Activity, Lightning as Zap, ChartBar as BarChart3, Info, DownloadSimple as Download } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { runMD, getMDStatus, getMDForceFields, type MDSimulationResult, type MDForceFieldsMenu } from "@/lib/api";
+import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { ClaySegmented, ClaySlider, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
 
 const MODES = [
@@ -126,6 +127,25 @@ export default function MDPage() {
 
   const selectedMode = MODES.find(m => m.value === mode)!;
 
+  const exportMdJson = () => {
+    if (!result) return;
+    downloadJson(result, `${result.pdb_id}_md_result.json`);
+  };
+
+  const exportMdTsv = () => {
+    if (!result) return;
+    const rows: string[][] = [];
+    const add = (series: string, x: number | string, value: string, unit: string) => rows.push([series, String(x), value, unit]);
+    result.energy.production.forEach((p) => add("Energy (production)", p.step, p.energy.toFixed(2), "kJ/mol"));
+    result.energy.minimization.forEach((p) => add("Energy (minimization)", p.step, p.energy.toFixed(2), "kJ/mol"));
+    result.temperature?.forEach((p) => add("Temperature", p.step, p.temperature_k.toFixed(2), "K"));
+    result.radius_of_gyration?.forEach((p) => add("Radius of gyration", p.step, p.rg_angstrom.toFixed(3), "A"));
+    result.sasa?.forEach((p) => add("SASA", p.step, p.sasa_angstrom2.toFixed(2), "A2"));
+    result.rmsd.forEach((p) => add("RMSD", p.frame, p.rmsd.toFixed(4), "A"));
+    result.rmsf.forEach((p) => add("RMSF", p.residue, p.rmsf_angstrom.toFixed(4), "A"));
+    downloadTsv(["Series", "Frame/Residue", "Value", "Unit"], rows, `${result.pdb_id}_md_traces.tsv`);
+  };
+
   return (
     <div className="max-w-4xl">
       <button onClick={() => router.push("/analyze")}
@@ -189,6 +209,16 @@ export default function MDPage() {
             title={`Simulation complete · ${result.mode}`}
             subtitle={`${result.engine === 'openmm' ? 'OpenMM' : 'BioPython'} · ${result.elapsed_seconds}s${result.final_energy_kj_mol ? ` · ${result.final_energy_kj_mol} kJ/mol` : ''}`}
           />
+          <div className="flex items-center gap-2">
+            <button onClick={exportMdJson}
+              className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Export JSON
+            </button>
+            <button onClick={exportMdTsv}
+              className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Export traces (TSV)
+            </button>
+          </div>
           {/* Simulation Parameters */}
           <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">

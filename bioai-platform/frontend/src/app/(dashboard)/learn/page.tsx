@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight, Brain } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight, Brain, LinkSimple as LinkIcon, Atom, Pill as Pills } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { useState } from 'react';
@@ -23,6 +23,7 @@ const groups: { title: string; items: Topic[] }[] = [
       { id: 'alignment', title: 'Sequence Alignment',      description: 'Pairwise and multiple alignment — scoring matrices, gap penalties, and output.', icon: Layout },
       { id: 'domains',   title: 'Domain Analysis',         description: 'Protein domains, Pfam, InterPro, and domain architecture.',                     icon: Layers },
       { id: 'phylo',     title: 'Phylogenetic Trees',      description: 'Tree-building methods, bootstrap values, and branch lengths.',                  icon: GitFork },
+      { id: 'sequencing', title: 'Sequencing',              description: 'Sanger and NGS reads, quality scores, assembly, and variant calling.',           icon: Dna },
     ],
   },
   {
@@ -32,6 +33,9 @@ const groups: { title: string; items: Topic[] }[] = [
       { id: 'function',    title: 'Function Prediction',   description: 'GO terms, Gene Ontology namespaces, EC numbers, and DeepFRI-style prediction.',  icon: Brain },
       { id: 'pathways',    title: 'Pathway Analysis',      description: 'Reactome vs KEGG, pathway mapping, and enrichment analysis.',                  icon: GitBranch },
       { id: 'interactions', title: 'Protein Interactions', description: 'STRING database, interaction networks, and confidence scores.',                icon: Globe },
+      { id: 'docking',     title: 'Molecular Docking',     description: 'Binding poses, scoring functions, and interaction fingerprints.',              icon: LinkIcon },
+      { id: 'md',          title: 'Molecular Dynamics',    description: 'Force fields, trajectories, RMSD/RMSF, and simulation protocols.',              icon: Atom },
+      { id: 'admet',       title: 'ADMET Prediction',      description: 'Lipinski rules, solubility, metabolism, and drug-likeness filters.',           icon: Pills },
     ],
   },
   {

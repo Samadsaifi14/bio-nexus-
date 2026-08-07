@@ -1,7 +1,8 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { CircleNotch as LoaderCircle } from '@phosphor-icons/react';
+import { CircleNotch as LoaderCircle, DownloadSimple as Download } from '@phosphor-icons/react';
+import { downloadText } from '@/lib/export-utils';
 
 interface Props {
   stId: string;
@@ -59,6 +60,34 @@ export default function PathwayDiagram({ stId, geneName, height = 400 }: Props) 
   type DiagramInstance = ReturnType<NonNullable<typeof window.Reactome>['Diagram']['create']>;
   const diagramRef = useRef<DiagramInstance | null>(null);
   const initCalled = useRef(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  const exportSvg = () => {
+    const svg = containerRef.current?.querySelector('svg');
+    if (!svg) return;
+    downloadText(new XMLSerializer().serializeToString(svg), `${stId}_pathway.svg`);
+  };
+
+  const exportPng = () => {
+    const svg = containerRef.current?.querySelector('svg');
+    if (!svg) return;
+    const svgStr = new XMLSerializer().serializeToString(svg);
+    const canvas = document.createElement('canvas');
+    const ctx = canvas.getContext('2d')!;
+    const img = new window.Image();
+    img.onload = () => {
+      canvas.width = img.width;
+      canvas.height = img.height;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(img, 0, 0);
+      const a = document.createElement('a');
+      a.download = `${stId}_pathway.png`;
+      a.href = canvas.toDataURL('image/png');
+      a.click();
+    };
+    img.src = 'data:image/svg+xml;base64,' + btoa(unescape(encodeURIComponent(svgStr)));
+  };
 
   useEffect(() => {
     const style = document.createElement('style');
@@ -132,7 +161,23 @@ export default function PathwayDiagram({ stId, geneName, height = 400 }: Props) 
 
   return (
     <div className="relative">
-      <div id={containerId} className="w-full rounded-xl overflow-hidden" style={{ minHeight: height, opacity: loaded ? 1 : 0 }} />
+      {loaded && (
+        <div className="flex items-center justify-end gap-2 mb-2">
+          <button
+            onClick={exportSvg}
+            className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" /> SVG
+          </button>
+          <button
+            onClick={exportPng}
+            className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5"
+          >
+            <Download className="w-3.5 h-3.5" /> PNG
+          </button>
+        </div>
+      )}
+      <div ref={containerRef} id={containerId} className="w-full rounded-xl overflow-hidden" style={{ minHeight: height, opacity: loaded ? 1 : 0 }} />
       {!loaded && !error && (
         <div className="absolute inset-0 flex items-center justify-center bg-surface-1/50 rounded-xl">
           <LoaderCircle className="w-6 h-6 animate-spin text-accent-cyan" />

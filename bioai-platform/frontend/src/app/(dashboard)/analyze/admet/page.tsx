@@ -2,10 +2,11 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain, MagnifyingGlass, ChartPolar } from '@phosphor-icons/react';
+import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain, MagnifyingGlass, ChartPolar, DownloadSimple as Download } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { computeADMET, searchCompounds, type ADMETResult } from "@/lib/api";
+import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
 import SwissADMEView from "@/components/admet/SwissADMEView";
 
@@ -160,6 +161,49 @@ export default function ADMETPage() {
     }
   };
 
+  const exportAdmetJson = () => {
+    if (!result) return;
+    downloadJson(result, `${(result.chemical_name || result.smiles).replace(/\s+/g, "_")}_admet.json`);
+  };
+
+  const exportAdmetTsv = () => {
+    if (!result) return;
+    const d = result;
+    const rows: string[][] = [
+      ["Compound", d.chemical_name || ""],
+      ["SMILES", d.smiles],
+      ["Molecular Weight (g/mol)", String(d.molecular_weight)],
+      ["LogP", String(d.logp)],
+      ["TPSA (A2)", String(d.tpsa)],
+      ["HBD", String(d.hbd)],
+      ["HBA", String(d.hba)],
+      ["Rotatable Bonds", String(d.rotatable_bonds)],
+      ["QED", String(d.qed_score)],
+      ["Fsp3", String(d.fsp3)],
+      ["Heavy Atoms", String(d.heavy_atoms)],
+      ["Molar Refractivity", String(d.molar_refractivity)],
+      ["Ring Count", String(d.ring_count)],
+      ["Drug-likeness Score", String(d.drug_likeness.overall_score)],
+      ["Oral Bioavailability", `${(d.absorption.oral_bioavailability * 100).toFixed(0)}%`],
+      ["BBB Permeability", d.distribution.bbb_permeability],
+      ["CYP Substrate Risk", d.metabolism.cyp_substrate_risk],
+      ["AMES Mutagenicity", d.toxicity.ames_mutagenicity],
+      ["hERG Liability", d.toxicity.herg_liability],
+      ["Hepatotoxicity (DILI)", d.toxicity.hepatotoxicity_dili],
+      ["Skin Sensitization", d.toxicity.skin_sensitization],
+      ["Acute Toxicity (LD50)", d.toxicity.acute_toxicity_ld50],
+      ["Toxicity Risk Score", `${d.toxicity.risk_score}/10`],
+      ["Total Structural Alerts", String(d.structural_alerts.total_alert_count)],
+    ];
+    (["lipinski", "veber", "ghose", "egan", "mddr"] as const).forEach((k) => {
+      const f = d.drug_likeness[k];
+      rows.push([`Filter ${k}`, f.pass ? "pass" : "fail", `${f.violation_count} violations`, f.violations.join("; ")]);
+    });
+    Object.entries(d.functional_groups).forEach(([name, count]) => rows.push([`Functional group ${name.replace(/_/g, " ")}`, String(count)]));
+    downloadTsv(["Property", "Value", "Detail"], rows.map(r => r.length === 1 ? [r[0], "", ""] : r.length === 2 ? [r[0], r[1], ""] : [r[0], r[1], r[2]]),
+      `${(d.chemical_name || d.smiles).replace(/\s+/g, "_")}_admet.tsv`);
+  };
+
   return (
     <div className="max-w-4xl">
       <BackButton />
@@ -244,6 +288,20 @@ export default function ADMETPage() {
               <p className="text-xs font-mono text-text-secondary max-w-md truncate">{result.smiles}</p>
             </div>
             <div className="ml-auto flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={exportAdmetJson}
+                  className="btn-ghost py-2 px-3 text-xs flex items-center gap-1 border border-glass-border hover:border-accent-cyan/40 hover:text-accent-cyan transition"
+                >
+                  <Download className="w-3.5 h-3.5" /> JSON
+                </button>
+                <button
+                  onClick={exportAdmetTsv}
+                  className="btn-ghost py-2 px-3 text-xs flex items-center gap-1 border border-glass-border hover:border-accent-cyan/40 hover:text-accent-cyan transition"
+                >
+                  <Download className="w-3.5 h-3.5" /> TSV
+                </button>
+              </div>
               <button
                 onClick={() => { sessionStorage.setItem('docking_smiles', result.smiles); router.push('/analyze/docking'); }}
                 className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border hover:border-accent-cyan/40 hover:text-accent-cyan transition"

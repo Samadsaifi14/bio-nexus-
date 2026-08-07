@@ -6,6 +6,13 @@ export function downloadTsv(headers: string[], rows: string[][], filename: strin
   a.click();
 }
 
+export function downloadText(text: string, filename: string) {
+  const a = document.createElement("a");
+  a.download = filename;
+  a.href = "data:text/plain;charset=utf-8," + encodeURIComponent(text);
+  a.click();
+}
+
 export function downloadJson(data: unknown, filename: string) {
   const a = document.createElement("a");
   a.download = filename;

@@ -1,7 +1,9 @@
 'use client';
 
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { DownloadSimple as Download } from '@phosphor-icons/react';
 import { HudPanel, HudLegend, LegendItem } from '@/components/ui';
+import { downloadText } from '@/lib/export-utils';
 
 interface MoleViewer {
   setStyle: (sel: Record<string, unknown>, style: Record<string, unknown>) => void;
@@ -96,11 +98,26 @@ export function AlphaFoldViewer({
 }: AlphaFoldViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<MoleViewer | null>(null);
+  const pdbTextRef = useRef<string | null>(null);
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [styleMode, setStyleMode] = useState<StyleMode>('confidence');
   const [spinning, setSpinning] = useState(false);
+
+  const exportPdb = () => {
+    if (!pdbTextRef.current) return;
+    downloadText(pdbTextRef.current, `${uniprotId ?? 'structure'}.pdb`);
+  };
+
+  const exportPng = () => {
+    const canvas = containerRef.current?.querySelector<HTMLCanvasElement>('canvas');
+    if (!canvas) return;
+    const a = document.createElement('a');
+    a.download = `${uniprotId ?? 'structure'}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  };
 
   const applyStyle = useCallback((mode: StyleMode) => {
     const viewer = viewerRef.current;
@@ -151,6 +168,7 @@ export function AlphaFoldViewer({
       })
       .then((pdbData) => {
         if (cancelled || !containerRef.current) return;
+        pdbTextRef.current = pdbData;
         const $3Dmol = window.$3Dmol;
 
         if (viewerRef.current) {
@@ -228,6 +246,24 @@ export function AlphaFoldViewer({
             className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors"
           >
             {spinning ? 'Stop spin' : 'Spin'}
+          </button>
+          <button
+            type="button"
+            onClick={exportPdb}
+            disabled={status !== 'ready'}
+            title="Download structure as PDB"
+            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors flex items-center gap-1"
+          >
+            <Download className="w-3.5 h-3.5" /> PDB
+          </button>
+          <button
+            type="button"
+            onClick={exportPng}
+            disabled={status !== 'ready'}
+            title="Download current view as PNG"
+            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors flex items-center gap-1"
+          >
+            <Download className="w-3.5 h-3.5" /> PNG
           </button>
         </div>
       </HudPanel>

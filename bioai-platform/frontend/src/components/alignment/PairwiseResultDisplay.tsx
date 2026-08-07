@@ -1,7 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
+import { DownloadSimple as Download } from '@phosphor-icons/react';
 import type { PairwiseAlignResult } from '@/types/pipeline';
+import { downloadText, downloadTsv } from '@/lib/export-utils';
 
 const BLOCK_SIZE = 60;
 
@@ -182,6 +184,33 @@ export function PairwiseResultDisplay({
     return <CoverageNote result={result} />;
   }
 
+  const exportFasta = () => {
+    const fasta = `>${queryLabel}\n${result.aligned_query.replace(/-/g, '')}\n>${subjectLabel}\n${result.aligned_hit.replace(/-/g, '')}`;
+    downloadText(fasta, `${result.mode}_alignment.fasta`);
+  };
+
+  const exportTsv = () => {
+    downloadTsv(
+      ['Field', 'Value'],
+      [
+        ['Mode', result.mode],
+        ['Matrix', result.matrix],
+        ['Score', String(result.score)],
+        ['Identity (%)', String(result.pct_identity)],
+        ['Identical residues', String(result.identity)],
+        ['Gaps', String(result.gaps_total)],
+        ['Alignment length', String(result.alignment_length)],
+        ['Query start', String(result.query_start)],
+        ['Query end', String(result.query_end)],
+        ['Query length', String(result.query_length)],
+        ['Subject start', String(result.hit_start)],
+        ['Subject end', String(result.hit_end)],
+        ['Subject length', String(result.hit_length)],
+      ],
+      `${result.mode}_alignment_stats.tsv`,
+    );
+  };
+
   return (
     <div>
       <div className="flex items-center gap-x-4 gap-y-1 text-xs text-text-muted mb-3 flex-wrap">
@@ -202,6 +231,16 @@ export function PairwiseResultDisplay({
         </span>
         <span>
           Mode: <strong className="text-text-primary capitalize">{result.mode} {result.mode === 'global' ? 'Needleman-Wunsch' : 'Smith-Waterman'}</strong>
+        </span>
+        <span className="ml-auto flex items-center gap-2">
+          <button onClick={exportFasta}
+            className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
+            <Download className="w-3.5 h-3.5" /> FASTA
+          </button>
+          <button onClick={exportTsv}
+            className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
+            <Download className="w-3.5 h-3.5" /> TSV
+          </button>
         </span>
       </div>
 

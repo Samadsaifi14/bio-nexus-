@@ -3,8 +3,9 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
-import { Flask as Beaker, WaveSine as Waves, Hexagon, Lightning as Zap, CaretDown as ChevronDown, CaretRight as ChevronRight } from '@phosphor-icons/react';
+import { Flask as Beaker, WaveSine as Waves, Hexagon, Lightning as Zap, CaretDown as ChevronDown, CaretRight as ChevronRight, DownloadSimple as Download } from '@phosphor-icons/react';
 import type { DockingInteraction } from '@/lib/api';
+import { downloadTsv } from '@/lib/export-utils';
 
 interface InteractionPanelProps {
   interactions: DockingInteraction;
@@ -179,12 +180,32 @@ export function InteractionPanel({ interactions, onHighlight }: InteractionPanel
 
   if (!total) return null;
 
+  const exportInteractions = () => {
+    const rows: string[][] = [];
+    interactions.hbonds.forEach((it) => rows.push(['hbond', it.protein_residue + it.protein_residue_seq + it.protein_chain, it.protein_atom, it.ligand_atom, it.distance.toFixed(2), it.confidence, '']));
+    interactions.hydrophobic.forEach((it) => rows.push(['hydrophobic', it.protein_residue + it.protein_residue_seq + it.protein_chain, it.protein_atom, it.ligand_atom, it.distance.toFixed(2), '', '']));
+    interactions.pi_stacking.forEach((it) => rows.push(['pi_stacking', it.protein_residue + it.protein_residue_seq + it.protein_chain, '', '', it.distance.toFixed(2), it.confidence, it.angle.toFixed(1)]));
+    interactions.salt_bridges.forEach((it) => rows.push(['salt_bridge', it.protein_residue + it.protein_residue_seq + it.protein_chain, it.protein_atom, it.ligand_atom, it.distance.toFixed(2), '', it.charge_pair]));
+    downloadTsv(
+      ['Type', 'Residue', 'Protein atom', 'Ligand atom', 'Distance (A)', 'Confidence', 'Note'],
+      rows,
+      `docking_interactions_${total}.tsv`,
+    );
+  };
+
   return (
     <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
       <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
         <Hexagon className="w-4 h-4 text-accent-cyan" />
         Interaction Fingerprint
         <span className="text-xs font-normal text-text-muted">({total} contacts)</span>
+        <button
+          onClick={exportInteractions}
+          title="Download interactions as TSV"
+          className="ml-auto text-xs px-2 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5"
+        >
+          <Download className="w-3.5 h-3.5" /> TSV
+        </button>
       </h3>
       <div className="space-y-2">
         <HbondTable data={interactions.hbonds} onHighlight={onHighlight} />

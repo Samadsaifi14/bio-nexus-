@@ -195,6 +195,107 @@ const topics: Record<string, TopicData> = {
       },
     ],
   },
+  docking: {
+    title: 'Molecular Docking',
+    description: 'Predicting how a small molecule binds to a protein — poses, scores, and interaction fingerprints.',
+    sections: [
+      {
+        heading: 'What is docking?',
+        content: 'Molecular docking predicts the preferred orientation (pose) of a small molecule (ligand) when bound to a protein (receptor). The two core problems are sampling — exploring the space of possible ligand poses — and scoring — ranking poses to find the one closest to the true binding mode. Docking is widely used in virtual screening, drug repurposing, and lead optimization. It is a computational filter: a good docking score suggests a compound is worth testing experimentally, never proof it binds.',
+      },
+      {
+        heading: 'Scoring functions',
+        content: 'Scoring functions estimate the binding free energy of a pose. They combine terms for van der Waals interactions, electrostatics, hydrogen bonds, desolvation, and entropy. Scoring functions fall into three classes: physics-based (force-field energies), empirical (fit to measured binding affinities), and knowledge-based (derived from statistics of known structures). All scoring functions are approximations — absolute energy values should not be compared across different targets, and even state-of-the-art methods rank well but rarely reproduce absolute affinities.',
+      },
+      {
+        heading: 'Interaction fingerprints',
+        content: 'An interaction fingerprint summarizes a docked pose as a binary or weighted vector of contacts: hydrogen bonds, hydrophobic contacts, pi-stacking, and salt bridges. Bio Nexus computes these per-pose so you can compare how different ligands engage the same pocket. Residue-level fingerprints (which residues contact the ligand) are especially useful for explaining selectivity and for validating that a pose makes sensible, specific contacts rather than non-specific packing.',
+        code: 'Interaction fingerprint categories:\n\n  Hbond       — H-bond donor/acceptor within ~3.5 Å\n  Hydrophobic — non-polar contact within ~4.5 Å\n  Pi-stacking — aromatic ring stacking (parallel/T-shaped)\n  Salt bridge — charged groups within ~4 Å\n\nEach contact is reported with its residue, distance, and confidence\n(high / moderate / low) based on geometric criteria.',
+      },
+      {
+        heading: 'Confidence and interpretation',
+        content: 'Bio Nexus labels every predicted contact with a confidence based on geometry: distance thresholds, angle criteria for pi-stacking, and donor-acceptor complementarity for hydrogen bonds. Treat the whole interaction fingerprint as a hypothesis. Docking identifies plausible binding modes, but affinity (how strongly something binds) requires experimental measurement (ITC, SPR) or at minimum a physics-based rescoring with a validated method.',
+      },
+    ],
+  },
+  md: {
+    title: 'Molecular Dynamics',
+    description: 'Simulating how proteins move over time to study stability, flexibility, and dynamics.',
+    sections: [
+      {
+        heading: 'What is a simulation?',
+        content: 'Molecular dynamics (MD) simulates the physical motion of atoms over time by integrating Newton\'s equations of motion. Starting from a structure, every atom is assigned initial velocities (from a temperature-dependent distribution), and the forces between atoms are computed from a force field each timestep. Integrating the equations advances the system forward in time. MD reveals dynamics that static structures hide: loop flexibility, domain motions, unfolding pathways, and the stability of a fold under a chosen temperature and solvent.',
+      },
+      {
+        heading: 'Force fields and solvent',
+        content: 'A force field defines the potential energy of a system: bond stretching, angle bending, torsions, van der Waals and electrostatic terms. Common protein force fields include AMBER, CHARMM, and GROMACS. Simulations can run in implicit solvent (a continuum model that is fast but approximate) or explicit solvent (water molecules and ions, more realistic but far more expensive). The choice of force field and solvent model strongly affects results — compare simulations only within the same setup.',
+        code: 'Potential energy of a force field (simplified):\n\n  E = Σ bonds k_b(r − r₀)² + Σ angles k_θ(θ − θ₀)²\n    + Σ torsions k_φ(1 + cos(nφ − δ))\n    + Σ vdW ε[(r_min/r)¹² − 2(r_min/r)⁶]\n    + Σ Coulomb qᵢqⱼ/(4πε₀ rᵢⱼ)\n\n  k_b, k_θ   — bond and angle force constants\n  ε, r_min  — Lennard-Jones well depth and radius\n  qᵢ, qⱼ    — partial atomic charges',
+      },
+      {
+        heading: 'RMSD and RMSF',
+        content: 'RMSD (root-mean-square deviation) measures how far the structure drifts from a reference (usually the starting frame) after superposition — a global measure of stability. A small, stable RMSD plateau indicates the protein maintains its fold. RMSF (root-mean-square fluctuation) measures per-residue flexibility over the trajectory. High RMSF residues are mobile — typically loops and termini; low RMSF regions are rigid (secondary structure cores). These are the two most useful diagnostics for judging simulation quality.',
+        code: 'RMSD = sqrt( (1/N) Σᵢ ||rᵢ(t) − rᵢ(ref)||² )\n\n  rᵢ(t)     — position of atom i at time t\n  rᵢ(ref)   — position of atom i in the reference frame\n  N         — number of atoms (usually backbone Cα only)\n\nRMSF per residue i:\n\n  RMSFᵢ = sqrt( (1/T) Σₜ ||rᵢ(t) − ⟨rᵢ⟩||² )\n\n  ⟨rᵢ⟩ — average position of residue i over the trajectory',
+      },
+      {
+        heading: 'Energy, Rg, and SASA',
+        content: 'Beyond RMSD/RMSF, three scalar observables summarize a simulation. Potential energy should stabilize over the equilibration phase and fluctuate around a mean. Radius of gyration (Rg) reports overall compactness — large swings suggest unfolding. Solvent-accessible surface area (SASA) tracks exposure of the protein to solvent; a sudden increase can indicate partial unfolding. Bio Nexus reports all of these as per-frame traces you can export, so you can check that the simulation reached a stable plateau before trusting its conclusions.',
+      },
+      {
+        heading: 'Minimize → Equilibrate → Production',
+        content: 'A well-run simulation follows a standard protocol. Minimization removes bad atomic contacts (clashes) from the starting structure using energy minimization. Equilibration gradually heats the system to the target temperature while relaxing the solvent around the protein. Production is the main trajectory collection phase at constant temperature. Bio Nexus exposes all three phases with configurable lengths, so a quick minimization and a full production run share the same pipeline.',
+      },
+    ],
+  },
+  admet: {
+    title: 'ADMET Prediction',
+    description: 'Estimating the drug-like properties of a molecule — absorption, distribution, metabolism, excretion, and toxicity.',
+    sections: [
+      {
+        heading: 'What is ADMET?',
+        content: 'ADMET describes the five properties that determine whether a molecule can become a drug. Absorption — how a compound enters the bloodstream. Distribution — where it goes in the body. Metabolism — how it is chemically transformed, primarily by liver cytochrome P450 enzymes. Excretion — how it leaves the body (urine, bile). Toxicity — whether it damages cells, organs, or DNA. Predicting these computationally, before synthesis, is a cornerstone of early-stage drug discovery.',
+      },
+      {
+        heading: 'Lipinski\'s Rule of Five',
+        content: 'Lipinski\'s Rule of Five is a heuristic for oral bioavailability: a molecule is likely to be orally absorbed if it has molecular weight ≤ 500, logP ≤ 5, at most 5 hydrogen-bond donors, and at most 10 hydrogen-bond acceptors. The "five" refers to these thresholds all being multiples of 5. Compounds violating two or more rules are likely to have poor permeability and absorption. It is a guideline, not a law — many marketed drugs violate one rule.',
+        code: 'Lipinski Rule of Five:\n\n  MW            ≤ 500       daltons\n  logP          ≤ 5\n  H-bond donors ≤ 5\n  H-bond accept ≤ 10\n\n  "Veber rules" (add-on):\n  Rotatable bonds ≤ 10\n  PSA            ≤ 140 Å²\n\nPSA — polar surface area, correlates with permeability',
+      },
+      {
+        heading: 'Physicochemical properties',
+        content: 'Bio Nexus computes the fundamental descriptors first: molecular weight, logP (lipophilicity, octanol/water partition), TPSA (topological polar surface area), number of rotatable bonds, hydrogen-bond donors/acceptors, formal charge, and SMILES validity. Lipophilicity drives membrane permeability and solubility; PSA drives the same; rotatable bonds drive flexibility and entropic cost of binding. Together they let you spot at a glance whether a molecule is drug-like or a known-problematic "chimeric" compound.',
+      },
+      {
+        heading: 'Functional groups',
+        content: 'Reactive or alerting functional groups flag likely toxicity or metabolic liability. Examples include Michael acceptors, alkyl halides, epoxides, and aromatic amines — each associated with known mechanisms of reactivity with biological nucleophiles (e.g., DNA, proteins). Bio Nexus scans the molecule and lists detected functional groups so a chemist can quickly see potential red flags before investing in synthesis.',
+      },
+      {
+        heading: 'Limitations',
+        content: 'Rule-based and descriptor-based ADMET prediction is a screening filter, not a laboratory. It says nothing about actual metabolic clearance, transporter efflux, or tissue-specific toxicity. Modern quantitative methods (QSAR, machine learning, PBPK modeling) refine these estimates but still require experimental validation. Use ADMET results to prioritize which compounds to synthesize — never to conclude a compound is safe.',
+      },
+    ],
+  },
+  sequencing: {
+    title: 'Sequencing',
+    description: 'Reading DNA — Sanger and next-generation methods, quality scores, assembly, and variants.',
+    sections: [
+      {
+        heading: 'Sanger sequencing',
+        content: 'Sanger sequencing (chain-termination) is the classic first-generation method. Four reactions each contain template, primer, polymerase, and a mix of normal nucleotides plus one fluorescently labeled dideoxy (chain-terminating) nucleotide. Each incorporated ddNTP stops synthesis, producing fragments of every possible length. Separating the fragments by size reconstructs the sequence from the fluorescent labels. Sanger reads are long (600–1000 bp) and accurate (~99.9%), making it the gold standard for confirming variants and finishing small regions.',
+      },
+      {
+        heading: 'Next-generation sequencing',
+        content: 'NGS (next-generation sequencing) parallelizes sequencing across millions of fragments. Illumina sequencing-by-synthesis reads clusters of amplified fragments base-by-base, imaging a fluorescent signal at each cycle. The tradeoff: millions of short reads (75–300 bp) at low per-base cost. NGS powers whole-genome, whole-exome, RNA-seq, ChIP-seq, and metagenomics. The short reads must be aligned to a reference or assembled de novo — bioinformatics is as essential as the wet lab step.',
+      },
+      {
+        heading: 'Quality scores',
+        content: 'Every sequenced base carries a Phred quality score Q = −10·log₁₀(P_error), where P_error is the probability the base call is wrong. Q30 means a 1-in-1000 error rate (99.9% accuracy); Q20 means 1-in-100 (99%). Scores are stored as ASCII characters in FASTQ files (the "@header\nSEQ\n+\nQUAL" format). Read quality typically degrades toward the 3\' end, which is why pipelines trim low-quality tails before alignment.',
+        code: 'FASTQ format — one read:\n\n  @SEQ_ID description\n  GATTTGGGGTTCAAAGCAGTATCGATCAAATAGTAAATCCATTTGTTCAACTCACAGTTT\n  +\n  !\'\'*((((***+))%%%++)(%%%%).1***-+*\'\'))**55CCF>>>>>>CCCCCCC65\n\n  Phred:  Q = -10 * log10(P)\n  Q20 = 99%   accuracy (1 error per 100 bp)\n  Q30 = 99.9% accuracy (1 error per 1000 bp)\n  ASCII = Phred + 33 (Illumina/Sanger encoding)',
+      },
+      {
+        heading: 'Alignment, assembly, and variants',
+        content: 'Short reads are placed onto a reference genome by alignment (BWA, Bowtie2), producing SAM/BAM files with mapping quality scores. De novo assembly stitches reads into contigs when no reference exists, using overlap graphs (canu, flye, SPAdes). Variant calling (GATK HaplotypeCaller, freebayes) compares aligned reads to the reference to find SNPs and indels, each assigned a genotype and quality. Filtering against depth, mapping quality, and strand bias separates real variants from sequencing artifacts.',
+      },
+    ],
+  },
   primers: {
     title: 'Primer Design',
     description: 'Designing oligonucleotide primers for PCR amplification.',

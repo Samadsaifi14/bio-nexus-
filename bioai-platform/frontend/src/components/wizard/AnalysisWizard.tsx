@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Dna, ArrowRight, CircleNotch as LoaderCircle, FileText, CheckCircle as CircleCheck, Circle, Copy } from '@phosphor-icons/react';
 import toast from 'react-hot-toast';
 import { ClayToggle } from "@/components/ui/ClayToggle";
+import { ClaySegmented } from "@/components/ui/ClaySegmented";
 import { CriticalButton } from "@/components/ui/CriticalButton";
 import { PipelineResults } from "@/components/results/PipelineResults";
 import { createShareLink, getPipelineStatusV2 } from "@/lib/api";
@@ -12,6 +13,12 @@ import { extractErrorMessage } from "@/lib/errors";
 import { shareResult, buildShareDetails } from "@/lib/share";
 
 type WizardStep = "input" | "running";
+type AlignMode = "global" | "local";
+
+function getStoredAlignMode(): AlignMode {
+  if (typeof window === "undefined") return "global";
+  return sessionStorage.getItem("blast_align_mode") === "local" ? "local" : "global";
+}
 
 const ALL_STEPS = [
   { id: "blast",    label: "BLAST & UniProt", essential: true },
@@ -28,6 +35,7 @@ export function AnalysisWizard() {
   const [enabledSteps, setEnabledSteps] = useState<string[]>(
     ALL_STEPS.filter(s => s.essential).map(s => s.id)
   );
+  const [alignMode, setAlignMode] = useState<AlignMode>(getStoredAlignMode);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -52,7 +60,7 @@ export function AnalysisWizard() {
       const res = await fetch("/api/backend/api/pipeline/v2/run", {
         method: "POST",
         headers,
-        body: JSON.stringify({ sequence: sequence.trim(), steps: enabledSteps }),
+        body: JSON.stringify({ sequence: sequence.trim(), steps: enabledSteps, alignment_mode: alignMode }),
       });
       if (!res.ok) throw new Error((await res.json()).detail || "Submit failed");
       const data = await res.json();
@@ -133,6 +141,26 @@ export function AnalysisWizard() {
               placeholder={">MyProtein\nMEEPQSDPSVEPPLSQETFSD..."}
               className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition font-mono text-sm resize-none bg-surface-1 text-text-primary"
             />
+
+            {/* Alignment mode — clay: discrete, low-stakes choice */}
+            <div className="mt-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 rounded-xl border border-glass-border bg-surface-0/60 p-3">
+              <div>
+                <p className="text-xs font-semibold text-text-primary">Alignment mode</p>
+                <p className="text-[11px] text-text-muted mt-0.5">
+                  {alignMode === 'global'
+                    ? 'Global — full-length MSA across all sequences (Clustal Omega).'
+                    : 'Local — full MSA plus a Smith-Waterman refinement of query vs top hit.'}
+                </p>
+              </div>
+              <ClaySegmented
+                options={[
+                  { value: 'global', label: 'Global' },
+                  { value: 'local', label: 'Local' },
+                ]}
+                value={alignMode}
+                onChange={(v) => { setAlignMode(v as AlignMode); sessionStorage.setItem('blast_align_mode', v); }}
+              />
+            </div>
 
             {/* Analysis step toggles — clay: discrete, low-stakes choices */}
             <div className="mt-4 space-y-2.5">

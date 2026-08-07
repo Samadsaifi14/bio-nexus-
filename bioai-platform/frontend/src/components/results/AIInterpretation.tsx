@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Brain, CircleNotch as Loader2, Dna, MagnifyingGlass as Search } from '@phosphor-icons/react';
@@ -9,6 +9,19 @@ import type { StreamEvent } from '@/types/results';
 import { interpretStream } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { fadeUp, fadeIn, cardHover } from '@/lib/animations';
+
+const RATE_LIMIT_MESSAGE = (delay: number) =>
+  `The AI provider is rate-limited (try again in ~${Math.max(1, Math.round(delay))}s). Retrying with backups…`;
+
+function rateLimitDelay(text: string): number | null {
+  const m = text.match(/try again in ~(\d+)s/i);
+  if (m) return Math.max(1, parseInt(m[1], 10));
+  return /rate[- ]limit|429|too many requests/i.test(text) ? 30 : null;
+}
+
+function isRetryNotice(text: string): boolean {
+  return /retrying .+ in ~\d+s/i.test(text) || /unavailable, trying next/i.test(text);
+}
 
 function addCitationLinks(text: string): string {
   return text.replace(
@@ -80,7 +93,15 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [retry, setRetry] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
+
+  // Countdown while the provider is backing off — ticks only during a live stream.
+  useEffect(() => {
+    if (retry === null || retry <= 1) return;
+    const t = setTimeout(() => setRetry(r => (r === null || r <= 1 ? r : r - 1)), 1000);
+    return () => clearTimeout(t);
+  }, [retry]);
 
   const handleInterpret = useCallback(async () => {
     if (loading) return;
@@ -91,6 +112,7 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
     setModel('');
     setError(null);
     setNotice(null);
+    setRetry(null);
 
     try {
       const response = await interpretStream({ pipeline_type: pipelineType, context });
@@ -118,9 +140,16 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
                   setModel(payload.meta?.model || '');
                 }
                 if (payload.notice) {
-                  setNotice(payload.notice);
+                  const delay = rateLimitDelay(payload.notice);
+                  if (delay !== null || isRetryNotice(payload.notice)) {
+                    setRetry(delay ?? 30);
+                  } else {
+                    setNotice(payload.notice);
+                  }
                 }
                 if (payload.error) {
+                  const delay = rateLimitDelay(payload.error);
+                  if (delay !== null) setRetry(delay);
                   const msg = payload.error.includes('organization_restricted')
                     ? 'AI interpretation is temporarily unavailable due to a provider restriction. Please try again later.'
                     : payload.error;
@@ -165,15 +194,15 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
       </div>
 
       {error && !loading && (
-        <div className="bg-error/10 border border-error/30 rounded-xl p-4 mb-4">
-          <p className="text-sm text-error">{error}</p>
+        <div className={`${retry !== null ? 'bg-accent-amber/10 border-accent-amber/30' : 'bg-error/10 border-error/30'} border rounded-xl p-4 mb-4`}>
+          <p className={`text-sm ${retry !== null ? 'text-accent-amber' : 'text-error'}`}>{error}</p>
         </div>
       )}
 
-      {loading && notice && (
+      {(loading && (retry !== null || notice)) && (
         <div className="flex items-center gap-2 text-xs text-accent-amber mb-3">
           <Loader2 className="w-3.5 h-3.5 animate-spin" />
-          {notice}
+          {retry !== null ? RATE_LIMIT_MESSAGE(retry) : notice}
         </div>
       )}
 

@@ -1,10 +1,12 @@
 "use client";
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
-import { CheckCircle as CheckCircle2, Circle, CircleNotch as LoaderCircle, XCircle, ArrowRight, Dna, Download } from '@phosphor-icons/react';
+import { CheckCircle as CheckCircle2, Circle, CircleNotch as LoaderCircle, XCircle } from '@phosphor-icons/react';
 import { BlastPanel } from "./BlastPanel";
 import { ScoreBars } from "./ScoreBars";
 import { UniprotPanel } from "./UniprotPanel";
+import { MSAResultPanel } from "@/components/alignment/MSAResultPanel";
+import { SmoothLoader } from "@/components/ui/SmoothLoader";
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import { AIInterpretation } from "./AIInterpretation";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
@@ -70,9 +72,8 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
 
   if (!data) {
     return (
-      <div className="text-center py-12">
-        <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin mx-auto mb-3" />
-        <p className="text-text-muted text-sm">Starting analysis&hellip;</p>
+      <div className="py-6">
+        <SmoothLoader label="Starting analysis…" />
       </div>
     );
   }
@@ -124,33 +125,16 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
       )}
 
       {steps.includes("msa") && data.steps?.msa?.status === "complete" && data.steps.msa.data?.aln_fasta && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
-          <div className="flex items-center justify-between mb-2">
-            <div>
-              <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
-              <p className="text-xs text-text-muted mt-0.5">
-                {data.steps.msa.data.sequence_count ?? 0} sequences aligned
-                {data.steps.msa.data.method && ` via ${data.steps.msa.data.method}`}
-              </p>
-            </div>
-            <button
-              onClick={() => {
-                const blob = new Blob([data.steps.msa.data.aln_fasta], { type: "text/plain" });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement("a");
-                a.href = url;
-                a.download = `msa-${jobId.slice(0, 8)}.fasta`;
-                a.click();
-                URL.revokeObjectURL(url);
-              }}
-              className="px-3 py-1.5 rounded-lg border border-glass-border text-xs text-text-secondary hover:bg-surface-1 transition"
-            >
-              <Download className="w-3.5 h-3.5 inline mr-1" />FASTA
-            </button>
-          </div>
-          <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
-            {data.steps.msa.data.aln_fasta}
-          </pre>
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <MSAResultPanel
+            alnFasta={data.steps.msa.data.aln_fasta}
+            phylotree={data.steps.msa.data.phylotree}
+            sequenceCount={data.steps.msa.data.sequence_count}
+            alignmentMode={data.steps.msa.data.alignment_mode}
+            pairwise={data.steps.msa.data.pairwise}
+            pairwiseSubject={data.steps.msa.data.pairwise_subject}
+            jobId={jobId}
+          />
         </motion.div>
       )}
 

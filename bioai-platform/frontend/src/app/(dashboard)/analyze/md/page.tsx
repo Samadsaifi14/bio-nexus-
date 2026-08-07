@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import { ArrowLeft, Play, CircleNotch as Loader2, Pulse as Activity, Lightning as Zap, ChartBar as BarChart3, Info } from '@phosphor-icons/react';
@@ -42,6 +42,8 @@ export default function MDPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const doneRef = useRef(false);
+
   const poll = useCallback(async (id: string) => {
     try {
       const res = await getMDStatus(id);
@@ -49,12 +51,11 @@ export default function MDPage() {
       if (res.status === "complete" && res.result) {
         setResult(res.result);
         setLoading(false);
-        requestAnimationFrame(() => {
-          document.getElementById('md-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
+        doneRef.current = true;
       } else if (res.status === "failed") {
         setError(res.error || "Simulation failed");
         setLoading(false);
+        doneRef.current = true;
       }
     } catch {
       setLoading(false);
@@ -66,6 +67,10 @@ export default function MDPage() {
     const start = Date.now();
     const MAX_POLL_MS = 65 * 60 * 1000;
     const iv = setInterval(() => {
+      if (doneRef.current) {
+        clearInterval(iv);
+        return;
+      }
       if (Date.now() - start > MAX_POLL_MS) {
         setError("The simulation is still running on the server (large structures on the free CPU tier can take up to ~60 min). Check back in a few minutes.");
         setLoading(false);

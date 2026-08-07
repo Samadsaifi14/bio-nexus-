@@ -192,8 +192,8 @@ export type AlignmentResult = {
   method?: string;
 };
 
-export async function runPipelineV2(sequence: string, steps?: string[]): Promise<{ job_id: string }> {
-  const res = await longApi.post('/api/pipeline/v2/run', { sequence, steps: steps || undefined });
+export async function runPipelineV2(sequence: string, steps?: string[], alignmentMode?: 'global' | 'local'): Promise<{ job_id: string }> {
+  const res = await longApi.post('/api/pipeline/v2/run', { sequence, steps: steps || undefined, alignment_mode: alignmentMode || 'global' });
   return res.data;
 }
 

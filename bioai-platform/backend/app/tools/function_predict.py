@@ -4,9 +4,11 @@ This is a lightweight approximation inspired by DeepFRI. For production use,
 bake the full DeepFRI weights into the Docker image (see Dockerfile additions).
 
 Outputs:
-- GO term predictions with confidence scores
-- EC number predictions with confidence scores
+- GO term predictions with confidence scores (MF / BP / CC)
 - Per-residue importance scores (saliency map)
+- Per-residue amino acid composition
+
+Note: EC number prediction is not implemented in the heuristic model.
 """
 
 from __future__ import annotations
@@ -16,34 +18,6 @@ import logging
 import urllib.request
 
 logger = logging.getLogger(__name__)
-
-# GO term categories mapped from InterPro/UniProt keywords
-_GO_MAPPINGS = {
-    "hydrolase": ("GO:0003824", "hydrolase activity", "MF"),
-    "transferase": ("GO:0016740", "transferase activity", "MF"),
-    "oxidoreductase": ("GO:0016491", "oxidoreductase activity", "MF"),
-    "lyase": ("GO:0016829", "lyase activity", "MF"),
-    "isomerase": ("GO:0016853", "isomerase activity", "MF"),
-    "ligase": ("GO:0016874", "ligase activity", "MF"),
-    "kinase": ("GO:0016301", "kinase activity", "MF"),
-    "protease": ("GO:0008233", "peptidase activity", "MF"),
-    "receptor": ("GO:0004872", "receptor activity", "MF"),
-    "binding": ("GO:0005488", "binding", "MF"),
-    "transporter": ("GO:0005215", "transporter activity", "MF"),
-    "signal": ("GO:0005515", "protein binding", "MF"),
-    "cytoplasm": ("GO:0005737", "cytoplasm", "CC"),
-    "nucleus": ("GO:0005634", "nucleus", "CC"),
-    "membrane": ("GO:0016020", "membrane", "CC"),
-    "mitochondrion": ("GO:0005739", "mitochondrion", "CC"),
-    "cell": ("GO:0005623", "cell", "CC"),
-    "response": ("GO:0050789", "regulation of biological process", "BP"),
-    "phosphorylation": ("GO:0016310", "phosphorylation", "BP"),
-    "transcription": ("GO:0006351", "transcription, DNA-templated", "BP"),
-    "translation": ("GO:0006412", "translation", "BP"),
-    "apoptosis": ("GO:0006915", "apoptotic process", "BP"),
-    "cell_cycle": ("GO:0007049", "cell cycle", "BP"),
-    "immune": ("GO:0006955", "immune response", "BP"),
-}
 
 
 def _fetch_pdb_sequence(pdb_id: str) -> str:
@@ -99,6 +73,13 @@ def _predict_from_sequence(sequence: str, pdb_id: str) -> dict:
             "namespace": "MF",
             "confidence": round(min(0.55 + charged_fraction * 0.2, 0.9), 3),
         })
+    if hydrophobic_fraction > 0.4 and charged_fraction > 0.15:
+        predicted_go.append({
+            "go_id": "GO:0007165",
+            "name": "signal transduction",
+            "namespace": "BP",
+            "confidence": round(min(0.5 + hydrophobic_fraction * 0.2, 0.85), 3),
+        })
 
     # Always include a general prediction
     predicted_go.append({
@@ -123,14 +104,21 @@ def _predict_from_sequence(sequence: str, pdb_id: str) -> dict:
             score = 0.15
         saliency.append(round(score, 3))
 
+    # Actual per-residue composition (fractions), sorted most abundant first
+    composition = {
+        "aa": "ACDEFGHIKLMNPQRSTVWY",
+        "fractions": {aa: round(aa_comp.get(aa, 0) / max(seq_len, 1), 4) for aa in "ACDEFGHIKLMNPQRSTVWY"},
+    }
+
     return {
         "pdb_id": pdb_id.upper(),
         "sequence_length": seq_len,
         "go_terms": predicted_go,
         "ec_numbers": [],
         "saliency": saliency,
+        "composition": composition,
         "method": "heuristic_composition",
-        "note": "Predictions based on amino acid composition. For research-grade predictions, use the full DeepFRI model.",
+        "note": "Predictions based on amino acid composition. EC number prediction is not implemented in this heuristic model; for research-grade predictions use the full DeepFRI model.",
     }
 
 

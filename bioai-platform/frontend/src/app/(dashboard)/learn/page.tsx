@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight } from '@phosphor-icons/react';
+import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight, Brain } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { useState } from 'react';
@@ -29,6 +29,7 @@ const groups: { title: string; items: Topic[] }[] = [
     title: 'Structure & Networks',
     items: [
       { id: 'structure',   title: 'Protein Structure',     description: 'PDB format, AlphaFold, pLDDT scores, and structure visualization.',            icon: Dna },
+      { id: 'function',    title: 'Function Prediction',   description: 'GO terms, Gene Ontology namespaces, EC numbers, and DeepFRI-style prediction.',  icon: Brain },
       { id: 'pathways',    title: 'Pathway Analysis',      description: 'Reactome vs KEGG, pathway mapping, and enrichment analysis.',                  icon: GitBranch },
       { id: 'interactions', title: 'Protein Interactions', description: 'STRING database, interaction networks, and confidence scores.',                icon: Globe },
     ],

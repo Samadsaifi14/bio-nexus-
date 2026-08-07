@@ -1,11 +1,12 @@
 "use client";
 import { useState, useEffect, useCallback } from "react";
 import { motion } from "framer-motion";
-import { Brain, CircleNotch as Loader2, ArrowSquareOut as ExternalLink, Dna, Stack as Layers, Target } from '@phosphor-icons/react';
+import { Brain, CircleNotch as Loader2, ArrowSquareOut as ExternalLink, Dna, Stack as Layers, Target, DownloadSimple as Download } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";
 import { BackButton, PageHeader, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
+import { LearnPopover } from "@/components/LearnPopover";
 
 const NAMESPACE_COLORS: Record<string, { text: string; bg: string; label: string }> = {
   MF: { text: "text-accent-cyan", bg: "bg-accent-cyan/10", label: "Molecular Function" },
@@ -87,11 +88,19 @@ export default function FunctionPage() {
     CC: result.go_terms.filter(t => t.namespace === "CC").sort((a, b) => b.confidence - a.confidence),
   } : { MF: [], BP: [], CC: [] };
 
+  const exportJson = () => {
+    if (!result) return;
+    const a = document.createElement("a");
+    a.download = `${result.pdb_id}_function_prediction.json`;
+    a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result, null, 2));
+    a.click();
+  };
+
   return (
     <div className="max-w-4xl">
       <BackButton />
 
-      <PageHeader title="Function Prediction" subtitle="Predict protein function from structure: GO terms, EC numbers, residue importance. DeepFRI-inspired analysis." />
+      <PageHeader title="Function Prediction" subtitle="Predict protein function from structure: GO terms and residue importance from a DeepFRI-inspired heuristic model." />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
         <div className="data-card p-5">
@@ -121,6 +130,15 @@ export default function FunctionPage() {
             title={`Prediction complete · ${result.pdb_id}`}
             subtitle={`${result.method.replace(/_/g, ' ')} · ${result.sequence_length} residues`}
           />
+          <div className="flex flex-wrap items-center gap-2">
+            <button onClick={exportJson}
+              className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
+              <Download className="w-3.5 h-3.5" /> Export JSON
+            </button>
+            <p className="text-xs text-text-muted">
+              A predictive heuristic model &mdash; this is <em>not</em> UniProt&apos;s curated function annotation (see the UniProt tool for experimentally documented function).
+            </p>
+          </div>
           {/* Header */}
           <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>
@@ -152,7 +170,10 @@ export default function FunctionPage() {
             <div key={ns} className="data-card p-5">
               <div className="flex items-center gap-2 mb-3">
                 <Target className={`w-4 h-4 ${NAMESPACE_COLORS[ns].text}`} />
-                <h3 className="text-sm font-semibold text-text-primary">{NAMESPACE_COLORS[ns].label}</h3>
+                <LearnPopover term={`GO ${NAMESPACE_COLORS[ns].label}`} topic="function"
+                  explanation="A Gene Ontology category. Molecular Function = what the protein does at a molecular level. Biological Process = the larger cellular pathway it participates in. Cellular Component = where it acts.">
+                  <h3 className="text-sm font-semibold text-text-primary">{NAMESPACE_COLORS[ns].label}</h3>
+                </LearnPopover>
                 <span className="text-xs text-text-muted">({groupedTerms[ns].length} terms)</span>
               </div>
               <div className="space-y-2">
@@ -202,6 +223,12 @@ export default function FunctionPage() {
                 ))}
               </div>
             </div>
+          ) || (
+            <div className="data-card p-4">
+              <p className="text-xs text-text-muted">
+                <strong className="text-text-primary">EC numbers:</strong> not predicted by the heuristic model — enzyme classification is out of scope for this approximation.
+              </p>
+            </div>
           )}
 
           {/* Saliency Map */}
@@ -243,22 +270,29 @@ export default function FunctionPage() {
           )}
 
           {/* Sequence Composition Summary */}
-          <div className="data-card p-5">
-            <h3 className="text-sm font-semibold text-text-primary mb-3">Sequence Composition Analysis</h3>
-            <p className="text-xs text-text-muted mb-3">Amino acid composition patterns used for prediction. Hydrophobic fraction and charge distribution drive GO term assignment.</p>
-            <div className="grid grid-cols-3 gap-3">
-              {(() => {
-                const seq = "ACDEFGHIKLMNPQRSTVWY".split("");
-                const seqLen = result.sequence_length;
-                return seq.slice(0, 10).map(aa => (
-                  <div key={aa} className="bg-surface-1 rounded-lg p-2 text-center">
-                    <div className="text-sm font-mono font-semibold text-text-primary">{aa}</div>
-                    <div className="text-xs text-text-muted">x{Math.round(seqLen * 0.05)}</div>
-                  </div>
-                ));
-              })()}
+          {result.composition && (
+            <div className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
+                <Dna className="w-4 h-4 text-accent-cyan" /> Sequence Composition Analysis
+              </h3>
+              <p className="text-xs text-text-muted mb-3">Measured amino acid fractions from the actual sequence. Hydrophobic fraction and charge distribution drive the GO term assignment.</p>
+              <div className="grid grid-cols-5 gap-3">
+                {result.composition.aa.split("").map(aa => {
+                  const frac = result.composition?.fractions[aa] ?? 0;
+                  const width = Math.max(frac * 100, 1.5);
+                  return (
+                    <div key={aa} className="bg-surface-1 rounded-lg p-2">
+                      <div className="text-sm font-mono font-semibold text-text-primary">{aa}</div>
+                      <div className="w-full h-1.5 bg-surface-3 rounded-full mt-1">
+                        <div className="h-full rounded-full bg-accent-cyan" style={{ width: `${width}%` }} />
+                      </div>
+                      <div className="text-xs text-text-muted mt-1">{(frac * 100).toFixed(1)}%</div>
+                    </div>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Interpretation */}
           <div className="data-card p-5">

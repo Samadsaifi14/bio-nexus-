@@ -796,6 +796,7 @@ export type FunctionPredictionResult = {
   go_terms: { go_id: string; name: string; namespace: string; confidence: number }[];
   ec_numbers: { number: string; confidence: number }[];
   saliency: number[];
+  composition?: { aa: string; fractions: Record<string, number> };
   method: string;
   note: string;
 };

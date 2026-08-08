@@ -1,5 +1,5 @@
 import axios from 'axios';
-import type { JobStatus, UniprotSummary, SequenceResult, SequenceValidation, SequenceSearchResponse, PairwiseAlignResult } from '@/types/pipeline';
+import type { JobStatus, UniprotSummary, SequenceResult, SequenceValidation, SequenceSearchResponse, PairwiseAlignResult, SequenceUtilitiesResult, MotifPatternScanResult, MotifLibraryResult, MotifLibraryPattern, DotPlotResult } from '@/types/pipeline';
 import { getSupabase } from './supabase';
 
 const api = axios.create({
@@ -301,6 +301,45 @@ export async function runPairwiseAlignment(options: PairwiseAlignOptions): Promi
     mode: options.mode ?? 'global',
     matrix: options.matrix ?? 'blosum62',
   });
+  return res.data;
+}
+
+export async function analyzeSequence(payload: {
+  sequence: string;
+  seq_type?: 'auto' | 'dna' | 'rna' | 'protein';
+}): Promise<SequenceUtilitiesResult> {
+  const res = await api.post('/api/seq-tools/analyze', {
+    sequence: payload.sequence,
+    seq_type: payload.seq_type ?? 'auto',
+  });
+  return res.data;
+}
+
+export async function scanMotifPattern(payload: {
+  sequence: string;
+  pattern: string;
+}): Promise<MotifPatternScanResult> {
+  const res = await api.post('/api/seq-tools/motif-scan', payload);
+  return res.data;
+}
+
+export async function scanMotifLibrary(sequence: string): Promise<MotifLibraryResult> {
+  const res = await api.post('/api/seq-tools/motif-library', { sequence });
+  return res.data;
+}
+
+export async function fetchMotifPatterns(): Promise<MotifLibraryPattern[]> {
+  const res = await api.get('/api/seq-tools/motif-library/patterns');
+  return res.data;
+}
+
+export async function runDotPlot(payload: {
+  seq_a: string;
+  seq_b: string;
+  window: number;
+  stringency: number;
+}): Promise<DotPlotResult> {
+  const res = await api.post('/api/seq-tools/dotplot', payload);
   return res.data;
 }
 

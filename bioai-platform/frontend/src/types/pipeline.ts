@@ -255,3 +255,97 @@ export interface AlphaFoldResult {
   confidence: number | null;
   model_created_date: string;
 }
+
+
+// --- Sequence utilities toolkit -------------------------------------------
+
+export interface SeqTranslationFrames {
+  frames: Record<string, string>;
+  best: {
+    frame: number;
+    protein: string;
+    start: number;
+    length: number;
+    has_stop: boolean;
+    starts_with_m: boolean;
+  } | null;
+}
+
+export interface SeqRestrictionSite {
+  name: string;
+  recognition: string;
+  count: number;
+  positions: number[];
+}
+
+export interface SeqAaComposition {
+  aa: string;
+  count: number;
+  pct: number;
+}
+
+export interface SequenceUtilitiesResult {
+  sequence_type: 'dna' | 'rna' | 'protein' | 'unknown';
+  detected_type: string;
+  length: number;
+  gc_content: number | null;
+  molecular_weight: number | null;
+  reverse_complement: string | null;
+  translation: SeqTranslationFrames | null;
+  aa_composition: SeqAaComposition[] | null;
+  restriction_sites: SeqRestrictionSite[] | null;
+  issues: string[];
+}
+
+// --- Motif scanner --------------------------------------------------------
+
+export interface MotifMatch {
+  start: number;
+  end: number;
+  motif: string;
+}
+
+export interface MotifPatternScanResult {
+  sequence_type: string;
+  pattern: string;
+  regex: string;
+  count: number;
+  matches: MotifMatch[];
+}
+
+export interface MotifLibraryHit {
+  name: string;
+  description: string;
+  pattern: string;
+  count: number;
+  matches: MotifMatch[];
+}
+
+export interface MotifLibraryResult {
+  sequence_type: string;
+  length: number;
+  patterns_scanned: number;
+  motifs_found: number;
+  hits: MotifLibraryHit[];
+}
+
+export interface MotifLibraryPattern {
+  name: string;
+  description: string;
+  pattern: string;
+}
+
+// --- Dot plot -------------------------------------------------------------
+
+export interface DotPlotResult {
+  sequence_type: string;
+  seq_a_length: number;
+  seq_b_length: number;
+  window: number;
+  stringency: number;
+  threshold: number;
+  total_matches: number;
+  dot_count: number;
+  downsampled: boolean;
+  dots: Array<[number, number]>;
+}

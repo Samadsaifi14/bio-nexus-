@@ -11,23 +11,8 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
-import { computeAlignmentStats } from '@/lib/alignment-stats';
+import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
-
-function parseAlignedFasta(fasta: string): string[] {
-  const seqs: string[] = [];
-  let current = '';
-  for (const line of fasta.split('\n')) {
-    if (line.startsWith('>')) {
-      if (current) seqs.push(current);
-      current = '';
-    } else if (current !== undefined) {
-      current += line.trim();
-    }
-  }
-  if (current) seqs.push(current);
-  return seqs;
-}
 
 const SAMPLE_PROTEIN = `>p53_human
 MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD
@@ -187,7 +172,7 @@ export default function AlignmentPage() {
       )}
 
       {result && (() => {
-        const alignedSeqs = parseAlignedFasta(result.aln_fasta);
+        const alignedSeqs = parseAlignedFasta(result.aln_fasta).seqs;
         return (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <div className="data-card p-5">

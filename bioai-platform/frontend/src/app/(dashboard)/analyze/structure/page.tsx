@@ -12,6 +12,16 @@ import type { StructureResult } from '@/lib/api';
 import { DockingViewer } from '@/components/DockingViewer';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 
+function parseHighlightParam(raw: string | null): { start: number; end: number } | undefined {
+  if (!raw) return undefined;
+  const m = raw.match(/^(\d+)-(\d+)$/);
+  if (!m) return undefined;
+  const start = Number(m[1]);
+  const end = Number(m[2]);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || start < 1 || end < start) return undefined;
+  return { start, end };
+}
+
 export default function StructurePage() {
   const router = useRouter();
   const [query, setQuery] = useState('');
@@ -19,26 +29,19 @@ export default function StructurePage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [inventory, setInventory] = useState<{ chains: Array<{ id: string; residue_count: number }>; ligands: Array<{ id: string; chain: string; residue_count: number }> } | null>(null);
+  const [linkHighlight, setLinkHighlight] = useState<{ acc: string; range: { start: number; end: number } } | null>(null);
   const audit = useAuditTrail();
 
-  useEffect(() => {
-    const stored = sessionStorage.getItem('structure_query');
-    if (stored) {
-      sessionStorage.removeItem('structure_query');
-      setQuery(stored);
-    }
-  }, []);
-
-  const handleSearch = async () => {
-    if (!query.trim()) return;
-    const inputSummary = `query:${query.trim()}`;
+  const runSearch = async (input: string) => {
+    if (!input.trim()) return;
+    const inputSummary = `query:${input.trim()}`;
     audit.emitStarted('structure_fetch', 'AlphaFold/PDB', inputSummary);
     setLoading(true);
     setError(null);
     setResult(null);
     setInventory(null);
     try {
-      const res = await fetchStructure(query.trim());
+      const res = await fetchStructure(input.trim());
       setResult(res);
       if (res.pdb_id) {
         getStructureInventory(res.pdb_id).then(setInventory).catch(() => setInventory(null));
@@ -53,7 +56,36 @@ export default function StructurePage() {
     }
   };
 
+  const handleSearch = () => runSearch(query);
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('structure_query');
+    if (stored) {
+      sessionStorage.removeItem('structure_query');
+      setQuery(stored);
+      void runSearch(stored);
+      return;
+    }
+    const params = new URLSearchParams(window.location.search);
+    const uniprotParam = params.get('uniprot');
+    if (uniprotParam) {
+      const range = parseHighlightParam(params.get('highlight'));
+      setQuery(uniprotParam);
+      if (range) setLinkHighlight({ acc: uniprotParam, range });
+      void runSearch(uniprotParam);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const pdbId = result?.pdb_id || result?.pdb_url?.match(/view\/(\w+)\.pdb$/)?.[1] || '';
+
+  const highlightApplied =
+    linkHighlight &&
+    result &&
+    (result.uniprot_accession?.toUpperCase() === linkHighlight.acc.toUpperCase() ||
+      query.trim().toUpperCase() === linkHighlight.acc.toUpperCase())
+      ? linkHighlight.range
+      : undefined;
 
   return (
     <div className="max-w-3xl">
@@ -66,7 +98,7 @@ export default function StructurePage() {
           <FlatInput
             type="text"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setResult(null); setError(null); setInventory(null); }}
+            onChange={(e) => { setQuery(e.target.value); setResult(null); setError(null); setInventory(null); setLinkHighlight(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="e.g. 1TIM, P04637, 4HHB"
             className="flex-1"
@@ -105,10 +137,16 @@ export default function StructurePage() {
               )}
             </div>
             {pdbId ? (
-              <DockingViewer pdbId={pdbId} ligandPdb="" chains={inventory?.chains} ligands={inventory?.ligands} />
+              <DockingViewer pdbId={pdbId} ligandPdb="" chains={inventory?.chains} ligands={inventory?.ligands} highlightRange={highlightApplied} />
             ) : (
               <div className="w-full h-96 rounded-xl bg-surface-0 flex items-center justify-center">
                 <p className="text-sm text-text-muted">3D view not available</p>
+              </div>
+            )}
+            {highlightApplied && (
+              <div className="mt-3 flex flex-wrap items-center gap-2 rounded-lg border border-accent-amber/30 bg-accent-amber/5 px-3 py-2 text-xs text-text-secondary">
+                <span className="text-accent-amber">Highlighted residues {highlightApplied.start}–{highlightApplied.end}</span>
+                <button onClick={() => setLinkHighlight(null)} className="text-text-muted hover:text-text-primary underline">Clear highlight</button>
               </div>
             )}
           </div>

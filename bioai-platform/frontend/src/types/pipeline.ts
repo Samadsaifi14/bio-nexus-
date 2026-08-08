@@ -315,6 +315,9 @@ export interface MotifPatternScanResult {
 
 export interface MotifLibraryHit {
   name: string;
+  accession: string;
+  category: string;
+  specificity: 'high' | 'loose';
   description: string;
   pattern: string;
   count: number;
@@ -331,11 +334,21 @@ export interface MotifLibraryResult {
 
 export interface MotifLibraryPattern {
   name: string;
+  accession: string;
+  category: string;
+  specificity: 'high' | 'loose';
   description: string;
   pattern: string;
 }
 
 // --- Dot plot -------------------------------------------------------------
+
+export interface DotPlotFeatures {
+  main_diagonal_pct: number;
+  gaps: { count: number; largest: number };
+  off_diagonal: Array<{ offset: number; count: number }>;
+  anti_diagonal: Array<{ sum: number; count: number }>;
+}
 
 export interface DotPlotResult {
   sequence_type: string;
@@ -343,9 +356,12 @@ export interface DotPlotResult {
   seq_b_length: number;
   window: number;
   stringency: number;
+  scoring: string;
+  scoring_used: string;
   threshold: number;
   total_matches: number;
   dot_count: number;
   downsampled: boolean;
+  features: DotPlotFeatures;
   dots: Array<[number, number]>;
 }

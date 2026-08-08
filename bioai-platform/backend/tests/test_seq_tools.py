@@ -23,7 +23,12 @@ from fastapi.testclient import TestClient
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from app.tools.sequence_utilities import analyze_sequence, clean_sequence
-from app.tools.motif_scanner import prosite_to_regex, scan_library, scan_pattern
+from app.tools.motif_scanner import (
+    MOTIF_LIBRARY,
+    prosite_to_regex,
+    scan_library,
+    scan_pattern,
+)
 from app.tools.dotplot import compute_dotplot
 
 # p53 residues 1-70 with two N-glycosylation consensus hits (N-S-T, N-C-S)
@@ -162,6 +167,28 @@ class TestScanLibrary:
         res = scan_library(P53_N_TERM)
         assert res["length"] == len(P53_N_TERM)
 
+    def test_library_hits_carry_metadata(self):
+        res = scan_library("MKDYQNSTLPVARKTGH")
+        assert res["motifs_found"] >= 1
+        for hit in res["hits"]:
+            assert "accession" in hit
+            assert "category" in hit
+            assert hit["specificity"] in ("high", "loose")
+
+    def test_library_category_filter(self):
+        res = scan_library("MKDYQNSTLPVARKTGH", categories=["PTM"])
+        assert res["motifs_found"] >= 1
+        assert all(h["category"] == "PTM" for h in res["hits"])
+        # A filter that matches nothing yields an empty hit list
+        res_none = scan_library("MKDYQNSTLPVARKTGH", categories=["RNA binding"])
+        assert res_none["motifs_found"] == 0
+        assert res_none["patterns_scanned"] < len(MOTIF_LIBRARY)
+
+    def test_ptm_filter_keeps_glycosylation(self):
+        res = scan_library("MKDYQNSTLPVARKTGH", categories=["PTM"])
+        names = {h["name"] for h in res["hits"]}
+        assert "N-glycosylation site" in names
+
 
 # ============================================================================
 # 3. Dot plot
@@ -199,6 +226,51 @@ class TestDotPlot:
     def test_window_one_is_char_match(self):
         res = compute_dotplot("ACGT", "ACGT", window=1, stringency=100)
         assert res["dot_count"] == 4
+
+    def test_blosum62_matrix_scoring(self):
+        res = compute_dotplot("WWWWWWWW", "WWWWWWWW", window=2, stringency=100, scoring="blosum62")
+        assert res["scoring_used"] == "blosum62"
+        # W-W = 11, so a 2-window at 100% stringency needs a score of 22;
+        # because the sequence is uniform, every 2-window matches every other
+        # 2-window, lighting the whole 7x7 matrix (correct dot-plot semantics).
+        assert res["threshold"] == 22
+        assert res["dot_count"] == 7 * 7
+        assert res["features"]["main_diagonal_pct"] == 100.0
+
+    def test_scoring_falls_back_to_identity_for_nucleotides(self):
+        res = compute_dotplot("AAAACCCC", "AAAACCCC", window=2, stringency=100, scoring="blosum62")
+        assert res["scoring"] == "blosum62"
+        assert res["scoring_used"] == "identity"
+        assert res["threshold"] == 2
+
+    def test_invalid_scoring_raises(self):
+        from app.tools.dotplot import DotPlotError
+        with pytest.raises(DotPlotError):
+            compute_dotplot("AAAA", "AAAA", scoring="bogus")
+
+    def test_features_identical_main_diagonal(self):
+        res = compute_dotplot("AAAACCCCGGGGTTTT", "AAAACCCCGGGGTTTT", window=4, stringency=100)
+        f = res["features"]
+        # 13 achievable window-start positions along the diagonal (16 - 4 + 1)
+        assert f["main_diagonal_pct"] == 100.0
+        assert f["off_diagonal"] == []
+        assert f["anti_diagonal"] == []
+
+    def test_features_detect_repeat_offset(self):
+        a = "AAAACCCCGGGGTTTT"
+        b = "TTTTAAAACCCCGGGG"
+        res = compute_dotplot(a, b, window=4, stringency=100)
+        offsets = {o["offset"]: o["count"] for o in res["features"]["off_diagonal"]}
+        # AAAA/CCCC/GGGG sit at b[4], b[8], b[12] -> three dots at offset +4
+        assert offsets.get(4, 0) >= 3
+
+    def test_features_detect_inverted_repeat(self):
+        a = "AAAACCCCGGGGTTTT"
+        b = a[::-1]
+        res = compute_dotplot(a, b, window=4, stringency=100)
+        sums = {o["sum"]: o["count"] for o in res["features"]["anti_diagonal"]}
+        # Reverse comparison lights the anti-diagonal x + y = 12
+        assert sums.get(12, 0) >= 4
 
     def test_too_large_raises(self):
         from app.tools.dotplot import DotPlotError
@@ -250,6 +322,26 @@ class TestSeqToolsEndpoints:
         resp = seq_client.get("/api/seq-tools/motif-library/patterns")
         assert resp.status_code == 200
         assert len(resp.json()) >= 5
+        assert "accession" in resp.json()[0]
+        assert "category" in resp.json()[0]
+        assert "specificity" in resp.json()[0]
+
+    def test_motif_categories_list(self, seq_client):
+        resp = seq_client.get("/api/seq-tools/motif-library/categories")
+        assert resp.status_code == 200
+        cats = resp.json()
+        assert isinstance(cats, list) and "PTM" in cats
+        assert cats == sorted(cats, key=lambda c: cats.index(c))  # ordered, unique
+
+    def test_motif_library_category_filter_endpoint(self, seq_client):
+        resp = seq_client.post("/api/seq-tools/motif-library", json={
+            "sequence": "MKDYQNSTLPVARKTGH",
+            "categories": ["PTM"],
+        })
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["motifs_found"] >= 1
+        assert all(h["category"] == "PTM" for h in body["hits"])
 
     def test_dotplot_endpoint(self, seq_client):
         resp = seq_client.post("/api/seq-tools/dotplot", json={
@@ -265,5 +357,21 @@ class TestSeqToolsEndpoints:
         resp = seq_client.post("/api/seq-tools/dotplot", json={
             "seq_a": "A" * 5000, "seq_b": "A" * 5000,
             "window": 4, "stringency": 100,
+        })
+        assert resp.status_code == 400
+
+    def test_dotplot_scoring_endpoint(self, seq_client):
+        resp = seq_client.post("/api/seq-tools/dotplot", json={
+            "seq_a": "WWWWWWWW", "seq_b": "WWWWWWWW",
+            "window": 2, "stringency": 100, "scoring": "blosum62",
+        })
+        assert resp.status_code == 200, resp.text
+        body = resp.json()
+        assert body["scoring_used"] == "blosum62"
+        assert body["features"]["main_diagonal_pct"] == 100.0
+
+    def test_dotplot_bad_scoring_400(self, seq_client):
+        resp = seq_client.post("/api/seq-tools/dotplot", json={
+            "seq_a": "AAAA", "seq_b": "AAAA", "scoring": "bogus",
         })
         assert resp.status_code == 400

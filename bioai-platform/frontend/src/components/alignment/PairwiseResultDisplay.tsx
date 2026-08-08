@@ -1,11 +1,18 @@
 'use client';
 
 import { useMemo } from 'react';
-import { DownloadSimple as Download } from '@phosphor-icons/react';
+import { DownloadSimple as Download, ChartScatter as Scatter } from '@phosphor-icons/react';
 import type { PairwiseAlignResult } from '@/types/pipeline';
 import { downloadText, downloadTsv } from '@/lib/export-utils';
 import { computeAlignmentStats } from '@/lib/alignment-stats';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
+
+const DOTPLOT_MATRICES = ['blosum62', 'blosum50', 'blosum45', 'pam30', 'pam70', 'pam250'];
+
+function dotplotScoringFor(matrix: string): string {
+  const m = matrix.toLowerCase();
+  return DOTPLOT_MATRICES.includes(m) ? m : 'identity';
+}
 
 const BLOCK_SIZE = 60;
 
@@ -237,6 +244,12 @@ export function PairwiseResultDisplay({
           Mode: <strong className="text-text-primary capitalize">{result.mode} {result.mode === 'global' ? 'Needleman-Wunsch' : 'Smith-Waterman'}</strong>
         </span>
         <span className="ml-auto flex items-center gap-2">
+          <a
+            href={`/analyze/dotplot?seq_a=${encodeURIComponent(result.aligned_query.replace(/-/g, ''))}&seq_b=${encodeURIComponent(result.aligned_hit.replace(/-/g, ''))}&scoring=${dotplotScoringFor(result.matrix)}`}
+            className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5"
+          >
+            <Scatter className="w-3.5 h-3.5" /> Dot plot
+          </a>
           <button onClick={exportFasta}
             className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
             <Download className="w-3.5 h-3.5" /> FASTA

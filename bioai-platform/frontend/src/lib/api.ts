@@ -323,8 +323,11 @@ export async function scanMotifPattern(payload: {
   return res.data;
 }
 
-export async function scanMotifLibrary(sequence: string): Promise<MotifLibraryResult> {
-  const res = await api.post('/api/seq-tools/motif-library', { sequence });
+export async function scanMotifLibrary(
+  sequence: string,
+  categories?: string[],
+): Promise<MotifLibraryResult> {
+  const res = await api.post('/api/seq-tools/motif-library', { sequence, categories });
   return res.data;
 }
 
@@ -333,13 +336,25 @@ export async function fetchMotifPatterns(): Promise<MotifLibraryPattern[]> {
   return res.data;
 }
 
+export async function fetchMotifCategories(): Promise<string[]> {
+  const res = await api.get('/api/seq-tools/motif-library/categories');
+  return res.data;
+}
+
 export async function runDotPlot(payload: {
   seq_a: string;
   seq_b: string;
   window: number;
   stringency: number;
+  scoring?: string;
 }): Promise<DotPlotResult> {
-  const res = await api.post('/api/seq-tools/dotplot', payload);
+  const res = await api.post('/api/seq-tools/dotplot', {
+    seq_a: payload.seq_a,
+    seq_b: payload.seq_b,
+    window: payload.window,
+    stringency: payload.stringency,
+    scoring: payload.scoring ?? 'identity',
+  });
   return res.data;
 }
 

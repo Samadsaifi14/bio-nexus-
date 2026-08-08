@@ -13,6 +13,7 @@ interface DockingViewerProps {
   backgroundColor?: string;
   chains?: Array<{ id: string; residue_count: number }>;
   ligands?: Array<{ id: string; chain: string; residue_count: number }>;
+  highlightRange?: { start: number; end: number };
 }
 
 type RepresentationType = 'cartoon' | 'ball-and-stick' | 'spacefill' | 'gaussian-surface' | 'molecular-surface' | 'putty' | 'ribbon';
@@ -83,6 +84,7 @@ export function DockingViewer({
   backgroundColor = '#0B0C14',
   chains = [],
   ligands = [],
+  highlightRange,
 }: DockingViewerProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDBeElement | null>(null);
@@ -354,6 +356,25 @@ export function DockingViewer({
     }
   }, [interactions, status, drawInteractions, visibleInteractions]);
 
+  // Highlight a residue range (deep-linked from motif scan on the structure page)
+  useEffect(() => {
+    if (status !== 'ready' || !highlightRange) return;
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer) return;
+    const { start, end } = highlightRange;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return;
+    try {
+      void viewer.visual.select({
+        data: [{ auth_seq_id: [start, end], color: '#fbbf24' }],
+        nonSelectedColor: '#334155',
+        keepRepresentations: true,
+      });
+      void viewer.visual.focus([{ auth_seq_id: [start, end] }]);
+    } catch {
+      // Best-effort viewer enhancement; the tabular residue data remains available.
+    }
+  }, [status, highlightRange]);
+
   // Spin
   useEffect(() => {
     viewerRef.current?.viewerInstance?.visual?.toggleSpin(spinning);
@@ -364,6 +385,13 @@ export function DockingViewer({
       {/* HUD toolbar — spatial chrome for the viewer */}
       <HudPanel className="flex flex-wrap items-center gap-2 border-b border-glass-border px-3 py-2">
         <span className="mr-2 font-mono text-xs text-text-muted">{pdbId}</span>
+
+        {highlightRange && (
+          <span className="flex items-center gap-1.5 rounded border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[10px] text-amber-300">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+            Highlight {highlightRange.start}–{highlightRange.end}
+          </span>
+        )}
 
         {/* Representation */}
         <div className="flex items-center gap-1">

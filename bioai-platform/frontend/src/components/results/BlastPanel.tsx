@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { CaretDown as ChevronDown, CaretUp as ChevronUp, ArrowSquareOut as ExternalLink, Download } from '@phosphor-icons/react';
+import { CaretDown as ChevronDown, CaretUp as ChevronUp, ArrowSquareOut as ExternalLink, Download, ChartScatter as Scatter, Target } from '@phosphor-icons/react';
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
 import { PairwiseAlignView } from './PairwiseAlignView';
@@ -16,6 +16,13 @@ interface BlastPanelProps {
   source?: string;
   queryLength?: number;
   querySequence?: string;
+}
+
+/** Looks like a protein (not a clean nucleotide alphabet) -> BLOSUM scoring. */
+function looksLikeProtein(seq: string): boolean {
+  const cleaned = seq.toUpperCase().replace(/[^A-Za-z]/g, '');
+  if (!cleaned) return false;
+  return cleaned.split('').some(ch => !'ACGTUN'.includes(ch));
 }
 
 export function BlastPanel({ hits, count, source, querySequence }: BlastPanelProps) {
@@ -85,14 +92,28 @@ export function BlastPanel({ hits, count, source, querySequence }: BlastPanelPro
                 <div className="px-6 pb-4">
                   <AlignmentView hit={hit} />
                   <PairwiseAlignView hit={hit} querySequence={querySequence} />
-                  <a
-                    href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="mt-2 inline-flex items-center gap-1 text-sm text-accent-cyan hover:text-accent-cyan/80 transition"
-                  >
-                    View on NCBI <ExternalLink className="w-3.5 h-3.5" />
-                  </a>
+                  <div className="mt-2 flex flex-wrap items-center gap-2">
+                    <a
+                      href={`/analyze/dotplot?seq_a=${encodeURIComponent(querySequence ?? '')}&seq_b=${encodeURIComponent((hit.hit_alignment || hit.midline || '').replace(/-/g, ''))}&scoring=${looksLikeProtein(querySequence ?? '') ? 'blosum62' : 'identity'}`}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-cyan transition"
+                    >
+                      <Scatter className="w-3.5 h-3.5" /> Dot plot vs query
+                    </a>
+                    <a
+                      href={`/analyze/motif?sequence=${encodeURIComponent((hit.hit_alignment || hit.midline || '').replace(/-/g, ''))}`}
+                      className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-purple transition"
+                    >
+                      <Target className="w-3.5 h-3.5" /> Scan for motifs
+                    </a>
+                    <a
+                      href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-sm text-accent-cyan hover:text-accent-cyan/80 transition"
+                    >
+                      View on NCBI <ExternalLink className="w-3.5 h-3.5" />
+                    </a>
+                  </div>
                 </div>
               )}
             </motion.div>

@@ -100,7 +100,7 @@ export function BlastPanel({ hits, count, source, querySequence }: BlastPanelPro
                       <Scatter className="w-3.5 h-3.5" /> Dot plot vs query
                     </a>
                     <a
-                      href={`/analyze/motif?sequence=${encodeURIComponent((hit.hit_alignment || hit.midline || '').replace(/-/g, ''))}`}
+                      href={`/analyze/motif?sequence=${encodeURIComponent((hit.hit_alignment || hit.midline || '').replace(/-/g, ''))}&uniprot=${encodeURIComponent(hit.accession)}`}
                       className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-purple transition"
                     >
                       <Target className="w-3.5 h-3.5" /> Scan for motifs

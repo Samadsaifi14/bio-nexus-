@@ -115,7 +115,19 @@ export default function StructurePage() {
         </div>
       </motion.div>
 
-      {error && <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}
+      {error && (
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20">
+          <p className="text-sm text-error">{error}</p>
+          {linkHighlight && (
+            <div className="mt-2 text-xs text-text-muted">
+              Couldn&apos;t find a structure for{' '}
+              <code className="font-mono text-text-secondary">{linkHighlight.acc}</code>. AlphaFold and PDB may not
+              cover this accession. Search with a UniProt accession (e.g. P04637) or a PDB ID (e.g. 1TIM) to continue,
+              then use the motif scanner&apos;s highlight again.
+            </div>
+          )}
+        </motion.div>
+      )}
 
       {result && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">

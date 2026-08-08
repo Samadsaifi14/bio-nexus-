@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ArrowsLeftRight as ArrowSwap, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
@@ -43,6 +43,14 @@ export default function PairwiseAlignPage() {
   const [result, setResult] = useState<PairwiseAlignResult | null>(null);
   const [error, setError] = useState<string | null>(null);
   const audit = useAuditTrail();
+
+  useEffect(() => {
+    const stored = sessionStorage.getItem('pairwise_sequence_a');
+    if (stored) {
+      sessionStorage.removeItem('pairwise_sequence_a');
+      setSeqA(stored);
+    }
+  }, []);
 
   const lenA = cleanLength(seqA);
   const lenB = cleanLength(seqB);

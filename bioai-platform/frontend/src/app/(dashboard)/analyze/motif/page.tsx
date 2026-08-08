@@ -9,6 +9,8 @@ import {
   MagnifyingGlass as Search,
   X as Close,
   Atom,
+  ArrowsLeftRight as ArrowSwap,
+  ChartScatter as Scatter,
 } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { fetchMotifCategories, fetchMotifPatterns, fetchSequence, scanMotifLibrary, scanMotifPattern } from '@/lib/api';
@@ -119,11 +121,25 @@ export default function MotifScannerPage() {
     fetchMotifCategories().then(setCategories).catch(() => {});
   }, []);
 
-  // Prefill the sequence from a deep link (e.g. "scan for motifs" on a BLAST hit).
+  // Prefill the sequence / accession from a deep link
+  // (e.g. "scan for motifs" on a BLAST hit carries ?sequence=...&uniprot=...).
   useEffect(() => {
-    const seqParam = new URLSearchParams(window.location.search).get('sequence');
-    if (seqParam) {
-      setSequence(seqParam);
+    const params = new URLSearchParams(globalThis.location?.search ?? '');
+    const seqParam = params.get('sequence');
+    const accParam = params.get('uniprot');
+    if (seqParam) setSequence(seqParam);
+    if (accParam) {
+      const clean = accParam.trim().split('.')[0];
+      if (extractAccession(`>${clean}`)) {
+        setAccession(clean);
+      } else {
+        // Non-UniProt identifier (e.g. a RefSeq id) — best-effort resolve.
+        fetchSequence(clean, 'uniprot')
+          .then(res => {
+            if (res.sequence && res.accession) setAccession(res.accession.split('.')[0]);
+          })
+          .catch(() => {});
+      }
     }
   }, []);
 
@@ -196,6 +212,20 @@ export default function MotifScannerPage() {
     },
     [accession, router],
   );
+
+  const goBlast = () => {
+    sessionStorage.setItem('blast_sequence', sequence);
+    router.push('/analyze/blast');
+  };
+
+  const goPairwise = () => {
+    sessionStorage.setItem('pairwise_sequence_a', sequence);
+    router.push('/analyze/pairwise');
+  };
+
+  const goDotPlot = () => {
+    router.push(`/analyze/dotplot?seq_a=${encodeURIComponent(sequence.replace(/[^A-Za-z]/g, '').toUpperCase())}&self=1`);
+  };
 
   const groupedPresets = useMemo(() => {
     const groups = new Map<string, MotifLibraryPattern[]>();
@@ -349,6 +379,30 @@ export default function MotifScannerPage() {
             {loading ? 'Scanning...' : mode === 'library' ? 'Scan library' : 'Scan pattern'}
           </CriticalButton>
         </div>
+
+        {canRun && (
+          <div className="flex items-center gap-2 flex-wrap">
+            <span className="text-[10px] uppercase tracking-wider text-text-muted mr-1">Continue in:</span>
+            <button
+              onClick={goBlast}
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-cyan transition"
+            >
+              <Search className="w-3.5 h-3.5" /> BLAST
+            </button>
+            <button
+              onClick={goPairwise}
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-cyan transition"
+            >
+              <ArrowSwap className="w-3.5 h-3.5" /> Pairwise align
+            </button>
+            <button
+              onClick={goDotPlot}
+              className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-cyan transition"
+            >
+              <Scatter className="w-3.5 h-3.5" /> Dot plot
+            </button>
+          </div>
+        )}
 
         {error && (
           <div className="rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error">

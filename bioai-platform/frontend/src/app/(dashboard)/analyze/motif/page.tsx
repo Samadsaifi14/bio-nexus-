@@ -29,9 +29,20 @@ function cleanLength(seq: string): number {
 
 /** Best-effort UniProt/RefSeq accession from a FASTA header or bare id. */
 function extractAccession(seq: string): string | null {
-  const header = seq.trim().split('\n')[0];
-  const candidates = header.match(/[OPQ][0-9][A-Z0-9]{3}[0-9](?:\.[0-9]+)?|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}(?:\.[0-9]+)?/);
-  return candidates ? candidates[0] : null;
+  const trimmed = seq.trim();
+  if (!trimmed) return null;
+  const firstLine = trimmed.split('\n')[0].trim();
+  const re = /[OPQ][0-9][A-Z0-9]{3}[0-9](?:\.[0-9]+)?|[A-NR-Z][0-9](?:[A-Z][A-Z0-9]{2}[0-9]){1,2}(?:\.[0-9]+)?/;
+  if (firstLine.startsWith('>')) {
+    const m = firstLine.match(re);
+    return m ? m[0].split('.')[0] : null;
+  }
+  // Bare identifier line (no ">"): only trust it when the whole line is the accession.
+  const m = firstLine.match(re);
+  if (m && m[0] === firstLine && firstLine.length <= 15) {
+    return m[0].split('.')[0];
+  }
+  return null;
 }
 
 const SCORING_HINT: Record<string, { color: string; label: string }> = {
@@ -179,10 +190,9 @@ export default function MotifScannerPage() {
 
   const openOnStructure = useCallback(
     (hit: MotifLibraryHit) => {
-      const acc = accession || hit.accession;
-      if (!acc || hit.matches.length === 0) return;
+      if (!accession || hit.matches.length === 0) return;
       const first = hit.matches[0];
-      router.push(`/analyze/structure?uniprot=${encodeURIComponent(acc)}&highlight=${first.start}-${first.end}`);
+      router.push(`/analyze/structure?uniprot=${encodeURIComponent(accession)}&highlight=${first.start}-${first.end}`);
     },
     [accession, router],
   );
@@ -455,13 +465,17 @@ export default function MotifScannerPage() {
                         </div>
                         <div className="flex flex-col items-end gap-2 shrink-0">
                           <HitExportButtons hit={hit} sequence={sequence} />
-                          {(accession || hit.accession) && (
+                          {accession ? (
                             <button
                               onClick={() => openOnStructure(hit)}
                               className="text-xs px-2.5 py-1 rounded bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan hover:bg-accent-cyan/20 transition-colors flex items-center gap-1.5"
                             >
                               <Atom className="w-3.5 h-3.5" /> Highlight on structure
                             </button>
+                          ) : (
+                            <span className="max-w-44 text-right text-[10px] text-text-muted">
+                              Add a UniProt accession above to highlight these residues on the structure.
+                            </span>
                           )}
                         </div>
                       </div>

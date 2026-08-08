@@ -18,6 +18,90 @@ export interface AlignmentStats {
 
 const GAP_CHARS = new Set(['-', '.']);
 
+/** Physico-chemical amino acid groups — shared by the conservation track and
+ *  the per-column CLUSTAL-style consensus symbols in the MSA viewer. */
+export const PHYSICOCHEMICAL_GROUPS: Record<string, string[]> = {
+  polar_positive: ['K', 'R', 'H'],
+  polar_negative: ['D', 'E'],
+  polar_uncharged: ['S', 'T', 'N', 'Q'],
+  nonpolar: ['A', 'V', 'I', 'L', 'M', 'F', 'W', 'P'],
+  special: ['C', 'G', 'Y'],
+};
+
+export function groupOf(aa: string): string {
+  const up = aa.toUpperCase();
+  for (const [g, members] of Object.entries(PHYSICOCHEMICAL_GROUPS)) {
+    if (members.includes(up)) return g;
+  }
+  return 'other';
+}
+
+/** Loosely related groups used for the CLUSTAL '.' (weak conservation) symbol. */
+const WEAK_GROUPS: string[][] = [
+  ['A', 'S', 'T', 'P', 'G'],
+  ['N', 'D', 'E', 'Q'],
+  ['R', 'K', 'H'],
+  ['V', 'I', 'L', 'M'],
+  ['F', 'Y', 'W'],
+  ['C'],
+];
+
+function weakGroupOf(aa: string): string {
+  const up = aa.toUpperCase();
+  for (let i = 0; i < WEAK_GROUPS.length; i++) {
+    if (WEAK_GROUPS[i].includes(up)) return String(i);
+  }
+  return 'other';
+}
+
+export interface ColumnAnalysis {
+  /** Most frequent non-gap residue; '-' when the column is all gaps. */
+  consensus: string;
+  /** CLUSTAL conservation symbol: '*' identical, ':' strong, '.' weak, ' ' variable. */
+  symbol: string;
+}
+
+/**
+ * Per-column analysis of an already-aligned set of sequences. The consensus is
+ * the majority non-gap residue; the symbol follows the CLUSTALX convention.
+ */
+export function analyzeColumns(seqs: string[]): ColumnAnalysis[] {
+  if (!seqs.length) return [];
+  const L = Math.max(...seqs.map(s => s.length));
+  const columns: ColumnAnalysis[] = [];
+  for (let i = 0; i < L; i++) {
+    const residues: string[] = [];
+    for (const s of seqs) {
+      const c = (s[i] ?? '-').toUpperCase();
+      if (!GAP_CHARS.has(c)) residues.push(c);
+    }
+    if (!residues.length) {
+      columns.push({ consensus: '-', symbol: ' ' });
+      continue;
+    }
+    const freqs = new Map<string, number>();
+    for (const r of residues) freqs.set(r, (freqs.get(r) ?? 0) + 1);
+    let consensus = residues[0];
+    let max = 0;
+    for (const [r, n] of Array.from(freqs.entries())) {
+      if (n > max) {
+        max = n;
+        consensus = r;
+      }
+    }
+    let symbol = ' ';
+    if (freqs.size === 1) {
+      symbol = '*';
+    } else if (new Set(residues.map(groupOf)).size === 1) {
+      symbol = ':';
+    } else if (new Set(residues.map(weakGroupOf)).size === 1) {
+      symbol = '.';
+    }
+    columns.push({ consensus, symbol });
+  }
+  return columns;
+}
+
 /**
  * Compute column-wise statistics from an already-aligned set of sequences
  * (equal-length strings). Works for both pairwise (2 sequences) and multiple

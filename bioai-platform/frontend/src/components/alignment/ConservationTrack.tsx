@@ -1,21 +1,7 @@
 "use client";
 import { useRef } from "react";
 import { exportSvgPng } from "@/lib/export-utils";
-
-const GROUPS: Record<string, string[]> = {
-  polar_positive: ["K", "R", "H"],
-  polar_negative: ["D", "E"],
-  polar_uncharged: ["S", "T", "N", "Q"],
-  nonpolar:       ["A", "V", "I", "L", "M", "F", "W", "P"],
-  special:        ["C", "G", "Y"],
-};
-
-function groupOf(aa: string): string {
-  for (const [g, members] of Object.entries(GROUPS)) {
-    if (members.includes(aa.toUpperCase())) return g;
-  }
-  return "other";
-}
+import { groupOf } from "@/lib/alignment-stats";
 
 function columnConservation(column: string[]): number {
   const filtered = column.filter(c => c !== "-" && c !== ".");

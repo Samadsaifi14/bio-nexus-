@@ -7,7 +7,7 @@ import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisplay';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
-import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
+import { computeAlignmentStats, parseAlignedFasta, analyzeColumns } from '@/lib/alignment-stats';
 
 const AA_COLORS: Record<string, string> = {
   A: '#8B93D6', C: '#E0A94E', D: '#EF4444', E: '#EF4444',
@@ -20,6 +20,26 @@ const AA_COLORS: Record<string, string> = {
 function aaColor(ch: string): string {
   if (ch === '-') return 'rgba(132,140,164,0.25)';
   return AA_COLORS[ch.toUpperCase()] ?? 'var(--text-primary)';
+}
+
+type CellClass = 'match' | 'mismatch' | 'gap';
+
+function cellClass(ch: string, consensus: string): CellClass {
+  if (ch === '-' || ch === '.') return 'gap';
+  return ch.toUpperCase() === consensus ? 'match' : 'mismatch';
+}
+
+const CELL_BG: Record<CellClass, string> = {
+  match: 'rgba(45,212,191,0.16)',
+  mismatch: 'rgba(239,68,68,0.12)',
+  gap: 'rgba(132,140,164,0.08)',
+};
+
+function symbolClass(symbol: string): string {
+  if (symbol === '*') return 'text-accent-cyan font-bold';
+  if (symbol === ':') return 'text-accent-amber';
+  if (symbol === '.') return 'text-text-muted/40';
+  return 'text-transparent';
 }
 
 interface MSAResultPanelProps {
@@ -44,6 +64,7 @@ export function MSAResultPanel({
   const { headers, seqs } = useMemo(() => parseAlignedFasta(alnFasta), [alnFasta]);
   const length = seqs[0]?.length ?? 0;
   const stats = useMemo(() => computeAlignmentStats(seqs), [seqs]);
+  const columns = useMemo(() => analyzeColumns(seqs), [seqs]);
 
   const download = () => {
     const blob = new Blob([alnFasta], { type: 'text/plain' });
@@ -97,15 +118,54 @@ export function MSAResultPanel({
                   {h.length > 12 ? `${h.slice(0, 11)}…` : h}
                 </span>
                 <span className="whitespace-pre" style={{ color: 'inherit' }}>
-                  {Array.from(seqs[i] ?? '').map((ch, j) => (
-                    <span key={j} style={{ color: aaColor(ch) }}>
-                      {ch}
-                    </span>
-                  ))}
+                  {Array.from(seqs[i] ?? '').map((ch, j) => {
+                    const cls = cellClass(ch, columns[j]?.consensus ?? '-');
+                    return (
+                      <span key={j} style={{ color: aaColor(ch), backgroundColor: CELL_BG[cls] }}>
+                        {ch}
+                      </span>
+                    );
+                  })}
                 </span>
               </div>
             ))}
+            <div className="flex">
+              <span className="w-24 shrink-0 pr-3 text-right text-[10px] text-accent-amber/80 truncate">
+                consensus
+              </span>
+              <span className="whitespace-pre">
+                {columns.map((col, j) => (
+                  <span key={j} className={symbolClass(col.symbol)}>
+                    {col.symbol}
+                  </span>
+                ))}
+              </span>
+            </div>
           </div>
+        </div>
+
+        <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-[10px] text-text-muted">
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: CELL_BG.match }} />
+            Matched
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: CELL_BG.mismatch }} />
+            Mismatched
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="w-2.5 h-2.5 rounded-sm" style={{ background: CELL_BG.gap }} />
+            Gap
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="font-bold text-accent-cyan">*</span> Identical
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-accent-amber font-bold">:</span> Strongly conserved group
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="text-text-muted/50 font-bold">.</span> Weakly conserved
+          </span>
         </div>
       </div>
 

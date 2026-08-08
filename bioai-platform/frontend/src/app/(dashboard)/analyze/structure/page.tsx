@@ -79,6 +79,10 @@ export default function StructurePage() {
 
   const pdbId = result?.pdb_id || result?.pdb_url?.match(/view\/(\w+)\.pdb$/)?.[1] || '';
 
+  // AlphaFold results don't carry a PDB id — render them by file URL instead.
+  const viewerUrl = result?.source === 'alphafold' ? result.cif_url || result.pdb_url : undefined;
+  const viewerUrlFormat = result?.source === 'alphafold' ? (result.cif_url ? 'cif' : 'pdb') : undefined;
+
   const highlightApplied =
     linkHighlight &&
     result &&
@@ -148,8 +152,16 @@ export default function StructurePage() {
                 </a>
               )}
             </div>
-            {pdbId ? (
-              <DockingViewer pdbId={pdbId} ligandPdb="" chains={inventory?.chains} ligands={inventory?.ligands} highlightRange={highlightApplied} />
+            {pdbId || viewerUrl ? (
+              <DockingViewer
+                pdbId={pdbId}
+                pdbUrl={viewerUrl}
+                pdbUrlFormat={viewerUrlFormat}
+                ligandPdb=""
+                chains={inventory?.chains}
+                ligands={inventory?.ligands}
+                highlightRange={highlightApplied}
+              />
             ) : (
               <div className="w-full h-96 rounded-xl bg-surface-0 flex items-center justify-center">
                 <p className="text-sm text-text-muted">3D view not available</p>

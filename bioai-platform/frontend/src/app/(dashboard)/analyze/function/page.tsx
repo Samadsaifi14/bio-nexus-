@@ -31,9 +31,6 @@ export default function FunctionPage() {
       if (res.status === "complete" && res.result) {
         setResult(res.result);
         setLoading(false);
-        requestAnimationFrame(() => {
-          document.getElementById('function-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
       } else if (res.status === "failed") {
         setError(res.error || "Prediction failed");
         setLoading(false);

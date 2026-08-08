@@ -235,11 +235,6 @@ export default function DockingPage() {
       if (status.status === 'complete' || status.status === 'completed' || status.status === 'failed') {
         setPolling(false);
       }
-      if (status.status === 'complete' || status.status === 'completed') {
-        requestAnimationFrame(() => {
-          document.getElementById('docking-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      }
     } catch {
       setPolling(false);
       setError('Failed to check docking status');

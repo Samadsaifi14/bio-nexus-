@@ -72,11 +72,6 @@ export default function SequencingPage() {
       if (status.status === 'complete' || status.status === 'failed') {
         setPolling(false);
       }
-      if (status.status === 'complete') {
-        requestAnimationFrame(() => {
-          document.getElementById('sequencing-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        });
-      }
     } catch {
       setPolling(false);
       setError('Failed to check pipeline status');

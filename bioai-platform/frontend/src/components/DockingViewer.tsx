@@ -8,6 +8,8 @@ import { ArrowCounterClockwise as RotateCcw, ArrowClockwise as RotateCw, Camera,
 interface DockingViewerProps {
   pdbId: string;
   ligandPdb: string;
+  pdbUrl?: string;
+  pdbUrlFormat?: 'pdb' | 'cif';
   interactions?: DockingInteraction;
   height?: number | string;
   backgroundColor?: string;
@@ -79,6 +81,8 @@ interface PDBeElement extends HTMLElement {
 export function DockingViewer({
   pdbId,
   ligandPdb,
+  pdbUrl,
+  pdbUrlFormat,
   interactions,
   height = 480,
   backgroundColor = '#0B0C14',
@@ -109,18 +113,24 @@ export function DockingViewer({
     if (!viewer) return;
 
     try {
-      await viewer.visual.update({
-        moleculeId: pdbId.toLowerCase(),
+      const options: Record<string, unknown> = {
         visualStyle: {
           polymer: { type: rep, color: { name: COLOR_MAP[color].name } },
           het: 'ball-and-stick',
           water: 'spacefill',
         },
-      }, true);
+      };
+      if (pdbUrl) {
+        options.customDataUrl = pdbUrl;
+        options.customDataFormat = pdbUrlFormat || 'pdb';
+      } else {
+        options.moleculeId = pdbId.toLowerCase();
+      }
+      await viewer.visual.update(options, true);
     } catch {
       // Best-effort
     }
-  }, [pdbId]);
+  }, [pdbId, pdbUrl, pdbUrlFormat]);
 
   const loadLigand = useCallback(async () => {
     const viewer = viewerRef.current?.viewerInstance;
@@ -264,9 +274,9 @@ export function DockingViewer({
     setTimeout(() => cam.spin(false), 1500);
   }, []);
 
-  // Initialize viewer ONCE per pdbId
+  // Initialize viewer ONCE per pdbId / pdbUrl
   useEffect(() => {
-    if (!pdbId) {
+    if (!pdbId && !pdbUrl) {
       setStatus('error');
       setError('Missing structure identifier');
       return;
@@ -283,10 +293,15 @@ export function DockingViewer({
     container.innerHTML = '';
 
     const el = document.createElement('pdbe-molstar') as PDBeElement;
-    el.setAttribute('molecule-id', pdbId.toLowerCase());
+    if (pdbUrl) {
+      el.setAttribute('custom-data-url', pdbUrl);
+      el.setAttribute('custom-data-format', pdbUrlFormat || 'pdb');
+    } else {
+      el.setAttribute('molecule-id', pdbId.toLowerCase());
+    }
     el.setAttribute('hide-controls', '');
     el.setAttribute('background-color', backgroundColor);
-    el.id = `pdbe-docking-${pdbId.toLowerCase()}`;
+    el.id = `pdbe-docking-${(pdbId || pdbUrl || 'structure').toLowerCase().replace(/[^a-z0-9]/gi, '')}`;
     container.appendChild(el);
     viewerRef.current = el;
 
@@ -338,16 +353,35 @@ export function DockingViewer({
       if (checkInterval) clearInterval(checkInterval);
       el.removeEventListener('molstar-models-loaded', onModelsLoaded);
     };
-  }, [pdbId, ligandPdb, backgroundColor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pdbId, pdbUrl, ligandPdb, backgroundColor]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Highlight a residue range (deep-linked from motif scan on the structure page).
+  // Uses PDBe Molstar's visual.select range format so the residues actually get
+  // colored and focused on the canvas.
+  const applyHighlight = useCallback(async () => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer || !highlightRange) return;
+    const { start, end } = highlightRange;
+    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return;
+    try {
+      await viewer.visual.select({
+        data: [{ start_residue_number: start, end_residue_number: end, color: '#fbbf24', focus: true }],
+        nonSelectedColor: '#1e2436',
+        keepRepresentations: true,
+      });
+    } catch {
+      // Best-effort viewer enhancement; the tabular residue data remains available.
+    }
+  }, [highlightRange]);
 
   // Representation + color changes
   useEffect(() => {
     if (status === 'ready' && (representation !== representationRef.current || colorScheme !== colorSchemeRef.current)) {
       representationRef.current = representation;
       colorSchemeRef.current = colorScheme;
-      applyVisualization(representation, colorScheme);
+      void applyVisualization(representation, colorScheme).then(() => applyHighlight());
     }
-  }, [representation, colorScheme, status, applyVisualization]);
+  }, [representation, colorScheme, status, applyVisualization, applyHighlight]);
 
   // Interaction updates
   useEffect(() => {
@@ -356,24 +390,11 @@ export function DockingViewer({
     }
   }, [interactions, status, drawInteractions, visibleInteractions]);
 
-  // Highlight a residue range (deep-linked from motif scan on the structure page)
   useEffect(() => {
-    if (status !== 'ready' || !highlightRange) return;
-    const viewer = viewerRef.current?.viewerInstance;
-    if (!viewer) return;
-    const { start, end } = highlightRange;
-    if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return;
-    try {
-      void viewer.visual.select({
-        data: [{ auth_seq_id: [start, end], color: '#fbbf24' }],
-        nonSelectedColor: '#334155',
-        keepRepresentations: true,
-      });
-      void viewer.visual.focus([{ auth_seq_id: [start, end] }]);
-    } catch {
-      // Best-effort viewer enhancement; the tabular residue data remains available.
+    if (status === 'ready') {
+      void applyHighlight();
     }
-  }, [status, highlightRange]);
+  }, [status, applyHighlight]);
 
   // Spin
   useEffect(() => {

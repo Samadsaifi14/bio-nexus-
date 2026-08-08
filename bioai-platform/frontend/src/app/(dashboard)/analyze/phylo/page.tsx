@@ -161,11 +161,6 @@ export default function PhyloPage() {
       const data: PhyloJobStatus = await res.json()
       setJob(data)
       if (data.phase === 'complete' || data.phase === 'error') stopPoll()
-      if (data.phase === 'complete') {
-        requestAnimationFrame(() => {
-          document.getElementById('phylo-results')?.scrollIntoView({ behavior: 'smooth', block: 'start' })
-        })
-      }
     } catch { }
   }, [stopPoll])
 

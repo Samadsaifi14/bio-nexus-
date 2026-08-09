@@ -190,7 +190,7 @@ export function PrimerDesigner() {
   const gcData = pairs.map(p => ({ name: `P${p.pair_index + 1}`, Left: +p.left_gc.toFixed(1), Right: +p.right_gc.toFixed(1) }));
   const productData = pairs.map(p => ({ name: `P${p.pair_index + 1}`, Size: p.product_size }));
 
-  const chartTooltip = { contentStyle: { background: "#0E1521", border: "1px solid rgba(255,255,255,0.12)", borderRadius: 8, fontSize: 12 }, labelStyle: { color: "#94A3B8" }, itemStyle: { color: "#E2E8F0" } };
+  const chartTooltip = { contentStyle: { background: "var(--chart-tooltip-bg)", border: "1px solid var(--chart-tooltip-border)", borderRadius: 8, fontSize: 12 }, labelStyle: { color: "var(--chart-tooltip-label)" }, itemStyle: { color: "var(--chart-tooltip-item)" } };
 
   return (
     <div className="space-y-6">
@@ -372,7 +372,7 @@ export function PrimerDesigner() {
             return (
               <div className="space-y-3">
                 {[
-                  { label: "Forward (5'&rarr;3')", seq: p.left_seq, tm: p.left_tm, gc: p.left_gc, pos: p.left_pos, color: "var(--accent-cyan)" },
+                  { label: "Forward (5'&rarr;3')", seq: p.left_seq, tm: p.left_tm, gc: p.left_gc, pos: p.left_pos, color: "rgb(var(--accent-cyan))" },
                   { label: "Reverse (5'&rarr;3')", seq: p.right_seq, tm: p.right_tm, gc: p.right_gc, pos: p.right_pos, color: "#A855F7" },
                 ].map(primer => (
                   <div key={primer.label} className="bg-surface-1 rounded-xl p-4 border border-glass-border">

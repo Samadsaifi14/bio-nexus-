@@ -6,6 +6,7 @@ import { MotionConfig } from 'framer-motion';
 import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
+import { themeInitScript } from '@/lib/theme';
 
 export const metadata: Metadata = {
   title: 'Bio Nexus — One interface for every bioinformatics tool',
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar.css" />
+        <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans antialiased">
         <Providers>

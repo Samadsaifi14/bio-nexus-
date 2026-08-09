@@ -2,13 +2,25 @@
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
+import { useTheme } from '@/contexts/theme';
 
 export default function DNAHelix({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const { theme } = useTheme();
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
+
+    // Dark: neon "glow in the void" strands. Light: saturated teal + deep navy,
+    // near-opaque, minimal emissive — they must carry contrast on a white canvas.
+    const isLight = theme === 'light';
+    const cyan    = isLight ? '#0E9384' : '#2DD4BF';
+    const purple  = isLight ? '#1D1D1F' : '#8B93D6';
+    const amber   = isLight ? '#E0A94E' : '#E0A94E';
+    const strandOpacity  = isLight ? 0.95 : 0.30;
+    const emissiveInt    = isLight ? 0.05 : 0.25;
+    const particleOpacity = isLight ? 0.28 : 0.20;
 
     const W = container.clientWidth;
     const H = container.clientHeight;
@@ -24,31 +36,31 @@ export default function DNAHelix({ className }: { className?: string }) {
     camera.position.set(0, 0, 10);
 
     const matCyan = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color('#2DD4BF'),
-      emissive:          new THREE.Color('#2DD4BF'),
-      emissiveIntensity: 0.25,
+      color:             new THREE.Color(cyan),
+      emissive:          new THREE.Color(cyan),
+      emissiveIntensity: emissiveInt,
       roughness:         0.3,
       metalness:         0.6,
       transparent:       true,
-      opacity:           0.30,
+      opacity:           strandOpacity,
     });
     const matPurple = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color('#8B93D6'),
-      emissive:          new THREE.Color('#8B93D6'),
-      emissiveIntensity: 0.25,
+      color:             new THREE.Color(purple),
+      emissive:          new THREE.Color(purple),
+      emissiveIntensity: emissiveInt,
       roughness:         0.3,
       metalness:         0.6,
       transparent:       true,
-      opacity:           0.30,
+      opacity:           strandOpacity,
     });
     const matAmber = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color('#E0A94E'),
-      emissive:          new THREE.Color('#E0A94E'),
-      emissiveIntensity: 0.15,
+      color:             new THREE.Color(amber),
+      emissive:          new THREE.Color(amber),
+      emissiveIntensity: isLight ? 0.05 : 0.15,
       roughness:         0.5,
       metalness:         0.3,
       transparent:       true,
-      opacity:           0.40,
+      opacity:           isLight ? 0.9 : 0.40,
     });
 
     const group = new THREE.Group();
@@ -102,8 +114,8 @@ export default function DNAHelix({ className }: { className?: string }) {
     const P_COUNT = 320;
     const pPositions = new Float32Array(P_COUNT * 3);
     const pColors    = new Float32Array(P_COUNT * 3);
-    const cCyan   = new THREE.Color('#2DD4BF');
-    const cPurple = new THREE.Color('#8B93D6');
+    const cCyan   = new THREE.Color(cyan);
+    const cPurple = new THREE.Color(purple);
 
     for (let i = 0; i < P_COUNT; i++) {
       pPositions[i * 3]     = (Math.random() - 0.5) * 24;
@@ -122,7 +134,7 @@ export default function DNAHelix({ className }: { className?: string }) {
       size: 0.04,
       vertexColors: true,
       transparent: true,
-      opacity: 0.20,
+      opacity: particleOpacity,
       sizeAttenuation: true,
     });
     const particles = new THREE.Points(pGeo, pMat);
@@ -130,15 +142,15 @@ export default function DNAHelix({ className }: { className?: string }) {
 
     scene.add(new THREE.AmbientLight(0xffffff, 0.2));
 
-    const l1 = new THREE.PointLight('#2DD4BF', 0.6, 25);
+    const l1 = new THREE.PointLight(cyan, 0.6, 25);
     l1.position.set(4, 4, 5);
     scene.add(l1);
 
-    const l2 = new THREE.PointLight('#8B93D6', 0.6, 25);
+    const l2 = new THREE.PointLight(purple, 0.6, 25);
     l2.position.set(-4, -4, 5);
     scene.add(l2);
 
-    const l3 = new THREE.PointLight('#E0A94E', 0.35, 18);
+    const l3 = new THREE.PointLight(amber, 0.35, 18);
     l3.position.set(0, 0, 7);
     scene.add(l3);
 
@@ -197,7 +209,7 @@ export default function DNAHelix({ className }: { className?: string }) {
         container.removeChild(renderer.domElement);
       }
     };
-  }, []);
+  }, [theme]);
 
   return <div ref={containerRef} className={className ?? 'w-full h-full'} />;
 }

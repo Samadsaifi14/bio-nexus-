@@ -208,7 +208,7 @@ export function DomainArchitecture({ accession }: { accession: string }) {
       {activeTab === "structure" && data && <StructureInfoView data={data} />}
 
       {tooltip && (
-        <div className="fixed z-50 bg-[#06060B] border border-glass-border rounded-xl p-3 text-xs text-text-primary shadow-2xl pointer-events-none max-w-xs"
+        <div className="fixed z-50 bg-viewer border border-glass-border rounded-xl p-3 text-xs text-text-primary shadow-2xl pointer-events-none max-w-xs"
           style={{ left: tooltip.x + 12, top: tooltip.y - 10 }}>
           <p className="font-bold text-accent-cyan">{tooltip.text}</p>
           <p className="text-text-muted">{tooltip.sub}</p>

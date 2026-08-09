@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DownloadSimple as Download } from '@phosphor-icons/react';
 import { HudPanel, HudLegend, LegendItem } from '@/components/ui';
 import { downloadText } from '@/lib/export-utils';
+import { useTheme } from '@/contexts/theme';
 
 interface MoleViewer {
   setStyle: (sel: Record<string, unknown>, style: Record<string, unknown>) => void;
@@ -94,11 +95,14 @@ export function AlphaFoldViewer({
   pdbUrl,
   uniprotId,
   height = 420,
-  backgroundColor = '#0B0C14',
+  backgroundColor,
 }: AlphaFoldViewerProps) {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<MoleViewer | null>(null);
   const pdbTextRef = useRef<string | null>(null);
+
+  const sceneBg = backgroundColor ?? (theme === 'light' ? '#FFFFFF' : '#0B0C14');
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
@@ -174,7 +178,7 @@ export function AlphaFoldViewer({
         if (viewerRef.current) {
           viewerRef.current.clear();
         } else {
-          viewerRef.current = $3Dmol.createViewer(containerRef.current, { backgroundColor });
+          viewerRef.current = $3Dmol.createViewer(containerRef.current, { backgroundColor: sceneBg });
         }
 
         viewerRef.current.addModel(pdbData, 'pdb');
@@ -196,7 +200,7 @@ export function AlphaFoldViewer({
     return () => {
       cancelled = true;
     };
-  }, [pdbUrl, backgroundColor, applyStyle, styleMode]);
+  }, [pdbUrl, sceneBg, applyStyle, styleMode]);
 
   useEffect(() => {
     if (status === 'ready') applyStyle(styleMode);
@@ -220,7 +224,7 @@ export function AlphaFoldViewer({
   }, [status]);
 
   return (
-    <div className="relative w-full overflow-hidden rounded-xl border border-glass-border bg-[#0B0C14]">
+    <div className="relative w-full overflow-hidden rounded-xl border border-glass-border bg-viewer">
       {/* HUD toolbar — floats in the viewer's space, near-opaque */}
       <HudPanel className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <span className="font-mono text-xs text-text-muted">
@@ -232,7 +236,7 @@ export function AlphaFoldViewer({
             value={styleMode}
             onChange={(e) => setStyleMode(e.target.value as StyleMode)}
             disabled={status !== 'ready'}
-            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary outline-none disabled:opacity-40 focus:border-accent-cyan/40"
+            className="rounded-md border border-glass-border bg-hud/40 px-2 py-1 text-xs text-text-secondary outline-none disabled:opacity-40 focus:border-accent-cyan/40"
           >
             <option value="confidence">Cartoon · pLDDT</option>
             <option value="spectrum">Cartoon · spectrum</option>
@@ -243,7 +247,7 @@ export function AlphaFoldViewer({
             type="button"
             onClick={() => setSpinning((s) => !s)}
             disabled={status !== 'ready'}
-            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors"
+            className="rounded-md border border-glass-border bg-hud/40 px-2 py-1 text-xs text-text-secondary hover:bg-hud/60 hover:text-text-primary disabled:opacity-40 transition-colors"
           >
             {spinning ? 'Stop spin' : 'Spin'}
           </button>
@@ -252,7 +256,7 @@ export function AlphaFoldViewer({
             onClick={exportPdb}
             disabled={status !== 'ready'}
             title="Download structure as PDB"
-            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors flex items-center gap-1"
+            className="rounded-md border border-glass-border bg-hud/40 px-2 py-1 text-xs text-text-secondary hover:bg-hud/60 hover:text-text-primary disabled:opacity-40 transition-colors flex items-center gap-1"
           >
             <Download className="w-3.5 h-3.5" /> PDB
           </button>
@@ -261,7 +265,7 @@ export function AlphaFoldViewer({
             onClick={exportPng}
             disabled={status !== 'ready'}
             title="Download current view as PNG"
-            className="rounded-md border border-glass-border bg-black/40 px-2 py-1 text-xs text-text-secondary hover:bg-black/60 hover:text-text-primary disabled:opacity-40 transition-colors flex items-center gap-1"
+            className="rounded-md border border-glass-border bg-hud/40 px-2 py-1 text-xs text-text-secondary hover:bg-hud/60 hover:text-text-primary disabled:opacity-40 transition-colors flex items-center gap-1"
           >
             <Download className="w-3.5 h-3.5" /> PNG
           </button>
@@ -272,13 +276,13 @@ export function AlphaFoldViewer({
         <div ref={containerRef} className="absolute inset-0" />
 
         {status === 'loading' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0C14]/80 text-sm text-text-secondary">
+          <div className="absolute inset-0 flex items-center justify-center bg-viewer/80 text-sm text-text-secondary">
             Loading structure...
           </div>
         )}
 
         {status === 'error' && (
-          <div className="absolute inset-0 flex items-center justify-center bg-[#0B0C14]/90 px-6 text-center text-sm text-error">
+          <div className="absolute inset-0 flex items-center justify-center bg-viewer/90 px-6 text-center text-sm text-error">
             {error}
           </div>
         )}

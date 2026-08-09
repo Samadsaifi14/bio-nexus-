@@ -62,10 +62,10 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
           transition={{ type: 'spring', damping: 28, stiffness: 260 }}
           className={`fixed bottom-6 right-6 z-50 w-80 p-4 rounded-xl border-l-4 ${cfg.border} ${cfg.bg}`}
           style={{
-            background: 'rgba(10,10,22,0.92)',
+            background: 'var(--glass-panel-bg)',
             backdropFilter: 'blur(20px)',
-            boxShadow: `0 8px 32px rgba(0,0,0,0.5), ${cfg.glow}`,
-            border: '1px solid rgba(100,110,180,0.12)',
+            boxShadow: `var(--shadow-float), ${cfg.glow}`,
+            border: '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
           }}
         >
           <div className="flex items-start justify-between gap-2 mb-2">
@@ -87,7 +87,7 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
           {insight.affected_steps.length > 0 && (
             <div className="flex flex-wrap gap-1.5 mt-2">
               {insight.affected_steps.map((s) => (
-                <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-white/5 text-text-muted font-mono">
+                <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2/60 text-text-muted font-mono">
                   {s}
                 </span>
               ))}
@@ -104,8 +104,8 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
           onClick={() => { setOpen(true); setDismissed(false); }}
           className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-full"
           style={{
-            background: 'rgba(10,10,22,0.9)',
-            border: `1px solid ${cfg.border.replace('border-', '').replace('/40', '/40')}`,
+            background: 'var(--glass-panel-bg)',
+            border: '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
             backdropFilter: 'blur(12px)',
             boxShadow: cfg.glow,
           }}

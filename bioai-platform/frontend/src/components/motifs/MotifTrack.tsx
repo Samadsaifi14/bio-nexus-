@@ -72,7 +72,7 @@ export function MatchTable({ matches }: { matches: MotifMatch[] }) {
         </thead>
         <tbody>
           {matches.map((m, i) => (
-            <tr key={i} className="border-b border-glass-border/60 last:border-0">
+            <tr key={i} className="border-b border-glass-border-soft last:border-0">
               <td className="py-2 pr-4 text-text-muted">{i + 1}</td>
               <td className="py-2 pr-4 font-mono text-accent-cyan">{m.start}</td>
               <td className="py-2 pr-4 font-mono text-accent-cyan">{m.end}</td>

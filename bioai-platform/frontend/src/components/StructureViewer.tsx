@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef } from 'react';
+import { useTheme } from '@/contexts/theme';
 
 type Props = {
   pdbId: string;
@@ -8,6 +9,7 @@ type Props = {
 };
 
 export default function StructureViewer({ pdbId, height = 'h-96' }: Props) {
+  const { theme } = useTheme();
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerId = `pdbe-${pdbId.toLowerCase()}`;
 
@@ -21,14 +23,14 @@ export default function StructureViewer({ pdbId, height = 'h-96' }: Props) {
     el.setAttribute('molecule-id', pdbId.toLowerCase());
     el.setAttribute('hide-controls', '');
     el.setAttribute('loading-overlay', '');
-    el.setAttribute('background-color', '#06060B');
+    el.setAttribute('background-color', theme === 'light' ? '#FFFFFF' : '#06060B');
     el.id = viewerId;
     container.appendChild(el);
 
     return () => {
       container.innerHTML = '';
     };
-  }, [pdbId, viewerId]);
+  }, [pdbId, viewerId, theme]);
 
   return (
     <div ref={containerRef} className={`w-full ${height} rounded-xl overflow-hidden border-0`} />

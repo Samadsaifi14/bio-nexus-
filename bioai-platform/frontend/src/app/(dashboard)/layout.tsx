@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 import { AuditInsightPanel } from '@/components/AuditInsightPanel';
 import { CursorGlow } from '@/components/effects/CursorGlow';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
@@ -41,11 +42,7 @@ function SidebarContent({
     <div className="flex flex-col h-full py-4">
       <div className={`flex items-center gap-3 px-4 pb-5 mb-1 ${collapsed ? 'justify-center' : ''}`}>
         <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0"
-          style={{
-            background: 'rgba(45,212,191,0.10)',
-            border:     '1px solid rgba(45,212,191,0.25)',
-          }}
+          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-accent-cyan/10 border border-accent-cyan/25"
         >
           <Dna size={14} className="text-accent-cyan" />
         </div>
@@ -82,7 +79,7 @@ function SidebarContent({
                 <motion.div
                   layoutId="nav-indicator"
                   className="absolute left-0 inset-y-[6px] w-[3px] rounded-full"
-                  style={{ background: 'var(--accent-cyan)' }}
+                  style={{ background: 'rgb(var(--accent-cyan))' }}
                   transition={{ type: 'spring', stiffness: 380, damping: 35 }}
                 />
               )}
@@ -112,9 +109,9 @@ function SidebarContent({
                 <div
                   className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap text-text-primary pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-[100]"
                   style={{
-                    background: 'var(--bg-surface-2)',
-                    border:     '1px solid var(--glass-border)',
-                    boxShadow:  '0 4px 16px rgba(0,0,0,0.5)',
+                    background: 'rgb(var(--bg-surface-2))',
+                    border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
+                    boxShadow:  'var(--shadow-float)',
                   }}
                 >
                   {label}
@@ -160,9 +157,9 @@ function SidebarContent({
             <div
               className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap text-text-primary pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-[100]"
               style={{
-                background: 'var(--bg-surface-2)',
-                border:     '1px solid var(--glass-border)',
-                boxShadow:  '0 4px 16px rgba(0,0,0,0.5)',
+                background: 'rgb(var(--bg-surface-2))',
+                border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
+                boxShadow:  'var(--shadow-float)',
               }}
             >
               Sign out
@@ -195,20 +192,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
-  const sidebarBg = {
-    background:           'rgba(8, 8, 18, 0.75)',
-    borderRight:          '1px solid rgba(100, 110, 180, 0.10)',
-    backdropFilter:       'blur(24px) saturate(160%)',
-    WebkitBackdropFilter: 'blur(24px) saturate(160%)',
-  };
-
   return (
     <div className="flex h-screen bg-void overflow-hidden">
       <motion.aside
         animate={{ width: collapsed ? 68 : 220 }}
         transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
-        className="relative hidden md:flex flex-col flex-shrink-0 overflow-visible"
-        style={sidebarBg}
+        className="glass-sidebar relative hidden md:flex flex-col flex-shrink-0 overflow-visible"
       >
         <SidebarContent
           collapsed={collapsed}
@@ -221,15 +210,15 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           onClick={() => setCollapsed(!collapsed)}
           className="absolute -right-3 top-[18px] z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110"
           style={{
-            background: 'var(--bg-surface-2)',
-            border:     '1px solid var(--glass-border)',
-            boxShadow:  '0 2px 8px rgba(0,0,0,0.45)',
+            background: 'rgb(var(--bg-surface-2))',
+            border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
+            boxShadow:  'var(--shadow-float-sm)',
           }}
           onMouseEnter={(e) => {
             (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(45,212,191,0.4)';
           }}
           onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'var(--glass-border)';
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--glass-border) / var(--glass-border-a))';
           }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -250,8 +239,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               transition={{ duration: 0.2 }}
-              className="fixed inset-0 z-40 md:hidden"
-              style={{ background: 'rgba(4,4,10,0.8)', backdropFilter: 'blur(8px)' }}
+              className="scrim fixed inset-0 z-40 md:hidden"
               onClick={() => setMobileOpen(false)}
             />
 
@@ -261,8 +249,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               animate={{ x: 0 }}
               exit={{ x: -240 }}
               transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-              className="fixed left-0 top-0 bottom-0 w-56 z-50 md:hidden overflow-hidden"
-              style={sidebarBg}
+              className="glass-sidebar fixed left-0 top-0 bottom-0 w-56 z-50 md:hidden overflow-hidden"
             >
               <SidebarContent
                 collapsed={false}
@@ -277,12 +264,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header
-          className="flex items-center gap-4 px-6 py-4 flex-shrink-0"
-          style={{
-            background:   'rgba(4,4,10,0.6)',
-            borderBottom: '1px solid rgba(100,110,180,0.09)',
-            backdropFilter: 'blur(12px)',
-          }}
+          className="glass-header flex items-center gap-4 px-6 py-4 flex-shrink-0"
         >
           <button
             onClick={() => setMobileOpen(true)}
@@ -305,6 +287,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
             <span className="text-[11px] font-mono text-text-muted">systems live</span>
           </div>
+
+          <ThemeToggle />
         </header>
 
         <main className="flex-1 overflow-y-auto relative">

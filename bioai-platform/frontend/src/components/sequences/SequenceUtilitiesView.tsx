@@ -154,7 +154,7 @@ export function SequenceUtilitiesView({ result }: { result: SequenceUtilitiesRes
               </thead>
               <tbody>
                 {result.restriction_sites.map(site => (
-                  <tr key={site.name} className="border-b border-glass-border/60 last:border-0">
+                  <tr key={site.name} className="border-b border-glass-border-soft last:border-0">
                     <td className="py-2 pr-4 font-semibold text-accent-cyan">{site.name}</td>
                     <td className="py-2 pr-4 font-mono text-text-secondary">{site.recognition}</td>
                     <td className="py-2 pr-4 font-mono text-text-secondary">{site.count}</td>

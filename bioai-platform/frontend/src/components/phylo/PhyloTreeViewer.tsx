@@ -6,6 +6,8 @@ import { ClaySegmented } from '@/components/ui/ClaySegmented'
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar'
 import { AlignmentBlock } from '@/components/alignment/AlignmentBlock'
 import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats'
+import { useTheme } from '@/contexts/theme'
+import { cssColor } from '@/lib/theme-canvas'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -372,7 +374,7 @@ function RectangularTree({
               <>
                 <circle cx={n.x} cy={n.y} r={isSelected ? 7 : 5}
                   fill={dim ? '#1e293b' : isSelected ? '#2DD4BF' : '#1e293b'}
-                  stroke={isSelected ? '#fff' : bright ? '#2DD4BF' : '#475569'}
+                  stroke={isSelected ? cssColor('--tree-selected', '#FFFFFF') : bright ? '#2DD4BF' : '#475569'}
                   strokeWidth={isSelected ? 2 : bright ? 2 : 1.5}
                   opacity={dim ? 0.12 : 0.85} />
                 {n.bootstrap !== null && n.bootstrap >= 50 && (
@@ -523,7 +525,7 @@ function CircularTree({
               <>
                 <circle cx={n.x} cy={n.y} r={isSelected ? 7 : 5}
                   fill={dim ? '#1e293b' : isSelected ? '#2DD4BF' : '#1e293b'}
-                  stroke={isSelected ? '#fff' : bright ? '#2DD4BF' : '#475569'}
+                  stroke={isSelected ? cssColor('--tree-selected', '#FFFFFF') : bright ? '#2DD4BF' : '#475569'}
                   strokeWidth={isSelected ? 2 : bright ? 2 : 1.5}
                   opacity={dim ? 0.12 : 0.85} />
                 {n.bootstrap !== null && n.bootstrap >= 50 && (
@@ -636,7 +638,7 @@ function exportPNG(svgEl: SVGSVGElement, filename: string) {
   const data = 'data:image/svg+xml;base64,' +
     btoa(unescape(encodeURIComponent(new XMLSerializer().serializeToString(svgEl))))
   img.onload = () => {
-    ctx.fillStyle = '#06060B'
+    ctx.fillStyle = cssColor('--tree-canvas', '#06060B')
     ctx.fillRect(0, 0, canvas.width, canvas.height)
     ctx.scale(scale, scale)
     ctx.drawImage(img, 0, 0)
@@ -667,6 +669,10 @@ export default function PhyloTreeViewer({
   const [hoveredId, setHoveredId]   = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
   const [collapsedIds, setCollapsedIds] = useState<Set<number>>(new Set())
+
+  const { theme } = useTheme()
+  // Resolved at render so toggling the theme re-reads the tokens (re-render below).
+  const treeCanvas = cssColor('--tree-canvas', theme === 'light' ? '#FFFFFF' : '#06060B')
 
   const alignmentStats = useMemo(
     () => (alignment ? computeAlignmentStats(parseAlignedFasta(alignment).seqs) : null),
@@ -893,7 +899,7 @@ export default function PhyloTreeViewer({
             ? `0 0 ${SVG_W} ${treeData.height}`
             : `0 0 ${CIRC_SIZE} ${CIRC_SIZE}`}
           width="100%"
-          style={{ maxHeight: '70vh', background: '#06060B', cursor: isDragging ? 'grabbing' : 'grab' }}
+          style={{ maxHeight: '70vh', background: treeCanvas, cursor: isDragging ? 'grabbing' : 'grab' }}
           xmlns="http://www.w3.org/2000/svg"
           onMouseDown={handleMouseDown}
           onMouseMove={handleMouseMove}
@@ -901,7 +907,7 @@ export default function PhyloTreeViewer({
           onMouseLeave={handleMouseUp}
           onClick={handleSvgClick}
         >
-          <rect width="100%" height="100%" fill="#06060B" />
+          <rect width="100%" height="100%" fill={treeCanvas} />
 
           <g transform={`translate(${transform.x}, ${transform.y}) scale(${transform.scale})`}>
             {layout === 'rectangular' ? (

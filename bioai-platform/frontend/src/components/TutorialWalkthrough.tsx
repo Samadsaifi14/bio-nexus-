@@ -75,8 +75,7 @@ export function TutorialWalkthrough() {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.2 }}
-          className="fixed inset-0 z-[200] flex items-center justify-center"
-          style={{ background: 'rgba(4,4,10,0.75)', backdropFilter: 'blur(8px)' }}
+          className="scrim fixed inset-0 z-[200] flex items-center justify-center"
         >
           <motion.div
             key={`step-${step}`}
@@ -84,11 +83,7 @@ export function TutorialWalkthrough() {
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -16, scale: 0.97 }}
             transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
-            className="relative w-full max-w-lg mx-4 p-8 rounded-2xl border border-glass-border shadow-glass-lg"
-            style={{
-              background: 'rgba(13,13,26,0.92)',
-              backdropFilter: 'blur(32px) saturate(180%)',
-            }}
+            className="glass-panel relative w-full max-w-lg mx-4 p-8 rounded-2xl border border-glass-border shadow-glass-lg"
           >
             <button
               onClick={dismiss}

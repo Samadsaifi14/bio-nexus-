@@ -88,7 +88,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
           </svg>
 
           {hovered && (
-            <div className="absolute top-2 right-2 bg-[#06060B]/90 border border-glass-border rounded-lg p-2 text-xs text-text-secondary pointer-events-none">
+            <div className="absolute top-2 right-2 bg-viewer/90 border border-glass-border rounded-lg p-2 text-xs text-text-secondary pointer-events-none">
               <p className="text-accent-cyan font-bold">{hovered.residue}{hovered.resnum}</p>
               <p>&phi; {hovered.phi.toFixed(1)}&deg; &middot; &psi; {hovered.psi.toFixed(1)}&deg;</p>
               <p className="capitalize">{hovered.region.replace("_", " ")}</p>

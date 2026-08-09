@@ -298,7 +298,7 @@ export default function PhyloPage() {
                   className={`text-left p-3 rounded-xl border transition-all ${
                     method === m
                       ? 'border-accent-cyan bg-accent-cyan/5'
-                      : 'border-glass-border bg-surface-1 hover:border-glass-border/80'
+                      : 'border-glass-border bg-surface-1 hover:border-glass-border'
                   }`}>
                   <div className={`text-sm font-medium mb-1 ${method === m ? 'text-accent-cyan' : 'text-text-primary'}`}>
                     {info.label}

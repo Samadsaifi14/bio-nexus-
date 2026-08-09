@@ -7,6 +7,7 @@ import { motion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
 import { CursorGlow } from '@/components/effects/CursorGlow';
+import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -74,6 +75,7 @@ export default function LandingPage() {
             <Link href="#pipeline" className="hidden sm:block text-xs text-text-muted hover:text-text-primary transition-colors tracking-wide">
               Pipeline
             </Link>
+            <ThemeToggle />
             <Link
               href="/auth"
               className="text-xs px-4 py-2 rounded-full border border-glass-border text-text-secondary hover:border-accent-cyan/40 hover:text-accent-cyan transition-all"

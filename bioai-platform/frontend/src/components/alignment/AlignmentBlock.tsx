@@ -13,7 +13,7 @@ const AA_COLORS: Record<string, string> = {
 
 function aaColor(ch: string): string {
   if (ch === '-') return 'rgba(132,140,164,0.25)';
-  return AA_COLORS[ch.toUpperCase()] ?? 'var(--text-primary)';
+  return AA_COLORS[ch.toUpperCase()] ?? 'rgb(var(--text-primary))';
 }
 
 type CellClass = 'match' | 'mismatch' | 'gap';

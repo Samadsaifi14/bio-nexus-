@@ -2,94 +2,363 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  --bg-void:      #06060B;
-  --bg-surface-0: #080812;
-  --bg-surface-1: #0D0D1A;
-  --bg-surface-2: #111122;
-  --bg-surface-3: #151528;
+/* ═══════════════════════════════════════════════════════════════════════════
+   BIO NEXUS — DUAL THEME TOKENS
+   `:root, [data-theme="dark"]`  = original bioluminescent instrument (unchanged)
+   `[data-theme="light"]`        = Apple-style light theme (see apple.md)
+   Colors referenced by Tailwind (bg-void, text-primary, ...) are stored as
+   RGB TRIPLETS so opacity modifiers keep working in both themes. Always use
+   `rgb(var(--x))` / `rgb(var(--x) / alpha)` in plain CSS for triplet tokens.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-  --accent-cyan:      #2DD4BF;
-  --accent-purple:    #8B93D6;
-  --accent-amber:     #E0A94E;
+:root,
+[data-theme="dark"] {
+  /* ── Triplet tokens (Tailwind-driven) ──────────────────────────────── */
+  --bg-void: 6 6 11;
+  --bg-surface-0: 8 8 18;
+  --bg-surface-1: 13 13 26;
+  --bg-surface-2: 17 17 34;
+  --bg-surface-3: 21 21 40;
 
-  --accent-cyan-10:   rgba(45, 212, 191, 0.10);
-  --accent-cyan-20:   rgba(45, 212, 191, 0.20);
-  --accent-cyan-30:   rgba(45, 212, 191, 0.30);
+  --accent-cyan: 45 212 191;
+  --accent-hover: 59 220 199;
+  --accent-purple: 139 147 214;
+  --accent-amber: 224 169 78;
+
+  --text-primary: 221 224 238;
+  --text-secondary: 165 174 198;
+  --text-muted: 132 140 164;
+
+  --good: 52 211 153;
+  --warn: 251 191 36;
+  --info: 96 165 250;
+  --error: 239 68 68;
+
+  --molecule-protein: 96 165 250;
+  --molecule-dna: 139 147 214;
+  --molecule-rna: 251 146 60;
+  --interaction-hbond: 96 165 250;
+  --interaction-hydrophobic: 251 191 36;
+  --interaction-pi: 167 139 250;
+  --interaction-salt: 34 211 238;
+
+  --confidence-very-high: 45 212 191;
+  --confidence-high: 96 165 250;
+  --confidence-moderate: 251 191 36;
+  --confidence-low: 148 163 184;
+
+  /* ── Alpha tint variants (decorative / low-stakes fills) ───────────── */
+  --accent-cyan-10: rgba(45, 212, 191, 0.10);
+  --accent-cyan-20: rgba(45, 212, 191, 0.20);
+  --accent-cyan-30: rgba(45, 212, 191, 0.30);
   --accent-purple-10: rgba(139, 147, 214, 0.10);
   --accent-purple-20: rgba(139, 147, 214, 0.20);
-  --accent-amber-10:  rgba(224, 169, 78, 0.10);
-  --accent-amber-20:  rgba(224, 169, 78, 0.20);
-
-  /* Scientific confidence bands — never red (red is reserved for real errors) */
-  --confidence-very-high: #2DD4BF;
-  --confidence-high:      #60A5FA;
-  --confidence-moderate:  #FBBF24;
-  --confidence-low:       #94A3B8;
-
-  /* ── Semantic roles ───────────────────────────────────────────────
-     good   favorable scientific outcomes   warn  data-unfavorable (not errors)
-     info   neutral scientific information   error  genuine failures only       */
-  --good:      #34D399;
-  --good-dim:  rgba(52, 211, 153, 0.15);
-  --warn:      #FBBF24;
-  --warn-dim:  rgba(251, 191, 36, 0.15);
-  --info:      #60A5FA;
-  --info-dim:  rgba(96, 165, 250, 0.15);
-
-  /* Domain-specific data channels */
-  --molecule-protein:   #60A5FA;
-  --molecule-dna:       #8B93D6;
-  --molecule-rna:       #FB923C;
-  --interaction-hbond:       #60A5FA;
-  --interaction-hydrophobic: #FBBF24;
-  --interaction-pi:          #A78BFA;
-  --interaction-salt:        #22D3EE;
-
-  --text-primary:   #DDE0EE;
-  --text-secondary: #A5AEC6;
-  --text-muted:     #848CA4;
-
-  --glass-bg:           rgba(13, 13, 26, 0.55);
-  --glass-bg-hover:     rgba(17, 17, 34, 0.70);
-  --glass-border:       rgba(100, 110, 180, 0.12);
-  --glass-border-hover: rgba(100, 110, 180, 0.22);
-  --glass-blur:         20px;
-
-  --error: #EF4444;
+  --accent-amber-10: rgba(224, 169, 78, 0.10);
+  --accent-amber-20: rgba(224, 169, 78, 0.20);
+  --good-dim: rgba(52, 211, 153, 0.15);
+  --warn-dim: rgba(251, 191, 36, 0.15);
+  --info-dim: rgba(96, 165, 250, 0.15);
   --error-dim: rgba(239, 68, 68, 0.15);
 
-  /* ── Claymorphism (tactile, low-stakes controls) ─────────────────── */
-  --clay-bg:        linear-gradient(145deg, #181830 0%, #0F0F1E 100%);
-  --clay-bg-hover:  linear-gradient(145deg, #1C1C36 0%, #111120 100%);
-  --clay-shadow:    rgba(0, 0, 0, 0.5);
+  /* ── Glass / material ──────────────────────────────────────────────── */
+  --glass-bg: rgba(13, 13, 26, 0.55);
+  --glass-bg-hover: rgba(17, 17, 34, 0.70);
+  --glass-border: 100 110 180;
+  --glass-border-a: 0.12;
+  --glass-border-hover: rgba(100, 110, 180, 0.22);
+  --glass-blur: 20px;
+  --glass-panel-bg: rgba(8, 8, 18, 0.75);
+
+  /* ── Claymorphism (tactile, low-stakes controls) ───────────────────── */
+  --clay-bg: linear-gradient(145deg, #181830 0%, #0F0F1E 100%);
+  --clay-bg-hover: linear-gradient(145deg, #1C1C36 0%, #111120 100%);
+  --clay-shadow-raised:
+    5px 5px 12px rgba(0, 0, 0, 0.5),
+    -3px -3px 8px rgba(255, 255, 255, 0.03),
+    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --clay-shadow-pressed:
+    3px 3px 8px rgba(0, 0, 0, 0.5),
+    -2px -2px 6px rgba(255, 255, 255, 0.02),
+    inset 0 2px 6px rgba(0, 0, 0, 0.35);
   --clay-highlight: rgba(255, 255, 255, 0.045);
-  --clay-thumb-bg:  linear-gradient(145deg, #2A2A45 0%, #181830 100%);
+  --clay-thumb-bg: linear-gradient(145deg, #2A2A45 0%, #181830 100%);
+  --clay-thumb-border: rgba(100, 110, 180, 0.30);
+  --clay-thumb-shadow: 0 2px 4px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  --clay-track-bg: linear-gradient(145deg, #181830 0%, #0D0D1A 100%);
+  --clay-track: #181830;
+  --clay-track-inset: inset 0 2px 5px rgba(0, 0, 0, 0.45);
 
-  /* ── Liquid glass (hero / nav chrome) ────────────────────────────── */
-  --liquid-border:  rgba(255, 255, 255, 0.10);
-  --liquid-sheen:   rgba(255, 255, 255, 0.08);
+  /* ── Liquid glass (hero / nav chrome) ──────────────────────────────── */
+  --liquid-bg: linear-gradient(
+    120deg,
+    rgba(120, 130, 200, 0.10),
+    rgba(255, 255, 255, 0.03) 40%,
+    rgba(45, 212, 191, 0.04) 60%,
+    rgba(120, 130, 200, 0.10)
+  );
+  --liquid-border: rgba(255, 255, 255, 0.10);
+  --liquid-sheen: rgba(255, 255, 255, 0.08);
+  --liquid-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    inset -1px -1px 2px rgba(255, 255, 255, 0.02),
+    0 8px 32px rgba(0, 0, 0, 0.45);
 
-  /* ── Flat data cards (near-opaque, for scientific output) ────────── */
-  --data-card-bg:     rgba(8, 8, 18, 0.96);
+  /* ── Flat data cards (near-opaque, for scientific output) ──────────── */
+  --data-card-bg: rgba(8, 8, 18, 0.96);
   --data-card-border: rgba(100, 110, 180, 0.16);
+  --data-card-border-hover: rgba(100, 110, 180, 0.26);
+  --data-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 
-  /* ── Spatial HUD (3D viewer chrome, near-opaque) ─────────────────── */
-  --hud-bg:     rgba(13, 13, 26, 0.90);
+  /* ── Spatial HUD (3D viewer chrome) ────────────────────────────────── */
+  --hud-bg: rgba(13, 13, 26, 0.90);
   --hud-border: rgba(100, 110, 180, 0.20);
+  --hud-shadow: 0 2px 12px rgba(0, 0, 0, 0.50);
+  --hud-legend-bg: rgba(8, 8, 18, 0.94);
+  --hud-legend-border: rgba(100, 110, 180, 0.20);
+  --hud-legend-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
 
-  /* ── Motion tiers ──────────────────────────────────────────────────
-     micro = hover/press feedback   standard = layout & reveal
-     deliberate = dramatic entrances (hero, transitions)             */
-  --motion-micro:     120ms cubic-bezier(0.25, 0.1, 0.25, 1);
-  --motion-fast:      150ms cubic-bezier(0.25, 0.1, 0.25, 1);
-  --motion-standard:  250ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  /* ── 3D / canvas scenes + HUD chips (Phase 2) ──────────────────────── */
+  --viewer-bg: 11 12 20;         /* scene/canvas background (triplet)  */
+  --hud-chip-bg: 13 13 26;       /* floating HUD chip bg (triplet)     */
+  --hud-chip-text: 255 255 255;  /* HUD chip text (triplet)            */
+  --hud-chip-line: 255 255 255;  /* HUD chip border (triplet)          */
+  --scrim: rgba(4, 4, 10, 0.80);
+  --cursor-glow: radial-gradient(circle, rgba(45, 212, 191, 0.06), transparent 60%);
+  --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.50);
+  --shadow-float-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
+
+  /* ── Chart tooltips (Recharts contentStyle) ───────────────────────── */
+  --chart-tooltip-bg: #0E1521;
+  --chart-tooltip-border: rgba(255, 255, 255, 0.12);
+  --chart-tooltip-label: #94A3B8;
+  --chart-tooltip-item: #E2E8F0;
+
+  /* ── Micro-render colors ───────────────────────────────────────────── */
+  --ss-coil: rgba(255, 255, 255, 0.15);   /* secondary-structure coil  */
+  --tree-canvas: #06060B;                  /* phylo SVG background      */
+  --tree-selected: #FFFFFF;                /* selected-node stroke      */
+  --tree-label: #94A3B8;                   /* phylo leaf-label default  */
+
+  /* ── Critical / solid / ghost actions ──────────────────────────────── */
+  --cta-bg: linear-gradient(180deg, #00E0C0 0%, #00B8A0 100%);
+  --cta-bg-hover: linear-gradient(180deg, #00F0D0 0%, #00C6AB 100%);
+  --cta-color: rgb(6 6 11);
+  --cta-border: rgba(255, 255, 255, 0.16);
+  --cta-shadow: 0 2px 0 rgba(0, 0, 0, 0.30), 0 6px 16px rgba(0, 0, 0, 0.40);
+  --cta-shadow-hover: 0 3px 0 rgba(0, 0, 0, 0.30), 0 8px 20px rgba(0, 0, 0, 0.45);
+  --cta-shadow-active: 0 1px 0 rgba(0, 0, 0, 0.30);
+  --cta-danger-bg: linear-gradient(180deg, #F87171 0%, #DC2626 100%);
+  --cta-danger-bg-hover: linear-gradient(180deg, #FB8888 0%, #EF4444 100%);
+  --btn-solid-bg: rgb(var(--accent-cyan));
+  --btn-solid-bg-hover: rgb(var(--accent-hover));
+  --btn-solid-color: rgb(var(--bg-void));
+  --btn-solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(45, 212, 191, 0.12);
+  --btn-solid-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(45, 212, 191, 0.18);
+
+  /* ── Elevation shadows (used via Tailwind `shadow-*`) ──────────────── */
+  --shadow-glow-cyan: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(45, 212, 191, 0.07);
+  --shadow-glow-purple: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(139, 147, 214, 0.07);
+  --shadow-glow-amber: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(224, 169, 78, 0.07);
+  --shadow-glass-sm: 0 2px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-glass-md: 0 4px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  --shadow-glass-lg: 0 8px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-glass-card-hover: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  --shadow-clay: var(--clay-shadow-raised);
+  --shadow-clay-press: var(--clay-shadow-pressed);
+  --shadow-critical: 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 16px rgba(0, 0, 0, 0.4);
+  --shadow-data-card: 0 1px 2px rgba(0, 0, 0, 0.35);
+  --shadow-nav-active: inset 2px 0 0 rgb(var(--accent-cyan));
+
+  /* ── Chrome accents ────────────────────────────────────────────────── */
+  --scanline-color: rgb(var(--accent-cyan));
+  --pipeline-color: rgba(45, 212, 191, 0.55);
+  --grid-color: rgba(100, 110, 255, 0.06);
+  --dots-color: rgba(100, 110, 255, 0.15);
+  --glow-accent-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(45, 212, 191, 0.10);
+  --vignette-mid: rgba(6, 6, 11, 0.6);
+  --vignette-edge: rgba(6, 6, 11, 0.97);
+  --scroll-track: rgb(var(--bg-surface-0));
+  --scroll-thumb: rgb(var(--glass-border) / var(--glass-border-a));
+
+  /* ── Motion tiers ──────────────────────────────────────────────────── */
+  --motion-micro: 120ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-fast: 150ms cubic-bezier(0.25, 0.1, 0.25, 1);
+  --motion-standard: 250ms cubic-bezier(0.25, 0.1, 0.25, 1);
   --motion-deliberate: 450ms cubic-bezier(0.25, 1, 0.5, 1);
 
-  --transition-micro:   var(--motion-micro);
-  --transition-fast:    var(--motion-fast);
+  --transition-micro: var(--motion-micro);
+  --transition-fast: var(--motion-fast);
   --transition-default: var(--motion-standard);
-  --transition-slow:    var(--motion-deliberate);
+  --transition-slow: var(--motion-deliberate);
+}
+
+[data-theme="light"] {
+  /* ── Triplet tokens ────────────────────────────────────────────────── */
+  --bg-void: 245 245 247;        /* #F5F5F7 Apple system gray canvas */
+  --bg-surface-0: 255 255 255;   /* #FFFFFF cards, modals */
+  --bg-surface-1: 245 245 247;   /* #F5F5F7 recessed sections */
+  --bg-surface-2: 235 235 240;   /* #EBEBF0 nested panels */
+  --bg-surface-3: 227 227 232;   /* #E3E3E8 pressed states */
+
+  --accent-cyan: 14 147 132;     /* #0E9384 CTA teal (AA on white) */
+  --accent-hover: 18 161 147;    /* #12A193 hover */
+  --accent-purple: 91 100 176;   /* #5B64B0 */
+  --accent-amber: 180 83 9;      /* #B45309 */
+
+  --text-primary: 29 29 31;      /* #1D1D1F 16.1:1 AAA */
+  --text-secondary: 110 110 115; /* #6E6E73 5.4:1 AA */
+  --text-muted: 134 134 139;     /* #86868B 3.9:1 — labels/captions only */
+
+  --good: 4 120 87;              /* #047857 */
+  --warn: 180 83 9;              /* #B45309 */
+  --info: 37 99 235;             /* #2563EB */
+  --error: 220 38 38;            /* #DC2626 */
+
+  --molecule-protein: 37 99 235;
+  --molecule-dna: 91 100 176;
+  --molecule-rna: 234 88 12;
+  --interaction-hbond: 37 99 235;
+  --interaction-hydrophobic: 180 83 9;
+  --interaction-pi: 124 58 237;
+  --interaction-salt: 8 145 178;
+
+  --confidence-very-high: 14 147 132;
+  --confidence-high: 37 99 235;
+  --confidence-moderate: 217 119 6;
+  --confidence-low: 142 142 147;
+
+  /* ── Alpha tint variants (re-based on CTA teal for light visibility) ── */
+  --accent-cyan-10: rgba(14, 147, 132, 0.08);
+  --accent-cyan-20: rgba(14, 147, 132, 0.16);
+  --accent-cyan-30: rgba(14, 147, 132, 0.24);
+  --accent-purple-10: rgba(91, 100, 176, 0.10);
+  --accent-purple-20: rgba(91, 100, 176, 0.18);
+  --accent-amber-10: rgba(180, 83, 9, 0.10);
+  --accent-amber-20: rgba(180, 83, 9, 0.18);
+  --good-dim: rgba(4, 120, 87, 0.12);
+  --warn-dim: rgba(180, 83, 9, 0.12);
+  --info-dim: rgba(37, 99, 235, 0.12);
+  --error-dim: rgba(220, 38, 38, 0.12);
+
+  /* ── Glass / material ──────────────────────────────────────────────── */
+  --glass-bg: rgba(255, 255, 255, 0.65);
+  --glass-bg-hover: rgba(255, 255, 255, 0.82);
+  --glass-border: 0 0 0;
+  --glass-border-a: 0.10;
+  --glass-border-hover: rgba(0, 0, 0, 0.18);
+  --glass-blur: 20px;
+  --glass-panel-bg: rgba(255, 255, 255, 0.75);
+
+  /* ── Claymorphism → light dual-source neumorphism ──────────────────── */
+  --clay-bg: linear-gradient(145deg, #FFFFFF 0%, #F5F5F7 100%);
+  --clay-bg-hover: linear-gradient(145deg, #FFFFFF 0%, #EBEBF0 100%);
+  --clay-shadow-raised:
+    6px 6px 14px rgba(0, 0, 0, 0.08),
+    -6px -6px 12px rgba(255, 255, 255, 0.95),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --clay-shadow-pressed:
+    2px 2px 6px rgba(0, 0, 0, 0.06),
+    -1px -1px 4px rgba(255, 255, 255, 0.7),
+    inset 0 2px 6px rgba(0, 0, 0, 0.06);
+  --clay-highlight: rgba(255, 255, 255, 0.9);
+  --clay-thumb-bg: linear-gradient(145deg, #FFFFFF 0%, #F5F5F7 100%);
+  --clay-thumb-border: rgba(0, 0, 0, 0.15);
+  --clay-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --clay-track-bg: linear-gradient(145deg, #E3E3E8 0%, #F5F5F7 100%);
+  --clay-track: #E3E3E8;
+  --clay-track-inset: inset 0 1px 3px rgba(0, 0, 0, 0.10);
+
+  /* ── Liquid glass (frosted, hairline-backed) ───────────────────────── */
+  --liquid-bg: linear-gradient(
+    120deg,
+    rgba(14, 147, 132, 0.05),
+    rgba(255, 255, 255, 0.4) 40%,
+    rgba(14, 147, 132, 0.03) 60%,
+    rgba(14, 147, 132, 0.05)
+  );
+  --liquid-border: rgba(0, 0, 0, 0.08);
+  --liquid-sheen: rgba(255, 255, 255, 0.55);
+  --liquid-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.7),
+    0 1px 2px rgba(0, 0, 0, 0.04),
+    0 8px 24px rgba(0, 0, 0, 0.06);
+
+  /* ── Flat data cards ───────────────────────────────────────────────── */
+  --data-card-bg: #FFFFFF;
+  --data-card-border: rgba(0, 0, 0, 0.08);
+  --data-card-border-hover: rgba(0, 0, 0, 0.16);
+  --data-card-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
+
+  /* ── Spatial HUD ───────────────────────────────────────────────────── */
+  --hud-bg: rgba(255, 255, 255, 0.88);
+  --hud-border: rgba(0, 0, 0, 0.12);
+  --hud-shadow: 0 2px 12px rgba(0, 0, 0, 0.10);
+  --hud-legend-bg: rgba(255, 255, 255, 0.94);
+  --hud-legend-border: rgba(0, 0, 0, 0.12);
+  --hud-legend-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
+
+  /* ── 3D / canvas scenes + HUD chips (Phase 2) ──────────────────────── */
+  --viewer-bg: 245 245 247;      /* light scene/canvas background      */
+  --hud-chip-bg: 255 255 255;    /* HUD chip bg (triplet)              */
+  --hud-chip-text: 29 29 31;     /* HUD chip text (triplet)            */
+  --hud-chip-line: 0 0 0;        /* HUD chip border (triplet)          */
+  --scrim: rgba(30, 30, 32, 0.45);
+  --cursor-glow: radial-gradient(circle, rgba(14, 147, 132, 0.09), transparent 60%);
+  --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.14);
+  --shadow-float-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
+
+  /* ── Chart tooltips (Recharts contentStyle) ───────────────────────── */
+  --chart-tooltip-bg: #FFFFFF;
+  --chart-tooltip-border: rgba(0, 0, 0, 0.12);
+  --chart-tooltip-label: #6E6E73;
+  --chart-tooltip-item: #1D1D1F;
+
+  /* ── Micro-render colors ───────────────────────────────────────────── */
+  --ss-coil: rgba(0, 0, 0, 0.12);
+  --tree-canvas: #FFFFFF;
+  --tree-selected: #0E9384;
+  --tree-label: #86868B;
+
+  /* ── Critical / solid / ghost actions ──────────────────────────────── */
+  --cta-bg: #0E9384;
+  --cta-bg-hover: #109C8C;
+  --cta-color: rgb(255 255 255);
+  --cta-border: rgba(255, 255, 255, 0.25);
+  --cta-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(14, 147, 132, 0.22);
+  --cta-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.12), 0 12px 28px rgba(14, 147, 132, 0.28);
+  --cta-shadow-active: 0 1px 0 rgba(0, 0, 0, 0.15);
+  --cta-danger-bg: #DC2626;
+  --cta-danger-bg-hover: #B91C1C;
+  --btn-solid-bg: rgb(var(--accent-cyan));
+  --btn-solid-bg-hover: rgb(var(--accent-hover));
+  --btn-solid-color: #FFFFFF;
+  --btn-solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), 0 8px 20px rgba(14, 147, 132, 0.16);
+  --btn-solid-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.10), 0 12px 28px rgba(14, 147, 132, 0.22);
+
+  /* ── Elevation shadows ─────────────────────────────────────────────── */
+  --shadow-glow-cyan: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(14, 147, 132, 0.10);
+  --shadow-glow-purple: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(91, 100, 176, 0.10);
+  --shadow-glow-amber: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 24px rgba(180, 83, 9, 0.10);
+  --shadow-glass-sm: 0 2px 16px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
+  --shadow-glass-md: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-glass-lg: 0 8px 40px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-glass-card-hover: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
+  --shadow-clay: var(--clay-shadow-raised);
+  --shadow-clay-press: var(--clay-shadow-pressed);
+  --shadow-critical: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(14, 147, 132, 0.20);
+  --shadow-data-card: 0 1px 3px rgba(0, 0, 0, 0.06);
+  --shadow-nav-active: inset 2px 0 0 rgb(var(--accent-cyan));
+
+  /* ── Chrome accents ────────────────────────────────────────────────── */
+  --scanline-color: rgb(var(--accent-cyan));
+  --pipeline-color: rgba(14, 147, 132, 0.40);
+  --grid-color: rgba(0, 0, 0, 0.04);
+  --dots-color: rgba(0, 0, 0, 0.08);
+  --glow-accent-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(14, 147, 132, 0.12);
+  --vignette-mid: rgba(245, 245, 247, 0.5);
+  --vignette-edge: rgba(245, 245, 247, 0.95);
+  --scroll-track: rgb(var(--bg-surface-0));
+  --scroll-thumb: rgb(var(--glass-border) / var(--glass-border-a));
 }
 
 @layer base {
@@ -100,8 +369,8 @@
   }
 
   body {
-    background-color: var(--bg-void);
-    color: var(--text-primary);
+    background-color: rgb(var(--bg-void));
+    color: rgb(var(--text-primary));
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -112,17 +381,17 @@
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     letter-spacing: -0.02em;
-    color: var(--text-primary);
+    color: rgb(var(--text-primary));
   }
 
   input, textarea, select {
-    background-color: var(--bg-surface-1);
-    color: var(--text-primary);
-    border-color: var(--glass-border);
+    background-color: rgb(var(--bg-surface-1));
+    color: rgb(var(--text-primary));
+    border-color: rgb(var(--glass-border) / var(--glass-border-a));
   }
 
   input::placeholder, textarea::placeholder {
-    color: var(--text-muted);
+    color: rgb(var(--text-muted));
     opacity: 0.85;
   }
 
@@ -131,9 +400,9 @@
   }
 
   ::-webkit-scrollbar       { width: 4px; height: 4px; }
-  ::-webkit-scrollbar-track { background: var(--bg-surface-0); }
+  ::-webkit-scrollbar-track { background: var(--scroll-track); }
   ::-webkit-scrollbar-thumb {
-    background: var(--glass-border);
+    background: var(--scroll-thumb);
     border-radius: 2px;
     transition: background var(--transition-default);
   }
@@ -143,11 +412,11 @@
 
   ::selection {
     background: var(--accent-cyan-20);
-    color: var(--text-primary);
+    color: rgb(var(--text-primary));
   }
 
   :focus-visible {
-    outline: 1.5px solid var(--accent-cyan);
+    outline: 1.5px solid rgb(var(--accent-cyan));
     outline-offset: 3px;
     border-radius: 4px;
   }
@@ -156,7 +425,7 @@
 @layer components {
   .glass {
     background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
     transition:
@@ -172,7 +441,7 @@
 
   .glass-card {
     background: var(--glass-bg);
-    border: 1px solid var(--glass-border);
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
     backdrop-filter: blur(var(--glass-blur));
     -webkit-backdrop-filter: blur(var(--glass-blur));
     border-radius: 1rem;
@@ -186,14 +455,35 @@
   .glass-card:hover {
     background: var(--glass-bg-hover);
     border-color: var(--glass-border-hover);
-    box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: var(--shadow-glass-card-hover);
   }
 
   .glass-panel {
-    background: rgba(8, 8, 18, 0.75);
-    border: 1px solid var(--glass-border);
+    background: var(--glass-panel-bg);
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
     backdrop-filter: blur(32px) saturate(180%);
     -webkit-backdrop-filter: blur(32px) saturate(180%);
+  }
+
+  /* App-shell frosted chrome + modal scrims (theme-driven) */
+  .glass-sidebar {
+    background: var(--glass-panel-bg);
+    border-right: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+    backdrop-filter: blur(24px) saturate(160%);
+    -webkit-backdrop-filter: blur(24px) saturate(160%);
+  }
+
+  .glass-header {
+    background: var(--glass-panel-bg);
+    border-bottom: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .scrim {
+    background: var(--scrim);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
   }
 
   /* ── Claymorphism — discrete, tactile, pressable objects ─────────────
@@ -202,12 +492,9 @@
      ──────────────────────────────────────────────────────────────────── */
   .clay {
     background: var(--clay-bg);
-    border: 1px solid rgba(100, 110, 180, 0.16);
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
     border-radius: 0.75rem;
-    box-shadow:
-      5px 5px 12px var(--clay-shadow),
-      -3px -3px 8px rgba(255, 255, 255, 0.03),
-      inset 0 1px 0 rgba(255, 255, 255, 0.05);
+    box-shadow: var(--clay-shadow-raised);
     transition:
       transform var(--transition-fast),
       box-shadow var(--transition-fast),
@@ -220,25 +507,20 @@
 
   .clay:active {
     transform: translateY(1px);
-    box-shadow:
-      3px 3px 8px var(--clay-shadow),
-      -2px -2px 6px rgba(255, 255, 255, 0.02),
-      inset 0 2px 6px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--clay-shadow-pressed);
   }
 
   .clay-toggle-track {
-    background: linear-gradient(145deg, #181830 0%, #0D0D1A 100%);
-    border: 1px solid rgba(100, 110, 180, 0.20);
-    box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.45);
+    background: var(--clay-track-bg);
+    border: 1px solid rgb(var(--glass-border) / calc(var(--glass-border-a) * 1.6));
+    box-shadow: var(--clay-track-inset);
     transition: background var(--transition-fast);
   }
 
   .clay-toggle-thumb {
     background: var(--clay-thumb-bg);
-    border: 1px solid rgba(100, 110, 180, 0.30);
-    box-shadow:
-      0 2px 4px rgba(0, 0, 0, 0.50),
-      inset 0 1px 0 rgba(255, 255, 255, 0.08);
+    border: 1px solid var(--clay-thumb-border);
+    box-shadow: var(--clay-thumb-shadow);
   }
 
   .clay-slider {
@@ -247,11 +529,9 @@
     height: 8px;
     border-radius: 9999px;
     background:
-      linear-gradient(90deg, var(--accent-cyan) 0%, var(--accent-cyan) var(--fill, 50%),
-        #181830 var(--fill, 50%), #181830 100%);
-    box-shadow:
-      inset 0 2px 5px rgba(0, 0, 0, 0.45),
-      inset 0 -1px 0 rgba(255, 255, 255, 0.04);
+      linear-gradient(90deg, rgb(var(--accent-cyan)) 0%, rgb(var(--accent-cyan)) var(--fill, 50%),
+        var(--clay-track) var(--fill, 50%), var(--clay-track) 100%);
+    box-shadow: var(--clay-track-inset);
     outline: none;
   }
 
@@ -262,19 +542,15 @@
     height: 20px;
     border-radius: 50%;
     background: var(--clay-thumb-bg);
-    border: 1px solid rgba(100, 110, 180, 0.30);
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    border: 1px solid var(--clay-thumb-border);
+    box-shadow: var(--clay-thumb-shadow);
     cursor: grab;
     transition: box-shadow var(--transition-fast);
   }
 
   .clay-slider::-webkit-slider-thumb:active {
     cursor: grabbing;
-    box-shadow:
-      0 1px 3px rgba(0, 0, 0, 0.50),
-      inset 0 2px 4px rgba(0, 0, 0, 0.30);
+    box-shadow: var(--clay-shadow-pressed);
   }
 
   .clay-slider::-moz-range-thumb {
@@ -282,10 +558,8 @@
     height: 20px;
     border-radius: 50%;
     background: var(--clay-thumb-bg);
-    border: 1px solid rgba(100, 110, 180, 0.30);
-    box-shadow:
-      0 2px 6px rgba(0, 0, 0, 0.55),
-      inset 0 1px 0 rgba(255, 255, 255, 0.10);
+    border: 1px solid var(--clay-thumb-border);
+    box-shadow: var(--clay-thumb-shadow);
     cursor: grab;
   }
 
@@ -295,21 +569,12 @@
   .liquid-glass {
     position: relative;
     overflow: hidden;
-    background: linear-gradient(
-      120deg,
-      rgba(120, 130, 200, 0.10),
-      rgba(255, 255, 255, 0.03) 40%,
-      rgba(45, 212, 191, 0.04) 60%,
-      rgba(120, 130, 200, 0.10)
-    );
+    background: var(--liquid-bg);
     border: 1px solid var(--liquid-border);
     border-radius: 1rem;
     backdrop-filter: blur(24px) saturate(180%);
     -webkit-backdrop-filter: blur(24px) saturate(180%);
-    box-shadow:
-      inset 0 1px 0 rgba(255, 255, 255, 0.12),
-      inset -1px -1px 2px rgba(255, 255, 255, 0.02),
-      0 8px 32px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--liquid-shadow);
   }
 
   .liquid-glass::before {
@@ -334,12 +599,12 @@
     background: var(--data-card-bg);
     border: 1px solid var(--data-card-border);
     border-radius: 0.875rem;
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+    box-shadow: var(--data-card-shadow);
     transition: border-color var(--transition-default);
   }
 
   .data-card:hover {
-    border-color: rgba(100, 110, 180, 0.26);
+    border-color: var(--data-card-border-hover);
   }
 
   /* ── Spatial HUD — chrome that lives in the viewer's space ────────── */
@@ -347,14 +612,14 @@
     background: var(--hud-bg);
     border: 1px solid var(--hud-border);
     border-radius: 0.75rem;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.50);
+    box-shadow: var(--hud-shadow);
   }
 
   .hud-legend {
-    background: rgba(8, 8, 18, 0.94);
-    border: 1px solid var(--hud-border);
+    background: var(--hud-legend-bg);
+    border: 1px solid var(--hud-legend-border);
     border-radius: 0.5rem;
-    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
+    box-shadow: var(--hud-legend-shadow);
   }
 
   /* ── Critical actions — solid, deliberate, not casually clickable ─── */
@@ -365,16 +630,14 @@
     gap: 0.5rem;
     padding: 0.7rem 1.5rem;
     border-radius: 0.625rem;
-    background: linear-gradient(180deg, #00E0C0 0%, #00B8A0 100%);
-    color: #06060B;
+    background: var(--cta-bg);
+    color: var(--cta-color);
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
     letter-spacing: 0.01em;
-    border: 1px solid rgba(255, 255, 255, 0.16);
-    box-shadow:
-      0 2px 0 rgba(0, 0, 0, 0.30),
-      0 6px 16px rgba(0, 0, 0, 0.40);
+    border: 1px solid var(--cta-border);
+    box-shadow: var(--cta-shadow);
     transition:
       background var(--transition-fast),
       transform var(--transition-fast),
@@ -382,16 +645,14 @@
   }
 
   .btn-critical:hover:not(:disabled) {
-    background: linear-gradient(180deg, #00F0D0 0%, #00C6AB 100%);
+    background: var(--cta-bg-hover);
     transform: translateY(-1px);
-    box-shadow:
-      0 3px 0 rgba(0, 0, 0, 0.30),
-      0 8px 20px rgba(0, 0, 0, 0.45);
+    box-shadow: var(--cta-shadow-hover);
   }
 
   .btn-critical:active:not(:disabled) {
     transform: translateY(1px);
-    box-shadow: 0 1px 0 rgba(0, 0, 0, 0.30);
+    box-shadow: var(--cta-shadow-active);
   }
 
   .btn-critical:disabled {
@@ -400,22 +661,22 @@
   }
 
   .btn-critical-danger {
-    background: linear-gradient(180deg, #F87171 0%, #DC2626 100%);
+    background: var(--cta-danger-bg);
     color: #fff;
   }
 
   .btn-critical-danger:hover:not(:disabled) {
-    background: linear-gradient(180deg, #FB8888 0%, #EF4444 100%);
+    background: var(--cta-danger-bg-hover);
   }
 
   /* ── Flat data-entry inputs — neutral, precision over decoration ──── */
   .input-flat {
     width: 100%;
     padding: 0.65rem 0.875rem;
-    background: var(--bg-surface-1);
-    border: 1px solid var(--glass-border);
+    background: rgb(var(--bg-surface-1));
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
     border-radius: 0.5rem;
-    color: var(--text-primary);
+    color: rgb(var(--text-primary));
     font-size: 0.875rem;
     outline: none;
     transition:
@@ -424,7 +685,7 @@
   }
 
   .input-flat::placeholder {
-    color: var(--text-muted);
+    color: rgb(var(--text-muted));
     opacity: 0.7;
   }
 
@@ -439,8 +700,8 @@
     gap: 0.5rem;
     padding: 0.75rem 1.75rem;
     border-radius: 0.625rem;
-    background: var(--accent-cyan);
-    color: var(--bg-void);
+    background: var(--btn-solid-bg);
+    color: var(--btn-solid-color);
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-weight: 600;
     font-size: 0.875rem;
@@ -449,13 +710,13 @@
       background var(--transition-fast),
       box-shadow var(--transition-default),
       transform var(--transition-fast);
-    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(45, 212, 191, 0.12);
+    box-shadow: var(--btn-solid-shadow);
   }
 
   .btn-primary:hover {
-    background: #5EEAD4;
+    background: var(--btn-solid-bg-hover);
     transform: translateY(-1px);
-    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(45, 212, 191, 0.18);
+    box-shadow: var(--btn-solid-shadow-hover);
   }
 
   .btn-primary:active {
@@ -468,8 +729,8 @@
     gap: 0.5rem;
     padding: 0.75rem 1.5rem;
     border-radius: 0.625rem;
-    border: 1px solid var(--glass-border);
-    color: var(--text-secondary);
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+    color: rgb(var(--text-secondary));
     font-size: 0.875rem;
     transition:
       border-color var(--transition-fast),
@@ -480,7 +741,7 @@
 
   .btn-ghost:hover {
     border-color: var(--accent-cyan-30);
-    color: var(--accent-cyan);
+    color: rgb(var(--accent-cyan));
     background: var(--accent-cyan-10);
     transform: translateY(-1px);
   }
@@ -492,10 +753,10 @@
   .input-glass {
     width: 100%;
     padding: 0.625rem 0.875rem;
-    background: var(--bg-surface-1);
-    border: 1px solid var(--glass-border);
+    background: rgb(var(--bg-surface-1));
+    border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
     border-radius: 0.625rem;
-    color: var(--text-primary);
+    color: rgb(var(--text-primary));
     font-family: var(--font-geist-sans), system-ui, sans-serif;
     font-size: 0.875rem;
     transition:
@@ -505,7 +766,7 @@
   }
 
   .input-glass::placeholder {
-    color: var(--text-muted);
+    color: rgb(var(--text-muted));
   }
 
   .input-glass:focus {
@@ -519,7 +780,7 @@
     gap: 0.75rem;
     padding: 0.6rem 0.75rem;
     border-radius: 0.75rem;
-    color: var(--text-muted);
+    color: rgb(var(--text-muted));
     font-size: 0.875rem;
     font-weight: 500;
     transition:
@@ -529,12 +790,12 @@
   }
 
   .nav-item:hover {
-    color: var(--text-primary);
+    color: rgb(var(--text-primary));
     background: var(--glass-bg);
   }
 
   .nav-item.active {
-    color: var(--accent-cyan);
+    color: rgb(var(--accent-cyan));
     background: var(--accent-cyan-10);
   }
 
@@ -553,31 +814,31 @@
   .badge-cyan {
     background: var(--accent-cyan-10);
     border: 1px solid var(--accent-cyan-20);
-    color: var(--accent-cyan);
+    color: rgb(var(--accent-cyan));
   }
 
   .badge-purple {
     background: var(--accent-purple-10);
     border: 1px solid var(--accent-purple-20);
-    color: var(--accent-purple);
+    color: rgb(var(--accent-purple));
   }
 
   .divider {
     height: 1px;
-    background: linear-gradient(90deg, transparent, var(--glass-border), transparent);
+    background: linear-gradient(90deg, transparent, rgb(var(--glass-border) / var(--glass-border-a)), transparent);
   }
 }
 
 @layer utilities {
   .bg-grid {
     background-image:
-      linear-gradient(rgba(100, 110, 255, 0.06) 1px, transparent 1px),
-      linear-gradient(90deg, rgba(100, 110, 255, 0.06) 1px, transparent 1px);
+      linear-gradient(var(--grid-color) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
     background-size: 48px 48px;
   }
 
   .bg-dots {
-    background-image: radial-gradient(rgba(100, 110, 255, 0.15) 1px, transparent 1px);
+    background-image: radial-gradient(var(--dots-color) 1px, transparent 1px);
     background-size: 24px 24px;
   }
 
@@ -585,15 +846,13 @@
     background: radial-gradient(
       ellipse 80% 80% at 50% 50%,
       transparent 20%,
-      rgba(6, 6, 11, 0.6) 65%,
-      rgba(6, 6, 11, 0.97) 100%
+      var(--vignette-mid) 65%,
+      var(--vignette-edge) 100%
     );
   }
 
   .glow-accent {
-    box-shadow:
-      0 1px 2px rgba(0, 0, 0, 0.35),
-      0 10px 28px rgba(45, 212, 191, 0.10);
+    box-shadow: var(--glow-accent-shadow);
   }
 
   .scan-line {
@@ -606,7 +865,7 @@
     position: absolute;
     inset-inline: 0;
     height: 2px;
-    background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+    background: linear-gradient(90deg, transparent, var(--scanline-color), transparent);
     opacity: 0.6;
     animation: scan 2.5s ease-in-out infinite;
     pointer-events: none;
@@ -653,7 +912,7 @@
 
   /* ── Landing: animated pipeline connector ───────────────────────── */
   .pipeline-line {
-    background: linear-gradient(90deg, transparent, rgba(45, 212, 191, 0.55), transparent);
+    background: linear-gradient(90deg, transparent, var(--pipeline-color), transparent);
     background-size: 200% 100%;
     animation: pipeline-flow 2.5s linear infinite;
   }
@@ -667,6 +926,16 @@
 @keyframes pipeline-flow {
   0%   { background-position: 200% 0; }
   100% { background-position: 0 0; }
+}
+
+/* Smooth cross-fade when toggling themes (avoid abrupt brightness jump).
+   Applied transiently by the ThemeProvider during a switch. */
+.theme-switching,
+.theme-switching *,
+.theme-switching *::before,
+.theme-switching *::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow !important;
+  transition-duration: 220ms !important;
 }
 
 @media (prefers-reduced-motion: reduce) {

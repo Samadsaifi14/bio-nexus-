@@ -12,53 +12,62 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        void: '#06060B',
+        // All themed colors are CSS-variable RGB triplets so the same utility
+        // resolves per active `data-theme` and opacity modifiers keep working.
+        void: 'rgb(var(--bg-void) / <alpha-value>)',
         surface: {
-          0: '#080812',
-          1: '#0D0D1A',
-          2: '#111122',
-          3: '#151528',
+          0: 'rgb(var(--bg-surface-0) / <alpha-value>)',
+          1: 'rgb(var(--bg-surface-1) / <alpha-value>)',
+          2: 'rgb(var(--bg-surface-2) / <alpha-value>)',
+          3: 'rgb(var(--bg-surface-3) / <alpha-value>)',
         },
-        'accent-cyan': '#2DD4BF',
-        'accent-hover': '#3BDCC7',
-        'accent-purple': '#8B93D6',
-        'accent-amber': '#E0A94E',
-        'text-primary': '#DDE0EE',
-        'text-secondary': '#A5AEC6',
-        'text-muted': '#848CA4',
+        'accent-cyan': 'rgb(var(--accent-cyan) / <alpha-value>)',
+        'accent-hover': 'rgb(var(--accent-hover) / <alpha-value>)',
+        'accent-purple': 'rgb(var(--accent-purple) / <alpha-value>)',
+        'accent-amber': 'rgb(var(--accent-amber) / <alpha-value>)',
+        'text-primary': 'rgb(var(--text-primary) / <alpha-value>)',
+        'text-secondary': 'rgb(var(--text-secondary) / <alpha-value>)',
+        'text-muted': 'rgb(var(--text-muted) / <alpha-value>)',
         /* ── Semantic roles ───────────────────────────────────────────────
            good        favorable scientific outcomes (strong hits, passing QC)
            warn        data-unfavorable but NOT errors (weak hits, low confidence)
            info        neutral scientific information (accessions, chain features)
            error       real errors only (red is reserved for genuine failures)
            molecule / interaction  domain-specific data channel colours     */
-        good: '#34D399',
-        warn: '#FBBF24',
-        info: '#60A5FA',
+        good: 'rgb(var(--good) / <alpha-value>)',
+        warn: 'rgb(var(--warn) / <alpha-value>)',
+        info: 'rgb(var(--info) / <alpha-value>)',
         error: {
-          DEFAULT: '#EF4444',
+          DEFAULT: 'rgb(var(--error) / <alpha-value>)',
           dim:     'rgba(239,68,68,0.15)',
         },
         molecule: {
-          protein: '#60A5FA',
-          dna:     '#8B93D6',
-          rna:     '#FB923C',
+          protein: 'rgb(var(--molecule-protein) / <alpha-value>)',
+          dna:     'rgb(var(--molecule-dna) / <alpha-value>)',
+          rna:     'rgb(var(--molecule-rna) / <alpha-value>)',
         },
         interaction: {
-          hbond:       '#60A5FA',
-          hydrophobic: '#FBBF24',
-          pi:          '#A78BFA',
-          salt:        '#22D3EE',
+          hbond:       'rgb(var(--interaction-hbond) / <alpha-value>)',
+          hydrophobic: 'rgb(var(--interaction-hydrophobic) / <alpha-value>)',
+          pi:          'rgb(var(--interaction-pi) / <alpha-value>)',
+          salt:        'rgb(var(--interaction-salt) / <alpha-value>)',
         },
+        // Static cool hairlines — legible on both dark and light canvases.
         glass: 'rgba(100,110,180,0.07)',
         'glass-hover': 'rgba(100,110,180,0.13)',
-        'glass-border': 'rgba(100,110,180,0.12)',
+        'glass-border': 'rgb(var(--glass-border) / var(--glass-border-a))',
+        'glass-border-soft': 'rgba(100,110,180,0.07)',
         'glass-border-bright': 'rgba(45,212,191,0.2)',
+        // 3D-viewer / canvas scene background + floating HUD chrome.
+        viewer: 'rgb(var(--viewer-bg) / <alpha-value>)',
+        hud: 'rgb(var(--hud-chip-bg) / <alpha-value>)',
+        'hud-text': 'rgb(var(--hud-chip-text) / <alpha-value>)',
+        'hud-line': 'rgb(var(--hud-chip-line) / <alpha-value>)',
         confidence: {
-          'very-high': '#2DD4BF',
-          high:        '#60A5FA',
-          moderate:    '#FBBF24',
-          low:         '#94A3B8',
+          'very-high': 'rgb(var(--confidence-very-high) / <alpha-value>)',
+          high:        'rgb(var(--confidence-high) / <alpha-value>)',
+          moderate:    'rgb(var(--confidence-moderate) / <alpha-value>)',
+          low:         'rgb(var(--confidence-low) / <alpha-value>)',
         },
       },
       fontFamily: {
@@ -68,27 +77,29 @@ const config: Config = {
         sans:    ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
       },
       boxShadow: {
-        'glow-cyan':   '0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(45,212,191,0.07)',
-        'glow-purple': '0 1px 2px rgba(0,0,0,0.35), 0 10px 28px rgba(139,147,214,0.07)',
-        'glow-amber':  '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(224,169,78,0.07)',
-        'glass-sm':  '0 2px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.04)',
-        'glass-md':  '0 4px 32px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.04)',
-        'glass-lg':  '0 8px 48px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.05)',
-        'nav-active': 'inset 2px 0 0 #2DD4BF',
-        'clay':      '5px 5px 12px rgba(0,0,0,0.5), -3px -3px 8px rgba(255,255,255,0.03), inset 0 1px 0 rgba(255,255,255,0.05)',
-        'clay-press':'3px 3px 8px rgba(0,0,0,0.5), -2px -2px 6px rgba(255,255,255,0.02), inset 0 2px 6px rgba(0,0,0,0.35)',
-        'critical':  '0 2px 0 rgba(0,0,0,0.3), 0 6px 16px rgba(0,0,0,0.4)',
-        'data-card': '0 1px 2px rgba(0,0,0,0.35)',
+        'glow-cyan':   'var(--shadow-glow-cyan)',
+        'glow-purple': 'var(--shadow-glow-purple)',
+        'glow-amber':  'var(--shadow-glow-amber)',
+        'glass-sm':  'var(--shadow-glass-sm)',
+        'glass-md':  'var(--shadow-glass-md)',
+        'glass-lg':  'var(--shadow-glass-lg)',
+        'nav-active': 'var(--shadow-nav-active)',
+        'clay':      'var(--shadow-clay)',
+        'clay-press':'var(--shadow-clay-press)',
+        'critical':  'var(--shadow-critical)',
+        'data-card': 'var(--shadow-data-card)',
+        'float':     'var(--shadow-float)',
+        'float-sm':  'var(--shadow-float-sm)',
       },
       backgroundImage: {
         'grid-subtle':
           'linear-gradient(rgba(100,110,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(100,110,255,0.05) 1px, transparent 1px)',
         'radial-vignette':
-          'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, rgba(6,6,11,0.65) 70%, rgba(6,6,11,0.97) 100%)',
+          'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, var(--vignette-mid) 70%, var(--vignette-edge) 100%)',
         'gradient-cyan-purple':
           'linear-gradient(135deg, #2DD4BF 0%, #8B93D6 100%)',
         'gradient-surface':
-          'linear-gradient(180deg, #080812 0%, #06060B 100%)',
+          'linear-gradient(180deg, rgb(var(--bg-surface-0)) 0%, rgb(var(--bg-void)) 100%)',
       },
       backgroundSize: {
         grid: '50px 50px',

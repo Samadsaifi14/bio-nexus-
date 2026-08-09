@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DockingInteraction } from '@/lib/api';
 import { HudPanel, HudLegend } from '@/components/ui';
+import { useTheme } from '@/contexts/theme';
 import { ArrowCounterClockwise as RotateCcw, ArrowClockwise as RotateCw, Camera, FlipHorizontal, Palette, Cube as Box, Stack as Layers, Minus, Circle, Hexagon } from '@phosphor-icons/react';
 
 interface DockingViewerProps {
@@ -85,11 +86,13 @@ export function DockingViewer({
   pdbUrlFormat,
   interactions,
   height = 480,
-  backgroundColor = '#0B0C14',
+  backgroundColor,
   chains = [],
   ligands = [],
   highlightRange,
 }: DockingViewerProps) {
+  const { theme } = useTheme();
+  const sceneBg = backgroundColor ?? (theme === 'light' ? '#FFFFFF' : '#0B0C14');
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDBeElement | null>(null);
   const initRef = useRef(false);
@@ -300,7 +303,7 @@ export function DockingViewer({
       el.setAttribute('molecule-id', pdbId.toLowerCase());
     }
     el.setAttribute('hide-controls', '');
-    el.setAttribute('background-color', backgroundColor);
+    el.setAttribute('background-color', sceneBg);
     el.id = `pdbe-docking-${(pdbId || pdbUrl || 'structure').toLowerCase().replace(/[^a-z0-9]/gi, '')}`;
     container.appendChild(el);
     viewerRef.current = el;
@@ -353,7 +356,7 @@ export function DockingViewer({
       if (checkInterval) clearInterval(checkInterval);
       el.removeEventListener('molstar-models-loaded', onModelsLoaded);
     };
-  }, [pdbId, pdbUrl, ligandPdb, backgroundColor]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pdbId, pdbUrl, ligandPdb, sceneBg]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Highlight a residue range (deep-linked from motif scan on the structure page).
   // Uses PDBe Molstar's visual.select range format so the residues actually get
@@ -402,7 +405,7 @@ export function DockingViewer({
   }, [spinning, status]);
 
   return (
-    <div className="relative z-20 w-full overflow-hidden rounded-xl border border-glass-border bg-[#0B0C14]">
+    <div className="relative z-20 w-full overflow-hidden rounded-xl border border-glass-border bg-viewer">
       {/* HUD toolbar — spatial chrome for the viewer */}
       <HudPanel className="flex flex-wrap items-center gap-2 border-b border-glass-border px-3 py-2">
         <span className="mr-2 font-mono text-xs text-text-muted">{pdbId}</span>
@@ -428,7 +431,7 @@ export function DockingViewer({
                 className={`p-1.5 rounded text-[10px] transition disabled:opacity-40 ${
                   representation === opt.value
                     ? 'bg-accent-cyan/20 text-accent-cyan'
-                    : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+                    : 'text-hud-text/50 hover:text-hud-text/80 hover:bg-hud/5'
                 }`}
               >
                 <Icon className="w-3.5 h-3.5" />
@@ -437,7 +440,7 @@ export function DockingViewer({
           })}
         </div>
 
-        <div className="w-px h-5 bg-white/10" />
+        <div className="w-px h-5 bg-hud/10" />
 
         {chains.length > 0 && (
           <select
@@ -445,7 +448,7 @@ export function DockingViewer({
             onChange={(event) => { const chain = event.target.value; setSelectedChain(chain); selectChain(chain); }}
             disabled={status !== 'ready'}
             title="Focus protein chain"
-            className="rounded border border-white/10 bg-black/30 px-2 py-1 text-[10px] text-white/80 disabled:opacity-40"
+            className="rounded border border-hud-line/10 bg-hud/30 px-2 py-1 text-[10px] text-hud-text/80 disabled:opacity-40"
           >
             <option value="">All chains</option>
             {chains.map(chain => <option key={chain.id} value={chain.id}>Chain {chain.id} · {chain.residue_count} residues</option>)}
@@ -453,7 +456,7 @@ export function DockingViewer({
         )}
 
         {interactions && (
-          <button type="button" onClick={focusContacts} disabled={status !== 'ready'} className="rounded border border-white/10 px-2 py-1 text-[10px] text-white/60 hover:bg-white/5 hover:text-white disabled:opacity-40">
+          <button type="button" onClick={focusContacts} disabled={status !== 'ready'} className="rounded border border-hud-line/10 px-2 py-1 text-[10px] text-hud-text/60 hover:bg-hud/5 hover:text-hud-text disabled:opacity-40">
             Focus pocket
           </button>
         )}
@@ -465,7 +468,7 @@ export function DockingViewer({
             onChange={(e) => setColorScheme(e.target.value as ColorScheme)}
             disabled={status !== 'ready'}
             title="Color scheme"
-            className="appearance-none rounded border border-white/10 bg-black/30 pl-6 pr-2 py-1 text-[10px] text-white/80 disabled:opacity-40 cursor-pointer"
+            className="appearance-none rounded border border-hud-line/10 bg-hud/30 pl-6 pr-2 py-1 text-[10px] text-hud-text/80 disabled:opacity-40 cursor-pointer"
           >
             <option value="spectrum">Spectrum</option>
             <option value="chain">Chain</option>
@@ -474,10 +477,10 @@ export function DockingViewer({
             <option value="bfactor">B-factor</option>
             <option value="uniform">Uniform</option>
           </select>
-          <Palette className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-white/40 pointer-events-none" />
+          <Palette className="absolute left-1.5 top-1/2 -translate-y-1/2 w-3 h-3 text-hud-text/40 pointer-events-none" />
         </div>
 
-        <div className="w-px h-5 bg-white/10" />
+        <div className="w-px h-5 bg-hud/10" />
 
         {/* Action buttons */}
         <button
@@ -486,7 +489,7 @@ export function DockingViewer({
           onClick={() => setSpinning(s => !s)}
           disabled={status !== 'ready'}
           className={`p-1.5 rounded transition disabled:opacity-40 ${
-            spinning ? 'text-accent-cyan bg-accent-cyan/10' : 'text-white/50 hover:text-white/80 hover:bg-white/5'
+            spinning ? 'text-accent-cyan bg-accent-cyan/10' : 'text-hud-text/50 hover:text-hud-text/80 hover:bg-hud/5'
           }`}
         >
           <RotateCcw className="w-3.5 h-3.5" />
@@ -497,7 +500,7 @@ export function DockingViewer({
           title="Reset camera"
           onClick={handleResetCamera}
           disabled={status !== 'ready'}
-          className="p-1.5 rounded text-white/50 hover:text-white/80 hover:bg-white/5 transition disabled:opacity-40"
+          className="p-1.5 rounded text-hud-text/50 hover:text-hud-text/80 hover:bg-hud/5 transition disabled:opacity-40"
         >
           <RotateCw className="w-3.5 h-3.5" />
         </button>
@@ -507,7 +510,7 @@ export function DockingViewer({
           title="Flip view (X-axis)"
           onClick={handleFlipView}
           disabled={status !== 'ready'}
-          className="p-1.5 rounded text-white/50 hover:text-white/80 hover:bg-white/5 transition disabled:opacity-40"
+          className="p-1.5 rounded text-hud-text/50 hover:text-hud-text/80 hover:bg-hud/5 transition disabled:opacity-40"
         >
           <FlipHorizontal className="w-3.5 h-3.5" />
         </button>
@@ -517,7 +520,7 @@ export function DockingViewer({
           title="Screenshot"
           onClick={handleScreenshot}
           disabled={status !== 'ready'}
-          className="p-1.5 rounded text-white/50 hover:text-white/80 hover:bg-white/5 transition disabled:opacity-40"
+          className="p-1.5 rounded text-hud-text/50 hover:text-hud-text/80 hover:bg-hud/5 transition disabled:opacity-40"
         >
           <Camera className="w-3.5 h-3.5" />
         </button>
@@ -537,7 +540,7 @@ export function DockingViewer({
                 type="button"
                 aria-pressed={active}
                 onClick={() => setVisibleInteractions(current => ({ ...current, [key]: !current[key] }))}
-                className={`flex items-center gap-1 rounded px-1.5 py-1 transition ${active ? 'bg-white/10 text-white/90' : 'text-white/35 line-through'}`}
+                className={`flex items-center gap-1 rounded px-1.5 py-1 transition ${active ? 'bg-hud/10 text-hud-text/90' : 'text-hud-text/35 line-through'}`}
               >
                 <span className="inline-block w-3 h-0.5" style={{ backgroundColor: color }} />
                 {label} ({count})
@@ -548,7 +551,7 @@ export function DockingViewer({
       )}
 
       {(chains.length > 0 || ligands.length > 0) && (
-        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-glass-border bg-[#0B0C14]/60 px-3 py-2 text-[10px] text-text-muted">
+        <div className="flex flex-wrap gap-x-4 gap-y-1 border-b border-glass-border bg-viewer/60 px-3 py-2 text-[10px] text-text-muted">
           {chains.length > 0 && <span>{chains.length} protein chain{chains.length === 1 ? '' : 's'}</span>}
           {ligands.length > 0 && <span>Deposited ligands: {ligands.map(ligand => `${ligand.id}:${ligand.chain}`).join(', ')}</span>}
           {ligandPdb && <span className="text-accent-cyan">Docked ligand loaded</span>}
@@ -558,7 +561,7 @@ export function DockingViewer({
       {/* Canvas */}
       <div ref={containerRef} style={{ height, minHeight: height, position: 'relative' }} />
       {status === 'loading' && (
-        <div className="flex items-center justify-center py-4 text-sm text-white/60">
+        <div className="flex items-center justify-center py-4 text-sm text-hud-text/60">
           Loading structure...
         </div>
       )}

@@ -60,9 +60,9 @@ function antiSegment(sum: number, W: number, H: number): Array<[number, number]>
 }
 
 const tooltipStyle = {
-  contentStyle: { background: '#0E1521', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 8, fontSize: 12 },
-  labelStyle: { color: '#94A3B8' },
-  itemStyle: { color: '#E2E8F0' },
+  contentStyle: { background: 'var(--chart-tooltip-bg)', border: '1px solid var(--chart-tooltip-border)', borderRadius: 8, fontSize: 12 },
+  labelStyle: { color: 'var(--chart-tooltip-label)' },
+  itemStyle: { color: 'var(--chart-tooltip-item)' },
 };
 
 function FeatureChip({ label, value, tone = 'text-text-primary' }: { label: string; value: string; tone?: string }) {

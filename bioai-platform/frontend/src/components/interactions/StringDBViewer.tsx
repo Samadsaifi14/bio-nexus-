@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { LearnPopover } from "@/components/LearnPopover";
+import { viewerBg } from "@/lib/theme-canvas";
 
 type Interaction = {
   partner_gene: string;
@@ -63,7 +64,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       canvas.width = img.width;
       canvas.height = img.height;
       const ctx = canvas.getContext("2d")!;
-      ctx.fillStyle = "#06060B";
+      ctx.fillStyle = viewerBg('#06060B');
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
       const a = document.createElement("a");
@@ -140,7 +141,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
         </div>
       </div>
 
-      <div className="data-card p-2 flex items-center justify-center bg-[#06060B] min-h-[300px]">
+      <div className="data-card p-2 flex items-center justify-center bg-viewer min-h-[300px]">
         {!imgError ? (
           <img
             src={stringDbUrl}

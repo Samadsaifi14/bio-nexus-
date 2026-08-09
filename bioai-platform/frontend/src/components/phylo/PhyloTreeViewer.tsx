@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { MagnifyingGlass as Search } from '@phosphor-icons/react'
 import { ClaySegmented } from '@/components/ui/ClaySegmented'
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar'
+import { AlignmentBlock } from '@/components/alignment/AlignmentBlock'
 import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats'
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -952,10 +953,9 @@ export default function PhyloTreeViewer({
           {showAlignment && (
             <>
               {alignmentStats && <AlignmentStatsBar stats={alignmentStats} className="px-4 pt-3" />}
-              <pre className="overflow-auto p-4 text-[11px] font-mono text-molecule-dna
-                bg-surface-1 max-h-60 leading-relaxed">
-                {alignment}
-              </pre>
+              <div className="p-4">
+                <AlignmentBlock alnFasta={alignment} className="max-h-60" />
+              </div>
             </>
           )}
         </div>

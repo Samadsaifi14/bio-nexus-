@@ -9,6 +9,7 @@ import { ScoreBars } from "@/components/results/ScoreBars";
 import { UniprotPanel } from "@/components/results/UniprotPanel";
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import { AlignmentStatsBar } from "@/components/alignment/AlignmentStatsBar";
+import { AlignmentBlock } from "@/components/alignment/AlignmentBlock";
 import { computeAlignmentStats, parseAlignedFasta } from "@/lib/alignment-stats";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
 import { BackButton } from "@/components/ui";
@@ -95,9 +96,7 @@ export default function ReportPage() {
           <h2 className="font-semibold text-text-primary mb-2">Multiple Sequence Alignment</h2>
           <p className="text-xs text-text-muted mb-2">{msaData.sequence_count} sequences aligned</p>
           <AlignmentStatsBar stats={computeAlignmentStats(parseAlignedFasta(msaData.aln_fasta).seqs)} className="mb-2" />
-          <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto whitespace-pre max-h-96 overflow-y-auto">
-            {msaData.aln_fasta}
-          </pre>
+          <AlignmentBlock alnFasta={msaData.aln_fasta} className="max-h-96" />
         </section>
       )}
 

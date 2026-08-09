@@ -13,6 +13,7 @@ import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import { AlignmentStatsBar } from "@/components/alignment/AlignmentStatsBar";
+import { AlignmentBlock } from "@/components/alignment/AlignmentBlock";
 import { computeAlignmentStats, parseAlignedFasta } from "@/lib/alignment-stats";
 import { motion } from 'framer-motion';
 import { fadeUp, stagger } from '@/lib/animations';
@@ -102,9 +103,7 @@ export default function SharedResultPage() {
                   stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)}
                   className="mb-2"
                 />
-                <pre className="bg-surface-1 rounded-xl p-4 text-xs font-mono text-text-secondary leading-relaxed overflow-x-auto max-h-80 overflow-y-auto whitespace-pre">
-                  {context.msa.aln_fasta}
-                </pre>
+                <AlignmentBlock alnFasta={context.msa.aln_fasta} className="max-h-80" />
               </motion.div>
             )}
 

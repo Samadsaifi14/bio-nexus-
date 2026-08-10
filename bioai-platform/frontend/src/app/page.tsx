@@ -3,7 +3,7 @@
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { useRef } from 'react';
-import { motion, useScroll, useTransform } from 'framer-motion';
+import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
 import { CursorGlow } from '@/components/effects/CursorGlow';
@@ -55,9 +55,13 @@ export default function LandingPage() {
     offset:  ['start start', 'end start'],
   });
 
-  const contentY      = useTransform(scrollYProgress, [0, 1], ['0%', '12%']);
+  const reduceMotion = useReducedMotion();
+
+  // Parallax slides the hero as you scroll — flattened to a cross-fade under
+  // reduced motion (apple-design §14).
+  const contentY      = useTransform(scrollYProgress, [0, 1], reduceMotion ? ['0%', '0%'] : ['0%', '12%']);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0.2]);
-  const helixY         = useTransform(scrollYProgress, [0, 1], ['0%', '22%']);
+  const helixY         = useTransform(scrollYProgress, [0, 1], reduceMotion ? ['0%', '0%'] : ['0%', '22%']);
 
   return (
     <main className="relative bg-void text-text-primary overflow-x-hidden">

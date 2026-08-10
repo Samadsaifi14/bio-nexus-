@@ -12,6 +12,10 @@ export default function DNAHelix({ className }: { className?: string }) {
     const container = containerRef.current;
     if (!container) return;
 
+    // Respect prefers-reduced-motion: render a single static frame, no
+    // rotation loop, particle drift, or pointer parallax (apple-design §14).
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
     // Dark: neon "glow in the void" strands. Light: saturated teal + deep navy,
     // near-opaque, minimal emissive — they must carry contrast on a white canvas.
     const isLight = theme === 'light';
@@ -169,8 +173,16 @@ export default function DNAHelix({ className }: { className?: string }) {
     let rafId: number;
 
     const animate = () => {
-      rafId = requestAnimationFrame(animate);
+      if (!reducedMotion) rafId = requestAnimationFrame(animate);
       const elapsed = clock.getElapsedTime();
+
+      if (reducedMotion) {
+        group.rotation.set(0, 0, 0);
+        group.position.y = 0;
+        particles.rotation.y = 0;
+        renderer.render(scene, camera);
+        return;
+      }
 
       currentMX += (targetMX - currentMX) * 0.04;
       currentMY += (targetMY - currentMY) * 0.04;

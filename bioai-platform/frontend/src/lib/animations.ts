@@ -1,4 +1,4 @@
-import type { Variants } from 'framer-motion';
+import type { Variants, TargetAndTransition } from 'framer-motion';
 
 export const fadeUp: Variants = {
   hidden: { opacity: 0, y: 24 },
@@ -8,8 +8,6 @@ export const fadeUp: Variants = {
 export const stagger: Variants = {
   show: { transition: { staggerChildren: 0.06 } },
 };
-
-export const cardHover = { y: -2, transition: { duration: 0.15 } };
 
 export const fadeIn: Variants = {
   hidden: { opacity: 0 },
@@ -44,23 +42,27 @@ export const slideInRight: Variants = {
 };
 
 // ─── Hover / microinteraction presets ────────────────────────────────────────
+// Springs (critically damped, bounce 0) so hover/press is interruptible and
+// velocity-aware — per apple-design §3–§4. Bounce is reserved for momentum.
 
-export const hoverLift = {
+export const cardHover: TargetAndTransition = { y: -2, transition: { type: 'spring', bounce: 0, duration: 0.35 } };
+
+export const hoverLift: TargetAndTransition = {
   y: -4,
-  transition: { duration: 0.2, ease: 'easeOut' as const },
+  transition: { type: 'spring', bounce: 0, duration: 0.35 },
 };
 
-export const hoverGlow = {
+export const hoverGlow: TargetAndTransition = {
   y: -3,
   boxShadow: '0 10px 32px rgba(45, 212, 191, 0.14)',
-  transition: { duration: 0.2, ease: 'easeOut' as const },
+  transition: { type: 'spring', bounce: 0, duration: 0.35 },
 };
 
-export const tapScale = { scale: 0.98 };
+export const tapScale: TargetAndTransition = { scale: 0.98, transition: { type: 'spring', bounce: 0, duration: 0.25 } };
 
-export const press = {
+export const press: TargetAndTransition = {
   scale: 0.97,
-  transition: { duration: 0.1, ease: 'easeOut' as const },
+  transition: { type: 'spring', bounce: 0, duration: 0.25 },
 };
 
 export const microPop: Variants = {

@@ -14,7 +14,21 @@ const DNAHelix = dynamic(
   { ssr: false, loading: () => <div className="w-full h-full bg-void" /> }
 );
 
-const DATABASES = ['NCBI', 'UniProt', 'PDB', 'KEGG', 'Ensembl', 'STRING', 'EMBL', 'Pfam'];
+const DATABASES = ['NCBI', 'UniProt', 'PDB', 'AlphaFold', 'EMBL', 'InterPro', 'KEGG', 'STRING'];
+
+const DB_GROUPS = [
+  { label: 'Portals',    names: 'NCBI · EMBL-EBI' },
+  { label: 'Annotation', names: 'UniProt · InterPro' },
+  { label: 'Structure',  names: 'RCSB PDB · AlphaFold' },
+  { label: 'Systems',    names: 'KEGG · STRING' },
+];
+
+const CONFIDENCE_BANDS = [
+  { label: 'Very high', dot: 'bg-confidence-very-high' },
+  { label: 'High',      dot: 'bg-confidence-high' },
+  { label: 'Moderate',  dot: 'bg-confidence-moderate' },
+  { label: 'Low',       dot: 'bg-confidence-low' },
+];
 
 const REVEAL = { initial: { opacity: 0, y: 28 }, whileInView: { opacity: 1, y: 0 }, viewport: { once: true, margin: '-80px' } };
 
@@ -30,7 +44,7 @@ const FEATURES = [
   {
     icon:  Database,
     title: 'Unified Access',
-    body:  'NCBI, UniProt, PDB, KEGG, Ensembl — one plain-English query retrieves across every major database simultaneously.',
+    body:  'NCBI, UniProt, PDB, KEGG, STRING and more — one plain-English query retrieves across every major database simultaneously.',
     span:  'md:col-span-2',
   },
   {
@@ -68,11 +82,11 @@ export default function LandingPage() {
       <CursorGlow />
       <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
-          <span className="font-display text-sm font-semibold tracking-widest uppercase">
+          <span className="font-display text-sm font-semibold tracking-tight uppercase">
             Bio <span className="text-accent-cyan">Nexus</span>
           </span>
 
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 lg:gap-6">
             <Link href="#features" className="hidden sm:block text-xs text-text-muted hover:text-text-primary transition-colors tracking-wide">
               Features
             </Link>
@@ -82,12 +96,12 @@ export default function LandingPage() {
             <ThemeToggle />
             <Link
               href="/auth"
-              className="text-xs px-4 py-2 rounded-full border border-glass-border text-text-secondary hover:border-accent-cyan/40 hover:text-accent-cyan transition-all"
+              className="hidden sm:inline-flex text-xs px-3 lg:px-4 min-h-[44px] items-center rounded-full border border-glass-border text-text-secondary hover:border-accent-cyan/40 hover:text-accent-cyan transition-all"
             >
               Sign in
             </Link>
-            <Link href="/dashboard" className="btn-primary text-xs py-2 px-4">
-              Get started
+            <Link href="/dashboard" className="btn-primary text-xs px-3 lg:px-4 min-h-[44px] flex items-center">
+              Start analyzing
             </Link>
           </div>
         </div>
@@ -131,7 +145,7 @@ export default function LandingPage() {
             >
               One query.
               <br />
-              <span className="text-accent-cyan">Every database.</span>
+              <span className="text-accent-cyan">Every major database.</span>
             </motion.h1>
 
             <motion.p
@@ -140,8 +154,8 @@ export default function LandingPage() {
               transition={{ duration: 0.35, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
               className="text-text-secondary text-lg max-w-[480px] mt-8 leading-relaxed"
             >
-              BioNexus unifies NCBI, UniProt, PDB, and KEGG into a single plain-language
-              interface — with AI-interpreted visual results, instantly.
+              Bio Nexus unifies every major bioinformatics database in one
+              plain-language interface — with AI-interpreted visual results, instantly.
             </motion.p>
 
             <motion.div
@@ -166,18 +180,14 @@ export default function LandingPage() {
               className="flex items-center gap-2 mt-10 text-[11px] font-mono text-text-muted"
             >
               <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
-              <span>8 services online · results streamed live</span>
+              <span>No API keys · results streamed live</span>
             </motion.div>
           </div>
         </motion.div>
 
-        <motion.div
-          className="absolute bottom-9 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 opacity-50"
-          animate={{ y: [0, 7, 0] }}
-          transition={{ repeat: Infinity, duration: 2, ease: 'easeInOut' }}
-        >
+        <div className="absolute bottom-9 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 opacity-50">
           <ChevronDown size={14} className="text-text-muted" />
-        </motion.div>
+        </div>
       </section>
 
       <section className="relative py-14 border-y border-glass-border overflow-hidden">
@@ -236,11 +246,77 @@ export default function LandingPage() {
         </div>
       </section>
 
+      <section id="results" className="py-24 px-6 max-w-5xl mx-auto">
+        <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="text-center mb-16">
+          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+            What you get back
+          </h2>
+          <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
+            BLAST hits, annotation, structure and AI insight — cross-referenced on one page, exportable as PDF or JSON.
+          </p>
+        </motion.div>
+
+        <motion.div {...REVEAL} transition={{ duration: 0.45 }}>
+          <div className="data-card p-6 sm:p-8">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-glass-border pb-4">
+              <div className="flex items-center gap-2.5">
+                <span className="w-2 h-2 rounded-full bg-confidence-very-high" />
+                <span className="font-mono text-sm text-text-primary">P01308 · Insulin [Homo sapiens]</span>
+              </div>
+              <span className="px-2 py-0.5 rounded-full border border-glass-border bg-surface-1 text-[10px] font-mono uppercase tracking-widest text-text-muted">
+                sample
+              </span>
+            </div>
+
+            <div className="grid md:grid-cols-2 gap-8 pt-5">
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-text-muted mb-3">BLAST hits · top 3 of 14</p>
+                <ul className="flex flex-col gap-2.5">
+                  <li className="flex items-center justify-between gap-4 font-mono text-xs">
+                    <span className="text-text-primary">P01308 · INS_HUMAN</span>
+                    <span className="text-text-secondary">100% · e 0.0</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 font-mono text-xs">
+                    <span className="text-text-primary">insulin [mouse]</span>
+                    <span className="text-text-secondary">87% · e 1e-97</span>
+                  </li>
+                  <li className="flex items-center justify-between gap-4 font-mono text-xs">
+                    <span className="text-text-primary">insulin-like INSL3</span>
+                    <span className="text-text-secondary">41% · e 3e-14</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div>
+                <p className="text-[10px] font-mono uppercase tracking-widest text-text-muted mb-3">AI interpretation</p>
+                <p className="font-mono text-[13px] text-text-secondary leading-relaxed">
+                  <span className="text-accent-cyan">&gt; </span>Insulin — reviewed UniProt entry with an experimental
+                  structure. Function, family and disease annotations cross-referenced from the source databases.
+                </p>
+              </div>
+            </div>
+
+            <div className="mt-6 flex flex-wrap items-center gap-x-5 gap-y-2 pt-4 border-t border-glass-border">
+              {CONFIDENCE_BANDS.map((b) => (
+                <span key={b.label} className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted">
+                  <span className={`w-1.5 h-1.5 rounded-full ${b.dot}`} />
+                  {b.label}
+                </span>
+              ))}
+              <span className="ml-auto text-[11px] font-mono text-text-muted">NCBI · UniProt · PDB · AlphaFold</span>
+            </div>
+          </div>
+        </motion.div>
+      </section>
+
       <section id="features" className="py-24 px-6 max-w-5xl mx-auto">
         <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="mb-16">
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
-            Everything you need
+            All your databases, one query
           </h2>
+          <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
+            One query retrieves across every major database simultaneously — results cross-referenced on a single page.
+          </p>
         </motion.div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
@@ -275,23 +351,36 @@ export default function LandingPage() {
                     </div>
 
                     {wide && (
-                      <div className="flex flex-wrap gap-2 lg:pt-1">
-                        {DATABASES.map((db) => (
-                          <span
-                            key={db}
-                            className="px-3 py-1 rounded-lg border border-glass-border bg-surface-1 text-[11px] font-mono text-text-secondary"
-                          >
-                            {db}
-                          </span>
+                      <div className="flex flex-col gap-2 lg:pt-1">
+                        {DB_GROUPS.map((g) => (
+                          <div key={g.label} className="flex items-center gap-2">
+                            <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted w-20 shrink-0">
+                              {g.label}
+                            </span>
+                            <span className="px-2.5 py-1 rounded-lg border border-glass-border bg-surface-1 text-[11px] font-mono text-text-secondary">
+                              {g.names}
+                            </span>
+                          </div>
                         ))}
                       </div>
                     )}
 
                     {full && (
-                      <div className="min-w-0 md:ml-auto">
+                      <div className="min-w-0 md:ml-auto w-full">
                         <p className="font-mono text-[13px] text-text-secondary leading-relaxed">
-                          <span className="text-accent-cyan">&gt; </span>clinical relevance: insulin regulation in
-                          lactation<span className="inline-block w-[2px] h-3 bg-accent-cyan/70 ml-1 animate-blink align-middle" />
+                          <span className="text-accent-cyan">&gt; </span>sample · <span className="text-text-primary">P01308</span> INS_HUMAN · reviewed UniProt entry
+                          <span className="inline-block w-[2px] h-3 bg-accent-cyan/70 ml-1 animate-blink align-middle" />
+                        </p>
+                        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
+                          {CONFIDENCE_BANDS.map((b) => (
+                            <span key={b.label} className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted">
+                              <span className={`w-1.5 h-1.5 rounded-full ${b.dot}`} />
+                              {b.label}
+                            </span>
+                          ))}
+                        </div>
+                        <p className="mt-3 text-[11px] font-mono text-text-muted">
+                          source · UniProt <span className="text-text-secondary">P01308</span> · RCSB PDB · AlphaFold
                         </p>
                       </div>
                     )}
@@ -317,18 +406,21 @@ export default function LandingPage() {
           <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-5">
             Ready to decode your sequences?
           </h2>
-          <p className="text-text-secondary mb-10 leading-relaxed">
+          <p className="text-text-secondary mb-4 leading-relaxed">
             Free to start. No API keys required to run your first analysis.
           </p>
+          <p className="text-sm text-text-muted mb-10 font-mono">
+            Your sequences stay yours — never shared or used beyond the analysis you ask for.
+          </p>
           <Link href="/dashboard" className="btn-primary text-base px-8 py-4">
-            Open Bio Nexus
+            Start analyzing
             <ArrowRight size={17} />
           </Link>
         </div>
       </section>
 
       <footer className="border-t border-glass-border py-8 px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
-        <span className="font-mono text-xs text-text-muted">
+        <span className="text-xs text-text-muted">
           Bio Nexus · Built at Jamia Millia Islamia
         </span>
         <div className="flex items-center gap-6">

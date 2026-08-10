@@ -12,9 +12,9 @@ export function ThemeToggle({ className = '' }: { className?: string }) {
       onClick={toggleTheme}
       aria-label={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
       title={isDark ? 'Switch to light theme' : 'Switch to dark theme'}
-      className={`flex items-center justify-center w-9 h-9 rounded-full border border-glass-border bg-surface-1/70 text-text-secondary hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors cursor-pointer ${className}`}
+      className={`flex items-center justify-center w-11 h-11 rounded-full border border-glass-border bg-surface-1/70 text-text-secondary hover:text-accent-cyan hover:border-accent-cyan/40 transition-colors cursor-pointer ${className}`}
     >
-      {isDark ? <Sun size={16} weight="bold" /> : <Moon size={16} weight="bold" />}
+      {isDark ? <Sun size={17} weight="regular" /> : <Moon size={17} weight="regular" />}
     </button>
   );
 }

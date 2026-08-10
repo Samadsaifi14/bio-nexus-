@@ -14,64 +14,64 @@
 :root,
 [data-theme="dark"] {
   /* ── Triplet tokens (Tailwind-driven) ──────────────────────────────── */
-  --bg-void: 6 6 11;
-  --bg-surface-0: 8 8 18;
-  --bg-surface-1: 13 13 26;
-  --bg-surface-2: 17 17 34;
-  --bg-surface-3: 21 21 40;
+  --bg-void: 5 6 9;
+  --bg-surface-0: 10 11 16;
+  --bg-surface-1: 15 16 22;
+  --bg-surface-2: 20 22 30;
+  --bg-surface-3: 25 27 37;
 
-  --accent-cyan: 45 212 191;
-  --accent-hover: 59 220 199;
-  --accent-purple: 139 147 214;
-  --accent-amber: 224 169 78;
+  --accent-cyan: 74 222 128;
+  --accent-hover: 84 232 138;
+  --accent-purple: 167 139 250;
+  --accent-amber: 251 191 36;
 
-  --text-primary: 221 224 238;
-  --text-secondary: 165 174 198;
-  --text-muted: 132 140 164;
+  --text-primary: 236 240 250;
+  --text-secondary: 163 172 188;
+  --text-muted: 128 136 152;
 
-  --good: 52 211 153;
+  --good: 74 222 128;
   --warn: 251 191 36;
   --info: 96 165 250;
-  --error: 239 68 68;
+  --error: 248 113 113;
 
   --molecule-protein: 96 165 250;
-  --molecule-dna: 139 147 214;
+  --molecule-dna: 167 139 250;
   --molecule-rna: 251 146 60;
   --interaction-hbond: 96 165 250;
   --interaction-hydrophobic: 251 191 36;
   --interaction-pi: 167 139 250;
   --interaction-salt: 34 211 238;
 
-  --confidence-very-high: 45 212 191;
+  --confidence-very-high: 74 222 128;
   --confidence-high: 96 165 250;
   --confidence-moderate: 251 191 36;
   --confidence-low: 148 163 184;
 
   /* ── Alpha tint variants (decorative / low-stakes fills) ───────────── */
-  --accent-cyan-10: rgba(45, 212, 191, 0.10);
-  --accent-cyan-20: rgba(45, 212, 191, 0.20);
-  --accent-cyan-30: rgba(45, 212, 191, 0.30);
-  --accent-purple-10: rgba(139, 147, 214, 0.10);
-  --accent-purple-20: rgba(139, 147, 214, 0.20);
-  --accent-amber-10: rgba(224, 169, 78, 0.10);
-  --accent-amber-20: rgba(224, 169, 78, 0.20);
+  --accent-cyan-10: rgba(74, 222, 128, 0.10);
+  --accent-cyan-20: rgba(74, 222, 128, 0.20);
+  --accent-cyan-30: rgba(74, 222, 128, 0.30);
+  --accent-purple-10: rgba(167, 139, 250, 0.10);
+  --accent-purple-20: rgba(167, 139, 250, 0.20);
+  --accent-amber-10: rgba(251, 191, 36, 0.10);
+  --accent-amber-20: rgba(251, 191, 36, 0.20);
   --good-dim: rgba(52, 211, 153, 0.15);
   --warn-dim: rgba(251, 191, 36, 0.15);
   --info-dim: rgba(96, 165, 250, 0.15);
   --error-dim: rgba(239, 68, 68, 0.15);
 
   /* ── Glass / material ──────────────────────────────────────────────── */
-  --glass-bg: rgba(13, 13, 26, 0.55);
-  --glass-bg-hover: rgba(17, 17, 34, 0.70);
-  --glass-border: 100 110 180;
+  --glass-bg: rgba(15, 16, 22, 0.55);
+  --glass-bg-hover: rgba(20, 22, 30, 0.70);
+  --glass-border: 148 163 184;
   --glass-border-a: 0.12;
-  --glass-border-hover: rgba(100, 110, 180, 0.22);
+  --glass-border-hover: rgba(148, 163, 184, 0.22);
   --glass-blur: 20px;
-  --glass-panel-bg: rgba(8, 8, 18, 0.75);
+  --glass-panel-bg: rgba(10, 11, 16, 0.75);
 
   /* ── Claymorphism (tactile, low-stakes controls) ───────────────────── */
-  --clay-bg: linear-gradient(145deg, #181830 0%, #0F0F1E 100%);
-  --clay-bg-hover: linear-gradient(145deg, #1C1C36 0%, #111120 100%);
+  --clay-bg: linear-gradient(145deg, #1A1C26 0%, #12141C 100%);
+  --clay-bg-hover: linear-gradient(145deg, #1E202A 0%, #14161F 100%);
   --clay-shadow-raised:
     5px 5px 12px rgba(0, 0, 0, 0.5),
     -3px -3px 8px rgba(255, 255, 255, 0.03),
@@ -81,11 +81,11 @@
     -2px -2px 6px rgba(255, 255, 255, 0.02),
     inset 0 2px 6px rgba(0, 0, 0, 0.35);
   --clay-highlight: rgba(255, 255, 255, 0.045);
-  --clay-thumb-bg: linear-gradient(145deg, #2A2A45 0%, #181830 100%);
-  --clay-thumb-border: rgba(100, 110, 180, 0.30);
+  --clay-thumb-bg: linear-gradient(145deg, #2A2D3A 0%, #1A1C26 100%);
+  --clay-thumb-border: rgba(148, 163, 184, 0.30);
   --clay-thumb-shadow: 0 2px 4px rgba(0, 0, 0, 0.50), inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  --clay-track-bg: linear-gradient(145deg, #181830 0%, #0D0D1A 100%);
-  --clay-track: #181830;
+  --clay-track-bg: linear-gradient(145deg, #1A1C26 0%, #0D0D1A 100%);
+  --clay-track: #1A1C26;
   --clay-track-inset: inset 0 2px 5px rgba(0, 0, 0, 0.45);
 
   /* ── Liquid glass (hero / nav chrome) ──────────────────────────────── */
@@ -93,7 +93,7 @@
     120deg,
     rgba(120, 130, 200, 0.10),
     rgba(255, 255, 255, 0.03) 40%,
-    rgba(45, 212, 191, 0.04) 60%,
+    rgba(74, 222, 128, 0.04) 60%,
     rgba(120, 130, 200, 0.10)
   );
   --liquid-border: rgba(255, 255, 255, 0.10);
@@ -104,44 +104,44 @@
     0 8px 32px rgba(0, 0, 0, 0.45);
 
   /* ── Flat data cards (near-opaque, for scientific output) ──────────── */
-  --data-card-bg: rgba(8, 8, 18, 0.96);
-  --data-card-border: rgba(100, 110, 180, 0.16);
-  --data-card-border-hover: rgba(100, 110, 180, 0.26);
+  --data-card-bg: rgba(10, 11, 16, 0.96);
+  --data-card-border: rgba(148, 163, 184, 0.16);
+  --data-card-border-hover: rgba(148, 163, 184, 0.26);
   --data-card-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
 
   /* ── Spatial HUD (3D viewer chrome) ────────────────────────────────── */
-  --hud-bg: rgba(13, 13, 26, 0.90);
-  --hud-border: rgba(100, 110, 180, 0.20);
+  --hud-bg: rgba(15, 16, 22, 0.90);
+  --hud-border: rgba(148, 163, 184, 0.20);
   --hud-shadow: 0 2px 12px rgba(0, 0, 0, 0.50);
-  --hud-legend-bg: rgba(8, 8, 18, 0.94);
-  --hud-legend-border: rgba(100, 110, 180, 0.20);
+  --hud-legend-bg: rgba(10, 11, 16, 0.94);
+  --hud-legend-border: rgba(148, 163, 184, 0.20);
   --hud-legend-shadow: 0 2px 10px rgba(0, 0, 0, 0.55);
 
   /* ── 3D / canvas scenes + HUD chips (Phase 2) ──────────────────────── */
   --viewer-bg: 11 12 20;         /* scene/canvas background (triplet)  */
-  --hud-chip-bg: 13 13 26;       /* floating HUD chip bg (triplet)     */
+  --hud-chip-bg: 15 16 22;       /* floating HUD chip bg (triplet)     */
   --hud-chip-text: 255 255 255;  /* HUD chip text (triplet)            */
   --hud-chip-line: 255 255 255;  /* HUD chip border (triplet)          */
-  --scrim: rgba(4, 4, 10, 0.80);
-  --cursor-glow: radial-gradient(circle, rgba(45, 212, 191, 0.06), transparent 60%);
+  --scrim: rgba(5, 6, 9, 0.80);
+  --cursor-glow: radial-gradient(circle, rgba(74, 222, 128, 0.06), transparent 60%);
   --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.50);
   --shadow-float-sm: 0 2px 8px rgba(0, 0, 0, 0.45);
 
   /* ── Chart tooltips (Recharts contentStyle) ───────────────────────── */
-  --chart-tooltip-bg: #0E1521;
+  --chart-tooltip-bg: #10141C;
   --chart-tooltip-border: rgba(255, 255, 255, 0.12);
   --chart-tooltip-label: #94A3B8;
   --chart-tooltip-item: #E2E8F0;
 
   /* ── Micro-render colors ───────────────────────────────────────────── */
   --ss-coil: rgba(255, 255, 255, 0.15);   /* secondary-structure coil  */
-  --tree-canvas: #06060B;                  /* phylo SVG background      */
+  --tree-canvas: #07080C;                  /* phylo SVG background      */
   --tree-selected: #FFFFFF;                /* selected-node stroke      */
   --tree-label: #94A3B8;                   /* phylo leaf-label default  */
 
   /* ── Critical / solid / ghost actions ──────────────────────────────── */
-  --cta-bg: linear-gradient(180deg, #00E0C0 0%, #00B8A0 100%);
-  --cta-bg-hover: linear-gradient(180deg, #00F0D0 0%, #00C6AB 100%);
+  --cta-bg: linear-gradient(180deg, #4ADE80 0%, #22C55E 100%);
+  --cta-bg-hover: linear-gradient(180deg, #5CF08F 0%, #2CC96D 100%);
   --cta-color: rgb(6 6 11);
   --cta-border: rgba(255, 255, 255, 0.16);
   --cta-shadow: 0 2px 0 rgba(0, 0, 0, 0.30), 0 6px 16px rgba(0, 0, 0, 0.40);
@@ -152,13 +152,13 @@
   --btn-solid-bg: rgb(var(--accent-cyan));
   --btn-solid-bg-hover: rgb(var(--accent-hover));
   --btn-solid-color: rgb(var(--bg-void));
-  --btn-solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(45, 212, 191, 0.12);
-  --btn-solid-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(45, 212, 191, 0.18);
+  --btn-solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 8px 20px rgba(74, 222, 128, 0.12);
+  --btn-solid-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.35), 0 12px 28px rgba(74, 222, 128, 0.18);
 
   /* ── Elevation shadows (used via Tailwind `shadow-*`) ──────────────── */
-  --shadow-glow-cyan: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(45, 212, 191, 0.07);
-  --shadow-glow-purple: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(139, 147, 214, 0.07);
-  --shadow-glow-amber: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(224, 169, 78, 0.07);
+  --shadow-glow-cyan: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(74, 222, 128, 0.07);
+  --shadow-glow-purple: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(167, 139, 250, 0.07);
+  --shadow-glow-amber: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 24px rgba(251, 191, 36, 0.07);
   --shadow-glass-sm: 0 2px 16px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --shadow-glass-md: 0 4px 32px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.04);
   --shadow-glass-lg: 0 8px 48px rgba(0, 0, 0, 0.55), inset 0 1px 0 rgba(255, 255, 255, 0.05);
@@ -171,12 +171,12 @@
 
   /* ── Chrome accents ────────────────────────────────────────────────── */
   --scanline-color: rgb(var(--accent-cyan));
-  --pipeline-color: rgba(45, 212, 191, 0.55);
+  --pipeline-color: rgba(74, 222, 128, 0.55);
   --grid-color: rgba(100, 110, 255, 0.06);
   --dots-color: rgba(100, 110, 255, 0.15);
-  --glow-accent-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(45, 212, 191, 0.10);
-  --vignette-mid: rgba(6, 6, 11, 0.6);
-  --vignette-edge: rgba(6, 6, 11, 0.97);
+  --glow-accent-shadow: 0 1px 2px rgba(0, 0, 0, 0.35), 0 10px 28px rgba(74, 222, 128, 0.10);
+  --vignette-mid: rgba(5, 6, 9, 0.6);
+  --vignette-edge: rgba(5, 6, 9, 0.97);
   --scroll-track: rgb(var(--bg-surface-0));
   --scroll-thumb: rgb(var(--glass-border) / var(--glass-border-a));
 
@@ -194,15 +194,15 @@
 
 [data-theme="light"] {
   /* ── Triplet tokens ────────────────────────────────────────────────── */
-  --bg-void: 245 245 247;        /* #F5F5F7 Apple system gray canvas */
+  --bg-void: 246 247 250;        /* #F6F7FA Apple system gray canvas */
   --bg-surface-0: 255 255 255;   /* #FFFFFF cards, modals */
-  --bg-surface-1: 245 245 247;   /* #F5F5F7 recessed sections */
-  --bg-surface-2: 235 235 240;   /* #EBEBF0 nested panels */
-  --bg-surface-3: 227 227 232;   /* #E3E3E8 pressed states */
+  --bg-surface-1: 246 247 250;   /* #F6F7FA recessed sections */
+  --bg-surface-2: 235 237 242;   /* #EBEDF2 nested panels */
+  --bg-surface-3: 227 229 235;   /* #E3E5EB pressed states */
 
-  --accent-cyan: 14 147 132;     /* #0E9384 CTA teal (AA on white) */
-  --accent-hover: 18 161 147;    /* #12A193 hover */
-  --accent-purple: 91 100 176;   /* #5B64B0 */
+  --accent-cyan: 21 128 61;     /* #15803D CTA green-700 (AA on white) */
+  --accent-hover: 16 101 52;    /* #12A193 hover */
+  --accent-purple: 91 33 182;   /* #5B64B0 */
   --accent-amber: 180 83 9;      /* #B45309 */
 
   --text-primary: 29 29 31;      /* #1D1D1F 16.1:1 AAA */
@@ -222,17 +222,17 @@
   --interaction-pi: 124 58 237;
   --interaction-salt: 8 145 178;
 
-  --confidence-very-high: 14 147 132;
+  --confidence-very-high: 21 128 61;
   --confidence-high: 37 99 235;
   --confidence-moderate: 217 119 6;
   --confidence-low: 142 142 147;
 
-  /* ── Alpha tint variants (re-based on CTA teal for light visibility) ── */
-  --accent-cyan-10: rgba(14, 147, 132, 0.08);
-  --accent-cyan-20: rgba(14, 147, 132, 0.16);
-  --accent-cyan-30: rgba(14, 147, 132, 0.24);
-  --accent-purple-10: rgba(91, 100, 176, 0.10);
-  --accent-purple-20: rgba(91, 100, 176, 0.18);
+  /* ── Alpha tint variants (re-based on CTA green-700 for light visibility) ── */
+  --accent-cyan-10: rgba(21, 128, 61, 0.08);
+  --accent-cyan-20: rgba(21, 128, 61, 0.16);
+  --accent-cyan-30: rgba(21, 128, 61, 0.24);
+  --accent-purple-10: rgba(91, 33, 182, 0.10);
+  --accent-purple-20: rgba(91, 33, 182, 0.18);
   --accent-amber-10: rgba(180, 83, 9, 0.10);
   --accent-amber-20: rgba(180, 83, 9, 0.18);
   --good-dim: rgba(4, 120, 87, 0.12);
@@ -250,8 +250,8 @@
   --glass-panel-bg: rgba(255, 255, 255, 0.75);
 
   /* ── Claymorphism → light dual-source neumorphism ──────────────────── */
-  --clay-bg: linear-gradient(145deg, #FFFFFF 0%, #F5F5F7 100%);
-  --clay-bg-hover: linear-gradient(145deg, #FFFFFF 0%, #EBEBF0 100%);
+  --clay-bg: linear-gradient(145deg, #FFFFFF 0%, #F6F7FA 100%);
+  --clay-bg-hover: linear-gradient(145deg, #FFFFFF 0%, #EBEDF2 100%);
   --clay-shadow-raised:
     6px 6px 14px rgba(0, 0, 0, 0.08),
     -6px -6px 12px rgba(255, 255, 255, 0.95),
@@ -261,20 +261,20 @@
     -1px -1px 4px rgba(255, 255, 255, 0.7),
     inset 0 2px 6px rgba(0, 0, 0, 0.06);
   --clay-highlight: rgba(255, 255, 255, 0.9);
-  --clay-thumb-bg: linear-gradient(145deg, #FFFFFF 0%, #F5F5F7 100%);
+  --clay-thumb-bg: linear-gradient(145deg, #FFFFFF 0%, #F6F7FA 100%);
   --clay-thumb-border: rgba(0, 0, 0, 0.15);
   --clay-thumb-shadow: 0 1px 3px rgba(0, 0, 0, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.9);
-  --clay-track-bg: linear-gradient(145deg, #E3E3E8 0%, #F5F5F7 100%);
-  --clay-track: #E3E3E8;
+  --clay-track-bg: linear-gradient(145deg, #E3E5EB 0%, #F6F7FA 100%);
+  --clay-track: #E3E5EB;
   --clay-track-inset: inset 0 1px 3px rgba(0, 0, 0, 0.10);
 
   /* ── Liquid glass (frosted, hairline-backed) ───────────────────────── */
   --liquid-bg: linear-gradient(
     120deg,
-    rgba(14, 147, 132, 0.05),
+    rgba(21, 128, 61, 0.05),
     rgba(255, 255, 255, 0.4) 40%,
-    rgba(14, 147, 132, 0.03) 60%,
-    rgba(14, 147, 132, 0.05)
+    rgba(21, 128, 61, 0.03) 60%,
+    rgba(21, 128, 61, 0.05)
   );
   --liquid-border: rgba(0, 0, 0, 0.08);
   --liquid-sheen: rgba(255, 255, 255, 0.55);
@@ -298,12 +298,12 @@
   --hud-legend-shadow: 0 2px 10px rgba(0, 0, 0, 0.10);
 
   /* ── 3D / canvas scenes + HUD chips (Phase 2) ──────────────────────── */
-  --viewer-bg: 245 245 247;      /* light scene/canvas background      */
+  --viewer-bg: 246 247 250;      /* light scene/canvas background      */
   --hud-chip-bg: 255 255 255;    /* HUD chip bg (triplet)              */
   --hud-chip-text: 29 29 31;     /* HUD chip text (triplet)            */
   --hud-chip-line: 0 0 0;        /* HUD chip border (triplet)          */
   --scrim: rgba(30, 30, 32, 0.45);
-  --cursor-glow: radial-gradient(circle, rgba(14, 147, 132, 0.09), transparent 60%);
+  --cursor-glow: radial-gradient(circle, rgba(21, 128, 61, 0.09), transparent 60%);
   --shadow-float: 0 4px 16px rgba(0, 0, 0, 0.14);
   --shadow-float-sm: 0 2px 8px rgba(0, 0, 0, 0.12);
 
@@ -316,28 +316,28 @@
   /* ── Micro-render colors ───────────────────────────────────────────── */
   --ss-coil: rgba(0, 0, 0, 0.12);
   --tree-canvas: #FFFFFF;
-  --tree-selected: #0E9384;
+  --tree-selected: #15803D;
   --tree-label: #86868B;
 
   /* ── Critical / solid / ghost actions ──────────────────────────────── */
-  --cta-bg: #0E9384;
-  --cta-bg-hover: #109C8C;
+  --cta-bg: #15803D;
+  --cta-bg-hover: #166534;
   --cta-color: rgb(255 255 255);
   --cta-border: rgba(255, 255, 255, 0.25);
-  --cta-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(14, 147, 132, 0.22);
-  --cta-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.12), 0 12px 28px rgba(14, 147, 132, 0.28);
+  --cta-shadow: 0 1px 2px rgba(0, 0, 0, 0.12), 0 8px 20px rgba(21, 128, 61, 0.22);
+  --cta-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.12), 0 12px 28px rgba(21, 128, 61, 0.28);
   --cta-shadow-active: 0 1px 0 rgba(0, 0, 0, 0.15);
   --cta-danger-bg: #DC2626;
   --cta-danger-bg-hover: #B91C1C;
   --btn-solid-bg: rgb(var(--accent-cyan));
   --btn-solid-bg-hover: rgb(var(--accent-hover));
   --btn-solid-color: #FFFFFF;
-  --btn-solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), 0 8px 20px rgba(14, 147, 132, 0.16);
-  --btn-solid-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.10), 0 12px 28px rgba(14, 147, 132, 0.22);
+  --btn-solid-shadow: 0 1px 2px rgba(0, 0, 0, 0.10), 0 8px 20px rgba(21, 128, 61, 0.16);
+  --btn-solid-shadow-hover: 0 2px 4px rgba(0, 0, 0, 0.10), 0 12px 28px rgba(21, 128, 61, 0.22);
 
   /* ── Elevation shadows ─────────────────────────────────────────────── */
-  --shadow-glow-cyan: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(14, 147, 132, 0.10);
-  --shadow-glow-purple: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(91, 100, 176, 0.10);
+  --shadow-glow-cyan: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(21, 128, 61, 0.10);
+  --shadow-glow-purple: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(91, 33, 182, 0.10);
   --shadow-glow-amber: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 24px rgba(180, 83, 9, 0.10);
   --shadow-glass-sm: 0 2px 16px rgba(0, 0, 0, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.8);
   --shadow-glass-md: 0 4px 24px rgba(0, 0, 0, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.9);
@@ -345,16 +345,16 @@
   --shadow-glass-card-hover: 0 8px 32px rgba(0, 0, 0, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.9);
   --shadow-clay: var(--clay-shadow-raised);
   --shadow-clay-press: var(--clay-shadow-pressed);
-  --shadow-critical: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(14, 147, 132, 0.20);
+  --shadow-critical: 0 1px 2px rgba(0, 0, 0, 0.12), 0 6px 16px rgba(21, 128, 61, 0.20);
   --shadow-data-card: 0 1px 3px rgba(0, 0, 0, 0.06);
   --shadow-nav-active: inset 2px 0 0 rgb(var(--accent-cyan));
 
   /* ── Chrome accents ────────────────────────────────────────────────── */
   --scanline-color: rgb(var(--accent-cyan));
-  --pipeline-color: rgba(14, 147, 132, 0.40);
+  --pipeline-color: rgba(21, 128, 61, 0.40);
   --grid-color: rgba(0, 0, 0, 0.04);
   --dots-color: rgba(0, 0, 0, 0.08);
-  --glow-accent-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(14, 147, 132, 0.12);
+  --glow-accent-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 10px 28px rgba(21, 128, 61, 0.12);
   --vignette-mid: rgba(245, 245, 247, 0.5);
   --vignette-edge: rgba(245, 245, 247, 0.95);
   --scroll-track: rgb(var(--bg-surface-0));

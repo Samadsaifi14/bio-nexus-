@@ -6,7 +6,7 @@
  * errors, failed jobs), not for "low confidence" scientific output.
  */
 
-const VERY_HIGH = '#2DD4BF'; // < 1e-50
+const VERY_HIGH = '#4ADE80'; // < 1e-50
 const HIGH      = '#60A5FA'; // < 1e-10  (matches --confidence-high)
 const MODERATE  = '#FBBF24'; // < 1e-3   (matches --confidence-moderate)
 const LOW       = '#94A3B8'; // fallback (matches --confidence-low)

@@ -27,7 +27,7 @@ export function TiltCard({ children, className = '', maxTilt = 6 }: TiltCardProp
     const rotateX = -(py - 0.5) * 2 * maxTilt;
     setStyle({
       transform: `perspective(900px) rotateX(${rotateX.toFixed(2)}deg) rotateY(${rotateY.toFixed(2)}deg)`,
-      spotlight: `radial-gradient(420px circle at ${px * 100}% ${py * 100}%, rgba(45,212,191,0.10), transparent 65%)`,
+      spotlight: `radial-gradient(420px circle at ${px * 100}% ${py * 100}%, rgba(74,222,128,0.10), transparent 65%)`,
     });
   }
 

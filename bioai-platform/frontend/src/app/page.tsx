@@ -6,7 +6,6 @@ import { useRef } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
-import { CursorGlow } from '@/components/effects/CursorGlow';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 const DNAHelix = dynamic(
@@ -75,11 +74,9 @@ export default function LandingPage() {
   // reduced motion (apple-design §14).
   const contentY      = useTransform(scrollYProgress, [0, 1], reduceMotion ? ['0%', '0%'] : ['0%', '12%']);
   const contentOpacity = useTransform(scrollYProgress, [0, 0.6], [1, 0.2]);
-  const helixY         = useTransform(scrollYProgress, [0, 1], reduceMotion ? ['0%', '0%'] : ['0%', '22%']);
 
   return (
     <main className="relative bg-void text-text-primary overflow-x-hidden">
-      <CursorGlow />
       <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
           <span className="font-display text-sm font-semibold tracking-tight uppercase">
@@ -111,76 +108,98 @@ export default function LandingPage() {
         ref={heroRef}
         className="relative min-h-[100dvh] flex items-center overflow-hidden"
       >
-        <motion.div
-          style={{ y: helixY }}
-          className="absolute inset-0 z-0 pointer-events-none"
-        >
-          <div className="absolute inset-0 opacity-50">
-            <DNAHelix className="w-full h-full" />
-          </div>
-
+        <div className="absolute inset-0 z-0 pointer-events-none">
           <div
             className="absolute inset-0"
             style={{
               background:
-                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(96,165,250,0.07) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(52,211,153,0.05) 0%, transparent 70%), radial-gradient(ellipse 42% 42% at 55% 15%, rgba(45,212,191,0.06) 0%, transparent 70%)',
+                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(167,139,250,0.10) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(74,222,128,0.08) 0%, transparent 70%), radial-gradient(ellipse 42% 42% at 55% 15%, rgba(251,191,36,0.06) 0%, transparent 70%)',
             }}
           />
-
           <div className="absolute inset-0 bg-gradient-to-r from-void via-void/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-b from-void/70 via-transparent to-void/70" />
-        </motion.div>
+        </div>
 
         <motion.div
           style={{ y: contentY, opacity: contentOpacity }}
           className="relative z-10 w-full max-w-6xl mx-auto px-6 py-24"
         >
-          <div className="max-w-3xl">
-            <motion.h1
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, ease: [0.25, 1, 0.5, 1] }}
-              className="font-display font-bold leading-[0.95] tracking-tight"
-              style={{ fontSize: 'clamp(2.75rem, 5.5vw, 6rem)' }}
-            >
-              One query.
-              <br />
-              <span className="text-accent-cyan">Every major database.</span>
-            </motion.h1>
+          <div className="grid lg:grid-cols-[1.05fr_0.95fr] gap-14 lg:gap-16 items-center">
+            <div className="max-w-3xl">
+              <motion.h1
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', bounce: 0, duration: 0.7 }}
+                className="font-display font-bold leading-[0.98] tracking-tight"
+                style={{ fontSize: 'clamp(2.75rem, 5.5vw, 5.5rem)' }}
+              >
+                One query.
+                <br />
+                <span className="text-accent-cyan">Every major database.</span>
+              </motion.h1>
 
-            <motion.p
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.1, ease: [0.25, 1, 0.5, 1] }}
-              className="text-text-secondary text-lg max-w-[480px] mt-8 leading-relaxed"
-            >
-              Bio Nexus unifies every major bioinformatics database in one
-              plain-language interface — with AI-interpreted visual results, instantly.
-            </motion.p>
+              <motion.p
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', bounce: 0, duration: 0.7, delay: 0.08 }}
+                className="text-text-secondary text-lg max-w-[460px] mt-8 leading-relaxed"
+              >
+                Paste a sequence. Bio Nexus runs BLAST, annotation, structure and
+                AI interpretation — assembled on one page.
+              </motion.p>
+
+              <motion.div
+                initial={{ opacity: 0, y: 24 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ type: 'spring', bounce: 0, duration: 0.7, delay: 0.16 }}
+                className="flex flex-col sm:flex-row items-start gap-4 mt-10"
+              >
+                <Link href="/dashboard" className="btn-primary">
+                  Start analyzing
+                  <ArrowRight size={15} />
+                </Link>
+                <Link href="#pipeline" className="btn-ghost">
+                  See the pipeline
+                </Link>
+              </motion.div>
+
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ duration: 0.6, delay: 0.5 }}
+                className="flex items-center gap-2.5 mt-10 text-[11px] font-mono text-text-muted"
+              >
+                <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
+                <span>No API keys · results streamed live</span>
+              </motion.div>
+            </div>
 
             <motion.div
-              initial={{ opacity: 0, y: 24 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.35, delay: 0.2, ease: [0.25, 1, 0.5, 1] }}
-              className="flex flex-col sm:flex-row items-start gap-4 mt-10"
+              initial={{ opacity: 0, scale: 0.97 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ type: 'spring', bounce: 0, duration: 0.9, delay: 0.2 }}
+              className="hidden md:block"
             >
-              <Link href="/dashboard" className="btn-primary">
-                Start analyzing
-                <ArrowRight size={15} />
-              </Link>
-              <Link href="#pipeline" className="btn-ghost">
-                See the pipeline
-              </Link>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ duration: 0.5, delay: 0.3 }}
-              className="flex items-center gap-2 mt-10 text-[11px] font-mono text-text-muted"
-            >
-              <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
-              <span>No API keys · results streamed live</span>
+              <div
+                className="relative rounded-2xl border border-glass-border bg-surface-0/70 overflow-hidden"
+                style={{ aspectRatio: '4 / 4.3' }}
+              >
+                <div className="absolute inset-0">
+                  <DNAHelix className="w-full h-full" />
+                </div>
+                <div
+                  className="absolute inset-0 pointer-events-none opacity-40"
+                  style={{ background: 'linear-gradient(180deg, transparent 55%, rgba(5,6,9,0.6) 100%)' }}
+                />
+                <div className="absolute top-3.5 left-4 flex items-center gap-2 font-mono text-[10px] tracking-wider text-text-muted">
+                  <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
+                  DOUBLE HELIX · LIVE
+                </div>
+                <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between font-mono text-[10px] tracking-wider text-text-muted">
+                  <span>5′ — 3′</span>
+                  <span>4.2 kb</span>
+                </div>
+              </div>
             </motion.div>
           </div>
         </motion.div>
@@ -230,7 +249,7 @@ export default function LandingPage() {
               >
                 <motion.div
                   className="hidden md:flex w-[26px] h-[26px] rounded-full border border-accent-cyan/40 bg-surface-0 items-center justify-center relative z-10 mx-auto"
-                  animate={{ boxShadow: ['0 0 0 0 rgba(45,212,191,0)', '0 0 14px 2px rgba(45,212,191,0.25)', '0 0 0 0 rgba(45,212,191,0)'] }}
+                  animate={{ boxShadow: ['0 0 0 0 rgba(74,222,128,0)', '0 0 14px 2px rgba(74,222,128,0.25)', '0 0 0 0 rgba(74,222,128,0)'] }}
                   transition={{ repeat: Infinity, duration: 3, delay: i * 0.35, ease: 'easeInOut' }}
                 >
                   <span className="w-[6px] h-[6px] rounded-full bg-accent-cyan/70" />

@@ -401,7 +401,7 @@ export default function MDPage() {
                   const range = max - min || 1;
                   const height = ((pt.rg_angstrom - min) / range) * 100;
                   return (
-                    <div key={i} className="flex-1 rounded-t bg-teal-400/60 hover:bg-teal-400 transition-colors"
+                    <div key={i} className="flex-1 rounded-t bg-green-400/60 hover:bg-green-400 transition-colors"
                       style={{ height: `${Math.max(height, 2)}%` }}
                       title={`Step ${pt.step}: ${pt.rg_angstrom.toFixed(2)} A`} />
                   );

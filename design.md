@@ -24,32 +24,37 @@ a 2003 bioinformatics portal. Dark-only, cinematic, scientific.
 
 | Token | Value | Role |
 |---|---|---|
-| `--bg-void` | `#04040A` | app background, page base |
-| `--bg-surface-0` | `#080812` | cards, panels, data cards |
-| `--bg-surface-1` | `#0D0D1A` | inputs, hover, second level |
-| `--bg-surface-2` | `#111122` | raised panels, table rows |
-| `--bg-surface-3` | `#151528` | modals, dropdowns, popovers |
-| `--glass-border` | `rgba(100,110,180,0.12)` | hairline borders everywhere |
-| `--data-card-bg` | `rgba(8,8,18,0.96)` | near-opaque scientific output |
-| `--hud-bg` | `rgba(13,13,26,0.90)` | 3D viewer chrome |
+| `--bg-void` | `#050609` | app background, page base |
+| `--bg-surface-0` | `#0A0B10` | cards, panels, data cards |
+| `--bg-surface-1` | `#0F1016` | inputs, hover, second level |
+| `--bg-surface-2` | `#14161E` | raised panels, table rows |
+| `--bg-surface-3` | `#191B25` | modals, dropdowns, popovers |
+| `--glass-border` | `rgba(148,163,184,0.12)` | hairline borders everywhere |
+| `--data-card-bg` | `rgba(10,11,16,0.96)` | near-opaque scientific output |
+| `--hud-bg` | `rgba(15,16,22,0.90)` | 3D viewer chrome |
 
 ### 2.2 Accents — bioluminescent triad
 
+The instrument reads **life-green** first, **violet** second, **amber** for
+warnings. Green is the single signal the eye tracks across every screen.
+
 | Token | Value | Contrast on `surface-0` | Use |
 |---|---|---|---|
-| `--accent-cyan` | `#2DD4BF` | 10.7:1 | primary accent, active nav, CTAs |
-| `--accent-purple` | `#8B93D6` | 6.9:1 | secondary/alternate accent (e.g. MSA, docking) |
-| `--accent-amber` | `#E0A94E` | 9.5:1 | warnings that are *not* errors (e.g. RMSD) |
+| `--accent-cyan` | `#4ADE80` | 10.6:1 | primary accent, active nav, CTAs |
+| `--accent-purple` | `#A78BFA` | 6.8:1 | secondary/alternate accent (e.g. MSA, docking) |
+| `--accent-amber` | `#FBBF24` | 11:1 | warnings that are *not* errors (e.g. RMSD) |
 
-All three pass WCAG AA on every surface tier. Do not add a fourth accent.
+All three pass WCAG AA on every dark surface tier. Light theme swaps to
+green-700 `#15803D` and violet-800 `#5B21B6` to hold AA on white. Do not add a
+fourth accent.
 
 ### 2.3 Text tiers (AA-verified)
 
 | Token | Value | Contrast on `surface-0` | Role |
 |---|---|---|---|
-| `--text-primary` | `#F0F0FF` | 17.7:1 | headings, primary content |
-| `--text-secondary` | `#A5AEC6` | 9.1:1 | secondary copy, descriptions |
-| `--text-muted` | `#848CA4` | 5.9:1 | labels, metadata, disabled |
+| `--text-primary` | `#ECF0FA` | 16:1 | headings, primary content |
+| `--text-secondary` | `#A3ACBC` | 8.5:1 | secondary copy, descriptions |
+| `--text-muted` | `#808898` | 5.5:1 | labels, metadata, disabled |
 
 `text-muted` was raised from `#4A4F6A` (2.5:1 — failed AA on 441 usages). The
 hierarchy is preserved: three clearly separated tiers, all legible.
@@ -61,7 +66,7 @@ for real errors only (job failed, API down). `#EF4444` is the only error color.
 
 | Band | Value | Meaning shown to user |
 |---|---|---|
-| Very high | `#2DD4BF` (teal) | "Very high statistical confidence" |
+| Very high | `#4ADE80` (green) | "Very high statistical confidence" |
 | High | `#60A5FA` (blue) | "High statistical confidence" |
 | Moderate | `#FBBF24` (amber) | "Moderate — worth a closer look" |
 | Low | `#94A3B8` (gray) | "Low confidence — not necessarily wrong, just uncertain" |
@@ -109,12 +114,12 @@ CSS component classes in `globals.css` (`@layer components`):
 | `.liquid-glass` | hero/nav chrome only | the "wow" surface; never over data |
 | `.clay` / `.clay-*` | tactile low-stakes controls | toggles, sliders, mode pickers only |
 | `.hud` / `.hud-legend` | 3D viewer chrome | near-opaque, sits in the viewer |
-| `.btn-critical` | primary CTA | solid teal gradient, dark text |
+| `.btn-critical` | primary CTA | solid green gradient, dark text |
 | `.btn-primary` | secondary solid | `--accent-cyan` fill |
 | `.btn-ghost` | quiet action | border + text |
 | `.btn-critical-danger` | destructive | red, only for real destructive actions |
 | `.input-flat` / `.input-glass` | data-entry inputs | flat is precision-first |
-| `.nav-item` (+ `.active`) | sidebar items | active = cyan fill `--accent-cyan-10` |
+| `.nav-item` (+ `.active`) | sidebar items | active = green fill `--accent-cyan-10` |
 | `.badge-cyan` / `.badge-purple` | status badges | uppercase mono, pill |
 
 Banned: nested cards, gradient text, kicker/eyebrow labels above headings,

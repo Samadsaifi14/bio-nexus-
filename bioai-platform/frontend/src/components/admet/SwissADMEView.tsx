@@ -19,7 +19,7 @@ import {
   LabelList,
 } from "recharts";
 
-const CYAN = "#2DD4BF";
+const CYAN = "#4ADE80";
 const GREEN = "#34D399";
 const AMBER = "#FBBF24";
 const ORANGE = "#FB923C";
@@ -94,13 +94,13 @@ function BioavailabilityRadar({ radar }: { radar: ADMETSwissADME["bioavailabilit
             <PolarGrid stroke="rgba(100,110,180,0.25)" />
             <PolarAngleAxis dataKey="axis" tick={{ fill: INK, fontSize: 12 }} />
             <Radar dataKey="zoneStart" stroke={CYAN} strokeOpacity={0.55} strokeWidth={1} strokeDasharray="3 3" fill="none" />
-            <Radar dataKey="zoneEnd" stroke="none" fill="#2DD4BF" fillOpacity={0.10} />
+            <Radar dataKey="zoneEnd" stroke="none" fill="#4ADE80" fillOpacity={0.10} />
             <Radar dataKey="value" stroke={CYAN} strokeWidth={2} fill={CYAN} fillOpacity={0.12} dot={{ r: 3, fill: CYAN, strokeWidth: 0 }} />
           </RadarChart>
         </ResponsiveContainer>
       </div>
       <div className="space-y-1.5">
-        <p className="text-xs text-text-muted">Optimal zone (teal band), molecule (teal line).</p>
+        <p className="text-xs text-text-muted">Optimal zone (green band), molecule (green line).</p>
         {data.map((d) => {
           const ok = d.raw >= d.min && d.raw <= d.max;
           return (

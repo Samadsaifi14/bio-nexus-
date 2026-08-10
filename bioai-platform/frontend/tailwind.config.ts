@@ -56,8 +56,8 @@ const config: Config = {
         glass: 'rgba(100,110,180,0.07)',
         'glass-hover': 'rgba(100,110,180,0.13)',
         'glass-border': 'rgb(var(--glass-border) / var(--glass-border-a))',
-        'glass-border-soft': 'rgba(100,110,180,0.07)',
-        'glass-border-bright': 'rgba(45,212,191,0.2)',
+        'glass-border-soft': 'rgba(148,163,184,0.07)',
+        'glass-border-bright': 'rgba(74,222,128,0.2)',
         // 3D-viewer / canvas scene background + floating HUD chrome.
         viewer: 'rgb(var(--viewer-bg) / <alpha-value>)',
         hud: 'rgb(var(--hud-chip-bg) / <alpha-value>)',
@@ -97,7 +97,7 @@ const config: Config = {
         'radial-vignette':
           'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, var(--vignette-mid) 70%, var(--vignette-edge) 100%)',
         'gradient-cyan-purple':
-          'linear-gradient(135deg, #2DD4BF 0%, #8B93D6 100%)',
+          'linear-gradient(135deg, #4ADE80 0%, #A78BFA 100%)',
         'gradient-surface':
           'linear-gradient(180deg, rgb(var(--bg-surface-0)) 0%, rgb(var(--bg-void)) 100%)',
       },

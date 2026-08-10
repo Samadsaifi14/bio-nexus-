@@ -54,7 +54,7 @@ export const hoverLift: TargetAndTransition = {
 
 export const hoverGlow: TargetAndTransition = {
   y: -3,
-  boxShadow: '0 10px 32px rgba(45, 212, 191, 0.14)',
+  boxShadow: '0 10px 32px rgba(74, 222, 128, 0.14)',
   transition: { type: 'spring', bounce: 0, duration: 0.35 },
 };
 

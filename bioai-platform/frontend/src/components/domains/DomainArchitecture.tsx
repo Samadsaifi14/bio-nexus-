@@ -4,9 +4,9 @@ import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 
 const DB_COLORS: Record<string, string> = {
-  PFAM:    "#2DD4BF",
+  PFAM:    "#4ADE80",
   PANTHER: "#7C3AED",
-  PRINTS:  "#E0A94E",
+  PRINTS:  "#FBBF24",
   PROSITE: "#FBBF24",
   SMART:   "#3B82F6",
   CDD:     "#10B981",
@@ -21,10 +21,10 @@ const SITE_COLORS: Record<string, string> = {
 
 const PTM_COLORS: Record<string, string> = {
   "Modified residue":  "#A78BFA",
-  "Phosphorylation":   "#8B93D6",
+  "Phosphorylation":   "#A78BFA",
   "Glycosylation":     "#06B6D4",
   "Acetylation":       "#10B981",
-  "Ubiquitination":    "#E0A94E",
+  "Ubiquitination":    "#FBBF24",
   "Methylation":       "#6366F1",
   "Sumoylation":       "#EC4899",
 };
@@ -36,7 +36,7 @@ const MOTIF_COLORS: Record<string, string> = {
   "Immunoglobulin-like domain": "#F472B6",
   "SH2 domain":                 "#FB923C",
   "SH3 domain":                 "#A78BFA",
-  "EGF-like domain":            "#2DD4BF",
+  "EGF-like domain":            "#4ADE80",
   "PH domain":                  "#F87171",
   "Bromodomain":                "#818CF8",
   "default":                    "#9CA3AF",

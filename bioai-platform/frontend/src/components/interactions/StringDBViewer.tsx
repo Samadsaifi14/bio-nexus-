@@ -41,9 +41,9 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
   }, [geneName, initialData, audit]);
 
   const scoreChannels = [
-    { key: "escore" as const, label: "Experimental", color: "#2DD4BF", filter: "experimental" as const, explain: "Support from physical interaction experiments (yeast two-hybrid, affinity capture, co-crystallisation)." },
+    { key: "escore" as const, label: "Experimental", color: "#4ADE80", filter: "experimental" as const, explain: "Support from physical interaction experiments (yeast two-hybrid, affinity capture, co-crystallisation)." },
     { key: "dscore" as const, label: "Database", color: "#7C3AED", filter: "database" as const, explain: "Support from curated interaction databases that collect evidence from published literature." },
-    { key: "ascore" as const, label: "Co-expression", color: "#E0A94E", filter: "coexpression" as const, explain: "Support from correlated mRNA expression across many experiments — proteins that move together often work together." },
+    { key: "ascore" as const, label: "Co-expression", color: "#FBBF24", filter: "coexpression" as const, explain: "Support from correlated mRNA expression across many experiments — proteins that move together often work together." },
     { key: "tscore" as const, label: "Text mining", color: "#FBBF24", filter: "textmining" as const, explain: "Support from automated scanning of the scientific literature for co-occurrence of the two genes." },
   ];
 

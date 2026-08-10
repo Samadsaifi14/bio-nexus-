@@ -4,10 +4,10 @@ import { useMemo } from 'react';
 import { analyzeColumns, parseAlignedFasta } from '@/lib/alignment-stats';
 
 const AA_COLORS: Record<string, string> = {
-  A: '#8B93D6', C: '#E0A94E', D: '#EF4444', E: '#EF4444',
+  A: '#A78BFA', C: '#FBBF24', D: '#EF4444', E: '#EF4444',
   F: '#7C3AED', G: '#848CA4', H: '#60A5FA', I: '#7C3AED',
-  K: '#2DD4BF', L: '#7C3AED', M: '#E0A94E', N: '#60A5FA',
-  P: '#FB923C', Q: '#60A5FA', R: '#2DD4BF', S: '#60A5FA',
+  K: '#4ADE80', L: '#7C3AED', M: '#FBBF24', N: '#60A5FA',
+  P: '#FB923C', Q: '#60A5FA', R: '#4ADE80', S: '#60A5FA',
   T: '#60A5FA', V: '#7C3AED', W: '#7C3AED', Y: '#7C3AED',
 };
 
@@ -24,7 +24,7 @@ function cellClass(ch: string, consensus: string): CellClass {
 }
 
 const CELL_BG: Record<CellClass, string> = {
-  match: 'rgba(45,212,191,0.16)',
+  match: 'rgba(74,222,128,0.16)',
   mismatch: 'rgba(239,68,68,0.12)',
   gap: 'rgba(132,140,164,0.08)',
 };
@@ -45,7 +45,7 @@ interface AlignmentBlockProps {
 
 /**
  * Colored MSA grid shared by every alignment surface. Each cell is tinted by
- * its relationship to the column consensus — teal = matched, red = mismatched,
+ * its relationship to the column consensus — green = matched, red = mismatched,
  * gray = gap — with the per-residue chemistry color kept as the foreground and
  * a CLUSTAL-style consensus row (* : .) beneath the sequences.
  */

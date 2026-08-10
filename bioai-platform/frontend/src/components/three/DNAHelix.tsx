@@ -4,6 +4,14 @@ import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
 import { useTheme } from '@/contexts/theme';
 
+/**
+ * Binary DNA helix — the two backbone strands are threaded with 0/1 glyphs
+ * (billboard sprites from a canvas texture) that tick like a living data
+ * stream. Slow rotation, a gentle bob, pointer parallax and ambient particle
+ * dust keep it alive without shouting. Reduced motion renders a static frame
+ * (apple-design §14). Colors follow the bioluminescent green + violet
+ * instrument in globals.css.
+ */
 export default function DNAHelix({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
@@ -12,22 +20,19 @@ export default function DNAHelix({ className }: { className?: string }) {
     const container = containerRef.current;
     if (!container) return;
 
-    // Respect prefers-reduced-motion: render a single static frame, no
-    // rotation loop, particle drift, or pointer parallax (apple-design §14).
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-
-    // Dark: neon "glow in the void" strands. Light: saturated teal + deep navy,
-    // near-opaque, minimal emissive — they must carry contrast on a white canvas.
     const isLight = theme === 'light';
-    const cyan    = isLight ? '#0E9384' : '#2DD4BF';
-    const purple  = isLight ? '#1D1D1F' : '#8B93D6';
-    const amber   = isLight ? '#E0A94E' : '#E0A94E';
-    const strandOpacity  = isLight ? 0.95 : 0.30;
-    const emissiveInt    = isLight ? 0.05 : 0.25;
-    const particleOpacity = isLight ? 0.28 : 0.20;
 
-    const W = container.clientWidth;
-    const H = container.clientHeight;
+    const digitA   = isLight ? '#15803D' : '#4ADE80';
+    const digitB   = isLight ? '#5B21B6' : '#A78BFA';
+    const strandA  = isLight ? '#15803D' : '#22C55E';
+    const strandB  = isLight ? '#5B21B6' : '#7C6CF2';
+    const rung     = isLight ? '#059669' : '#2FBF6E';
+    const particle = isLight ? '#15803D' : '#4ADE80';
+    const additive = !isLight;
+
+    const W = container.clientWidth || 1;
+    const H = container.clientHeight || 1;
 
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
     renderer.setSize(W, H);
@@ -35,193 +40,245 @@ export default function DNAHelix({ className }: { className?: string }) {
     renderer.setClearColor(0x000000, 0);
     container.appendChild(renderer.domElement);
 
-    const scene  = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(52, W / H, 0.1, 100);
-    camera.position.set(0, 0, 10);
-
-    const matCyan = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color(cyan),
-      emissive:          new THREE.Color(cyan),
-      emissiveIntensity: emissiveInt,
-      roughness:         0.3,
-      metalness:         0.6,
-      transparent:       true,
-      opacity:           strandOpacity,
-    });
-    const matPurple = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color(purple),
-      emissive:          new THREE.Color(purple),
-      emissiveIntensity: emissiveInt,
-      roughness:         0.3,
-      metalness:         0.6,
-      transparent:       true,
-      opacity:           strandOpacity,
-    });
-    const matAmber = new THREE.MeshStandardMaterial({
-      color:             new THREE.Color(amber),
-      emissive:          new THREE.Color(amber),
-      emissiveIntensity: isLight ? 0.05 : 0.15,
-      roughness:         0.5,
-      metalness:         0.3,
-      transparent:       true,
-      opacity:           isLight ? 0.9 : 0.40,
-    });
+    const scene = new THREE.Scene();
+    const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 100);
+    camera.position.set(0, 0, 9);
 
     const group = new THREE.Group();
-    const TURNS    = 2.5;
-    const HEIGHT   = 7.5;
-    const RADIUS   = 1.2;
-    const SEGMENTS = 140;
-    const N_PAIRS  = 20;
-
-    const pts1: THREE.Vector3[] = [];
-    const pts2: THREE.Vector3[] = [];
-    for (let i = 0; i <= SEGMENTS; i++) {
-      const frac  = i / SEGMENTS;
-      const theta = frac * TURNS * Math.PI * 2;
-      const y     = frac * HEIGHT - HEIGHT / 2;
-      pts1.push(new THREE.Vector3(Math.cos(theta) * RADIUS, y, Math.sin(theta) * RADIUS));
-      pts2.push(new THREE.Vector3(Math.cos(theta + Math.PI) * RADIUS, y, Math.sin(theta + Math.PI) * RADIUS));
-    }
-
-    const curve1 = new THREE.CatmullRomCurve3(pts1);
-    const curve2 = new THREE.CatmullRomCurve3(pts2);
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve1, SEGMENTS, 0.052, 12, false), matCyan));
-    group.add(new THREE.Mesh(new THREE.TubeGeometry(curve2, SEGMENTS, 0.052, 12, false), matPurple));
-
-    const sphereGeo = new THREE.SphereGeometry(0.10, 20, 20);
-    const yAxis     = new THREE.Vector3(0, 1, 0);
-
-    for (let i = 0; i < N_PAIRS; i++) {
-      const idx = Math.round((i / N_PAIRS) * SEGMENTS);
-      const p1  = pts1[idx].clone();
-      const p2  = pts2[idx].clone();
-      const dir = new THREE.Vector3().subVectors(p2, p1);
-      const len = dir.length();
-      const mid = new THREE.Vector3().addVectors(p1, p2).multiplyScalar(0.5);
-
-      const cylGeo = new THREE.CylinderGeometry(0.026, 0.026, len, 8);
-      const conn   = new THREE.Mesh(cylGeo, matAmber);
-      conn.position.copy(mid);
-      conn.quaternion.setFromUnitVectors(yAxis, dir.normalize());
-      group.add(conn);
-
-      const s1 = new THREE.Mesh(sphereGeo, matCyan.clone());
-      s1.position.copy(p1);
-      const s2 = new THREE.Mesh(sphereGeo, matPurple.clone());
-      s2.position.copy(p2);
-      group.add(s1, s2);
-    }
-
     scene.add(group);
 
-    const P_COUNT = 320;
-    const pPositions = new Float32Array(P_COUNT * 3);
-    const pColors    = new Float32Array(P_COUNT * 3);
-    const cCyan   = new THREE.Color(cyan);
-    const cPurple = new THREE.Color(purple);
+    const TURNS = 2.2;
+    const HEIGHT = 7.4;
+    const RADIUS = 1.35;
+    const N_RUNG = 15;
+    const N_DIGITS = 44;
 
-    for (let i = 0; i < P_COUNT; i++) {
-      pPositions[i * 3]     = (Math.random() - 0.5) * 24;
-      pPositions[i * 3 + 1] = (Math.random() - 0.5) * 18;
-      pPositions[i * 3 + 2] = (Math.random() - 0.5) * 12 - 4;
-      const c = Math.random() > 0.55 ? cCyan : cPurple;
-      pColors[i * 3]     = c.r;
-      pColors[i * 3 + 1] = c.g;
-      pColors[i * 3 + 2] = c.b;
+    const helix = (offset: number) => {
+      const pts: THREE.Vector3[] = [];
+      const steps = 160;
+      for (let i = 0; i <= steps; i++) {
+        const frac = i / steps;
+        const theta = frac * TURNS * Math.PI * 2 + offset;
+        const y = frac * HEIGHT - HEIGHT / 2;
+        pts.push(new THREE.Vector3(Math.cos(theta) * RADIUS, y, Math.sin(theta) * RADIUS));
+      }
+      return new THREE.CatmullRomCurve3(pts);
+    };
+
+    const curveA = helix(0);
+    const curveB = helix(Math.PI);
+
+    const tubeMat = new THREE.MeshBasicMaterial({
+      color: strandA,
+      transparent: true,
+      opacity: isLight ? 0.28 : 0.16,
+      depthWrite: false,
+    });
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(curveA, 120, 0.032, 4, false), tubeMat));
+
+    const tubeMatB = new THREE.MeshBasicMaterial({
+      color: strandB,
+      transparent: true,
+      opacity: isLight ? 0.22 : 0.12,
+      depthWrite: false,
+    });
+    group.add(new THREE.Mesh(new THREE.TubeGeometry(curveB, 120, 0.032, 4, false), tubeMatB));
+
+    const rungMat = new THREE.MeshBasicMaterial({
+      color: rung,
+      transparent: true,
+      opacity: isLight ? 0.22 : 0.11,
+      depthWrite: false,
+    });
+    const rungGeom = new THREE.CylinderGeometry(0.014, 0.014, 1, 4);
+    rungGeom.translate(0, 0.5, 0);
+    for (let i = 0; i < N_RUNG; i++) {
+      const t = i / (N_RUNG - 1);
+      const p1 = curveA.getPointAt(t);
+      const p2 = curveB.getPointAt(t);
+      const dir = p2.clone().sub(p1);
+      const mesh = new THREE.Mesh(rungGeom, rungMat);
+      mesh.position.copy(p1);
+      mesh.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), dir.clone().normalize());
+      mesh.scale.set(1, dir.length(), 1);
+      group.add(mesh);
     }
 
-    const pGeo = new THREE.BufferGeometry();
-    pGeo.setAttribute('position', new THREE.BufferAttribute(pPositions, 3));
-    pGeo.setAttribute('color', new THREE.BufferAttribute(pColors, 3));
-    const pMat = new THREE.PointsMaterial({
-      size: 0.04,
-      vertexColors: true,
-      transparent: true,
-      opacity: particleOpacity,
-      sizeAttenuation: true,
-    });
-    const particles = new THREE.Points(pGeo, pMat);
-    scene.add(particles);
-
-    scene.add(new THREE.AmbientLight(0xffffff, 0.2));
-
-    const l1 = new THREE.PointLight(cyan, 0.6, 25);
-    l1.position.set(4, 4, 5);
-    scene.add(l1);
-
-    const l2 = new THREE.PointLight(purple, 0.6, 25);
-    l2.position.set(-4, -4, 5);
-    scene.add(l2);
-
-    const l3 = new THREE.PointLight(amber, 0.35, 18);
-    l3.position.set(0, 0, 7);
-    scene.add(l3);
-
-    let targetMX = 0;
-    let targetMY = 0;
-    let currentMX = 0;
-    let currentMY = 0;
-
-    const onMouseMove = (e: MouseEvent) => {
-      targetMX = (e.clientX / window.innerWidth - 0.5) * 2;
-      targetMY = (e.clientY / window.innerHeight - 0.5) * 2;
+    const makeGlyph = (char: string, color: string) => {
+      const size = 96;
+      const cv = document.createElement('canvas');
+      cv.width = size;
+      cv.height = size;
+      const ctx = cv.getContext('2d');
+      if (ctx) {
+        ctx.clearRect(0, 0, size, size);
+        ctx.font = `600 ${Math.round(size * 0.72)}px "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace`;
+        ctx.textAlign = 'center';
+        ctx.textBaseline = 'middle';
+        ctx.fillStyle = color;
+        ctx.fillText(char, size / 2, size / 2 + size * 0.04);
+      }
+      return new THREE.CanvasTexture(cv);
     };
-    window.addEventListener('mousemove', onMouseMove);
 
-    const clock = new THREE.Clock();
-    let rafId: number;
+    const mkSpriteMat = (tex: THREE.Texture, opacity: number) =>
+      new THREE.SpriteMaterial({
+        map: tex,
+        transparent: true,
+        depthWrite: false,
+        opacity,
+        blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+      });
 
-    const animate = () => {
-      if (!reducedMotion) rafId = requestAnimationFrame(animate);
-      const elapsed = clock.getElapsedTime();
+    const texA0 = makeGlyph('0', digitA);
+    const texA1 = makeGlyph('1', digitA);
+    const texB0 = makeGlyph('0', digitB);
+    const texB1 = makeGlyph('1', digitB);
+    const matsA = [mkSpriteMat(texA0, isLight ? 0.95 : 0.9), mkSpriteMat(texA1, isLight ? 0.95 : 0.9)];
+    const matsB = [mkSpriteMat(texB0, isLight ? 0.9 : 0.72), mkSpriteMat(texB1, isLight ? 0.9 : 0.72)];
 
-      if (reducedMotion) {
-        group.rotation.set(0, 0, 0);
-        group.position.y = 0;
-        particles.rotation.y = 0;
-        renderer.render(scene, camera);
-        return;
+    type Glyph = {
+      sprite: THREE.Sprite;
+      mats: THREE.SpriteMaterial[];
+      base: number;
+      curve: THREE.CatmullRomCurve3;
+      rate: number;
+      index: number;
+    };
+    const glyphs: Glyph[] = [];
+
+    const spawnGlyphs = (curve: THREE.CatmullRomCurve3, mats: THREE.SpriteMaterial[], rateBase: number) => {
+      for (let i = 0; i < N_DIGITS; i++) {
+        const sprite = new THREE.Sprite(mats[i % 2]);
+        sprite.scale.setScalar(0.36);
+        group.add(sprite);
+        glyphs.push({
+          sprite,
+          mats,
+          base: i / N_DIGITS,
+          curve,
+          rate: rateBase + (i % 7) * 0.06,
+          index: i,
+        });
       }
+    };
+    spawnGlyphs(curveA, matsA, 1.4);
+    spawnGlyphs(curveB, matsB, 0.9);
 
-      currentMX += (targetMX - currentMX) * 0.04;
-      currentMY += (targetMY - currentMY) * 0.04;
+    const particleCount = 150;
+    const particlePos = new Float32Array(particleCount * 3);
+    const particleSpeed: number[] = [];
+    for (let i = 0; i < particleCount; i++) {
+      particlePos[i * 3] = (Math.random() - 0.5) * 14;
+      particlePos[i * 3 + 1] = (Math.random() - 0.5) * 10;
+      particlePos[i * 3 + 2] = (Math.random() - 0.5) * 8;
+      particleSpeed.push(0.05 + Math.random() * 0.2);
+    }
+    const particleGeom = new THREE.BufferGeometry();
+    particleGeom.setAttribute('position', new THREE.BufferAttribute(particlePos, 3));
+    const particleMat = new THREE.PointsMaterial({
+      color: particle,
+      size: 0.045,
+      transparent: true,
+      opacity: isLight ? 0.28 : 0.2,
+      depthWrite: false,
+      sizeAttenuation: true,
+      blending: additive ? THREE.AdditiveBlending : THREE.NormalBlending,
+    });
+    const particles = new THREE.Points(particleGeom, particleMat);
+    group.add(particles);
 
-      group.rotation.y = elapsed * 0.22 + currentMX * 0.35;
-      group.rotation.x = currentMY * 0.08;
-      group.position.y = Math.sin(elapsed * 0.38) * 0.14;
+    let targetRotX = 0;
+    let targetRotY = 0;
+    const onPointerMove = (e: PointerEvent) => {
+      const nx = (e.clientX / window.innerWidth) * 2 - 1;
+      const ny = (e.clientY / window.innerHeight) * 2 - 1;
+      targetRotY = nx * 0.24;
+      targetRotX = ny * 0.14;
+    };
+    window.addEventListener('pointermove', onPointerMove);
 
-      const pos = pGeo.attributes.position.array as Float32Array;
-      for (let i = 0; i < P_COUNT; i++) {
-        pos[i * 3 + 1] += 0.006;
-        if (pos[i * 3 + 1] > 9) pos[i * 3 + 1] = -9;
-      }
-      pGeo.attributes.position.needsUpdate = true;
-      particles.rotation.y = elapsed * 0.03;
-
+    let lastW = W;
+    let lastH = H;
+    const resize = () => {
+      const w = container.clientWidth || 1;
+      const h = container.clientHeight || 1;
+      if (w === lastW && h === lastH) return;
+      lastW = w;
+      lastH = h;
+      renderer.setSize(w, h);
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
       renderer.render(scene, camera);
     };
-    animate();
+    const ro = new ResizeObserver(resize);
+    ro.observe(container);
 
-    const onResize = () => {
-      const nw = container.clientWidth;
-      const nh = container.clientHeight;
-      camera.aspect = nw / nh;
-      camera.updateProjectionMatrix();
-      renderer.setSize(nw, nh);
+    const placeGlyph = (g: Glyph, t: number, bit: number) => {
+      g.sprite.position.copy(g.curve.getPointAt(t));
+      g.sprite.material = g.mats[bit % 2];
     };
-    window.addEventListener('resize', onResize);
+
+    let raf = 0;
+    let elapsed = 0;
+    const clock = new THREE.Clock();
+
+    const render = () => {
+      renderer.render(scene, camera);
+      if (!reducedMotion) raf = requestAnimationFrame(tick);
+    };
+
+    const tick = () => {
+      const dt = Math.min(clock.getDelta(), 0.05);
+      elapsed += dt;
+
+      group.rotation.y = elapsed * 0.22 + targetRotY * 0.35;
+      group.rotation.x = THREE.MathUtils.lerp(group.rotation.x, targetRotX, dt * 2.5);
+      group.position.y = Math.sin(elapsed * 0.5) * 0.12;
+
+      for (const g of glyphs) {
+        const flow = (elapsed * g.rate * 0.035) % 1;
+        const bit = (g.index + Math.floor(elapsed * g.rate)) % 2;
+        placeGlyph(g, (g.base + flow) % 1, bit);
+      }
+
+      const posArr = particleGeom.attributes.position.array as Float32Array;
+      for (let i = 0; i < particleCount; i++) {
+        posArr[i * 3 + 1] += particleSpeed[i] * dt;
+        if (posArr[i * 3 + 1] > 5.2) posArr[i * 3 + 1] = -5.2;
+      }
+      (particleGeom.attributes.position as THREE.BufferAttribute).needsUpdate = true;
+
+      render();
+    };
+
+    if (reducedMotion) {
+      for (const g of glyphs) placeGlyph(g, g.base, g.index % 2);
+      group.rotation.y = 0.5;
+      render();
+    } else {
+      raf = requestAnimationFrame(tick);
+    }
 
     return () => {
-      cancelAnimationFrame(rafId);
-      window.removeEventListener('mousemove', onMouseMove);
-      window.removeEventListener('resize', onResize);
+      cancelAnimationFrame(raf);
+      window.removeEventListener('pointermove', onPointerMove);
+      ro.disconnect();
       renderer.dispose();
-      if (container.contains(renderer.domElement)) {
+      particleGeom.dispose();
+      particleMat.dispose();
+      tubeMat.dispose();
+      tubeMatB.dispose();
+      rungMat.dispose();
+      rungGeom.dispose();
+      [texA0, texA1, texB0, texB1].forEach((t) => t.dispose());
+      if (renderer.domElement.parentNode === container) {
         container.removeChild(renderer.domElement);
       }
     };
   }, [theme]);
 
-  return <div ref={containerRef} className={className ?? 'w-full h-full'} />;
+  return (
+    <div ref={containerRef} className={className} aria-hidden aria-label="Animated double helix made of binary digits" />
+  );
 }

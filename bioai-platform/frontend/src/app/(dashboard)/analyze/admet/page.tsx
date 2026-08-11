@@ -2,13 +2,14 @@
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
-import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain, MagnifyingGlass, ChartPolar, DownloadSimple as Download } from '@phosphor-icons/react';
+import { Flask as Beaker, Check, X, Warning as AlertTriangle, CircleNotch as Loader2, Shield, Pulse as Activity, Brain, MagnifyingGlass, ChartPolar, DownloadSimple as Download, Siren } from '@phosphor-icons/react';
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { computeADMET, searchCompounds, type ADMETResult } from "@/lib/api";
 import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
 import SwissADMEView from "@/components/admet/SwissADMEView";
+import ProToxView from "@/components/admet/ProToxView";
 
 const EXAMPLES = [
   { name: "Aspirin", smiles: "CC(=O)OC1=CC=CC=C1C(=O)O" },
@@ -26,6 +27,7 @@ const TABS = [
   { key: "druglikeness", label: "Drug-likeness", icon: Beaker },
   { key: "admet", label: "ADMET", icon: Shield },
   { key: "alerts", label: "Alerts", icon: AlertTriangle },
+  { key: "protox", label: "ProTox", icon: Siren },
 ];
 
 type TabKey = typeof TABS[number]["key"];
@@ -362,6 +364,13 @@ export default function ADMETPage() {
                 ) : (
                   <div className="glass-card p-4 text-sm text-text-muted">SwissADME panel unavailable for this result.</div>
                 )}
+              </motion.div>
+            )}
+
+            {/* ---- PROTOX TAB ---- */}
+            {activeTab === "protox" && (
+              <motion.div key="protox" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <ProToxView smiles={result.smiles} name={result.chemical_name || undefined} />
               </motion.div>
             )}
 

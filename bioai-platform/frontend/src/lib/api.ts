@@ -846,6 +846,24 @@ export async function searchCompounds(query: string, limit = 10): Promise<ADMETS
   return res.data.results || [];
 }
 
+export type ProToxResult = {
+  task_id: string;
+  input: string;
+  input_type: string;
+  requested_models: string;
+  chemical_name?: string;
+  pubchem_cid?: number;
+  acute_toxicity: Record<string, string>;
+  model_results: Record<string, string>[];
+  toxicity_targets: Record<string, string>[];
+  methodology?: { tier: string; confidence: string; method: string; note: string };
+};
+
+export async function computeProTox(input: { smiles?: string; name?: string; models?: string }): Promise<{ result: ProToxResult }> {
+  const res = await longApi.post('/api/admet/protox', input);
+  return res.data;
+}
+
 // ---------------------------------------------------------------------------
 // MD Simulation
 // ---------------------------------------------------------------------------

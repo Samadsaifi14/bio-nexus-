@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, SignOut as LogOut, Dna, List as Menu } from '@phosphor-icons/react';
+import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, SignOut as LogOut, Dna, List as Menu, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
@@ -186,7 +186,7 @@ function SidebarContent({
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const pathname              = usePathname();
   const { user, signOut }     = useAuth();
-  const [collapsed] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => { setMobileOpen(false); }, [pathname]);
@@ -205,6 +205,28 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           signOut={signOut}
         />
 
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          className="absolute -right-3 top-[18px] z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110"
+          style={{
+            background: 'rgb(var(--bg-surface-2))',
+            border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
+            boxShadow:  'var(--shadow-float-sm)',
+          }}
+          onMouseEnter={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(74,222,128,0.4)';
+          }}
+          onMouseLeave={(e) => {
+            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--glass-border) / var(--glass-border-a))';
+          }}
+          aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+        >
+          <ChevronRight
+            size={11}
+            className="text-text-muted transition-transform"
+            style={{ transform: collapsed ? 'rotate(0deg)' : 'rotate(180deg)' }}
+          />
+        </button>
       </motion.aside>
 
       <AnimatePresence>

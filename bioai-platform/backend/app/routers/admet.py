@@ -34,6 +34,18 @@ class ADMETResponse(BaseModel):
     error: str | None = None
 
 
+class ProToxRequest(BaseModel):
+    smiles: str | None = Field(None, min_length=1, max_length=500, description="SMILES string")
+    name: str | None = Field(None, min_length=1, max_length=200, description="Chemical name (resolved via PubChem)")
+    models: str | None = Field(None, min_length=1, max_length=400, description="Space-separated ProTox model shorthands")
+
+    @model_validator(mode="after")
+    def _require_one(self) -> "ProToxRequest":
+        if not any([self.smiles, self.name]):
+            raise ValueError("Provide one of: smiles or name")
+        return self
+
+
 class SearchHit(BaseModel):
     cid: int
     name: str
@@ -145,3 +157,36 @@ async def search_compounds(
     from app.tools.pubchem import search_suggestions
     hits = await search_suggestions(q, limit)
     return SearchResponse(query=q, results=hits)
+
+
+@router.post("/protox", response_model=ADMETResponse)
+async def predict_toxicity(body: ProToxRequest, user_id: str | None = Depends(get_user_id)):
+    """ProTox 3.0 ML-based toxicity prediction (Charité).
+
+    Queries the ProTox server for acute toxicity, toxicity targets and
+    optional additional models (organ toxicity, Tox21 pathways, CYPs…).
+    The upstream server queues requests, so a run can take up to ~5 minutes.
+    """
+    try:
+        from app.tools.protox import predict_toxicity as _protox, ProToxError
+
+        smiles, chemical_name, cid = await _resolve_input(
+            ADMETRequest(smiles=body.smiles, name=body.name, cid=None)
+        )
+        result = await _protox(
+            smiles=smiles,
+            name=chemical_name or None,
+            models=body.models,
+        )
+        result["chemical_name"] = chemical_name or body.name
+        if cid is not None:
+            result["pubchem_cid"] = cid
+        return ADMETResponse(result=result)
+    except ProToxError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    except HTTPException:
+        raise
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"ProTox prediction failed: {e}")

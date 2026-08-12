@@ -16,6 +16,14 @@ class BlastTool(BaseTool):
 
     @ttl_cache(ttl=86400, prefix="blast")
     async def run(self, input: dict) -> dict:
+        return await self.run_uncached(input)
+
+    async def run_uncached(self, input: dict) -> dict:
+        """Same as run(), but never reads/writes the TTL cache.
+
+        The pipeline BLAST fallback uses this so a transient EBI failure is
+        not cached for 24 hours (which would poison every later job).
+        """
         sequence = input.get("sequence", "").strip()
         database = input.get("database", "uniprotkb_swissprot")
         program = input.get("program", "blastp")
@@ -31,7 +39,7 @@ class BlastTool(BaseTool):
         return {"hits": parsed, "count": len(parsed), "source": "EBI BLAST", "database": database}
 
     async def _submit(self, sequence: str, program: str, database: str) -> str:
-        stype = "protein" if program == "blastp" else "dna"
+        stype = "protein" if program in ("blastp", "blastx") else "dna"
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.post(
                 f"{settings.EBI_BASE_URL}/run",

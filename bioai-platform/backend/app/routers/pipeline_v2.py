@@ -24,6 +24,7 @@ from app.services.validators import validate_fasta
 from app.services.sequence_utils import detect_source_from_accession, map_refseq_to_uniprot, detect_sequence_type
 from app.services.blast_config import resolve_blast_params
 from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa, run_ebi_msa_best_effort
+from app.tools.blast import BlastTool
 from app.tools.uniprot import UniprotTool
 from app.tools.pairwise_alignment import pairwise_align, VALID_MODES
 
@@ -467,66 +468,40 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
 # Step implementations
 # ---------------------------------------------------------------------------
 
-async def _run_blast(
-    sequence: str,
-    status_callback=None,
-    fast_mode: bool = False,
-    blast_params: dict | None = None,
+# NCBI database name → EBI ncbiblast database name. EBI has no direct "nr"
+# equivalent; uniprotkb is its closest comprehensive protein database.
+EBI_BLAST_DATABASE_MAP = {
+    "nr": "uniprotkb",
+    "swissprot": "uniprotkb_swissprot",
+    "pdb": "pdb",
+    "pdbaa": "pdb_nr",
+    "refseq_protein": "refseq_protein",
+    "env_nr": "env_nr",
+    "nt": "nt",
+    "refseq_rna": "refseq_rna",
+    "refseq_genomic": "refseq_genomic",
+    "est": "est",
+    "gss": "gss",
+}
+
+
+def _build_blast_result(
+    hits: list[dict],
+    *,
+    source: str,
+    database: str,
+    program: str,
+    seq_type: str,
+    query_accession: str,
+    query_length: int,
+    display_limit: int = 20,
 ) -> dict:
-    blast_params = blast_params or {}
-    try:
-        program, database, seq_type = resolve_blast_params(
-            sequence,
-            program=blast_params.get("program"),
-            database=blast_params.get("database"),
-            fast_mode=fast_mode,
-        )
-    except ValueError as e:
-        logger.warning("BLAST param resolution failed: %s", e)
-        return {"error": str(e), "count": 0, "hits": []}
-
-    try:
-        max_hits = int(blast_params.get("max_hits") or 100)
-    except (TypeError, ValueError):
-        max_hits = 100
-    max_hits = max(5, min(max_hits, 100))
-    query_accession = (blast_params.get("query_accession") or "").strip()
-
-    if status_callback:
-        try:
-            await status_callback("submitted_to_ncbi")
-        except Exception:
-            pass
-
-    results = await ncbi_blast.run_blast_with_retry(
-        sequence,
-        retries=2,
-        max_wait_seconds=600 if fast_mode else 900,
-        database=database,
-        program=program,
-        hitlist_size=max_hits,
-    )
-
-    if "error" in results:
-        return {"error": results["error"], "count": 0, "hits": []}
-
-    if status_callback:
-        try:
-            await status_callback("parsing")
-        except Exception:
-            pass
-
-    parsed = parse_blast_xml(results["raw"])
-    if "error" in parsed:
-        raise RuntimeError(f"BLAST XML parse failed: {parsed['error']}")
-
-    hits = parsed.get("hits", [])[:max_hits]
+    """Normalize parsed hits (NCBI XML parser or EBI tool) into the pipeline's
+    canonical BLAST result shape consumed by the frontend."""
     top_hit = hits[0] if hits else None
-    query_length = parsed.get("query_length", 0)
-
     return {
         "count": len(hits),
-        "source": "ncbi",
+        "source": source,
         "database": database,
         "program": program,
         "query_sequence_type": seq_type,
@@ -563,9 +538,121 @@ async def _run_blast(
                 "hit_from": h.get("hit_from", 0),
                 "hit_to": h.get("hit_to", 0),
             }
-            for h in hits[:20]
+            for h in hits[:display_limit]
         ],
     }
+
+
+async def _run_ebi_blast_fallback(
+    sequence: str,
+    program: str,
+    database: str,
+    seq_type: str,
+    max_hits: int,
+) -> dict | None:
+    """Run BLAST against EBI (uncached) and return a canonical result, or None
+    if the database has no EBI equivalent or EBI itself fails."""
+    ebi_database = EBI_BLAST_DATABASE_MAP.get(database)
+    if not ebi_database:
+        logger.warning("No EBI database equivalent for '%s' — skipping fallback", database)
+        return None
+    try:
+        result = await BlastTool().run_uncached({
+            "sequence": sequence,
+            "program": program,
+            "database": ebi_database,
+            "max_hits": max_hits,
+        })
+    except Exception as e:
+        logger.warning("EBI BLAST fallback failed: %s", e)
+        return None
+    if result.get("error") or not result.get("hits"):
+        logger.warning("EBI BLAST fallback returned no hits: %s", result.get("error", "empty"))
+        return None
+    query_length = len("".join(sequence.replace("\n", "").replace(" ", "").split("-")))
+    return _build_blast_result(
+        result["hits"],
+        source="ebi",
+        database=database,
+        program=program,
+        seq_type=seq_type,
+        query_accession="",
+        query_length=query_length,
+    )
+
+
+async def _run_blast(
+    sequence: str,
+    status_callback=None,
+    fast_mode: bool = False,
+    blast_params: dict | None = None,
+) -> dict:
+    blast_params = blast_params or {}
+    try:
+        program, database, seq_type = resolve_blast_params(
+            sequence,
+            program=blast_params.get("program"),
+            database=blast_params.get("database"),
+            fast_mode=fast_mode,
+        )
+    except ValueError as e:
+        logger.warning("BLAST param resolution failed: %s", e)
+        return {"error": str(e), "count": 0, "hits": []}
+
+    try:
+        max_hits = int(blast_params.get("max_hits") or 100)
+    except (TypeError, ValueError):
+        max_hits = 100
+    max_hits = max(5, min(max_hits, 100))
+    query_accession = (blast_params.get("query_accession") or "").strip()
+
+    if status_callback:
+        try:
+            await status_callback("submitted_to_ncbi")
+        except Exception:
+            pass
+
+    ncbi_error: str | None = None
+    results = await ncbi_blast.run_blast_with_retry(
+        sequence,
+        retries=2,
+        max_wait_seconds=600 if fast_mode else 900,
+        database=database,
+        program=program,
+        hitlist_size=max_hits,
+    )
+
+    if "error" not in results:
+        parsed = parse_blast_xml(results["raw"])
+        if "error" not in parsed:
+            if status_callback:
+                try:
+                    await status_callback("parsing")
+                except Exception:
+                    pass
+            hits = parsed.get("hits", [])[:max_hits]
+            return _build_blast_result(
+                hits,
+                source="ncbi",
+                database=database,
+                program=program,
+                seq_type=seq_type,
+                query_accession=query_accession,
+                query_length=parsed.get("query_length", 0),
+            )
+        ncbi_error = parsed["error"]
+    else:
+        ncbi_error = results["error"]
+
+    # NCBI failed (timeout/stuck/overload) or returned unparsable output —
+    # try EBI before failing the job, so a single degraded provider doesn't
+    # kill the whole pipeline.
+    logger.warning("NCBI BLAST unavailable (%s) — falling back to EBI BLAST", ncbi_error)
+    ebi_result = await _run_ebi_blast_fallback(sequence, program, database, seq_type, max_hits)
+    if ebi_result is not None:
+        return ebi_result
+
+    return {"error": ncbi_error or "BLAST failed via NCBI and EBI", "count": 0, "hits": []}
 
 
 async def _run_uniprot(top_hit: dict) -> dict:

@@ -232,12 +232,12 @@ export default function JobPage() {
             )}
             {isNcbiError && (
               <p className="text-sm text-accent-amber bg-accent-amber/5 rounded-lg p-3 border border-accent-amber/20">
-                NCBI returned an error. This is usually temporary — please try again.
+                The BLAST service returned an error. This is usually temporary — please try again.
               </p>
             )}
             {isParseError && (
               <p className="text-sm text-accent-amber bg-accent-amber/5 rounded-lg p-3 border border-accent-amber/20">
-                We couldn&apos;t read the results from NCBI. The data may have been in an unexpected format.
+                We couldn&apos;t read the results from the BLAST service. The data may have been in an unexpected format.
               </p>
             )}
           </div>

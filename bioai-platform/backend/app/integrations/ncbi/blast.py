@@ -158,9 +158,12 @@ async def check_status_until_ready(
     delay = 5 if NCBI_API_KEY else 10
     consecutive_failures = 0
     max_consecutive_failures = 3
-    # Stuck-job threshold: 5x the RTOE, but at least 180s (NCBI overload can
-    # push legitimate jobs well past their RTOE, so don't give up early).
-    stuck_threshold = max(estimated_seconds * 5, 180) if estimated_seconds > 0 else 240
+    # Stuck-job threshold: 5x the RTOE, but at least half the poll budget.
+    # NCBI routinely exceeds its optimistic RTOE under load, so abandoning a
+    # job after just a few minutes wastes a healthy RID — a job that is merely
+    # slow deserves its full poll budget before being re-submitted.
+    stuck_threshold = max(estimated_seconds * 5, max_wait_seconds // 2)
+    stuck_threshold = min(stuck_threshold, max_wait_seconds)
 
     while elapsed < max_wait_seconds:
         try:

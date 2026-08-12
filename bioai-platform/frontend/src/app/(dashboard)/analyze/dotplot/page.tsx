@@ -294,7 +294,7 @@ export default function DotPlotPage() {
             value={stringency}
             min={40}
             max={100}
-            unit="% score"
+            unit="% match"
             onChange={setStringency}
           />
           <div className="flex flex-col gap-1.5">
@@ -314,7 +314,7 @@ export default function DotPlotPage() {
               <option value="pam250">PAM250 (protein)</option>
             </select>
             <p className="text-[10px] text-text-muted">
-              Matrices fall back to identity on nucleotide input.
+              Matrices require both inputs to be protein; otherwise scoring falls back to identity.
             </p>
           </div>
         </div>
@@ -344,7 +344,10 @@ export default function DotPlotPage() {
                   A: {result.seq_a_length} · B: {result.seq_b_length}
                 </span>
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-1 border border-glass-border text-text-muted font-medium">
-                  {result.scoring_used}{result.scoring !== result.scoring_used ? ' (requested ' + result.scoring + ')' : ''} · window {result.window} · ≥{result.threshold}
+                  {result.sequence_type_a}{result.sequence_type_b && result.sequence_type_a !== result.sequence_type_b ? ` × ${result.sequence_type_b}` : ''}
+                </span>
+                <span className="text-[10px] px-2 py-0.5 rounded-full bg-surface-1 border border-glass-border text-text-muted font-medium">
+                  {result.scoring_used}{result.scoring !== result.scoring_used ? ' (requested ' + result.scoring + ')' : ''} · window {result.window} · ≥{result.stringency}% match
                 </span>
                 <div className="ml-auto flex items-center gap-2">
                   <button
@@ -408,7 +411,7 @@ export default function DotPlotPage() {
                       type="number"
                       dataKey="y"
                       name="Position in A"
-                      domain={[0, H]}
+                      domain={[H, 0]}
                       tick={{ fontSize: 10, fill: '#64748B' }}
                       label={{ value: 'Sequence A position', angle: -90, position: 'insideLeft', offset: 4, fill: '#94A3B8', fontSize: 11 }}
                     />

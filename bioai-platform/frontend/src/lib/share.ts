@@ -55,36 +55,59 @@ export function buildShareMessage(shareLink: string, details?: ShareDetails): st
   return lines.join('\n');
 }
 
-/**
- * Shares a result using the native Web Share API when available,
- * otherwise copies a pre-filled share message to the clipboard.
- * Returns 'shared' when the native share dialog was used (not cancelled).
- */
-export async function shareResult(tokenOrUrl: string, details?: ShareDetails): Promise<'shared' | 'copied'> {
-  const shareLink = buildShareUrl(tokenOrUrl);
-  const message = buildShareMessage(shareLink, details);
+export interface SharePlatform {
+  id: string;
+  label: string;
+  /** Returns the share target URL (popup link or mailto). */
+  buildUrl: (url: string, message: string) => string;
+}
 
-  if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
-    try {
-      await navigator.share({ title: 'BioNexus — Analysis Result', text: message, url: shareLink });
-      return 'shared';
-    } catch {
-      // User dismissed the share sheet — fall through to clipboard copy.
-    }
+/** Share targets shown alongside the copyable link in the share dialog. */
+export const SHARE_PLATFORMS: SharePlatform[] = [
+  {
+    id: 'x',
+    label: 'X',
+    buildUrl: (url, message) => `https://twitter.com/intent/tweet?text=${encodeURIComponent(message)}&url=${encodeURIComponent(url)}`,
+  },
+  {
+    id: 'facebook',
+    label: 'Facebook',
+    buildUrl: (url) => `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(url)}`,
+  },
+  {
+    id: 'linkedin',
+    label: 'LinkedIn',
+    buildUrl: (url) => `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`,
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    buildUrl: (url, message) => `https://wa.me/?text=${encodeURIComponent(`${message}\n${url}`)}`,
+  },
+  {
+    id: 'telegram',
+    label: 'Telegram',
+    buildUrl: (url, message) => `https://t.me/share/url?url=${encodeURIComponent(url)}&text=${encodeURIComponent(message)}`,
+  },
+  {
+    id: 'reddit',
+    label: 'Reddit',
+    buildUrl: (url) => `https://www.reddit.com/submit?url=${encodeURIComponent(url)}`,
+  },
+  {
+    id: 'email',
+    label: 'Email',
+    buildUrl: (url, message) =>
+      `mailto:?subject=${encodeURIComponent('BioNexus — Analysis Result')}&body=${encodeURIComponent(`${message}\n\n${url}`)}`,
+  },
+];
+
+/** Opens a share target in a popup/email client for a platform option. */
+export function openSharePlatform(platform: SharePlatform, url: string, message: string): void {
+  const target = platform.buildUrl(url, message);
+  if (platform.id === 'email') {
+    window.location.href = target;
+    return;
   }
-
-  if (navigator.clipboard?.writeText) {
-    await navigator.clipboard.writeText(message);
-    return 'copied';
-  }
-
-  const textarea = document.createElement('textarea');
-  textarea.value = message;
-  textarea.style.position = 'fixed';
-  textarea.style.opacity = '0';
-  document.body.appendChild(textarea);
-  textarea.select();
-  document.execCommand('copy');
-  document.body.removeChild(textarea);
-  return 'copied';
+  window.open(target, '_blank', 'noopener,noreferrer,width=640,height=560');
 }

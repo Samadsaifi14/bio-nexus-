@@ -352,6 +352,8 @@ export interface DotPlotFeatures {
 
 export interface DotPlotResult {
   sequence_type: string;
+  sequence_type_a?: string;
+  sequence_type_b?: string;
   seq_a_length: number;
   seq_b_length: number;
   window: number;
@@ -359,6 +361,7 @@ export interface DotPlotResult {
   scoring: string;
   scoring_used: string;
   threshold: number;
+  match_rule?: 'window_identity' | 'percent_of_perfect_self_match';
   total_matches: number;
   dot_count: number;
   downsampled: boolean;

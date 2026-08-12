@@ -16,6 +16,8 @@ interface BlastPanelProps {
   source?: string;
   queryLength?: number;
   querySequence?: string;
+  /** Full-length subject sequences keyed by hit accession (e.g. from the MSA). */
+  fullSequences?: Record<string, string>;
 }
 
 /** Looks like a protein (not a clean nucleotide alphabet) -> BLOSUM scoring. */
@@ -25,9 +27,17 @@ function looksLikeProtein(seq: string): boolean {
   return cleaned.split('').some(ch => !'ACGTUN'.includes(ch));
 }
 
-export function BlastPanel({ hits, count, source, querySequence }: BlastPanelProps) {
+export function BlastPanel({ hits, count, source, querySequence, fullSequences }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const safeHits = hits ?? [];
+
+  /** Best available subject sequence for a hit: the full-length MSA copy when
+   *  present, otherwise the aligned segment (gaps stripped). */
+  const subjectSequence = (hit: BlastHitSummary): string => {
+    const full = fullSequences?.[hit.accession] ?? fullSequences?.[hit.accession.replace(/\.\d+$/, '')];
+    if (full) return full;
+    return (hit.hit_alignment || hit.midline || '').replace(/-/g, '');
+  };
 
   return (
     <motion.div variants={fadeUp} whileHover={cardHover} className="data-card overflow-hidden">
@@ -94,7 +104,7 @@ export function BlastPanel({ hits, count, source, querySequence }: BlastPanelPro
                   <PairwiseAlignView hit={hit} querySequence={querySequence} />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
                     <a
-                      href={`/analyze/dotplot?seq_a=${encodeURIComponent(querySequence ?? '')}&seq_b=${encodeURIComponent((hit.hit_alignment || hit.midline || '').replace(/-/g, ''))}&scoring=${looksLikeProtein(querySequence ?? '') ? 'blosum62' : 'identity'}`}
+                      href={`/analyze/dotplot?seq_a=${encodeURIComponent(querySequence ?? '')}&seq_b=${encodeURIComponent(subjectSequence(hit))}&scoring=${looksLikeProtein(querySequence ?? '') ? 'blosum62' : 'identity'}`}
                       className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-cyan transition"
                     >
                       <Scatter className="w-3.5 h-3.5" /> Dot plot vs query

@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { CircleNotch as LoaderCircle, Dna, WarningCircle as AlertCircle, Copy, Download, MagnifyingGlass as Search, Clock, WifiSlash as WifiOff, TestTube as FlaskConical } from '@phosphor-icons/react';
+import { CircleNotch as LoaderCircle, Dna, WarningCircle as AlertCircle, ShareNetwork, Download, MagnifyingGlass as Search, Clock, WifiSlash as WifiOff, TestTube as FlaskConical } from '@phosphor-icons/react';
 import toast from 'react-hot-toast';
 import type { JobStatus, JobStepStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
@@ -14,7 +14,8 @@ import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { getJob, createShareLink } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
-import { shareResult, buildShareDetails } from '@/lib/share';
+import { buildShareUrl, buildShareMessage, buildShareDetails, type ShareDetails } from '@/lib/share';
+import { ShareDialog } from '@/components/share/ShareDialog';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { DomainArchitecture } from '@/components/domains/DomainArchitecture';
@@ -38,11 +39,33 @@ export default function JobPage() {
   const router = useRouter();
   const jobId = params.jobId as string;
   const [job, setJob] = useState<JobStatus | null>(null);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareCreating, setShareCreating] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareDetails, setShareDetails] = useState<ShareDetails | undefined>(undefined);
   const [loading, setLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<string | null>(null);
   const startRef = useRef(Date.now());
+
+  // Full-length subject sequences from the MSA (headers may carry a `_aln`
+  // suffix or a versioned accession), used by BLAST "Dot plot vs query" links
+  // so the comparison runs against the whole protein, not just the aligned hit.
+  const fullHitSequences = useMemo(() => {
+    const map: Record<string, string> = {};
+    const fasta = job?.context_json?.msa?.aln_fasta;
+    if (!fasta) return map;
+    const { headers, seqs } = parseAlignedFasta(fasta);
+    headers.forEach((header, i) => {
+      const clean = seqs[i].replace(/[^A-Za-z]/g, '');
+      const id = header.trim();
+      map[id] = clean;
+      map[id.replace(/_aln$/, '')] = clean;
+      map[id.replace(/\.\d+$/, '')] = clean;
+    });
+    return map;
+  }, [job?.context_json?.msa?.aln_fasta]);
 
   useEffect(() => {
     let cancelled = false;
@@ -263,17 +286,23 @@ export default function JobPage() {
         </div>
         <CriticalButton
           onClick={async () => {
+            setShareCreating(true);
             try {
               const { url } = await createShareLink(jobId);
-              const mode = await shareResult(url, buildShareDetails(context));
-              toast.success(mode === 'shared' ? 'Shared successfully!' : 'Share message copied to clipboard!');
+              const link = buildShareUrl(url);
+              setShareLink(link);
+              setShareDetails(buildShareDetails(context));
+              setShareOpen(true);
             } catch (err) {
               toast.error(extractErrorMessage(err, 'Failed to create share link'));
+            } finally {
+              setShareCreating(false);
             }
           }}
+          disabled={shareCreating}
           className="flex items-center gap-2"
         >
-          <Copy className="w-4 h-4" />
+          {shareCreating ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <ShareNetwork className="w-4 h-4" />}
           Share
         </CriticalButton>
       </motion.div>
@@ -312,6 +341,7 @@ export default function JobPage() {
                 count={context.blast.count}
                 source={context.blast?.source ?? 'NCBI BLAST'}
                 querySequence={context.query?.sequence}
+                fullSequences={fullHitSequences}
               />
               {context.uniprot && <UniprotPanel data={context.uniprot} />}
             </div>
@@ -524,6 +554,13 @@ export default function JobPage() {
           })()}
         </>
       )}
+
+      <ShareDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        url={shareLink}
+        message={buildShareMessage(shareLink, shareDetails)}
+      />
     </motion.div>
   );
 }

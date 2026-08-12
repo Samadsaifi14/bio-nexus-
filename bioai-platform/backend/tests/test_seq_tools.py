@@ -237,11 +237,51 @@ class TestDotPlot:
         assert res["dot_count"] == 7 * 7
         assert res["features"]["main_diagonal_pct"] == 100.0
 
+    def test_substitution_threshold_is_self_normalized(self):
+        # Regression: stringency was previously a % of the global matrix max
+        # (11 = W-W), so a window of alanines (4/window) never reached the
+        # threshold and identical A-rich proteins rendered a nearly empty plot.
+        # With per-window "percent of perfect self-match" semantics, an
+        # identical A-rich protein must light its whole main diagonal.
+        seq = "MAAAAAAAAAAAAAAAM"
+        res = compute_dotplot(seq, seq, window=10, stringency=80, scoring="blosum62")
+        assert res["match_rule"] == "percent_of_perfect_self_match"
+        assert res["features"]["main_diagonal_pct"] == 100.0
+        # Every diagonal window-start must light; off-diagonal dots are the
+        # legitimate repetitive A-stretches, so only require the diagonal.
+        expected = {i for i in range(res["seq_a_length"] - res["window"] + 1)}
+        on_diag = {y for y, x in res["dots"] if y == x}
+        assert on_diag == expected
+
+    def test_conserved_protein_lights_main_diagonal(self):
+        # A real, conserved protein compared to itself must trace a clear
+        # diagonal with default BLOSUM62 / window 10 / 80% settings.
+        p53 = ("MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEA"
+               "PRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCT"
+               "YSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDG"
+               "LAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRR"
+               "PILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNN"
+               "TSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKK"
+               "GQSTSRHKKLMFKTEGPDSD")
+        res = compute_dotplot(p53, p53, window=10, stringency=80, scoring="blosum62")
+        assert res["features"]["main_diagonal_pct"] >= 90
+
     def test_scoring_falls_back_to_identity_for_nucleotides(self):
         res = compute_dotplot("AAAACCCC", "AAAACCCC", window=2, stringency=100, scoring="blosum62")
         assert res["scoring"] == "blosum62"
         assert res["scoring_used"] == "identity"
         assert res["threshold"] == 2
+
+    def test_mixed_protein_nucleotide_falls_back_to_identity(self):
+        # Regression: only seq_a was type-checked, so a protein-vs-DNA
+        # comparison used a BLOSUM matrix on nucleotide letters (A->Ala etc.),
+        # producing spurious off-diagonal dots. Either non-protein input must
+        # force identity scoring and report the mixed type.
+        res = compute_dotplot("MEEPQSDPSVEP", "ATGCATGCATGCA", scoring="blosum62")
+        assert res["scoring_used"] == "identity"
+        assert res["sequence_type"] == "mixed"
+        assert res["sequence_type_a"] == "protein"
+        assert res["sequence_type_b"] == "dna"
 
     def test_invalid_scoring_raises(self):
         from app.tools.dotplot import DotPlotError

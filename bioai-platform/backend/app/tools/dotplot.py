@@ -3,9 +3,20 @@
 A dot plot marks every pair of positions ``(i, j)`` whose surrounding
 ``window`` residues are similar at or above ``stringency``. Similarity is
 either simple identity (nucleotide sequences) or a substitution-matrix score
-(BLOSUM/PAM for proteins). Identical sequences produce the classic diagonal;
-repeats and rearrangements show up as off-diagonal lines; inverted repeats as
-anti-diagonal lines.
+(BLOSUM/PAM for proteins).
+
+``stringency`` always means "% of a perfect match":
+
+* identity scoring  — at least ``stringency``% of the window residues match.
+* substitution scoring — the window must reach ``stringency``% of its own
+  maximum possible score (the score it would get against a perfectly identical
+  window). This is residue-composition independent: a window of alanines has a
+  lower ceiling than a window of tryptophans, so identical sequences always
+  light the main diagonal and conserved regions appear regardless of their
+  amino-acid content.
+
+Identical sequences produce the classic diagonal; repeats and rearrangements
+show up as off-diagonal lines; inverted repeats as anti-diagonal lines.
 
 Uses a vectorised (numpy) scan: scores are computed positionally along each
 ``(i, j)`` diagonal with sliding-window sums, so a 2000 x 2000 comparison
@@ -140,10 +151,20 @@ def compute_dotplot(
             f"Unknown scoring scheme '{scoring}'. Use one of: {', '.join(SCORING_OPTIONS)}"
         )
 
-    # Protein substitution matrices only make sense on protein sequences.
+    type_a = detect_sequence_type(seq_a)
+    type_b = detect_sequence_type(seq_b)
+    # Protein substitution matrices only make sense when BOTH inputs are
+    # protein; mixing protein with a nucleotide sequence silently scores
+    # nucleotide letters as if they were amino acids, so fall back to identity.
     scoring_used = scoring
-    if scoring != "identity" and detect_sequence_type(seq_a) != "protein":
+    if scoring != "identity" and (type_a != "protein" or type_b != "protein"):
         scoring_used = "identity"
+    if type_a == "protein" and type_b == "protein":
+        seq_type = "protein"
+    elif type_a == type_b:
+        seq_type = type_a
+    else:
+        seq_type = "mixed"
 
     a = np.frombuffer(seq_a.encode("ascii", "ignore"), dtype=np.uint8)
     b = np.frombuffer(seq_b.encode("ascii", "ignore"), dtype=np.uint8)
@@ -151,11 +172,11 @@ def compute_dotplot(
         raise DotPlotError("Both sequences are required")
 
     if scoring_used == "identity":
+        # "stringency" is the % of window residues that must be identical.
         threshold = max(1, math.ceil(window * stringency / 100.0))
+        match_rule = "window_identity"
     else:
         data, index = _load_matrix(scoring_used)
-        max_score = float(data.max())
-        threshold = max(1, math.floor(window * max_score * stringency / 100.0))
         # Map letters to matrix rows; unknown residues (B/Z/U/O/X, ambiguous)
         # get a dedicated zero-scoring row/column.
         rows_a = np.array([index.get(chr(c), len(index)) for c in a.tolist()], dtype=np.intp)
@@ -166,12 +187,24 @@ def compute_dotplot(
         data = np.vstack([data, extra])
         extra = np.zeros((data.shape[0], 1), dtype=np.int16)
         data = np.hstack([data, extra])
+        # For substitution scoring, "stringency" is the % of the window's own
+        # maximum possible score (its perfect self-match) that must be reached.
+        # This makes the threshold residue-composition independent: a window
+        # of alanines needs 4 x window, a window of tryptophans needs 11 x
+        # window, and identical sequences always light the main diagonal.
+        self_diag_a = data[rows_a, rows_a]
+        max_self_window = 1
+        match_rule = "percent_of_perfect_self_match"
 
     if window == 1:
         if scoring_used == "identity":
             eq = (a[:, None] == b[None, :])
         else:
-            eq = data[rows_a[:, None], rows_b[None, :]] >= threshold
+            score_mat = data[rows_a[:, None], rows_b[None, :]]
+            denom = self_diag_a[:, None]
+            eq = (denom > 0) & (score_mat.astype(np.int64) * 100 >= stringency * denom)
+            if self_diag_a.size:
+                max_self_window = max(max_self_window, int(self_diag_a.max()))
         ys, xs = np.nonzero(eq)
     else:
         ys_list: list[np.ndarray] = []
@@ -186,9 +219,19 @@ def compute_dotplot(
                 score_diag = (a[i0:i0 + length] == b[j0:j0 + length]).astype(np.int16)
             else:
                 score_diag = data[rows_a[i0:i0 + length], rows_b[j0:j0 + length]]
+                self_diag = data[rows_a[i0:i0 + length], rows_a[i0:i0 + length]]
             csum = np.concatenate([[0], np.cumsum(score_diag)])
             sums = csum[window:] - csum[:-window]
-            kk = np.nonzero(sums >= threshold)[0]
+            if scoring_used == "identity":
+                kk = np.nonzero(sums >= threshold)[0]
+            else:
+                csum_self = np.concatenate([[0], np.cumsum(self_diag)])
+                self_sums = csum_self[window:] - csum_self[:-window]
+                if self_sums.size:
+                    max_self_window = max(max_self_window, int(self_sums.max()))
+                kk = np.nonzero(
+                    (self_sums > 0) & (sums.astype(np.int64) * 100 >= stringency * self_sums)
+                )[0]
             if kk.size:
                 ys_list.append(i0 + kk)
                 xs_list.append(j0 + kk)
@@ -198,6 +241,10 @@ def compute_dotplot(
         else:
             ys = np.empty(0, dtype=np.int64)
             xs = np.empty(0, dtype=np.int64)
+
+    if scoring_used != "identity":
+        # Reported raw-score baseline: the strongest self-scoring window.
+        threshold = max(1, math.floor(max_self_window * stringency / 100.0))
 
     total_matches = int(ys.size)
     features = _detect_features(ys, xs, n, m, window)
@@ -210,7 +257,9 @@ def compute_dotplot(
 
     dots = [[int(y), int(x)] for y, x in zip(ys.tolist(), xs.tolist())]
     return {
-        "sequence_type": detect_sequence_type(seq_a),
+        "sequence_type": seq_type,
+        "sequence_type_a": type_a,
+        "sequence_type_b": type_b,
         "seq_a_length": n,
         "seq_b_length": m,
         "window": window,
@@ -218,6 +267,7 @@ def compute_dotplot(
         "scoring": scoring,
         "scoring_used": scoring_used,
         "threshold": threshold,
+        "match_rule": match_rule,
         "total_matches": total_matches,
         "dot_count": len(dots),
         "downsampled": downsampled,

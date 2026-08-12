@@ -1,7 +1,7 @@
 "use client";
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Dna, ArrowRight, CircleNotch as LoaderCircle, FileText, CheckCircle as CircleCheck, Circle, Copy } from '@phosphor-icons/react';
+import { Dna, ArrowRight, CircleNotch as LoaderCircle, FileText, CheckCircle as CircleCheck, Circle, ShareNetwork } from '@phosphor-icons/react';
 import toast from 'react-hot-toast';
 import { ClayToggle } from "@/components/ui/ClayToggle";
 import { ClaySegmented } from "@/components/ui/ClaySegmented";
@@ -10,7 +10,8 @@ import { PipelineResults } from "@/components/results/PipelineResults";
 import { createShareLink, getPipelineStatusV2 } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
 import { extractErrorMessage } from "@/lib/errors";
-import { shareResult, buildShareDetails } from "@/lib/share";
+import { buildShareUrl, buildShareMessage, buildShareDetails, type ShareDetails } from "@/lib/share";
+import { ShareDialog } from "@/components/share/ShareDialog";
 
 type WizardStep = "input" | "running";
 type AlignMode = "global" | "local";
@@ -39,6 +40,10 @@ export function AnalysisWizard() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [shareCreating, setShareCreating] = useState(false);
+  const [shareLink, setShareLink] = useState('');
+  const [shareDetails, setShareDetails] = useState<ShareDetails | undefined>(undefined);
 
   function toggleStep(id: string) {
     setEnabledSteps(prev =>
@@ -75,8 +80,10 @@ export function AnalysisWizard() {
 
   async function handleShare() {
     if (!jobId) return;
+    setShareCreating(true);
     try {
       const { url } = await createShareLink(jobId);
+      const link = buildShareUrl(url);
       let details;
       try {
         const status = await getPipelineStatusV2(jobId);
@@ -84,10 +91,13 @@ export function AnalysisWizard() {
       } catch {
         // Details are optional — share still works without them.
       }
-      const mode = await shareResult(url, details);
-      toast.success(mode === 'shared' ? 'Shared successfully!' : 'Share message copied to clipboard!');
+      setShareLink(link);
+      setShareDetails(details);
+      setShareOpen(true);
     } catch (e) {
       toast.error(extractErrorMessage(e, 'Failed to create share link'));
+    } finally {
+      setShareCreating(false);
     }
   }
 
@@ -209,9 +219,9 @@ export function AnalysisWizard() {
                   </a>}
                 </div>
                 <div className="mt-3">
-                  <button onClick={handleShare}
-                    className="w-full text-center py-2.5 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center justify-center gap-2">
-                    <Copy className="w-4 h-4" />Share Result
+                  <button onClick={handleShare} disabled={shareCreating}
+                    className="w-full text-center py-2.5 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center justify-center gap-2 disabled:opacity-50">
+                    {shareCreating ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <ShareNetwork className="w-4 h-4" />}Share Result
                   </button>
                 </div>
               </>
@@ -219,6 +229,13 @@ export function AnalysisWizard() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      <ShareDialog
+        open={shareOpen}
+        onClose={() => setShareOpen(false)}
+        url={shareLink}
+        message={buildShareMessage(shareLink, shareDetails)}
+      />
     </div>
   );
 }

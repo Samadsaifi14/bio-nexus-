@@ -10,6 +10,7 @@ import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 import { AuditInsightPanel } from '@/components/AuditInsightPanel';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { BreadcrumbSchema } from '@/components/seo/BreadcrumbSchema';
 
 const NAV_ITEMS = [
   { href: '/dashboard', icon: LayoutDashboard, label: 'Dashboard'  },
@@ -56,7 +57,7 @@ function SidebarContent({
               exit="hidden"
               className="font-display text-sm font-semibold overflow-hidden whitespace-nowrap"
             >
-              Bio <span className="text-accent-cyan">Nexus</span>
+              Syn<span className="text-accent-cyan">teny</span>
             </motion.span>
           )}
         </AnimatePresence>
@@ -170,7 +171,7 @@ function SidebarContent({
           <div className="px-3 pt-2">
             <div className="divider mb-3" />
             <div className="flex items-center justify-between px-3">
-              <span className="text-[10px] font-mono text-text-muted/70">NEXUS-CORE</span>
+              <span className="text-[10px] font-mono text-text-muted/70">SYNTENY-CORE</span>
               <span className="flex items-center gap-1.5 text-[10px] font-mono text-accent-cyan/80">
                 <span className="w-1 h-1 rounded-full bg-accent-cyan" />
                 v2.1
@@ -299,6 +300,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
       <TutorialWalkthrough />
       <AuditInsightPanel sessionId={typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`} />
+      <BreadcrumbSchema />
     </div>
   );
 }

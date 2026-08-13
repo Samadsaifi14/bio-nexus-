@@ -7,6 +7,8 @@ import './globals.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
 import { themeInitScript } from '@/lib/theme';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { ORG_ID, SITE_NAME, SITE_URL, WEBSITE_ID } from '@/lib/seo';
 
 export const metadata: Metadata = {
   title: 'Synteny — One interface for every bioinformatics tool',
@@ -25,6 +27,34 @@ export default function RootLayout({
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans antialiased">
+        <JsonLd
+          data={{
+            '@context': 'https://schema.org',
+            '@graph': [
+              {
+                '@type': 'Organization',
+                '@id': ORG_ID,
+                name: SITE_NAME,
+                url: `${SITE_URL}/`,
+                description:
+                  'Synteny unifies BLAST, UniProt, AlphaFold, molecular docking and AI interpretation into a single bioinformatics research interface.',
+                sameAs: ['https://github.com/Samadsaifi14/bio-nexus-'],
+                foundingLocation: {
+                  '@type': 'Place',
+                  name: 'Jamia Millia Islamia, New Delhi',
+                },
+              },
+              {
+                '@type': 'WebSite',
+                '@id': WEBSITE_ID,
+                url: `${SITE_URL}/`,
+                name: SITE_NAME,
+                publisher: { '@id': ORG_ID },
+                inLanguage: 'en-US',
+              },
+            ],
+          }}
+        />
         <Providers>
           <MotionConfig reducedMotion="user">
             {children}

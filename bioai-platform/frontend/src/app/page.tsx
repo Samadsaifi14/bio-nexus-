@@ -7,6 +7,8 @@ import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { JsonLd } from '@/components/seo/JsonLd';
+import { ORG_ID, SOFTWARE_ID, SITE_NAME, SITE_URL, WEBPAGE_ID, WEBSITE_ID } from '@/lib/seo';
 
 const DNAHelix = dynamic(
   () => import('@/components/three/DNAHelix'),
@@ -449,6 +451,61 @@ export default function LandingPage() {
           <span className="text-xs text-text-muted">&copy; 2026</span>
         </div>
       </footer>
+
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'WebPage',
+          '@id': WEBPAGE_ID,
+          url: `${SITE_URL}/`,
+          name: 'Synteny — One interface for every bioinformatics tool',
+          isPartOf: { '@id': WEBSITE_ID },
+          about: { '@id': SOFTWARE_ID },
+          mainEntity: {
+            '@type': 'SoftwareApplication',
+            '@id': SOFTWARE_ID,
+            name: SITE_NAME,
+            applicationCategory: 'ScienceApplication',
+            applicationSubCategory: 'Bioinformatics',
+            operatingSystem: 'Web',
+            url: `${SITE_URL}/`,
+            description:
+              'Runs BLAST, UniProt annotation, AlphaFold structure prediction, molecular docking and AI interpretation from a single sequence input, with results cross-referenced on one page.',
+            offers: {
+              '@type': 'Offer',
+              price: '0',
+              priceCurrency: 'USD',
+              description: 'Free to start, no API key required',
+            },
+            featureList: [
+              'BLAST search (EBI + NCBI)',
+              'UniProt annotation lookup',
+              'AlphaFold 3D structure prediction',
+              'Molecular docking (AutoDock Vina)',
+              'Phylogenetic tree construction (NJ, UPGMA, Maximum Likelihood)',
+              'AI-generated plain-language interpretation',
+              'PDF/JSON export',
+            ],
+            creator: { '@id': ORG_ID },
+          },
+        }}
+      />
+
+      <JsonLd
+        data={{
+          '@context': 'https://schema.org',
+          '@type': 'HowTo',
+          name: 'How Synteny analyzes a sequence',
+          description: 'Five automated stages from raw sequence to AI-interpreted results.',
+          step: [
+            { '@type': 'HowToStep', position: 1, name: 'Sequence Input', text: 'Paste a FASTA sequence or accession ID.' },
+            { '@type': 'HowToStep', position: 2, name: 'BLAST Search', text: 'Runs EBI BLAST and NCBI BLAST against reference databases.' },
+            { '@type': 'HowToStep', position: 3, name: 'UniProt Lookup', text: 'Retrieves functional annotation from UniProt.' },
+            { '@type': 'HowToStep', position: 4, name: 'Structure Prediction', text: 'AlphaFold structure is fetched and rendered in an interactive 3D viewer.' },
+            { '@type': 'HowToStep', position: 5, name: 'AI Interpretation', text: 'Results are synthesized into a plain-language summary.' },
+          ],
+        }}
+      />
     </main>
   );
 }

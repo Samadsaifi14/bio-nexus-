@@ -9,7 +9,6 @@ import threading
 import uuid
 from datetime import datetime, timezone
 
-import httpx
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 
@@ -23,6 +22,7 @@ from app.integrations.ncbi.parser import parse_blast_xml
 from app.services.validators import validate_fasta
 from app.services.sequence_utils import detect_source_from_accession, map_refseq_to_uniprot, detect_sequence_type
 from app.services.blast_config import resolve_blast_params
+from app.services.identifier_resolution import resolve_to_uniprot
 from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa, run_ebi_msa_best_effort
 from app.tools.blast import BlastTool
 from app.tools.uniprot import UniprotTool
@@ -332,11 +332,19 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
 
     async def _do_uniprot():
         candidates = ([top_hit] + hits[:5]) if top_hit else hits[:5]
-        for candidate in candidates:
-            result = await _run_uniprot(candidate)
-            if "error" not in result:
-                return result
-        return result if result else {"error": "No BLAST hits for UniProt lookup"}
+        last_result: dict | None = None
+        for idx, candidate in enumerate(candidates):
+            # Only the top candidate may trigger the expensive EBI sequence
+            # BLAST fallback — otherwise a pathological query could run it up
+            # to 6 times (up to ~3 min each).
+            last_result = await _run_uniprot(
+                candidate,
+                query_sequence=sequence,
+                try_sequence=idx == 0,
+            )
+            if "error" not in last_result:
+                return last_result
+        return last_result if last_result else {"error": "No BLAST hits for UniProt lookup"}
 
     async def _do_msa():
         if not hits:
@@ -655,100 +663,76 @@ async def _run_blast(
     return {"error": ncbi_error or "BLAST failed via NCBI and EBI", "count": 0, "hits": []}
 
 
-async def _run_uniprot(top_hit: dict) -> dict:
-    accession = top_hit.get("accession", "")
+async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_sequence: bool = True) -> dict:
+    accession = (top_hit.get("accession") or "").strip()
     if not accession:
         return {"error": "No accession"}
+    desc = (top_hit.get("description") or "").strip()
+    organism = (top_hit.get("organism") or "").strip()
 
+    # Resolve ANY BLAST-hit accession (RefSeq, GenBank, PDB, Ensembl, ...) to a
+    # UniProt accession via the strategy ladder in identifier_resolution:
+    #   direct -> xref search (fast) -> name search -> EBI sequence BLAST -> idmapping
     try:
-        source = detect_source_from_accession(accession)
-        if source == "ncbi":
-            mapped = await map_refseq_to_uniprot(accession)
-            if mapped:
-                accession = mapped
-            else:
-                # Could not map to UniProt — try searching by protein name
-                desc = top_hit.get("description", "")
-                gene_name = desc.split(",")[0].split("[" )[0].strip() if desc else ""
-                if gene_name:
-                    logger.info("NCBI mapping failed for %s, searching UniProt by name: %s", accession, gene_name)
-                    try:
-                        async with httpx.AsyncClient(timeout=10) as client:
-                            r = await client.get(
-                                "https://rest.uniprot.org/uniprotkb/search",
-                                params={"query": f"gene:{gene_name} AND reviewed:true", "format": "json", "size": 1},
-                            )
-                            if r.status_code == 200:
-                                data = r.json()
-                                results = data.get("results", [])
-                                if results:
-                                    hit = results[0]
-                                    tool = UniprotTool()
-                                    result = await tool.run({"accession": hit["primaryAccession"]})
-                                    if "error" not in result:
-                                        return {
-                                            "accession": result.get("accession", ""),
-                                            "full_name": result.get("full_name", ""),
-                                            "organism": result.get("organism", ""),
-                                            "gene_names": result.get("gene_names", []),
-                                            "functions": result.get("functions", []),
-                                            "keywords": result.get("keywords", []),
-                                            "subcellular_locations": result.get("subcellular_locations", []),
-                                            "pdb_ids": result.get("pdb_ids", []),
-                                            "go_terms": result.get("go_terms", []),
-                                            "sequence": result.get("sequence", ""),
-                                            "sequence_length": result.get("sequence_length", 0),
-                                            "features": [
-                                                f for f in (result.get("features", []) or [])
-                                                if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES")
-                                            ],
-                                        }
-                    except Exception as e:
-                        logger.warning("UniProt name search failed for %s: %s", gene_name, e)
-
-                # Still no UniProt data — return partial data from BLAST hit
-                logger.info("No UniProt mapping for %s, using BLAST data only", accession)
-                return {
-                    "accession": accession,
-                    "full_name": top_hit.get("description", ""),
-                    "organism": top_hit.get("organism", ""),
-                    "gene_names": [],
-                    "functions": [],
-                    "keywords": [],
-                    "subcellular_locations": [],
-                    "pdb_ids": [],
-                    "go_terms": [],
-                    "sequence": "",
-                    "sequence_length": 0,
-                    "features": [],
-                    "_note": f"UniProt mapping unavailable for {accession}",
-                }
-
-        tool = UniprotTool()
-        result = await tool.run({"accession": accession})
-        if "error" in result:
-            return {"error": result["error"]}
-
-        return {
-            "accession": result.get("accession", ""),
-            "full_name": result.get("full_name", ""),
-            "organism": result.get("organism", ""),
-            "gene_names": result.get("gene_names", []),
-            "functions": result.get("functions", []),
-            "keywords": result.get("keywords", []),
-            "subcellular_locations": result.get("subcellular_locations", []),
-            "pdb_ids": result.get("pdb_ids", []),
-            "go_terms": result.get("go_terms", []),
-            "sequence": result.get("sequence", ""),
-            "sequence_length": result.get("sequence_length", 0),
-            "features": [
-                f for f in (result.get("features", []) or [])
-                if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES")
-            ],
-        }
+        resolved = await resolve_to_uniprot(
+            accession=accession,
+            sequence=query_sequence,
+            description=desc,
+            organism=organism or None,
+            try_sequence=try_sequence,
+        )
     except Exception as e:
-        logger.warning("UniProt lookup failed for %s: %s", accession, e)
-        return {"error": f"UniProt lookup failed: {e}"}
+        logger.warning("Identifier resolution failed for %s: %s", accession, e)
+        resolved = None
+
+    if not resolved:
+        logger.info("No UniProt mapping for %s, using BLAST data only", accession)
+        return {
+            "accession": accession,
+            "full_name": top_hit.get("description", ""),
+            "organism": top_hit.get("organism", ""),
+            "gene_names": [],
+            "functions": [],
+            "keywords": [],
+            "subcellular_locations": [],
+            "pdb_ids": [],
+            "go_terms": [],
+            "sequence": "",
+            "sequence_length": 0,
+            "features": [],
+            "_note": f"UniProt mapping unavailable for {accession}",
+        }
+
+    uniprot_acc = resolved["accession"]
+    method = resolved["method"]
+
+    tool = UniprotTool()
+    result = await tool.run({"accession": uniprot_acc})
+    if "error" in result:
+        return {"error": result["error"]}
+
+    return {
+        "accession": result.get("accession", uniprot_acc),
+        "full_name": result.get("full_name", ""),
+        "organism": result.get("organism", ""),
+        "gene_names": result.get("gene_names", []),
+        "functions": result.get("functions", []),
+        "keywords": result.get("keywords", []),
+        "subcellular_locations": result.get("subcellular_locations", []),
+        "pdb_ids": result.get("pdb_ids", []),
+        "go_terms": result.get("go_terms", []),
+        "sequence": result.get("sequence", ""),
+        "sequence_length": result.get("sequence_length", 0),
+        "features": [
+            f for f in (result.get("features", []) or [])
+            if f.get("type") in ("ACTIVE_SITE", "BINDING", "MUTAGENESIS", "SITE", "MOD_RES")
+        ],
+        "resolution": {
+            "uniprot_accession": uniprot_acc,
+            "method": method,
+            "original_accession": accession,
+        },
+    }
 
 
 async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = "global") -> dict:

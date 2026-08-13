@@ -88,7 +88,7 @@ export default function LearnPage() {
 
   return (
     <div>
-      <PageHeader title="Documentation & Learning" subtitle="Learn the concepts behind every tool in Bio Nexus." />
+      <PageHeader title="Documentation & Learning" subtitle="Learn the concepts behind every tool in Synteny." />
 
       <motion.div variants={fadeUp} className="relative mb-10 max-w-xl">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />

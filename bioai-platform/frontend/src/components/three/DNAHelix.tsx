@@ -9,8 +9,8 @@ import { useTheme } from '@/contexts/theme';
  * (billboard sprites from a canvas texture) that tick like a living data
  * stream. Slow rotation, a gentle bob, pointer parallax and ambient particle
  * dust keep it alive without shouting. Reduced motion renders a static frame
- * (apple-design §14). Colors follow the bioluminescent green + violet
- * instrument in globals.css.
+ * (apple-design §14). Colors follow the Synteny signal palette in globals.css:
+ * mint primary strand + cool blue secondary strand.
  */
 export default function DNAHelix({ className }: { className?: string }) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -24,9 +24,9 @@ export default function DNAHelix({ className }: { className?: string }) {
     const isLight = theme === 'light';
 
     const digitA   = isLight ? '#15803D' : '#4ADE80';
-    const digitB   = isLight ? '#5B21B6' : '#A78BFA';
+    const digitB   = isLight ? '#2563EB' : '#60A5FA';
     const strandA  = isLight ? '#15803D' : '#22C55E';
-    const strandB  = isLight ? '#5B21B6' : '#7C6CF2';
+    const strandB  = isLight ? '#2563EB' : '#60A5FA';
     const rung     = isLight ? '#059669' : '#2FBF6E';
     const particle = isLight ? '#15803D' : '#4ADE80';
     const additive = !isLight;

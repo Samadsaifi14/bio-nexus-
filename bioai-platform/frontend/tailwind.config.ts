@@ -97,7 +97,7 @@ const config: Config = {
         'radial-vignette':
           'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, var(--vignette-mid) 70%, var(--vignette-edge) 100%)',
         'gradient-cyan-purple':
-          'linear-gradient(135deg, #4ADE80 0%, #A78BFA 100%)',
+          'linear-gradient(135deg, #4ADE80 0%, #60A5FA 100%)',
         'gradient-surface':
           'linear-gradient(180deg, rgb(var(--bg-surface-0)) 0%, rgb(var(--bg-void)) 100%)',
       },

@@ -6,8 +6,8 @@ import { X, CaretLeft as ChevronLeft, CaretRight as ChevronRight, BookOpen } fro
 
 const STEPS = [
   {
-    title: 'Welcome to Bio Nexus',
-    description: 'Bio Nexus is your all-in-one bioinformatics platform. From BLAST searches to protein structure visualization, everything is designed to be fast and intuitive. This short tour will show you the essentials.',
+    title: 'Welcome to Synteny',
+    description: 'Synteny is your all-in-one bioinformatics platform. From BLAST searches to protein structure visualization, everything is designed to be fast and intuitive. This short tour will show you the essentials.',
     highlight: 'sidebar',
   },
   {

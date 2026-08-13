@@ -3,9 +3,13 @@
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   BIO NEXUS — DUAL THEME TOKENS
+   SYNTENY — DUAL THEME TOKENS
    `:root, [data-theme="dark"]`  = original bioluminescent instrument (unchanged)
    `[data-theme="light"]`        = Apple-style light theme (see apple.md)
+   Signal-coded accents:
+     accent-cyan   = mint      → sequence tools (BLAST, alignment, primers)
+     accent-purple = cool blue → structure & interaction surfaces
+     accent-amber  = warm amber→ phylogenetic / enrichment surfaces
    Colors referenced by Tailwind (bg-void, text-primary, ...) are stored as
    RGB TRIPLETS so opacity modifiers keep working in both themes. Always use
    `rgb(var(--x))` / `rgb(var(--x) / alpha)` in plain CSS for triplet tokens.
@@ -20,10 +24,10 @@
   --bg-surface-2: 20 22 30;
   --bg-surface-3: 25 27 37;
 
-  --accent-cyan: 74 222 128;
+  --accent-cyan: 74 222 128;      /* mint — sequence tools */
   --accent-hover: 84 232 138;
-  --accent-purple: 167 139 250;
-  --accent-amber: 251 191 36;
+  --accent-purple: 96 165 250;    /* cool blue — structure & interactions */
+  --accent-amber: 251 191 36;     /* warm amber — phylogeny & enrichment */
 
   --text-primary: 236 240 250;
   --text-secondary: 163 172 188;
@@ -51,8 +55,8 @@
   --accent-cyan-10: rgba(74, 222, 128, 0.10);
   --accent-cyan-20: rgba(74, 222, 128, 0.20);
   --accent-cyan-30: rgba(74, 222, 128, 0.30);
-  --accent-purple-10: rgba(167, 139, 250, 0.10);
-  --accent-purple-20: rgba(167, 139, 250, 0.20);
+  --accent-purple-10: rgba(96, 165, 250, 0.10);
+  --accent-purple-20: rgba(96, 165, 250, 0.20);
   --accent-amber-10: rgba(251, 191, 36, 0.10);
   --accent-amber-20: rgba(251, 191, 36, 0.20);
   --good-dim: rgba(52, 211, 153, 0.15);
@@ -200,9 +204,9 @@
   --bg-surface-2: 235 237 242;   /* #EBEDF2 nested panels */
   --bg-surface-3: 227 229 235;   /* #E3E5EB pressed states */
 
-  --accent-cyan: 21 128 61;     /* #15803D CTA green-700 (AA on white) */
+  --accent-cyan: 21 128 61;     /* mint CTA green-700 (AA on white) */
   --accent-hover: 16 101 52;    /* #12A193 hover */
-  --accent-purple: 91 33 182;   /* #5B64B0 */
+  --accent-purple: 37 99 235;   /* cool blue #2563EB */
   --accent-amber: 180 83 9;      /* #B45309 */
 
   --text-primary: 29 29 31;      /* #1D1D1F 16.1:1 AAA */
@@ -231,8 +235,8 @@
   --accent-cyan-10: rgba(21, 128, 61, 0.08);
   --accent-cyan-20: rgba(21, 128, 61, 0.16);
   --accent-cyan-30: rgba(21, 128, 61, 0.24);
-  --accent-purple-10: rgba(91, 33, 182, 0.10);
-  --accent-purple-20: rgba(91, 33, 182, 0.18);
+  --accent-purple-10: rgba(37, 99, 235, 0.10);
+  --accent-purple-20: rgba(37, 99, 235, 0.18);
   --accent-amber-10: rgba(180, 83, 9, 0.10);
   --accent-amber-20: rgba(180, 83, 9, 0.18);
   --good-dim: rgba(4, 120, 87, 0.12);

@@ -80,7 +80,7 @@ export default function LandingPage() {
       <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
           <span className="font-display text-sm font-semibold tracking-tight uppercase">
-            Bio <span className="text-accent-cyan">Nexus</span>
+            Syn<span className="text-accent-cyan">teny</span>
           </span>
 
           <div className="flex items-center gap-4 lg:gap-6">
@@ -113,7 +113,7 @@ export default function LandingPage() {
             className="absolute inset-0"
             style={{
               background:
-                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(167,139,250,0.10) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(74,222,128,0.08) 0%, transparent 70%), radial-gradient(ellipse 42% 42% at 55% 15%, rgba(251,191,36,0.06) 0%, transparent 70%)',
+                'radial-gradient(ellipse 55% 55% at 78% 45%, rgba(96,165,250,0.10) 0%, transparent 70%), radial-gradient(ellipse 45% 45% at 12% 70%, rgba(74,222,128,0.08) 0%, transparent 70%), radial-gradient(ellipse 42% 42% at 55% 15%, rgba(251,191,36,0.06) 0%, transparent 70%)',
             }}
           />
           <div className="absolute inset-0 bg-gradient-to-r from-void via-void/55 to-transparent" />
@@ -144,7 +144,7 @@ export default function LandingPage() {
                 transition={{ type: 'spring', bounce: 0, duration: 0.7, delay: 0.08 }}
                 className="text-text-secondary text-lg max-w-[460px] mt-8 leading-relaxed"
               >
-                Paste a sequence. Bio Nexus runs BLAST, annotation, structure and
+                Paste a sequence. Synteny runs BLAST, annotation, structure and
                 AI interpretation — assembled on one page.
               </motion.p>
 
@@ -440,7 +440,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-glass-border py-8 px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="text-xs text-text-muted">
-          Bio Nexus · Built at Jamia Millia Islamia
+          Synteny · Built at Jamia Millia Islamia
         </span>
         <div className="flex items-center gap-6">
           <Link href="/auth" className="text-xs text-text-muted hover:text-text-primary transition-colors">

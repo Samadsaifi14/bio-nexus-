@@ -127,7 +127,7 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Structure visualization',
-        content: 'Protein structures can be visualized in several representations: cartoon/ribbon (shows secondary structure), surface (shows solvent-accessible surface), sticks (shows atomic bonds), and spheres (space-filling). Web-based viewers like Mol* (MolStar), NGL Viewer, and 3Dmol.js enable interactive visualization directly in the browser. Bio Nexus uses Mol* for structure rendering, supporting PDB and mmCIF files with customizable color schemes and selection highlighting.',
+        content: 'Protein structures can be visualized in several representations: cartoon/ribbon (shows secondary structure), surface (shows solvent-accessible surface), sticks (shows atomic bonds), and spheres (space-filling). Web-based viewers like Mol* (MolStar), NGL Viewer, and 3Dmol.js enable interactive visualization directly in the browser. Synteny uses Mol* for structure rendering, supporting PDB and mmCIF files with customizable color schemes and selection highlighting.',
       },
     ],
   },
@@ -141,11 +141,11 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'GO terms and evidence',
-        content: 'Each GO annotation is a term (e.g. GO:0005515 "protein binding") linked to a source of evidence. Curated evidence codes (IDA, IMP, TAS, IC) come from experiments and direct curator review, while computational codes (IEA, ISS) are inferred electronically or from sequence similarity. Predictions from deep-learning models are computational evidence: useful for hypothesis generation, but never a substitute for experimental validation. Bio Nexus flags the method behind every predicted term (e.g. "heuristic composition") so its weight is clear.',
+        content: 'Each GO annotation is a term (e.g. GO:0005515 "protein binding") linked to a source of evidence. Curated evidence codes (IDA, IMP, TAS, IC) come from experiments and direct curator review, while computational codes (IEA, ISS) are inferred electronically or from sequence similarity. Predictions from deep-learning models are computational evidence: useful for hypothesis generation, but never a substitute for experimental validation. Synteny flags the method behind every predicted term (e.g. "heuristic composition") so its weight is clear.',
       },
       {
         heading: 'Confidence scores',
-        content: 'Bio Nexus assigns each predicted GO term a confidence from 0 to 1 based on how strong the underlying compositional signal is. Confidence above 0.8 is labeled High, 0.6–0.8 Medium, and below 0.6 Low (treated as tentative). These are model confidences, not statistical significance — treat low-confidence predictions as leads to test, not conclusions.',
+        content: 'Synteny assigns each predicted GO term a confidence from 0 to 1 based on how strong the underlying compositional signal is. Confidence above 0.8 is labeled High, 0.6–0.8 Medium, and below 0.6 Low (treated as tentative). These are model confidences, not statistical significance — treat low-confidence predictions as leads to test, not conclusions.',
       },
       {
         heading: 'EC numbers',
@@ -153,7 +153,7 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'DeepFRI and graph models',
-        content: 'DeepFRI (Deep Functional Residue Identification) is a state-of-the-art graph convolutional network that predicts GO terms and EC numbers directly from protein structures, using the protein contact map as a graph and its sequence as node features. It substantially outperforms sequence-only methods and even annotates functions that sequence homology cannot detect. Bio Nexus ships a lightweight, composition-based approximation inspired by DeepFRI; deploying the full DeepFRI weights is the planned production upgrade.',
+        content: 'DeepFRI (Deep Functional Residue Identification) is a state-of-the-art graph convolutional network that predicts GO terms and EC numbers directly from protein structures, using the protein contact map as a graph and its sequence as node features. It substantially outperforms sequence-only methods and even annotates functions that sequence homology cannot detect. Synteny ships a lightweight, composition-based approximation inspired by DeepFRI; deploying the full DeepFRI weights is the planned production upgrade.',
       },
     ],
   },
@@ -171,7 +171,7 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Enrichment analysis',
-        content: 'Enrichment analysis determines whether a set of genes (e.g., upregulated in an RNA-seq experiment) contains more genes from a particular pathway than expected by chance. The standard method is Fisher\'s exact test or a hypergeometric test, corrected for multiple testing (Benjamini-Hochberg FDR). The result is a list of pathways ranked by significance, with enrichment ratios and adjusted p-values. Bio Nexus performs pathway enrichment against both Reactome and KEGG databases.',
+        content: 'Enrichment analysis determines whether a set of genes (e.g., upregulated in an RNA-seq experiment) contains more genes from a particular pathway than expected by chance. The standard method is Fisher\'s exact test or a hypergeometric test, corrected for multiple testing (Benjamini-Hochberg FDR). The result is a list of pathways ranked by significance, with enrichment ratios and adjusted p-values. Synteny performs pathway enrichment against both Reactome and KEGG databases.',
         code: 'Enrichment analysis results example:\n\nPathway                        Genes   Expected   Ratio   p-value    FDR\n──────────────────────────────────────────────────────────────────────\nDNA Replication                  12       2.1      5.7    8e-12    2e-9\nCell Cycle                       18       4.3      4.2    2e-10    3e-8\np53 Signaling                     8       1.2      6.7    5e-8     4e-6\n\nRatio = observed / expected count\nFDR   = false discovery rate (corrected p-value)',
       },
     ],
@@ -186,7 +186,7 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Interaction networks',
-        content: 'An interaction network consists of nodes (proteins) and edges (interactions). Networks can be visualized with different layout algorithms: force-directed (Fruchterman-Reingold), circular, or hierarchical. The network topology reveals hub proteins (highly connected), bottlenecks, and clusters corresponding to functional modules. Bio Nexus uses the STRING API to fetch interaction data and renders interactive networks using a force-directed layout.',
+        content: 'An interaction network consists of nodes (proteins) and edges (interactions). Networks can be visualized with different layout algorithms: force-directed (Fruchterman-Reingold), circular, or hierarchical. The network topology reveals hub proteins (highly connected), bottlenecks, and clusters corresponding to functional modules. Synteny uses the STRING API to fetch interaction data and renders interactive networks using a force-directed layout.',
       },
       {
         heading: 'Confidence scores',
@@ -209,12 +209,12 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Interaction fingerprints',
-        content: 'An interaction fingerprint summarizes a docked pose as a binary or weighted vector of contacts: hydrogen bonds, hydrophobic contacts, pi-stacking, and salt bridges. Bio Nexus computes these per-pose so you can compare how different ligands engage the same pocket. Residue-level fingerprints (which residues contact the ligand) are especially useful for explaining selectivity and for validating that a pose makes sensible, specific contacts rather than non-specific packing.',
+        content: 'An interaction fingerprint summarizes a docked pose as a binary or weighted vector of contacts: hydrogen bonds, hydrophobic contacts, pi-stacking, and salt bridges. Synteny computes these per-pose so you can compare how different ligands engage the same pocket. Residue-level fingerprints (which residues contact the ligand) are especially useful for explaining selectivity and for validating that a pose makes sensible, specific contacts rather than non-specific packing.',
         code: 'Interaction fingerprint categories:\n\n  Hbond       — H-bond donor/acceptor within ~3.5 Å\n  Hydrophobic — non-polar contact within ~4.5 Å\n  Pi-stacking — aromatic ring stacking (parallel/T-shaped)\n  Salt bridge — charged groups within ~4 Å\n\nEach contact is reported with its residue, distance, and confidence\n(high / moderate / low) based on geometric criteria.',
       },
       {
         heading: 'Confidence and interpretation',
-        content: 'Bio Nexus labels every predicted contact with a confidence based on geometry: distance thresholds, angle criteria for pi-stacking, and donor-acceptor complementarity for hydrogen bonds. Treat the whole interaction fingerprint as a hypothesis. Docking identifies plausible binding modes, but affinity (how strongly something binds) requires experimental measurement (ITC, SPR) or at minimum a physics-based rescoring with a validated method.',
+        content: 'Synteny labels every predicted contact with a confidence based on geometry: distance thresholds, angle criteria for pi-stacking, and donor-acceptor complementarity for hydrogen bonds. Treat the whole interaction fingerprint as a hypothesis. Docking identifies plausible binding modes, but affinity (how strongly something binds) requires experimental measurement (ITC, SPR) or at minimum a physics-based rescoring with a validated method.',
       },
     ],
   },
@@ -238,11 +238,11 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Energy, Rg, and SASA',
-        content: 'Beyond RMSD/RMSF, three scalar observables summarize a simulation. Potential energy should stabilize over the equilibration phase and fluctuate around a mean. Radius of gyration (Rg) reports overall compactness — large swings suggest unfolding. Solvent-accessible surface area (SASA) tracks exposure of the protein to solvent; a sudden increase can indicate partial unfolding. Bio Nexus reports all of these as per-frame traces you can export, so you can check that the simulation reached a stable plateau before trusting its conclusions.',
+        content: 'Beyond RMSD/RMSF, three scalar observables summarize a simulation. Potential energy should stabilize over the equilibration phase and fluctuate around a mean. Radius of gyration (Rg) reports overall compactness — large swings suggest unfolding. Solvent-accessible surface area (SASA) tracks exposure of the protein to solvent; a sudden increase can indicate partial unfolding. Synteny reports all of these as per-frame traces you can export, so you can check that the simulation reached a stable plateau before trusting its conclusions.',
       },
       {
         heading: 'Minimize → Equilibrate → Production',
-        content: 'A well-run simulation follows a standard protocol. Minimization removes bad atomic contacts (clashes) from the starting structure using energy minimization. Equilibration gradually heats the system to the target temperature while relaxing the solvent around the protein. Production is the main trajectory collection phase at constant temperature. Bio Nexus exposes all three phases with configurable lengths, so a quick minimization and a full production run share the same pipeline.',
+        content: 'A well-run simulation follows a standard protocol. Minimization removes bad atomic contacts (clashes) from the starting structure using energy minimization. Equilibration gradually heats the system to the target temperature while relaxing the solvent around the protein. Production is the main trajectory collection phase at constant temperature. Synteny exposes all three phases with configurable lengths, so a quick minimization and a full production run share the same pipeline.',
       },
     ],
   },
@@ -261,11 +261,11 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Physicochemical properties',
-        content: 'Bio Nexus computes the fundamental descriptors first: molecular weight, logP (lipophilicity, octanol/water partition), TPSA (topological polar surface area), number of rotatable bonds, hydrogen-bond donors/acceptors, formal charge, and SMILES validity. Lipophilicity drives membrane permeability and solubility; PSA drives the same; rotatable bonds drive flexibility and entropic cost of binding. Together they let you spot at a glance whether a molecule is drug-like or a known-problematic "chimeric" compound.',
+        content: 'Synteny computes the fundamental descriptors first: molecular weight, logP (lipophilicity, octanol/water partition), TPSA (topological polar surface area), number of rotatable bonds, hydrogen-bond donors/acceptors, formal charge, and SMILES validity. Lipophilicity drives membrane permeability and solubility; PSA drives the same; rotatable bonds drive flexibility and entropic cost of binding. Together they let you spot at a glance whether a molecule is drug-like or a known-problematic "chimeric" compound.',
       },
       {
         heading: 'Functional groups',
-        content: 'Reactive or alerting functional groups flag likely toxicity or metabolic liability. Examples include Michael acceptors, alkyl halides, epoxides, and aromatic amines — each associated with known mechanisms of reactivity with biological nucleophiles (e.g., DNA, proteins). Bio Nexus scans the molecule and lists detected functional groups so a chemist can quickly see potential red flags before investing in synthesis.',
+        content: 'Reactive or alerting functional groups flag likely toxicity or metabolic liability. Examples include Michael acceptors, alkyl halides, epoxides, and aromatic amines — each associated with known mechanisms of reactivity with biological nucleophiles (e.g., DNA, proteins). Synteny scans the molecule and lists detected functional groups so a chemist can quickly see potential red flags before investing in synthesis.',
       },
       {
         heading: 'Limitations',
@@ -306,7 +306,7 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Primer3',
-        content: 'Primer3 is the most widely used primer design software. It picks PCR primers from a template sequence, optimizing for melting temperature, GC content, primer length, and avoiding problematic features like hairpins, self-dimers, and cross-dimers. Bio Nexus uses Primer3 via its backend API to design primers for any input sequence. The tool evaluates hundreds of candidate primer pairs and returns the best ones ranked by a quality score.',
+        content: 'Primer3 is the most widely used primer design software. It picks PCR primers from a template sequence, optimizing for melting temperature, GC content, primer length, and avoiding problematic features like hairpins, self-dimers, and cross-dimers. Synteny uses Primer3 via its backend API to design primers for any input sequence. The tool evaluates hundreds of candidate primer pairs and returns the best ones ranked by a quality score.',
       },
       {
         heading: 'Melting temperature',
@@ -325,7 +325,7 @@ const topics: Record<string, TopicData> = {
     sections: [
       {
         heading: 'Format conversion',
-        content: 'Bio Nexus supports conversion between FASTA, GenBank, EMBL, and plain text formats. FASTA is the simplest format — a header line starting with ">" followed by the sequence. GenBank and EMBL are richer formats that include annotations, features, and references. When converting between formats, only the sequence and basic header information are preserved. Annotations and features are kept when converting between GenBank and EMBL.',
+        content: 'Synteny supports conversion between FASTA, GenBank, EMBL, and plain text formats. FASTA is the simplest format — a header line starting with ">" followed by the sequence. GenBank and EMBL are richer formats that include annotations, features, and references. When converting between formats, only the sequence and basic header information are preserved. Annotations and features are kept when converting between GenBank and EMBL.',
         code: 'FASTA format:\n\n  >seq_id description\n  ATGCGATCGTAGCTAGCTAGCTAGCATCGATCG\n  GCTAGCTAGCATCGATCGATCGATCGATCGTAG\n\nGenBank format:\n\n  LOCUS       NM_001 1234 bp DNA linear\n  DEFINITION  Sample sequence.\n  ORIGIN\n      1 atgcgatcgt agctagctag ctagcatcga tcg\n     61 gctagctagc atcgatcgat cgatcgtagg tagcta\n  //',
       },
       {

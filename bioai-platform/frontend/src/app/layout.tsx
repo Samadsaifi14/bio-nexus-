@@ -9,7 +9,7 @@ import { Providers } from './providers';
 import { themeInitScript } from '@/lib/theme';
 
 export const metadata: Metadata = {
-  title: 'Bio Nexus — One interface for every bioinformatics tool',
+  title: 'Synteny — One interface for every bioinformatics tool',
   description: 'Protein sequence analysis, BLAST, UniProt, AlphaFold, docking — all in one place. Built for researchers who aren\'t bioinformaticians.',
 };
 

@@ -59,7 +59,7 @@ export default function SharedResultPage() {
       <div className="max-w-5xl mx-auto px-6 py-8">
         <div className="flex items-center gap-2 mb-6">
           <Dna className="w-7 h-7 text-accent-cyan" />
-          <span className="text-lg font-bold text-text-primary">Bio Nexus — Shared Result</span>
+          <span className="text-lg font-bold text-text-primary">Synteny — Shared Result</span>
         </div>
 
         {!context ? (

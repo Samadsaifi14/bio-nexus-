@@ -76,7 +76,7 @@ export function ShareDialog({ open, onClose, url, message, title = 'Share result
   const nativeShare = async () => {
     if (typeof navigator !== 'undefined' && typeof navigator.share === 'function') {
       try {
-        await navigator.share({ title: 'BioNexus — Analysis Result', text: message, url });
+        await navigator.share({ title: 'Synteny — Analysis Result', text: message, url });
       } catch {
         // User dismissed — nothing to do.
       }

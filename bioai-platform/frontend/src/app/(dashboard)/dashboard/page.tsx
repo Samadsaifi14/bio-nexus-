@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover, hoverLift, press } from '@/lib/animations';
 import { Parallax } from '@/components/effects/Parallax';
-import { CircleNotch as LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle, TrendUp as TrendingUp, ChartBar as BarChart3, GitBranch, TextAlignLeft as AlignLeft, TestTube as FlaskConical, Network, MagnifyingGlass as Search, CaretRight as ChevronRight, Pulse as Activity, Calendar } from '@phosphor-icons/react';
+import { CircleNotch as LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle, TrendUp as TrendingUp, ChartBar as BarChart3, CaretRight as ChevronRight, Pulse as Activity, Calendar } from '@phosphor-icons/react';
+import { AlignmentBarIcon, DockingPocketIcon, EnrichmentClusterIcon, HelixRibbonIcon, PhyloTIcon, PPIWebIcon, ReadPileupIcon } from '@/components/PipelineIcons';
 import { getJobs, getJobCount } from '@/lib/api';
 import { useAuth } from '@/contexts/auth';
 import type { JobStatus } from '@/types/pipeline';
@@ -18,12 +19,13 @@ const STATUS_ICONS: Record<string, typeof Clock> = {
 };
 
 const QUICK_TOOLS = [
-  { icon: Dna,         label: 'BLAST',        desc: 'Sequence similarity',  href: '/analyze',              color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10'   },
-  { icon: GitBranch,   label: 'Phylogeny',    desc: 'NJ / UPGMA / ML',      href: '/analyze/phylo',        color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
-  { icon: AlignLeft,   label: 'Alignment',    desc: 'MSA via Clustal',      href: '/analyze/alignment',    color: 'text-accent-amber',  bg: 'bg-accent-amber/10'  },
-  { icon: FlaskConical,label: 'Structure',    desc: 'AlphaFold 3D viewer',  href: '/analyze/structure',    color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10'   },
-  { icon: Network,     label: 'Interactions', desc: 'PPI via STRING',       href: '/analyze/interactions', color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
-  { icon: Search,      label: 'Primers',      desc: 'PCR primer design',    href: '/analyze/primers',      color: 'text-accent-amber',  bg: 'bg-accent-amber/10'  },
+  { icon: ReadPileupIcon,        label: 'BLAST',        desc: 'Sequence similarity',      href: '/analyze',             color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10'   },
+  { icon: AlignmentBarIcon,      label: 'Alignment',    desc: 'MSA via Clustal',          href: '/analyze/alignment',   color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10'   },
+  { icon: HelixRibbonIcon,       label: 'Structure',    desc: 'AlphaFold 3D viewer',      href: '/analyze/structure',   color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
+  { icon: DockingPocketIcon,     label: 'Docking',      desc: 'Pose & fingerprints',      href: '/analyze/docking',     color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
+  { icon: PPIWebIcon,            label: 'Interactions', desc: 'PPI via STRING',           href: '/analyze/interactions', color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
+  { icon: PhyloTIcon,            label: 'Phylogeny',    desc: 'NJ / UPGMA / ML',          href: '/analyze/phylo',       color: 'text-accent-amber',  bg: 'bg-accent-amber/10'  },
+  { icon: EnrichmentClusterIcon, label: 'Pathways',     desc: 'Reactome / KEGG',          href: '/analyze/pathway',     color: 'text-accent-amber',  bg: 'bg-accent-amber/10'  },
 ];
 
 function getInitials(name?: string, email?: string): string {
@@ -79,7 +81,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-text-primary">
-              {isGuest ? 'Welcome to Bio Nexus' : `Hey, ${firstName ?? 'Researcher'}`}
+              {isGuest ? 'Welcome to Synteny' : `Hey, ${firstName ?? 'Researcher'}`}
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Calendar className="w-3.5 h-3.5 text-text-muted" />

@@ -27,9 +27,9 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'domains',   name: 'Domain Analysis',          description: 'Fetch domain/motif annotations from InterPro.',             icon: Layers,    active: true },
       { id: 'phylo',     name: 'Phylogenetic Tree',        description: 'Build and visualize phylogenetic trees from sequences.',     icon: GitFork,   active: true },
       { id: 'sequencing', name: 'Sequencing Pipeline',     description: 'Raw FASTQ → QC → alignment → variant calling → report for genomic data.', icon: Dna, active: true, badge: 'New' },
-      { id: 'sequences',  name: 'Sequence Utilities',      description: 'GC content, reverse complement, translation, molecular weight, restriction sites.', icon: Calculator, active: true, badge: 'New' },
-      { id: 'motif',      name: 'Motif Scanner',           description: 'Scan a protein against curated PROSITE patterns or a custom motif.', icon: Target, active: true, badge: 'New' },
-      { id: 'dotplot',    name: 'Dot Plot',                description: 'Visual self/dot-plot comparison of two sequences with window & stringency.', icon: ChartScatter, active: true, badge: 'New' },
+      { id: 'sequences',  name: 'Sequence Utilities',      description: 'GC content, reverse complement, translation, molecular weight, restriction sites.', icon: Calculator, active: true },
+      { id: 'motif',      name: 'Motif Scanner',           description: 'Scan a protein against curated PROSITE patterns or a custom motif.', icon: Target, active: true },
+      { id: 'dotplot',    name: 'Dot Plot',                description: 'Visual self/dot-plot comparison of two sequences with window & stringency.', icon: ChartScatter, active: true },
     ],
   },
   {
@@ -40,14 +40,14 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'interactions', name: 'Protein Interactions',  description: 'Explore interaction partners from the STRING database.',     icon: Share2,    active: true },
       { id: 'compare',     name: 'Structure Compare',      description: 'Find structurally similar proteins via PDBeFold (TM-align).', icon: Shuffle, active: true },
       { id: 'docking',     name: 'Molecular Docking',      description: 'Dock a small molecule into a protein using AutoDock Vina (free, CPU-based).', icon: Atom, active: true, badge: 'New' },
-      { id: 'md',          name: 'MD Simulation',          description: 'Implicit solvent molecular dynamics using OpenMM. Minimize, equilibrate, or run.', icon: Activity, active: true, badge: 'New' },
-      { id: 'function',    name: 'Function Prediction',    description: 'Predict protein function (GO terms) from structure. DeepFRI-inspired.', icon: Brain, active: true, badge: 'New' },
+      { id: 'md',          name: 'MD Simulation',          description: 'Implicit solvent molecular dynamics using OpenMM. Minimize, equilibrate, or run.', icon: Activity, active: true },
+      { id: 'function',    name: 'Function Prediction',    description: 'Predict protein function (GO terms) from structure. DeepFRI-inspired.', icon: Brain, active: true },
     ],
   },
   {
     title: 'Drug Discovery',
     items: [
-      { id: 'admet',   name: 'ADMET Descriptors',  description: 'Compute molecular descriptors from SMILES. Lipinski, Veber, QED analysis.', icon: Pill, active: true, badge: 'New' },
+      { id: 'admet',   name: 'ADMET Descriptors',  description: 'Compute molecular descriptors from SMILES. Lipinski, Veber, QED analysis.', icon: Pill, active: true },
     ],
   },
   {

@@ -135,9 +135,9 @@ export default function LandingPage() {
                 className="font-display font-bold leading-[0.98] tracking-tight"
                 style={{ fontSize: 'clamp(2.75rem, 5.5vw, 5.5rem)' }}
               >
-                One query.
+                Stop tab-switching
                 <br />
-                <span className="text-accent-cyan">Every major database.</span>
+                <span className="text-accent-cyan">between eight databases.</span>
               </motion.h1>
 
               <motion.p
@@ -147,7 +147,7 @@ export default function LandingPage() {
                 className="text-text-secondary text-lg max-w-[460px] mt-8 leading-relaxed"
               >
                 Paste a sequence. Synteny runs BLAST, annotation, structure and
-                AI interpretation — assembled on one page.
+                AI interpretation — assembled on one page, in one query.
               </motion.p>
 
               <motion.div
@@ -251,8 +251,10 @@ export default function LandingPage() {
               >
                 <motion.div
                   className="hidden md:flex w-[26px] h-[26px] rounded-full border border-accent-cyan/40 bg-surface-0 items-center justify-center relative z-10 mx-auto"
-                  animate={{ boxShadow: ['0 0 0 0 rgba(74,222,128,0)', '0 0 14px 2px rgba(74,222,128,0.25)', '0 0 0 0 rgba(74,222,128,0)'] }}
-                  transition={{ repeat: Infinity, duration: 3, delay: i * 0.35, ease: 'easeInOut' }}
+                  initial={{ boxShadow: '0 0 0 0 rgba(74,222,128,0)' }}
+                  whileInView={{ boxShadow: ['0 0 0 0 rgba(74,222,128,0)', '0 0 14px 2px rgba(74,222,128,0.3)', '0 0 0 0 rgba(74,222,128,0)'] }}
+                  viewport={{ once: true, margin: '-80px' }}
+                  transition={{ duration: 0.9, delay: i * 0.25, ease: 'easeInOut' }}
                 >
                   <span className="w-[6px] h-[6px] rounded-full bg-accent-cyan/70" />
                 </motion.div>
@@ -389,19 +391,14 @@ export default function LandingPage() {
                     {full && (
                       <div className="min-w-0 md:ml-auto w-full">
                         <p className="font-mono text-[13px] text-text-secondary leading-relaxed">
-                          <span className="text-accent-cyan">&gt; </span>sample · <span className="text-text-primary">P01308</span> INS_HUMAN · reviewed UniProt entry
+                          <span className="text-accent-cyan">&gt; </span>docking · <span className="text-text-primary">7 poses</span> scored against target pocket
                           <span className="inline-block w-[2px] h-3 bg-accent-cyan/70 ml-1 animate-blink align-middle" />
                         </p>
-                        <div className="mt-4 flex flex-wrap items-center gap-x-4 gap-y-2">
-                          {CONFIDENCE_BANDS.map((b) => (
-                            <span key={b.label} className="flex items-center gap-1.5 text-[10px] font-mono text-text-muted">
-                              <span className={`w-1.5 h-1.5 rounded-full ${b.dot}`} />
-                              {b.label}
-                            </span>
-                          ))}
-                        </div>
+                        <p className="mt-3 text-sm text-text-secondary leading-relaxed max-w-[46ch]">
+                          Best pose: binding affinity −8.4 kcal/mol, ligand efficiency 0.31 — narrated in plain language alongside the raw AutoDock Vina output.
+                        </p>
                         <p className="mt-3 text-[11px] font-mono text-text-muted">
-                          source · UniProt <span className="text-text-secondary">P01308</span> · RCSB PDB · AlphaFold
+                          engine · AutoDock Vina · CPU-based, no GPU required
                         </p>
                       </div>
                     )}

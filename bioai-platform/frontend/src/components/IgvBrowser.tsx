@@ -78,7 +78,7 @@ export default function IGVBrowser({
         // Alignment track: prefer BAM, fallback to SAM
         const alignmentUrl = bamUrl || samUrl;
         if (alignmentUrl) {
-          const isBam = !!bamUrl;
+          const isBam = alignmentUrl.includes('.bam') || !!bamUrl;
           const track: any = {
             name: 'Aligned Reads',
             url: alignmentUrl,

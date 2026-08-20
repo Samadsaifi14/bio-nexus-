@@ -12,6 +12,7 @@ NGS (Next-Generation Sequencing) Pipeline — 6-step analysis:
 from __future__ import annotations
 
 import asyncio
+import gzip
 import json
 import logging
 import os
@@ -19,8 +20,10 @@ import platform
 import random
 import re
 import shutil
+import struct
 import subprocess
 import tempfile
+import zlib
 from typing import Any
 
 import httpx
@@ -417,12 +420,20 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                 qname, seq, qual, pos, cigar, flag, mapq = read
                 out.write(f"{qname}\t{flag}\t{ref_name}\t{pos}\t{mapq}\t{cigar}\t*\t0\t0\t{seq}\t{qual}\n")
 
+    # Convert SAM to BAM
+    bam_path = sam_path.replace(".sam", ".bam")
+    try:
+        _sam_to_bam(sam_path, bam_path)
+    except Exception as e:
+        logger.warning("SAM-to-BAM conversion failed: %s", e)
+
     return {
         "tool": "python-alignment",
         "mapped_reads": mapped,
         "unmapped_reads": unmapped,
         "total_alignments": total,
         "sam_path": sam_path,
+        "bam_path": sam_path.replace(".sam", ".bam"),
     }
 
 
@@ -443,6 +454,243 @@ def _parse_alignment_stats(sam_path: str) -> dict:
                 else:
                     mapped += 1
     return {"mapped_reads": mapped, "unmapped_reads": unmapped, "total_alignments": total}
+
+
+# ---------------------------------------------------------------------------
+# Pure-Python SAM → BAM converter (no samtools needed)
+# Writes valid BGZF-compressed BAM that igv.js can read.
+# ---------------------------------------------------------------------------
+
+_BASES = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4}
+
+
+def _seq_to_half_ints(seq: str) -> tuple[bytes, int]:
+    """Encode DNA sequence to BAM 4-bit encoding."""
+    encoded = bytearray()
+    for i in range(0, len(seq), 2):
+        hi = _BASES.get(seq[i].upper(), 4) << 4
+        lo = _BASES.get(seq[i + 1].upper(), 4) if i + 1 < len(seq) else 0
+        encoded.append(hi | lo)
+    return bytes(encoded), len(seq) % 2
+
+
+def _parse_cigar(cigar: str) -> list[tuple[int, int]]:
+    """Parse CIGAR string into (length, op_code) list."""
+    OP_MAP = {"M": 0, "I": 1, "D": 2, "N": 3, "S": 4, "H": 5, "P": 6, "=": 7, "X": 8}
+    return [(int(m.group(1)), OP_MAP[m.group(2)]) for m in re.finditer(r'(\d+)([MIDNSHUPX=])', cigar)]
+
+
+def _bgzf_compress(data: bytes) -> bytes:
+    """Write data as a single BGZF block. igv.js requires BGZF, not plain gzip.
+
+    BGZF block layout:
+      Gzip header (10 bytes): 0x1f 0x8b 0x08 0x04(MTIME=0, FLG=FEXTRA) MTIME(4) XFL OS
+      XLEN (2 bytes, little-endian): length of extra subfield after this field
+      Extra subfield: SI1='B'(1) SI2='C'(1) SLEN=6(2) BSIZE(2) CDATALEN(2) RN(2)
+      Compressed data (CDATALEN bytes)
+      CRC32 (4 bytes, little-endian)
+      ISIZE (4 bytes, little-endian): original uncompressed size
+    """
+    compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
+    compressed = compressor.compress(data) + compressor.flush()
+    cdata_len = len(compressed)
+
+    # block_size = total size of the BGZF block
+    # = 10 (gzip hdr) + 2 (XLEN field) + 10 (extra subfield: SI1+SI2+SLEN+BSIZE+CDATALEN+RN)
+    #   + cdata_len + 4 (CRC32) + 4 (ISIZE)
+    block_size = 10 + 2 + 10 + cdata_len + 4 + 4
+    bsize_field = block_size - 1
+    csize_field = cdata_len - 1
+
+    # Gzip header: ID1, ID2, CM(deflate), FLG(FEXTRA), MTIME(4 bytes=0), XFL(0), OS(0)
+    # Total = 1+1+1+1+4+1+1 = 10 bytes
+    gzip_hdr = struct.pack("<BBBBIBB", 0x1f, 0x8b, 0x08, 0x04, 0, 0, 0)
+    # XLEN = 10 bytes of extra content follow
+    xlen_field = struct.pack("<H", 10)
+    # Extra subfield: SI1='B', SI2='C', SLEN=6, BSIZE, CDATALEN, RN=0
+    extra_subfield = struct.pack("<BBHHHh", 0x42, 0x43, 6, bsize_field, csize_field, 0)
+
+    crc = zlib.crc32(data) & 0xffffffff
+    isize = len(data) & 0xffffffff
+
+    block = gzip_hdr + xlen_field + extra_subfield + compressed + struct.pack("<II", crc, isize)
+    return block
+
+
+def _sam_to_bam(sam_path: str, bam_path: str) -> None:
+    """Convert SAM to BAM (BGZF-compressed). Pure Python."""
+    header_text = ""
+    ref_names: list[str] = []
+    ref_lengths: list[int] = []
+    records: list[str] = []
+
+    with open(sam_path) as f:
+        for line in f:
+            line = line.rstrip("\n")
+            if line.startswith("@HD"):
+                header_text += line + "\n"
+            elif line.startswith("@SQ"):
+                header_text += line + "\n"
+                parts = line.split("\t")
+                name = ""
+                length = 0
+                for p in parts[1:]:
+                    if p.startswith("SN:"):
+                        name = p[3:]
+                    elif p.startswith("LN:"):
+                        length = int(p[3:])
+                if name:
+                    ref_names.append(name)
+                    ref_lengths.append(length)
+            elif line.startswith("@"):
+                header_text += line + "\n"
+            else:
+                records.append(line)
+
+    ref_id_map = {name: i for i, name in enumerate(ref_names)}
+
+    # Build BAM header block
+    hdr_bytes = header_text.encode("ascii")
+    ref_dict = b""
+    for i, name in enumerate(ref_names):
+        name_bytes = name.encode("ascii") + b"\x00"
+        ref_dict += struct.pack("<I", len(name_bytes)) + name_bytes + struct.pack("<i", ref_lengths[i])
+
+    bam_header = (
+        b"BAM\x01" +
+        struct.pack("<I", len(hdr_bytes)) + hdr_bytes +
+        struct.pack("<I", len(ref_names)) + ref_dict
+    )
+
+    # Build alignment records
+    all_records = b""
+    for line in records:
+        parts = line.split("\t")
+        if len(parts) < 11:
+            continue
+
+        qname = parts[0]
+        flag = int(parts[1])
+        rname = parts[2]
+        pos = int(parts[3]) - 1  # SAM 1-based → BAM 0-based
+        mapq = int(parts[4])
+        cigar_str = parts[5]
+        rnext = parts[6]
+        pnext = int(parts[7])
+        seq = parts[9]
+        qual_str = parts[10]
+
+        ref_id = ref_id_map.get(rname, -1)
+        if rname == "*":
+            ref_id = -1
+
+        next_ref_id = ref_id_map.get(rnext, -1)
+        if rnext == "=":
+            next_ref_id = ref_id
+        elif rnext == "*":
+            next_ref_id = -1
+
+        cigar_ops = _parse_cigar(cigar_str) if cigar_str != "*" else []
+        seq_enc, _ = _seq_to_half_ints(seq)
+
+        # Quality
+        if qual_str and qual_str != "*":
+            qual_enc = bytes([min(ord(c) - 33, 93) for c in qual_str])
+        else:
+            qual_enc = b"\xff" * len(seq)
+
+        # Read name (null-terminated, padded to 4-byte boundary)
+        qname_bytes = qname.encode("ascii") + b"\x00"
+        qname_padded_len = ((len(qname_bytes) + 3) // 4) * 4
+        qname_padded = qname_bytes.ljust(qname_padded_len, b"\x00")
+
+        # CIGAR as uint32 array
+        cigar_enc = b""
+        for length, op in cigar_ops:
+            cigar_enc += struct.pack("<I", (length << 4) | op)
+
+        n_cigar = len(cigar_ops)
+        l_seq = len(seq)
+
+        # bin_mq_nl: bin=0, MAPQ=mapq<<8, l_read_name=len(qname_bytes)
+        bin_mq_nl = (0 << 16) | (mapq << 8) | len(qname_bytes)
+
+        record = (
+            struct.pack("<i", ref_id) +
+            struct.pack("<i", pos) +
+            struct.pack("<I", bin_mq_nl) +
+            struct.pack("<I", 0) +  # bin
+            struct.pack("<I", n_cigar) +
+            struct.pack("<I", flag) +
+            struct.pack("<I", l_seq) +
+            struct.pack("<i", next_ref_id) +
+            struct.pack("<i", pnext) +
+            struct.pack("<i", 0) +  # tlen
+            qname_padded +
+            cigar_enc +
+            seq_enc +
+            qual_enc
+        )
+
+        # Prepend block_size (uint32)
+        all_records += struct.pack("<I", len(record)) + record
+
+    # Write BGZF
+    raw_bam = bam_header + all_records
+    block = _bgzf_compress(raw_bam)
+    with open(bam_path, "wb") as f:
+        f.write(block)
+
+    # Write BAI index (minimal: one linear index for one reference)
+    _write_bai(bam_path + ".bai", ref_names, ref_lengths, records, ref_id_map)
+
+
+def _write_bai(bai_path: str, ref_names: list[str], ref_lengths: list[int],
+               records: list[str], ref_id_map: dict[str, int]) -> None:
+    """Write a minimal BAI index file for igv.js."""
+    # BAI format: magic(4) + n_ref(4) + for each ref: n_bin(4) + bins + n_intv(4) + l_intv(4) + intervals
+
+    # Group records by reference and compute bins
+    # For simplicity, use one bin (bin 0) covering the entire reference
+    # and one linear index entry per 16384 bp window
+
+    # Count mapped reads per reference
+    ref_read_counts: dict[int, int] = {}
+    for line in records:
+        parts = line.split("\t")
+        if len(parts) < 6:
+            continue
+        rname = parts[2]
+        rid = ref_id_map.get(rname, -1)
+        if rid >= 0:
+            ref_read_counts[rid] = ref_read_counts.get(rid, 0) + 1
+
+    # Write BAI
+    with open(bai_path, "wb") as f:
+        f.write(b"BAI\x01")
+        f.write(struct.pack("<I", len(ref_names)))
+
+        for i in range(len(ref_names)):
+            # For each reference, write bins and linear index
+            n_bins = 1 if ref_read_counts.get(i, 0) > 0 else 0
+            f.write(struct.pack("<I", n_bins))
+
+            if n_bins > 0:
+                # Bin 0 covers the entire reference
+                bin_id = 0
+                n_chunks = 1
+                f.write(struct.pack("<I", bin_id))
+                f.write(struct.pack("<I", n_chunks))
+                # Chunk: beg(8) + end(8)
+                f.write(struct.pack("<q", 0))  # beg
+                f.write(struct.pack("<q", ref_lengths[i] + 1))  # end
+
+            # Linear index: one entry per 16384 bp window
+            n_intv = (ref_lengths[i] // 16384) + 1
+            f.write(struct.pack("<I", n_intv))
+            f.write(struct.pack("<I", n_intv))
+            for j in range(n_intv):
+                f.write(struct.pack("<q", 0))  # all zeros for simplified index
 
 
 # ---------------------------------------------------------------------------
@@ -761,6 +1009,16 @@ def _upload_ngs_files(job_id: str, tmpdir: str, ref_path: str, reference: str) -
         "vcf": os.path.join(tmpdir, "variants.vcf"),
         "reference": ref_path,
     }
+
+    # Fallback: Python alignment writes to aligned.bam
+    if not os.path.exists(files_to_upload["bam"]):
+        alt_bam = os.path.join(tmpdir, "aligned.bam")
+        if os.path.exists(alt_bam):
+            files_to_upload["bam"] = alt_bam
+    if not os.path.exists(files_to_upload["bai"]):
+        alt_bai = os.path.join(tmpdir, "aligned.bam.bai")
+        if os.path.exists(alt_bai):
+            files_to_upload["bai"] = alt_bai
 
     for kind, path in files_to_upload.items():
         if not os.path.exists(path):

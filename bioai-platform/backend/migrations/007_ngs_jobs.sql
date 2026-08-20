@@ -1,33 +1,27 @@
--- NGS Pipeline: ngs_jobs table + claim RPC
+-- NGS Pipeline: fix ngs_jobs table + create claim RPC
+-- Run this in Supabase SQL Editor if the table was created manually
 
-CREATE TABLE IF NOT EXISTS ngs_jobs (
-  id          uuid primary key default gen_random_uuid(),
-  user_id     uuid references profiles(id) on delete cascade,
-  fastq_url   text,
-  reference   text,
-  status      text,
-  result      jsonb,
-  error       text,
-  done_at     timestamptz,
-  storage_url text,
-  payload     jsonb,
-  claimed_at  timestamptz,
-  claimed_by  text,
-  attempts    integer not null default 0,
-  max_attempts integer not null default 3,
-  updated_at  timestamptz
-);
+-- 1. Add missing columns
+ALTER TABLE ngs_jobs ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();
+ALTER TABLE ngs_jobs ADD COLUMN IF NOT EXISTS updated_at timestamptz;
 
+-- 2. Ensure RLS is enabled
 ALTER TABLE ngs_jobs ENABLE ROW LEVEL SECURITY;
 
-CREATE POLICY "Users can view own NGS jobs"
-  ON ngs_jobs FOR SELECT
-  USING (auth.uid() = user_id);
+-- 3. RLS policies
+DO $$ BEGIN
+  CREATE POLICY "Users can view own NGS jobs"
+    ON ngs_jobs FOR SELECT USING (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
-CREATE POLICY "Users can insert own NGS jobs"
-  ON ngs_jobs FOR INSERT
-  WITH CHECK (auth.uid() = user_id);
+DO $$ BEGIN
+  CREATE POLICY "Users can insert own NGS jobs"
+    ON ngs_jobs FOR INSERT WITH CHECK (auth.uid() = user_id);
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
 
+-- 4. Claim RPC (atomic FOR UPDATE SKIP LOCKED)
 CREATE OR REPLACE FUNCTION claim_next_ngs_job(worker_id text)
 RETURNS ngs_jobs
 LANGUAGE plpgsql

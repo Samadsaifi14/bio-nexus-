@@ -64,6 +64,7 @@ def _init(job_id: str, req: NGSRequest, user_id: str) -> None:
         _prune_jobs()
     except Exception:
         pass
+    _ensure_ngs_table()
     get_supabase().table(_TABLE).insert({
         "id":        job_id,
         "fastq_url": req.fastq_url,
@@ -74,6 +75,47 @@ def _init(job_id: str, req: NGSRequest, user_id: str) -> None:
         "error":     None,
         "done_at":   None,
     }).execute()
+
+
+_table_initialized = False
+
+def _ensure_ngs_table() -> None:
+    """Ensure ngs_jobs table has created_at column and the claim RPC exists."""
+    global _table_initialized
+    if _table_initialized:
+        return
+    _table_initialized = True
+    try:
+        import httpx as _httpx
+        from app.config import settings
+        base = settings.SUPABASE_URL.rstrip("/")
+        key = settings.SUPABASE_SERVICE_ROLE_KEY
+        headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+
+        # Add created_at column if missing
+        sql = "ALTER TABLE ngs_jobs ADD COLUMN IF NOT EXISTS created_at timestamptz DEFAULT now();"
+        resp = _httpx.post(f"{base}/rest/v1/rpc/exec_sql", headers=headers, json={"query": sql}, timeout=15)
+        if resp.status_code == 200:
+            logger.info("ngs_jobs: added created_at column")
+
+        # Create the claim RPC
+        rpc_sql = """CREATE OR REPLACE FUNCTION claim_next_ngs_job(worker_id text)
+RETURNS ngs_jobs LANGUAGE plpgsql SECURITY DEFINER AS $do$
+DECLARE job ngs_jobs;
+BEGIN
+  SELECT * INTO job FROM ngs_jobs WHERE status = 'queued' AND attempts < max_attempts
+  ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED;
+  IF job.id IS NOT NULL THEN
+    UPDATE ngs_jobs SET status='running', claimed_at=now(), claimed_by=worker_id,
+    attempts=attempts+1, updated_at=now() WHERE id = job.id RETURNING * INTO job;
+  END IF;
+  RETURN job;
+END; $do$;"""
+        resp = _httpx.post(f"{base}/rest/v1/rpc/exec_sql", headers=headers, json={"query": rpc_sql}, timeout=15)
+        if resp.status_code == 200:
+            logger.info("ngs_jobs: created claim_next_ngs_job RPC")
+    except Exception as e:
+        logger.debug("Auto-migration skipped (exec_sql not available): %s", e)
 
 
 def _patch(job_id: str, **kw) -> None:

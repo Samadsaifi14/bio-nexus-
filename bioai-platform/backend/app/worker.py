@@ -89,6 +89,39 @@ def _rpc(fn: str, worker_id: str) -> dict | None:
     return data if data else None
 
 
+def _claim_direct(table: str, worker_id: str) -> dict | None:
+    """Fallback: claim a queued job via direct Supabase queries (no RPC needed)."""
+    import httpx
+    # 1. Find a queued job (order by id as fallback if created_at is missing)
+    url = f"{_base()}/rest/v1/{table}?status=eq.queued&attempts=lt.3&order=id.asc&limit=1&select=*"
+    resp = httpx.get(url, headers=_headers(), timeout=15)
+    if resp.status_code != 200:
+        logger.warning("Direct claim query failed for %s: %s %s", table, resp.status_code, resp.text[:200])
+        return None
+    rows = resp.json()
+    if not rows:
+        return None
+    job = rows[0]
+    # 2. Claim it with an atomic update (only if still queued)
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).isoformat()
+    patch_url = f"{_base()}/rest/v1/{table}?id=eq.{job['id']}&status=eq.queued"
+    patch_body = {
+        "status": "running",
+        "claimed_at": now,
+        "claimed_by": worker_id,
+        "attempts": job.get("attempts", 0) + 1,
+        "updated_at": now,
+    }
+    resp = httpx.patch(patch_url, headers=_headers(), json=patch_body, timeout=15)
+    if resp.status_code != 200:
+        return None
+    updated = resp.json()
+    if isinstance(updated, list) and updated:
+        return updated[0]
+    return None
+
+
 def _patch(table: str, job_id: str, payload: dict) -> None:
     import httpx
     url = f"{_base()}/rest/v1/{table}?id=eq.{job_id}"
@@ -289,6 +322,12 @@ async def _poll_once(sweep_counter: int) -> None:
         if sem.locked():
             continue
         job = _rpc(rpc_fn, WORKER_ID)
+        if not job or not job.get("id"):
+            # Fallback: try direct claim when RPC is missing
+            try:
+                job = _claim_direct(table, WORKER_ID)
+            except Exception:
+                job = None
         if not job or not job.get("id"):
             continue
         logger.info("Claimed %s job %s", table, job["id"])

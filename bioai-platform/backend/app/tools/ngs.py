@@ -347,7 +347,8 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
 
     # Simple seed-and-extend alignment: find best match in reference
     import random as _rnd
-    for qname, seq, qual in reads:
+    for idx in range(len(reads)):
+        qname, seq, qual = reads[idx]
         if len(seq) < 20:
             unmapped += 1
             continue
@@ -401,7 +402,7 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
 
             # SAM flag: 0 = single-end, mapped
             flag = 0
-            reads[reads.index((qname, seq, qual))] = (qname, seq, qual, best_pos + 1, cigar, flag, mapq)
+            reads[idx] = (qname, seq, qual, best_pos + 1, cigar, flag, mapq)
             mapped += 1
         else:
             unmapped += 1
@@ -446,6 +447,11 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
     else:
         read_region = f"{ref_name}:1-500"
 
+    logger.warning(
+        "DEGRADED MODE: used pure-Python aligner (no minimap2/samtools). "
+        "BAI index may be less accurate than samtools-produced index."
+    )
+
     return {
         "tool": "python-alignment",
         "mapped_reads": mapped,
@@ -454,6 +460,7 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
         "sam_path": sam_path,
         "bam_path": sam_path.replace(".sam", ".bam"),
         "read_region": read_region,
+        "degraded": True,
     }
 
 
@@ -563,41 +570,69 @@ def _reg2bin(beg: int, end: int) -> int:
     return 0
 
 
-def _bgzf_compress(data: bytes) -> bytes:
-    """Write data as a single BGZF block. igv.js requires BGZF, not plain gzip.
+def _bgzf_compress(data: bytes, max_uncompressed: int = 65536) -> tuple[bytes, list[tuple[int, int]]]:
+    """Compress data into BGZF block(s). igv.js requires BGZF, not plain gzip.
 
-    BGZF block layout:
-      Gzip header (10 bytes): 0x1f 0x8b 0x08 0x04(MTIME=0, FLG=FEXTRA) MTIME(4) XFL OS
-      XLEN (2 bytes, little-endian): length of extra subfield after this field
-      Extra subfield: SI1='B'(1) SI2='C'(1) SLEN=6(2) BSIZE(2) CDATALEN(2) RN(2)
-      Compressed data (CDATALEN bytes)
-      CRC32 (4 bytes, little-endian)
-      ISIZE (4 bytes, little-endian): original uncompressed size
+    Splits data into chunks of at most *max_uncompressed* bytes and compresses
+    each independently, producing valid BGZF blocks that readers can seek
+    into using virtual file offsets.
+
+    Returns (compressed_data, block_table) where block_table is a list of
+    (uncompressed_start, compressed_file_offset) for each BGZF block, sorted
+    by uncompressed offset.
     """
-    compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
-    compressed = compressor.compress(data) + compressor.flush()
-    cdata_len = len(compressed)
+    BGZF_OVERHEAD = 10 + 2 + 10 + 4 + 4  # gzip hdr + XLEN + extra subfield + CRC32 + ISIZE
 
-    # block_size = total size of the BGZF block
-    # = 10 (gzip hdr) + 2 (XLEN field) + 10 (extra subfield: SI1+SI2+SLEN+BSIZE+CDATALEN+RN)
-    #   + cdata_len + 4 (CRC32) + 4 (ISIZE)
-    block_size = 10 + 2 + 10 + cdata_len + 4 + 4
-    bsize_field = block_size - 1
-    csize_field = cdata_len - 1
+    out = b""
+    block_table: list[tuple[int, int]] = []
+    pos = 0
 
-    # Gzip header: ID1, ID2, CM(deflate), FLG(FEXTRA), MTIME(4 bytes=0), XFL(0), OS(0)
-    # Total = 1+1+1+1+4+1+1 = 10 bytes
-    gzip_hdr = struct.pack("<BBBBIBB", 0x1f, 0x8b, 0x08, 0x04, 0, 0, 0)
-    # XLEN = 10 bytes of extra content follow
-    xlen_field = struct.pack("<H", 10)
-    # Extra subfield: SI1='B', SI2='C', SLEN=6, BSIZE, CDATALEN, RN=0
-    extra_subfield = struct.pack("<BBHHHh", 0x42, 0x43, 6, bsize_field, csize_field, 0)
+    while True:
+        chunk = data[pos:pos + max_uncompressed]
+        compressed_offset = len(out)
 
-    crc = zlib.crc32(data) & 0xffffffff
-    isize = len(data) & 0xffffffff
+        compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
+        compressed = compressor.compress(chunk) + zlib.flush()
+        cdata_len = len(compressed)
 
-    block = gzip_hdr + xlen_field + extra_subfield + compressed + struct.pack("<II", crc, isize)
-    return block
+        block_size = BGZF_OVERHEAD + cdata_len
+        bsize_field = block_size - 1
+        csize_field = cdata_len - 1
+
+        gzip_hdr = struct.pack("<BBBBIBB", 0x1f, 0x8b, 0x08, 0x04, 0, 0, 0)
+        xlen_field = struct.pack("<H", 10)
+        extra_subfield = struct.pack("<BBHHHh", 0x42, 0x43, 6, bsize_field, csize_field, 0)
+
+        crc = zlib.crc32(chunk) & 0xFFFFFFFF
+        isize = len(chunk) & 0xFFFFFFFF
+
+        block = gzip_hdr + xlen_field + extra_subfield + compressed + struct.pack("<II", crc, isize)
+        block_table.append((pos, compressed_offset))
+        out += block
+
+        pos += len(chunk)
+        if pos >= len(data):
+            break
+
+    return out, block_table
+
+
+def _voffset_for(block_table: list[tuple[int, int]], uncompressed_offset: int) -> int:
+    """Convert an uncompressed byte offset to a BGZF virtual file offset.
+
+    BGZF virtual offsets encode (compressed_block_offset << 16 | uoffset).
+    A reader seeks to coffset in the compressed file, decompresses the block,
+    then reads from uoffset within the uncompressed data.
+
+    *block_table* is the list returned by _bgzf_compress: entries are
+    (uncompressed_start, compressed_file_offset), sorted by position.
+    """
+    for i in range(len(block_table) - 1, -1, -1):
+        uncomp_start, comp_offset = block_table[i]
+        if uncompressed_offset >= uncomp_start:
+            within = uncompressed_offset - uncomp_start
+            return (comp_offset << 16) | within
+    return 0
 
 
 def _sam_to_bam(sam_path: str, bam_path: str) -> None:
@@ -737,14 +772,20 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
         if ref_id >= 0:
             record_info.append((rec_offset, rec_bin, ref_id, pos, rec_len))
 
-    # Write BAM (BGZF-compressed)
+    # Write BGZF (multi-block, proper virtual offsets)
     raw_bam = bam_header + all_records
-    block = _bgzf_compress(raw_bam)
+    compressed_data, block_table = _bgzf_compress(raw_bam)
     with open(bam_path, "wb") as f:
-        f.write(block)
+        f.write(compressed_data)
+
+    # Rewrite record_info with correct BGZF virtual offsets
+    proper_record_info = [
+        (_voffset_for(block_table, voff), bin_id, rid, pos, rec_len)
+        for voff, bin_id, rid, pos, rec_len in record_info
+    ]
 
     # --- Write BAI index ---
-    _write_bai(bam_path + ".bai", ref_names, ref_lengths, record_info)
+    _write_bai(bam_path + ".bai", ref_names, ref_lengths, proper_record_info)
 
 
 def _write_bai(bai_path: str, ref_names: list[str], ref_lengths: list[int],

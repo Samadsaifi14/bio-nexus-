@@ -120,4 +120,4 @@ async def check_daily_limit_sequencing(request: Request) -> None:
 
 
 async def check_daily_limit_ngs(request: Request) -> None:
-    await _enforce_limit(request, "ngs_jobs", 5, "NGS jobs")
+    await _enforce_limit(request, "ngs_jobs", 20, "NGS jobs")

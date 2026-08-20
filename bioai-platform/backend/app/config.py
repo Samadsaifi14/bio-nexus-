@@ -24,7 +24,7 @@ class Settings:
     EBI_BASE_URL: str = "https://www.ebi.ac.uk/Tools/services/rest/ncbiblast"
     UNIPROT_BASE_URL: str = "https://rest.uniprot.org/uniprotkb"
     ALPHAFOLD_DB_URL: str = "https://alphafold.ebi.ac.uk/api/prediction"
-    DAILY_LIMIT: int = 10
+    DAILY_LIMIT: int = 50
     DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "groq/llama-3.3-70b-versatile")
     PRO_MODEL: str = os.getenv("PRO_MODEL", "claude-sonnet-4-20250514")
     NCBI_EMAIL: str = os.getenv("NCBI_EMAIL", "bioflow@example.com")

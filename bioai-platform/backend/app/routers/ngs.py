@@ -13,7 +13,6 @@ from app.deps import limiter
 from app.services.supabase import get_supabase
 from app.services.auth import require_user_id
 from app.services.ssrf import validate_url
-from app.services.rate_limit import check_daily_limit_ngs
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ngs", tags=["ngs"])
@@ -177,8 +176,6 @@ VALID_DEMO = {"synthetic", "demo", "test"}
 
 @router.post("/run")
 async def run_ngs(request: Request, req: NGSRequest, user_id: str = Depends(require_user_id)):
-    await check_daily_limit_ngs(request)
-
     if not req.fastq_url.strip():
         raise HTTPException(400, detail="fastq_url is required")
     if req.fastq_url.lower() not in VALID_DEMO:

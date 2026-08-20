@@ -527,7 +527,7 @@ export default function NGSPage() {
                     baiUrl={result.result!.file_urls!.bai}
                     samUrl={result.result!.file_urls!.sam}
                     vcfUrl={result.result!.file_urls!.vcf}
-                    locus={REFERENCE_LOCUS[result.result!.reference] || undefined}
+                    locus={result.result!.alignment?.read_region || REFERENCE_LOCUS[result.result!.reference] || undefined}
                   />
                 </Suspense>
               </div>

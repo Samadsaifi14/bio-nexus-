@@ -302,6 +302,8 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
             stats["bam_path"] = bam_path
             stats["bai_path"] = bai_path
             stats["sam_path"] = sam_path
+            # Compute read region from SAM
+            stats["read_region"] = _compute_read_region(sam_path)
             return stats
         except Exception as e:
             logger.warning("Native alignment failed, using Python fallback: %s", e)
@@ -427,6 +429,23 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
     except Exception as e:
         logger.warning("SAM-to-BAM conversion failed: %s", e)
 
+    # Compute read region for igv.js locus
+    min_pos = 999999999
+    max_pos = 0
+    for read in reads:
+        if len(read) > 3:
+            pos = read[3]  # 1-based SAM pos
+            cigar_str = read[4]
+            cigar_ops = _parse_cigar(cigar_str) if cigar_str != "*" else []
+            ref_span = _cigar_ref_len(cigar_ops) if cigar_ops else 100
+            min_pos = min(min_pos, pos)
+            max_pos = max(max_pos, pos + ref_span)
+    if max_pos > min_pos:
+        pad = max(50, (max_pos - min_pos) // 10)
+        read_region = f"{ref_name}:{max(1, min_pos - pad)}-{max_pos + pad}"
+    else:
+        read_region = f"{ref_name}:1-500"
+
     return {
         "tool": "python-alignment",
         "mapped_reads": mapped,
@@ -434,6 +453,7 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
         "total_alignments": total,
         "sam_path": sam_path,
         "bam_path": sam_path.replace(".sam", ".bam"),
+        "read_region": read_region,
     }
 
 
@@ -454,6 +474,44 @@ def _parse_alignment_stats(sam_path: str) -> dict:
                 else:
                     mapped += 1
     return {"mapped_reads": mapped, "unmapped_reads": unmapped, "total_alignments": total}
+
+
+def _compute_read_region(sam_path: str) -> str:
+    """Parse SAM to find min/max mapped positions and return a locus string for igv.js."""
+    min_pos = 999999999
+    max_pos = 0
+    ref_name = ""
+    with open(sam_path) as f:
+        for line in f:
+            if line.startswith("@SQ"):
+                for p in line.split("\t"):
+                    if p.startswith("SN:"):
+                        ref_name = p[3:]
+                continue
+            if line.startswith("@"):
+                continue
+            parts = line.strip().split("\t")
+            if len(parts) < 6:
+                continue
+            flag = int(parts[1])
+            if flag & 4:
+                continue
+            rname = parts[2]
+            pos = int(parts[3])
+            cigar = parts[5]
+            ref_span = sum(int(l) for l, op in re.findall(r'(\d+)([MDN=])', cigar))
+            if ref_span == 0:
+                ref_span = 100
+            min_pos = min(min_pos, pos)
+            max_pos = max(max_pos, pos + ref_span)
+            if not ref_name:
+                ref_name = rname
+    if max_pos > min_pos and ref_name:
+        pad = max(50, (max_pos - min_pos) // 10)
+        return f"{ref_name}:{max(1, min_pos - pad)}-{max_pos + pad}"
+    if ref_name:
+        return f"{ref_name}:1-500"
+    return ""
 
 
 # ---------------------------------------------------------------------------
@@ -1239,6 +1297,7 @@ class NGSPipeline(BaseTool):
                     "mapped_reads": align_result.get("mapped_reads", 0),
                     "unmapped_reads": align_result.get("unmapped_reads", 0),
                     "total_alignments": align_result.get("total_alignments", 0),
+                    "read_region": align_result.get("read_region", ""),
                 },
                 "variants": variants[:30],
                 "annotation": annotation,

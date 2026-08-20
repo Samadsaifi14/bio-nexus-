@@ -707,6 +707,7 @@ export type NGSAlignment = {
   mapped_reads: number;
   unmapped_reads: number;
   total_alignments: number;
+  read_region?: string;
 };
 
 export type NGSAnnotation = {

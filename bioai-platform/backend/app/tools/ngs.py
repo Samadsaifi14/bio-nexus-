@@ -458,7 +458,7 @@ def _parse_alignment_stats(sam_path: str) -> dict:
 
 # ---------------------------------------------------------------------------
 # Pure-Python SAM → BAM converter (no samtools needed)
-# Writes valid BGZF-compressed BAM that igv.js can read.
+# Writes valid BGZF-compressed BAM + BAI that igv.js can read.
 # ---------------------------------------------------------------------------
 
 _BASES = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4}
@@ -478,6 +478,31 @@ def _parse_cigar(cigar: str) -> list[tuple[int, int]]:
     """Parse CIGAR string into (length, op_code) list."""
     OP_MAP = {"M": 0, "I": 1, "D": 2, "N": 3, "S": 4, "H": 5, "P": 6, "=": 7, "X": 8}
     return [(int(m.group(1)), OP_MAP[m.group(2)]) for m in re.finditer(r'(\d+)([MIDNSHUPX=])', cigar)]
+
+
+def _cigar_ref_len(cigar_ops: list[tuple[int, int]]) -> int:
+    """Compute reference length consumed by CIGAR (M, D, N operations)."""
+    return sum(l for l, op in cigar_ops if op in (0, 2, 3))
+
+
+def _reg2bin(beg: int, end: int) -> int:
+    """Compute BAM bin number for a 0-based half-open [beg, end) interval.
+
+    From the SAM/BAM spec: groups reads into hierarchical bins based on
+    their reference coordinates for indexed retrieval.
+    """
+    end -= 1
+    if (beg >> 14) == (end >> 14):
+        return ((1 << 15) - 1) // 7 + (beg >> 14)
+    if (beg >> 17) == (end >> 17):
+        return ((1 << 12) - 1) // 7 + (beg >> 17)
+    if (beg >> 20) == (end >> 20):
+        return ((1 << 9) - 1) // 7 + (beg >> 20)
+    if (beg >> 23) == (end >> 23):
+        return ((1 << 6) - 1) // 7 + (beg >> 23)
+    if (beg >> 26) == (end >> 26):
+        return ((1 << 3) - 1) // 7 + (beg >> 26)
+    return 0
 
 
 def _bgzf_compress(data: bytes) -> bytes:
@@ -518,11 +543,15 @@ def _bgzf_compress(data: bytes) -> bytes:
 
 
 def _sam_to_bam(sam_path: str, bam_path: str) -> None:
-    """Convert SAM to BAM (BGZF-compressed). Pure Python."""
+    """Convert SAM to BAM + BAI (BGZF-compressed). Pure Python.
+
+    Produces a valid BAM file with proper bin fields and a BAI index
+    using correct reg2bin binning and BAM virtual offsets.
+    """
     header_text = ""
     ref_names: list[str] = []
     ref_lengths: list[int] = []
-    records: list[str] = []
+    sam_records: list[str] = []
 
     with open(sam_path) as f:
         for line in f:
@@ -545,7 +574,7 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
             elif line.startswith("@"):
                 header_text += line + "\n"
             else:
-                records.append(line)
+                sam_records.append(line)
 
     ref_id_map = {name: i for i, name in enumerate(ref_names)}
 
@@ -562,9 +591,15 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
         struct.pack("<I", len(ref_names)) + ref_dict
     )
 
-    # Build alignment records
+    # --- Build alignment records, tracking byte offsets for BAI ---
+    # For BAI: record_offset_in_raw_bam, bin_number, ref_id for each record
     all_records = b""
-    for line in records:
+    record_info: list[tuple[int, int, int]] = []  # (offset_in_raw_bam, bin, ref_id)
+
+    # BAM header size tells us where records start in raw_bam
+    header_size = len(bam_header)
+
+    for line in sam_records:
         parts = line.split("\t")
         if len(parts) < 11:
             continue
@@ -612,14 +647,19 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
         n_cigar = len(cigar_ops)
         l_seq = len(seq)
 
-        # bin_mq_nl: bin=0, MAPQ=mapq<<8, l_read_name=len(qname_bytes)
-        bin_mq_nl = (0 << 16) | (mapq << 8) | len(qname_bytes)
+        # Compute bin using reg2bin on the reference extent
+        ref_end = pos + _cigar_ref_len(cigar_ops) if cigar_ops else pos + len(seq)
+        rec_bin = _reg2bin(pos, ref_end) if ref_id >= 0 else 0
 
+        # bin_mq_nl: bin<<16 | MAPQ<<8 | l_read_name
+        # bin can be up to ~37450, fits in 16 bits
+        bin_mq_nl = (rec_bin << 16) | (mapq << 8) | len(qname_bytes)
+
+        # BAM alignment record (NO separate bin field — bin is in bin_mq_nl)
         record = (
             struct.pack("<i", ref_id) +
             struct.pack("<i", pos) +
             struct.pack("<I", bin_mq_nl) +
-            struct.pack("<I", 0) +  # bin
             struct.pack("<I", n_cigar) +
             struct.pack("<I", flag) +
             struct.pack("<I", l_seq) +
@@ -632,65 +672,105 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
             qual_enc
         )
 
-        # Prepend block_size (uint32)
+        # Record offset in the decompressed BAM data (= header_size + current offset)
+        rec_offset = header_size + len(all_records) + 4  # +4 for block_size field
         all_records += struct.pack("<I", len(record)) + record
 
-    # Write BGZF
+        if ref_id >= 0:
+            record_info.append((rec_offset, rec_bin, ref_id))
+
+    # Write BAM (BGZF-compressed)
     raw_bam = bam_header + all_records
     block = _bgzf_compress(raw_bam)
     with open(bam_path, "wb") as f:
         f.write(block)
 
-    # Write BAI index (minimal: one linear index for one reference)
-    _write_bai(bam_path + ".bai", ref_names, ref_lengths, records, ref_id_map)
+    # --- Write BAI index ---
+    _write_bai(bam_path + ".bai", ref_names, ref_lengths, record_info)
 
 
 def _write_bai(bai_path: str, ref_names: list[str], ref_lengths: list[int],
-               records: list[str], ref_id_map: dict[str, int]) -> None:
-    """Write a minimal BAI index file for igv.js."""
-    # BAI format: magic(4) + n_ref(4) + for each ref: n_bin(4) + bins + n_intv(4) + l_intv(4) + intervals
+               record_info: list[tuple[int, int, int]]) -> None:
+    """Write a proper BAI index file for igv.js.
 
-    # Group records by reference and compute bins
-    # For simplicity, use one bin (bin 0) covering the entire reference
-    # and one linear index entry per 16384 bp window
+    record_info: list of (virtual_offset, bin_number, ref_id) for each alignment.
 
-    # Count mapped reads per reference
-    ref_read_counts: dict[int, int] = {}
-    for line in records:
-        parts = line.split("\t")
-        if len(parts) < 6:
-            continue
-        rname = parts[2]
-        rid = ref_id_map.get(rname, -1)
-        if rid >= 0:
-            ref_read_counts[rid] = ref_read_counts.get(rid, 0) + 1
+    BAI format:
+      magic: "BAI\1"
+      n_ref: uint32
+      For each reference:
+        n_bin: uint32
+        For each bin:
+          bin_id: uint32
+          n_chunk: uint32
+          For each chunk:
+            chunk_beg: uint64 (virtual offset)
+            chunk_end: uint64 (virtual offset)
+        n_intv: uint32
+        For each 16384bp window:
+          ioffset: uint64 (virtual offset)
+    """
+    # For single-block BGZF, virtual_offset = offset within raw_bam data.
+    # igv.js uses (block_offset << 16 | within_block_offset).
+    # Since all data is in block 0, block_offset=0, so virtual_offset = within_block_offset.
 
-    # Write BAI
+    # Group records by ref_id and bin
+    # bins_by_ref[ref_id] = { bin_id: [voffsets] }
+    from collections import defaultdict
+    bins_by_ref: dict[int, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
+    for voff, bin_id, rid in record_info:
+        bins_by_ref[rid][bin_id].append(voff)
+
     with open(bai_path, "wb") as f:
         f.write(b"BAI\x01")
         f.write(struct.pack("<I", len(ref_names)))
 
         for i in range(len(ref_names)):
-            # For each reference, write bins and linear index
-            n_bins = 1 if ref_read_counts.get(i, 0) > 0 else 0
+            ref_bins = bins_by_ref.get(i, {})
+            # Sort bins for consistent output
+            sorted_bins = sorted(ref_bins.keys())
+            n_bins = len(sorted_bins)
+
             f.write(struct.pack("<I", n_bins))
 
-            if n_bins > 0:
-                # Bin 0 covers the entire reference
-                bin_id = 0
-                n_chunks = 1
+            for bin_id in sorted_bins:
+                voffsets = sorted(ref_bins[bin_id])
+                # One chunk covering all reads in this bin
+                # chunk_beg = minimum virtual offset
+                # chunk_end = maximum virtual offset (past the end)
+                # For simplicity: chunk covers [min_voff, max_voff + 1)
+                # igv.js needs valid chunk ranges
+                chunk_beg = voffsets[0]
+                # chunk_end should be past the last record. We use max+1 as a
+                # simple approximation. igv.js will decompress the full BGZF
+                # block anyway.
+                chunk_end = voffsets[-1] + 1
+
                 f.write(struct.pack("<I", bin_id))
-                f.write(struct.pack("<I", n_chunks))
-                # Chunk: beg(8) + end(8)
-                f.write(struct.pack("<q", 0))  # beg
-                f.write(struct.pack("<q", ref_lengths[i] + 1))  # end
+                f.write(struct.pack("<I", 1))  # n_chunks = 1
+                f.write(struct.pack("<Q", chunk_beg))
+                f.write(struct.pack("<Q", chunk_end))
 
             # Linear index: one entry per 16384 bp window
-            n_intv = (ref_lengths[i] // 16384) + 1
-            f.write(struct.pack("<I", n_intv))
-            f.write(struct.pack("<I", n_intv))
-            for j in range(n_intv):
-                f.write(struct.pack("<q", 0))  # all zeros for simplified index
+            # For each window, store the minimum virtual offset of any read
+            # that starts in or before that window
+            ref_len = ref_lengths[i] if i < len(ref_lengths) else 0
+            n_windows = (ref_len // 16384) + 1
+
+            # Compute minimum voffset for each window
+            # Collect all voffsets mapped to this reference
+            all_voffs_for_ref = [voff for voff, _, rid in record_info if rid == i]
+            if all_voffs_for_ref:
+                min_voff = min(all_voffs_for_ref)
+            else:
+                min_voff = 0
+
+            f.write(struct.pack("<I", n_windows))
+            for w in range(n_windows):
+                # Linear index entry: minimum voffset of any read starting in
+                # windows [0, w]. For simplicity with a single-block BAM,
+                # use the global minimum.
+                f.write(struct.pack("<Q", min_voff))
 
 
 # ---------------------------------------------------------------------------

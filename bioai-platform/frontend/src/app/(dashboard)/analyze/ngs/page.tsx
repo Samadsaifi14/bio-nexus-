@@ -1,14 +1,31 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, lazy, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
-import { CircleNotch as LoaderCircle, CheckCircle, XCircle, Warning as AlertTriangle, Dna, ChartBar as BarChart3, Scissors, MapTrifold as Map, Bug, Note, FileText, MagnifyingGlass as Search, Download } from '@phosphor-icons/react';
+import {
+  CircleNotch as LoaderCircle,
+  CheckCircle,
+  XCircle,
+  Warning as AlertTriangle,
+  Dna,
+  ChartBar as BarChart3,
+  Scissors,
+  MapTrifold as Map,
+  Bug,
+  Note,
+  Binoculars,
+  Download,
+  FileText,
+  MagnifyingGlass as Search,
+} from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runNGS, getNGSStatus, listNGSReferences } from '@/lib/api';
 import type { NGSResult, NGSReference } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
+
+const IGVBrowser = lazy(() => import('@/components/IgvBrowser'));
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'SARS-CoV-2' },
@@ -21,13 +38,19 @@ const EXAMPLE_FASTQ = [
 ];
 
 const STEPS = [
-  { id: 'qc',       label: 'Quality Control',     icon: BarChart3 },
-  { id: 'trim',     label: 'Trimming / Filtering', icon: Scissors },
-  { id: 'align',    label: 'Read Alignment',        icon: Map },
-  { id: 'variants', label: 'Variant Calling',       icon: Bug },
-  { id: 'annotate', label: 'Annotation',            icon: Note },
-  { id: 'report',   label: 'Summary Report',         icon: FileText },
+  { id: 'qc',            label: 'Quality Control',     icon: BarChart3, description: 'Per-base quality, GC content, adapter detection' },
+  { id: 'trim',          label: 'Trimming / Filtering', icon: Scissors, description: 'Adapter removal, quality filtering (Q≥20, len≥50)' },
+  { id: 'align',         label: 'Read Alignment',       icon: Map,      description: 'minimap2 / samtools → sorted, indexed BAM' },
+  { id: 'variants',      label: 'Variant Calling',      icon: Bug,      description: 'bcftools mpileup + call → VCF' },
+  { id: 'annotate',      label: 'Annotation',           icon: Note,     description: 'SnpEff / cross-reference lookup' },
+  { id: 'visualization', label: 'Visualization (igv.js)', icon: Binoculars, description: 'Genome browser: BAM + VCF tracks' },
 ];
+
+const REFERENCE_LOCUS: Record<string, string> = {
+  'sars-cov-2': 'SCoV2',
+  'lambda': 'Lambda',
+  'ecoli-k12': 'Ecoli',
+};
 
 export default function NGSPage() {
   const router = useRouter();
@@ -98,7 +121,7 @@ export default function NGSPage() {
     return <LoaderCircle className="w-5 h-5 text-accent-cyan animate-spin" />;
   };
 
-  const stepStatus = (stepId: string): 'pending' | 'running' | 'done' | 'failed' | 'skipped' => {
+  const stepStatus = (stepId: string): 'pending' | 'running' | 'done' | 'failed' => {
     if (!result?.result) return 'pending';
     if (result.status === 'failed') return 'failed';
     const completed = result.result.steps_completed || [];
@@ -112,15 +135,19 @@ export default function NGSPage() {
     return 'pending';
   };
 
+  const isComplete = result?.status === 'complete';
+  const hasFiles = !!(result?.result?.file_urls?.bam || result?.result?.file_urls?.sam);
+
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-4xl">
       <BackButton />
 
       <PageHeader
         title="NGS Pipeline"
-        subtitle="Full 6-step NGS analysis: QC → Trimming → Alignment → Variant Calling → Annotation → Report"
+        subtitle="Full 6-step analysis: QC → Trimming → Alignment → Variant Calling → Annotation → Visualization"
       />
 
+      {/* Input Form */}
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
         <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">FASTQ URL</label>
@@ -166,6 +193,7 @@ export default function NGSPage() {
         </CriticalButton>
       </motion.div>
 
+      {/* Error */}
       {error && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-error/20">
           <div className="flex items-center gap-2">
@@ -175,12 +203,13 @@ export default function NGSPage() {
         </motion.div>
       )}
 
+      {/* Results */}
       {result && (
         <motion.div id="ngs-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-          {result.status === 'complete' && (
+          {isComplete && (
             <ResultsReadyBanner
               title="NGS Pipeline complete"
-              subtitle={result.result?.consensus_sequence ? `Consensus sequence ready · ${result.result.reference ?? ''}` : 'All 6 pipeline steps finished'}
+              subtitle={`${result.result?.reference ?? ''} · All 6 steps finished · igv.js viewer ready`}
             />
           )}
 
@@ -194,37 +223,38 @@ export default function NGSPage() {
               <span className="text-xs text-text-muted font-mono">{result.result?.reference}</span>
             </div>
 
-            <div className="space-y-3">
+            <div className="space-y-1">
               {STEPS.map((step, i) => {
                 const Icon = step.icon;
                 const s = stepStatus(step.id);
                 return (
-                  <div key={step.id} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      s === 'done' ? 'bg-good/10 text-good' :
-                      s === 'running' ? 'bg-accent-cyan/10 text-accent-cyan' :
-                      s === 'failed' ? 'bg-error/10 text-error' :
-                      'bg-surface-1 text-text-muted'
-                    }`}>
-                      {s === 'done' ? <CheckCircle className="w-4 h-4" /> :
-                       s === 'running' ? <LoaderCircle className="w-4 h-4 animate-spin" /> :
-                       <Icon className="w-4 h-4" />}
+                  <div key={step.id}>
+                    <div className="flex items-center gap-3 py-2 px-2 rounded-lg hover:bg-surface-1/50 transition">
+                      <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        s === 'done' ? 'bg-good/10 text-good' :
+                        s === 'running' ? 'bg-accent-cyan/10 text-accent-cyan' :
+                        s === 'failed' ? 'bg-error/10 text-error' :
+                        'bg-surface-1 text-text-muted'
+                      }`}>
+                        {s === 'done' ? <CheckCircle className="w-4 h-4" /> :
+                         s === 'running' ? <LoaderCircle className="w-4 h-4 animate-spin" /> :
+                         <Icon className="w-4 h-4" />}
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-medium ${
+                          s === 'done' ? 'text-good' :
+                          s === 'running' ? 'text-accent-cyan' :
+                          s === 'failed' ? 'text-error' :
+                          'text-text-muted'
+                        }`}>{step.label}</p>
+                        <p className="text-[11px] text-text-muted truncate">{step.description}</p>
+                      </div>
+                      {result.result?.tools_used && step.id !== 'visualization' && (
+                        <span className="text-[10px] text-text-muted font-mono flex-shrink-0">{result.result.tools_used[step.id === 'annotate' ? 'annotate' : step.id === 'trim' ? 'trim' : step.id]}</span>
+                      )}
                     </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${
-                        s === 'done' ? 'text-good' :
-                        s === 'running' ? 'text-accent-cyan' :
-                        s === 'failed' ? 'text-error' :
-                        'text-text-muted'
-                      }`}>{step.label}</p>
-                    </div>
-                    {result.result?.tools_used && (
-                      <span className="text-[10px] text-text-muted font-mono">{result.result.tools_used[step.id === 'annotate' ? 'annotate' : step.id === 'trim' ? 'trim' : step.id]}</span>
-                    )}
                     {i < STEPS.length - 1 && (
-                      <div className={`w-px h-4 mx-2 ${
-                        s === 'done' ? 'bg-good/30' : 'bg-glass-border'
-                      }`} />
+                      <div className={`w-px h-2 ml-5.5 ${s === 'done' ? 'bg-good/30' : 'bg-glass-border'}`} />
                     )}
                   </div>
                 );
@@ -238,70 +268,105 @@ export default function NGSPage() {
             )}
           </div>
 
-          {/* QC Results */}
+          {/* Step 1: QC Results */}
           {result.result?.qc && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-accent-cyan" /> Quality Control
+                <BarChart3 className="w-4 h-4 text-accent-cyan" /> Step 1 — Quality Control
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Reads</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.total_reads.toLocaleString()}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Bases</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.total_bases.toLocaleString()}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Avg Read Length</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.avg_read_length}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">GC Content</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.gc_percent}%</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Mean Quality</p>
-                  <p className={`text-lg font-bold font-mono ${
-                    result.result.qc.mean_quality >= 30 ? 'text-good' :
-                    result.result.qc.mean_quality >= 20 ? 'text-warn' : 'text-text-muted'
-                  }`}>{result.result.qc.mean_quality}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Q30</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.q30_percent}%</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Q20</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.q20_percent}%</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Read Length Range</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.min_read_length}-{result.result.qc.max_read_length}</p>
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+                {[
+                  { label: 'Total Reads', value: result.result.qc.total_reads.toLocaleString() },
+                  { label: 'Total Bases', value: result.result.qc.total_bases.toLocaleString() },
+                  { label: 'Avg Length', value: `${result.result.qc.avg_read_length} bp` },
+                  { label: 'GC Content', value: `${result.result.qc.gc_percent}%` },
+                  { label: 'Mean Quality', value: `${result.result.qc.mean_quality}`, color: result.result.qc.mean_quality >= 30 ? 'text-good' : result.result.qc.mean_quality >= 20 ? 'text-warn' : 'text-error' },
+                  { label: 'Q30', value: `${result.result.qc.q30_percent}%` },
+                  { label: 'Q20', value: `${result.result.qc.q20_percent}%` },
+                  { label: 'Read Range', value: `${result.result.qc.min_read_length}–${result.result.qc.max_read_length}` },
+                ].map(({ label, value, color }) => (
+                  <div key={label} className="p-3 rounded-xl bg-surface-1">
+                    <p className="text-[11px] text-text-muted">{label}</p>
+                    <p className={`text-base font-bold font-mono ${color || 'text-text-primary'}`}>{value}</p>
+                  </div>
+                ))}
               </div>
+
+              {/* Quality by position chart */}
+              {result.result.qc.quality_by_position && result.result.qc.quality_by_position.length > 0 && (
+                <div className="mt-4">
+                  <p className="text-xs text-text-muted mb-2">Per-Base Quality Distribution</p>
+                  <div className="relative h-40 bg-surface-1 rounded-lg overflow-hidden p-2">
+                    {(() => {
+                      const qbp = result.result!.qc.quality_by_position!;
+                      const n = qbp.length;
+                      return (
+                        <svg viewBox={`0 0 ${n} 40`} className="w-full h-full" preserveAspectRatio="none">
+                          <line x1={0} y1={10} x2={n} y2={10}
+                            stroke="#22c55e" strokeWidth={0.3} strokeDasharray="2,2" opacity={0.4} />
+                          <line x1={0} y1={20} x2={n} y2={20}
+                            stroke="#eab308" strokeWidth={0.3} strokeDasharray="2,2" opacity={0.4} />
+                          <polyline
+                            points={qbp.map((p, i) => `${i},${40 - (p.mean / 40) * 40}`).join(' ')}
+                            fill="none"
+                            stroke="#06b6d4"
+                            strokeWidth={0.8}
+                          />
+                          <polygon
+                            points={[
+                              ...qbp.map((p, i) => `${i},${40 - (p.q90 / 40) * 40}`),
+                              ...qbp.map((p, i) => `${n - 1 - i},${40 - (qbp[n - 1 - i].q10 / 40) * 40}`),
+                            ].join(' ')}
+                            fill="#06b6d4"
+                            opacity={0.1}
+                          />
+                        </svg>
+                      );
+                    })()}
+                    <div className="absolute top-1 right-2 flex items-center gap-3 text-[9px] text-text-muted">
+                      <span className="flex items-center gap-1"><span className="w-2 h-0.5 bg-accent-cyan inline-block" /> Mean</span>
+                      <span className="text-good">Q30</span>
+                      <span className="text-warn">Q20</span>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Overrepresented sequences */}
+              {result.result.qc.overrepresented_sequences && result.result.qc.overrepresented_sequences.length > 0 && (
+                <div className="mt-3">
+                  <p className="text-xs text-text-muted mb-1">Overrepresented Sequences (top 5)</p>
+                  <div className="space-y-1">
+                    {result.result.qc.overrepresented_sequences.slice(0, 5).map((s, i) => (
+                      <div key={i} className="flex items-center gap-2 text-[11px]">
+                        <span className="font-mono text-text-primary truncate max-w-[200px]">{s.sequence}</span>
+                        <span className="text-text-muted">{s.count}x ({s.percent}%)</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
-          {/* Trimming Results */}
+          {/* Step 2: Trimming */}
           {result.result?.trimming && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Scissors className="w-4 h-4 text-accent-cyan" /> Trimming / Filtering
+                <Scissors className="w-4 h-4 text-accent-cyan" /> Step 2 — Trimming / Filtering
               </h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Reads Before</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.trimming.reads_before.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Reads Before</p>
+                  <p className="text-base font-bold text-text-primary font-mono">{result.result.trimming.reads_before.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Reads After</p>
-                  <p className="text-lg font-bold text-good font-mono">{result.result.trimming.reads_after.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Reads After</p>
+                  <p className="text-base font-bold text-good font-mono">{result.result.trimming.reads_after.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Discarded</p>
-                  <p className="text-lg font-bold text-warn font-mono">{result.result.trimming.reads_discarded.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Discarded</p>
+                  <p className="text-base font-bold text-warn font-mono">{result.result.trimming.reads_discarded.toLocaleString()}</p>
                 </div>
               </div>
               {result.result.trimming.reads_before > 0 && (
@@ -323,24 +388,24 @@ export default function NGSPage() {
             </div>
           )}
 
-          {/* Alignment Results */}
+          {/* Step 3: Alignment */}
           {result.result?.alignment && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Map className="w-4 h-4 text-accent-cyan" /> Alignment Results
+                <Map className="w-4 h-4 text-accent-cyan" /> Step 3 — Read Alignment
               </h3>
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-3 gap-3">
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Alignments</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.alignment.total_alignments.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Total Alignments</p>
+                  <p className="text-base font-bold text-text-primary font-mono">{result.result.alignment.total_alignments.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Mapped</p>
-                  <p className="text-lg font-bold text-good font-mono">{result.result.alignment.mapped_reads.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Mapped</p>
+                  <p className="text-base font-bold text-good font-mono">{result.result.alignment.mapped_reads.toLocaleString()}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Unmapped</p>
-                  <p className="text-lg font-bold text-warn font-mono">{result.result.alignment.unmapped_reads.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Unmapped</p>
+                  <p className="text-base font-bold text-warn font-mono">{result.result.alignment.unmapped_reads.toLocaleString()}</p>
                 </div>
               </div>
               {result.result.alignment.total_alignments > 0 && (
@@ -362,16 +427,16 @@ export default function NGSPage() {
             </div>
           )}
 
-          {/* Variants */}
+          {/* Step 4: Variants */}
           {result.result?.variants && result.result.variants.length > 0 && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Bug className="w-4 h-4 text-accent-cyan" /> Variants Detected ({result.result.variants.length})
+                <Bug className="w-4 h-4 text-accent-cyan" /> Step 4 — Variant Calling ({result.result.variants.length} variants)
               </h3>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
+                    <tr className="text-[11px] text-text-muted uppercase border-b border-glass-border">
                       <th className="text-left py-2 pr-4">Pos</th>
                       <th className="text-left py-2 pr-4">Ref</th>
                       <th className="text-left py-2 pr-4">Alt</th>
@@ -397,29 +462,30 @@ export default function NGSPage() {
             </div>
           )}
 
-          {/* Annotation */}
+          {/* Step 5: Annotation */}
           {result.result?.annotation && result.result.annotation.annotations.length > 0 && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Note className="w-4 h-4 text-accent-cyan" /> Variant Annotation ({result.result.annotation.total_annotated})
+                <Note className="w-4 h-4 text-accent-cyan" /> Step 5 — Annotation ({result.result.annotation.total_annotated})
               </h3>
-              <div className="grid grid-cols-2 gap-4 mb-3">
+              <div className="grid grid-cols-2 gap-3 mb-3">
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Known Variants</p>
-                  <p className="text-lg font-bold text-good font-mono">{result.result.annotation.known_variants_found}</p>
+                  <p className="text-[11px] text-text-muted">Known Variants</p>
+                  <p className="text-base font-bold text-good font-mono">{result.result.annotation.known_variants_found}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Novel Variants</p>
-                  <p className="text-lg font-bold text-warn font-mono">{result.result.annotation.total_annotated - result.result.annotation.known_variants_found}</p>
+                  <p className="text-[11px] text-text-muted">Novel Variants</p>
+                  <p className="text-base font-bold text-warn font-mono">{result.result.annotation.total_annotated - result.result.annotation.known_variants_found}</p>
                 </div>
               </div>
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>
-                    <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
+                    <tr className="text-[11px] text-text-muted uppercase border-b border-glass-border">
                       <th className="text-left py-2 pr-4">Position</th>
                       <th className="text-left py-2 pr-4">Mutation</th>
                       <th className="text-left py-2 pr-4">Gene</th>
+                      <th className="text-left py-2 pr-4">Protein</th>
                       <th className="text-left py-2">Significance</th>
                     </tr>
                   </thead>
@@ -429,11 +495,67 @@ export default function NGSPage() {
                         <td className="py-2 pr-4 font-mono">{a.pos.toLocaleString()}</td>
                         <td className="py-2 pr-4 font-mono text-accent-cyan">{a.mutation}</td>
                         <td className="py-2 pr-4 font-mono text-good">{a.gene}</td>
+                        <td className="py-2 pr-4 font-mono text-text-muted">{(a as any).protein_change || '—'}</td>
                         <td className="py-2 text-xs">{a.significance}</td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
+              </div>
+            </div>
+          )}
+
+          {/* Step 6: igv.js Visualization */}
+          {isComplete && hasFiles && (
+            <div className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <Binoculars className="w-4 h-4 text-accent-cyan" /> Step 6 — Genome Browser (igv.js)
+              </h3>
+              <p className="text-xs text-text-muted mb-4">
+                Interactive genome viewer — click on reads, variants, and positions. Use toolbar to zoom, search loci, and toggle tracks.
+              </p>
+              <div className="rounded-xl overflow-hidden border border-glass-border bg-white">
+                <Suspense fallback={
+                  <div className="flex items-center justify-center h-[500px] bg-surface-1 rounded-xl">
+                    <LoaderCircle className="w-6 h-6 text-accent-cyan animate-spin" />
+                    <span className="ml-2 text-sm text-text-muted">Loading igv.js genome browser...</span>
+                  </div>
+                }>
+                  <IGVBrowser
+                    referenceUrl={result.result!.file_urls!.reference!}
+                    bamUrl={result.result!.file_urls!.bam}
+                    baiUrl={result.result!.file_urls!.bai}
+                    samUrl={result.result!.file_urls!.sam}
+                    vcfUrl={result.result!.file_urls!.vcf}
+                    locus={REFERENCE_LOCUS[result.result!.reference] || undefined}
+                  />
+                </Suspense>
+              </div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {result.result!.file_urls!.bam && (
+                  <a href={result.result!.file_urls!.bam} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-1 text-xs text-text-muted hover:text-text-primary transition">
+                    <Download className="w-3.5 h-3.5" /> BAM
+                  </a>
+                )}
+                {result.result!.file_urls!.sam && (
+                  <a href={result.result!.file_urls!.sam} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-1 text-xs text-text-muted hover:text-text-primary transition">
+                    <Download className="w-3.5 h-3.5" /> SAM
+                  </a>
+                )}
+                {result.result!.file_urls!.vcf && (
+                  <a href={result.result!.file_urls!.vcf} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-1 text-xs text-text-muted hover:text-text-primary transition">
+                    <Download className="w-3.5 h-3.5" /> VCF
+                  </a>
+                )}
+                {result.result!.file_urls!.reference && (
+                  <a href={result.result!.file_urls!.reference} target="_blank" rel="noopener noreferrer"
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-1 text-xs text-text-muted hover:text-text-primary transition">
+                    <Download className="w-3.5 h-3.5" /> Reference FASTA
+                  </a>
+                )}
               </div>
             </div>
           )}
@@ -444,32 +566,32 @@ export default function NGSPage() {
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
                 <FileText className="w-4 h-4 text-accent-cyan" /> Summary Report
               </h3>
-              <div className="grid grid-cols-2 gap-4 mb-4">
+              <div className="grid grid-cols-2 gap-3">
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Reference</p>
+                  <p className="text-[11px] text-text-muted">Reference</p>
                   <p className="text-sm font-bold text-text-primary font-mono">{result.result.report.reference}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Variants</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.report.variant_summary.total_variants}</p>
+                  <p className="text-[11px] text-text-muted">Total Variants</p>
+                  <p className="text-base font-bold text-text-primary font-mono">{result.result.report.variant_summary.total_variants}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">SNVs</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.report.variant_summary.snv_count}</p>
+                  <p className="text-[11px] text-text-muted">SNVs</p>
+                  <p className="text-base font-bold text-text-primary font-mono">{result.result.report.variant_summary.snv_count}</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Known / Novel</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">
+                  <p className="text-[11px] text-text-muted">Known / Novel</p>
+                  <p className="text-base font-bold text-text-primary font-mono">
                     {result.result.report.variant_summary.known_variants} / {result.result.report.variant_summary.novel_variants}
                   </p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Mapping Rate</p>
-                  <p className="text-lg font-bold text-accent-cyan font-mono">{result.result.report.alignment_summary.mapping_rate}%</p>
+                  <p className="text-[11px] text-text-muted">Mapping Rate</p>
+                  <p className="text-base font-bold text-accent-cyan font-mono">{result.result.report.alignment_summary.mapping_rate}%</p>
                 </div>
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Reads After Trim</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.report.trimming_summary.reads_after.toLocaleString()}</p>
+                  <p className="text-[11px] text-text-muted">Reads After Trim</p>
+                  <p className="text-base font-bold text-text-primary font-mono">{result.result.report.trimming_summary.reads_after.toLocaleString()}</p>
                 </div>
               </div>
             </div>
@@ -485,8 +607,8 @@ export default function NGSPage() {
             </div>
           )}
 
-          {/* Download + Bridges */}
-          {result.status === 'complete' && (
+          {/* Download + Bridge */}
+          {isComplete && (
             <div className="data-card p-4 space-y-3">
               {result.result?.consensus_sequence && (
                 <div className="flex items-center justify-between">

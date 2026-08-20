@@ -74,6 +74,8 @@ def _init(job_id: str, req: NGSRequest, user_id: str) -> None:
         "result":    None,
         "error":     None,
         "done_at":   None,
+        "attempts":  0,
+        "max_attempts": 3,
     }).execute()
 
 
@@ -154,6 +156,7 @@ async def _worker(job_id: str) -> None:
             tool.run({
                 "fastq_url": job["fastq_url"],
                 "reference": job["reference"],
+                "job_id": job_id,
             }),
             timeout=PIPELINE_TIMEOUT,
         )

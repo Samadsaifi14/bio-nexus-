@@ -689,6 +689,9 @@ export type NGSQC = {
   max_quality: number;
   q20_percent: number;
   q30_percent: number;
+  quality_by_position?: { position: number; mean: number; q10: number; q90: number }[];
+  gc_by_window?: number[];
+  read_length_distribution?: { length: number; count: number }[];
   overrepresented_sequences: { sequence: string; count: number; percent: number }[];
 };
 
@@ -709,7 +712,7 @@ export type NGSAlignment = {
 export type NGSAnnotation = {
   tool: string;
   reference: string;
-  annotations: { pos: number; ref: string; alt: string; gene: string; mutation: string; significance: string; depth: number; freq: number }[];
+  annotations: { pos: number; ref: string; alt: string; gene: string; mutation: string; significance: string; depth: number; freq: number; protein_change?: string }[];
   total_annotated: number;
   known_variants_found: number;
 };
@@ -719,6 +722,7 @@ export type NGSResult = {
   status: string;
   result?: {
     reference: string;
+    reference_size: number;
     fastq_source: string;
     qc: NGSQC;
     trimming: NGSTrimming;
@@ -726,6 +730,7 @@ export type NGSResult = {
     variants: { pos: number; ref: string; alt: string; depth: number; alt_count: number; freq: number }[];
     annotation: NGSAnnotation;
     consensus_sequence?: string;
+    file_urls?: { bam?: string; bai?: string; sam?: string; vcf?: string; reference?: string };
     report: {
       reference: string;
       qc_summary: { total_reads: number; total_bases: number; mean_quality: number; q30_percent: number; gc_percent: number };

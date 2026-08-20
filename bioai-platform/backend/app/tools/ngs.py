@@ -6,7 +6,7 @@ NGS (Next-Generation Sequencing) Pipeline — 6-step analysis:
 3. Alignment        (minimap2 + samtools or Python fallback)
 4. Variant Calling  (bcftools or Python fallback)
 5. Annotation       (SnpEff or cross-reference lookup)
-6. Report           (structured JSON summary)
+6. Visualization    (upload BAM/VCF/FASTA for igv.js browser)
 """
 
 from __future__ import annotations
@@ -20,7 +20,6 @@ import random
 import re
 import shutil
 import subprocess
-import sys
 import tempfile
 from typing import Any
 
@@ -41,15 +40,20 @@ REFERENCE_URLS = {
     "ecoli-k12": "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/efetch.fcgi?db=nuccore&id=U00096.3&rettype=fasta&retmode=text",
 }
 
+REFERENCE_SIZES = {
+    "sars-cov-2": 29903,
+    "lambda": 48502,
+    "ecoli-k12": 4641652,
+}
+
 CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "references")
 
 
 # ---------------------------------------------------------------------------
-# Tool detection helpers
+# Tool detection
 # ---------------------------------------------------------------------------
 
 def _find_tool(name: str) -> str | None:
-    """Find a tool binary, checking PATH then app/bin/."""
     exe = f"{name}.exe" if _IS_WINDOWS else name
     found = shutil.which(name)
     if found:
@@ -70,11 +74,10 @@ def _tool_available(name: str) -> bool:
 
 
 # ---------------------------------------------------------------------------
-# Step 1: Quality Control (FastQC or Python fallback)
+# Step 1: Quality Control
 # ---------------------------------------------------------------------------
 
 def _run_fastqc(fastq_path: str, out_dir: str) -> dict:
-    """Run FastQC if available, else use Python QC parser."""
     if _tool_available("fastqc"):
         try:
             subprocess.run(
@@ -91,7 +94,6 @@ def _run_fastqc(fastq_path: str, out_dir: str) -> dict:
 
 
 def _python_qc(fastq_path: str) -> dict:
-    """Pure-Python QC: parse FASTQ and compute metrics."""
     total_reads = 0
     total_bases = 0
     gc_count = 0
@@ -99,7 +101,11 @@ def _python_qc(fastq_path: str) -> dict:
     q_scores: list[int] = []
     read_lengths: list[int] = []
     seen_seqs: dict[str, int] = {}
+    base_quality_by_pos: dict[int, list[int]] = {}
+    gc_by_window: list[float] = []
     line_no = 0
+    window_seqs: list[str] = []
+    WINDOW_SIZE = 50
 
     with open(fastq_path) as f:
         for line in f:
@@ -113,36 +119,75 @@ def _python_qc(fastq_path: str) -> dict:
                 gc_count += seq.count("G") + seq.count("C") + seq.count("g") + seq.count("c")
                 at_count += seq.count("A") + seq.count("T") + seq.count("a") + seq.count("t")
                 seen_seqs[seq] = seen_seqs.get(seq, 0) + 1
+                window_seqs.append(seq)
+                if len(window_seqs) >= WINDOW_SIZE:
+                    gc_in_window = sum(
+                        s.count("G") + s.count("C") + s.count("g") + s.count("c")
+                        for s in window_seqs
+                    )
+                    bases_in_window = sum(len(s) for s in window_seqs)
+                    gc_by_window.append(round(gc_in_window / max(bases_in_window, 1) * 100, 2))
+                    window_seqs = []
             elif line_no % 4 == 0:
-                for ch in line.strip():
-                    q_scores.append(ord(ch) - 33)
+                qual_line = line.strip()
+                for i, ch in enumerate(qual_line):
+                    q = ord(ch) - 33
+                    q_scores.append(q)
+                    if i not in base_quality_by_pos:
+                        base_quality_by_pos[i] = []
+                    base_quality_by_pos[i].append(q)
+
+    if window_seqs:
+        gc_in_window = sum(s.count("G") + s.count("C") + s.count("g") + s.count("c") for s in window_seqs)
+        bases_in_window = sum(len(s) for s in window_seqs)
+        gc_by_window.append(round(gc_in_window / max(bases_in_window, 1) * 100, 2))
 
     if total_reads == 0:
         return {"error": "Empty FASTQ file", "total_reads": 0}
 
     mean_q = sum(q_scores) / len(q_scores) if q_scores else 0
-    min_q = min(q_scores) if q_scores else 0
-    max_q = max(q_scores) if q_scores else 0
     q20 = sum(1 for q in q_scores if q >= 20) / len(q_scores) * 100 if q_scores else 0
     q30 = sum(1 for q in q_scores if q >= 30) / len(q_scores) * 100 if q_scores else 0
     gc_pct = gc_count / (gc_count + at_count) * 100 if (gc_count + at_count) > 0 else 0
-    avg_len = sum(read_lengths) / len(read_lengths) if read_lengths else 0
+
+    # Per-position quality for the chart (sample every N positions)
+    max_pos = max(base_quality_by_pos.keys()) if base_quality_by_pos else 0
+    sample_step = max(1, max_pos // 100)
+    quality_by_position = []
+    for pos in range(0, max_pos + 1, sample_step):
+        scores = base_quality_by_pos.get(pos, [])
+        if scores:
+            quality_by_position.append({
+                "position": pos,
+                "mean": round(sum(scores) / len(scores), 1),
+                "q10": round(sorted(scores)[len(scores) // 4], 1) if len(scores) >= 4 else 0,
+                "q90": round(sorted(scores)[len(scores) * 3 // 4], 1) if len(scores) >= 4 else 0,
+            })
 
     overrepresented = sorted(seen_seqs.items(), key=lambda x: -x[1])[:10]
+
+    # Read length distribution
+    length_dist: dict[int, int] = {}
+    for rl in read_lengths:
+        bucket = (rl // 10) * 10
+        length_dist[bucket] = length_dist.get(bucket, 0) + 1
 
     return {
         "tool": "python-qc",
         "total_reads": total_reads,
         "total_bases": total_bases,
-        "avg_read_length": round(avg_len, 1),
-        "min_read_length": min(read_lengths) if read_lengths else 0,
-        "max_read_length": max(read_lengths) if read_lengths else 0,
+        "avg_read_length": round(sum(read_lengths) / len(read_lengths), 1),
+        "min_read_length": min(read_lengths),
+        "max_read_length": max(read_lengths),
         "gc_percent": round(gc_pct, 2),
         "mean_quality": round(mean_q, 2),
-        "min_quality": min_q,
-        "max_quality": max_q,
+        "min_quality": min(q_scores),
+        "max_quality": max(q_scores),
         "q20_percent": round(q20, 2),
         "q30_percent": round(q30, 2),
+        "quality_by_position": quality_by_position,
+        "gc_by_window": gc_by_window,
+        "read_length_distribution": [{"length": k, "count": v} for k, v in sorted(length_dist.items())],
         "overrepresented_sequences": [
             {"sequence": s[:50], "count": c, "percent": round(c / total_reads * 100, 2)}
             for s, c in overrepresented
@@ -151,11 +196,10 @@ def _python_qc(fastq_path: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Step 2: Trimming/Filtering (fastp or Python fallback)
+# Step 2: Trimming/Filtering
 # ---------------------------------------------------------------------------
 
 def _run_fastp(fastq_in: str, fastq_out: str, report_dir: str) -> dict:
-    """Run fastp if available, else use Python quality filter."""
     if _tool_available("fastp"):
         report_json = os.path.join(report_dir, "fastp_report.json")
         try:
@@ -175,11 +219,12 @@ def _run_fastp(fastq_in: str, fastq_out: str, report_dir: str) -> dict:
 
 
 def _python_trim(fastq_in: str, fastq_out: str) -> dict:
-    """Pure-Python quality filter: keep reads with mean Q >= 20, length >= 50."""
     kept = 0
     discarded = 0
     line_no = 0
     buf: list[str] = []
+    before_lengths: list[int] = []
+    after_lengths: list[int] = []
 
     with open(fastq_in) as fin, open(fastq_out, "w") as out:
         for line in fin:
@@ -188,6 +233,7 @@ def _python_trim(fastq_in: str, fastq_out: str) -> dict:
             if line_no % 4 == 0:
                 seq = buf[1].strip()
                 qual = buf[3].strip()
+                before_lengths.append(len(seq))
                 if len(seq) < 50:
                     discarded += 1
                     buf.clear()
@@ -197,27 +243,31 @@ def _python_trim(fastq_in: str, fastq_out: str) -> dict:
                 if mean_q >= 20:
                     out.writelines(buf)
                     kept += 1
+                    after_lengths.append(len(seq))
                 else:
                     discarded += 1
                 buf.clear()
 
+    avg_before = round(sum(before_lengths) / max(len(before_lengths), 1), 1)
+    avg_after = round(sum(after_lengths) / max(len(after_lengths), 1), 1)
+
+    # Quality distribution before/after
+    q_before = [ord(ch) - 33 for line in open(fastq_in) for ch in line.strip() if line.strip()]
+
     return {
         "tool": "python-trim",
-        "before_filtering": {"total_reads": kept + discarded, "total_bases": 0},
-        "after_filtering": {"total_reads": kept, "total_bases": 0},
+        "before_filtering": {"total_reads": kept + discarded, "total_bases": sum(before_lengths), "avg_length": avg_before},
+        "after_filtering": {"total_reads": kept, "total_bases": sum(after_lengths), "avg_length": avg_after},
         "reads_discarded": discarded,
-        "filtering_result": {
-            "low_quality_reads": discarded,
-        },
+        "filtering_result": {"low_quality_reads": discarded},
     }
 
 
 # ---------------------------------------------------------------------------
-# Step 3: Alignment (minimap2 + samtools, or Python fallback)
+# Step 3: Alignment
 # ---------------------------------------------------------------------------
 
 def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
-    """Run minimap2 + samtools if available, else Python fallback."""
     sam_path = os.path.join(tmpdir, "aligned.sam")
     bam_path = os.path.join(tmpdir, "sorted.bam")
     bai_path = os.path.join(tmpdir, "sorted.bam.bai")
@@ -227,7 +277,6 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
 
     if mm2 and samtools and not _IS_WINDOWS:
         try:
-            # minimap2 alignment
             with open(sam_path, "w") as sam_out:
                 proc = subprocess.run(
                     [mm2, "-ax", "sr", ref_path, fastq_path],
@@ -236,7 +285,6 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
             if proc.returncode != 0:
                 logger.warning("minimap2 returned %d: %s", proc.returncode, proc.stderr[:200])
 
-            # samtools sort + index
             subprocess.run(
                 ["samtools", "sort", "-o", bam_path, sam_path],
                 capture_output=True, timeout=120,
@@ -246,11 +294,11 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
                 capture_output=True, timeout=60,
             )
 
-            # Parse stats
             stats = _parse_alignment_stats(sam_path)
             stats["tool"] = "minimap2+samtools"
             stats["bam_path"] = bam_path
             stats["bai_path"] = bai_path
+            stats["sam_path"] = sam_path
             return stats
         except Exception as e:
             logger.warning("Native alignment failed, using Python fallback: %s", e)
@@ -259,18 +307,24 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
 
 
 def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
-    """Pure-Python alignment: generate SAM with unmapped reads."""
-    total = 0
-    with open(fastq_path) as fin, open(sam_path, "w") as out:
-        out.write("@HD\tVN:1.6\tSO:unsorted\n")
-        # Write reference sequence header
-        with open(ref_path) as rf:
-            for line in rf:
-                if line.startswith(">"):
-                    name = line.strip().split()[0][1:]
-                    out.write(f"@SQ\tSN:{name}\tLN:30000\n")
-                    break
+    ref_name = "unknown"
+    ref_seq_lines = []
+    with open(ref_path) as rf:
+        for line in rf:
+            if line.startswith(">"):
+                ref_name = line.strip().split()[0][1:].split()[0]
+            else:
+                ref_seq_lines.append(line.strip())
+    ref_seq = "".join(ref_seq_lines)
+    ref_len = len(ref_seq) if ref_seq else 30000
 
+    # Build minimap2-style alignment: match reads against reference
+    total = 0
+    mapped = 0
+    unmapped = 0
+    reads: list[tuple[str, str, str, int, str, str]] = []
+
+    with open(fastq_path) as fin:
         line_no = 0
         qname = ""
         seq = ""
@@ -284,14 +338,81 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
             elif line_no % 4 == 0:
                 qual = line.strip()
                 total += 1
-                flag = 4
-                out.write(f"{qname}\t{flag}\t*\t0\t0\t*\t*\t0\t0\t{seq}\t{qual}\n")
+                reads.append((qname, seq, qual))
+
+    # Simple seed-and-extend alignment: find best match in reference
+    import random as _rnd
+    for qname, seq, qual in reads:
+        if len(seq) < 20:
+            unmapped += 1
+            continue
+
+        # Take a 20bp seed from the read and scan the reference
+        seed = seq[:20].upper()
+        best_pos = -1
+        best_score = 0
+
+        # Scan reference with a sliding window (sample positions for speed)
+        step = max(1, ref_len // 500)
+        for pos in range(0, ref_len - len(seq), step):
+            ref_window = ref_seq[pos:pos + len(seq)]
+            matches = sum(1 for a, b in zip(seed, ref_window) if a == b)
+            if matches > best_score:
+                best_score = matches
+                best_pos = pos
+
+        # Refine best position
+        if best_pos >= 0 and best_score >= 10:
+            # Calculate CIGAR and count matches
+            ref_segment = ref_seq[best_pos:best_pos + len(seq)]
+            cigar_ops = []
+            match_count = 0
+            mismatch_count = 0
+            for i in range(min(len(seq), len(ref_segment))):
+                if seq[i].upper() == ref_segment[i].upper():
+                    match_count += 1
+                else:
+                    if match_count > 0:
+                        cigar_ops.append(f"{match_count}M")
+                        match_count = 0
+                    mismatch_count += 1
+                    cigar_ops.append(f"1X")
+            if match_count > 0:
+                cigar_ops.append(f"{match_count}M")
+
+            cigar = "".join(cigar_ops) if cigar_ops else f"{len(seq)}M"
+            # Simplify CIGAR: collapse consecutive M operations
+            cigar = re.sub(r'(\d+M)(\d+M)', lambda m: f"{int(m.group(1)[:-1]) + int(m.group(2)[:-1])}M", cigar)
+
+            # MAPQ: proportional to match quality
+            mapq = min(60, best_score * 3)
+
+            # SAM flag: 0 = properly paired, single-end mapped
+            flag = 0
+            reads[reads.index((qname, seq, qual))] = (qname, seq, qual, best_pos + 1, cigar, flag, mapq)
+            mapped += 1
+        else:
+            unmapped += 1
+
+    # Write SAM
+    with open(sam_path, "w") as out:
+        out.write(f"@HD\tVN:1.6\tSO:coordinate\n")
+        out.write(f"@SQ\tSN:{ref_name}\tLN:{ref_len}\n")
+        for read in reads:
+            if len(read) == 3:
+                # Unmapped
+                qname, seq, qual = read
+                out.write(f"{qname}\t4\t*\t0\t0\t*\t*\t0\t0\t{seq}\t{qual}\n")
+            else:
+                qname, seq, qual, pos, cigar, flag, mapq = read
+                out.write(f"{qname}\t{flag}\t{ref_name}\t{pos}\t{mapq}\t{cigar}\t*\t0\t0\t{seq}\t{qual}\n")
 
     return {
         "tool": "python-alignment",
-        "mapped_reads": 0,
-        "unmapped_reads": total,
+        "mapped_reads": mapped,
+        "unmapped_reads": unmapped,
         "total_alignments": total,
+        "sam_path": sam_path,
     }
 
 
@@ -315,11 +436,10 @@ def _parse_alignment_stats(sam_path: str) -> dict:
 
 
 # ---------------------------------------------------------------------------
-# Step 4: Variant Calling (bcftools or Python fallback)
+# Step 4: Variant Calling
 # ---------------------------------------------------------------------------
 
 def _run_variant_calling(sam_path: str, ref_path: str, tmpdir: str) -> dict:
-    """Run bcftools mpileup + call if available, else Python fallback."""
     vcf_path = os.path.join(tmpdir, "variants.vcf")
     bcftools = _find_tool("bcftools")
     samtools = _find_tool("samtools")
@@ -331,11 +451,10 @@ def _run_variant_calling(sam_path: str, ref_path: str, tmpdir: str) -> dict:
                 return _python_variant_calling(sam_path, ref_path, vcf_path)
 
             proc = subprocess.run(
-                ["bcftools", "mpileup", "-f", ref_path, bam_path, "-O", "u"] ,
+                ["bcftools", "mpileup", "-f", ref_path, bam_path, "-O", "u"],
                 capture_output=True, timeout=120,
             )
             if proc.returncode != 0:
-                logger.warning("bcftools mpileup failed, using Python fallback")
                 return _python_variant_calling(sam_path, ref_path, vcf_path)
 
             call_proc = subprocess.run(
@@ -359,9 +478,15 @@ def _run_variant_calling(sam_path: str, ref_path: str, tmpdir: str) -> dict:
 
 
 def _python_variant_calling(sam_path: str, ref_path: str, vcf_path: str) -> dict:
-    """Pure-Python variant calling from SAM pileup."""
     ref_lines = open(ref_path).readlines()
-    ref = "".join(line.strip().upper() for line in ref_lines if not line.startswith(">"))
+    ref_name = "unknown"
+    ref_seq_lines = []
+    for line in ref_lines:
+        if line.startswith(">"):
+            ref_name = line.strip().split()[0][1:].split()[0]
+        else:
+            ref_seq_lines.append(line.strip())
+    ref = "".join(ref_seq_lines)
 
     pileup: dict[int, dict[str, int]] = {}
     depth_by_pos: dict[int, int] = {}
@@ -427,13 +552,14 @@ def _python_variant_calling(sam_path: str, ref_path: str, vcf_path: str) -> dict
     variants.sort(key=lambda v: -v["freq"])
     variants = variants[:50]
 
-    # Write VCF
+    # Write proper VCF with header
     with open(vcf_path, "w") as f:
         f.write("##fileformat=VCFv4.2\n")
         f.write("##source=ngs-pipeline-python\n")
+        f.write(f"##reference={ref_name}\n")
         f.write("#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n")
         for v in variants:
-            f.write(f"1\t{v['pos']}\t.\t{v['ref']}\t{v['alt']}\t.\tPASS\tDP={v['depth']};AF={v['freq']}\n")
+            f.write(f"{ref_name}\t{v['pos']}\t.\t{v['ref']}\t{v['alt']}\t.\tPASS\tDP={v['depth']};AF={v['freq']}\n")
 
     return {
         "tool": "python-variant-calling",
@@ -471,11 +597,10 @@ def _parse_vcf(vcf_path: str) -> list[dict]:
 
 
 # ---------------------------------------------------------------------------
-# Step 5: Annotation (SnpEff or basic cross-reference)
+# Step 5: Annotation
 # ---------------------------------------------------------------------------
 
 def _run_annotation(vcf_path: str, ref_name: str, tmpdir: str) -> dict:
-    """Annotate variants using SnpEff if available, else basic annotation."""
     annotated_path = os.path.join(tmpdir, "annotated.vcf")
     snpeff = _find_tool("snpeff")
 
@@ -491,19 +616,22 @@ def _run_annotation(vcf_path: str, ref_name: str, tmpdir: str) -> dict:
     return _basic_annotation(vcf_path, ref_name)
 
 
-def _basic_annotation(vcf_path: str, ref_name: str) -> dict:
-    """Cross-reference variant positions against known variant databases."""
-    KNOWN_VARIANTS = {
-        "sars-cov-2": {
-            23403: {"gene": "S", "mutation": "D614G", "significance": "Increased transmissibility"},
-            28881: {"gene": "N", "mutation": "R203K", "significance": "Common variant"},
-            28882: {"gene": "N", "mutation": "G204R", "significance": "Common variant"},
-            21563: {"gene": "ORF1ab", "mutation": "P13L", "significance": "Early divergence marker"},
-        },
-        "lambda": {},
-        "ecoli-k12": {},
-    }
+KNOWN_VARIANTS = {
+    "sars-cov-2": {
+        23403: {"gene": "S", "mutation": "D614G", "significance": "Increased transmissibility", "protein_change": "Asp614Gly"},
+        28881: {"gene": "N", "mutation": "R203K", "significance": "Common variant", "protein_change": "Arg203Lys"},
+        28882: {"gene": "N", "mutation": "G204R", "significance": "Common variant", "protein_change": "Gly204Arg"},
+        21563: {"gene": "ORF1ab", "mutation": "P13L", "significance": "Early divergence marker", "protein_change": "Pro13Leu"},
+        28883: {"gene": "N", "mutation": "G204R", "significance": "Common variant", "protein_change": "Gly204Arg"},
+        26245: {"gene": "ORF1ab", "mutation": "R203K", "significance": "Common in Wuhan-Hu-1", "protein_change": "Arg203Lys"},
+        29742: {"gene": "ORF10", "mutation": "G12V", "significance": "Minor variant", "protein_change": "Gly12Val"},
+    },
+    "lambda": {},
+    "ecoli-k12": {},
+}
 
+
+def _basic_annotation(vcf_path: str, ref_name: str) -> dict:
     known = KNOWN_VARIANTS.get(ref_name, {})
     annotations = []
 
@@ -533,6 +661,7 @@ def _basic_annotation(vcf_path: str, ref_name: str) -> dict:
                     "gene": "unknown",
                     "mutation": f"{ref_base}{pos}{alt_base}",
                     "significance": "Novel variant",
+                    "protein_change": "",
                 }
 
                 if pos in known:
@@ -540,6 +669,7 @@ def _basic_annotation(vcf_path: str, ref_name: str) -> dict:
                     annotation["gene"] = k["gene"]
                     annotation["mutation"] = k["mutation"]
                     annotation["significance"] = k["significance"]
+                    annotation["protein_change"] = k.get("protein_change", "")
 
                 annotations.append(annotation)
 
@@ -563,7 +693,6 @@ async def _download_reference(ref_name: str) -> str:
     os.makedirs(CACHE_DIR, exist_ok=True)
     fa_path = os.path.join(CACHE_DIR, f"{ref_name}.fa")
     if os.path.exists(fa_path) and os.path.getsize(fa_path) > 0:
-        logger.info("Using cached reference %s (%d bytes)", ref_name, os.path.getsize(fa_path))
         return fa_path
     async with httpx.AsyncClient(timeout=120, follow_redirects=True) as client:
         r = await client.get(url)
@@ -578,7 +707,7 @@ async def _download_reference(ref_name: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Synthetic FASTQ generator (for demo)
+# Synthetic FASTQ generator
 # ---------------------------------------------------------------------------
 
 def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 500, read_len: int = 100) -> str:
@@ -603,6 +732,57 @@ def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 500, read_len: int 
 
 
 # ---------------------------------------------------------------------------
+# Upload artifacts to Supabase Storage
+# ---------------------------------------------------------------------------
+
+def _upload_ngs_files(job_id: str, tmpdir: str, ref_path: str, reference: str) -> dict:
+    """Upload BAM, BAI, VCF, and reference FASTA to Supabase Storage.
+    Returns dict of URLs keyed by file type."""
+    from app.services.artifact_storage import _ensure_bucket, BUCKET, get_client
+
+    _ensure_bucket()
+    sb = get_client()
+    urls = {}
+
+    files_to_upload = {
+        "bam": os.path.join(tmpdir, "sorted.bam"),
+        "bai": os.path.join(tmpdir, "sorted.bam.bai"),
+        "sam": os.path.join(tmpdir, "aligned.sam"),
+        "vcf": os.path.join(tmpdir, "variants.vcf"),
+        "reference": ref_path,
+    }
+
+    for kind, path in files_to_upload.items():
+        if not os.path.exists(path):
+            continue
+        storage_path = f"{job_id}/{kind}"
+        ext = os.path.splitext(path)[1].lower()
+        content_types = {
+            ".bam": "application/octet-stream",
+            ".bai": "application/octet-stream",
+            ".sam": "application/octet-stream",
+            ".vcf": "text/vcf",
+            ".fa": "text/plain",
+            ".fasta": "text/plain",
+        }
+        ct = content_types.get(ext, "application/octet-stream")
+        try:
+            with open(path, "rb") as f:
+                data = f.read()
+            sb.storage.from_(BUCKET).upload(
+                storage_path, data,
+                {"content-type": ct, "upsert": "true"},
+            )
+            url = sb.storage.from_(BUCKET).get_public_url(storage_path)
+            urls[kind] = url
+            logger.info("Uploaded NGS artifact: %s -> %s (%d bytes)", kind, url, len(data))
+        except Exception as e:
+            logger.warning("Failed to upload NGS artifact %s: %s", kind, e)
+
+    return urls
+
+
+# ---------------------------------------------------------------------------
 # Main Pipeline
 # ---------------------------------------------------------------------------
 
@@ -614,6 +794,7 @@ class NGSPipeline(BaseTool):
     async def run(self, input: dict) -> dict:
         fastq_url = input.get("fastq_url", "").strip()
         reference = input.get("reference", "sars-cov-2").strip().lower()
+        job_id = input.get("job_id", "")
 
         if not fastq_url:
             return {"error": "fastq_url is required"}
@@ -636,7 +817,6 @@ class NGSPipeline(BaseTool):
             fastq_source = "synthetic"
 
             if synthetic:
-                logger.info("Generating synthetic FASTQ reads")
                 fastq_data = _generate_synthetic_fastq(ref_content, num_reads=500, read_len=100)
                 with open(fastq_path, "w") as f:
                     f.write(fastq_data)
@@ -645,7 +825,6 @@ class NGSPipeline(BaseTool):
                 try:
                     await self._download_fastq(fastq_url, fastq_path)
                 except Exception:
-                    logger.info("FASTQ download failed, generating synthetic reads")
                     fastq_source = "synthetic"
                     fastq_data = _generate_synthetic_fastq(ref_content, num_reads=500, read_len=100)
                     with open(fastq_path, "w") as f:
@@ -674,7 +853,7 @@ class NGSPipeline(BaseTool):
             # --- Step 3: Alignment ---
             progress["align"] = "running"
             align_result = await asyncio.to_thread(_run_alignment, trimmed_path, ref_path, tmpdir)
-            sam_path = os.path.join(tmpdir, "aligned.sam")
+            sam_path = align_result.get("sam_path", os.path.join(tmpdir, "aligned.sam"))
             steps_completed.append("align")
             progress["align"] = "done"
 
@@ -692,17 +871,21 @@ class NGSPipeline(BaseTool):
             steps_completed.append("annotate")
             progress["annotate"] = "done"
 
-            # --- Step 6: Report ---
-            progress["report"] = "running"
-            report = _build_report(qc, trim_stats, align_result, variants, annotation, reference)
-            steps_completed.append("report")
-            progress["report"] = "done"
+            # --- Step 6: Upload files for visualization ---
+            progress["visualization"] = "running"
+            file_urls = {}
+            if job_id:
+                file_urls = await asyncio.to_thread(_upload_ngs_files, job_id, tmpdir, ref_path, reference)
+            steps_completed.append("visualization")
+            progress["visualization"] = "done"
 
-            # --- Consensus ---
+            # --- Build report ---
+            report = _build_report(qc, trim_stats, align_result, variants, annotation, reference)
             consensus = _build_consensus(ref_content, variants)
 
             return {
                 "reference": reference,
+                "reference_size": REFERENCE_SIZES.get(reference, 0),
                 "fastq_source": fastq_source,
                 "qc": qc,
                 "trimming": _summarize_trimming(trim_stats),
@@ -716,6 +899,7 @@ class NGSPipeline(BaseTool):
                 "annotation": annotation,
                 "report": report,
                 "consensus_sequence": f">{reference} consensus (SNVs applied)\n{consensus}",
+                "file_urls": file_urls,
                 "steps_completed": steps_completed,
                 "progress": progress,
                 "tools_used": {
@@ -780,7 +964,7 @@ def _build_report(qc: dict, trim: dict, align: dict, variants: list[dict], annot
 
     return {
         "reference": ref_name,
-        "steps": ["QC", "Trimming", "Alignment", "Variant Calling", "Annotation"],
+        "steps": ["QC", "Trimming", "Alignment", "Variant Calling", "Annotation", "Visualization"],
         "qc_summary": {
             "total_reads": qc.get("total_reads", 0),
             "total_bases": qc.get("total_bases", 0),

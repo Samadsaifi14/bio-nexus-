@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, audit, admet, md, function_predict, seq_tools
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, audit, admet, md, function_predict, seq_tools
 from app.services.cache import init_redis
 
 setup_logging()
@@ -63,6 +63,7 @@ app.include_router(api_keys.router, prefix="/api/keys", tags=["api_keys"])
 app.include_router(cache_stats.router)
 app.include_router(docking.router)
 app.include_router(sequencing.router)
+app.include_router(ngs.router)
 app.include_router(audit.router)
 app.include_router(admet.router)
 app.include_router(md.router)
@@ -145,7 +146,7 @@ async def _fail_stuck_dockseq_jobs():
         }
         base = f"{settings.SUPABASE_URL}/rest/v1"
         grace_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
-        for table in ("docking_jobs", "sequencing_jobs"):
+        for table in ("docking_jobs", "sequencing_jobs", "ngs_jobs"):
             select_url = f"{base}/{table}?select=id&status=not.in.(complete,failed)&created_at=lt.{grace_cutoff}"
             async with httpx.AsyncClient(timeout=10) as client:
                 resp = await client.get(select_url, headers=headers)
@@ -247,7 +248,7 @@ async def health():
             "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
         }
         async with httpx.AsyncClient(timeout=5) as client:
-            for table in ("docking_jobs", "sequencing_jobs", "jobs"):
+            for table in ("docking_jobs", "sequencing_jobs", "ngs_jobs", "jobs"):
                 resp = await client.get(
                     f"{settings.SUPABASE_URL}/rest/v1/{table}"
                     f"?status=eq.queued&select=id",

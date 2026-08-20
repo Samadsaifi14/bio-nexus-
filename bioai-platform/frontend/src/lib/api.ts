@@ -673,6 +673,94 @@ export async function listSequencingReferences(): Promise<SequencingReference[]>
 }
 
 // ---------------------------------------------------------------------------
+// NGS Pipeline
+// ---------------------------------------------------------------------------
+
+export type NGSQC = {
+  tool: string;
+  total_reads: number;
+  total_bases: number;
+  avg_read_length: number;
+  min_read_length: number;
+  max_read_length: number;
+  gc_percent: number;
+  mean_quality: number;
+  min_quality: number;
+  max_quality: number;
+  q20_percent: number;
+  q30_percent: number;
+  overrepresented_sequences: { sequence: string; count: number; percent: number }[];
+};
+
+export type NGSTrimming = {
+  tool: string;
+  reads_before: number;
+  reads_after: number;
+  reads_discarded: number;
+};
+
+export type NGSAlignment = {
+  tool: string;
+  mapped_reads: number;
+  unmapped_reads: number;
+  total_alignments: number;
+};
+
+export type NGSAnnotation = {
+  tool: string;
+  reference: string;
+  annotations: { pos: number; ref: string; alt: string; gene: string; mutation: string; significance: string; depth: number; freq: number }[];
+  total_annotated: number;
+  known_variants_found: number;
+};
+
+export type NGSResult = {
+  job_id: string;
+  status: string;
+  result?: {
+    reference: string;
+    fastq_source: string;
+    qc: NGSQC;
+    trimming: NGSTrimming;
+    alignment: NGSAlignment;
+    variants: { pos: number; ref: string; alt: string; depth: number; alt_count: number; freq: number }[];
+    annotation: NGSAnnotation;
+    consensus_sequence?: string;
+    report: {
+      reference: string;
+      qc_summary: { total_reads: number; total_bases: number; mean_quality: number; q30_percent: number; gc_percent: number };
+      trimming_summary: { reads_before: number; reads_after: number };
+      alignment_summary: { mapped_reads: number; unmapped_reads: number; mapping_rate: number };
+      variant_summary: { total_variants: number; snv_count: number; known_variants: number; novel_variants: number };
+    };
+    steps_completed: string[];
+    progress: Record<string, string>;
+    tools_used: Record<string, string>;
+  };
+  error?: string;
+};
+
+export type NGSReference = {
+  id: string;
+  name: string;
+};
+
+export async function runNGS(fastqUrl: string, reference: string = 'sars-cov-2'): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/ngs/run', { fastq_url: fastqUrl, reference });
+  return res.data;
+}
+
+export async function getNGSStatus(jobId: string): Promise<NGSResult> {
+  const res = await longApi.get(`/api/ngs/status/${jobId}`);
+  return res.data;
+}
+
+export async function listNGSReferences(): Promise<NGSReference[]> {
+  const res = await api.get('/api/ngs/references');
+  return res.data.references || [];
+}
+
+// ---------------------------------------------------------------------------
 // ADMET descriptors
 // ---------------------------------------------------------------------------
 

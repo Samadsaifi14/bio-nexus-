@@ -90,7 +90,7 @@ async def check_daily_limit(request: Request) -> None:
     if not user_id:
         return
 
-    tables = ["jobs", "docking_jobs", "sequencing_jobs"]
+    tables = ["jobs", "docking_jobs", "sequencing_jobs", "ngs_jobs"]
     total = 0
     for t in tables:
         total += await _count_today_jobs(user_id, t)
@@ -117,3 +117,7 @@ async def check_daily_limit_docking(request: Request) -> None:
 
 async def check_daily_limit_sequencing(request: Request) -> None:
     await _enforce_limit(request, "sequencing_jobs", 5, "sequencing jobs")
+
+
+async def check_daily_limit_ngs(request: Request) -> None:
+    await _enforce_limit(request, "ngs_jobs", 5, "NGS jobs")

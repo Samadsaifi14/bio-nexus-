@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter } from '@phosphor-icons/react';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, ChartBar as BarChart3 } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, hoverGlow, press } from '@/lib/animations';
 import { ReactNode } from 'react';
@@ -27,6 +27,7 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'domains',   name: 'Domain Analysis',          description: 'Fetch domain/motif annotations from InterPro.',             icon: Layers,    active: true },
       { id: 'phylo',     name: 'Phylogenetic Tree',        description: 'Build and visualize phylogenetic trees from sequences.',     icon: GitFork,   active: true },
       { id: 'sequencing', name: 'Sequencing Pipeline',     description: 'Raw FASTQ → QC → alignment → variant calling → report for genomic data.', icon: Dna, active: true, badge: 'New' },
+      { id: 'ngs',        name: 'NGS Pipeline',             description: 'Full 6-step NGS analysis: QC → Trimming → Alignment → Variants → Annotation → Report with igv.js visualization.', icon: BarChart3, active: true, badge: 'New' },
       { id: 'sequences',  name: 'Sequence Utilities',      description: 'GC content, reverse complement, translation, molecular weight, restriction sites.', icon: Calculator, active: true },
       { id: 'motif',      name: 'Motif Scanner',           description: 'Scan a protein against curated PROSITE patterns or a custom motif.', icon: Target, active: true },
       { id: 'dotplot',    name: 'Dot Plot',                description: 'Visual self/dot-plot comparison of two sequences with window & stringency.', icon: ChartScatter, active: true },

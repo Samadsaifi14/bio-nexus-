@@ -282,6 +282,27 @@ create table if not exists sequencing_jobs (
   attempts    integer not null default 0,
   max_attempts integer not null default 3
 );
+
+-- ============================================================
+-- NGS JOBS  (Full 6-step NGS pipeline)
+-- ============================================================
+create table if not exists ngs_jobs (
+  id          uuid primary key default gen_random_uuid(),
+  user_id     uuid references profiles(id) on delete cascade,
+  fastq_url   text,
+  reference   text,                  -- 'sars-cov-2' default
+  status      text,                  -- queued | running | complete | failed
+  result      jsonb,
+  error       text,
+  done_at     timestamptz,
+  storage_url text,
+  payload     jsonb,
+  claimed_at  timestamptz,
+  claimed_by  text,
+  attempts    integer not null default 0,
+  max_attempts integer not null default 3,
+  updated_at  timestamptz
+);
 ```
 
 ---

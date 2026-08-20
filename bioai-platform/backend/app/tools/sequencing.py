@@ -1,6 +1,7 @@
 import asyncio
 import logging
 import os
+import platform
 import re
 import shutil
 import tempfile
@@ -12,8 +13,10 @@ from app.tools.base import BaseTool
 
 logger = logging.getLogger(__name__)
 
+_IS_WINDOWS = os.name == "nt" or platform.system() == "Windows"
+_MINIMAP2_BIN = "minimap2.exe" if _IS_WINDOWS else "minimap2"
 BIN_DIR = os.path.join(os.path.dirname(__file__), "..", "bin")
-MINIMAP2_PATH = shutil.which("minimap2") or os.path.join(BIN_DIR, "minimap2")
+MINIMAP2_PATH = shutil.which("minimap2") or os.path.join(BIN_DIR, _MINIMAP2_BIN)
 MINIMAP2_URL = "https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2"
 
 PIPELINE_TIMEOUT = 600
@@ -28,9 +31,28 @@ MAX_FASTQ_SIZE = 50 * 1024 * 1024
 REF_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "references")
 
 
+def _is_executable(path: str) -> bool:
+    if not os.path.exists(path):
+        return False
+    if _IS_WINDOWS:
+        return os.path.isfile(path)
+    return os.access(path, os.X_OK)
+
+
 async def _ensure_minimap2() -> str:
-    if os.path.exists(MINIMAP2_PATH) and os.access(MINIMAP2_PATH, os.X_OK):
+    if _is_executable(MINIMAP2_PATH):
         return MINIMAP2_PATH
+    if _IS_WINDOWS:
+        logger.warning(
+            "minimap2 is not available on Windows. "
+            "Install via: conda install -c bioconda minimap2  OR  pip install mappy. "
+            "Falling back to Python-based read counting."
+        )
+        raise FileNotFoundError(
+            "minimap2 is not available on Windows. "
+            "Install via: conda install -c bioconda minimap2  OR  pip install mappy. "
+            "Alternatively, run on Linux for full alignment support."
+        )
     dest = MINIMAP2_PATH
     os.makedirs(BIN_DIR, exist_ok=True)
     logger.info("Downloading minimap2 binary ...")
@@ -48,6 +70,29 @@ async def _ensure_minimap2() -> str:
                     break
     os.chmod(dest, 0o755)
     return dest
+
+
+def _fallback_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
+    """Pure-Python fallback when minimap2 is unavailable (e.g. Windows without conda)."""
+    total = 0
+    with open(fastq_path) as fin, open(sam_path, "w") as out:
+        out.write("@HD\tVN:1.6\tSO:unsorted\n")
+        line_no = 0
+        qname = ""
+        seq = ""
+        qual = ""
+        for line in fin:
+            line_no += 1
+            if line_no % 4 == 1:
+                qname = line.strip().lstrip("@")
+            elif line_no % 4 == 2:
+                seq = line.strip()
+            elif line_no % 4 == 0:
+                qual = line.strip()
+                total += 1
+                flag = 4  # unmapped
+                out.write(f"{qname}\t{flag}\t*\t0\t0\t*\t*\t0\t0\t{seq}\t{qual}\n")
+    return {"mapped_reads": 0, "unmapped_reads": total, "total_alignments": total}
 
 
 def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 100, read_len: int = 100) -> str:
@@ -320,39 +365,42 @@ class SequencingPipeline(BaseTool):
             if "error" in qc:
                 return {"error": qc["error"], "step": "qc"}
 
-            mm2_path = await asyncio.wait_for(_ensure_minimap2(), timeout=120)
-
             sam_path = os.path.join(tmpdir, "aln.sam")
-            minimap2_proc = await asyncio.create_subprocess_exec(
-                mm2_path, "-ax", "sr", ref_path, fastq_path,
-                "-o", sam_path,
-                stdout=asyncio.subprocess.PIPE,
-                stderr=asyncio.subprocess.PIPE,
-            )
             try:
-                mm_stdout, mm_stderr = await asyncio.wait_for(minimap2_proc.communicate(), timeout=300)
-            except asyncio.TimeoutError:
-                minimap2_proc.kill()
-                await minimap2_proc.communicate()
-                return {"error": "Alignment timed out after 5 minutes", "step": "align"}
+                mm2_path = await asyncio.wait_for(_ensure_minimap2(), timeout=120)
+                minimap2_proc = await asyncio.create_subprocess_exec(
+                    mm2_path, "-ax", "sr", ref_path, fastq_path,
+                    "-o", sam_path,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                )
+                try:
+                    mm_stdout, mm_stderr = await asyncio.wait_for(minimap2_proc.communicate(), timeout=300)
+                except asyncio.TimeoutError:
+                    minimap2_proc.kill()
+                    await minimap2_proc.communicate()
+                    return {"error": "Alignment timed out after 5 minutes", "step": "align"}
 
-            if minimap2_proc.returncode != 0 or not os.path.exists(sam_path):
-                err = mm_stderr.decode("utf-8", errors="replace")[:500] if mm_stderr else ""
-                return {"error": f"minimap2 failed (exit {minimap2_proc.returncode}): {err}", "step": "align"}
+                if minimap2_proc.returncode != 0 or not os.path.exists(sam_path):
+                    err = mm_stderr.decode("utf-8", errors="replace")[:500] if mm_stderr else ""
+                    return {"error": f"minimap2 failed (exit {minimap2_proc.returncode}): {err}", "step": "align"}
 
-            aln_stats = {"mapped_reads": 0, "unmapped_reads": 0, "total_alignments": 0}
-            with open(sam_path) as f:
-                for line in f:
-                    if line.startswith("@"):
-                        continue
-                    aln_stats["total_alignments"] += 1
-                    parts = line.strip().split("\t", maxsplit=2)
-                    if len(parts) >= 2:
-                        flag = int(parts[1])
-                        if flag & 4:
-                            aln_stats["unmapped_reads"] += 1
-                        else:
-                            aln_stats["mapped_reads"] += 1
+                aln_stats = {"mapped_reads": 0, "unmapped_reads": 0, "total_alignments": 0}
+                with open(sam_path) as f:
+                    for line in f:
+                        if line.startswith("@"):
+                            continue
+                        aln_stats["total_alignments"] += 1
+                        parts = line.strip().split("\t", maxsplit=2)
+                        if len(parts) >= 2:
+                            flag = int(parts[1])
+                            if flag & 4:
+                                aln_stats["unmapped_reads"] += 1
+                            else:
+                                aln_stats["mapped_reads"] += 1
+            except (FileNotFoundError, OSError) as e:
+                logger.warning(f"minimap2 unavailable ({e}), using Python fallback")
+                aln_stats = _fallback_alignment(fastq_path, ref_path, sam_path)
 
             variants = _parse_sam_for_variants(sam_path, ref_content)
             report = _generate_report(qc, variants, reference)

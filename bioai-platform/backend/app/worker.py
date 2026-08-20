@@ -46,6 +46,7 @@ MAX_CONCURRENT = {
     "pipeline": 1,
     "md": 1,
     "function_predict": 1,
+    "ngs": 1,
 }
 
 _semaphore: dict[str, asyncio.Semaphore] = {}
@@ -158,6 +159,19 @@ def _run_sequencing(job: dict) -> None:
         loop.close()
 
 
+def _run_ngs(job: dict) -> None:
+    import asyncio
+    from app.routers.ngs import _worker as ngs_worker
+    loop = asyncio.new_event_loop()
+    try:
+        loop.run_until_complete(ngs_worker(job["id"]))
+    except Exception as exc:
+        logger.exception("Worker NGS error for %s", job["id"])
+        _handle_failure("ngs_jobs", job, exc)
+    finally:
+        loop.close()
+
+
 def _run_pipeline(job: dict) -> None:
     from app.workers.pipeline_worker import process_job
     import asyncio
@@ -257,6 +271,7 @@ def _handle_failure(table: str, job: dict, exc: Exception) -> None:
 _DISPATCH = {
     "docking_jobs": ("claim_next_docking_job", _run_docking, "docking"),
     "sequencing_jobs": ("claim_next_sequencing_job", _run_sequencing, "sequencing"),
+    "ngs_jobs": ("claim_next_ngs_job", _run_ngs, "ngs"),
     "jobs": ("claim_next_pipeline_job", _run_pipeline, "pipeline"),
 }
 

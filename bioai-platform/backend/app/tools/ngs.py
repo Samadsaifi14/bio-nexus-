@@ -363,11 +363,10 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
 
         # Refine best position
         if best_pos >= 0 and best_score >= 10:
-            # Calculate CIGAR and count matches
+            # Calculate CIGAR - use M for both match and mismatch (SAM spec)
             ref_segment = ref_seq[best_pos:best_pos + len(seq)]
             cigar_ops = []
             match_count = 0
-            mismatch_count = 0
             for i in range(min(len(seq), len(ref_segment))):
                 if seq[i].upper() == ref_segment[i].upper():
                     match_count += 1
@@ -375,19 +374,27 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                     if match_count > 0:
                         cigar_ops.append(f"{match_count}M")
                         match_count = 0
-                    mismatch_count += 1
-                    cigar_ops.append(f"1X")
+                    # Use M not X - igv.js requires standard CIGAR ops
+                    cigar_ops.append("1M")
             if match_count > 0:
                 cigar_ops.append(f"{match_count}M")
 
             cigar = "".join(cigar_ops) if cigar_ops else f"{len(seq)}M"
-            # Simplify CIGAR: collapse consecutive M operations
-            cigar = re.sub(r'(\d+M)(\d+M)', lambda m: f"{int(m.group(1)[:-1]) + int(m.group(2)[:-1])}M", cigar)
+            # Collapse consecutive M operations: 3M1M1M -> 5M, 63M37M -> 100M
+            prev = None
+            while prev != cigar:
+                prev = cigar
+                cigar = re.sub(r'(\d+)M(\d+)M', lambda m: f"{int(m.group(1)) + int(m.group(2))}M", cigar)
 
             # MAPQ: proportional to match quality
             mapq = min(60, best_score * 3)
 
-            # SAM flag: 0 = properly paired, single-end mapped
+            # Ensure quality string matches sequence length
+            if len(qual) < len(seq):
+                qual = qual + "I" * (len(seq) - len(qual))
+            qual = qual[:len(seq)]
+
+            # SAM flag: 0 = single-end, mapped
             flag = 0
             reads[reads.index((qname, seq, qual))] = (qname, seq, qual, best_pos + 1, cigar, flag, mapq)
             mapped += 1
@@ -402,6 +409,9 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
             if len(read) == 3:
                 # Unmapped
                 qname, seq, qual = read
+                if len(qual) < len(seq):
+                    qual = qual + "I" * (len(seq) - len(qual))
+                qual = qual[:len(seq)]
                 out.write(f"{qname}\t4\t*\t0\t0\t*\t*\t0\t0\t{seq}\t{qual}\n")
             else:
                 qname, seq, qual, pos, cigar, flag, mapq = read

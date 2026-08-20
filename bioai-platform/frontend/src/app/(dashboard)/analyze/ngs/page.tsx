@@ -47,9 +47,9 @@ const STEPS = [
 ];
 
 const REFERENCE_LOCUS: Record<string, string> = {
-  'sars-cov-2': 'SCoV2',
-  'lambda': 'Lambda',
-  'ecoli-k12': 'Ecoli',
+  'sars-cov-2': 'NC_045512v2:21000-25000',
+  'lambda': 'NC_001416:1-5000',
+  'ecoli-k12': 'U00096.3:1-5000',
 };
 
 export default function NGSPage() {

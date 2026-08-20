@@ -75,30 +75,39 @@ export default function IGVBrowser({
 
         const tracks: any[] = [];
 
-        // Alignment track: prefer SAM (text, zero format risk) over BAM
-        const alignmentUrl = samUrl || bamUrl;
-        if (alignmentUrl) {
-          const isBam = !!bamUrl && alignmentUrl === bamUrl;
-          const track: any = {
+        // Alignment track: SAM only (text-based, zero format risk)
+        // Never use BAM — our pure-Python BAM may have subtle igv.js incompatibilities
+        if (samUrl) {
+          tracks.push({
             name: 'Aligned Reads',
-            url: alignmentUrl,
+            url: samUrl,
             type: 'alignment',
+            format: 'sam',
             color: '#3b82f6',
             height: 200,
             displayMode: 'expanded',
-          };
-
-          if (isBam) {
-            track.format = 'bam';
-            track.indexURL = baiUrl || alignmentUrl + '.bai';
-            track.indexed = true;
-          } else {
-            track.format = 'sam';
-            track.indexed = false;
-          }
-
-          tracks.push(track);
+            indexed: false,
+          });
+        } else if (bamUrl && baiUrl) {
+          tracks.push({
+            name: 'Aligned Reads',
+            url: bamUrl,
+            type: 'alignment',
+            format: 'bam',
+            indexURL: baiUrl,
+            color: '#3b82f6',
+            height: 200,
+            displayMode: 'expanded',
+            indexed: true,
+          });
         }
+
+        console.log('[IGV] referenceUrl:', referenceUrl);
+        console.log('[IGV] samUrl:', samUrl);
+        console.log('[IGV] bamUrl:', bamUrl);
+        console.log('[IGV] vcfUrl:', vcfUrl);
+        console.log('[IGV] locus:', locus);
+        console.log('[IGV] tracks:', tracks.map(t => t.name + '(' + t.format + ')'));
 
         // Variant track
         if (vcfUrl) {
@@ -117,6 +126,7 @@ export default function IGVBrowser({
         const browser = await window.igv.createBrowser(containerRef.current, {
           reference: {
             fastaURL: referenceUrl,
+            indexed: false,
           },
           tracks,
           locus: locus || '1',
@@ -127,12 +137,13 @@ export default function IGVBrowser({
         if (!cancelled) {
           browserRef.current = browser;
           setStatus('ready');
+          console.log('[IGV] Browser ready. Tracks loaded:', tracks.length);
         } else {
           try { browser.destroy(); } catch {}
         }
       } catch (err: any) {
+        console.error('[IGV] Full error:', err);
         if (!cancelled) {
-          console.error('IGV init error:', err);
           setStatus('error');
           setErrorMsg(err?.message || 'Failed to initialize genome browser');
         }

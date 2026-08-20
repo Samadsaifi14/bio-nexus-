@@ -2,6 +2,14 @@
 
 import { useEffect, useRef, useState } from 'react';
 
+declare global {
+  interface Window {
+    igv: any;
+  }
+}
+
+const IGV_CDN_URL = 'https://cdn.jsdelivr.net/npm/igv@3.8.5/dist/igv.min.js';
+
 interface IGVBrowserProps {
   referenceUrl: string;
   bamUrl?: string;
@@ -10,6 +18,20 @@ interface IGVBrowserProps {
   vcfUrl?: string;
   locus?: string;
   className?: string;
+}
+
+function loadScript(src: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (document.querySelector(`script[src="${src}"]`)) {
+      resolve();
+      return;
+    }
+    const script = document.createElement('script');
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.appendChild(script);
+  });
 }
 
 export default function IGVBrowser({
@@ -35,8 +57,13 @@ export default function IGVBrowser({
         setStatus('loading');
         setErrorMsg('');
 
-        const igv = (await import('igv')).default;
+        // Load igv.js from CDN
+        await loadScript(IGV_CDN_URL);
+
         if (cancelled || !containerRef.current) return;
+        if (!window.igv) {
+          throw new Error('igv.js failed to load from CDN');
+        }
 
         // Destroy previous instance
         if (browserRef.current) {
@@ -44,7 +71,6 @@ export default function IGVBrowser({
           browserRef.current = null;
         }
 
-        // Clear the container completely
         containerRef.current.innerHTML = '';
 
         const tracks: any[] = [];
@@ -88,7 +114,7 @@ export default function IGVBrowser({
           });
         }
 
-        const browser = await igv.createBrowser(containerRef.current, {
+        const browser = await window.igv.createBrowser(containerRef.current, {
           reference: {
             fastaURL: referenceUrl,
           },
@@ -113,8 +139,7 @@ export default function IGVBrowser({
       }
     }
 
-    // Small delay to ensure DOM is ready
-    const timer = setTimeout(init, 100);
+    const timer = setTimeout(init, 200);
 
     return () => {
       cancelled = true;
@@ -128,15 +153,22 @@ export default function IGVBrowser({
 
   return (
     <div className={className}>
-      <div ref={containerRef} style={{ width: '100%', minHeight: '400px' }} />
       {status === 'loading' && (
         <div className="flex items-center justify-center py-12 bg-surface-1 rounded-xl">
           <div className="w-5 h-5 border-2 border-accent-cyan/30 border-t-accent-cyan rounded-full animate-spin" />
           <span className="ml-3 text-sm text-text-muted">Loading genome browser...</span>
         </div>
       )}
+      <div
+        ref={containerRef}
+        style={{
+          width: '100%',
+          minHeight: status === 'ready' ? '500px' : '0px',
+          display: status === 'loading' ? 'none' : 'block',
+        }}
+      />
       {status === 'error' && (
-        <div className="p-4 bg-error/5 border border-error/20 rounded-xl">
+        <div className="p-4 bg-error/5 border border-error/20 rounded-xl mt-2">
           <p className="text-sm text-error font-medium">Genome browser failed to load</p>
           <p className="text-xs text-error/70 mt-1 font-mono">{errorMsg}</p>
         </div>

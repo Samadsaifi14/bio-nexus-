@@ -1,7 +1,7 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc wget ca-certificates openbabel && \
+    build-essential gcc wget ca-certificates openbabel samtools && \
     rm -rf /var/lib/apt/lists/*
 
 # Download pre-compiled PhyML binary from bioconda

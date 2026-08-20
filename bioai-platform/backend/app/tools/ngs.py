@@ -592,9 +592,9 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
     )
 
     # --- Build alignment records, tracking byte offsets for BAI ---
-    # For BAI: record_offset_in_raw_bam, bin_number, ref_id for each record
+    # For BAI: (virtual_offset, bin, ref_id, pos, record_length)
     all_records = b""
-    record_info: list[tuple[int, int, int]] = []  # (offset_in_raw_bam, bin, ref_id)
+    record_info: list[tuple[int, int, int, int, int]] = []
 
     # BAM header size tells us where records start in raw_bam
     header_size = len(bam_header)
@@ -655,13 +655,13 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
         # bin can be up to ~37450, fits in 16 bits
         bin_mq_nl = (rec_bin << 16) | (mapq << 8) | len(qname_bytes)
 
-        # BAM alignment record (NO separate bin field — bin is in bin_mq_nl)
+        # BAM alignment record (spec order: refID, pos, bin_mq_nl, flag, n_cigar, l_seq, ...)
         record = (
             struct.pack("<i", ref_id) +
             struct.pack("<i", pos) +
             struct.pack("<I", bin_mq_nl) +
-            struct.pack("<I", n_cigar) +
             struct.pack("<I", flag) +
+            struct.pack("<I", n_cigar) +
             struct.pack("<I", l_seq) +
             struct.pack("<i", next_ref_id) +
             struct.pack("<i", pnext) +
@@ -672,12 +672,12 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
             qual_enc
         )
 
-        # Record offset in the decompressed BAM data (= header_size + current offset)
+        rec_len = len(record)
         rec_offset = header_size + len(all_records) + 4  # +4 for block_size field
-        all_records += struct.pack("<I", len(record)) + record
+        all_records += struct.pack("<I", rec_len) + record
 
         if ref_id >= 0:
-            record_info.append((rec_offset, rec_bin, ref_id))
+            record_info.append((rec_offset, rec_bin, ref_id, pos, rec_len))
 
     # Write BAM (BGZF-compressed)
     raw_bam = bam_header + all_records
@@ -690,87 +690,84 @@ def _sam_to_bam(sam_path: str, bam_path: str) -> None:
 
 
 def _write_bai(bai_path: str, ref_names: list[str], ref_lengths: list[int],
-               record_info: list[tuple[int, int, int]]) -> None:
+               record_info: list[tuple[int, int, int, int, int]]) -> None:
     """Write a proper BAI index file for igv.js.
 
-    record_info: list of (virtual_offset, bin_number, ref_id) for each alignment.
+    record_info: list of (virtual_offset, bin_number, ref_id, pos, rec_len)
+    for each aligned read.  All data lives in a single BGZF block (block 0),
+    so virtual_offset == the byte offset within the uncompressed BAM payload.
 
     BAI format:
-      magic: "BAI\1"
+      magic: "BAI\\1"   (4 bytes)
       n_ref: uint32
       For each reference:
         n_bin: uint32
-        For each bin:
-          bin_id: uint32
+        For each bin (sorted):
+          bin_id:  uint32
           n_chunk: uint32
-          For each chunk:
-            chunk_beg: uint64 (virtual offset)
-            chunk_end: uint64 (virtual offset)
+          chunk_beg: uint64   (virtual offset)
+          chunk_end: uint64   (virtual offset, exclusive)
         n_intv: uint32
-        For each 16384bp window:
-          ioffset: uint64 (virtual offset)
+        For each 16 384-bp window:
+          ioffset: uint64     (virtual offset of leftmost read starting in this window)
     """
-    # For single-block BGZF, virtual_offset = offset within raw_bam data.
-    # igv.js uses (block_offset << 16 | within_block_offset).
-    # Since all data is in block 0, block_offset=0, so virtual_offset = within_block_offset.
-
-    # Group records by ref_id and bin
-    # bins_by_ref[ref_id] = { bin_id: [voffsets] }
     from collections import defaultdict
-    bins_by_ref: dict[int, dict[int, list[int]]] = defaultdict(lambda: defaultdict(list))
-    for voff, bin_id, rid in record_info:
-        bins_by_ref[rid][bin_id].append(voff)
+
+    # ---- group by ref → bin ----
+    bins_by_ref: dict[int, dict[int, list[tuple[int, int, int]]]] = \
+        defaultdict(lambda: defaultdict(list))
+    for voff, bin_id, rid, pos, rec_len in record_info:
+        bins_by_ref[rid][bin_id].append((voff, pos, rec_len))
+
+    LINEAR_WINDOW = 16384
 
     with open(bai_path, "wb") as f:
         f.write(b"BAI\x01")
         f.write(struct.pack("<I", len(ref_names)))
 
-        for i in range(len(ref_names)):
-            ref_bins = bins_by_ref.get(i, {})
-            # Sort bins for consistent output
-            sorted_bins = sorted(ref_bins.keys())
-            n_bins = len(sorted_bins)
+        for ref_idx in range(len(ref_names)):
+            ref_bins = bins_by_ref.get(ref_idx, {})
 
-            f.write(struct.pack("<I", n_bins))
+            # --- bins & chunks ---
+            sorted_bin_ids = sorted(ref_bins.keys())
+            f.write(struct.pack("<I", len(sorted_bin_ids)))
 
-            for bin_id in sorted_bins:
-                voffsets = sorted(ref_bins[bin_id])
-                # One chunk covering all reads in this bin
-                # chunk_beg = minimum virtual offset
-                # chunk_end = maximum virtual offset (past the end)
-                # For simplicity: chunk covers [min_voff, max_voff + 1)
-                # igv.js needs valid chunk ranges
-                chunk_beg = voffsets[0]
-                # chunk_end should be past the last record. We use max+1 as a
-                # simple approximation. igv.js will decompress the full BGZF
-                # block anyway.
-                chunk_end = voffsets[-1] + 1
+            for bin_id in sorted_bin_ids:
+                entries = ref_bins[bin_id]          # [(voff, pos, rec_len), ...]
+                entries.sort(key=lambda e: e[0])    # sort by virtual offset
+
+                chunk_beg = entries[0][0]
+                chunk_end = entries[-1][0] + entries[-1][2]  # voff + rec_len
 
                 f.write(struct.pack("<I", bin_id))
-                f.write(struct.pack("<I", 1))  # n_chunks = 1
+                f.write(struct.pack("<I", 1))       # n_chunks = 1
                 f.write(struct.pack("<Q", chunk_beg))
                 f.write(struct.pack("<Q", chunk_end))
 
-            # Linear index: one entry per 16384 bp window
-            # For each window, store the minimum virtual offset of any read
-            # that starts in or before that window
-            ref_len = ref_lengths[i] if i < len(ref_lengths) else 0
-            n_windows = (ref_len // 16384) + 1
+            # --- linear index ---
+            ref_len = ref_lengths[ref_idx] if ref_idx < len(ref_lengths) else 0
+            n_windows = (ref_len // LINEAR_WINDOW) + 1
 
-            # Compute minimum voffset for each window
-            # Collect all voffsets mapped to this reference
-            all_voffs_for_ref = [voff for voff, _, rid in record_info if rid == i]
-            if all_voffs_for_ref:
-                min_voff = min(all_voffs_for_ref)
-            else:
-                min_voff = 0
+            # For each 16 kb window, store the minimum virtual offset of any
+            # read whose POS falls inside that window.
+            lin = [0] * n_windows
+            for voff, pos, _rec_len in [e for bins in ref_bins.values() for e in bins]:
+                w = pos // LINEAR_WINDOW
+                if w < n_windows and (lin[w] == 0 or voff < lin[w]):
+                    lin[w] = voff
+
+            # Propagate forward: empty windows inherit the previous non-zero
+            # entry so igv.js can always find a valid seek point.
+            last = 0
+            for w in range(n_windows):
+                if lin[w] != 0:
+                    last = lin[w]
+                else:
+                    lin[w] = last
 
             f.write(struct.pack("<I", n_windows))
-            for w in range(n_windows):
-                # Linear index entry: minimum voffset of any read starting in
-                # windows [0, w]. For simplicity with a single-block BAM,
-                # use the global minimum.
-                f.write(struct.pack("<Q", min_voff))
+            for voff in lin:
+                f.write(struct.pack("<Q", voff))
 
 
 # ---------------------------------------------------------------------------

@@ -13,15 +13,13 @@ interface SamRead {
   qual: string;
   isReverse: boolean;
   isUnmapped: boolean;
-  isDuplicate: boolean;
-  isSecondary: boolean;
 }
 
 interface VcfRecord {
   chrom: string;
   pos: number;
   id: string;
-  ref: string;
+  refAllele: string;
   alt: string;
   qual: number;
   filter: string;
@@ -33,19 +31,15 @@ interface VcfRecord {
 interface GenomeViewerProps {
   samUrl?: string;
   vcfUrl?: string;
-  referenceUrl?: string;
   locus?: string;
   className?: string;
 }
 
 function parseSamFlags(flag: number) {
   return {
-    paired: !!(flag & 0x1),
-    properPair: !!(flag & 0x2),
     unmapped: !!(flag & 0x4),
     reverse: !!(flag & 0x10),
     secondary: !!(flag & 0x100),
-    duplicate: !!(flag & 0x400),
     supplementary: !!(flag & 0x800),
   };
 }
@@ -70,8 +64,6 @@ function parseSam(text: string): SamRead[] {
       qual: cols[10],
       isReverse: flags.reverse,
       isUnmapped: flags.unmapped,
-      isDuplicate: flags.duplicate,
-      isSecondary: flags.secondary,
     });
   }
   return reads;
@@ -105,7 +97,7 @@ function parseVcf(text: string): VcfRecord[] {
       chrom: cols[0],
       pos: parseInt(cols[1], 10),
       id: cols[2],
-      ref: cols[3],
+      refAllele: cols[3],
       alt: cols[4],
       qual: parseFloat(cols[5]) || 0,
       filter: cols[6],
@@ -117,18 +109,15 @@ function parseVcf(text: string): VcfRecord[] {
   return records;
 }
 
-function VariantType({ ref, alt }: { ref: string; alt: string }) {
+function VariantBadge({ refAllele, alt }: { refAllele: string; alt: string }) {
   const alts = alt.split(',');
-  if (alts.some(a => a.length > 1 && ref.length > 1)) {
+  if (alts.some(a => a.length > 1 && refAllele.length > 1)) {
     return <span className="px-1.5 py-0.5 rounded bg-purple-500/20 text-purple-400 text-xs font-mono">MNV</span>;
   }
-  if (alts.some(a => a === '.' || a.length === 1)) {
-    if (ref.length === 1 && alts.every(a => a.length === 1)) {
-      return <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-mono">SNV</span>;
-    }
-    return <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-mono">INDEL</span>;
+  if (refAllele.length === 1 && alts.every(a => a.length === 1)) {
+    return <span className="px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 text-xs font-mono">SNV</span>;
   }
-  if (alts.some(a => a.length > ref.length)) {
+  if (alts.some(a => a.length > refAllele.length)) {
     return <span className="px-1.5 py-0.5 rounded bg-amber-500/20 text-amber-400 text-xs font-mono">INS</span>;
   }
   return <span className="px-1.5 py-0.5 rounded bg-red-500/20 text-red-400 text-xs font-mono">DEL</span>;
@@ -147,10 +136,14 @@ function ReadsTrack({
 }) {
   const ROW_HEIGHT = 16;
   const MARGIN = 2;
+  const COV_HEIGHT = 60;
 
   const { blocks, maxRow, coverage } = useMemo(() => {
-    const cov = new Array(regionEnd - regionStart + 1).fill(0);
-    const placed: { read: SamRead; x: number; w: number; row: number; blocks: { x: number; w: number; isMatch: boolean }[] }[] = [];
+    const span = regionEnd - regionStart;
+    if (span <= 0) return { blocks: [], maxRow: 0, coverage: [] };
+
+    const cov = new Array(span + 1).fill(0);
+    const placed: { read: SamRead; row: number; blocks: { x: number; w: number; isMatch: boolean }[] }[] = [];
     const rowEnd: number[] = [];
 
     const sorted = reads
@@ -171,47 +164,37 @@ function ReadsTrack({
       if (row >= rowEnd.length) rowEnd.push(0);
       rowEnd[row] = read.pos + refLen;
 
-      const x = ((read.pos - regionStart) / (regionEnd - regionStart)) * width;
-      const w = ((readEnd - readStart) / (regionEnd - regionStart)) * width;
-
-      const blocks: { x: number; w: number; isMatch: boolean }[] = [];
+      const readBlocks: { x: number; w: number; isMatch: boolean }[] = [];
       let refPos = read.pos;
       for (const { op, len } of parseCigar(read.cigar)) {
         if ('MDN=X'.includes(op)) {
           const bStart = Math.max(refPos, regionStart);
           const bEnd = Math.min(refPos + len, regionEnd);
           if (bEnd > bStart) {
-            blocks.push({
-              x: ((bStart - regionStart) / (regionEnd - regionStart)) * width,
-              w: ((bEnd - bStart) / (regionEnd - regionStart)) * width,
+            readBlocks.push({
+              x: ((bStart - regionStart) / span) * width,
+              w: ((bEnd - bStart) / span) * width,
               isMatch: op !== 'N',
             });
           }
           refPos += len;
-        } else if (op === 'I') {
-          // insertion - no ref movement
-        } else if (op === 'S') {
+        } else if (op === 'S' || op === 'H') {
           refPos += len;
-        } else if (op === 'H') {
-          // hard clip
         }
       }
 
-      placed.push({ read, x, w, row, blocks });
+      placed.push({ read, row, blocks: readBlocks });
     }
 
     return { blocks: placed, maxRow: rowEnd.length, coverage: cov };
   }, [reads, regionStart, regionEnd, width]);
 
-  const COV_HEIGHT = 60;
   const readsHeight = Math.max(maxRow * (ROW_HEIGHT + MARGIN), 100);
   const totalHeight = COV_HEIGHT + readsHeight + 20;
-
   const maxCov = Math.max(...coverage, 1);
 
   return (
     <svg width={width} height={totalHeight} className="font-mono">
-      {/* Coverage track */}
       <g>
         <text x={4} y={12} className="fill-text-muted" fontSize={10}>Coverage</text>
         {coverage.map((c, i) => {
@@ -239,15 +222,13 @@ function ReadsTrack({
           );
         })}
       </g>
-
-      {/* Reads track */}
       <g transform={`translate(0,${COV_HEIGHT + 4})`}>
         <text x={4} y={12} className="fill-text-muted" fontSize={10}>Reads ({reads.length})</text>
         {blocks.map((b, i) => (
           <g key={i} transform={`translate(0,${16 + b.row * (ROW_HEIGHT + MARGIN)})`}>
-            {b.read.isReverse && (
+            {b.read.isReverse && b.blocks.length > 0 && (
               <polygon
-                points={`${b.x - 4},${ROW_HEIGHT / 2} ${b.x + 2},${2} ${b.x + 2},${ROW_HEIGHT - 2}`}
+                points={`${b.blocks[0].x - 4},${ROW_HEIGHT / 2} ${b.blocks[0].x + 2},${2} ${b.blocks[0].x + 2},${ROW_HEIGHT - 2}`}
                 className="fill-accent-cyan/60"
               />
             )}
@@ -283,18 +264,8 @@ export default function GenomeViewer({
   const [viewEnd, setViewEnd] = useState(1000);
   const [searchLocus, setSearchLocus] = useState(locus || '');
   const [selectedVariant, setSelectedVariant] = useState<VcfRecord | null>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [containerWidth, setContainerWidth] = useState(800);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const obs = new ResizeObserver(entries => {
-      for (const entry of entries) setContainerWidth(entry.contentRect.width);
-    });
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, []);
+  const [svgWidth, setSvgWidth] = useState(800);
+  const measuredRef = useRef(false);
 
   const reads = useMemo(() => samText ? parseSam(samText) : [], [samText]);
   const variants = useMemo(() => vcfText ? parseVcf(vcfText) : [], [vcfText]);
@@ -302,11 +273,11 @@ export default function GenomeViewer({
   const parsedLocus = useMemo(() => {
     if (!searchLocus) return null;
     const m = searchLocus.match(/^(\d+|chr\d+|[A-Za-z]+):(\d+)-(\d+)$/i);
-    if (m) return { chr: m[1], start: parseInt(m[2], 10), end: parseInt(m[3], 10) };
+    if (m) return { start: parseInt(m[2], 10), end: parseInt(m[3], 10) };
     const m2 = searchLocus.match(/^(\d+|chr\d+|[A-Za-z]+):(\d+)$/i);
     if (m2) {
       const pos = parseInt(m2[2], 10);
-      return { chr: m2[1], start: Math.max(0, pos - 500), end: pos + 500 };
+      return { start: Math.max(0, pos - 500), end: pos + 500 };
     }
     return null;
   }, [searchLocus]);
@@ -362,8 +333,7 @@ export default function GenomeViewer({
   }, [viewStart, viewEnd]);
 
   const pan = useCallback((frac: number) => {
-    const span = viewEnd - viewStart;
-    const shift = Math.floor(span * frac);
+    const shift = Math.floor((viewEnd - viewStart) * frac);
     setViewStart(Math.max(0, viewStart + shift));
     setViewEnd(viewEnd + shift);
   }, [viewStart, viewEnd]);
@@ -389,20 +359,20 @@ export default function GenomeViewer({
   const viewSize = viewEnd - viewStart;
 
   return (
-    <div ref={containerRef} className={`space-y-3 ${className}`}>
+    <div className={`space-y-3 ${className}`}>
       {/* Toolbar */}
       <div className="flex items-center gap-2 flex-wrap">
         <div className="flex items-center gap-1 bg-surface-1 rounded-lg p-1">
-          <button onClick={() => pan(-0.5)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition" title="Pan left">
+          <button onClick={() => pan(-0.5)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition">
             ←
           </button>
-          <button onClick={() => zoom(0.5)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition" title="Zoom in">
+          <button onClick={() => zoom(0.5)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition">
             + Zoom In
           </button>
-          <button onClick={() => zoom(2)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition" title="Zoom out">
+          <button onClick={() => zoom(2)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition">
             − Zoom Out
           </button>
-          <button onClick={() => pan(0.5)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition" title="Pan right">
+          <button onClick={() => pan(0.5)} className="px-2 py-1 text-xs rounded hover:bg-surface-2 text-text-muted hover:text-text-primary transition">
             →
           </button>
         </div>
@@ -425,18 +395,26 @@ export default function GenomeViewer({
           className="px-3 py-1.5 text-xs rounded-lg bg-surface-1 border border-glass-border text-text-primary placeholder-text-muted font-mono flex-1 min-w-[180px]"
         />
         <span className="text-xs text-text-muted font-mono">
-          {reads.filter(r => !r.isUnmapped).length} reads · {viewStart.toLocaleString()}–{viewEnd.toLocaleString()} ({(viewSize).toLocaleString()} bp)
+          {reads.filter(r => !r.isUnmapped).length} reads · {viewStart.toLocaleString()}–{viewEnd.toLocaleString()} ({viewSize.toLocaleString()} bp)
         </span>
       </div>
 
       {/* Reads track */}
       {reads.length > 0 && (
-        <div className="bg-surface-1 rounded-xl border border-glass-border p-2 overflow-x-auto">
+        <div
+          ref={el => {
+            if (el && !measuredRef.current) {
+              measuredRef.current = true;
+              setSvgWidth(el.clientWidth - 16);
+            }
+          }}
+          className="bg-surface-1 rounded-xl border border-glass-border p-2 overflow-x-auto"
+        >
           <ReadsTrack
             reads={reads}
             regionStart={viewStart}
             regionEnd={viewEnd}
-            width={Math.max(containerWidth - 16, 400)}
+            width={Math.max(svgWidth, 400)}
           />
         </div>
       )}
@@ -475,8 +453,8 @@ export default function GenomeViewer({
                     }}
                   >
                     <td className="px-3 py-2 font-mono text-text-primary">{v.chrom}:{v.pos.toLocaleString()}</td>
-                    <td className="px-3 py-2"><VariantType ref={v.ref} alt={v.alt} /></td>
-                    <td className="px-3 py-2 font-mono text-text-primary">{v.ref}</td>
+                    <td className="px-3 py-2"><VariantBadge refAllele={v.refAllele} alt={v.alt} /></td>
+                    <td className="px-3 py-2 font-mono text-text-primary">{v.refAllele}</td>
                     <td className="px-3 py-2 font-mono text-accent-cyan">{v.alt}</td>
                     <td className="px-3 py-2 font-mono text-text-muted">{v.qual > 0 ? v.qual.toFixed(1) : '—'}</td>
                     <td className="px-3 py-2">
@@ -495,7 +473,7 @@ export default function GenomeViewer({
               <div className="text-xs space-y-1">
                 <p className="text-text-primary font-medium">Variant Detail</p>
                 <p className="text-text-muted font-mono">
-                  {selectedVariant.chrom}:{selectedVariant.pos} {selectedVariant.ref}→{selectedVariant.alt}
+                  {selectedVariant.chrom}:{selectedVariant.pos} {selectedVariant.refAllele}→{selectedVariant.alt}
                 </p>
                 <p className="text-text-muted font-mono text-[10px]">
                   INFO: {selectedVariant.info}
@@ -509,7 +487,6 @@ export default function GenomeViewer({
         </div>
       )}
 
-      {/* Empty state */}
       {reads.length === 0 && variants.length === 0 && !loading && (
         <div className="text-center py-8 text-text-muted text-sm">
           No alignment or variant data to display.

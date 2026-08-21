@@ -25,7 +25,7 @@ import type { NGSResult, NGSReference } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
 
-const IGVBrowser = lazy(() => import('@/components/IgvBrowser'));
+const GenomeViewer = lazy(() => import('@/components/GenomeViewer'));
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'SARS-CoV-2' },
@@ -508,23 +508,21 @@ export default function NGSPage() {
           {/* Step 6: igv.js Visualization */}
           {isComplete && hasFiles && (
             <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Binoculars className="w-4 h-4 text-accent-cyan" /> Step 6 — Genome Browser (igv.js)
+               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
+                <Binoculars className="w-4 h-4 text-accent-cyan" /> Step 6 — Genome Viewer
               </h3>
               <p className="text-xs text-text-muted mb-4">
-                Interactive genome viewer — click on reads, variants, and positions. Use toolbar to zoom, search loci, and toggle tracks.
+                Interactive alignment &amp; variant viewer — click on reads or variants to zoom. Use toolbar to navigate.
               </p>
               <div className="rounded-xl overflow-hidden border border-glass-border bg-white">
                 <Suspense fallback={
                   <div className="flex items-center justify-center h-[500px] bg-surface-1 rounded-xl">
                     <LoaderCircle className="w-6 h-6 text-accent-cyan animate-spin" />
-                    <span className="ml-2 text-sm text-text-muted">Loading igv.js genome browser...</span>
+                    <span className="ml-2 text-sm text-text-muted">Loading genome viewer...</span>
                   </div>
                 }>
-                   <IGVBrowser
-                    referenceUrl={result.result!.file_urls!.reference!}
-                    bamUrl={result.result!.file_urls!.bam}
-                    baiUrl={result.result!.file_urls!.bai}
+                   <GenomeViewer
+                    samUrl={result.result!.file_urls!.sam}
                     vcfUrl={result.result!.file_urls!.vcf}
                     locus={result.result!.alignment?.read_region || REFERENCE_LOCUS[result.result!.reference] || undefined}
                   />

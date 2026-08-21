@@ -3,8 +3,15 @@ FROM python:3.11-slim
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates \
     openbabel libgl1 libgomp1 libopenblas-dev \
-    libxml2 libxslt1.1 && \
+    libxml2 libxslt1.1 samtools && \
     rm -rf /var/lib/apt/lists/*
+
+# minimap2 (for NGS read alignment)
+RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
+    tar xjf /tmp/minimap2.tar.bz2 -C /tmp && \
+    cp /tmp/minimap2-2.28_x64-linux/minimap2 /usr/local/bin/minimap2 && \
+    chmod +x /usr/local/bin/minimap2 && \
+    rm -rf /tmp/minimap2*
 
 # Download pre-compiled PhyML binary from bioconda
 RUN wget -qO /tmp/phyml.tar.bz2 \

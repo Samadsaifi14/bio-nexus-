@@ -1,6 +1,27 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
+echo "==> Installing system tools (samtools, minimap2)"
+apt-get update -qq && apt-get install -y -qq --no-install-recommends samtools 2>/dev/null && \
+    echo "     samtools installed: $(samtools --version | head -1)" || \
+    { echo "     ERROR: samtools installation failed"; exit 1; }
+
+MINIMAP2_DEST="/usr/local/bin/minimap2"
+MINIMAP2_URL="https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2"
+if [ -x "$MINIMAP2_DEST" ]; then
+    echo "     minimap2 already present: $($MINIMAP2_DEST --version 2>&1 | head -1)"
+else
+    curl -fSL "$MINIMAP2_URL" | tar xjf - -C /tmp && \
+        cp /tmp/minimap2-2.28_x64-linux/minimap2 "$MINIMAP2_DEST" && \
+        chmod +x "$MINIMAP2_DEST" && rm -rf /tmp/minimap2* && \
+        echo "     minimap2 installed: $($MINIMAP2_DEST --version 2>&1 | head -1)" || \
+        { echo "     ERROR: minimap2 installation failed"; exit 1; }
+fi
+
+echo "==> Verifying native tools"
+samtools --version | head -1
+minimap2 --version 2>&1 | head -1
+
 echo "==> Installing Python dependencies"
 pip install -r requirements.txt
 

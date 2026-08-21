@@ -20,10 +20,8 @@ import platform
 import random
 import re
 import shutil
-import struct
 import subprocess
 import tempfile
-import zlib
 from typing import Any
 
 import httpx
@@ -278,40 +276,69 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
     mm2 = _find_tool("minimap2")
     samtools = _find_tool("samtools")
 
-    if mm2 and samtools and not _IS_WINDOWS:
-        try:
-            with open(sam_path, "w") as sam_out:
-                proc = subprocess.run(
-                    [mm2, "-ax", "sr", ref_path, fastq_path],
-                    stdout=sam_out, stderr=subprocess.PIPE, timeout=300,
-                )
-            if proc.returncode != 0:
-                logger.warning("minimap2 returned %d: %s", proc.returncode, proc.stderr[:200])
+    if not mm2:
+        raise RuntimeError(
+            "minimap2 not found on PATH. NGS alignment requires minimap2. "
+            "Install it: https://github.com/lh3/minimap2"
+        )
+    if not samtools:
+        raise RuntimeError(
+            "samtools not found on PATH. NGS alignment requires samtools. "
+            "Install it: https://github.com/samtools/samtools"
+        )
 
-            subprocess.run(
-                ["samtools", "sort", "-o", bam_path, sam_path],
-                capture_output=True, timeout=120,
-            )
-            subprocess.run(
-                ["samtools", "index", bam_path],
-                capture_output=True, timeout=60,
-            )
+    # minimap2: align reads to reference → SAM
+    with open(sam_path, "w") as sam_out:
+        proc = subprocess.run(
+            [mm2, "-ax", "sr", ref_path, fastq_path],
+            stdout=sam_out, stderr=subprocess.PIPE, timeout=300,
+        )
+    if proc.returncode != 0:
+        raise RuntimeError(
+            f"minimap2 failed (exit {proc.returncode}): "
+            f"{proc.stderr.decode('utf-8', errors='replace')[:500]}"
+        )
 
-            stats = _parse_alignment_stats(sam_path)
-            stats["tool"] = "minimap2+samtools"
-            stats["bam_path"] = bam_path
-            stats["bai_path"] = bai_path
-            stats["sam_path"] = sam_path
-            # Compute read region from SAM
-            stats["read_region"] = _compute_read_region(sam_path)
-            return stats
-        except Exception as e:
-            logger.warning("Native alignment failed, using Python fallback: %s", e)
+    # samtools sort: SAM → sorted BAM
+    proc_sort = subprocess.run(
+        ["samtools", "sort", "-o", bam_path, sam_path],
+        capture_output=True, timeout=120,
+    )
+    if proc_sort.returncode != 0:
+        raise RuntimeError(
+            f"samtools sort failed (exit {proc_sort.returncode}): "
+            f"{proc_sort.stderr.decode('utf-8', errors='replace')[:500]}"
+        )
 
-    return _python_alignment(fastq_path, ref_path, sam_path)
+    # samtools index: sorted BAM → BAI
+    proc_idx = subprocess.run(
+        ["samtools", "index", bam_path],
+        capture_output=True, timeout=60,
+    )
+    if proc_idx.returncode != 0:
+        raise RuntimeError(
+            f"samtools index failed (exit {proc_idx.returncode}): "
+            f"{proc_idx.stderr.decode('utf-8', errors='replace')[:500]}"
+        )
+
+    # Verify output files exist and are non-empty
+    for path, label in [(bam_path, "BAM"), (bai_path, "BAI")]:
+        if not os.path.exists(path) or os.path.getsize(path) == 0:
+            raise RuntimeError(f"Native alignment produced empty {label} file: {path}")
+
+    stats = _parse_alignment_stats(sam_path)
+    stats["tool"] = "minimap2+samtools"
+    stats["bam_path"] = bam_path
+    stats["bai_path"] = bai_path
+    stats["sam_path"] = sam_path
+    stats["read_region"] = _compute_read_region(sam_path)
+    return stats
 
 
 def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
+    """Naive seed-and-extend aligner. Produces SAM only — no BAM, no BAI.
+    Used only when native tools are unavailable for diagnostic/debugging purposes.
+    """
     ref_name = "unknown"
     ref_seq_lines = []
     with open(ref_path) as rf:
@@ -380,40 +407,35 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                     if match_count > 0:
                         cigar_ops.append(f"{match_count}M")
                         match_count = 0
-                    # Use M not X - igv.js requires standard CIGAR ops
                     cigar_ops.append("1M")
             if match_count > 0:
                 cigar_ops.append(f"{match_count}M")
 
             cigar = "".join(cigar_ops) if cigar_ops else f"{len(seq)}M"
-            # Collapse consecutive M operations: 3M1M1M -> 5M, 63M37M -> 100M
+            # Collapse consecutive M operations
             prev = None
             while prev != cigar:
                 prev = cigar
                 cigar = re.sub(r'(\d+)M(\d+)M', lambda m: f"{int(m.group(1)) + int(m.group(2))}M", cigar)
 
-            # MAPQ: proportional to match quality
             mapq = min(60, best_score * 3)
 
-            # Ensure quality string matches sequence length
             if len(qual) < len(seq):
                 qual = qual + "I" * (len(seq) - len(qual))
             qual = qual[:len(seq)]
 
-            # SAM flag: 0 = single-end, mapped
             flag = 0
             reads[idx] = (qname, seq, qual, best_pos + 1, cigar, flag, mapq)
             mapped += 1
         else:
             unmapped += 1
 
-    # Write SAM
+    # Write SAM only
     with open(sam_path, "w") as out:
         out.write(f"@HD\tVN:1.6\tSO:coordinate\n")
         out.write(f"@SQ\tSN:{ref_name}\tLN:{ref_len}\n")
         for read in reads:
             if len(read) == 3:
-                # Unmapped
                 qname, seq, qual = read
                 if len(qual) < len(seq):
                     qual = qual + "I" * (len(seq) - len(qual))
@@ -423,33 +445,11 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                 qname, seq, qual, pos, cigar, flag, mapq = read
                 out.write(f"{qname}\t{flag}\t{ref_name}\t{pos}\t{mapq}\t{cigar}\t*\t0\t0\t{seq}\t{qual}\n")
 
-    # Convert SAM to BAM
-    bam_path = sam_path.replace(".sam", ".bam")
-    try:
-        _sam_to_bam(sam_path, bam_path)
-    except Exception as e:
-        logger.warning("SAM-to-BAM conversion failed: %s", e)
-
-    # Compute read region for igv.js locus
-    min_pos = 999999999
-    max_pos = 0
-    for read in reads:
-        if len(read) > 3:
-            pos = read[3]  # 1-based SAM pos
-            cigar_str = read[4]
-            cigar_ops = _parse_cigar(cigar_str) if cigar_str != "*" else []
-            ref_span = _cigar_ref_len(cigar_ops) if cigar_ops else 100
-            min_pos = min(min_pos, pos)
-            max_pos = max(max_pos, pos + ref_span)
-    if max_pos > min_pos:
-        pad = max(50, (max_pos - min_pos) // 10)
-        read_region = f"{ref_name}:{max(1, min_pos - pad)}-{max_pos + pad}"
-    else:
-        read_region = f"{ref_name}:1-500"
+    read_region = _compute_read_region(sam_path)
 
     logger.warning(
         "DEGRADED MODE: used pure-Python aligner (no minimap2/samtools). "
-        "BAI index may be less accurate than samtools-produced index."
+        "SAM output only — no BAM/BAI. Genome browser visualization unavailable."
     )
 
     return {
@@ -458,9 +458,7 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
         "unmapped_reads": unmapped,
         "total_alignments": total,
         "sam_path": sam_path,
-        "bam_path": sam_path.replace(".sam", ".bam"),
         "read_region": read_region,
-        "degraded": True,
     }
 
 
@@ -522,392 +520,50 @@ def _compute_read_region(sam_path: str) -> str:
 
 
 # ---------------------------------------------------------------------------
-# Pure-Python SAM → BAM converter (no samtools needed)
-# Writes valid BGZF-compressed BAM + BAI that igv.js can read.
-# ---------------------------------------------------------------------------
-
-_BASES = {"A": 0, "C": 1, "G": 2, "T": 3, "N": 4}
-
-
-def _seq_to_half_ints(seq: str) -> tuple[bytes, int]:
-    """Encode DNA sequence to BAM 4-bit encoding."""
-    encoded = bytearray()
-    for i in range(0, len(seq), 2):
-        hi = _BASES.get(seq[i].upper(), 4) << 4
-        lo = _BASES.get(seq[i + 1].upper(), 4) if i + 1 < len(seq) else 0
-        encoded.append(hi | lo)
-    return bytes(encoded), len(seq) % 2
-
-
-def _parse_cigar(cigar: str) -> list[tuple[int, int]]:
-    """Parse CIGAR string into (length, op_code) list."""
-    OP_MAP = {"M": 0, "I": 1, "D": 2, "N": 3, "S": 4, "H": 5, "P": 6, "=": 7, "X": 8}
-    return [(int(m.group(1)), OP_MAP[m.group(2)]) for m in re.finditer(r'(\d+)([MIDNSHUPX=])', cigar)]
-
-
-def _cigar_ref_len(cigar_ops: list[tuple[int, int]]) -> int:
-    """Compute reference length consumed by CIGAR (M, D, N operations)."""
-    return sum(l for l, op in cigar_ops if op in (0, 2, 3))
-
-
-def _reg2bin(beg: int, end: int) -> int:
-    """Compute BAM bin number for a 0-based half-open [beg, end) interval.
-
-    From the SAM/BAM spec: groups reads into hierarchical bins based on
-    their reference coordinates for indexed retrieval.
-    """
-    end -= 1
-    if (beg >> 14) == (end >> 14):
-        return ((1 << 15) - 1) // 7 + (beg >> 14)
-    if (beg >> 17) == (end >> 17):
-        return ((1 << 12) - 1) // 7 + (beg >> 17)
-    if (beg >> 20) == (end >> 20):
-        return ((1 << 9) - 1) // 7 + (beg >> 20)
-    if (beg >> 23) == (end >> 23):
-        return ((1 << 6) - 1) // 7 + (beg >> 23)
-    if (beg >> 26) == (end >> 26):
-        return ((1 << 3) - 1) // 7 + (beg >> 26)
-    return 0
-
-
-def _bgzf_compress(data: bytes, max_uncompressed: int = 65536) -> tuple[bytes, list[tuple[int, int]]]:
-    """Compress data into BGZF block(s). igv.js requires BGZF, not plain gzip.
-
-    Splits data into chunks of at most *max_uncompressed* bytes and compresses
-    each independently, producing valid BGZF blocks that readers can seek
-    into using virtual file offsets.
-
-    Returns (compressed_data, block_table) where block_table is a list of
-    (uncompressed_start, compressed_file_offset) for each BGZF block, sorted
-    by uncompressed offset.
-    """
-    BGZF_OVERHEAD = 10 + 2 + 10 + 4 + 4  # gzip hdr + XLEN + extra subfield + CRC32 + ISIZE
-
-    out = b""
-    block_table: list[tuple[int, int]] = []
-    pos = 0
-
-    while True:
-        chunk = data[pos:pos + max_uncompressed]
-        compressed_offset = len(out)
-
-        compressor = zlib.compressobj(6, zlib.DEFLATED, -15)
-        compressed = compressor.compress(chunk) + zlib.flush()
-        cdata_len = len(compressed)
-
-        block_size = BGZF_OVERHEAD + cdata_len
-        bsize_field = block_size - 1
-        csize_field = cdata_len - 1
-
-        gzip_hdr = struct.pack("<BBBBIBB", 0x1f, 0x8b, 0x08, 0x04, 0, 0, 0)
-        xlen_field = struct.pack("<H", 10)
-        extra_subfield = struct.pack("<BBHHHh", 0x42, 0x43, 6, bsize_field, csize_field, 0)
-
-        crc = zlib.crc32(chunk) & 0xFFFFFFFF
-        isize = len(chunk) & 0xFFFFFFFF
-
-        block = gzip_hdr + xlen_field + extra_subfield + compressed + struct.pack("<II", crc, isize)
-        block_table.append((pos, compressed_offset))
-        out += block
-
-        pos += len(chunk)
-        if pos >= len(data):
-            break
-
-    return out, block_table
-
-
-def _voffset_for(block_table: list[tuple[int, int]], uncompressed_offset: int) -> int:
-    """Convert an uncompressed byte offset to a BGZF virtual file offset.
-
-    BGZF virtual offsets encode (compressed_block_offset << 16 | uoffset).
-    A reader seeks to coffset in the compressed file, decompresses the block,
-    then reads from uoffset within the uncompressed data.
-
-    *block_table* is the list returned by _bgzf_compress: entries are
-    (uncompressed_start, compressed_file_offset), sorted by position.
-    """
-    for i in range(len(block_table) - 1, -1, -1):
-        uncomp_start, comp_offset = block_table[i]
-        if uncompressed_offset >= uncomp_start:
-            within = uncompressed_offset - uncomp_start
-            return (comp_offset << 16) | within
-    return 0
-
-
-def _sam_to_bam(sam_path: str, bam_path: str) -> None:
-    """Convert SAM to BAM + BAI (BGZF-compressed). Pure Python.
-
-    Produces a valid BAM file with proper bin fields and a BAI index
-    using correct reg2bin binning and BAM virtual offsets.
-    """
-    header_text = ""
-    ref_names: list[str] = []
-    ref_lengths: list[int] = []
-    sam_records: list[str] = []
-
-    with open(sam_path) as f:
-        for line in f:
-            line = line.rstrip("\n")
-            if line.startswith("@HD"):
-                header_text += line + "\n"
-            elif line.startswith("@SQ"):
-                header_text += line + "\n"
-                parts = line.split("\t")
-                name = ""
-                length = 0
-                for p in parts[1:]:
-                    if p.startswith("SN:"):
-                        name = p[3:]
-                    elif p.startswith("LN:"):
-                        length = int(p[3:])
-                if name:
-                    ref_names.append(name)
-                    ref_lengths.append(length)
-            elif line.startswith("@"):
-                header_text += line + "\n"
-            else:
-                sam_records.append(line)
-
-    ref_id_map = {name: i for i, name in enumerate(ref_names)}
-
-    # Build BAM header block
-    hdr_bytes = header_text.encode("ascii")
-    ref_dict = b""
-    for i, name in enumerate(ref_names):
-        name_bytes = name.encode("ascii") + b"\x00"
-        ref_dict += struct.pack("<I", len(name_bytes)) + name_bytes + struct.pack("<i", ref_lengths[i])
-
-    bam_header = (
-        b"BAM\x01" +
-        struct.pack("<I", len(hdr_bytes)) + hdr_bytes +
-        struct.pack("<I", len(ref_names)) + ref_dict
-    )
-
-    # --- Build alignment records, tracking byte offsets for BAI ---
-    # For BAI: (virtual_offset, bin, ref_id, pos, record_length)
-    all_records = b""
-    record_info: list[tuple[int, int, int, int, int]] = []
-
-    # BAM header size tells us where records start in raw_bam
-    header_size = len(bam_header)
-
-    for line in sam_records:
-        parts = line.split("\t")
-        if len(parts) < 11:
-            continue
-
-        qname = parts[0]
-        flag = int(parts[1])
-        rname = parts[2]
-        pos = int(parts[3]) - 1  # SAM 1-based → BAM 0-based
-        mapq = int(parts[4])
-        cigar_str = parts[5]
-        rnext = parts[6]
-        pnext = int(parts[7])
-        seq = parts[9]
-        qual_str = parts[10]
-
-        ref_id = ref_id_map.get(rname, -1)
-        if rname == "*":
-            ref_id = -1
-
-        next_ref_id = ref_id_map.get(rnext, -1)
-        if rnext == "=":
-            next_ref_id = ref_id
-        elif rnext == "*":
-            next_ref_id = -1
-
-        cigar_ops = _parse_cigar(cigar_str) if cigar_str != "*" else []
-        seq_enc, _ = _seq_to_half_ints(seq)
-
-        # Quality
-        if qual_str and qual_str != "*":
-            qual_enc = bytes([min(ord(c) - 33, 93) for c in qual_str])
-        else:
-            qual_enc = b"\xff" * len(seq)
-
-        # Read name (null-terminated, padded to 4-byte boundary)
-        qname_bytes = qname.encode("ascii") + b"\x00"
-        qname_padded_len = ((len(qname_bytes) + 3) // 4) * 4
-        qname_padded = qname_bytes.ljust(qname_padded_len, b"\x00")
-
-        # CIGAR as uint32 array
-        cigar_enc = b""
-        for length, op in cigar_ops:
-            cigar_enc += struct.pack("<I", (length << 4) | op)
-
-        n_cigar = len(cigar_ops)
-        l_seq = len(seq)
-
-        # Compute bin using reg2bin on the reference extent
-        ref_end = pos + _cigar_ref_len(cigar_ops) if cigar_ops else pos + len(seq)
-        rec_bin = _reg2bin(pos, ref_end) if ref_id >= 0 else 0
-
-        # bin_mq_nl: bin<<16 | MAPQ<<8 | l_read_name
-        # bin can be up to ~37450, fits in 16 bits
-        bin_mq_nl = (rec_bin << 16) | (mapq << 8) | len(qname_bytes)
-
-        # BAM alignment record (spec order: refID, pos, bin_mq_nl, flag, n_cigar, l_seq, ...)
-        record = (
-            struct.pack("<i", ref_id) +
-            struct.pack("<i", pos) +
-            struct.pack("<I", bin_mq_nl) +
-            struct.pack("<I", flag) +
-            struct.pack("<I", n_cigar) +
-            struct.pack("<I", l_seq) +
-            struct.pack("<i", next_ref_id) +
-            struct.pack("<i", pnext) +
-            struct.pack("<i", 0) +  # tlen
-            qname_padded +
-            cigar_enc +
-            seq_enc +
-            qual_enc
-        )
-
-        rec_len = len(record)
-        rec_offset = header_size + len(all_records) + 4  # +4 for block_size field
-        all_records += struct.pack("<I", rec_len) + record
-
-        if ref_id >= 0:
-            record_info.append((rec_offset, rec_bin, ref_id, pos, rec_len))
-
-    # Write BGZF (multi-block, proper virtual offsets)
-    raw_bam = bam_header + all_records
-    compressed_data, block_table = _bgzf_compress(raw_bam)
-    with open(bam_path, "wb") as f:
-        f.write(compressed_data)
-
-    # Rewrite record_info with correct BGZF virtual offsets
-    proper_record_info = [
-        (_voffset_for(block_table, voff), bin_id, rid, pos, rec_len)
-        for voff, bin_id, rid, pos, rec_len in record_info
-    ]
-
-    # --- Write BAI index ---
-    _write_bai(bam_path + ".bai", ref_names, ref_lengths, proper_record_info)
-
-
-def _write_bai(bai_path: str, ref_names: list[str], ref_lengths: list[int],
-               record_info: list[tuple[int, int, int, int, int]]) -> None:
-    """Write a proper BAI index file for igv.js.
-
-    record_info: list of (virtual_offset, bin_number, ref_id, pos, rec_len)
-    for each aligned read.  All data lives in a single BGZF block (block 0),
-    so virtual_offset == the byte offset within the uncompressed BAM payload.
-
-    BAI format:
-      magic: "BAI\\1"   (4 bytes)
-      n_ref: uint32
-      For each reference:
-        n_bin: uint32
-        For each bin (sorted):
-          bin_id:  uint32
-          n_chunk: uint32
-          chunk_beg: uint64   (virtual offset)
-          chunk_end: uint64   (virtual offset, exclusive)
-        n_intv: uint32
-        For each 16 384-bp window:
-          ioffset: uint64     (virtual offset of leftmost read starting in this window)
-    """
-    from collections import defaultdict
-
-    # ---- group by ref → bin ----
-    bins_by_ref: dict[int, dict[int, list[tuple[int, int, int]]]] = \
-        defaultdict(lambda: defaultdict(list))
-    for voff, bin_id, rid, pos, rec_len in record_info:
-        bins_by_ref[rid][bin_id].append((voff, pos, rec_len))
-
-    LINEAR_WINDOW = 16384
-
-    with open(bai_path, "wb") as f:
-        f.write(b"BAI\x01")
-        f.write(struct.pack("<I", len(ref_names)))
-
-        for ref_idx in range(len(ref_names)):
-            ref_bins = bins_by_ref.get(ref_idx, {})
-
-            # --- bins & chunks ---
-            sorted_bin_ids = sorted(ref_bins.keys())
-            f.write(struct.pack("<I", len(sorted_bin_ids)))
-
-            for bin_id in sorted_bin_ids:
-                entries = ref_bins[bin_id]          # [(voff, pos, rec_len), ...]
-                entries.sort(key=lambda e: e[0])    # sort by virtual offset
-
-                chunk_beg = entries[0][0]
-                chunk_end = entries[-1][0] + entries[-1][2]  # voff + rec_len
-
-                f.write(struct.pack("<I", bin_id))
-                f.write(struct.pack("<I", 1))       # n_chunks = 1
-                f.write(struct.pack("<Q", chunk_beg))
-                f.write(struct.pack("<Q", chunk_end))
-
-            # --- linear index ---
-            ref_len = ref_lengths[ref_idx] if ref_idx < len(ref_lengths) else 0
-            n_windows = (ref_len // LINEAR_WINDOW) + 1
-
-            # For each 16 kb window, store the minimum virtual offset of any
-            # read whose POS falls inside that window.
-            lin = [0] * n_windows
-            for voff, pos, _rec_len in [e for bins in ref_bins.values() for e in bins]:
-                w = pos // LINEAR_WINDOW
-                if w < n_windows and (lin[w] == 0 or voff < lin[w]):
-                    lin[w] = voff
-
-            # Propagate forward: empty windows inherit the previous non-zero
-            # entry so igv.js can always find a valid seek point.
-            last = 0
-            for w in range(n_windows):
-                if lin[w] != 0:
-                    last = lin[w]
-                else:
-                    lin[w] = last
-
-            f.write(struct.pack("<I", n_windows))
-            for voff in lin:
-                f.write(struct.pack("<Q", voff))
-
-
-# ---------------------------------------------------------------------------
 # Step 4: Variant Calling
 # ---------------------------------------------------------------------------
 
 def _run_variant_calling(sam_path: str, ref_path: str, tmpdir: str) -> dict:
     vcf_path = os.path.join(tmpdir, "variants.vcf")
     bcftools = _find_tool("bcftools")
-    samtools = _find_tool("samtools")
 
-    if bcftools and samtools and not _IS_WINDOWS:
-        try:
-            bam_path = os.path.join(tmpdir, "sorted.bam")
-            if not os.path.exists(bam_path):
-                return _python_variant_calling(sam_path, ref_path, vcf_path)
+    bam_path = os.path.join(tmpdir, "sorted.bam")
 
-            proc = subprocess.run(
-                ["bcftools", "mpileup", "-f", ref_path, bam_path, "-O", "u"],
-                capture_output=True, timeout=120,
+    if bcftools and os.path.exists(bam_path):
+        # bcftools mpileup → bcftools call
+        proc = subprocess.run(
+            ["bcftools", "mpileup", "-f", ref_path, bam_path, "-O", "u"],
+            capture_output=True, timeout=120,
+        )
+        if proc.returncode != 0:
+            logger.warning(
+                "bcftools mpileup returned %d: %s",
+                proc.returncode,
+                proc.stderr.decode("utf-8", errors="replace")[:300],
             )
-            if proc.returncode != 0:
-                return _python_variant_calling(sam_path, ref_path, vcf_path)
-
+        else:
             call_proc = subprocess.run(
                 ["bcftools", "call", "-mv", "-O", "v"],
                 input=proc.stdout, capture_output=True, timeout=120,
             )
-            with open(vcf_path, "w") as f:
-                f.write(call_proc.stdout.decode("utf-8", errors="replace"))
+            if call_proc.returncode != 0:
+                logger.warning(
+                    "bcftools call returned %d: %s",
+                    call_proc.returncode,
+                    call_proc.stderr.decode("utf-8", errors="replace")[:300],
+                )
+            else:
+                with open(vcf_path, "w") as f:
+                    f.write(call_proc.stdout.decode("utf-8", errors="replace"))
+                variants = _parse_vcf(vcf_path)
+                return {
+                    "tool": "bcftools",
+                    "vcf_path": vcf_path,
+                    "variants": variants,
+                    "total_variants": len(variants),
+                }
 
-            variants = _parse_vcf(vcf_path)
-            return {
-                "tool": "bcftools",
-                "vcf_path": vcf_path,
-                "variants": variants,
-                "total_variants": len(variants),
-            }
-        except Exception as e:
-            logger.warning("bcftools failed, using Python fallback: %s", e)
-
+    # Fallback: pileup-based variant calling from SAM (text-only, no binary formats)
     return _python_variant_calling(sam_path, ref_path, vcf_path)
 
 
@@ -1170,7 +826,7 @@ def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 500, read_len: int 
 # ---------------------------------------------------------------------------
 
 def _upload_ngs_files(job_id: str, tmpdir: str, ref_path: str, reference: str) -> dict:
-    """Upload BAM, BAI, VCF, and reference FASTA to Supabase Storage.
+    """Upload BAM, BAI, SAM, VCF, and reference FASTA to Supabase Storage.
     Returns dict of URLs keyed by file type."""
     from app.services.artifact_storage import _ensure_bucket, BUCKET, get_client
 
@@ -1186,29 +842,20 @@ def _upload_ngs_files(job_id: str, tmpdir: str, ref_path: str, reference: str) -
         "reference": ref_path,
     }
 
-    # Fallback: Python alignment writes to aligned.bam
-    if not os.path.exists(files_to_upload["bam"]):
-        alt_bam = os.path.join(tmpdir, "aligned.bam")
-        if os.path.exists(alt_bam):
-            files_to_upload["bam"] = alt_bam
-    if not os.path.exists(files_to_upload["bai"]):
-        alt_bai = os.path.join(tmpdir, "aligned.bam.bai")
-        if os.path.exists(alt_bai):
-            files_to_upload["bai"] = alt_bai
+    content_types = {
+        ".bam": "application/octet-stream",
+        ".bai": "application/octet-stream",
+        ".sam": "application/octet-stream",
+        ".vcf": "text/vcf",
+        ".fa": "text/plain",
+        ".fasta": "text/plain",
+    }
 
     for kind, path in files_to_upload.items():
-        if not os.path.exists(path):
+        if not os.path.exists(path) or os.path.getsize(path) == 0:
             continue
         storage_path = f"{job_id}/{kind}"
         ext = os.path.splitext(path)[1].lower()
-        content_types = {
-            ".bam": "application/octet-stream",
-            ".bai": "application/octet-stream",
-            ".sam": "application/octet-stream",
-            ".vcf": "text/vcf",
-            ".fa": "text/plain",
-            ".fasta": "text/plain",
-        }
         ct = content_types.get(ext, "application/octet-stream")
         try:
             with open(path, "rb") as f:

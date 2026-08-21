@@ -10,7 +10,7 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
 
 # minimap2 (for sequencing)
 RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
-    tar xjf /tmp/minimap2.tar.bz2 -C /tmp && \
+    tar xjf /tmp/minimap2.tar.bz2 -C /tmp --no-same-owner && \
     cp /tmp/minimap2-2.28_x64-linux/minimap2 /usr/local/bin/minimap2 && \
     chmod +x /usr/local/bin/minimap2 && \
     rm -rf /tmp/minimap2*

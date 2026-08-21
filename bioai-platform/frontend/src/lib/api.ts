@@ -752,8 +752,19 @@ export type NGSReference = {
 };
 
 export async function runNGS(fastqUrl: string, reference: string = 'sars-cov-2'): Promise<{ job_id: string; status: string }> {
-  const res = await api.post('/api/ngs/run', { fastq_url: fastqUrl, reference });
-  return res.data;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      const res = await api.post('/api/ngs/run', { fastq_url: fastqUrl, reference });
+      return res.data;
+    } catch (err: any) {
+      if (err?.response?.status === 503 && attempt === 0) {
+        await new Promise((r) => setTimeout(r, 5000));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new Error('Server is waking up — please try again in a moment');
 }
 
 export async function getNGSStatus(jobId: string): Promise<NGSResult> {

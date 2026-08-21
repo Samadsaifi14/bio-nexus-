@@ -315,13 +315,8 @@ export default function GenomeViewer({
     if (parsedLocus) {
       setViewStart(parsedLocus.start);
       setViewEnd(parsedLocus.end);
-    } else if (reads.length > 0) {
-      const minPos = Math.min(...reads.map(r => r.pos));
-      const maxPos = Math.max(...reads.map(r => r.pos + cigarRefLen(r.cigar)));
-      setViewStart(minPos);
-      setViewEnd(maxPos);
     }
-  }, [parsedLocus, reads]);
+  }, [parsedLocus]);
 
   useEffect(() => {
     let cancelled = false;
@@ -334,10 +329,21 @@ export default function GenomeViewer({
           vcfUrl ? fetch(vcfUrl).then(r => r.ok ? r.text() : Promise.reject(new Error(`VCF HTTP ${r.status}`))) : Promise.resolve(''),
         ]);
         if (cancelled) return;
-        if (samRes.status === 'fulfilled') setSamText(samRes.value);
-        else if (samUrl) console.warn('[GenomeViewer]', samRes.reason?.message);
-        if (vcfRes.status === 'fulfilled') setVcfText(vcfRes.value);
-        else if (vcfUrl) console.warn('[GenomeViewer]', vcfRes.reason?.message);
+        const newSam = samRes.status === 'fulfilled' ? samRes.value : '';
+        const newVcf = vcfRes.status === 'fulfilled' ? vcfRes.value : '';
+        setSamText(newSam);
+        setVcfText(newVcf);
+        if (samRes.status === 'rejected' && samUrl) console.warn('[GenomeViewer]', samRes.reason?.message);
+        if (vcfRes.status === 'rejected' && vcfUrl) console.warn('[GenomeViewer]', vcfRes.reason?.message);
+        if (!parsedLocus && newSam) {
+          const parsed = parseSam(newSam);
+          if (parsed.length > 0) {
+            const minPos = Math.min(...parsed.map(r => r.pos));
+            const maxPos = Math.max(...parsed.map(r => r.pos + cigarRefLen(r.cigar)));
+            setViewStart(minPos);
+            setViewEnd(maxPos);
+          }
+        }
       } catch (e: any) {
         if (!cancelled) setError(e.message);
       } finally {

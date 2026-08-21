@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # minimap2 (for NGS read alignment)
 RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
-    tar xjf /tmp/minimap2.tar.bz2 -C /tmp && \
+    tar xjf /tmp/minimap2.tar.bz2 -C /tmp --no-same-owner && \
     cp /tmp/minimap2-2.28_x64-linux/minimap2 /usr/local/bin/minimap2 && \
     chmod +x /usr/local/bin/minimap2 && \
     rm -rf /tmp/minimap2*
@@ -14,7 +14,7 @@ RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.2
 # Download pre-compiled PhyML binary from bioconda
 RUN wget -qO /tmp/phyml.tar.bz2 \
       https://anaconda.org/bioconda/phyml/3.3.20220408/download/linux-64/phyml-3.3.20220408-h9bc3f66_3.tar.bz2 && \
-    tar xjf /tmp/phyml.tar.bz2 -C /tmp && \
+    tar xjf /tmp/phyml.tar.bz2 -C /tmp --no-same-owner && \
     cp /tmp/bin/phyml /usr/local/bin/phyml && \
     chmod +x /usr/local/bin/phyml && \
     rm -rf /tmp/phyml.tar.bz2 /tmp/bin

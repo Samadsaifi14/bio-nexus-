@@ -14,7 +14,6 @@ interface IGVBrowserProps {
   referenceUrl: string;
   bamUrl?: string;
   baiUrl?: string;
-  samUrl?: string;
   vcfUrl?: string;
   locus?: string;
   className?: string;
@@ -46,7 +45,6 @@ export default function IGVBrowser({
   referenceUrl,
   bamUrl,
   baiUrl,
-  samUrl,
   vcfUrl,
   locus,
   className = '',
@@ -177,7 +175,7 @@ export default function IGVBrowser({
       for (const u of blobUrlsRef.current) URL.revokeObjectURL(u);
       blobUrlsRef.current = [];
     };
-  }, [referenceUrl, bamUrl, baiUrl, samUrl, vcfUrl, locus]);
+  }, [referenceUrl, bamUrl, baiUrl, vcfUrl, locus]);
 
   return (
     <div className={className}>

@@ -521,11 +521,10 @@ export default function NGSPage() {
                     <span className="ml-2 text-sm text-text-muted">Loading igv.js genome browser...</span>
                   </div>
                 }>
-                  <IGVBrowser
+                   <IGVBrowser
                     referenceUrl={result.result!.file_urls!.reference!}
                     bamUrl={result.result!.file_urls!.bam}
                     baiUrl={result.result!.file_urls!.bai}
-                    samUrl={result.result!.file_urls!.sam}
                     vcfUrl={result.result!.file_urls!.vcf}
                     locus={result.result!.alignment?.read_region || REFERENCE_LOCUS[result.result!.reference] || undefined}
                   />

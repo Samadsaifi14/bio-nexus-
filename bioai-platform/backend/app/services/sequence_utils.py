@@ -1,3 +1,5 @@
+import re
+
 from Bio import SeqIO
 from io import StringIO
 from typing import Optional
@@ -42,7 +44,6 @@ def detect_input_format(text: str) -> str:
 
 
 def detect_source_from_accession(accession: str) -> str:
-    import re
     acc = accession.strip().upper()
     if acc.startswith(("NP_", "XP_", "YP_", "WP_", "AP_", "NM_", "XM_", "NR_", "XR_")):
         return "ncbi"

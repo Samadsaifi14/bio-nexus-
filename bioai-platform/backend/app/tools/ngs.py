@@ -943,8 +943,13 @@ class NGSPipeline(BaseTool):
 
             # --- Step 3: Alignment ---
             progress["align"] = "running"
-            align_result = await asyncio.to_thread(_run_alignment, trimmed_path, ref_path, tmpdir)
-            sam_path = align_result.get("sam_path", os.path.join(tmpdir, "aligned.sam"))
+            sam_path = os.path.join(tmpdir, "aligned.sam")
+            try:
+                align_result = await asyncio.to_thread(_run_alignment, trimmed_path, ref_path, tmpdir)
+                sam_path = align_result.get("sam_path", sam_path)
+            except (RuntimeError, FileNotFoundError) as exc:
+                logger.warning("Native alignment failed (%s) — falling back to Python aligner", exc)
+                align_result = await asyncio.to_thread(_python_alignment, trimmed_path, ref_path, sam_path)
             steps_completed.append("align")
             progress["align"] = "done"
 

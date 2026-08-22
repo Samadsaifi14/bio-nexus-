@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, ChartBar as BarChart3, Funnel, Rocket, HouseLine } from '@phosphor-icons/react';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, ChartBar as BarChart3, Funnel, Rocket, HouseLine, Wrench } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, hoverGlow, press } from '@/lib/animations';
 import { ReactNode } from 'react';
@@ -43,6 +43,7 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'docking',     name: 'Molecular Docking',      description: 'Dock a small molecule into a protein using AutoDock Vina (free, CPU-based).', icon: Atom, active: true, badge: 'New' },
       { id: 'md',          name: 'MD Simulation',          description: 'Implicit solvent molecular dynamics using OpenMM. Minimize, equilibrate, or run.', icon: Activity, active: true },
       { id: 'function',    name: 'Function Prediction',    description: 'Predict protein function (GO terms) from structure. DeepFRI-inspired.', icon: Brain, active: true },
+      { id: 'structure-prep', name: 'Structure Pipeline', description: 'Full prep pipeline: broken chain detection → SWISS-MODEL repair → PyMOL cleanup → fpocket + CASTp pockets.', icon: Wrench, active: true, badge: 'New' },
       { id: 'castp',        name: 'CASTp Pocket Analysis',  description: 'Identify binding pockets and cavities using solvent-accessible surface area.', icon: Funnel, active: true, badge: 'New' },
       { id: 'swissmodel',   name: 'SWISS-MODEL Repository',  description: 'Query homology models and experimental structures from the SMR database.', icon: HouseLine, active: true, badge: 'New' },
       { id: 'predict-structure', name: 'Structure Prediction', description: 'Predict 3D protein structure from sequence using ESMFold (Facebook AI).', icon: Rocket, active: true, badge: 'New' },

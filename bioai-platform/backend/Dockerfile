@@ -25,6 +25,13 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
+# fpocket — compile from source (pocket detection)
+RUN git clone --depth 1 https://github.com/Discngine/fpocket.git /tmp/fpocket && \
+    cd /tmp/fpocket && make -j2 && \
+    cp bin/fpocket /usr/local/bin/fpocket && \
+    chmod +x /usr/local/bin/fpocket && \
+    rm -rf /tmp/fpocket
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

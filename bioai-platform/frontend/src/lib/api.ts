@@ -1145,3 +1145,41 @@ export async function getPredictionStatus(jobId: string): Promise<PredictionResu
   const res = await longApi.get(`/api/structure-predict/status/${jobId}`);
   return res.data;
 }
+
+// ─── Structure Preparation Pipeline ──────────────────────────────────────────
+
+export interface StructurePrepJob {
+  job_id: string;
+  status: string;
+}
+
+export interface StructurePrepResult {
+  job_id: string;
+  status: string;
+  step: string;
+  chain_health: {
+    has_missing_residues: boolean;
+    missing_residue_count: number;
+    missing_ranges: string[];
+    has_chain_breaks: boolean;
+    chain_break_count: number;
+    chain_breaks: { chain: string; from_resnum: number; to_resnum: number; distance: number }[];
+    is_broken: boolean;
+    chains: string[];
+    total_residues: number;
+  } | null;
+  fpocket_pockets: { id: number; druggability_score: number; volume: number; area: number; score: number; num_residues: number }[];
+  castp_pockets: { id: number; area_sa: number; volume_sa: number }[];
+  cleaned_pdb: string;
+  error: string | null;
+}
+
+export async function runStructurePrep(pdbId: string, probeRadius = 1.4): Promise<StructurePrepJob> {
+  const res = await longApi.post('/api/structure-prep/run', { pdb_id: pdbId, probe_radius: probeRadius });
+  return res.data;
+}
+
+export async function getStructurePrepStatus(jobId: string): Promise<StructurePrepResult> {
+  const res = await longApi.get(`/api/structure-prep/status/${jobId}`);
+  return res.data;
+}

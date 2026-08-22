@@ -26,11 +26,11 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
     chmod +x /usr/local/bin/vina
 
 # fpocket — compile from source (pocket detection)
-RUN git clone --depth 1 https://github.com/Discngine/fpocket.git /tmp/fpocket && \
-    cd /tmp/fpocket && make -j2 && \
-    cp bin/fpocket /usr/local/bin/fpocket && \
-    chmod +x /usr/local/bin/fpocket && \
-    rm -rf /tmp/fpocket
+RUN apt-get update && apt-get install -y --no-install-recommends libnetcdf-dev && rm -rf /var/lib/apt/lists/* && \
+    wget -qO /tmp/fpocket.tar.gz https://github.com/Discngine/fpocket/archive/refs/tags/4.2.3.tar.gz && \
+    tar xzf /tmp/fpocket.tar.gz -C /tmp --no-same-owner && \
+    cd /tmp/fpocket-4.2.3 && make && make install && \
+    rm -rf /tmp/fpocket*
 
 WORKDIR /app
 COPY bioai-platform/backend/requirements.txt .

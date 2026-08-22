@@ -36,7 +36,7 @@ async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float) -> d
 
     parser = PDBParser(QUIET=True)
     import io
-    structure = parser.get_pdb(pdb_id, io.StringIO(pdb_text))
+    structure = parser.get_structure(pdb_id, io.StringIO(pdb_text))
 
     sr = SASA.ShrakeRupley()
     sr.compute(structure, level="R")

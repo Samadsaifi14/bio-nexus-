@@ -1061,3 +1061,87 @@ export async function getFunctionStatus(jobId: string): Promise<{ job_id: string
   const res = await longApi.get(`/api/function/status/${jobId}`);
   return res.data;
 }
+
+// ─── CASTp ──────────────────────────────────────────────────────────────────
+
+export interface PocketInfo {
+  id: number;
+  area_sa: number;
+  volume_sa: number;
+  num_residues: number;
+  residues: string[];
+  centroid: number[];
+  radius: number;
+}
+
+export interface CastpResult {
+  pdb_id: string;
+  probe_radius: number;
+  total_residues: number;
+  pockets: PocketInfo[];
+}
+
+export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {
+  const res = await api.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
+  return res.data;
+}
+
+// ─── SWISS-MODEL ────────────────────────────────────────────────────────────
+
+export interface SwissModelTemplate {
+  template: string | null;
+  provider: string | null;
+  method: string | null;
+  coverage: number | null;
+  oligo_state: string | null;
+  from_res: number | null;
+  to_res: number | null;
+  created_date: string | null;
+  coordinates_url: string | null;
+  ligands: { hetid: string; description: string }[];
+  complex_with: { chain: string; uniprot_ac: string; description: string }[];
+}
+
+export interface SwissModelResult {
+  accession: string;
+  sequence: string;
+  sequence_length: number;
+  models: SwissModelTemplate[];
+  experimental: SwissModelTemplate[];
+}
+
+export async function querySwissModel(accession: string): Promise<SwissModelResult> {
+  const res = await api.post('/api/swissmodel/repository', { accession });
+  return res.data;
+}
+
+export async function getSwissModelCoordinates(accession: string): Promise<{ accession: string; pdb: string }> {
+  const res = await api.get(`/api/swissmodel/coordinates/${accession}`);
+  return res.data;
+}
+
+// ─── Structure Prediction (ESMFold) ─────────────────────────────────────────
+
+export interface PredictionJob {
+  job_id: string;
+  status: string;
+}
+
+export interface PredictionResult {
+  job_id: string;
+  status: string;
+  pdb: string | null;
+  mean_plddt: number | null;
+  ptm: number | null;
+  error: string | null;
+}
+
+export async function predictStructure(sequence: string, jobTitle = ''): Promise<PredictionJob> {
+  const res = await longApi.post('/api/structure-predict/predict', { sequence, job_title: jobTitle });
+  return res.data;
+}
+
+export async function getPredictionStatus(jobId: string): Promise<PredictionResult> {
+  const res = await longApi.get(`/api/structure-predict/status/${jobId}`);
+  return res.data;
+}

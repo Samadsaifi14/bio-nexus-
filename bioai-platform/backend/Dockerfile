@@ -30,7 +30,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 # primer3-py is optional — skip silently if it fails
-RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"
+RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-py skipped (optional)"
 
 COPY . .
 

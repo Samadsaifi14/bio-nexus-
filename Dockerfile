@@ -1,7 +1,9 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc wget ca-certificates openbabel samtools && \
+    build-essential gcc g++ wget ca-certificates \
+    openbabel libgl1 libgomp1 libopenblas-dev \
+    libxml2 libxslt1.1 samtools && \
     rm -rf /var/lib/apt/lists/*
 
 # minimap2 (for NGS read alignment)
@@ -27,7 +29,7 @@ WORKDIR /app
 COPY bioai-platform/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 # primer3-py is optional (requires C compiler) — skip silently if it fails
-RUN pip install --no-cache-dir primer3-py>=2.0.3 2>/dev/null || echo "primer3-py skipped (optional)"
+RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-py skipped (optional)"
 COPY bioai-platform/backend/ .
 
 EXPOSE 7860

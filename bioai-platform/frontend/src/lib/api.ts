@@ -1082,7 +1082,7 @@ export interface CastpResult {
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {
-  const res = await api.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
+  const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
   return res.data;
 }
 

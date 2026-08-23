@@ -26,8 +26,9 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
     chmod +x /usr/local/bin/vina
 
 # fpocket (pocket detection) — not packaged in Debian repos; build from source
-RUN apt-get update && apt-get install -y --no-install-recommends git libnetcdf-dev && \
-    git clone --depth 1 --branch v4.0.0 https://github.com/Discngine/fpocket /tmp/fpocket && \
+# NOTE: tags carry no "v" prefix (4.2.3, not v4.2.3) — a wrong prefix kills the build
+RUN apt-get update && apt-get install -y --no-install-recommends git libnetcdf-dev g++ && \
+    git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket && \
     make -C /tmp/fpocket && make -C /tmp/fpocket install && \
     rm -rf /tmp/fpocket && rm -rf /var/lib/apt/lists/*
 

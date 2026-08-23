@@ -7,7 +7,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 # fpocket (pocket detection) — not packaged in Debian repos; build from source
-RUN git clone --depth 1 --branch v4.0.0 https://github.com/Discngine/fpocket /tmp/fpocket && \
+# NOTE: tags carry no "v" prefix (4.2.3, not v4.2.3) — a wrong prefix kills the build
+RUN git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket && \
     make -C /tmp/fpocket && make -C /tmp/fpocket install && \
     rm -rf /tmp/fpocket
 # minimap2 (for NGS read alignment)

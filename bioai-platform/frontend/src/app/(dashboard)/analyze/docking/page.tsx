@@ -8,6 +8,7 @@ import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
+import { StructureExportMenu } from '@/components/StructureExportMenu';
 import { InteractionPanel } from '@/components/InteractionPanel';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
 
@@ -525,6 +526,12 @@ export default function DockingPage() {
                 <Hexagon className="w-4 h-4 text-accent-cyan" />
                 Structure — Best Pose
               </h3>
+              {jobId && (
+                <div className="mb-3 flex items-center gap-2 text-xs text-text-muted">
+                  <StructureExportMenu dockingJobId={jobId} />
+                  <span>Complex PDB (receptor + docked ligand) and ligand-only SDF</span>
+                </div>
+              )}
               <DockingViewer pdbId={result.result.pdb_id} ligandPdb={bestLigandPdb} interactions={result.result.interactions} />
             </div>
           )}

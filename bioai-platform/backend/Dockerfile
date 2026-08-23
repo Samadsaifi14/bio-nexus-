@@ -1,11 +1,15 @@
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    build-essential gcc g++ wget ca-certificates \
+    build-essential gcc g++ wget ca-certificates git libnetcdf-dev \
     openbabel libgl1 libgomp1 libopenblas-dev \
     libxml2 libxslt1.1 samtools && \
     rm -rf /var/lib/apt/lists/*
 
+# fpocket (pocket detection) — not packaged in Debian repos; build from source
+RUN git clone --depth 1 --branch v4.0.0 https://github.com/Discngine/fpocket /tmp/fpocket && \
+    make -C /tmp/fpocket && make -C /tmp/fpocket install && \
+    rm -rf /tmp/fpocket
 # minimap2 (for NGS read alignment)
 RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
     tar xjf /tmp/minimap2.tar.bz2 -C /tmp --no-same-owner && \

@@ -1,13 +1,11 @@
 """Structure preparation pipeline tools.
 
-Pipeline: fetch → broken chain detection → SWISS-MODEL repair → PyMOL cleanup → fpocket → CASTp
+Pipeline: fetch → broken chain detection → SWISS-MODEL repair → cleanup → fpocket → CASTp
 """
 
 import asyncio
 import io
-import json
 import logging
-import os
 import re
 import shutil
 import subprocess
@@ -18,11 +16,35 @@ from typing import Any
 
 import httpx
 
+from app.services.identifier_resolution import UNIPROT_RE
+from app.services.ssrf import validate_url
+
 logger = logging.getLogger(__name__)
 
+# fpocket remains a compiled binary (installed in the API Dockerfiles).
 FPOCKET_BIN = shutil.which("fpocket") or "/usr/local/bin/fpocket"
-PYMOL_BIN = shutil.which("pymol") or "/usr/local/bin/pymol"
 CASTPFOLD_BASE = "https://cfold.bme.uic.edu/castpfold"
+SMR_REPO = "https://swissmodel.expasy.org/repository"
+ESMFOLD_API = "https://api-inference.huggingface.co/models/facebook/esmfold_v1"
+RCSB_DOWNLOAD = "https://files.rcsb.org/download"
+
+# Input format validation (A4) — reject before any network call.
+PDB_ID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
+TEMPLATE_RE = re.compile(r"^[A-Za-z0-9][A-Za-z0-9_-]*$")
+
+
+def validate_pdb_id(pdb_id: str, param_name: str = "pdb_id") -> str:
+    pdb_id = (pdb_id or "").strip()
+    if not PDB_ID_RE.match(pdb_id):
+        raise ValueError(f"{param_name}: expected a 4-character alphanumeric PDB ID, got {pdb_id!r}")
+    return pdb_id.upper()
+
+
+def validate_template(template: str, param_name: str = "template") -> str:
+    template = (template or "").strip()
+    if not TEMPLATE_RE.match(template):
+        raise ValueError(f"{param_name}: invalid template ID {template!r}")
+    return template
 
 
 # ── Step 1: Broken chain detection ───────────────────────────────────────────
@@ -105,13 +127,21 @@ def detect_chain_health(pdb_text: str) -> ChainHealth:
 
 # ── Step 2: SWISS-MODEL repair ───────────────────────────────────────────────
 
-SMR_REPO = "https://swissmodel.expasy.org/repository"
+
+def validate_uniprot_accession(accession: str) -> str:
+    acc = (accession or "").strip().upper()
+    if not UNIPROT_RE.match(acc):
+        raise ValueError(f"uniprot_accession: invalid UniProt accession {accession!r}")
+    return acc
 
 
 async def swissmodel_fetch_structures(accession: str) -> dict:
     """Fetch available structures from SMR Repository for a UniProt accession."""
+    acc = validate_uniprot_accession(accession)
+    url = f"{SMR_REPO}/uniprot/{acc}.json"
+    validate_url(url)
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(f"{SMR_REPO}/uniprot/{accession}.json")
+        resp = await client.get(url)
         if resp.status_code == 404:
             return {"models": [], "experimental": []}
         resp.raise_for_status()
@@ -139,9 +169,12 @@ async def swissmodel_fetch_structures(accession: str) -> dict:
 
 async def swissmodel_fetch_pdb(template: str) -> str | None:
     """Fetch PDB coordinates from SMR for a template ID."""
+    template = validate_template(template, "swissmodel_template")
+    url = f"{SMR_REPO}/templates/{template}.pdb"
+    validate_url(url)
     try:
         async with httpx.AsyncClient(timeout=30) as client:
-            resp = await client.get(f"{SMR_REPO}/templates/{template}.pdb")
+            resp = await client.get(url)
             if resp.status_code == 200 and len(resp.text) > 50:
                 return resp.text
     except Exception:
@@ -149,42 +182,42 @@ async def swissmodel_fetch_pdb(template: str) -> str | None:
     return None
 
 
-# ── Step 3: PyMOL cleanup ────────────────────────────────────────────────────
+# ── Step 3: Structure cleanup (pymol2 wheel, Biopython fallback) ────────────
 
 
 def pymol_cleanup(pdb_text: str) -> str:
-    """Remove waters, hetero atoms, and add hydrogens using PyMOL.
+    """Remove waters and hetero atoms using the pymol2 Python wheel.
 
-    Falls back to Biopython stripping if PyMOL is not available.
+    No PyMOL binary or X server required. Falls back to Biopython stripping
+    (logged loudly, never silently) if pymol2 is unavailable.
     """
-    if os.path.exists(PYMOL_BIN):
-        return _pymol_cleanup_binary(pdb_text)
-    return _biopython_cleanup(pdb_text)
+    try:
+        return _pymol_cleanup_pymol2(pdb_text)
+    except Exception as e:
+        logger.warning("pymol2 cleanup unavailable (%s); using Biopython fallback", e)
+        return _biopython_cleanup(pdb_text)
 
 
-def _pymol_cleanup_binary(pdb_text: str) -> str:
-    """Use PyMOL binary for structure cleanup."""
+def _pymol_cleanup_pymol2(pdb_text: str) -> str:
+    """Use the importable open-source PyMOL (pymol-open-source-whl) for cleanup."""
+    import pymol2
+
     with tempfile.TemporaryDirectory() as tmpdir:
         in_path = Path(tmpdir) / "input.pdb"
         out_path = Path(tmpdir) / "clean.pdb"
         in_path.write_text(pdb_text)
 
-        cmd = [
-            PYMOL_BIN,
-            "-c",  # command-line mode
-            "-q",  # quiet
-            "-d", f"load {in_path}; remove resn HOH; remove hetatm; save {out_path}, enabled",
-        ]
-        try:
-            subprocess.run(cmd, capture_output=True, timeout=30, check=True)
-            if out_path.exists():
-                result = out_path.read_text()
-                if len(result) > 100:
-                    return result
-        except Exception as e:
-            logger.warning("PyMOL cleanup failed, falling back to Biopython: %s", e)
+        with pymol2.PyMOL() as p:
+            p.cmd.load(str(in_path), "struct")
+            p.cmd.remove("resn HOH")
+            p.cmd.remove("hetatm")
+            p.cmd.save(str(out_path), "struct")
 
-    return _biopython_cleanup(pdb_text)
+        result = out_path.read_text()
+
+    if len(result) <= 100:
+        raise RuntimeError("pymol2 produced empty output")
+    return result
 
 
 def _biopython_cleanup(pdb_text: str) -> str:
@@ -213,13 +246,14 @@ class FpocketResult:
     pocket_count: int = 0
     pockets: list[dict] = field(default_factory=list)
     raw_output: str = ""
+    status: str = "complete"  # complete | unavailable | error
 
 
 def run_fpocket(pdb_text: str, probe_radius: float = 1.4) -> FpocketResult:
     """Run fpocket on PDB text. Returns pocket data."""
-    if not os.path.exists(FPOCKET_BIN):
-        logger.warning("fpocket binary not found at %s", FPOCKET_BIN)
-        return FpocketResult(raw_output="fpocket not installed")
+    if not Path(FPOCKET_BIN).exists():
+        logger.warning("fpocket binary not found at %s — was it installed in the image?", FPOCKET_BIN)
+        return FpocketResult(raw_output="fpocket not installed", status="unavailable")
 
     with tempfile.TemporaryDirectory() as tmpdir:
         in_path = Path(tmpdir) / "input.pdb"
@@ -235,9 +269,9 @@ def run_fpocket(pdb_text: str, probe_radius: float = 1.4) -> FpocketResult:
             fpocket_out = Path(tmpdir) / "input_out"
             return _parse_fpocket_output(fpocket_out, result.stdout + result.stderr)
         except subprocess.TimeoutExpired:
-            return FpocketResult(raw_output="fpocket timed out")
+            return FpocketResult(raw_output="fpocket timed out", status="error")
         except Exception as e:
-            return FpocketResult(raw_output=f"fpocket error: {e}")
+            return FpocketResult(raw_output=f"fpocket error: {e}", status="error")
 
 
 def _parse_fpocket_output(out_dir: Path, raw_output: str) -> FpocketResult:
@@ -304,10 +338,12 @@ def _parse_fpocket_output(out_dir: Path, raw_output: str) -> FpocketResult:
 
 async def castp_submit(pdb_text: str, probe_radius: float = 1.4) -> dict:
     """Submit PDB to CASTpFold server for pocket analysis."""
+    url = f"{CASTPFOLD_BASE}/compute"
+    validate_url(url)
     async with httpx.AsyncClient(timeout=60) as client:
         files = {"pdb_file": ("structure.pdb", pdb_text.encode(), "text/plain")}
         data = {"radius": str(probe_radius)}
-        resp = await client.post(f"{CASTPFOLD_BASE}/compute", files=files, data=data)
+        resp = await client.post(url, files=files, data=data)
         resp.raise_for_status()
         text = resp.text
         job_match = re.search(r"result/([a-f0-9\-]+)", text) or re.search(
@@ -320,8 +356,12 @@ async def castp_submit(pdb_text: str, probe_radius: float = 1.4) -> dict:
 
 async def castp_poll(job_id: str) -> dict:
     """Poll CASTpFold for job results."""
+    if not re.fullmatch(r"[a-f0-9\-]+", job_id or ""):
+        raise ValueError(f"castp job_id: invalid format {job_id!r}")
+    url = f"{CASTPFOLD_BASE}/result/{job_id}"
+    validate_url(url)
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(f"{CASTPFOLD_BASE}/result/{job_id}")
+        resp = await client.get(url)
         resp.raise_for_status()
         text = resp.text
         pockets = _parse_castp_html(text)
@@ -353,19 +393,21 @@ def _parse_castp_html(html: str) -> list[dict]:
 
 async def fetch_pdb_text(pdb_id: str) -> str:
     """Fetch PDB from RCSB."""
+    pdb_id = validate_pdb_id(pdb_id)
+    url = f"{RCSB_DOWNLOAD}/{pdb_id}.pdb"
+    validate_url(url)
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(
-            f"https://files.rcsb.org/download/{pdb_id.upper()}.pdb"
-        )
+        resp = await client.get(url)
         resp.raise_for_status()
         return resp.text
 
 
 async def esmfold_predict(sequence: str) -> str | None:
     """Predict structure from amino acid sequence using ESMFold via HF Inference API."""
-    import os
     import asyncio
+    import os
 
+    validate_url(ESMFOLD_API)
     hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
     headers = {}
     if hf_token:
@@ -373,7 +415,7 @@ async def esmfold_predict(sequence: str) -> str | None:
 
     async with httpx.AsyncClient(timeout=300) as client:
         resp = await client.post(
-            "https://api-inference.huggingface.co/models/facebook/esmfold_v1",
+            ESMFOLD_API,
             json={"inputs": sequence},
             headers=headers,
         )
@@ -382,7 +424,7 @@ async def esmfold_predict(sequence: str) -> str | None:
             wait_time = min(data.get("estimated_time", 30), 120)
             await asyncio.sleep(wait_time)
             resp = await client.post(
-                "https://api-inference.huggingface.co/models/facebook/esmfold_v1",
+                ESMFOLD_API,
                 json={"inputs": sequence},
                 headers=headers,
             )

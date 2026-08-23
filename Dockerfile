@@ -25,6 +25,12 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
+# fpocket (pocket detection) — not packaged in Debian repos; build from source
+RUN apt-get update && apt-get install -y --no-install-recommends git libnetcdf-dev && \
+    git clone --depth 1 --branch v4.0.0 https://github.com/Discngine/fpocket /tmp/fpocket && \
+    make -C /tmp/fpocket && make -C /tmp/fpocket install && \
+    rm -rf /tmp/fpocket && rm -rf /var/lib/apt/lists/*
+
 WORKDIR /app
 COPY bioai-platform/backend/requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

@@ -345,41 +345,74 @@ async def resolve_by_id_mapping(accession: str) -> str | None:
     return None
 
 
+# Confidence tiers per resolution method (techspec.md §1.1):
+#   tiers 1–3 (direct/xref/name) → identified — exact database identity
+#   tiers 4–5 (sequence/idmapping) → homolog — inferred via a similar sequence
+_CONFIDENCE_BY_METHOD = {
+    "direct": "identified",
+    "xref": "identified",
+    "name": "identified",
+    "sequence": "homolog",
+    "idmapping": "homolog",
+}
+
+UNRESOLVED_RESULT = {
+    "accession": None,
+    "method": "de_novo",
+    "status": "unresolved",
+    "confidence": "de_novo",
+}
+
+
+def _resolved(accession: str, method: str) -> dict:
+    return {
+        "accession": accession,
+        "method": method,
+        "status": "resolved",
+        "confidence": _CONFIDENCE_BY_METHOD.get(method, "homolog"),
+    }
+
+
 async def resolve_to_uniprot(
     accession: str | None = None,
     sequence: str | None = None,
     description: str | None = None,
     organism: str | None = None,
     try_sequence: bool = True,
-) -> dict | None:
+) -> dict:
     """Resolve any identifier/sequence to a UniProt accession.
 
-    Returns ``{"accession": ..., "method": ...}`` or None when nothing is
-    found. Methods: direct / xref / name / sequence / idmapping.
+    Runs strategies cheapest-first; when all five exhaust, returns an
+    explicit unresolved result (tier 6, techspec.md §1) instead of None so
+    callers can route to the de novo characterization branch.
+
+    Returns ``{"accession": str|None, "method": str, "status":
+    "resolved"|"unresolved", "confidence": "identified"|"homolog"|"de_novo"}``.
+    Methods: direct / xref / name / sequence / idmapping / de_novo.
     """
     acc = (accession or "").strip()
     if is_uniprot_accession(acc):
-        return {"accession": acc.upper(), "method": "direct"}
+        return _resolved(acc.upper(), "direct")
 
     async with httpx.AsyncClient(timeout=20) as client:
         if acc:
             mapped = await resolve_by_xref(acc, client=client)
             if mapped:
-                return {"accession": mapped, "method": "xref"}
+                return _resolved(mapped, "xref")
 
         if description:
             mapped = await resolve_by_name(description, organism=organism, client=client)
             if mapped:
-                return {"accession": mapped, "method": "name"}
+                return _resolved(mapped, "name")
 
     if try_sequence and sequence:
         mapped = await resolve_by_sequence(sequence)
         if mapped:
-            return {"accession": mapped, "method": "sequence"}
+            return _resolved(mapped, "sequence")
 
     if acc:
         mapped = await resolve_by_id_mapping(acc)
         if mapped:
-            return {"accession": mapped, "method": "idmapping"}
+            return _resolved(mapped, "idmapping")
 
-    return None
+    return dict(UNRESOLVED_RESULT)

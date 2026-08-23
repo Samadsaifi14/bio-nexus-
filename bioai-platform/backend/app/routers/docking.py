@@ -4,6 +4,7 @@ import json
 import math
 import re
 from fastapi import APIRouter, HTTPException, Depends, Request
+from fastapi.responses import PlainTextResponse
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
@@ -227,6 +228,8 @@ def _run_docking_sync(job_id: str, payload: dict):
             "interactions": interactions,
             "pose_interactions": pose_interactions,
             "ligand_pdb": vina_result.get("ligand_pdb", ""),
+            "result_sdf": vina_result.get("result_sdf", ""),
+            "receptor_pdb": protein_pdb,
         }
 
         # Offload to Supabase Storage; DB keeps only the URL
@@ -773,6 +776,61 @@ async def get_docking_pdb(job_id: str, user_id: str = Depends(require_user_id)):
         raise HTTPException(status_code=404, detail="No ligand PDB available")
     from fastapi.responses import PlainTextResponse
     return PlainTextResponse(ligand_pdb, media_type="text/plain")
+
+
+def _load_docking_result(job_id: str, user_id: str) -> dict:
+    supabase = get_client()
+    row = supabase.table(_TABLE).select("result_sdf,storage_url").eq("id", job_id).eq("user_id", user_id).single().execute()
+    if not row.data:
+        raise HTTPException(status_code=404, detail="Docking result not found")
+    data = None
+    if row.data.get("storage_url"):
+        from app.services.artifact_storage import download_json
+        data = download_json(row.data["storage_url"])
+    elif row.data.get("result_sdf"):
+        try:
+            data = json.loads(row.data["result_sdf"])
+        except Exception:
+            pass
+    if not data:
+        raise HTTPException(status_code=404, detail="Docking result not found")
+    return data
+
+
+@router.get("/result/{job_id}/ligand.sdf")
+async def get_docking_ligand_sdf(job_id: str, user_id: str = Depends(require_user_id)):
+    """Ligand-only SDF of the docked poses (techspec §2)."""
+    data = _load_docking_result(job_id, user_id)
+    sdf = data.get("result_sdf", "")
+    if not sdf:
+        raise HTTPException(
+            status_code=404,
+            detail="No SDF stored for this job (older runs predate SDF persistence — re-run the docking job)",
+        )
+    return PlainTextResponse(
+        sdf,
+        media_type="chemical/x-mdl-molfile",
+        headers={"Content-Disposition": f'attachment; filename="docked_{job_id[:8]}.sdf"'},
+    )
+
+
+@router.get("/result/{job_id}/complex.pdb")
+async def get_docking_complex_pdb(job_id: str, user_id: str = Depends(require_user_id)):
+    """Receptor + docked ligand merged into a single PDB (techspec §2)."""
+    data = _load_docking_result(job_id, user_id)
+    receptor = data.get("receptor_pdb", "")
+    ligand = data.get("ligand_pdb", "")
+    if not receptor or not ligand:
+        raise HTTPException(
+            status_code=404,
+            detail="Complex export needs both receptor and ligand structures (older runs may lack them — re-run the job)",
+        )
+    complex_text = receptor.rstrip() + "\n" + ligand.rstrip() + "\nEND\n"
+    return PlainTextResponse(
+        complex_text,
+        media_type="chemical/x-pdb",
+        headers={"Content-Disposition": f'attachment; filename="complex_{job_id[:8]}.pdb"'},
+    )
 
 
 @router.get("")

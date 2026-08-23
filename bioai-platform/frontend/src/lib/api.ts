@@ -7,7 +7,7 @@ const api = axios.create({
   timeout: 30_000,
 });
 
-const longApi = axios.create({
+export const longApi = axios.create({
   baseURL: '/api/backend',
   timeout: 660_000,
 });

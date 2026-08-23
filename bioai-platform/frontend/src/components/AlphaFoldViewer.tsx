@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { DownloadSimple as Download } from '@phosphor-icons/react';
 import { HudPanel, HudLegend, LegendItem } from '@/components/ui';
 import { downloadText } from '@/lib/export-utils';
+import { StructureExportMenu } from '@/components/StructureExportMenu';
 import { useTheme } from '@/contexts/theme';
 
 interface MoleViewer {
@@ -86,6 +87,7 @@ type StyleMode = 'confidence' | 'spectrum' | 'surface' | 'stick';
 
 interface AlphaFoldViewerProps {
   pdbUrl?: string | null;
+  pdbData?: string | null;
   uniprotId?: string;
   height?: number | string;
   backgroundColor?: string;
@@ -93,6 +95,7 @@ interface AlphaFoldViewerProps {
 
 export function AlphaFoldViewer({
   pdbUrl,
+  pdbData,
   uniprotId,
   height = 420,
   backgroundColor,
@@ -154,9 +157,9 @@ export function AlphaFoldViewer({
   }, []);
 
   useEffect(() => {
-    if (!pdbUrl) {
+    if (!pdbUrl && !pdbData) {
       setStatus('error');
-      setError('No structure URL provided yet');
+      setError('No structure data provided yet');
       return;
     }
 
@@ -164,12 +167,16 @@ export function AlphaFoldViewer({
     setStatus('loading');
     setError(null);
 
-    load3Dmol()
-      .then(() => fetch(pdbUrl))
-      .then((res) => {
-        if (!res.ok) throw new Error(`Failed to fetch structure (HTTP ${res.status})`);
-        return res.text();
-      })
+    const loadText: Promise<string> = pdbData
+      ? load3Dmol().then(() => pdbData)
+      : load3Dmol()
+          .then(() => fetch(pdbUrl as string))
+          .then((res) => {
+            if (!res.ok) throw new Error(`Failed to fetch structure (HTTP ${res.status})`);
+            return res.text();
+          });
+
+    loadText
       .then((pdbData) => {
         if (cancelled || !containerRef.current) return;
         pdbTextRef.current = pdbData;
@@ -200,7 +207,7 @@ export function AlphaFoldViewer({
     return () => {
       cancelled = true;
     };
-  }, [pdbUrl, sceneBg, applyStyle, styleMode]);
+  }, [pdbUrl, pdbData, sceneBg, applyStyle, styleMode]);
 
   useEffect(() => {
     if (status === 'ready') applyStyle(styleMode);
@@ -228,10 +235,15 @@ export function AlphaFoldViewer({
       {/* HUD toolbar — floats in the viewer's space, near-opaque */}
       <HudPanel className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <span className="font-mono text-xs text-text-muted">
-          {uniprotId ? `AlphaFold model — ${uniprotId}` : 'AlphaFold model'}
+          {uniprotId
+            ? `AlphaFold model — ${uniprotId}`
+            : pdbData
+              ? 'Predicted structure (ESMFold)'
+              : 'AlphaFold model'}
         </span>
 
         <div className="flex items-center gap-2">
+          {uniprotId && <StructureExportMenu identifier={uniprotId} />}
           <select
             value={styleMode}
             onChange={(e) => setStyleMode(e.target.value as StyleMode)}

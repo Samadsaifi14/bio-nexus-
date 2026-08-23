@@ -135,6 +135,7 @@ export interface AssembledContext {
     length: number;
     sequence_type?: 'protein' | 'dna' | 'rna';
     accession?: string;
+    confidence?: QueryConfidence;
   };
   blast: BlastSummary;
   uniprot: UniprotSummary | null;
@@ -148,6 +149,22 @@ export interface AssembledContext {
   };
   phylo?: { phylotree_newick?: string };
   phylo_data?: { phylotree_newick?: string };
+  final_report?: FinalSynthesisReport | null;
+}
+
+export interface SynthesisFinding {
+  claim: string;
+  confidence_tier: QueryConfidence;
+  source_tool: string;
+  page_url?: string | null;
+}
+
+export interface FinalSynthesisReport {
+  headline: string;
+  summary: string;
+  findings: SynthesisFinding[];
+  caveats: string[];
+  _mode?: 'llm_polished' | 'deterministic';
 }
 
 export interface BlastSummary {
@@ -231,7 +248,13 @@ export interface UniprotSummary {
   sequence_length: number;
   sequence: string;
   cds_accessions?: CdsCrossRef[];
+  /** Tier-6 de novo annotation bundle (stored in the uniprot slot when no homolog was identified) */
+  _de_novo?: boolean;
+  composition?: Record<string, unknown> & { sequence_type?: string };
+  function_hints?: { go_terms?: string[]; _note?: string; source?: string };
 }
+
+export type QueryConfidence = 'identified' | 'homolog' | 'de_novo';
 
 export interface CdsCrossRef {
   database: string;
@@ -254,6 +277,10 @@ export interface AlphaFoldResult {
   cif_url: string | null;
   confidence: number | null;
   model_created_date: string;
+  /** Inline PDB text (tier-6 ESMFold predictions carry the model directly, no URL) */
+  pdb_text?: string | null;
+  mean_plddt?: number | null;
+  source?: string;
 }
 
 

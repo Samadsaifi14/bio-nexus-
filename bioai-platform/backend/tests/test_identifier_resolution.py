@@ -136,7 +136,7 @@ async def test_direct_accession_short_circuits(monkeypatch):
 
     monkeypatch.setattr(ir.httpx, "AsyncClient", boom)
     r = await ir.resolve_to_uniprot(accession="P04637")
-    assert r == {"accession": "P04637", "method": "direct"}
+    assert r == {"accession": "P04637", "method": "direct", "status": "resolved", "confidence": "identified"}
     assert not called
 
 
@@ -161,7 +161,9 @@ async def test_sequence_strategy_only_when_requested(monkeypatch):
     monkeypatch.setattr(ir, "resolve_by_sequence", boom)
     # ZZ9999 isn't matched by FakeClient's xref stub, so xref+name both fail.
     r = await ir.resolve_to_uniprot(accession="ZZ9999", description="nothing", try_sequence=False)
-    assert r is None
+    assert r["status"] == "unresolved"
+    assert r["confidence"] == "de_novo"
+    assert r["accession"] is None
 
 
 @pytest.mark.asyncio
@@ -194,6 +196,21 @@ async def test_nucleotide_sequence_skips_sequence_blast(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_no_input_returns_none():
-    assert (await ir.resolve_to_uniprot()) is None
-    assert (await ir.resolve_to_uniprot(accession="")) is None
+async def test_no_input_returns_unresolved():
+    r = await ir.resolve_to_uniprot()
+    assert r == ir.UNRESOLVED_RESULT
+    assert (await ir.resolve_to_uniprot(accession="")) == ir.UNRESOLVED_RESULT
+
+
+@pytest.mark.asyncio
+async def test_sequence_method_maps_to_homolog_confidence(monkeypatch):
+    """Tier-4 (EBI BLAST) hits are homologs, not database-grade identity."""
+
+    async def fake_seq(seq):
+        return "P04637"
+
+    monkeypatch.setattr(ir, "resolve_by_sequence", fake_seq)
+    r = await ir.resolve_to_uniprot(sequence="MEEPQSDPSVEP")
+    assert r["method"] == "sequence"
+    assert r["status"] == "resolved"
+    assert r["confidence"] == "homolog"

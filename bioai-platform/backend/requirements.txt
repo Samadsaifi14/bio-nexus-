@@ -15,6 +15,7 @@ rdkit
 numpy
 openmm>=8.0  # OpenMM is on PyPI since 8.0 (pip-installable in Dockerfile and Render)
 openbabel-wheel  # obabel CLI — PDBQT prep for docking (SMILES→PDBQT, PDB→PDBQT receptor)
+pymol-open-source-whl>=3.2  # unofficial wheel of open-source PyMOL; provides the `pymol2` module (headless cleanup + .pse export); 3.2 line supports numpy>=2
 # primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)
 
 # dev / testing

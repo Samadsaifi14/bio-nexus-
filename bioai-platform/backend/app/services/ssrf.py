@@ -22,6 +22,12 @@ ALLOWED_HOSTS: set[str] = {
     "alphafold.ebi.ac.uk",
     "rest.uniprot.org",
     "www.uniprot.org",
+    # structure_prep pipeline hosts (SWISS-MODEL repo, CASTpFold, ESMFold inference)
+    "swissmodel.expasy.org",
+    "cfold.bme.uic.edu",
+    "api-inference.huggingface.co",
+    # EBI Tools services (InterProScan5 de novo sequence search; MSA tools)
+    "www.ebi.ac.uk",
 }
 
 PRIVATE_NETWORKS = [

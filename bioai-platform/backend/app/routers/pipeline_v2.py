@@ -309,6 +309,7 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         _failed_error = msg
 
     # ---- Step 1: BLAST (must run first) ----
+    denovo_mode = False
     if "blast" in steps:
         await _notify("blast")
         _mark("blast", "running", progress=10)
@@ -318,11 +319,30 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
             fast_mode=fast_mode,
             blast_params=blast_params,
         )
-        _mark("blast", "complete" if result.get("count", 0) > 0 else "failed", progress=100, data=result)
+        zero_hits = result.get("count", 0) == 0
+        if zero_hits and (detect_sequence_type(sequence) or "protein") == "protein":
+            # Tier 6: no database match at all — characterize from sequence
+            # alone instead of failing the run (techspec.md §1).
+            denovo_mode = True
+            result["_note"] = "No BLAST hits found — switching to de novo characterization"
+            _mark("blast", "complete", progress=100, data=result)
+        else:
+            _mark("blast", "failed" if zero_hits else "complete", progress=100, data=result)
+            if zero_hits:
+                _failed_step = "blast"
+                _failed_error = result.get("error", "No BLAST hits found")
         context["blast"] = result
-        if result.get("count", 0) == 0:
-            _failed_step = "blast"
-            _failed_error = result.get("error", "No BLAST hits found")
+
+    if denovo_mode:
+        context["query"]["confidence"] = "de_novo"
+        await _run_denovo_steps(job_id, sequence, steps, _mark, context)
+        await _finalize_context(job_id, context)
+        with _jobs_lock:
+            if job_id in _jobs:
+                _jobs[job_id]["status"] = "complete"
+                _jobs[job_id]["context"] = context
+        _persist_v2_final(job_id, "complete", context)
+        return
 
     # ---- Step 2: Fan-out — UniProt, MSA, Pathway run in parallel ----
     #    They all only depend on BLAST results, not on each other.
@@ -383,6 +403,8 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 s = "complete" if "error" not in res else "failed"
                 _mark("uniprot", s, progress=100, data=res)
                 context["uniprot"] = res
+                if res.get("confidence"):
+                    context["query"]["confidence"] = res["confidence"]
                 if "error" in res:
                     _failed_step = "uniprot"
                     _failed_error = res["error"]
@@ -414,17 +436,24 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         else:
             _mark("phylo", "failed", error="No phylotree available from MSA")
 
-    # ---- Step 4: Domains + AlphaFold in parallel (both need UniProt accession) ----
+    # ---- Step 4: Domains + AlphaFold in parallel ----
+    # When UniProt resolution exhausted all tiers, these fall back to their
+    # sequence-only equivalents instead of being silently skipped (§1.2).
     uniprot_data = context.get("uniprot", {})
     accession = uniprot_data.get("accession") if isinstance(uniprot_data, dict) else None
+    resolved_uniprot = bool(uniprot_data.get("resolved_uniprot")) if isinstance(uniprot_data, dict) else False
 
     post_uniprot = []
     post_uniprot_names = []
-    if "domains" in steps and accession and not _failed_step:
-        post_uniprot.append(_run_domains(accession))
+    if "domains" in steps and not _failed_step:
+        post_uniprot.append(
+            _run_domains_or_denovo(sequence, accession, resolved_uniprot)
+        )
         post_uniprot_names.append("domains")
-    if "alphafold" in steps and accession and not _failed_step:
-        post_uniprot.append(_run_alphafold(context))
+    if "alphafold" in steps and not _failed_step:
+        post_uniprot.append(
+            _run_alphafold_or_esmfold(context, sequence, accession, resolved_uniprot)
+        )
         post_uniprot_names.append("alphafold")
 
     if post_uniprot:
@@ -465,11 +494,71 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _jobs[job_id]["error"] = f"Pipeline failed at {_failed_step}: {_failed_error}"
         _persist_v2_final(job_id, "failed", context, error=f"Pipeline failed at {_failed_step}: {_failed_error}")
     else:
+        await _finalize_context(job_id, context)
         with _jobs_lock:
             if job_id in _jobs:
                 _jobs[job_id]["status"] = "complete"
                 _jobs[job_id]["context"] = context
         _persist_v2_final(job_id, "complete", context)
+
+
+async def _finalize_context(job_id: str, context: dict):
+    """Pre-persist hook: capture source pages (§3) + build the final report."""
+    user_id = None
+    with _jobs_lock:
+        entry = _jobs.get(job_id)
+        if entry:
+            user_id = entry.get("user_id")
+    try:
+        _capture_run_sources(job_id, context, user_id)
+    except Exception as e:  # captures must never break a run
+        logger.warning("[%s] page capture wiring failed: %s", job_id, e)
+    try:
+        from app.services.final_synthesis import synthesize
+
+        context["final_report"] = await synthesize(context)
+    except Exception as e:
+        logger.warning("[%s] final synthesis failed: %s", job_id, e)
+
+
+def _capture_run_sources(job_id: str, context: dict, user_id: str | None):
+    """Queue one page_captures row per external source this run queried."""
+    from app.services.page_capture import capture_bg
+
+    blast = context.get("blast") or {}
+    top_hit = blast.get("top_hit")
+    if top_hit and top_hit.get("accession"):
+        capture_bg(job_id, "ncbi", f"https://www.ncbi.nlm.nih.gov/protein/{top_hit['accession']}", user_id)
+
+    uniprot = context.get("uniprot") or {}
+    if uniprot.get("_de_novo"):
+        pass  # no external annotation source was queried in de novo mode
+    elif uniprot.get("accession"):
+        capture_bg(job_id, "uniprot", f"https://www.uniprot.org/uniprotkb/{uniprot['accession']}", user_id)
+        pdb_ids = uniprot.get("pdb_ids") or []
+        if pdb_ids:
+            capture_bg(job_id, "rcsb", f"https://www.rcsb.org/structure/{pdb_ids[0]}", user_id)
+
+    domains = context.get("domains") or {}
+    dom_list = domains.get("domains") or []
+    if dom_list and dom_list[0].get("accession"):
+        acc = dom_list[0]["accession"]
+        if str(acc).startswith("IPR"):
+            capture_bg(job_id, "interpro", f"https://www.ebi.ac.uk/interpro/entry/InterPro/{acc}", user_id)
+
+    af = context.get("alphafold") or {}
+    if af.get("structure_available") and af.get("source") != "esmfold" and uniprot.get("accession"):
+        capture_bg(job_id, "alphafold", f"https://alphafold.ebi.ac.uk/uniprot/{uniprot['accession']}", user_id)
+
+    pathway = context.get("pathway_enrichment") or {}
+    pw_list = (pathway.get("pathways") if isinstance(pathway, dict) else None) or []
+    if pw_list and pw_list[0].get("stId"):
+        # run_enrichment queries the Reactome projection API exclusively
+        capture_bg(
+            job_id, "reactome",
+            f"https://reactome.org/PathwayBrowser/#{pw_list[0]['stId']}",
+            user_id,
+        )
 
 
 # ---------------------------------------------------------------------------
@@ -673,6 +762,7 @@ async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_seq
     # Resolve ANY BLAST-hit accession (RefSeq, GenBank, PDB, Ensembl, ...) to a
     # UniProt accession via the strategy ladder in identifier_resolution:
     #   direct -> xref search (fast) -> name search -> EBI sequence BLAST -> idmapping
+    # Exhausting all tiers returns an explicit unresolved/de_novo result (§1).
     try:
         resolved = await resolve_to_uniprot(
             accession=accession,
@@ -685,7 +775,7 @@ async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_seq
         logger.warning("Identifier resolution failed for %s: %s", accession, e)
         resolved = None
 
-    if not resolved:
+    if not resolved or resolved.get("status") != "resolved":
         logger.info("No UniProt mapping for %s, using BLAST data only", accession)
         return {
             "accession": accession,
@@ -700,7 +790,15 @@ async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_seq
             "sequence": "",
             "sequence_length": 0,
             "features": [],
-            "_note": f"UniProt mapping unavailable for {accession}",
+            "resolution": {
+                "uniprot_accession": None,
+                "method": "de_novo",
+                "original_accession": accession,
+            },
+            "resolved_uniprot": False,
+            # BLAST-derived similarity is homolog-grade certainty at best (§1.1)
+            "confidence": "homolog",
+            "_note": f"No UniProt mapping found for {accession} — showing BLAST-derived data only",
         }
 
     uniprot_acc = resolved["accession"]
@@ -732,6 +830,8 @@ async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_seq
             "method": method,
             "original_accession": accession,
         },
+        "resolved_uniprot": True,
+        "confidence": resolved.get("confidence", "identified"),
     }
 
 
@@ -832,6 +932,108 @@ async def _run_domains(accession: str) -> dict:
         return {"error": str(e), "uniprot_accession": accession, "sequence_length": 0, "domains": []}
 
 
+async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark, context: dict) -> None:
+    """Tier-6 branch (techspec.md §1): characterize from sequence alone.
+
+    Runs when BLAST finds no homolog at all. Composition/function hints land
+    in the uniprot slot (the annotation slot); MSA/phylo/pathways are marked
+    explicitly unavailable rather than left empty.
+    """
+    import asyncio as _asyncio
+    from app.services.de_novo import (
+        composition_stats, esmfold_structure, function_hints, interpro_sequence_search,
+    )
+
+    unavailable = "Unavailable for de novo sequences — no identified homolog"
+
+    async def _do_annotation():
+        bundle = {"_de_novo": True}
+        try:
+            bundle["composition"] = composition_stats(sequence)
+        except Exception as e:
+            bundle["composition"] = {"error": str(e)}
+        try:
+            bundle["function_hints"] = function_hints(sequence)
+        except Exception as e:
+            bundle["function_hints"] = {"error": str(e)}
+        return bundle
+
+    async def _do_domains():
+        try:
+            return await interpro_sequence_search(sequence)
+        except Exception as e:
+            logger.warning("De novo InterProScan failed: %s", e)
+            return {"error": str(e), "domains": [], "sequence_length": 0}
+
+    async def _do_structure():
+        try:
+            return await esmfold_structure(sequence)
+        except Exception as e:
+            logger.warning("De novo ESMFold failed: %s", e)
+            return {"structure_available": False, "source": "esmfold", "message": str(e)}
+
+    fan = []
+    names = []
+    if "uniprot" in steps:
+        fan.append(_do_annotation())
+        names.append("uniprot")
+    if "domains" in steps:
+        fan.append(_do_domains())
+        names.append("domains")
+    if "alphafold" in steps:
+        fan.append(_do_structure())
+        names.append("alphafold")
+
+    for name in names:
+        _mark(name, "running", progress=10)
+    results = await _asyncio.gather(*fan, return_exceptions=True)
+
+    for name, res in zip(names, results):
+        if isinstance(res, Exception):
+            _mark(name, "failed", error=str(res)[:500])
+            continue
+        ok = (
+            res.get("domains") is not None if name == "domains"
+            else res.get("structure_available") is True if name == "alphafold"
+            else True
+        )
+        _mark(name, "complete" if ok else "failed", progress=100,
+              data=res, error=None if ok else "Prediction returned nothing usable")
+        context[name] = res
+
+    # Annotation-database features have no de novo substitute — say so.
+    for name in ("msa", "phylo", "pathway_enrichment"):
+        if name in steps:
+            _mark(name, "failed", error=unavailable)
+
+
+async def _run_domains_or_denovo(sequence: str, accession: str | None, resolved_uniprot: bool) -> dict:
+    """Accession lookup when resolved; InterProScan sequence-search otherwise."""
+    if accession and resolved_uniprot:
+        return await _run_domains(accession)
+    from app.services.de_novo import interpro_sequence_search
+    try:
+        result = await interpro_sequence_search(sequence)
+        result["confidence"] = "de_novo"
+        return result
+    except Exception as e:
+        return {"error": str(e), "domains": [], "sequence_length": 0}
+
+
+async def _run_alphafold_or_esmfold(
+    context: dict, sequence: str, accession: str | None, resolved_uniprot: bool,
+) -> dict:
+    """AlphaFold DB lookup when resolved; ESMFold ab initio otherwise."""
+    if accession and resolved_uniprot:
+        result = await _run_alphafold(context)
+        return result or {}
+    from app.services.de_novo import esmfold_structure
+    try:
+        return await esmfold_structure(sequence)
+    except Exception as e:
+        return {"structure_available": False, "source": "esmfold", "message": str(e)}
+
+
 async def _run_pathway_enrichment(context: dict) -> dict | None:
     gene_names = []
     uniprot = context.get("uniprot", {})
@@ -878,5 +1080,6 @@ async def _run_interpret(context: dict) -> dict:
         "uniprot": context.get("uniprot", {}),
         "alphafold": context.get("alphafold", {}),
         "pathway_enrichment": context.get("pathway_enrichment", {}),
+        "query_confidence": context.get("query", {}).get("confidence", "identified"),
     }
     return await interpret_text("protein_analysis", prompt_context)

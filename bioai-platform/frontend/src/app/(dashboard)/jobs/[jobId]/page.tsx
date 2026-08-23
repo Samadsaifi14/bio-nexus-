@@ -10,6 +10,9 @@ import { AIInterpretation } from '@/components/results/AIInterpretation';
 import { BlastPanel } from '@/components/results/BlastPanel';
 import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
+import { DeNovoPanel } from '@/components/results/DeNovoPanel';
+import { ConfidenceBadge } from '@/components/results/ConfidenceBadge';
+import { FinalReport } from '@/components/results/FinalReport';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
 import { getJob, createShareLink } from '@/lib/api';
@@ -269,6 +272,8 @@ export default function JobPage() {
   }
 
   const hasHits = context.blast && context.blast.hits && context.blast.hits.length > 0;
+  const confidence = context.query?.confidence;
+  const isDeNovo = context.uniprot?._de_novo === true || confidence === 'de_novo';
 
   return (
     <motion.div variants={stagger} initial={{ y: 24 }} animate="show" className="space-y-6">
@@ -308,10 +313,11 @@ export default function JobPage() {
       </motion.div>
 
       <motion.div variants={fadeUp} whileHover={cardHover}>
+        {context.final_report && <FinalReport data={context.final_report} />}
         <AIInterpretation context={context} pipelineType={job.pipeline_type} />
       </motion.div>
 
-      {!hasHits ? (
+      {!hasHits && !isDeNovo ? (
         <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-10 text-center">
           <Search className="w-12 h-12 text-text-muted mx-auto mb-4" />
           <h3 className="text-lg font-semibold text-text-primary mb-2">No significant similarity found</h3>
@@ -334,22 +340,43 @@ export default function JobPage() {
         </motion.div>
       ) : (
         <>
-          <motion.div variants={fadeUp} whileHover={cardHover}>
-            <div className="grid lg:grid-cols-2 gap-6">
-              <BlastPanel
-                hits={context.blast.hits}
-                count={context.blast.count}
-                source={context.blast?.source ?? 'NCBI BLAST'}
-                querySequence={context.query?.sequence}
-                fullSequences={fullHitSequences}
-              />
-              {context.uniprot && <UniprotPanel data={context.uniprot} />}
-            </div>
-          </motion.div>
+          {(confidence || isDeNovo) && (
+            <motion.div variants={fadeUp} className="flex items-center gap-3 flex-wrap">
+              <ConfidenceBadge confidence={isDeNovo ? 'de_novo' : confidence} />
+              {isDeNovo && (
+                <span className="text-xs text-text-muted">
+                  No homolog found — annotations below are predictions computed from your sequence.
+                </span>
+              )}
+            </motion.div>
+          )}
 
-          <motion.div variants={fadeUp} whileHover={cardHover}>
-            <ScoreBars hits={context.blast.hits} />
-          </motion.div>
+          {!isDeNovo && (
+            <motion.div variants={fadeUp} whileHover={cardHover}>
+              <div className="grid lg:grid-cols-2 gap-6">
+                <BlastPanel
+                  hits={context.blast.hits}
+                  count={context.blast.count}
+                  source={context.blast?.source ?? 'NCBI BLAST'}
+                  querySequence={context.query?.sequence}
+                  fullSequences={fullHitSequences}
+                />
+                {context.uniprot && !context.uniprot._de_novo && <UniprotPanel data={context.uniprot} />}
+              </div>
+            </motion.div>
+          )}
+
+          {isDeNovo && context.uniprot?._de_novo && (
+            <motion.div variants={fadeUp} whileHover={cardHover}>
+              <DeNovoPanel data={context.uniprot} />
+            </motion.div>
+          )}
+
+          {!isDeNovo && hasHits && (
+            <motion.div variants={fadeUp} whileHover={cardHover}>
+              <ScoreBars hits={context.blast.hits} />
+            </motion.div>
+          )}
 
           {context.msa?.aln_fasta && (
             <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-4">
@@ -397,49 +424,67 @@ export default function JobPage() {
             <motion.div variants={fadeUp} whileHover={cardHover}>
               <AlphaFoldViewer
                 pdbUrl={context.alphafold.pdb_url}
-                uniprotId={context.alphafold.uniprot_accession}
+                pdbData={context.alphafold.pdb_text}
+                uniprotId={context.alphafold.uniprot_accession ?? undefined}
               />
               <div className="mt-2 flex items-center justify-end">
-                <button
-                  onClick={() => {
-                    const url = context.alphafold?.pdb_url;
-                    if (url) router.push(`/analyze/docking?pdb_url=${encodeURIComponent(url)}`);
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
-                >
-                  <FlaskConical className="w-3.5 h-3.5" />
-                  Dock with this structure
-                </button>
+                {context.alphafold.pdb_url ? (
+                  <button
+                    onClick={() => {
+                      const url = context.alphafold?.pdb_url;
+                      if (url) router.push(`/analyze/docking?pdb_url=${encodeURIComponent(url)}`);
+                    }}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
+                  >
+                    <FlaskConical className="w-3.5 h-3.5" />
+                    Dock with this structure
+                  </button>
+                ) : (
+                  isDeNovo && (
+                    <span className="text-xs text-text-muted">
+                      Predicted structure (ESMFold) — docking requires an experimentally determined receptor.
+                    </span>
+                  )
+                )}
               </div>
             </motion.div>
           )}
 
-          {context.pathway_enrichment && (
+          {context.pathway_enrichment ? (
             <motion.div variants={fadeUp} whileHover={cardHover}>
               <PathwayEnrichment data={context.pathway_enrichment} />
             </motion.div>
-          )}
+          ) : isDeNovo ? (
+            <motion.div variants={fadeUp} className="data-card p-5 border border-dashed border-glass-border">
+              <h3 className="text-sm font-semibold text-text-primary">Pathway enrichment</h3>
+              <p className="text-xs text-text-muted mt-1">
+                Unavailable for de novo sequences — pathway databases require an identified organism or gene.
+              </p>
+            </motion.div>
+          ) : null}
 
           <div className="flex items-center gap-3 pt-2 flex-wrap">
-            <button
-              onClick={() => {
-                const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
-                  .concat((context.blast?.hits || []).map((h: import('@/types/pipeline').BlastHitSummary) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
-                  .join('\n');
-                const blob = new Blob([csv], { type: 'text/csv' });
-                const url = URL.createObjectURL(blob);
-                const a = document.createElement('a');
-                a.href = url;
-                a.download = `blast-results-${jobId.slice(0, 8)}.csv`;
-                a.click();
-                URL.revokeObjectURL(url);
-                toast.success('Downloaded as CSV');
-              }}
-              className="btn-critical text-sm flex items-center gap-2"
-            >
-              <Download className="w-4 h-4" />
-              Download CSV
-            </button>
+            {!isDeNovo && (
+              <button
+                onClick={() => {
+                  const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
+                    .concat((context.blast?.hits || []).map((h: import('@/types/pipeline').BlastHitSummary) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
+                    .join('\n');
+                  const blob = new Blob([csv], { type: 'text/csv' });
+                  const url = URL.createObjectURL(blob);
+                  const a = document.createElement('a');
+                  a.href = url;
+                  a.download = `blast-results-${jobId.slice(0, 8)}.csv`;
+                  a.click();
+                  URL.revokeObjectURL(url);
+                  toast.success('Downloaded as CSV');
+                }}
+                className="btn-critical text-sm flex items-center gap-2"
+              >
+                <Download className="w-4 h-4" />
+                Download CSV
+              </button>
+            )}
             {(() => {
               const uniprotAcc = context.uniprot?.accession;
               const geneName = context.uniprot?.gene_names?.[0] ?? null;

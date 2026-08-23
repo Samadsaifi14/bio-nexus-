@@ -1,4 +1,5 @@
-FROM python:3.11-slim
+# bookworm pin = gcc 12; trixie's gcc 14 turns fpocket's legacy C warnings into hard errors
+FROM python:3.11-slim-bookworm
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates \

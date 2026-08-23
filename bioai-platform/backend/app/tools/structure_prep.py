@@ -359,3 +359,37 @@ async def fetch_pdb_text(pdb_id: str) -> str:
         )
         resp.raise_for_status()
         return resp.text
+
+
+async def esmfold_predict(sequence: str) -> str | None:
+    """Predict structure from amino acid sequence using ESMFold via HF Inference API."""
+    import os
+    import asyncio
+
+    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+    headers = {}
+    if hf_token:
+        headers["Authorization"] = f"Bearer {hf_token}"
+
+    async with httpx.AsyncClient(timeout=300) as client:
+        resp = await client.post(
+            "https://api-inference.huggingface.co/models/facebook/esmfold_v1",
+            json={"inputs": sequence},
+            headers=headers,
+        )
+        if resp.status_code == 503:
+            data = resp.json()
+            wait_time = min(data.get("estimated_time", 30), 120)
+            await asyncio.sleep(wait_time)
+            resp = await client.post(
+                "https://api-inference.huggingface.co/models/facebook/esmfold_v1",
+                json={"inputs": sequence},
+                headers=headers,
+            )
+        resp.raise_for_status()
+        data = resp.json()
+
+    pdb_text = data.get("pdb", "") if isinstance(data, dict) else ""
+    if pdb_text and len(pdb_text) > 50:
+        return pdb_text
+    return None

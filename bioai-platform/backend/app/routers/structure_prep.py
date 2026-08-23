@@ -94,6 +94,7 @@ async def _run_pipeline(job_id: str, body: PipelineRequest):
         detect_chain_health, pymol_cleanup, run_fpocket,
         castp_submit, castp_poll, fetch_pdb_text,
         swissmodel_fetch_structures, swissmodel_fetch_pdb,
+        esmfold_predict,
     )
 
     try:
@@ -105,22 +106,29 @@ async def _run_pipeline(job_id: str, body: PipelineRequest):
             pdb_text = await fetch_pdb_text(body.pdb_id)
         elif body.uniprot_accession:
             smr = await swissmodel_fetch_structures(body.uniprot_accession)
-            # Try experimental first, then homology models
             for s in smr.get("experimental", []) + smr.get("models", []):
                 if s.get("coordinates_url"):
                     pdb_text = await swissmodel_fetch_pdb(s["template"])
                     if pdb_text:
                         break
             if not pdb_text:
-                # Fall back to RCSB using first experimental template
                 if smr.get("experimental"):
                     template = smr["experimental"][0].get("template", "")
                     if template:
                         pdb_text = await fetch_pdb_text(template)
         elif body.sequence:
-            # For raw sequences, generate a minimal PDB placeholder
-            # The real use case is: user provides sequence → SWISS-MODEL builds model
-            pdb_text = _make_sequence_pdb(body.sequence)
+            seq = body.sequence.strip().upper().replace("\n", "").replace(" ", "").replace("-", "")
+            if len(seq) >= 10 and len(seq) <= 768:
+                _jobs[job_id]["step"] = "predicting_structure"
+                pdb_text = await esmfold_predict(seq)
+                if not pdb_text:
+                    _jobs[job_id]["status"] = "failed"
+                    _jobs[job_id]["error"] = "ESMFold could not predict a structure for this sequence"
+                    return
+            else:
+                _jobs[job_id]["status"] = "failed"
+                _jobs[job_id]["error"] = f"Sequence must be 10–768 residues (got {len(seq)})"
+                return
 
         if not pdb_text:
             _jobs[job_id]["status"] = "failed"
@@ -202,15 +210,3 @@ async def _run_pipeline(job_id: str, body: PipelineRequest):
         logger.exception("Pipeline failed for job %s", job_id)
         _jobs[job_id]["status"] = "failed"
         _jobs[job_id]["error"] = str(e)
-
-
-def _make_sequence_pdb(sequence: str) -> str:
-    """Generate a minimal PDB with CA atoms for a raw sequence (for visualization)."""
-    lines = ["HEADER    SEQUENCE MODEL"]
-    for i, aa in enumerate(sequence, 1):
-        lines.append(
-            f"ATOM  {i:5d}  CA  {aa.upper():3s} A{i:4d}    "
-            f"  {0.0:8.3f}{0.0:8.3f}{0.0:8.3f}  1.00  0.00           C"
-        )
-    lines.append("END")
-    return "\n".join(lines)

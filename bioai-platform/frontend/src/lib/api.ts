@@ -1079,10 +1079,16 @@ export interface CastpResult {
   probe_radius: number;
   total_residues: number;
   pockets: PocketInfo[];
+  sequence_source?: string;
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {
   const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
+  return res.data;
+}
+
+export async function runCastpSequence(sequence: string, probeRadius = 1.4): Promise<CastpResult> {
+  const res = await longApi.post('/api/castp/analyze', { sequence, probe_radius: probeRadius });
   return res.data;
 }
 
@@ -1176,6 +1182,11 @@ export interface StructurePrepResult {
 
 export async function runStructurePrep(pdbId: string, probeRadius = 1.4): Promise<StructurePrepJob> {
   const res = await longApi.post('/api/structure-prep/run', { pdb_id: pdbId, probe_radius: probeRadius });
+  return res.data;
+}
+
+export async function runStructurePrepSequence(sequence: string, probeRadius = 1.4): Promise<StructurePrepJob> {
+  const res = await longApi.post('/api/structure-prep/run', { sequence, probe_radius: probeRadius });
   return res.data;
 }
 

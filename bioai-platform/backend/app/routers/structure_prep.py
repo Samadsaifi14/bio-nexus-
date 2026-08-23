@@ -11,6 +11,7 @@ import asyncio
 import logging
 import re
 import uuid
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -25,6 +26,13 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/structure-prep", tags=["structure-prep"])
 
 _TABLE = "structure_prep_jobs"
+
+# Strong refs so in-flight pipeline tasks are never garbage-collected mid-run.
+_TASKS: set[asyncio.Task] = set()
+
+# A running job with no update for this long is dead (restart killed the task,
+# or a step hung) — the status endpoint fails it instead of spinning forever.
+_STALE_AFTER = timedelta(minutes=20)
 
 # Protein alphabet incl. ambiguity codes; validated before any network call (A4).
 _AA_RE = re.compile(r"^[ACDEFGHIKLMNPQRSTVWYBXZUJ]+$")
@@ -123,7 +131,9 @@ async def run_pipeline(body: PipelineRequest, user_id: str = Depends(require_use
         },
     }).execute()
 
-    asyncio.create_task(_run_pipeline(job_id, body))
+    task = asyncio.create_task(_run_pipeline(job_id, body))
+    _TASKS.add(task)
+    task.add_done_callback(_TASKS.discard)
     return {"job_id": job_id, "status": "running"}
 
 
@@ -140,7 +150,31 @@ async def get_status(job_id: str, user_id: str = Depends(require_user_id)):
     )
     if not res.data:
         raise HTTPException(status_code=404, detail="Job not found")
-    return _row_to_response(job_id, res.data)
+    row = res.data
+
+    # Watchdog: a "running" row that hasn't been touched in a while means its
+    # task died (restart/hang). Fail it so clients stop polling an eternal
+    # spinner. updated_at is written on every step change by _update_job.
+    if row.get("status") == "running":
+        ts = _parse_ts(row.get("updated_at")) or _parse_ts(row.get("created_at"))
+        if ts and datetime.now(timezone.utc) - ts > _STALE_AFTER:
+            message = "Job stalled or was interrupted by a server restart — please re-run"
+            try:
+                _update_job(get_supabase(), job_id, status="failed", error=message)
+            except Exception:
+                logger.exception("Could not persist stale-fail for job %s", job_id)
+            row = {**row, "status": "failed", "error": message}
+
+    return _row_to_response(job_id, row)
+
+
+def _parse_ts(value) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except ValueError:
+        return None
 
 
 def _row_to_response(job_id: str, row: dict) -> PipelineStatusResponse:
@@ -174,8 +208,11 @@ def _chain_health_dict(health) -> dict:
     }
 
 
-async def _update_job(supabase, job_id: str, **fields) -> None:
-    fields["updated_at"] = "now()"
+def _update_job(supabase, job_id: str, **fields) -> None:
+    # MUST stay a plain sync function: every call site relies on the update
+    # executing immediately. (It was once `async def` called without `await`,
+    # so no write ever ran and jobs sat in "running" forever.)
+    fields["updated_at"] = datetime.now(timezone.utc).isoformat()
     supabase.table(_TABLE).update(fields).eq("id", job_id).execute()
 
 
@@ -192,7 +229,7 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         detect_chain_health, pymol_cleanup, run_fpocket,
         castp_submit, castp_poll, fetch_pdb_text,
         swissmodel_fetch_structures, swissmodel_fetch_pdb,
-        esmfold_predict,
+        esmfold_predict, _biopython_cleanup, FpocketResult,
     )
 
     supabase = get_supabase()
@@ -231,7 +268,7 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
 
         # ── Step 2: Detect broken chains ──────────────────────────────
         _update_job(supabase, job_id, step="analyzing")
-        health = detect_chain_health(pdb_text)
+        health = await asyncio.to_thread(detect_chain_health, pdb_text)
         result_fields["chain_health"] = _chain_health_dict(health)
         _update_job(supabase, job_id, result=result_fields)
 
@@ -253,7 +290,7 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                             if repaired and len(repaired) > len(pdb_text) * 0.5:
                                 pdb_text = repaired
                                 # Re-check after repair
-                                health = detect_chain_health(pdb_text)
+                                health = await asyncio.to_thread(detect_chain_health, pdb_text)
                                 result_fields["chain_health"] = _chain_health_dict(health)
                                 _update_job(supabase, job_id, result=result_fields)
                                 if not health.is_broken:
@@ -264,12 +301,27 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                     logger.warning("SWISS-MODEL repair failed: %s", e)
 
         # ── Step 4: Cleanup ───────────────────────────────────────────
+        # pymol2 has no internal timeout; bound it and fall back to
+        # Biopython stripping rather than hanging the whole job.
         _update_job(supabase, job_id, step="cleaning")
-        cleaned = pymol_cleanup(pdb_text)
+        try:
+            cleaned = await asyncio.wait_for(
+                asyncio.to_thread(pymol_cleanup, pdb_text), timeout=120
+            )
+        except asyncio.TimeoutError:
+            logger.warning("pymol cleanup timed out for job %s; using Biopython fallback", job_id)
+            cleaned = await asyncio.to_thread(_biopython_cleanup, pdb_text)
 
         # ── Step 5: fpocket (local binary) ────────────────────────────
+        # Offloaded to a thread: subprocess.run would otherwise block the
+        # event loop for up to 60s and freeze every concurrent request.
         _update_job(supabase, job_id, step="running_fpocket", fpocket_status="running")
-        fpocket_result = run_fpocket(cleaned, body.probe_radius)
+        try:
+            fpocket_result = await asyncio.wait_for(
+                asyncio.to_thread(run_fpocket, cleaned, body.probe_radius), timeout=90
+            )
+        except asyncio.TimeoutError:
+            fpocket_result = FpocketResult(raw_output="fpocket timed out", status="error")
         result_fields["fpocket_pockets"] = fpocket_result.pockets
         _update_job(
             supabase, job_id,

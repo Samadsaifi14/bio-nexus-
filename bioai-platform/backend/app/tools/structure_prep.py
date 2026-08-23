@@ -25,7 +25,9 @@ logger = logging.getLogger(__name__)
 FPOCKET_BIN = shutil.which("fpocket") or "/usr/local/bin/fpocket"
 CASTPFOLD_BASE = "https://cfold.bme.uic.edu/castpfold"
 SMR_REPO = "https://swissmodel.expasy.org/repository"
-ESMFOLD_API = "https://api-inference.huggingface.co/models/facebook/esmfold_v1"
+# ESMFold via the public ESMAtlas fold service (HF's api-inference host was
+# decommissioned — DNS removed — so requests to it fail with errno -5).
+ESMFOLD_API = "https://api.esmatlas.com/foldSequence/v1/pdb/"
 RCSB_DOWNLOAD = "https://files.rcsb.org/download"
 
 # Input format validation (A4) — reject before any network call.
@@ -403,35 +405,35 @@ async def fetch_pdb_text(pdb_id: str) -> str:
 
 
 async def esmfold_predict(sequence: str) -> str | None:
-    """Predict structure from amino acid sequence using ESMFold via HF Inference API."""
-    import asyncio
-    import os
+    """Predict structure from amino acid sequence using ESMFold (public fold service).
 
+    The service takes a plain-text sequence and returns raw PDB text with
+    pLDDT scores in the B-factor column. Returns None on failure.
+    """
     validate_url(ESMFOLD_API)
-    hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-    headers = {}
-    if hf_token:
-        headers["Authorization"] = f"Bearer {hf_token}"
-
+    last_exc: Exception | None = None
     async with httpx.AsyncClient(timeout=300) as client:
-        resp = await client.post(
-            ESMFOLD_API,
-            json={"inputs": sequence},
-            headers=headers,
-        )
-        if resp.status_code == 503:
-            data = resp.json()
-            wait_time = min(data.get("estimated_time", 30), 120)
-            await asyncio.sleep(wait_time)
-            resp = await client.post(
-                ESMFOLD_API,
-                json={"inputs": sequence},
-                headers=headers,
-            )
-        resp.raise_for_status()
-        data = resp.json()
-
-    pdb_text = data.get("pdb", "") if isinstance(data, dict) else ""
-    if pdb_text and len(pdb_text) > 50:
-        return pdb_text
+        for attempt in range(2):
+            try:
+                resp = await client.post(
+                    ESMFOLD_API,
+                    content=sequence,
+                    headers={"Content-Type": "text/plain"},
+                )
+                if resp.status_code in (429, 502, 503, 504):
+                    raise httpx.HTTPStatusError(
+                        f"ESMFold service busy ({resp.status_code})",
+                        request=resp.request, response=resp,
+                    )
+                resp.raise_for_status()
+                pdb_text = resp.text
+                if pdb_text.startswith("HEADER") and len(pdb_text) > 50:
+                    return pdb_text
+                logger.warning("ESMFold response is not PDB text (len=%s): %.120r", len(pdb_text), pdb_text)
+                return None
+            except httpx.HTTPError as e:
+                last_exc = e
+                if attempt == 0:
+                    await asyncio.sleep(15)
+        logger.warning("ESMFold prediction failed after retry: %s", last_exc)
     return None

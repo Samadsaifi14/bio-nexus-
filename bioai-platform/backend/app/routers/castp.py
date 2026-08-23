@@ -61,33 +61,10 @@ async def analyze_castp(body: CastpRequest):
         if len(seq) > 768:
             raise HTTPException(status_code=400, detail="Sequence too long (max 768 residues for ESMFold)")
         try:
-            import httpx as _httpx
-            import os
-            hf_token = os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
-            headers = {}
-            if hf_token:
-                headers["Authorization"] = f"Bearer {hf_token}"
+            from app.tools.structure_prep import esmfold_predict
 
-            async with _httpx.AsyncClient(timeout=300) as client:
-                resp = await client.post(
-                    "https://api-inference.huggingface.co/models/facebook/esmfold_v1",
-                    json={"inputs": seq},
-                    headers=headers,
-                )
-                if resp.status_code == 503:
-                    import asyncio
-                    data = resp.json()
-                    await asyncio.sleep(min(data.get("estimated_time", 30), 120))
-                    resp = await client.post(
-                        "https://api-inference.huggingface.co/models/facebook/esmfold_v1",
-                        json={"inputs": seq},
-                        headers=headers,
-                    )
-                resp.raise_for_status()
-                data = resp.json()
-
-            pdb_text = data.get("pdb", "") if isinstance(data, dict) else ""
-            if not pdb_text or len(pdb_text) < 50:
+            pdb_text = await esmfold_predict(seq)
+            if not pdb_text:
                 raise HTTPException(status_code=400, detail="ESMFold could not predict a valid structure for this sequence")
 
             result = await analyze_pockets_pdb_text(pdb_text, "predicted", probe)

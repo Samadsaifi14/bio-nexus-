@@ -102,7 +102,8 @@ class TestSsrfRouting:
     def test_allowlist_contains_pipeline_hosts(self):
         from app.services.ssrf import ALLOWED_HOSTS
         for host in ("swissmodel.expasy.org", "cfold.bme.uic.edu",
-                     "files.rcsb.org", "api-inference.huggingface.co"):
+                     "files.rcsb.org", "api-inference.huggingface.co",
+                     "api.esmatlas.com"):
             assert host in ALLOWED_HOSTS
 
 

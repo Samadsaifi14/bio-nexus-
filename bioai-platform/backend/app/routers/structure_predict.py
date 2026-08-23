@@ -1,23 +1,19 @@
-"""Structure prediction endpoints — ESMFold via Hugging Face Inference API."""
+"""Structure prediction endpoints — ESMFold via the public fold service."""
 
 import asyncio
 import logging
-import re
 import uuid
-from typing import Any
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
-import httpx
+
+from app.tools.structure_prep import esmfold_predict
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/structure-predict", tags=["structure-predict"])
 
 _jobs: dict[str, dict] = {}
-
-ESMFOLD_MODEL = "facebook/esmfold_v1"
-HF_API_URL = f"https://api-inference.huggingface.co/models/{ESMFOLD_MODEL}"
 
 VALID_AA = set("ACDEFGHIKLMNPQRSTVWYX")
 
@@ -69,49 +65,17 @@ async def submit_prediction(body: PredictRequest):
 
 async def _run_esmfold(job_id: str, sequence: str):
     try:
-        async with httpx.AsyncClient(timeout=300) as client:
-            hf_token = _get_hf_token()
-            headers = {}
-            if hf_token:
-                headers["Authorization"] = f"Bearer {hf_token}"
+        pdb_text = await esmfold_predict(sequence)
+        if not pdb_text:
+            _jobs[job_id]["status"] = "failed"
+            _jobs[job_id]["error"] = "ESMFold service could not fold this sequence — try again shortly"
+            return
 
-            resp = await client.post(
-                HF_API_URL,
-                json={"inputs": sequence},
-                headers=headers,
-            )
-
-            if resp.status_code == 503:
-                data = resp.json()
-                wait_time = data.get("estimated_time", 30)
-                await asyncio.sleep(min(wait_time, 120))
-                resp = await client.post(
-                    HF_API_URL,
-                    json={"inputs": sequence},
-                    headers=headers,
-                )
-
-            resp.raise_for_status()
-            data = resp.json()
-
-            if isinstance(data, dict) and "error" in data:
-                _jobs[job_id]["status"] = "failed"
-                _jobs[job_id]["error"] = data["error"]
-                return
-
-            pdb_text = data.get("pdb", "") if isinstance(data, dict) else str(data)
-            mean_plddt = data.get("mean_plddt") if isinstance(data, dict) else None
-            ptm = data.get("ptm") if isinstance(data, dict) else None
-
-            if not pdb_text or len(pdb_text) < 50:
-                _jobs[job_id]["status"] = "failed"
-                _jobs[job_id]["error"] = "ESMFold returned empty or invalid PDB"
-                return
-
-            _jobs[job_id]["status"] = "complete"
-            _jobs[job_id]["pdb"] = pdb_text
-            _jobs[job_id]["mean_plddt"] = mean_plddt
-            _jobs[job_id]["ptm"] = ptm
+        # pLDDT lives in the B-factor column of ESMFold PDB output.
+        _jobs[job_id]["status"] = "complete"
+        _jobs[job_id]["pdb"] = pdb_text
+        _jobs[job_id]["mean_plddt"] = _mean_plddt_from_pdb(pdb_text)
+        _jobs[job_id]["ptm"] = None
 
     except Exception as e:
         logger.exception("ESMFold prediction failed for job %s", job_id)
@@ -119,9 +83,18 @@ async def _run_esmfold(job_id: str, sequence: str):
         _jobs[job_id]["error"] = str(e)
 
 
-def _get_hf_token() -> str | None:
-    import os
-    return os.environ.get("HF_TOKEN") or os.environ.get("HUGGING_FACE_HUB_TOKEN")
+def _mean_plddt_from_pdb(pdb_text: str) -> float | None:
+    """Mean pLDDT across ATOM records (B-factor column, cols 61-66)."""
+    values: list[float] = []
+    for line in pdb_text.splitlines():
+        if line.startswith("ATOM"):
+            try:
+                values.append(float(line[60:66]))
+            except ValueError:
+                continue
+    if not values:
+        return None
+    return round(sum(values) / len(values), 2)
 
 
 @router.get("/status/{job_id}", response_model=PredictStatusResponse)

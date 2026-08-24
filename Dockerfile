@@ -40,5 +40,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-py skipped (optional)"
 COPY bioai-platform/backend/ .
 
+# Run as non-root (uid 1000). Runtime writes go to /tmp and $HOME.
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 7860
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

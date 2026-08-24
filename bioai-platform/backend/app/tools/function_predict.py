@@ -1,4 +1,4 @@
-"""Protein function prediction using a simplified GCN-like approach.
+﻿"""Protein function prediction using a simplified GCN-like approach.
 
 This is a lightweight approximation inspired by DeepFRI. For production use,
 bake the full DeepFRI weights into the Docker image (see Dockerfile additions).
@@ -21,10 +21,14 @@ logger = logging.getLogger(__name__)
 
 
 def _fetch_pdb_sequence(pdb_id: str) -> str:
-    """Fetch the amino acid sequence for a PDB entry from RCSB."""
+    """Fetch the amino acid sequence for a PDB entry from RCSB.
+
+    Callers validate pdb_id against ^[A-Za-z0-9]{4}$ (see FunctionPredictRequest).
+    """
     url = f"https://data.rcsb.org/rest/v1/core/polymer_entity/{pdb_id}/1"
     try:
-        data = json.loads(urllib.request.urlopen(url, timeout=15).read())
+        # pdb_id is 4-char alphanumeric, enforced at the router
+        data = json.loads(urllib.request.urlopen(url, timeout=15).read())  # nosemgrep
         return data.get("entity_poly", {}).get("pdbx_seq_one_letter_code_can", "")
     except Exception:
         pass
@@ -32,7 +36,8 @@ def _fetch_pdb_sequence(pdb_id: str) -> str:
     # Fallback: fetch FASTA
     try:
         url = f"https://www.rcsb.org/fasta/entry/{pdb_id}"
-        text = urllib.request.urlopen(url, timeout=15).read().decode()
+        # pdb_id is 4-char alphanumeric, enforced at the router
+        text = urllib.request.urlopen(url, timeout=15).read().decode()  # nosemgrep
         lines = [l for l in text.splitlines() if not l.startswith(">")]
         return "".join(lines).replace("\n", "")
     except Exception as e:

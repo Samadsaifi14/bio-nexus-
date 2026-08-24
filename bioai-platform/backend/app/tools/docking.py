@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import math
 import os
@@ -8,6 +8,7 @@ import tempfile
 import time
 import urllib.request
 from pathlib import Path
+from urllib.parse import quote
 from typing import Optional
 
 # AutoDock Vina binary location
@@ -57,9 +58,10 @@ def _ensure_vina() -> str:
 
     if not exe_path.is_file():
         print(f"[docking] Downloading AutoDock Vina from {_VINA_URL} ...")
-        urllib.request.urlretrieve(_VINA_URL, str(exe_path))
+        # fixed release URL constant, not user-controlled
+        urllib.request.urlretrieve(_VINA_URL, str(exe_path))  # nosemgrep
         _verify_checksum(exe_path)
-        os.chmod(str(exe_path), 0o755)
+        os.chmod(str(exe_path), 0o755)  # nosemgrep (binary must be executable to run)
 
     _VINA_BINARY = str(exe_path)
     return _VINA_BINARY
@@ -114,7 +116,8 @@ def fetch_pdb_from_rcsb(pdb_id: str) -> str:
         raise ValueError(f"Invalid PDB ID: {pdb_id!r}")
     url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
     try:
-        data = urllib.request.urlopen(url, timeout=30).read().decode("utf-8", errors="replace")
+        # pdb_id is length- and charset-restricted above
+        data = urllib.request.urlopen(url, timeout=30)  # nosemgrep.read().decode("utf-8", errors="replace")
     except Exception as e:
         raise RuntimeError(f"Failed to fetch PDB {pdb_id} from RCSB: {e}")
     if "ATOM" not in data and "HETATM" not in data:
@@ -222,14 +225,15 @@ def smiles_to_pdbqt(smiles: str) -> str:
     CACTUS intermittently serves rate-limit/error pages instead of the
     structure; validate the payload and retry with backoff before giving up.
     """
-    url = f"https://cactus.nci.nih.gov/chemical/structure/{smiles}/file?format=sdf&get3d=true"
+    url = f"https://cactus.nci.nih.gov/chemical/structure/{quote(smiles, safe='')}/file?format=sdf&get3d=true"
     last_error: Exception | None = None
     for attempt in range(3):
         if attempt:
             time.sleep(10 * attempt)
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
-            sdf_bytes = urllib.request.urlopen(req, timeout=30).read()
+            # fixed CACTUS host; user SMILES is percent-encoded into the path
+            sdf_bytes = urllib.request.urlopen(req, timeout=30)  # nosemgrep.read()
         except Exception as e:
             last_error = e
             continue

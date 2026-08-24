@@ -1,4 +1,4 @@
-from __future__ import annotations
+﻿from __future__ import annotations
 
 import json
 import math
@@ -152,7 +152,8 @@ def _run_docking_sync(job_id: str, payload: dict):
         if pdb_url:
             validate_url(pdb_url)  # SSRF guard even in worker
             try:
-                pdb_text = urllib.request.urlopen(pdb_url, timeout=30).read().decode("utf-8", errors="replace")
+                # URL passed the SSRF allowlist (validate_url) above
+                pdb_text = urllib.request.urlopen(pdb_url, timeout=30)  # nosemgrep.read().decode("utf-8", errors="replace")
             except Exception:
                 pass
         if not pdb_text and pdb_id:

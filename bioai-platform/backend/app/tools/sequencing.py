@@ -1,4 +1,4 @@
-import asyncio
+﻿import asyncio
 import logging
 import os
 import platform
@@ -68,7 +68,7 @@ async def _ensure_minimap2() -> str:
                         with open(dest, "wb") as out:
                             out.write(f.read())
                     break
-    os.chmod(dest, 0o755)
+    os.chmod(dest, 0o755)  # nosemgrep (alignment binary must be executable to run)
     return dest
 
 

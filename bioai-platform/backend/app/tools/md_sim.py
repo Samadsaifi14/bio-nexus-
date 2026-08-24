@@ -321,11 +321,12 @@ def run_simulation(
     from app.tools.md_config import resolve_combo
     resolve_combo(forcefield, solvent)
 
-    # Fetch PDB from RCSB
+    # Fetch PDB from RCSB (pdb_id matches ^[A-Za-z0-9]{4}$, MDRunRequest pattern)
     pdb_url = f"https://files.rcsb.org/view/{pdb_id}.pdb"
     logger.info("Fetching PDB %s from %s", pdb_id, pdb_url)
     try:
-        pdb_text = urllib.request.urlopen(pdb_url, timeout=30).read().decode("utf-8", errors="replace")
+        # fixed host, pdb_id charset-restricted
+        pdb_text = urllib.request.urlopen(pdb_url, timeout=30).read().decode("utf-8", errors="replace")  # nosemgrep
     except Exception as e:
         raise RuntimeError(f"Failed to fetch PDB {pdb_id} from RCSB: {e}")
 

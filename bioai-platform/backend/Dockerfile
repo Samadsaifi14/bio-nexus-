@@ -40,5 +40,10 @@ RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-
 
 COPY . .
 
+# Run as non-root (HF Spaces convention: uid 1000). Runtime writes go to
+# /tmp (tool downloads) and $HOME (caches), both writable for this user.
+RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
+USER appuser
+
 EXPOSE 7860
 CMD ["sh", "-c", "python -c 'import openmm; print(\"OpenMM\", openmm.__version__)' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

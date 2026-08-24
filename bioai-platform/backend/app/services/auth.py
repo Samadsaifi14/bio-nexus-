@@ -1,7 +1,7 @@
-import base64
 import hashlib
-import json
 import logging
+import os
+import time
 
 from fastapi import Depends, HTTPException, Request
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
@@ -10,27 +10,107 @@ logger = logging.getLogger(__name__)
 
 security = HTTPBearer(auto_error=False)
 
+# ---------------------------------------------------------------------------
+# JWT verification
+#
+# Access tokens are *verified*, not merely decoded. The previous behaviour
+# base64-decoded the payload and trusted whatever "sub" claim it found, so
+# anyone could mint `header.payload.x` and impersonate any user id.
+#
+# Two verification paths, both failing closed:
+# - SUPABASE_JWT_SECRET is set  -> local HS256 signature + exp check (PyJWT)
+# - otherwise                   -> authoritative check against Supabase Auth
+#                                    (GET /auth/v1/user), TTL-cached per token
+# ---------------------------------------------------------------------------
+
+_VERIFIED_TTL = 300  # seconds a network-verified token may be reused
+_verified_cache: dict[str, tuple[str, float]] = {}  # sha256(token) -> (sub, expiry)
+
+
+def _jwt_secret() -> str:
+    return os.getenv("SUPABASE_JWT_SECRET", "")
+
+
+def _verify_locally(token: str) -> str | None:
+    """Verify HS256 signature and expiry against the Supabase JWT secret."""
+    import jwt as pyjwt
+
+    try:
+        claims = pyjwt.decode(
+            token,
+            _jwt_secret(),
+            algorithms=["HS256"],
+            options={"require": ["exp", "sub"]},
+        )
+        return str(claims["sub"])
+    except Exception:
+        logger.debug("Local JWT verification failed", exc_info=True)
+        return None
+
+
+async def _verify_via_supabase(token: str) -> str | None:
+    """Confirm the token is a live session via Supabase Auth (/auth/v1/user).
+
+    Used when SUPABASE_JWT_SECRET is not configured. Network errors fail
+    closed: an unverifiable token grants nothing.
+    """
+    import httpx
+
+    from app.config import settings
+
+    cache_key = hashlib.sha256(token.encode()).hexdigest()
+    now = time.monotonic()
+    cached = _verified_cache.get(cache_key)
+    if cached and cached[1] > now:
+        return cached[0]
+
+    url = settings.SUPABASE_URL.rstrip("/") + "/auth/v1/user"
+    try:
+        async with httpx.AsyncClient(timeout=5.0) as client:
+            resp = await client.get(
+                url,
+                headers={
+                    "Authorization": f"Bearer {token}",
+                    "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
+                },
+            )
+    except Exception:
+        logger.warning(
+            "Supabase auth verification unreachable; failing closed", exc_info=True
+        )
+        return None
+
+    if resp.status_code != 200:
+        return None
+    try:
+        sub = str(resp.json()["id"])
+    except Exception:
+        logger.debug("Malformed /auth/v1/user response", exc_info=True)
+        return None
+
+    if len(_verified_cache) > 10_000:
+        _verified_cache.clear()
+    _verified_cache[cache_key] = (sub, now + _VERIFIED_TTL)
+    return sub
+
+
+def _looks_like_jwt(token: str) -> bool:
+    return token.count(".") == 2 and all(token.split("."))
+
 
 async def get_user_id(
     credentials: HTTPAuthorizationCredentials | None = Depends(security),
 ) -> str | None:
-    """Extract Supabase user_id from the Bearer JWT, or None for anonymous users."""
+    """Extract the authenticated user_id from a Bearer JWT, else None."""
     if credentials is None:
         return None
-    try:
-        parts = credentials.credentials.split(".")
-        if len(parts) != 3:
-            return None
-        payload = parts[1]
-        padding = 4 - len(payload) % 4
-        if padding != 4:
-            payload += "=" * padding
-        decoded = base64.urlsafe_b64decode(payload)
-        claims = json.loads(decoded)
-        return claims.get("sub")
-    except Exception:
-        logger.debug("Failed to decode JWT", exc_info=True)
+    token = credentials.credentials
+    if not _looks_like_jwt(token):
         return None
+
+    if _jwt_secret():
+        return _verify_locally(token)
+    return await _verify_via_supabase(token)
 
 
 async def require_user_id(

@@ -21,11 +21,16 @@ formal certification.
 | SMILES strings are percent-encoded before being sent to PubChem CACTUS; responses are validated as real SDF payloads before shell-out conversion. | `app/tools/docking.py::smiles_to_pdbqt` | V5 (Validation) |
 | Containers run as a non-root uid-1000 user; the HF Space image installs fpocket/Vina from pinned versions. | `Dockerfile`, `backend/Dockerfile` | V14 (Configuration) |
 | Daily job quotas are enforced per user at the application layer for pipelines, docking, and sequencing; guests share a pooled quota until they sign in. | `app/services/rate_limit.py`, wired into pipeline/sequencing/AI routers | V4 (Access Control) |
+| Dependency vulnerabilities are audited in CI: pip-audit for Python, npm audit (production deps) for the frontend. Dependabot opens weekly update PRs for pip, npm, and GitHub Actions. | `.github/workflows/security.yml`, `.github/dependabot.yml` | V14.2 |
 | Semgrep (`p/default`) gates every PR on high-confidence findings; CodeQL (`security-extended`) scans Python and TypeScript weekly. Both run in CI with action SHAs pinned. | `.github/workflows/security.yml` | V1 (Secure SDLC) |
 | Secrets live in environment variables / CI secrets. `.env*` files are gitignored and absent from history. Example files contain placeholders only. | repo hygiene | V6 (Crypto), V14 |
 
 ## Known limitations
 
+- Next.js 14 bundles a PostCSS version with published high-severity advisories
+  (all build-time, around source-map handling of attacker-supplied CSS; this
+  app compiles only first-party CSS). The fix path is a major Next upgrade,
+  tracked as an accepted risk. CI gates on critical only because of this.
 - Rate limits are daily quotas, not burst throttles; there is no
   per-second/per-minute window yet.
 - Docking and MD routers do not call the rate limiter directly (docking is

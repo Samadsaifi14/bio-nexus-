@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
@@ -34,10 +34,10 @@ export default function AuthPage() {
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="bg-surface-0 rounded-2xl border border-glass-border p-8 w-full max-w-sm shadow-glass-lg">
         <div className="flex items-center gap-2 justify-center mb-6">
           <Dna className="w-8 h-8 text-accent-cyan" />
-          <span className="text-xl font-bold text-text-primary">Synteny</span>
+          <span className="text-xl font-bold text-text-primary">Bio Nexus</span>
         </div>
 
-        <h1 className="text-xl font-semibold text-text-primary text-center mb-2">Welcome to Synteny</h1>
+        <h1 className="text-xl font-semibold text-text-primary text-center mb-2">Welcome to Bio Nexus</h1>
         <p className="text-sm text-text-muted text-center mb-8">
           Bioinformatics tools for sequence analysis
         </p>

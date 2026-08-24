@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
@@ -57,7 +57,7 @@ function SidebarContent({
               exit="hidden"
               className="font-display text-sm font-semibold overflow-hidden whitespace-nowrap"
             >
-              Syn<span className="text-accent-cyan">teny</span>
+              Bio&nbsp;<span className="text-accent-cyan">Nexus</span>
             </motion.span>
           )}
         </AnimatePresence>
@@ -171,7 +171,7 @@ function SidebarContent({
           <div className="px-3 pt-2">
             <div className="divider mb-3" />
             <div className="flex items-center justify-between px-3">
-              <span className="text-[10px] font-mono text-text-muted/70">SYNTENY-CORE</span>
+              <span className="text-[10px] font-mono text-text-muted/70">BIO-NEXUS CORE</span>
               <span className="flex items-center gap-1.5 text-[10px] font-mono text-accent-cyan/80">
                 <span className="w-1 h-1 rounded-full bg-accent-cyan" />
                 v2.1

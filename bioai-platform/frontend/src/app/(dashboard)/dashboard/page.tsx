@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
@@ -81,7 +81,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <h1 className="text-2xl font-bold text-text-primary">
-              {isGuest ? 'Welcome to Synteny' : `Hey, ${firstName ?? 'Researcher'}`}
+              {isGuest ? 'Welcome to Bio Nexus' : `Hey, ${firstName ?? 'Researcher'}`}
             </h1>
             <div className="flex items-center gap-1.5 mt-0.5">
               <Calendar className="w-3.5 h-3.5 text-text-muted" />

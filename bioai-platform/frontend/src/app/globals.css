@@ -1,9 +1,9 @@
-@tailwind base;
+﻿@tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* ═══════════════════════════════════════════════════════════════════════════
-   SYNTENY — DUAL THEME TOKENS
+   Bio Nexus — DUAL THEME TOKENS
    `:root, [data-theme="dark"]`  = original bioluminescent instrument (unchanged)
    `[data-theme="light"]`        = Apple-style light theme (see apple.md)
    Signal-coded accents:

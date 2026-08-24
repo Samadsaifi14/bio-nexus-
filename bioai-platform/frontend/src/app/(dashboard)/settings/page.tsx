@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useState, useEffect } from 'react';
 import axios from 'axios';
@@ -118,7 +118,7 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-text-primary">
-                    {resolvedName || (isGuest ? 'Guest User' : 'Synteny User')}
+                    {resolvedName || (isGuest ? 'Guest User' : 'Bio Nexus User')}
                   </p>
                   <p className="text-xs text-text-muted mt-0.5">{user?.email ?? (isGuest ? 'No account' : '')}</p>
                   {memberSince && <p className="text-[11px] text-text-muted/50 mt-0.5">Member since {memberSince}</p>}
@@ -274,7 +274,7 @@ export default function SettingsPage() {
           ) : (
             <div className="space-y-4">
               <p className="text-sm text-text-secondary">
-                Generate API keys to run Synteny pipelines from your scripts.
+                Generate API keys to run Bio Nexus pipelines from your scripts.
                 Use the <code className="text-accent-cyan text-xs bg-surface-0 px-1.5 py-0.5 rounded">X-API-Key</code> header to authenticate.
               </p>
 

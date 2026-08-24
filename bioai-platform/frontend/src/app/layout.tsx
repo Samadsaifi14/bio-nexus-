@@ -1,4 +1,4 @@
-import type { Metadata } from 'next';
+﻿import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
 import Script from 'next/script';
@@ -11,7 +11,7 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { ORG_ID, SITE_NAME, SITE_URL, WEBSITE_ID } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Synteny — One interface for every bioinformatics tool',
+  title: 'Bio Nexus — One interface for every bioinformatics tool',
   description: 'Protein sequence analysis, BLAST, UniProt, AlphaFold, docking — all in one place. Built for researchers who aren\'t bioinformaticians.',
 };
 
@@ -37,7 +37,7 @@ export default function RootLayout({
                 name: SITE_NAME,
                 url: `${SITE_URL}/`,
                 description:
-                  'Synteny unifies BLAST, UniProt, AlphaFold, molecular docking and AI interpretation into a single bioinformatics research interface.',
+                  'Bio Nexus unifies BLAST, UniProt, AlphaFold, molecular docking and AI interpretation into a single bioinformatics research interface.',
                 sameAs: ['https://github.com/Samadsaifi14/bio-nexus-'],
                 foundingLocation: {
                   '@type': 'Place',

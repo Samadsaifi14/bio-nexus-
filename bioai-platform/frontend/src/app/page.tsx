@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
@@ -82,7 +82,7 @@ export default function LandingPage() {
       <nav className="fixed top-4 inset-x-0 z-50 flex justify-center px-4 pointer-events-none">
         <div className="liquid-glass pointer-events-auto flex w-full max-w-5xl items-center justify-between px-6 py-3.5">
           <span className="font-display text-sm font-semibold tracking-tight uppercase">
-            Syn<span className="text-accent-cyan">teny</span>
+            Bio&nbsp;<span className="text-accent-cyan">Nexus</span>
           </span>
 
           <div className="flex items-center gap-4 lg:gap-6">
@@ -146,7 +146,7 @@ export default function LandingPage() {
                 transition={{ type: 'spring', bounce: 0, duration: 0.7, delay: 0.08 }}
                 className="text-text-secondary text-lg max-w-[460px] mt-8 leading-relaxed"
               >
-                Paste a sequence. Synteny runs BLAST, annotation, structure and
+                Paste a sequence. Bio Nexus runs BLAST, annotation, structure and
                 AI interpretation — assembled on one page, in one query.
               </motion.p>
 
@@ -439,7 +439,7 @@ export default function LandingPage() {
 
       <footer className="border-t border-glass-border py-8 px-8 flex flex-col sm:flex-row items-center justify-between gap-4">
         <span className="text-xs text-text-muted">
-          Synteny · Built at Jamia Millia Islamia
+          Bio Nexus · Built at Jamia Millia Islamia
         </span>
         <div className="flex items-center gap-6">
           <Link href="/auth" className="text-xs text-text-muted hover:text-text-primary transition-colors">
@@ -455,7 +455,7 @@ export default function LandingPage() {
           '@type': 'WebPage',
           '@id': WEBPAGE_ID,
           url: `${SITE_URL}/`,
-          name: 'Synteny — One interface for every bioinformatics tool',
+          name: 'Bio Nexus — One interface for every bioinformatics tool',
           isPartOf: { '@id': WEBSITE_ID },
           about: { '@id': SOFTWARE_ID },
           mainEntity: {
@@ -492,7 +492,7 @@ export default function LandingPage() {
         data={{
           '@context': 'https://schema.org',
           '@type': 'HowTo',
-          name: 'How Synteny analyzes a sequence',
+          name: 'How Bio Nexus analyzes a sequence',
           description: 'Five automated stages from raw sequence to AI-interpreted results.',
           step: [
             { '@type': 'HowToStep', position: 1, name: 'Sequence Input', text: 'Paste a FASTA sequence or accession ID.' },

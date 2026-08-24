@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import { useEffect, useRef } from 'react';
 import * as THREE from 'three';
@@ -9,7 +9,7 @@ import { useTheme } from '@/contexts/theme';
  * (billboard sprites from a canvas texture) that tick like a living data
  * stream. Slow rotation, a gentle bob, pointer parallax and ambient particle
  * dust keep it alive without shouting. Reduced motion renders a static frame
- * (apple-design §14). Colors follow the Synteny signal palette in globals.css:
+ * (apple-design §14). Colors follow the Bio Nexus signal palette in globals.css:
  * mint primary strand + cool blue secondary strand.
  */
 export default function DNAHelix({ className }: { className?: string }) {

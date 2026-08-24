@@ -1,4 +1,4 @@
-import type { AssembledContext } from '@/types/pipeline';
+﻿import type { AssembledContext } from '@/types/pipeline';
 
 export interface ShareDetails {
   queryLabel?: string;
@@ -42,7 +42,7 @@ export function buildShareDetails(context?: AssembledContext | null): ShareDetai
 }
 
 export function buildShareMessage(shareLink: string, details?: ShareDetails): string {
-  const lines: string[] = ['My Synteny analysis result is ready.'];
+  const lines: string[] = ['My Bio Nexus analysis result is ready.'];
   if (details?.topHit) lines.push(`Best match: ${details.topHit}`);
   if (typeof details?.hitCount === 'number') {
     lines.push(`${details.hitCount} similar sequence${details.hitCount === 1 ? '' : 's'} found.`);
@@ -51,7 +51,7 @@ export function buildShareMessage(shareLink: string, details?: ShareDetails): st
   if (typeof details?.length === 'number') {
     lines.push(`Length: ${details.length} ${details.sequenceType === 'dna' ? 'bp' : 'aa'}`);
   }
-  lines.push('', shareLink, '', 'Powered by Synteny — sequence analysis, docking, and AI interpretation.');
+  lines.push('', shareLink, '', 'Powered by Bio Nexus — sequence analysis, docking, and AI interpretation.');
   return lines.join('\n');
 }
 
@@ -98,7 +98,7 @@ export const SHARE_PLATFORMS: SharePlatform[] = [
     id: 'email',
     label: 'Email',
     buildUrl: (url, message) =>
-      `mailto:?subject=${encodeURIComponent('Synteny — Analysis Result')}&body=${encodeURIComponent(`${message}\n\n${url}`)}`,
+      `mailto:?subject=${encodeURIComponent('Bio Nexus — Analysis Result')}&body=${encodeURIComponent(`${message}\n\n${url}`)}`,
   },
 ];
 

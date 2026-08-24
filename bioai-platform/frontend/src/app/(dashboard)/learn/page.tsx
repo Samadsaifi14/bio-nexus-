@@ -1,4 +1,4 @@
-'use client';
+﻿'use client';
 
 import Link from 'next/link';
 import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight, Brain, LinkSimple as LinkIcon, Atom, Pill as Pills } from '@phosphor-icons/react';
@@ -88,7 +88,7 @@ export default function LearnPage() {
 
   return (
     <div>
-      <PageHeader title="Documentation & Learning" subtitle="Learn the concepts behind every tool in Synteny." />
+      <PageHeader title="Documentation & Learning" subtitle="Learn the concepts behind every tool in Bio Nexus." />
 
       <motion.div variants={fadeUp} className="relative mb-10 max-w-xl">
         <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted" />

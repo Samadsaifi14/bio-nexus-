@@ -10,6 +10,9 @@ pinned: false
 
 # Bio Nexus 🧬
 
+[![Security Scan](https://github.com/Samadsaifi14/bio-nexus-/actions/workflows/security.yml/badge.svg)](https://github.com/Samadsaifi14/bio-nexus-/actions/workflows/security.yml)
+[![Deploy](https://github.com/Samadsaifi14/bio-nexus-/actions/workflows/deploy.yml/badge.svg)](https://github.com/Samadsaifi14/bio-nexus-/actions/workflows/deploy.yml)
+
 **A bioinformatics pipeline engine that removes the need for expertise to get expert results.**
 
 You paste a sequence and press **Run**. Bio Nexus returns one comprehensive, AI-interpreted page — BLAST hits, annotation, domains, structure, and plain-language explanation — without you touching a single CLI tool or opening a single database tab.
@@ -20,6 +23,19 @@ open UniProt → new tab → scroll → open AlphaFold → download PDB → ...
 
 Paste sequence → press Run → read one page that explains everything.    (Bio Nexus)
 ```
+
+## Contents
+
+- [Features](#features)
+- [Pipeline architecture](#pipeline-architecture)
+- [Repository layout](#repository-layout)
+- [Stack](#stack)
+- [Getting started](#getting-started)
+- [Usage](#usage)
+- [Limitations](#limitations)
+- [Status](#status)
+- [Contributing](#contributing)
+- [License](#license)
 
 ## Features
 
@@ -84,7 +100,7 @@ Unified result page — one URL · shareable · exportable (PDF/JSON)
 
 ```
 ├── bioai-platform/
-│   ├── frontend/          # Next.js + TypeScript + Tailwind (dark-only OLED design system)
+│   ├── frontend/          # Next.js + TypeScript + Tailwind (dual-theme token system)
 │   └── backend/           # FastAPI · async workers · Supabase · Redis · OpenMM · RDKit
 ├── bio-nexus/phase0/      # Student validation / outreach playbooks
 ├── MASTER_PLAN.md         # Product master plan (v4.0) — status of every phase
@@ -120,6 +136,65 @@ uvicorn app.main:app --reload
 
 Environment variables are documented in `techspec.md` (§ Environment Variables). The backend serves `/api/pipeline/v2`, `/api/alignment`, `/api/docking`, `/api/md`, `/api/sequencing`, and the rest under `/api/*` — full list in `bioai-platform/backend/app/main.py`.
 
+## Usage
+
+Authenticate with a Supabase session token (`Authorization: Bearer …`) or an
+API key (`X-API-Key: sk_bio_…`).
+
+Run a docking job (AutoDock Vina 1.2.7, pocket-detected grid):
+
+```bash
+curl -X POST https://samad14-bio-nexus-api.hf.space/api/docking/run \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+        "pdb_id": "1STP",
+        "smiles": "OC(=O)c1cc(ccc1)N2C=C(C)CC2(C)O",
+        "exhaustiveness": 32,
+        "num_modes": 9,
+        "seed": 42
+      }'
+```
+
+The response carries `poses[].affinity`, `box_center`, `grid_source`, and the
+full Vina log. With `seed: 42` runs are reproducible; the grid center comes
+from fpocket detection on the receptor unless you pass `grid_center`
+explicitly.
+
+Run the full pipeline (BLAST → annotation → structure → AI summary):
+
+```bash
+curl -X POST .../api/pipeline/v2/run \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"sequence": "MALWMRLLPLLALLALWGPDPAAAF...", "fast_mode": true}'
+```
+
+`steps`, `database`, `program`, and `alignment_mode` are optional overrides;
+by default the wizard runs every step. Progress streams over SSE; the
+finished job is pollable at `/api/jobs/{id}` and shareable via `/api/share`.
+The interactive equivalents live in the frontend under `/analyze/*`.
+
+## Limitations
+
+- Sequencing is an MVP pinned to the SARS-CoV-2 reference genome.
+- MD simulation uses OpenMM implicit solvent — fast and useful for teaching,
+  not a substitute for explicit-solvent production runs.
+- AI interpretation depends on third-party model availability (Groq, Gemini,
+  Ollama); when every provider fails, results still render with a visible
+  notice instead of a fabricated summary.
+- Docking runs on CPU; exhaustiveness above 64 is capped by the API.
+- Guest sessions share a quota pool until upgraded to an account.
+
 ## Status
 
 - **v4.0 (2026-08-05)** — full toolset milestone. Phases 1–2 shipped; Phase 3 shipped except homology modeling; Phase 4 partial (docking + ADMET shipped); sequencing MVP shipped. See `MASTER_PLAN.md` §9 for the v4.0 changelog.
+
+## Contributing
+
+PRs welcome. Setup, test commands, and conventions are in
+[CONTRIBUTING.md](CONTRIBUTING.md).
+
+## License
+
+[MIT](LICENSE)

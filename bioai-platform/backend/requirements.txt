@@ -4,7 +4,7 @@ slowapi
 redis
 httpx
 aiohttp
-biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)
+biopython>=1.88  # PairwiseAligner + substitution_matrices (Bio.Align)
 litellm
 sentry-sdk
 python-dotenv

@@ -125,25 +125,90 @@ def fetch_pdb_from_rcsb(pdb_id: str) -> str:
 # Grid center computation
 # ---------------------------------------------------------------------------
 
-_ATOM_RE = re.compile(
-    r"^(ATOM|HETATM)\s+\d+\s+\S+\s+(\S)\s+(\d+)\s+"
-    r"([-\d.]+)\s+([-\d.]+)\s+([-\d.]+)"
-)
+
+def _pdb_atom_coord(line: str) -> Optional[tuple[str, int, float, float, float]]:
+    """Parse an ATOM/HETATM record into (chain, resseq, x, y, z).
+
+    Fixed-width PDB columns — the previous whitespace regex could never
+    match a real PDB line (it assumed 1-char residue names), silently
+    disabling every coordinate-based computation.
+    """
+    if line[:6].strip() not in ("ATOM", "HETATM"):
+        return None
+    try:
+        return (
+            line[21].strip() or " ",
+            int(line[22:26]),
+            float(line[30:38]),
+            float(line[38:46]),
+            float(line[46:54]),
+        )
+    except (ValueError, IndexError):
+        return None
 
 
 def compute_grid_center(pdb_text: str) -> list[float]:
     """Compute the geometric centre of all ATOM (non-ligand) records."""
     xs, ys, zs = [], [], []
     for line in pdb_text.splitlines():
-        if line.startswith("ATOM"):
-            m = _ATOM_RE.match(line)
-            if m:
-                xs.append(float(m.group(4)))
-                ys.append(float(m.group(5)))
-                zs.append(float(m.group(6)))
+        a = _pdb_atom_coord(line)
+        if a and line.startswith("ATOM"):
+            xs.append(a[2]); ys.append(a[3]); zs.append(a[4])
     if not xs:
         return [0.0, 0.0, 0.0]
     return [sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)]
+
+
+def compute_pocket_grid(pdb_text: str, padding: float = 8.0,
+                        min_size: float = 20.0, max_size: float = 70.0
+                        ) -> Optional[dict]:
+    """Detect pockets with fpocket and build a docking grid around pocket #1.
+
+    Docking at the protein centroid is blind docking — for anything larger
+    than a small protein the box lands in empty space and affinities are
+    meaningless. fpocket ranks pockets by score; pocket 1 is its best hit.
+
+    Returns {"center": [x,y,z], "size": [sx,sy,sz]} or None on any failure.
+    """
+    from app.tools.structure_prep import FPOCKET_BIN
+
+    if not os.path.isfile(FPOCKET_BIN):
+        return None
+
+    with tempfile.TemporaryDirectory() as tmp:
+        in_path = os.path.join(tmp, "receptor.pdb")
+        with open(in_path, "w") as f:
+            f.write(pdb_text)
+        try:
+            subprocess.run(
+                [FPOCKET_BIN, "-f", in_path],
+                capture_output=True, text=True, timeout=180,
+            )
+        except Exception:
+            return None
+
+        pocket_dir = os.path.join(tmp, "receptor_out", "pockets")
+        if not os.path.isdir(pocket_dir):
+            return None
+        best = os.path.join(pocket_dir, "pocket1_atm.pdb")
+        if not os.path.isfile(best):
+            return None
+
+        coords = []
+        with open(best) as f:
+            for line in f:
+                a = _pdb_atom_coord(line)
+                if a:
+                    coords.append((a[2], a[3], a[4]))
+        if len(coords) < 5:
+            return None
+
+        center = [sum(c[i] for c in coords) / len(coords) for i in range(3)]
+        size = []
+        for i in range(3):
+            span = max(c[i] for c in coords) - min(c[i] for c in coords)
+            size.append(round(min(max(span + 2 * padding, min_size), max_size), 3))
+        return {"center": [round(c, 3) for c in center], "size": size}
 
 
 # ---------------------------------------------------------------------------
@@ -169,7 +234,11 @@ def smiles_to_pdbqt(smiles: str) -> str:
 
 
 def _sdf_to_pdbqt(sdf_path: str) -> str:
-    """Convert SDF to PDBQT using Open Babel."""
+    """Convert SDF to PDBQT using Open Babel.
+
+    MMFF94s minimisation before conversion: CACTUS 3D geometries are rough,
+    and docking from an unminimised conformer degrades pose quality.
+    """
     pdbqt_path = sdf_path.rsplit(".", 1)[0] + ".pdbqt"
     try:
         result = subprocess.run(
@@ -177,12 +246,13 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
                 _ensure_obabel(),
                 sdf_path,
                 "-O", pdbqt_path,
+                "--minimize",
                 "--partialcharge", "gasteiger",
                 "-p", "7.4",
             ],
             capture_output=True,
             text=True,
-            timeout=60,
+            timeout=120,
         )
         if result.returncode != 0:
             raise RuntimeError(f"Open Babel ligand conversion failed: {result.stderr[:1000]}")
@@ -205,7 +275,12 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
 # ---------------------------------------------------------------------------
 
 def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
-    """Convert a plain PDB receptor to PDBQT (rigid, for Vina)."""
+    """Convert a plain PDB receptor to PDBQT (rigid, for Vina).
+
+    Mirrors the classic prepare_receptor4.py workflow: keep the crystal
+    hydrogen/protonation state and assign Gasteiger charges — Open Babel's
+    pH-based re-protonation can flip side-chain tautomers in the site.
+    """
     in_path = None
     out_path = None
     try:
@@ -224,7 +299,7 @@ def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
             ],
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=300,
         )
         if result.returncode != 0:
             raise RuntimeError(f"Open Babel receptor conversion failed: {result.stderr[:1000]}")
@@ -344,8 +419,13 @@ def run_vina(
     grid_size: list[float] = [20, 20, 20],
     exhaustiveness: int = 8,
     num_modes: int = 9,
+    seed: int = 42,
 ) -> dict:
-    """Run AutoDock Vina and return parsed multi-pose results."""
+    """Run AutoDock Vina and return parsed multi-pose results.
+
+    A fixed seed (default 42) makes runs reproducible — with Vina's random
+    default seed, identical inputs give different scores every run.
+    """
     vina_bin = _ensure_vina()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -375,6 +455,7 @@ def run_vina(
             "--size_z", str(grid_size[2]),
             "--exhaustiveness", str(exhaustiveness),
             "--num_modes", str(num_modes),
+            "--seed", str(seed),
             "--out", out_path,
         ]
 

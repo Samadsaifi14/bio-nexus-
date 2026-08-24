@@ -1,4 +1,4 @@
-"""Structure prediction endpoints — ESMFold via the public fold service."""
+﻿"""Structure prediction endpoints â€” ESMFold via the public fold service."""
 
 import asyncio
 import logging
@@ -19,7 +19,7 @@ VALID_AA = set("ACDEFGHIKLMNPQRSTVWYX")
 
 
 class PredictRequest(BaseModel):
-    sequence: str = Field(..., min_length=1, max_length=768, description="Protein sequence (max 768 residues)")
+    sequence: str = Field(..., min_length=1, max_length=400, description="Protein sequence (max 400 residues)")
     job_title: str = Field(default="", max_length=200)
 
 
@@ -43,9 +43,9 @@ def _validate_sequence(seq: str) -> str:
     if invalid:
         raise ValueError(f"Invalid amino acid characters: {', '.join(sorted(invalid))}")
     if len(clean) < 10:
-        raise ValueError("Sequence too short — minimum 10 residues")
-    if len(clean) > 768:
-        raise ValueError("Sequence too long — maximum 768 residues for ESMFold")
+        raise ValueError("Sequence too short â€” minimum 10 residues")
+    if len(clean) > 400:
+        raise ValueError("Sequence too long â€” maximum 400 residues for ESMFold")
     return clean
 
 
@@ -68,7 +68,7 @@ async def _run_esmfold(job_id: str, sequence: str):
         pdb_text = await esmfold_predict(sequence)
         if not pdb_text:
             _jobs[job_id]["status"] = "failed"
-            _jobs[job_id]["error"] = "ESMFold service could not fold this sequence — try again shortly"
+            _jobs[job_id]["error"] = "ESMFold service could not fold this sequence â€” try again shortly"
             return
 
         # pLDDT lives in the B-factor column of ESMFold PDB output.

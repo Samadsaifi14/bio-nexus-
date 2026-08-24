@@ -25,8 +25,9 @@ class DockingJobCreate(BaseModel):
     pdb_url: str = ""
     grid_center: Optional[list[float]] = None
     grid_size: list[float] = Field(default_factory=lambda: [20.0, 20.0, 20.0])
-    exhaustiveness: int = 8
+    exhaustiveness: int = Field(default=32, ge=1, le=64)
     num_modes: int = 9
+    seed: int = 42
 
 
 class DockingJobResponse(BaseModel):
@@ -132,6 +133,7 @@ def _run_docking_sync(job_id: str, payload: dict):
         from app.tools.docking import (
             fetch_pdb_from_rcsb,
             compute_grid_center,
+            compute_pocket_grid,
             smiles_to_pdbqt,
             pdb_to_pdbqt_receptor,
             run_vina,
@@ -162,21 +164,43 @@ def _run_docking_sync(job_id: str, payload: dict):
                 "Provide a valid pdb_id or pdb_url."
             )
 
-        # 2. Strip heteroatoms (keep protein backbone for receptor)
-        protein_lines = [
-            l for l in pdb_text.splitlines()
-            if l.startswith("ATOM") or l.startswith("TER") or l.startswith("END")
-        ]
+        # 2. Build receptor PDB: protein ATOM records only.
+        #    - first model only (NMR ensembles duplicate every chain per model)
+        #    - altloc " " or "A" only (alternate conformations overlap)
+        protein_lines: list[str] = []
+        seen_model = False
+        for l in pdb_text.splitlines():
+            rec = l[:6].strip()
+            if rec == "MODEL":
+                if seen_model:
+                    break
+                seen_model = True
+                continue
+            if rec == "ENDMDL":
+                break
+            if rec == "ATOM":
+                if len(l) > 16 and l[16] not in (" ", "A"):
+                    continue
+                protein_lines.append(l)
+            elif rec in ("TER", "END"):
+                protein_lines.append(l)
         protein_pdb = "\n".join(protein_lines) if protein_lines else pdb_text
 
-        # 3. Compute grid center if not provided
+        # 3. Docking box: user-specified > fpocket top pocket > centroid.
+        #    Centroid is blind docking — labelled as such in the result so
+        #    consumers know affinities from it are low-confidence.
+        grid_source = "user"
         grid_center = payload.get("grid_center")
-        if not grid_center or all(v == 0 for v in grid_center):
-            grid_center = compute_grid_center(protein_pdb)
-            # Add a small offset so the center isn't dead on a backbone atom
-            grid_center = [round(c + 2.0, 3) for c in grid_center]
-
         grid_size = payload.get("grid_size", [20.0, 20.0, 20.0])
+        if not grid_center or all(v == 0 for v in grid_center):
+            pocket_grid = compute_pocket_grid(protein_pdb)
+            if pocket_grid:
+                grid_center = pocket_grid["center"]
+                grid_size = pocket_grid["size"]
+                grid_source = "pocket"
+            else:
+                grid_center = compute_grid_center(protein_pdb)
+                grid_source = "centroid"
 
         # 4. Prepare receptor
         protein_pdbqt = pdb_to_pdbqt_receptor(protein_pdb)
@@ -184,14 +208,17 @@ def _run_docking_sync(job_id: str, payload: dict):
         # 5. Prepare ligand
         lig_pdbqt = smiles_to_pdbqt(smiles)
 
-        # 6. Run AutoDock Vina
+        # 6. Run AutoDock Vina — fixed seed for reproducibility,
+        #    publication-grade exhaustiveness default.
+        seed = int(payload.get("seed", 42))
         vina_result = run_vina(
             protein_pdbqt=protein_pdbqt,
             ligand_pdbqt=lig_pdbqt,
             grid_center=grid_center,
             grid_size=grid_size,
-            exhaustiveness=payload.get("exhaustiveness", 8),
+            exhaustiveness=payload.get("exhaustiveness", 32),
             num_modes=payload.get("num_modes", 9),
+            seed=seed,
         )
 
         # 7. Compute interaction summary for best pose
@@ -223,8 +250,9 @@ def _run_docking_sync(job_id: str, payload: dict):
             },
             "vina_log": vina_result.get("vina_log", ""),
             "vina_version": vina_result.get("vina_version", ""),
-            "vina_seed": (vina_result.get("vina_meta") or {}).get("random_seed"),
+            "vina_seed": seed,
             "vina_exhaustiveness": (vina_result.get("vina_meta") or {}).get("exhaustiveness"),
+            "grid_source": grid_source,
             "interactions": interactions,
             "pose_interactions": pose_interactions,
             "ligand_pdb": vina_result.get("ligand_pdb", ""),
@@ -725,6 +753,7 @@ async def create_docking_job(request: Request, body: DockingJobCreate, user_id: 
             "grid_size": body.grid_size,
             "exhaustiveness": body.exhaustiveness,
             "num_modes": body.num_modes,
+            "seed": body.seed,
             "smiles": body.smiles,
             "ligand_smiles": body.smiles,
         },

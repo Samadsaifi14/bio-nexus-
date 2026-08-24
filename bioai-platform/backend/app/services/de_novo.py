@@ -1,4 +1,4 @@
-"""Tier-6 de novo characterization (techspec.md §1.2).
+﻿"""Tier-6 de novo characterization (techspec.md §1.2).
 
 For sequences that fail every identifier-resolution tier: swap "look it up"
 tools for "characterize from sequence alone" tools. Everything here accepts a
@@ -138,8 +138,8 @@ async def esmfold_structure(sequence: str) -> dict:
     ``source="esmfold"`` so the viewer can render without a remote URL.
     """
     seq = _clean_sequence(sequence)
-    if not (10 <= len(seq) <= 768):
-        raise ValueError(f"ESMFold requires 10–768 residues (got {len(seq)})")
+    if not (10 <= len(seq) <= 400):
+        raise ValueError(f"ESMFold requires 10–400 residues (got {len(seq)})")
 
     from app.tools.structure_prep import esmfold_predict
 

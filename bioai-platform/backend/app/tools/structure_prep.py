@@ -411,15 +411,20 @@ async def esmfold_predict(sequence: str) -> str | None:
     pLDDT scores in the B-factor column. Returns None on failure.
     """
     validate_url(ESMFOLD_API)
+    # The public service's backend goes cold often (504s) — retry hard.
+    backoffs = (15, 30)
     last_exc: Exception | None = None
     async with httpx.AsyncClient(timeout=300) as client:
-        for attempt in range(2):
+        for attempt in range(len(backoffs) + 1):
             try:
                 resp = await client.post(
                     ESMFOLD_API,
                     content=sequence,
                     headers={"Content-Type": "text/plain"},
                 )
+                if resp.status_code == 413 or "longer than" in resp.text[:100]:
+                    logger.warning("ESMFold rejected sequence of %d residues (limit 400)", len(sequence))
+                    return None
                 if resp.status_code in (429, 502, 503, 504):
                     raise httpx.HTTPStatusError(
                         f"ESMFold service busy ({resp.status_code})",
@@ -433,7 +438,7 @@ async def esmfold_predict(sequence: str) -> str | None:
                 return None
             except httpx.HTTPError as e:
                 last_exc = e
-                if attempt == 0:
-                    await asyncio.sleep(15)
-        logger.warning("ESMFold prediction failed after retry: %s", last_exc)
+                if attempt < len(backoffs):
+                    await asyncio.sleep(backoffs[attempt])
+        logger.warning("ESMFold prediction failed after %d attempts: %s", len(backoffs) + 1, last_exc)
     return None

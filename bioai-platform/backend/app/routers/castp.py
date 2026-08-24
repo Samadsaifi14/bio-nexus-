@@ -1,4 +1,4 @@
-"""CASTp pocket/cavity analysis endpoints."""
+﻿"""CASTp pocket/cavity analysis endpoints."""
 
 import logging
 from fastapi import APIRouter, HTTPException
@@ -47,7 +47,7 @@ async def analyze_castp(body: CastpRequest):
     elif body.pdb_id.strip():
         pdb_id = body.pdb_id.strip().upper()
         if len(pdb_id) != 4 or not pdb_id.isalnum():
-            raise HTTPException(status_code=400, detail="Invalid PDB ID — must be 4 alphanumeric characters")
+            raise HTTPException(status_code=400, detail="Invalid PDB ID â€” must be 4 alphanumeric characters")
         try:
             result = await analyze_pockets_pdb_id(pdb_id, probe)
         except Exception as e:
@@ -58,8 +58,8 @@ async def analyze_castp(body: CastpRequest):
         seq = body.sequence.strip().upper().replace("\n", "").replace(" ", "").replace("-", "")
         if len(seq) < 10:
             raise HTTPException(status_code=400, detail="Sequence too short (min 10 residues)")
-        if len(seq) > 768:
-            raise HTTPException(status_code=400, detail="Sequence too long (max 768 residues for ESMFold)")
+        if len(seq) > 400:
+            raise HTTPException(status_code=400, detail="Sequence too long (max 400 residues for ESMFold)")
         try:
             from app.tools.structure_prep import esmfold_predict
 

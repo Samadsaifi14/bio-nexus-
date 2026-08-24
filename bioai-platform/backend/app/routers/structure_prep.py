@@ -1,4 +1,4 @@
-"""Structure preparation pipeline endpoints.
+﻿"""Structure preparation pipeline endpoints.
 
 Pipeline: fetch → broken chain detection → SWISS-MODEL repair → cleanup → fpocket → CASTp
 
@@ -102,8 +102,8 @@ def _validate_request(body: PipelineRequest) -> PipelineRequest:
 
     if body.sequence.strip():
         seq = body.sequence.strip().upper().replace("\n", "").replace(" ", "").replace("-", "")
-        if len(seq) < 10 or len(seq) > 768:
-            raise HTTPException(status_code=400, detail=f"Sequence must be 10–768 residues (got {len(seq)})")
+        if len(seq) < 10 or len(seq) > 400:
+            raise HTTPException(status_code=400, detail=f"Sequence must be 10–400 residues (got {len(seq)})")
         if not _AA_RE.match(seq):
             raise HTTPException(status_code=400, detail="Sequence contains non-amino-acid characters")
         body.sequence = seq

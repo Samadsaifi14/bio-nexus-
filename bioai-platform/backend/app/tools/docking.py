@@ -5,6 +5,7 @@ import os
 import re
 import subprocess
 import tempfile
+import time
 import urllib.request
 from pathlib import Path
 from typing import Optional
@@ -216,21 +217,41 @@ def compute_pocket_grid(pdb_text: str, padding: float = 8.0,
 # ---------------------------------------------------------------------------
 
 def smiles_to_pdbqt(smiles: str) -> str:
-    """Convert SMILES to PDBQT via NCI CACTUS (3D SDF) + Open Babel."""
-    try:
-        url = f"https://cactus.nci.nih.gov/chemical/structure/{smiles}/file?format=sdf&get3d=true"
-        sdf_bytes = urllib.request.urlopen(url, timeout=30).read()
-    except Exception as e:
-        raise RuntimeError(f"Failed to get 3D structure from CACTUS: {e}")
+    """Convert SMILES to PDBQT via NCI CACTUS (3D SDF) + Open Babel.
 
-    with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False, mode="wb") as f:
-        f.write(sdf_bytes)
-        sdf_path = f.name
+    CACTUS intermittently serves rate-limit/error pages instead of the
+    structure; validate the payload and retry with backoff before giving up.
+    """
+    url = f"https://cactus.nci.nih.gov/chemical/structure/{smiles}/file?format=sdf&get3d=true"
+    last_error: Exception | None = None
+    for attempt in range(3):
+        if attempt:
+            time.sleep(10 * attempt)
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            sdf_bytes = urllib.request.urlopen(req, timeout=30).read()
+        except Exception as e:
+            last_error = e
+            continue
 
-    try:
-        return _sdf_to_pdbqt(sdf_path)
-    finally:
-        os.unlink(sdf_path)
+        head = sdf_bytes[:4096].lstrip().lower()
+        looks_like_sdf = b"v2000" in head or b"v3000" in head or b"$$$$" in sdf_bytes
+        if not looks_like_sdf:
+            last_error = RuntimeError(
+                f"CACTUS returned non-SDF content ({len(sdf_bytes)} bytes)"
+            )
+            continue
+
+        with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False, mode="wb") as f:
+            f.write(sdf_bytes)
+            sdf_path = f.name
+
+        try:
+            return _sdf_to_pdbqt(sdf_path)
+        finally:
+            os.unlink(sdf_path)
+
+    raise RuntimeError(f"Failed to get 3D structure from CACTUS for {smiles!r}: {last_error}")
 
 
 def _sdf_to_pdbqt(sdf_path: str) -> str:
@@ -238,33 +259,37 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
 
     MMFF94s minimisation before conversion: CACTUS 3D geometries are rough,
     and docking from an unminimised conformer degrades pose quality.
+    Some Open Babel builds (e.g. openbabel-wheel on Windows) ship without
+    force-field parameter files, so if minimisation yields nothing we fall
+    back to plain conversion rather than failing the job.
     """
     pdbqt_path = sdf_path.rsplit(".", 1)[0] + ".pdbqt"
+
+    def _convert(extra: list[str]) -> str:
+        try:
+            result = subprocess.run(
+                [_ensure_obabel(), sdf_path, "-O", pdbqt_path] + extra,
+                capture_output=True,
+                text=True,
+                timeout=120,
+            )
+            if result.returncode != 0:
+                raise RuntimeError(f"Open Babel ligand conversion failed: {result.stderr[:1000]}")
+            if not os.path.isfile(pdbqt_path):
+                raise RuntimeError("Open Babel did not produce a PDBQT output file")
+            with open(pdbqt_path, "r") as f:
+                content = f.read()
+            if not content.strip():
+                raise RuntimeError("PDBQT conversion produced empty output")
+            return content
+        except FileNotFoundError:
+            raise RuntimeError(_ensure_obabel())
+
     try:
-        result = subprocess.run(
-            [
-                _ensure_obabel(),
-                sdf_path,
-                "-O", pdbqt_path,
-                "--minimize",
-                "--partialcharge", "gasteiger",
-                "-p", "7.4",
-            ],
-            capture_output=True,
-            text=True,
-            timeout=120,
-        )
-        if result.returncode != 0:
-            raise RuntimeError(f"Open Babel ligand conversion failed: {result.stderr[:1000]}")
-        if not os.path.isfile(pdbqt_path):
-            raise RuntimeError("Open Babel did not produce a PDBQT output file")
-        with open(pdbqt_path, "r") as f:
-            content = f.read()
-        if not content.strip():
-            raise RuntimeError("PDBQT conversion produced empty output")
-        return content
-    except FileNotFoundError:
-        raise RuntimeError(_ensure_obabel())
+        try:
+            return _convert(["--minimize", "--partialcharge", "gasteiger", "-p", "7.4"])
+        except RuntimeError:
+            return _convert(["--partialcharge", "gasteiger", "-p", "7.4"])
     finally:
         if os.path.isfile(pdbqt_path):
             os.unlink(pdbqt_path)

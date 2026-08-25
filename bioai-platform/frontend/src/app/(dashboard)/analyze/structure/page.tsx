@@ -11,6 +11,7 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { StructureResult } from '@/lib/api';
 import { DockingViewer } from '@/components/DockingViewer';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
+import { consumeParam, setPrefill } from '@/lib/cross-link';
 
 function parseHighlightParam(raw: string | null): { start: number; end: number } | undefined {
   if (!raw) return undefined;
@@ -59,9 +60,8 @@ export default function StructurePage() {
   const handleSearch = () => runSearch(query);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('structure_query');
+    const stored = consumeParam('structure_query');
     if (stored) {
-      sessionStorage.removeItem('structure_query');
       setQuery(stored);
       void runSearch(stored);
       return;
@@ -179,22 +179,22 @@ export default function StructurePage() {
             <span className="text-xs text-text-muted self-center mr-2">Open in:</span>
             {pdbId && (
               <>
-                <button onClick={() => { sessionStorage.setItem('docking_pdb_id', pdbId); router.push('/analyze/docking'); }}
+                <button onClick={() => setPrefill(router, 'docking_pdb_id', pdbId, '/analyze/docking')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
                   <FlaskConical className="w-3 h-3" /> Docking
                 </button>
-                <button onClick={() => { sessionStorage.setItem('md_pdb_id', pdbId); router.push('/analyze/md'); }}
+                <button onClick={() => setPrefill(router, 'md_pdb_id', pdbId, '/analyze/md')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
                   <Activity className="w-3 h-3" /> MD Simulation
                 </button>
-                <button onClick={() => { sessionStorage.setItem('function_pdb_id', pdbId); router.push('/analyze/function'); }}
+                <button onClick={() => setPrefill(router, 'function_pdb_id', pdbId, '/analyze/function')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
                   <Brain className="w-3 h-3" /> Function Prediction
                 </button>
               </>
             )}
             {result?.uniprot_accession && (
-              <button onClick={() => { sessionStorage.setItem('domains_accession', result.uniprot_accession!); router.push('/analyze/domains'); }}
+              <button onClick={() => setPrefill(router, 'domains_accession', result.uniprot_accession!, '/analyze/domains')}
                 className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
                 <Dna className="w-3 h-3" /> Domains
               </button>

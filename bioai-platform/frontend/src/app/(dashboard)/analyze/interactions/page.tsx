@@ -5,6 +5,7 @@ import { fadeUp } from "@/lib/animations";
 import { StringDBViewer } from "@/components/interactions/StringDBViewer";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { BackButton, CriticalButton, FlatInput, PageHeader } from "@/components/ui";
+import { consumeParam } from '@/lib/cross-link';
 
 const GENE_EXAMPLES = ["TP53", "BRCA1", "EGFR", "TNF", "INS"];
 
@@ -21,9 +22,8 @@ export default function InteractionsPage() {
   }, [audit]);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('interaction_gene');
+    const stored = consumeParam('interaction_gene');
     if (stored) {
-      sessionStorage.removeItem('interaction_gene');
       setGeneName(stored);
     }
   }, []);

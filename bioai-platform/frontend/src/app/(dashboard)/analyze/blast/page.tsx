@@ -11,6 +11,8 @@ import type { SequenceResult, SequenceType } from '@/types/pipeline';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
 import { BackButton, CriticalButton, ClaySegmented, ClayToggle, FlatTextarea, FlatInput } from '@/components/ui';
+import { stripFastaHeader, cleanSequence, detectSequenceType, PROTEIN_CODES } from '@/lib/sequence-utils';
+import { consumeParam } from '@/lib/cross-link';
 
 const SAMPLES = [
   {
@@ -24,27 +26,6 @@ MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAP
 MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
   },
 ];
-
-function stripFastaHeader(text: string): string {
-  return text.split('\n').filter(l => !l.startsWith('>')).join('\n');
-}
-
-const PROTEIN_CODES = new Set('ACDEFGHIKLMNPQRSTVWYUBZXOJ');
-
-function detectSequenceType(seq: string): SequenceType {
-  const body = stripFastaHeader(seq);
-  const clean = body.replace(/[^A-Za-z]/g, '').toUpperCase();
-  if (!clean) return 'unknown';
-  const seqSet = new Set(clean);
-  const allLetters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
-  const nonProtein = Array.from(seqSet).filter(c => !PROTEIN_CODES.has(c));
-  if (nonProtein.length === 0) return 'protein';
-  const inNucleic = nonProtein.every(c => 'ACGUTN'.includes(c));
-  if (inNucleic && seqSet.has('U') && !seqSet.has('T')) return 'rna';
-  if (inNucleic && Array.from(seqSet).every(c => 'ACGTN'.includes(c))) return 'dna';
-  if (nonProtein.every(c => 'ACGUTN'.includes(c))) return 'rna';
-  return 'unknown';
-}
 
 export default function BlastWizardPage() {
   const router = useRouter();
@@ -76,22 +57,20 @@ export default function BlastWizardPage() {
   useEffect(() => {
     if (inputMode === 'paste') {
       const body = stripFastaHeader(rawInput);
-      const alpha = body.replace(/[^A-Za-z]/g, '');
+      const alpha = cleanSequence(body);
       setAaCount(alpha.length);
       if (alpha.length > 0) setDetectedType(detectSequenceType(rawInput));
     }
   }, [rawInput, inputMode]);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('blast_sequence');
+    const stored = consumeParam('blast_sequence');
     if (stored) {
-      sessionStorage.removeItem('blast_sequence');
       setRawInput(stored);
       setInputMode('paste');
     }
-    const storedAcc = sessionStorage.getItem('domains_accession');
+    const storedAcc = consumeParam('domains_accession');
     if (storedAcc) {
-      sessionStorage.removeItem('domains_accession');
       setRawInput(storedAcc);
       setInputMode('accession');
     }
@@ -131,7 +110,7 @@ export default function BlastWizardPage() {
     }
 
     const body = stripFastaHeader(seq);
-    const clean = body.replace(/[^A-Za-z]/g, '');
+    const clean = cleanSequence(body);
     const isDna = detectedType === 'dna' || detectedType === 'rna';
     if (clean.length < 6) {
       toast.error(`Sequence must be at least 6 ${isDna ? 'bases' : 'amino acids'}`);
@@ -223,7 +202,7 @@ export default function BlastWizardPage() {
                 value={rawInput}
                 onChange={(e) => { setRawInput(e.target.value); setAccessionResult(null); }}
                 placeholder="Paste a FASTA or raw sequence here..."
-                className="w-full h-40 font-mono text-sm text-text-primary"
+                className="w-full h-40"
               />
               <div className="flex items-center justify-between mt-4">
                 <motion.div variants={fadeUp} className="flex items-center gap-3">

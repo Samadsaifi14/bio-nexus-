@@ -45,3 +45,18 @@ export function exportSvgPng(svgEl: SVGSVGElement | null, filename: string) {
   };
   img.src = "data:image/svg+xml;base64," + btoa(unescape(encodeURIComponent(svgStr)));
 }
+
+export function downloadFasta(header: string, sequence: string, filename: string) {
+  const fasta = `>${header}\n${sequence}`;
+  const a = document.createElement("a");
+  a.download = filename;
+  a.href = "data:text/fasta;charset=utf-8," + encodeURIComponent(fasta);
+  a.click();
+}
+
+export function downloadCanvasPng(canvas: HTMLCanvasElement, filename: string) {
+  const a = document.createElement("a");
+  a.download = filename;
+  a.href = canvas.toDataURL("image/png");
+  a.click();
+}

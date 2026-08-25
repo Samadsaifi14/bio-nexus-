@@ -6,7 +6,7 @@ import { CaretDown as ChevronDown, CaretUp as ChevronUp, ArrowSquareOut as Exter
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
 import { PairwiseAlignView } from './PairwiseAlignView';
-import { downloadTsv } from '@/lib/export-utils';
+import { downloadTsv, downloadText } from '@/lib/export-utils';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { confidenceBand, formatEvalue, coverageColor } from '@/lib/confidence';
 
@@ -56,10 +56,7 @@ export function BlastPanel({ hits, count, source, querySequence, fullSequences }
           </button>
           <button onClick={() => {
             const fasta = safeHits.map(h => `>${h.accession} ${h.description}\n${(h.hit_alignment || h.midline || "").replace(/-/g, "")}`).join("\n");
-            const a = document.createElement("a");
-            a.download = "blast-hits.fasta";
-            a.href = "data:text/fasta;charset=utf-8," + encodeURIComponent(fasta);
-            a.click();
+            downloadText(fasta, "blast-hits.fasta");
           }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
             <Download className="w-3 h-3" /> FASTA
           </button>

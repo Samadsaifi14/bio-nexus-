@@ -10,6 +10,8 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisplay';
 import type { PairwiseAlignResult } from '@/types/pipeline';
+import { stripFastaHeader, cleanSequence } from '@/lib/sequence-utils';
+import { consumeParam } from '@/lib/cross-link';
 
 type AlignMode = 'global' | 'local';
 type Matrix = 'blosum62' | 'pam250';
@@ -19,12 +21,8 @@ function getStoredAlignMode(): AlignMode {
   return sessionStorage.getItem('blast_align_mode') === 'local' ? 'local' : 'global';
 }
 
-function stripFastaHeader(text: string): string {
-  return text.split('\n').filter(l => !l.startsWith('>')).join('\n');
-}
-
 function cleanLength(text: string): number {
-  return stripFastaHeader(text).replace(/[^A-Za-z]/g, '').length;
+  return cleanSequence(stripFastaHeader(text)).length;
 }
 
 const SAMPLES: [string, string] = [
@@ -45,9 +43,8 @@ export default function PairwiseAlignPage() {
   const audit = useAuditTrail();
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('pairwise_sequence_a');
+    const stored = consumeParam('pairwise_sequence_a');
     if (stored) {
-      sessionStorage.removeItem('pairwise_sequence_a');
       setSeqA(stored);
     }
   }, []);
@@ -129,7 +126,7 @@ export default function PairwiseAlignPage() {
               value={seqA}
               onChange={(e) => { setSeqA(e.target.value); setResult(null); }}
               placeholder="Paste FASTA or raw sequence A..."
-              className="w-full h-32 text-sm"
+              className="w-full h-32"
             />
             <p className="text-[11px] text-text-muted mt-1">{lenA > 0 ? `${lenA} residues` : ''}</p>
           </div>
@@ -142,7 +139,7 @@ export default function PairwiseAlignPage() {
               value={seqB}
               onChange={(e) => { setSeqB(e.target.value); setResult(null); }}
               placeholder="Paste FASTA or raw sequence B..."
-              className="w-full h-32 text-sm"
+              className="w-full h-32"
             />
             <p className="text-[11px] text-text-muted mt-1">{lenB > 0 ? `${lenB} residues` : ''}</p>
           </div>

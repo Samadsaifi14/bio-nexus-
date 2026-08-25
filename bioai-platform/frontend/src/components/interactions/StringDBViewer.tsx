@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { LearnPopover } from "@/components/LearnPopover";
 import { viewerBg } from "@/lib/theme-canvas";
+import { downloadTsv, downloadJson, downloadCanvasPng } from "@/lib/export-utils";
 
 type Interaction = {
   partner_gene: string;
@@ -67,37 +68,28 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       ctx.fillStyle = viewerBg('#06060B');
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       ctx.drawImage(img, 0, 0);
-      const a = document.createElement("a");
-      a.download = `${geneName}_stringdb_network.png`;
-      a.href = canvas.toDataURL("image/png");
-      a.click();
+      downloadCanvasPng(canvas, `${geneName}_stringdb_network.png`);
     };
     img.src = stringDbUrl;
   };
 
   const exportTsv = () => {
     if (!data?.interactions) return;
-    const rows = data.interactions.map(i =>
-      `${i.partner_gene}\t${i.combined_score.toFixed(3)}\t${i.escore.toFixed(3)}\t${i.dscore.toFixed(3)}\t${i.ascore.toFixed(3)}\t${i.tscore.toFixed(3)}`
-    ).join("\n");
-    const tsv = `Partner\tCombined\tExperimental\tDatabase\tCo-expression\tText mining\n${rows}`;
-    const a = document.createElement("a");
-    a.download = `${geneName}_stringdb_scores.tsv`;
-    a.href = "data:text/tab-separated-values;charset=utf-8," + encodeURIComponent(tsv);
-    a.click();
+    downloadTsv(
+      ["Partner", "Combined", "Experimental", "Database", "Co-expression", "Text mining"],
+      data.interactions.map(i => [i.partner_gene, i.combined_score.toFixed(3), i.escore.toFixed(3), i.dscore.toFixed(3), i.ascore.toFixed(3), i.tscore.toFixed(3)]),
+      `${geneName}_stringdb_scores.tsv`
+    );
   };
 
   const exportJson = () => {
     if (!data?.interactions) return;
-    const a = document.createElement("a");
-    a.download = `${geneName}_stringdb_interactions.json`;
-    a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+    downloadJson({
       gene: geneName,
       species,
       source: "STRING-DB",
       interactions: data.interactions,
-    }, null, 2));
-    a.click();
+    }, `${geneName}_stringdb_interactions.json`);
   };
 
   const copyGeneList = () => {

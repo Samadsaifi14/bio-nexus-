@@ -31,6 +31,8 @@ import { SecondaryStructureViewer } from '@/components/structure/SecondaryStruct
 import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
 import { BackButton, CriticalButton } from '@/components/ui';
+import { setPrefill } from '@/lib/cross-link';
+import { downloadText } from '@/lib/export-utils';
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
@@ -389,13 +391,7 @@ export default function JobPage() {
                   onClick={() => {
                     const fasta = context.msa?.aln_fasta;
                     if (!fasta) return;
-                    const blob = new Blob([fasta], { type: 'text/plain' });
-                    const url = URL.createObjectURL(blob);
-                    const a = document.createElement('a');
-                    a.href = url;
-                    a.download = `msa-${jobId.slice(0, 8)}.fasta`;
-                    a.click();
-                    URL.revokeObjectURL(url);
+                    downloadText(fasta, `msa-${jobId.slice(0, 8)}.fasta`);
                   }}
                   className="px-3 py-1.5 rounded-lg border border-glass-border text-xs text-text-secondary hover:bg-surface-1 transition"
                 >
@@ -492,37 +488,37 @@ export default function JobPage() {
               return (
                 <>
                   {uniprotAcc && (
-                    <button onClick={() => { sessionStorage.setItem('domains_accession', uniprotAcc); router.push('/analyze/domains'); }}
+                    <button onClick={() => setPrefill(router, 'domains_accession', uniprotAcc, '/analyze/domains')}
                       className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
                       Domains
                     </button>
                   )}
                   {uniprotAcc && (
-                    <button onClick={() => { sessionStorage.setItem('structure_query', uniprotAcc); router.push('/analyze/structure'); }}
+                    <button onClick={() => setPrefill(router, 'structure_query', uniprotAcc, '/analyze/structure')}
                       className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
                       Structure
                     </button>
                   )}
                   {geneName && (
-                    <button onClick={() => { sessionStorage.setItem('interaction_gene', geneName); router.push('/analyze/interactions'); }}
+                    <button onClick={() => setPrefill(router, 'interaction_gene', geneName, '/analyze/interactions')}
                       className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
                       Interactions
                     </button>
                   )}
                   {pdbId && (
-                    <button onClick={() => { sessionStorage.setItem('docking_pdb_id', pdbId); router.push('/analyze/docking'); }}
+                    <button onClick={() => setPrefill(router, 'docking_pdb_id', pdbId, '/analyze/docking')}
                       className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
                       Docking
                     </button>
                   )}
                   {pdbId && (
-                    <button onClick={() => { sessionStorage.setItem('md_pdb_id', pdbId); router.push('/analyze/md'); }}
+                    <button onClick={() => setPrefill(router, 'md_pdb_id', pdbId, '/analyze/md')}
                       className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
                       MD
                     </button>
                   )}
                   {pdbId && (
-                    <button onClick={() => { sessionStorage.setItem('function_pdb_id', pdbId); router.push('/analyze/function'); }}
+                    <button onClick={() => setPrefill(router, 'function_pdb_id', pdbId, '/analyze/function')}
                       className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
                       Function
                     </button>

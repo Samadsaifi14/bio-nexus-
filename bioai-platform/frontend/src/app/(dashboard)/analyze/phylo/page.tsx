@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useAuditTrail } from '@/hooks/useAuditTrail'
 import { CriticalButton, FlatTextarea, PageHeader, ResultsReadyBanner } from '@/components/ui'
+import { parseFasta } from '@/lib/sequence-utils'
 
 const PhyloTreeViewer = dynamic(
   () => import('@/components/phylo/PhyloTreeViewer'),
@@ -63,22 +64,6 @@ MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLD
 >Myoglobin
 MGLSDGEWQLVLNVWGKVEADIPGHGQEVLIRLFKGHPETLEKFDKFKHLKSEDEMKASEDLKKHGATVLTALGGILKKKGHHEAEIKPLAQSHATKHKIPVKYLEFISECIIQVLQSKHPGDFGADAQGAMNKALELFRKDMASNYKELGFQG`,
   },
-}
-
-function parseFasta(raw: string): Array<{ id: string; sequence: string }> {
-  const seqs: Array<{ id: string; sequence: string }> = []
-  let cur: { id: string; seq: string[] } | null = null
-  for (const line of raw.split('\n')) {
-    const t = line.trim()
-    if (t.startsWith('>')) {
-      if (cur) seqs.push({ id: cur.id, sequence: cur.seq.join('') })
-      cur = { id: t.slice(1).split(/\s+/)[0] || 'Seq', seq: [] }
-    } else if (cur && t && !t.startsWith(';')) {
-      cur.seq.push(t)
-    }
-  }
-  if (cur) seqs.push({ id: cur.id, sequence: cur.seq.join('') })
-  return seqs
 }
 
 function elapsed(from: number): string {
@@ -279,7 +264,7 @@ export default function PhyloPage() {
             <FlatTextarea rows={8} value={fasta} onChange={e => { setFasta(e.target.value); stopPoll(); setJob(null); setJobId(null); setSubmitError('') }}
               placeholder={`>Sequence_1\nMVLSPADKTNVKAAWGK...\n>Sequence_2\nMVLSGEDKSNVKAAWGK...`}
               spellCheck={false}
-              className="w-full px-3 py-2 text-sm" />
+              className="w-full" />
             {seqCount > 0 && (
               <p className="text-text-secondary text-xs mt-1">
                 {seqCount} sequence{seqCount !== 1 ? 's' : ''} detected

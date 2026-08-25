@@ -8,6 +8,7 @@ import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { runMD, getMDStatus, getMDForceFields, type MDSimulationResult, type MDForceFieldsMenu } from "@/lib/api";
 import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { ClaySegmented, ClaySlider, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
+import { consumeParam } from '@/lib/cross-link';
 
 const MODES = [
   { value: "minimize", label: "Minimization Only", short: "Minimize", desc: "500 steps, ~5 sec", detail: "Energy minimization using L-BFGS. Removes steric clashes and high-energy contacts." },
@@ -84,9 +85,8 @@ export default function MDPage() {
   }, [jobId, poll]);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('md_pdb_id');
+    const stored = consumeParam('md_pdb_id');
     if (stored) {
-      sessionStorage.removeItem('md_pdb_id');
       setPdbId(stored);
     }
   }, []);

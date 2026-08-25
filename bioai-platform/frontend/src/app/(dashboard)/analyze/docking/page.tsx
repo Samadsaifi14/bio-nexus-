@@ -11,6 +11,8 @@ import { DockingViewer } from '@/components/DockingViewer';
 import { StructureExportMenu } from '@/components/StructureExportMenu';
 import { InteractionPanel } from '@/components/InteractionPanel';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
+import { consumeParam } from '@/lib/cross-link';
+import { downloadText } from '@/lib/export-utils';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
 const SMILES_EXAMPLES = [
@@ -37,15 +39,7 @@ function VinaLog({ log }: { log: string }) {
   };
 
   const downloadLog = () => {
-    const blob = new Blob([log], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = 'vina_log.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+    downloadText(log, 'vina_log.txt');
   };
 
   const lines = log.split('\n');
@@ -196,10 +190,8 @@ export default function DockingPage() {
   const [polling, setPolling] = useState(false);
 
   useEffect(() => {
-    const storedPdb = sessionStorage.getItem('docking_pdb_id');
-    const storedSmiles = sessionStorage.getItem('docking_smiles');
-    if (storedPdb) sessionStorage.removeItem('docking_pdb_id');
-    if (storedSmiles) sessionStorage.removeItem('docking_smiles');
+    const storedPdb = consumeParam('docking_pdb_id');
+    const storedSmiles = consumeParam('docking_smiles');
     if (storedPdb && !pdbId) setPdbId(storedPdb);
     if (storedSmiles) setSmiles(storedSmiles);
   }, []);

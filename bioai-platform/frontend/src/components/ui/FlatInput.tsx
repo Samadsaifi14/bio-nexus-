@@ -14,5 +14,5 @@ export function FlatInput(props: React.InputHTMLAttributes<HTMLInputElement>) {
 
 export function FlatTextarea(props: React.TextareaHTMLAttributes<HTMLTextAreaElement>) {
   const { className = '', ...rest } = props;
-  return <textarea {...rest} className={`input-flat resize-none font-mono ${className}`} />;
+  return <textarea {...rest} className={`input-flat resize-none font-mono w-full text-sm text-text-primary ${className}`} />;
 }

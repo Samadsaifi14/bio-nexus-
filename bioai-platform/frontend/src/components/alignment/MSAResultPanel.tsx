@@ -9,6 +9,7 @@ import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisp
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 import { AlignmentBlock } from '@/components/alignment/AlignmentBlock';
 import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
+import { downloadText } from '@/lib/export-utils';
 
 interface MSAResultPanelProps {
   alnFasta: string;
@@ -33,13 +34,7 @@ export function MSAResultPanel({
   const stats = useMemo(() => computeAlignmentStats(seqs), [seqs]);
 
   const download = () => {
-    const blob = new Blob([alnFasta], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `msa-${jobId?.slice(0, 8) ?? 'result'}.fasta`;
-    a.click();
-    URL.revokeObjectURL(url);
+    downloadText(alnFasta, `msa-${jobId?.slice(0, 8) ?? 'result'}.fasta`);
   };
 
   return (

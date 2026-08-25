@@ -11,6 +11,8 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { UniprotSummary } from '@/types/pipeline';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
 import { BackButton, PageHeader, CriticalButton, FlatInput, ClaySegmented } from '@/components/ui';
+import { consumeParam, setPrefill } from '@/lib/cross-link';
+import { downloadFasta } from '@/lib/export-utils';
 
 type SearchResult = {
   accession: string;
@@ -40,9 +42,8 @@ export default function UniprotLookupPage() {
   const searchSeq = useRef(0);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('uniprot_accession');
+    const stored = consumeParam('uniprot_accession');
     if (stored) {
-      sessionStorage.removeItem('uniprot_accession');
       setQuery(stored);
     }
   }, []);
@@ -126,8 +127,7 @@ export default function UniprotLookupPage() {
   };
 
   const handleSendToBlast = (accession: string, seq: string) => {
-    sessionStorage.setItem('blast_sequence', `>${accession}\n${seq}`);
-    router.push('/analyze/blast');
+    setPrefill(router, 'blast_sequence', `>${accession}\n${seq}`, '/analyze/blast');
   };
 
   const handleFetchCds = async (emblAcc: string) => {
@@ -391,12 +391,7 @@ export default function UniprotLookupPage() {
                   <div className="mt-3 bg-surface-1 rounded-xl p-4 border border-accent-cyan/20">
                     <div className="flex items-center justify-between mb-2">
                       <p className="text-xs font-medium text-accent-cyan">{cdsResult.accession} — {cdsResult.length} bp</p>
-                      <button onClick={() => {
-                        const a = document.createElement('a');
-                        a.download = `${cdsResult.accession}.fasta`;
-                        a.href = 'data:text/fasta;charset=utf-8,' + encodeURIComponent(`>${cdsResult.accession}\n${cdsResult.sequence}`);
-                        a.click();
-                      }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+                      <button onClick={() => downloadFasta(cdsResult.accession, cdsResult.sequence, `${cdsResult.accession}.fasta`)} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
                         <Download className="w-3 h-3" /> FASTA
                       </button>
                     </div>
@@ -456,14 +451,14 @@ export default function UniprotLookupPage() {
                 Analyze with BLAST
               </CriticalButton>
               <button
-                onClick={() => { sessionStorage.setItem('domains_accession', detail.accession); router.push('/analyze/domains'); }}
+                onClick={() => setPrefill(router, 'domains_accession', detail.accession, '/analyze/domains')}
                 className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"
               >
                 Domains
               </button>
               {detail.pdb_ids.length > 0 && (
                 <button
-                  onClick={() => { sessionStorage.setItem('structure_query', detail.pdb_ids[0]); router.push('/analyze/structure'); }}
+                  onClick={() => setPrefill(router, 'structure_query', detail.pdb_ids[0], '/analyze/structure')}
                   className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"
                 >
                   3D Structure
@@ -471,7 +466,7 @@ export default function UniprotLookupPage() {
               )}
               {detail.gene_names.length > 0 && (
                 <button
-                  onClick={() => { sessionStorage.setItem('interaction_gene', detail.gene_names[0]); router.push('/analyze/interactions'); }}
+                  onClick={() => setPrefill(router, 'interaction_gene', detail.gene_names[0], '/analyze/interactions')}
                   className="btn-ghost py-2 px-4 text-xs flex items-center gap-1 border border-glass-border"
                 >
                   Interactions

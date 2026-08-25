@@ -18,6 +18,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { downloadText, downloadTsv } from '@/lib/export-utils';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
+import { setPrefill } from '@/lib/cross-link';
 import { MotifTrack, MatchTable, SequenceHighlight, TRACK_COLORS } from '@/components/motifs/MotifTrack';
 import type { MotifLibraryHit, MotifLibraryPattern, MotifLibraryResult, MotifPatternScanResult } from '@/types/pipeline';
 
@@ -214,13 +215,11 @@ export default function MotifScannerPage() {
   );
 
   const goBlast = () => {
-    sessionStorage.setItem('blast_sequence', sequence);
-    router.push('/analyze/blast');
+    setPrefill(router, 'blast_sequence', sequence, '/analyze/blast');
   };
 
   const goPairwise = () => {
-    sessionStorage.setItem('pairwise_sequence_a', sequence);
-    router.push('/analyze/pairwise');
+    setPrefill(router, 'pairwise_sequence_a', sequence, '/analyze/pairwise');
   };
 
   const goDotPlot = () => {

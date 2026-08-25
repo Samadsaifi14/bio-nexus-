@@ -14,6 +14,7 @@ import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 import { AlignmentBlock } from '@/components/alignment/AlignmentBlock';
 import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
+import { parseFasta, validateFasta } from '@/lib/sequence-utils';
 
 const SAMPLE_PROTEIN = `>p53_human
 MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD
@@ -23,44 +24,6 @@ const SAMPLE_DNA = `>seq_human
 AGCTAGCTAGCTAGCTAGCTAGCTAGCTAGCT
 >seq_chimp
 AGCTAGCTAGCTAGCTAGCCAGCTAGCTAGCT`;
-
-function parseFasta(text: string): { headers: string[]; sequences: string[] } {
-  const lines = text.split('\n');
-  const headers: string[] = [];
-  const sequences: string[] = [];
-  let currentHeader = '';
-  let currentSeq = '';
-  for (const line of lines) {
-    if (line.startsWith('>')) {
-      if (currentHeader) {
-        headers.push(currentHeader);
-        sequences.push(currentSeq);
-      }
-      currentHeader = line.slice(1).trim();
-      currentSeq = '';
-    } else if (currentHeader) {
-      currentSeq += line.trim();
-    }
-  }
-  if (currentHeader) {
-    headers.push(currentHeader);
-    sequences.push(currentSeq);
-  }
-  return { headers, sequences };
-}
-
-function validateFasta(text: string): string | null {
-  if (!text.trim()) return 'Enter sequences in FASTA format';
-  const { headers, sequences } = parseFasta(text);
-  if (headers.length < 2) return 'Provide at least 2 sequences in FASTA format (each starting with >)';
-  const uniqueSeqs = new Set(sequences.map(s => s.toUpperCase().replace(/[^A-Z]/g, '')));
-  if (uniqueSeqs.size < 2) return 'Sequences are identical — provide different sequences for alignment';
-  for (let i = 0; i < sequences.length; i++) {
-    const clean = sequences[i].replace(/[^A-Za-z]/g, '');
-    if (clean.length < 4) return `Sequence "${headers[i]}" is too short (min 4 residues)`;
-  }
-  return null;
-}
 
 const METHOD_LABELS: Record<AlignmentMethod, string> = {
   clustalo: 'Clustal Omega',
@@ -87,7 +50,7 @@ export default function AlignmentPage() {
       setError(validationError);
       return;
     }
-    const seqCount = parseFasta(input).headers.length;
+    const seqCount = parseFasta(input).length;
     const inputSummary = `type:${stype},seqs:${seqCount}`;
     audit.emitStarted('alignment_run', METHOD_LABELS[method], inputSummary);
     setLoading(true);
@@ -141,7 +104,7 @@ export default function AlignmentPage() {
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder={`Paste 2+ sequences in FASTA format...\n\n>sequence_1\nMEEPQSDPSVEPPLSQETFSDLWKLLPENN\n>sequence_2\nMEEPQSDPSIEPPLSQETFSDLWKLLPENN`}
-          className="w-full h-48 font-mono text-sm text-text-primary"
+          className="w-full h-48"
         />
 
         <div className="flex gap-3">

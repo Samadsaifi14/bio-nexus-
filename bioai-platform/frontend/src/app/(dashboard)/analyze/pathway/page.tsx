@@ -10,6 +10,7 @@ import type { PathwayResult, KEGGPathwayResult, EnrichmentResult } from '@/lib/a
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PathwayDiagram from '@/components/results/PathwayDiagram';
 import { BackButton, PageHeader, ClaySegmented, CriticalButton, FlatInput, FlatTextarea } from '@/components/ui';
+import { consumeParam } from '@/lib/cross-link';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
 
@@ -27,9 +28,8 @@ export default function PathwayPage() {
   const audit = useAuditTrail();
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('pathway_query');
+    const stored = consumeParam('pathway_query');
     if (stored) {
-      sessionStorage.removeItem('pathway_query');
       setQuery(stored);
     }
   }, []);

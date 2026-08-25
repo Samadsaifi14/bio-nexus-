@@ -7,6 +7,7 @@ import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";
 import { BackButton, PageHeader, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
 import { LearnPopover } from "@/components/LearnPopover";
+import { consumeParam } from '@/lib/cross-link';
 
 const NAMESPACE_COLORS: Record<string, { text: string; bg: string; label: string }> = {
   MF: { text: "text-accent-cyan", bg: "bg-accent-cyan/10", label: "Molecular Function" },
@@ -57,9 +58,8 @@ export default function FunctionPage() {
   }, [jobId, poll]);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('function_pdb_id');
+    const stored = consumeParam('function_pdb_id');
     if (stored) {
-      sessionStorage.removeItem('function_pdb_id');
       setPdbId(stored);
     }
   }, []);

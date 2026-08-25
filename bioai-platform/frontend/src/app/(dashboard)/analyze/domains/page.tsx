@@ -8,7 +8,8 @@ import { DomainArchitecture } from "@/components/domains/DomainArchitecture";
 import { scanPrositeSequence, type ScanPrositeResult } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
-import { BackButton, CriticalButton, FlatInput, PageHeader } from "@/components/ui";
+import { BackButton, CriticalButton, FlatInput, FlatTextarea, PageHeader } from "@/components/ui";
+import { consumeParam, setPrefill } from '@/lib/cross-link';
 
 const EXAMPLE_ACCESSIONS = [
   { id: "P04637", label: "TP53", desc: "Tumor suppressor p53" },
@@ -29,9 +30,8 @@ export default function DomainsPage() {
   const audit = useAuditTrail();
 
   useEffect(() => {
-    const stored = sessionStorage.getItem("domains_accession");
+    const stored = consumeParam("domains_accession");
     if (stored) {
-      sessionStorage.removeItem("domains_accession");
       setAccession(stored.toUpperCase());
     }
   }, []);
@@ -102,11 +102,11 @@ export default function DomainsPage() {
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-4">
         <h3 className="text-sm font-semibold text-text-primary mb-1">Scan a raw sequence for PROSITE motifs</h3>
         <p className="text-xs text-text-muted mb-3">No accession needed — paste any protein sequence (FASTA header optional) to find PROSITE pattern matches.</p>
-        <textarea
+        <FlatTextarea
           value={scanSeq}
           onChange={(e) => { setScanSeq(e.target.value); setScanError(null); setScanResult(null); }}
           placeholder={`MEEPQSDPSVEPPLSQETFSDLWKLLPENN...`}
-          className="w-full h-28 font-mono text-sm text-text-primary bg-surface-0 rounded-xl p-3 border border-glass-border focus:border-accent-cyan/50 outline-none resize-y"
+          className="h-28"
         />
         <div className="mt-3 flex items-center justify-end gap-3">
           {scanning && <span className="text-xs text-text-muted flex items-center gap-1"><LoaderCircle className="w-3 h-3 animate-spin" /> scanning...</span>}
@@ -172,38 +172,23 @@ export default function DomainsPage() {
           <div className="mt-4 flex flex-wrap gap-2">
             <BridgeLink
               label="BLAST this sequence"
-              onClick={() => {
-                sessionStorage.setItem("domains_accession", submitted);
-                router.push("/analyze/blast");
-              }}
+              onClick={() => setPrefill(router, "domains_accession", submitted, "/analyze/blast")}
             />
             <BridgeLink
               label="View 3D structure"
-              onClick={() => {
-                sessionStorage.setItem("structure_query", submitted);
-                router.push("/analyze/structure");
-              }}
+              onClick={() => setPrefill(router, "structure_query", submitted, "/analyze/structure")}
             />
             <BridgeLink
               label="UniProt details"
-              onClick={() => {
-                sessionStorage.setItem("uniprot_accession", submitted);
-                router.push("/analyze/uniprot");
-              }}
+              onClick={() => setPrefill(router, "uniprot_accession", submitted, "/analyze/uniprot")}
             />
             <BridgeLink
               label="Protein interactions"
-              onClick={() => {
-                sessionStorage.setItem("interaction_gene", submitted);
-                router.push("/analyze/interactions");
-              }}
+              onClick={() => setPrefill(router, "interaction_gene", submitted, "/analyze/interactions")}
             />
             <BridgeLink
               label="Pathway search"
-              onClick={() => {
-                sessionStorage.setItem("pathway_query", submitted);
-                router.push("/analyze/pathway");
-              }}
+              onClick={() => setPrefill(router, "pathway_query", submitted, "/analyze/pathway")}
             />
           </div>
         </motion.div>

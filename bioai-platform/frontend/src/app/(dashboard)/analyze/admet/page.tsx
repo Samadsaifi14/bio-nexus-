@@ -10,6 +10,7 @@ import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
 import SwissADMEView from "@/components/admet/SwissADMEView";
 import ProToxView from "@/components/admet/ProToxView";
+import { consumeParam } from '@/lib/cross-link';
 
 const EXAMPLES = [
   { name: "Aspirin", smiles: "CC(=O)OC1=CC=CC=C1C(=O)O" },
@@ -87,9 +88,8 @@ export default function ADMETPage() {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('admet_smiles');
+    const stored = consumeParam('admet_smiles');
     if (stored) {
-      sessionStorage.removeItem('admet_smiles');
       setSmiles(stored);
     }
   }, []);

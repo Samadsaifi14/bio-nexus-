@@ -2,12 +2,13 @@
 import { useState, useRef, useEffect } from "react";
 import { CircleNotch as LoaderCircle, Download, MagnifyingGlass as Search, Dna, ArrowRight, Flask as Beaker } from '@phosphor-icons/react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Legend, Cell } from "recharts";
-import { downloadTsv } from "@/lib/export-utils";
+import { downloadTsv, downloadText } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { CriticalButton, FlatInput, FlatTextarea } from "@/components/ui";
 import { searchPrimerTargets, analyzePrimer, fetchSequence } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import type { PrimerSearchHit, PrimerAnalyzeResponse, PrimerStructure } from "@/lib/api";
+import { consumeParam } from '@/lib/cross-link';
 
 type PrimerPair = {
   pair_index: number;
@@ -84,9 +85,8 @@ export function PrimerDesigner() {
   const auditedRef = useRef(false);
 
   useEffect(() => {
-    const stored = sessionStorage.getItem('primer_sequence');
+    const stored = consumeParam('primer_sequence');
     if (stored) {
-      sessionStorage.removeItem('primer_sequence');
       setSequence(stored);
     }
   }, []);
@@ -302,10 +302,7 @@ export function PrimerDesigner() {
                 `>pair${p.pair_index + 1}_reverse Tm=${p.right_tm.toFixed(1)} GC=${p.right_gc.toFixed(1)}% pos=${p.right_pos} len=${p.right_len}`,
                 p.right_seq,
               ]).join('\n');
-              const a = document.createElement('a');
-              a.download = 'primers.fasta';
-              a.href = 'data:text/fasta;charset=utf-8,' + encodeURIComponent(fasta);
-              a.click();
+              downloadText(fasta, 'primers.fasta');
             }} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
               <Download className="w-3 h-3" /> FASTA
             </button>

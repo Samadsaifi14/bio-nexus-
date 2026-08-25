@@ -8,6 +8,7 @@ import { fadeUp, stagger } from '@/lib/animations';
 import { fetchSequence, validateSequence, searchSequences } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { SequenceResult, SequenceValidation, SequenceSearchResult } from '@/types/pipeline';
+import { setPrefill } from '@/lib/cross-link';
 
 type InputMode = 'accession' | 'sequence' | 'name';
 
@@ -327,10 +328,7 @@ export function SequenceRetrieval() {
             </div>
             <div className="flex items-center gap-2 flex-wrap">
               <button
-                onClick={() => {
-                  sessionStorage.setItem('blast_sequence', `>${result.accession}\n${result.sequence}`);
-                  router.push('/analyze/blast');
-                }}
+                onClick={() => setPrefill(router, 'blast_sequence', `>${result.accession}\n${result.sequence}`, '/analyze/blast')}
                 className="flex items-center gap-2 px-4 py-2 bg-accent-cyan text-void text-sm font-medium rounded-xl hover:bg-accent-hover transition"
               >
                 <Beaker className="w-4 h-4" />
@@ -339,20 +337,14 @@ export function SequenceRetrieval() {
               {(result.sequence_type === 'dna' || result.sequence_type === 'rna') && (
                 <>
                   <button
-                    onClick={() => {
-                      sessionStorage.setItem('primer_sequence', result.sequence);
-                      router.push('/analyze/primers');
-                    }}
+                    onClick={() => setPrefill(router, 'primer_sequence', result.sequence, '/analyze/primers')}
                     className="flex items-center gap-2 px-4 py-2 border border-accent-purple/40 text-accent-purple text-sm font-medium rounded-xl hover:bg-accent-purple/10 transition"
                   >
                     <Dna className="w-4 h-4" />
                     Design Primers
                   </button>
                   <button
-                    onClick={() => {
-                      sessionStorage.setItem('cds_sequence', result.sequence);
-                      router.push('/analyze/tools');
-                    }}
+                    onClick={() => setPrefill(router, 'cds_sequence', result.sequence, '/analyze/tools')}
                     className="flex items-center gap-2 px-4 py-2 border border-accent-amber/40 text-accent-amber text-sm font-medium rounded-xl hover:bg-accent-amber/10 transition"
                   >
                     <Dna className="w-4 h-4" />

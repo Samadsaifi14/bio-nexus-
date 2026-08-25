@@ -27,10 +27,6 @@ formal certification.
 
 ## Known limitations
 
-- Next.js 14 bundles a PostCSS version with published high-severity advisories
-  (all build-time, around source-map handling of attacker-supplied CSS; this
-  app compiles only first-party CSS). The fix path is a major Next upgrade,
-  tracked as an accepted risk. CI gates on critical only because of this.
 - Rate limits are daily quotas, not burst throttles; there is no
   per-second/per-minute window yet.
 - Docking and MD routers do not call the rate limiter directly (docking is

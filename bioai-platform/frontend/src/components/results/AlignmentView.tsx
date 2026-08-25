@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import type { JSX } from 'react';
 import type { BlastHitSummary } from '@/types/pipeline';
 
 interface AlignmentViewProps {

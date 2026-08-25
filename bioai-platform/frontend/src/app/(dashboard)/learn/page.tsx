@@ -1,4 +1,4 @@
-﻿'use client';
+'use client';
 
 import Link from 'next/link';
 import { MagnifyingGlass as Search, Dna, SquaresFour as Layout, Stack as Layers, GitFork, Globe, GitBranch, ShareNetwork as Share2, TestTube as FlaskConical, Flask as Beaker, BookOpen, ArrowRight, Brain, LinkSimple as LinkIcon, Atom, Pill as Pills } from '@phosphor-icons/react';

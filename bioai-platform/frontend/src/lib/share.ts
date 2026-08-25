@@ -1,4 +1,4 @@
-﻿import type { AssembledContext } from '@/types/pipeline';
+import type { AssembledContext } from '@/types/pipeline';
 
 export interface ShareDetails {
   queryLabel?: string;

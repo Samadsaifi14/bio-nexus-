@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Printer, Download, CircleNotch as LoaderCircle, XCircle } from '@phosphor-icons/react';

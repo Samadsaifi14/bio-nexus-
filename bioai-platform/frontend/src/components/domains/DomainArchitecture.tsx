@@ -76,15 +76,15 @@ type FullAnalysis = {
 };
 
 const TABS = [
-  { id: "domains",    label: "Domains",    icon: "🧩" },
-  { id: "sites",      label: "Sites",      icon: "⚡" },
-  { id: "ptm",        label: "PTMs",       icon: "🔧" },
-  { id: "motifs",     label: "Motifs",     icon: "🎯" },
-  { id: "topology",   label: "Topology",   icon: "📐" },
-  { id: "variants",   label: "Variants",   icon: "🔀" },
-  { id: "go",         label: "GO Terms",   icon: "🏷️" },
-  { id: "pathways",   label: "Pathways",   icon: "🛤️" },
-  { id: "structure",  label: "Structure",  icon: "💎" },
+  { id: "domains",    label: "Domains",    icon: "ðŸ§©" },
+  { id: "sites",      label: "Sites",      icon: "âš¡" },
+  { id: "ptm",        label: "PTMs",       icon: "ðŸ”§" },
+  { id: "motifs",     label: "Motifs",     icon: "ðŸŽ¯" },
+  { id: "topology",   label: "Topology",   icon: "ðŸ“" },
+  { id: "variants",   label: "Variants",   icon: "ðŸ”€" },
+  { id: "go",         label: "GO Terms",   icon: "ðŸ·ï¸" },
+  { id: "pathways",   label: "Pathways",   icon: "ðŸ›¤ï¸" },
+  { id: "structure",  label: "Structure",  icon: "ðŸ’Ž" },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -238,7 +238,7 @@ function getTabCount(tabId: TabId, data: FullAnalysis): number {
 
 function MultiTrackSVG({ seqLen, svgRef, setTooltip, children }: {
   seqLen: number;
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
   setTooltip: (t: { text: string; sub: string; x: number; y: number } | null) => void;
   children: React.ReactNode;
 }) {
@@ -265,7 +265,7 @@ function MultiTrackSVG({ seqLen, svgRef, setTooltip, children }: {
 function DomainsTrack({ domains, seqLen, svgRef, setTooltip, accession }: {
   domains: Domain[];
   seqLen: number;
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
   setTooltip: (t: { text: string; sub: string; x: number; y: number } | null) => void;
   accession: string;
 }) {
@@ -324,7 +324,7 @@ function DomainsTrack({ domains, seqLen, svgRef, setTooltip, accession }: {
 function SitesTrack({ sites, seqLen, svgRef, setTooltip }: {
   sites: FunctionalSite[];
   seqLen: number;
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
   setTooltip: (t: { text: string; sub: string; x: number; y: number } | null) => void;
 }) {
   const W = 700;
@@ -383,7 +383,7 @@ function SitesTrack({ sites, seqLen, svgRef, setTooltip }: {
 function PTMTrack({ ptms, seqLen, svgRef, setTooltip }: {
   ptms: PTMItem[];
   seqLen: number;
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
   setTooltip: (t: { text: string; sub: string; x: number; y: number } | null) => void;
 }) {
   const W = 700;
@@ -441,7 +441,7 @@ function PTMTrack({ ptms, seqLen, svgRef, setTooltip }: {
 function MotifsTrack({ motifs, seqLen, svgRef, setTooltip }: {
   motifs: MotifItem[];
   seqLen: number;
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
   setTooltip: (t: { text: string; sub: string; x: number; y: number } | null) => void;
 }) {
   const W = 700;
@@ -596,7 +596,7 @@ function GOTermsView({ terms }: { terms: GOTerm[] }) {
 
 function PathwaysView({ pathways }: { pathways: PathwayAnnotation[] }) {
   if (!pathways.length) return <p className="text-sm text-text-muted">No pathway annotations.</p>;
-  const DB_ICONS: Record<string, string> = { KEGG: "🟠", Reactome: "🔵", WikiPathways: "🟣" };
+  const DB_ICONS: Record<string, string> = { KEGG: "ðŸŸ ", Reactome: "ðŸ”µ", WikiPathways: "ðŸŸ£" };
   return (
     <div className="space-y-2">
       {pathways.map((p, i) => {
@@ -608,7 +608,7 @@ function PathwaysView({ pathways }: { pathways: PathwayAnnotation[] }) {
         return (
           <a key={i} href={url} target="_blank" rel="noopener noreferrer"
             className="flex items-center gap-3 px-3 py-2 rounded-xl border border-glass-border hover:bg-surface-1 transition-colors">
-            <span className="text-lg">{DB_ICONS[p.database] ?? "📋"}</span>
+            <span className="text-lg">{DB_ICONS[p.database] ?? "ðŸ“‹"}</span>
             <div className="flex-1 min-w-0">
               <p className="text-xs font-medium text-text-primary truncate">{p.name || p.id}</p>
               <p className="text-[10px] text-text-muted">{p.database} &middot; {p.id}</p>
@@ -675,7 +675,7 @@ function ExportMenu({ accession, data, domains, svgRef }: {
   accession: string;
   data: FullAnalysis | null;
   domains: Domain[];
-  svgRef: React.RefObject<SVGSVGElement>;
+  svgRef: React.RefObject<SVGSVGElement | null>;
 }) {
   return (
     <div className="flex items-center gap-2">

@@ -46,19 +46,19 @@ const FEATURES = [
   {
     icon:  Database,
     title: 'Unified Access',
-    body:  'NCBI, UniProt, PDB, KEGG, STRING and more — one plain-English query retrieves across every major database simultaneously.',
+    body:  'NCBI, UniProt, PDB, KEGG, STRING — search them all at once. One input, every database.',
     span:  'md:col-span-2',
   },
   {
     icon:  FlowArrow,
     title: 'Pipeline Automation',
-    body:  'BLAST → UniProt → AlphaFold runs sequentially, hands-free. Real-time progress via SSE, results assembled automatically.',
+    body:  'BLAST → UniProt → AlphaFold, chained and running hands-free. Watch progress in real time.',
     span:  'md:col-span-1',
   },
   {
     icon:  Brain,
     title: 'AI Interpretation',
-    body:  'Every result is narrated in plain language. Clinical relevance, evolutionary context, functional insights — streamed live.',
+    body:  'Raw results turned into plain language — what the protein does, what the mutations mean, how it folds. No bioinformatics degree required.',
     span:  'md:col-span-3',
   },
 ];
@@ -155,8 +155,8 @@ export default function LandingPage() {
                 transition={{ type: 'spring', bounce: 0, duration: 0.7, delay: 0.08 }}
                 className="text-text-secondary text-lg max-w-[460px] mt-8 leading-relaxed"
               >
-                Paste a sequence. Bio Nexus runs BLAST, annotation, structure and
-                AI interpretation — assembled on one page, in one query.
+                Drop in a sequence. We run BLAST, pull annotations, predict
+                structure, and explain what it all means — one page, one shot.
               </motion.p>
 
               <motion.div
@@ -261,7 +261,7 @@ export default function LandingPage() {
             From sequence to insight
           </TextReveal>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
-            Five automated stages, zero manual database switching.
+            Five steps, all automated. No tab-switching, no copy-pasting between tools.
           </p>
         </motion.div>
 
@@ -307,7 +307,7 @@ export default function LandingPage() {
             What you get back
           </TextReveal>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
-            BLAST hits, annotation, structure and AI insight — cross-referenced on one page, exportable as PDF or JSON.
+            BLAST results, protein annotation, 3D structure, and a plain-English breakdown — all on one page, exportable as PDF or JSON.
           </p>
         </motion.div>
 
@@ -374,7 +374,7 @@ export default function LandingPage() {
             All your databases, one query
           </TextReveal>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
-            One query retrieves across every major database simultaneously — results cross-referenced on a single page.
+            One search hits every major bio database. Results come back on a single page, linked together.
           </p>
         </motion.div>
 
@@ -469,10 +469,10 @@ export default function LandingPage() {
             Ready to decode your sequences?
           </TextReveal>
           <p className="text-text-secondary mb-4 leading-relaxed">
-            Free to start. No API keys required to run your first analysis.
+            No credit card, no API key, no setup. Just paste a sequence and go.
           </p>
           <p className="text-sm text-text-muted mb-10 font-mono">
-            Your sequences stay yours — never shared or used beyond the analysis you ask for.
+            Your data stays private — we don't store or share your sequences.
           </p>
           <Link href="/dashboard" className="btn-primary cta-glow text-base px-8 py-4">
             Start analyzing

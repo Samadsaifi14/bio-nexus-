@@ -81,9 +81,9 @@ export function TextReveal({
             key={`${token}-${i}`}
             variants={child}
             custom={stagger}
-            style={{ display: 'inline-block', whiteSpace: 'pre' }}
+            style={{ display: 'inline-block' }}
           >
-            {token}
+            {token}{split === 'words' ? ' ' : '\n'}
           </motion.span>
         ))}
       </motion.span>

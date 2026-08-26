@@ -7,6 +7,7 @@ import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
 import { ThemeToggle } from '@/components/ui/ThemeToggle';
+import { TextReveal } from '@/components/ui/TextReveal';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { ORG_ID, SOFTWARE_ID, SITE_NAME, SITE_URL, WEBPAGE_ID, WEBSITE_ID } from '@/lib/seo';
 
@@ -110,6 +111,13 @@ export default function LandingPage() {
         ref={heroRef}
         className="relative min-h-[100dvh] flex items-center overflow-hidden"
       >
+        {/* Ambient glow orbs */}
+        <div className="absolute inset-0 z-0 pointer-events-none overflow-hidden">
+          <div className="glow-orb glow-orb-cyan" style={{ width: '500px', height: '500px', top: '15%', right: '10%' }} />
+          <div className="glow-orb glow-orb-purple" style={{ width: '400px', height: '400px', bottom: '20%', left: '5%' }} />
+          <div className="glow-orb glow-orb-amber" style={{ width: '300px', height: '300px', top: '60%', right: '30%' }} />
+        </div>
+
         <div className="absolute inset-0 z-0 pointer-events-none">
           <div
             className="absolute inset-0"
@@ -120,6 +128,7 @@ export default function LandingPage() {
           />
           <div className="absolute inset-0 bg-gradient-to-r from-void via-void/55 to-transparent" />
           <div className="absolute inset-0 bg-gradient-to-b from-void/70 via-transparent to-void/70" />
+          <div className="absolute inset-0 bg-noise opacity-[0.03]" />
         </div>
 
         <motion.div
@@ -156,7 +165,7 @@ export default function LandingPage() {
                 transition={{ type: 'spring', bounce: 0, duration: 0.7, delay: 0.16 }}
                 className="flex flex-col sm:flex-row items-start gap-4 mt-10"
               >
-                <Link href="/dashboard" className="btn-primary">
+                <Link href="/dashboard" className="btn-primary cta-glow">
                   Start analyzing
                   <ArrowRight size={15} />
                 </Link>
@@ -171,7 +180,10 @@ export default function LandingPage() {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="flex items-center gap-2.5 mt-10 text-[11px] font-mono text-text-muted"
               >
-                <span className="w-1.5 h-1.5 rounded-full bg-accent-cyan animate-pulse" />
+                <span className="relative flex h-2 w-2">
+                  <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent-cyan opacity-60" />
+                  <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-accent-cyan" />
+                </span>
                 <span>No API keys · results streamed live</span>
               </motion.div>
             </div>
@@ -183,7 +195,7 @@ export default function LandingPage() {
               className="hidden md:block"
             >
               <div
-                className="relative rounded-2xl border border-glass-border bg-surface-0/70 overflow-hidden"
+                className="relative rounded-2xl border border-glass-border bg-surface-0/70 overflow-hidden shadow-glow-cyan"
                 style={{ aspectRatio: '4 / 4.3' }}
               >
                 <div className="absolute inset-0">
@@ -206,9 +218,19 @@ export default function LandingPage() {
           </div>
         </motion.div>
 
-        <div className="absolute bottom-9 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2 opacity-50">
-          <ChevronDown size={14} className="text-text-muted" />
-        </div>
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 0.5 }}
+          transition={{ duration: 1, delay: 1.2 }}
+          className="absolute bottom-9 left-1/2 -translate-x-1/2 z-10 flex flex-col items-center gap-2"
+        >
+          <motion.div
+            animate={{ y: [0, 6, 0] }}
+            transition={{ duration: 2, repeat: Infinity, ease: 'easeInOut' }}
+          >
+            <ChevronDown size={14} className="text-text-muted" />
+          </motion.div>
+        </motion.div>
       </section>
 
       <section className="relative py-14 border-y border-glass-border overflow-hidden">
@@ -216,11 +238,13 @@ export default function LandingPage() {
         <div className="relative z-10 marquee-mask">
           <div className="marquee-track items-center gap-x-10 gap-y-3">
             {[...DATABASES, ...DATABASES].map((db, i) => (
-              <span
-                key={`${db}-${i}`}
-                className="text-sm font-mono text-text-muted hover:text-accent-cyan transition-colors cursor-default select-none"
-              >
-                {db}
+              <span key={`${db}-${i}`} className="flex items-center gap-10">
+                <span
+                  className="text-sm font-mono text-text-muted hover:text-accent-cyan transition-colors duration-300 cursor-default select-none"
+                >
+                  {db}
+                </span>
+                <span className="w-px h-3 bg-glass-border opacity-50" />
               </span>
             ))}
           </div>
@@ -229,9 +253,13 @@ export default function LandingPage() {
 
       <section id="pipeline" className="py-24 px-6 max-w-5xl mx-auto">
         <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="text-center mb-16">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+          <TextReveal
+            as="h2"
+            className="font-display text-3xl sm:text-4xl font-bold tracking-tight"
+            stagger={0.05}
+          >
             From sequence to insight
-          </h2>
+          </TextReveal>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
             Five automated stages, zero manual database switching.
           </p>
@@ -252,15 +280,15 @@ export default function LandingPage() {
                 <motion.div
                   className="hidden md:flex w-[26px] h-[26px] rounded-full border border-accent-cyan/40 bg-surface-0 items-center justify-center relative z-10 mx-auto"
                   initial={{ boxShadow: '0 0 0 0 rgba(74,222,128,0)' }}
-                  whileInView={{ boxShadow: ['0 0 0 0 rgba(74,222,128,0)', '0 0 14px 2px rgba(74,222,128,0.3)', '0 0 0 0 rgba(74,222,128,0)'] }}
+                  whileInView={{ boxShadow: ['0 0 0 0 rgba(74,222,128,0)', '0 0 18px 4px rgba(74,222,128,0.25)', '0 0 0 0 rgba(74,222,128,0)'] }}
                   viewport={{ once: true, margin: '-80px' }}
-                  transition={{ duration: 0.9, delay: i * 0.25, ease: 'easeInOut' }}
+                  transition={{ duration: 1.2, delay: i * 0.3, ease: 'easeInOut' }}
                 >
                   <span className="w-[6px] h-[6px] rounded-full bg-accent-cyan/70" />
                 </motion.div>
                 <div className="mt-4 md:mt-5">
                   <p className="text-[10px] font-mono tracking-widest uppercase text-accent-cyan/80">{tag}</p>
-                  <p className="text-sm font-medium text-text-primary mt-1">{label}</p>
+                  <p className="text-sm font-medium text-text-primary mt-1.5">{label}</p>
                   <p className="text-[11px] text-text-muted mt-0.5 font-mono">{sub}</p>
                 </div>
               </motion.div>
@@ -271,16 +299,20 @@ export default function LandingPage() {
 
       <section id="results" className="py-24 px-6 max-w-5xl mx-auto">
         <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="text-center mb-16">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+          <TextReveal
+            as="h2"
+            className="font-display text-3xl sm:text-4xl font-bold tracking-tight"
+            stagger={0.05}
+          >
             What you get back
-          </h2>
+          </TextReveal>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
             BLAST hits, annotation, structure and AI insight — cross-referenced on one page, exportable as PDF or JSON.
           </p>
         </motion.div>
 
         <motion.div {...REVEAL} transition={{ duration: 0.45 }}>
-          <div className="data-card p-6 sm:p-8">
+          <div className="data-card data-card-scan p-6 sm:p-8">
             <div className="flex flex-wrap items-center justify-between gap-3 border-b border-glass-border pb-4">
               <div className="flex items-center gap-2.5">
                 <span className="w-2 h-2 rounded-full bg-confidence-very-high" />
@@ -334,9 +366,13 @@ export default function LandingPage() {
 
       <section id="features" className="py-24 px-6 max-w-5xl mx-auto">
         <motion.div {...REVEAL} transition={{ duration: 0.45 }} className="mb-16">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight">
+          <TextReveal
+            as="h2"
+            className="font-display text-3xl sm:text-4xl font-bold tracking-tight"
+            stagger={0.05}
+          >
             All your databases, one query
-          </h2>
+          </TextReveal>
           <p className="text-text-secondary mt-3 max-w-md mx-auto text-sm leading-relaxed">
             One query retrieves across every major database simultaneously — results cross-referenced on a single page.
           </p>
@@ -351,7 +387,7 @@ export default function LandingPage() {
               <motion.div
                 key={f.title}
                 {...REVEAL}
-                transition={{ duration: 0.4, delay: (i % 3) * 0.08 }}
+                transition={{ duration: 0.4, delay: (i % 3) * 0.1 }}
                 className={`${f.span}`}
               >
                 <TiltCard
@@ -419,18 +455,26 @@ export default function LandingPage() {
             background: 'radial-gradient(ellipse 60% 60% at 50% 50%, rgba(96,165,250,0.06) 0%, transparent 70%), radial-gradient(ellipse 40% 40% at 68% 62%, rgba(52,211,153,0.04) 0%, transparent 70%)',
           }}
         />
+        <div className="absolute inset-0 pointer-events-none overflow-hidden">
+          <div className="glow-orb glow-orb-cyan" style={{ width: '400px', height: '400px', top: '20%', left: '20%' }} />
+          <div className="glow-orb glow-orb-purple" style={{ width: '300px', height: '300px', bottom: '10%', right: '15%' }} />
+        </div>
 
         <div className="relative z-10 text-center max-w-xl mx-auto">
-          <h2 className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-5">
+          <TextReveal
+            as="h2"
+            className="font-display text-3xl sm:text-4xl font-bold tracking-tight mb-5"
+            stagger={0.06}
+          >
             Ready to decode your sequences?
-          </h2>
+          </TextReveal>
           <p className="text-text-secondary mb-4 leading-relaxed">
             Free to start. No API keys required to run your first analysis.
           </p>
           <p className="text-sm text-text-muted mb-10 font-mono">
             Your sequences stay yours — never shared or used beyond the analysis you ask for.
           </p>
-          <Link href="/dashboard" className="btn-primary text-base px-8 py-4">
+          <Link href="/dashboard" className="btn-primary cta-glow text-base px-8 py-4">
             Start analyzing
             <ArrowRight size={17} />
           </Link>
@@ -442,7 +486,7 @@ export default function LandingPage() {
           Bio Nexus · Built at Jamia Millia Islamia
         </span>
         <div className="flex items-center gap-6">
-          <Link href="/auth" className="text-xs text-text-muted hover:text-text-primary transition-colors">
+          <Link href="/auth" className="text-xs text-text-muted hover:text-text-primary transition-colors duration-300">
             Sign in
           </Link>
           <span className="text-xs text-text-muted">&copy; 2026</span>

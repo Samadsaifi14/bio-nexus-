@@ -923,6 +923,89 @@
     background-size: 200% 100%;
     animation: pipeline-flow 2.5s linear infinite;
   }
+
+  /* ── Landing: ambient glow orbs ─────────────────────────────────── */
+  .glow-orb {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    will-change: transform;
+    animation: orb-drift 12s ease-in-out infinite alternate;
+  }
+
+  .glow-orb-cyan {
+    background: rgba(74, 222, 128, 0.08);
+  }
+
+  .glow-orb-purple {
+    background: rgba(96, 165, 250, 0.06);
+    animation-delay: -4s;
+    animation-duration: 15s;
+  }
+
+  .glow-orb-amber {
+    background: rgba(251, 191, 36, 0.05);
+    animation-delay: -8s;
+    animation-duration: 18s;
+  }
+
+  /* ── Landing: section reveal line ───────────────────────────────── */
+  .reveal-line {
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgb(var(--accent-cyan) / 0.2), transparent);
+    transform: scaleX(0);
+    transform-origin: center;
+    transition: transform 1.2s cubic-bezier(0.25, 1, 0.5, 1);
+  }
+
+  .reveal-line.in-view {
+    transform: scaleX(1);
+  }
+
+  /* ── Landing: data card scan hover ──────────────────────────────── */
+  .data-card-scan {
+    position: relative;
+    overflow: hidden;
+  }
+
+  .data-card-scan::after {
+    content: '';
+    position: absolute;
+    inset-inline: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, rgb(var(--accent-cyan) / 0.4), transparent);
+    opacity: 0;
+    transform: translateY(-100%);
+    transition: opacity 0.3s ease;
+    pointer-events: none;
+  }
+
+  .data-card-scan:hover::after {
+    opacity: 1;
+    animation: card-scan 1.8s ease-in-out infinite;
+  }
+
+  /* ── Landing: CTA glow pulse ────────────────────────────────────── */
+  .cta-glow {
+    position: relative;
+  }
+
+  .cta-glow::before {
+    content: '';
+    position: absolute;
+    inset: -2px;
+    border-radius: inherit;
+    background: linear-gradient(135deg, rgb(var(--accent-cyan) / 0.15), rgb(var(--accent-purple) / 0.1));
+    filter: blur(12px);
+    opacity: 0;
+    transition: opacity 0.4s ease;
+    z-index: -1;
+  }
+
+  .cta-glow:hover::before {
+    opacity: 1;
+  }
 }
 
 @keyframes marquee {
@@ -933,6 +1016,19 @@
 @keyframes pipeline-flow {
   0%   { background-position: 200% 0; }
   100% { background-position: 0 0; }
+}
+
+@keyframes orb-drift {
+  0%   { transform: translate(0, 0) scale(1); }
+  33%  { transform: translate(30px, -20px) scale(1.05); }
+  66%  { transform: translate(-20px, 15px) scale(0.95); }
+  100% { transform: translate(10px, -10px) scale(1.02); }
+}
+
+@keyframes card-scan {
+  0%   { transform: translateY(-100%); }
+  50%  { transform: translateY(100%); }
+  100% { transform: translateY(-100%); }
 }
 
 /* Smooth cross-fade when toggling themes (avoid abrupt brightness jump).

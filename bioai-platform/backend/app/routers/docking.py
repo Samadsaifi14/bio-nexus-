@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import logging
 import math
 import re
 from fastapi import APIRouter, HTTPException, Depends, Request
@@ -13,6 +14,7 @@ from app.services.auth import require_user_id
 from app.services.ssrf import validate_url
 router = APIRouter(prefix="/api/docking", tags=["Docking"])
 _TABLE = "docking_jobs"
+logger = logging.getLogger(__name__)
 
 
 # ---------------------------------------------------------------------------
@@ -230,7 +232,18 @@ def _run_docking_sync(job_id: str, payload: dict):
             protein_pdb, vina_result.get("result_sdf", "")
         )
 
-        # 8. Ligand essential data (from SMILES, RDKit)
+        # 8. CNN rescoring with Gnina (optional, graceful fallback)
+        cnn_rescoring = None
+        try:
+            from app.tools.gnina_rescore import rescore_with_gnina
+            cnn_rescoring = rescore_with_gnina(
+                receptor_pdb=protein_pdb,
+                vina_output_pdbqt=vina_result.get("result_sdf", ""),
+            )
+        except Exception as e:
+            logger.info("Gnina rescoring skipped: %s", e)
+
+        # 9. Ligand essential data (from SMILES, RDKit)
         ligand_properties = _ligand_properties(smiles)
 
         result_obj = {
@@ -256,6 +269,7 @@ def _run_docking_sync(job_id: str, payload: dict):
             "grid_source": grid_source,
             "interactions": interactions,
             "pose_interactions": pose_interactions,
+            "cnn_rescoring": cnn_rescoring,
             "ligand_pdb": vina_result.get("ligand_pdb", ""),
             "result_sdf": vina_result.get("result_sdf", ""),
             "receptor_pdb": protein_pdb,

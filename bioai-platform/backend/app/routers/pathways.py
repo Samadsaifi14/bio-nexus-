@@ -184,3 +184,16 @@ async def pathway_enrichment(req: EnrichmentRequest):
     if result is None:
         raise HTTPException(status_code=502, detail="Enrichment analysis failed")
     return result
+
+
+class CrossValidationRequest(BaseModel):
+    identifiers: list[str] = Field(..., min_length=1, description="List of gene or protein identifiers")
+    organism: str = Field(default="hsapiens", description="g:Profiler organism code")
+
+
+@router.post("/enrichment/cross-validate")
+async def pathway_enrichment_cross_validate(req: CrossValidationRequest):
+    """Run both Reactome and g:Profiler enrichment, returning concordant pathways."""
+    from app.services.pathway_enrichment import run_cross_validated_enrichment
+    result = await run_cross_validated_enrichment(req.identifiers, req.organism)
+    return result

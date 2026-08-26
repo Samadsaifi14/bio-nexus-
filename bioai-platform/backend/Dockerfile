@@ -7,6 +7,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libxml2 libxslt1.1 samtools && \
     rm -rf /var/lib/apt/lists/*
 
+# Gnina (CNN-based rescoring) — pre-built binary; --no_gpu for CPU-only environments
+RUN wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina" -O /usr/local/bin/gnina && \
+    chmod +x /usr/local/bin/gnina || echo "gnina download skipped (optional)"
+
+# MAFFT (local MSA) — portable Linux package, faster and more reliable than remote EBI endpoints
+RUN wget -q "https://mafft.cbrc.jp/alignment/software/mafft-7.526-linux.tgz" -O /tmp/mafft.tgz && \
+    tar xzf /tmp/mafft.tgz -C /opt && \
+    ln -sf /opt/mafft-linux64/mafft.bat /usr/local/bin/mafft && \
+    rm /tmp/mafft.tgz || echo "mafft download skipped (optional)"
+
 # fpocket (pocket detection) — not packaged in Debian repos; build from source
 # NOTE: tags carry no "v" prefix (4.2.3, not v4.2.3) — a wrong prefix kills the build
 RUN git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket && \

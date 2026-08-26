@@ -7,9 +7,16 @@ router = APIRouter(prefix="/api/interactions", tags=["interactions"])
 
 STRING_NET = "https://string-db.org/api/json/interaction_partners"
 
+# Network types supported by STRING-DB
+# "functional" = all evidence channels (default, same as combined)
+# "physical"   = only direct physical binding (experimental + database)
+NETWORK_TYPES = {"functional", "physical"}
+
+
 def _sanitize_for_url(s: str) -> str:
     """Strip control characters that break URL construction."""
     return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
+
 
 class Interaction(BaseModel):
     partner_gene: str
@@ -22,21 +29,38 @@ class Interaction(BaseModel):
     escore: float
     dscore: float
     tscore: float
+    # Network-type specific scores
+    physical_score: float | None = None
+    functional_score: float | None = None
+
 
 @router.get("/{gene_name}")
 async def get_interactions(
     gene_name: str,
     species: int = Query(default=9606, description="NCBI taxon ID; 9606=human"),
     limit: int = Query(default=15, ge=1, le=50),
+    network_type: str = Query(
+        default="functional",
+        description="'functional' (all evidence) or 'physical' (direct binding only)",
+    ),
 ):
     gene_name = _sanitize_for_url(gene_name)
+    network_type = network_type.lower()
+    if network_type not in NETWORK_TYPES:
+        raise HTTPException(400, f"Invalid network_type '{network_type}'. Use 'functional' or 'physical'.")
+
+    params = {
+        "identifiers": gene_name,
+        "species": species,
+        "limit": limit,
+        "caller_identity": "bio-nexus-platform",
+    }
+    # STRING API supports network_type parameter
+    if network_type == "physical":
+        params["network_type"] = "physical"
+
     async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.get(STRING_NET, params={
-            "identifiers": gene_name,
-            "species":     species,
-            "limit":       limit,
-            "caller_identity": "bio-nexus-platform",
-        })
+        r = await client.get(STRING_NET, params=params)
         if r.status_code != 200:
             raise HTTPException(502, f"STRING-DB returned {r.status_code}")
         data = r.json()
@@ -44,20 +68,39 @@ async def get_interactions(
     if not data:
         raise HTTPException(404, f"No interactions found for {gene_name}")
 
-    interactions = [
-        Interaction(
-            partner_gene    = item.get("preferredName_B", ""),
-            partner_protein = item.get("stringId_B", ""),
-            combined_score  = item.get("score", 0),
-            nscore          = item.get("nscore", 0),
-            fscore          = item.get("fscore", 0),
-            pscore          = item.get("pscore", 0),
-            ascore          = item.get("ascore", 0),
-            escore          = item.get("escore", 0),
-            dscore          = item.get("dscore", 0),
-            tscore          = item.get("tscore", 0),
-        )
-        for item in data
-    ]
+    interactions = []
+    for item in data:
+        # Compute network-type specific confidence scores
+        escore = item.get("escore", 0)
+        dscore = item.get("dscore", 0)
+        pscore_combined = item.get("pscore", 0)
+        ascore = item.get("ascore", 0)
+        tscore = item.get("tscore", 0)
+
+        # Physical: experimental + database evidence only
+        physical_score = round(min(1.0, (escore + dscore) / 2), 4) if (escore or dscore) else None
+        # Functional: all channels weighted
+        functional_score = round(item.get("score", 0), 4)
+
+        interactions.append(Interaction(
+            partner_gene=item.get("preferredName_B", ""),
+            partner_protein=item.get("stringId_B", ""),
+            combined_score=item.get("score", 0),
+            nscore=item.get("nscore", 0),
+            fscore=item.get("fscore", 0),
+            pscore=item.get("pscore", 0),
+            ascore=item.get("ascore", 0),
+            escore=item.get("escore", 0),
+            dscore=item.get("dscore", 0),
+            tscore=item.get("tscore", 0),
+            physical_score=physical_score,
+            functional_score=functional_score,
+        ))
+
     interactions.sort(key=lambda x: x.combined_score, reverse=True)
-    return {"gene": gene_name, "species": species, "interactions": interactions}
+    return {
+        "gene": gene_name,
+        "species": species,
+        "network_type": network_type,
+        "interactions": interactions,
+    }

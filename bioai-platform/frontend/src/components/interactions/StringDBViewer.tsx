@@ -12,9 +12,12 @@ type Interaction = {
   dscore: number;
   tscore: number;
   ascore: number;
+  physical_score?: number | null;
+  functional_score?: number | null;
 };
 
 type EvidenceFilter = "all" | "experimental" | "database" | "coexpression" | "textmining";
+type NetworkType = "functional" | "physical";
 
 const EVIDENCE_THRESHOLD = 0.3;
 
@@ -26,6 +29,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
   const [imgError, setImgError] = useState(false);
   const [copied, setCopied] = useState(false);
   const [filter, setFilter] = useState<EvidenceFilter>("all");
+  const [networkType, setNetworkType] = useState<NetworkType>("functional");
   const auditedRef = useRef(false);
 
   const species = 9606;
@@ -34,12 +38,12 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
     if (initialData) return;
     setError(null);
     auditedRef.current = false;
-    fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12`)
+    fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12&network_type=${networkType}`)
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(d => { setData(d); if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('interactions_view', 'STRING-DB', geneName, `${d.interactions?.length || 0} partners`); } })
       .catch(e => { setError(e.message); audit.emitFailed('interactions_view', 'STRING-DB', geneName, e.message); })
       .finally(() => setLoading(false));
-  }, [geneName, initialData, audit]);
+  }, [geneName, initialData, audit, networkType]);
 
   const scoreChannels = [
     { key: "escore" as const, label: "Experimental", color: "#4ADE80", filter: "experimental" as const, explain: "Support from physical interaction experiments (yeast two-hybrid, affinity capture, co-crystallisation)." },
@@ -48,7 +52,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
     { key: "tscore" as const, label: "Text mining", color: "#FBBF24", filter: "textmining" as const, explain: "Support from automated scanning of the scientific literature for co-occurrence of the two genes." },
   ];
 
-  const stringDbUrl = `https://string-db.org/api/image/network?identifiers=${geneName}&species=${species}`;
+  const stringDbUrl = `https://string-db.org/api/image/network?identifiers=${geneName}&species=${species}&network_type=${networkType}`;
 
   const visibleInteractions = (data?.interactions ?? []).filter(i => {
     if (filter === "all") return true;
@@ -87,6 +91,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
     downloadJson({
       gene: geneName,
       species,
+      network_type: networkType,
       source: "STRING-DB",
       interactions: data.interactions,
     }, `${geneName}_stringdb_interactions.json`);
@@ -151,7 +156,23 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-xs text-text-muted">Evidence filter:</span>
+        <span className="text-xs text-text-muted">Network:</span>
+        {([{"key": "functional" as const, label: "Functional", desc: "All evidence channels"}, {"key": "physical" as const, label: "Physical", desc: "Direct binding only"}]).map(opt => (
+          <button
+            key={opt.key}
+            onClick={() => setNetworkType(opt.key)}
+            title={opt.desc}
+            className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+              networkType === opt.key
+                ? "bg-accent-purple/10 border-accent-purple/40 text-accent-purple"
+                : "bg-surface-1 border-glass-border text-text-secondary hover:text-text-primary"
+            }`}
+          >
+            {opt.label}
+          </button>
+        ))}
+        <span className="text-xs text-text-muted mx-1">|</span>
+        <span className="text-xs text-text-muted">Evidence:</span>
         {[{ key: "all" as const, label: "All" }, ...scoreChannels.map(c => ({ key: c.filter, label: c.label }))].map(opt => (
           <button
             key={opt.key}

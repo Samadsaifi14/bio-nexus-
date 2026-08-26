@@ -880,22 +880,35 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
         seq_type = detect_sequence_type(query_sequence) or "protein"
         stype = "protein" if seq_type == "protein" else "dna"
         try:
-            result = await run_ebi_msa_best_effort(
-                sequence=fasta_str,
-                stype=stype,
-                email=email,
+            # Try local MAFFT first (fast, no network dependency)
+            from app.tools.mafft_local import run_local_mafft
+            local_result = await asyncio.get_running_loop().run_in_executor(
+                None, run_local_mafft, fasta_str, "auto", 1, 300,
             )
-            method = result["method"]
-            aln_fasta = result["aln_fasta"]
-            phylotree = result["phylotree"]
-        except Exception as e:
-            logger.warning("EBI MSA unavailable (%s) — using in-process fallback", e)
-            from app.tools.msa_fallback import progressive_msa
-            fallback = await asyncio.get_running_loop().run_in_executor(
-                None, progressive_msa, sequences, stype
-            )
-            aln_fasta, phylotree = fallback
-            method = "in-process fallback"
+            if local_result and local_result.get("aln_fasta"):
+                method = "mafft-local"
+                aln_fasta = local_result["aln_fasta"]
+                phylotree = ""
+            else:
+                raise ValueError("local MAFFT unavailable or returned empty")
+        except Exception:
+            try:
+                result = await run_ebi_msa_best_effort(
+                    sequence=fasta_str,
+                    stype=stype,
+                    email=email,
+                )
+                method = result["method"]
+                aln_fasta = result["aln_fasta"]
+                phylotree = result["phylotree"]
+            except Exception as e:
+                logger.warning("EBI MSA unavailable (%s) — using in-process fallback", e)
+                from app.tools.msa_fallback import progressive_msa
+                fallback = await asyncio.get_running_loop().run_in_executor(
+                    None, progressive_msa, sequences, stype
+                )
+                aln_fasta, phylotree = fallback
+                method = "in-process fallback"
 
         payload = {
             "aln_fasta": aln_fasta,

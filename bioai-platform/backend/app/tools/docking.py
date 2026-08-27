@@ -233,7 +233,7 @@ def smiles_to_pdbqt(smiles: str) -> str:
         try:
             req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
             # fixed CACTUS host; user SMILES is percent-encoded into the path
-            sdf_bytes = urllib.request.urlopen(req, timeout=30)  # nosemgrep.read()
+            sdf_bytes = urllib.request.urlopen(req, timeout=30).read()  # nosemgrep
         except Exception as e:
             last_error = e
             continue

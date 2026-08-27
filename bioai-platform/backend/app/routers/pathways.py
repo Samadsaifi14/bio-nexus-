@@ -183,6 +183,16 @@ async def pathway_enrichment(req: EnrichmentRequest):
     result = await _run_enrichment(req.identifiers)
     if result is None:
         raise HTTPException(status_code=502, detail="Enrichment analysis failed")
+
+    # AI interpretation (best-effort, never blocks)
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("pathway_enrichment", result)
+        if ai_interp:
+            result["ai_interpretation"] = ai_interp
+    except Exception:
+        pass
+
     return result
 
 
@@ -196,4 +206,14 @@ async def pathway_enrichment_cross_validate(req: CrossValidationRequest):
     """Run both Reactome and g:Profiler enrichment, returning concordant pathways."""
     from app.services.pathway_enrichment import run_cross_validated_enrichment
     result = await run_cross_validated_enrichment(req.identifiers, req.organism)
+
+    # AI interpretation (best-effort, never blocks)
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("pathway_enrichment", result)
+        if ai_interp:
+            result["ai_interpretation"] = ai_interp
+    except Exception:
+        pass
+
     return result

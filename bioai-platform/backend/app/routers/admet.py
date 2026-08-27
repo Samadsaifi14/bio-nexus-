@@ -138,6 +138,16 @@ async def compute_descriptors(body: ADMETRequest, user_id: str | None = Depends(
             result["chemical_name"] = chemical_name
         if cid is not None:
             result["pubchem_cid"] = cid
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = await interpret_tool_result("admet", result)
+            if ai_interp:
+                result["ai_interpretation"] = ai_interp
+        except Exception:
+            pass
+
         return ADMETResponse(result=result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

@@ -275,6 +275,16 @@ def _run_docking_sync(job_id: str, payload: dict):
             "receptor_pdb": protein_pdb,
         }
 
+        # AI interpretation (best-effort, never blocks)
+        try:
+            import asyncio
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = asyncio.run(interpret_tool_result("docking", result_obj))
+            if ai_interp:
+                result_obj["ai_interpretation"] = ai_interp
+        except Exception:
+            pass
+
         # Offload to Supabase Storage; DB keeps only the URL
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job_id, "result", result_obj)

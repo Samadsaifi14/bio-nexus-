@@ -259,4 +259,14 @@ async def analyze_primer(req: PrimerAnalyzeRequest):
             left_expected=req.left_pos,
             right_expected=req.right_pos,
         )
+
+    # AI interpretation (best-effort, never blocks)
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("primers", response)
+        if ai_interp:
+            response["ai_interpretation"] = ai_interp
+    except Exception:
+        pass
+
     return response

@@ -68,7 +68,7 @@ async def _run_esmfold(job_id: str, sequence: str):
         pdb_text = await esmfold_predict(sequence)
         if not pdb_text:
             _jobs[job_id]["status"] = "failed"
-            _jobs[job_id]["error"] = "ESMFold service could not fold this sequence â€” try again shortly"
+            _jobs[job_id]["error"] = "ESMFold service could not fold this sequence — try again shortly"
             return
 
         # pLDDT lives in the B-factor column of ESMFold PDB output.
@@ -76,6 +76,16 @@ async def _run_esmfold(job_id: str, sequence: str):
         _jobs[job_id]["pdb"] = pdb_text
         _jobs[job_id]["mean_plddt"] = _mean_plddt_from_pdb(pdb_text)
         _jobs[job_id]["ptm"] = None
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            result_data = {"pdb_text": pdb_text, "sequence": sequence}
+            ai_interp = await interpret_tool_result("structure_predict", result_data)
+            if ai_interp:
+                _jobs[job_id]["ai_interpretation"] = ai_interp
+        except Exception:
+            pass
 
     except Exception as e:
         logger.exception("ESMFold prediction failed for job %s", job_id)

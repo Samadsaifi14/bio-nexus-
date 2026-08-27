@@ -420,7 +420,7 @@ class SequencingPipeline(BaseTool):
             report = _generate_report(qc, variants, reference)
             consensus = _build_consensus(ref_content, variants)
 
-            return {
+            result = {
                 "reference": reference,
                 "fastq_source": fastq_source,
                 "qc": qc,
@@ -430,6 +430,17 @@ class SequencingPipeline(BaseTool):
                 "consensus_sequence": f">{reference} consensus (SNVs applied)\n{consensus}",
                 "steps_completed": ["qc", "align", "variants", "report"],
             }
+
+            # AI interpretation (best-effort, never blocks)
+            try:
+                from app.ai.tool_interpreter import interpret_tool_result
+                ai_interp = await interpret_tool_result("sequencing", result)
+                if ai_interp:
+                    result["ai_interpretation"] = ai_interp
+            except Exception:
+                pass
+
+            return result
 
         except ValueError as e:
             return {"error": str(e)}

@@ -359,6 +359,16 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
             )
 
         result_fields["cleaned_pdb"] = cleaned[:50000]
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = await interpret_tool_result("structure_prep", result_fields)
+            if ai_interp:
+                result_fields["ai_interpretation"] = ai_interp
+        except Exception:
+            pass
+
         _update_job(
             supabase, job_id,
             step="complete",

@@ -116,6 +116,17 @@ async def get_coordinates(accession: str):
         async with httpx.AsyncClient(timeout=30) as client:
             resp = await client.get(f"{SMR_BASE}/uniprot/{accession}.pdb")
             resp.raise_for_status()
-            return {"accession": accession, "pdb": resp.text}
+            result = {"accession": accession, "pdb": resp.text}
+
+            # AI interpretation (best-effort, never blocks)
+            try:
+                from app.ai.tool_interpreter import interpret_tool_result
+                ai_interp = await interpret_tool_result("swissmodel", result)
+                if ai_interp:
+                    result["ai_interpretation"] = ai_interp
+            except Exception:
+                pass
+
+            return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Failed to fetch coordinates: {e}")

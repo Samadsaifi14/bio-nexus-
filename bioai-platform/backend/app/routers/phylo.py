@@ -351,6 +351,16 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             return
 
         _patch(job_id, phase="complete", newick=newick, stats=stats, done_at=time.time())
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            result_data = {"newick": newick, "method": "ml", "stats": stats}
+            ai_interp = await interpret_tool_result("phylo", result_data)
+            if ai_interp:
+                _patch(job_id, ai_interpretation=ai_interp)
+        except Exception:
+            pass
     except Exception as e:
         _patch(job_id, phase="error", error=f"PhyML error: {e}")
     finally:
@@ -376,20 +386,39 @@ async def _worker(job_id: str) -> None:
     aln_fasta, nj_newick = result
 
     if req.method == "nj":
+        result_data = {"newick": nj_newick.strip(), "method": "nj"}
         _patch(job_id, phase="complete",
                newick=nj_newick.strip(), done_at=time.time())
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = await interpret_tool_result("phylo", result_data)
+            if ai_interp:
+                _patch(job_id, ai_interpretation=ai_interp)
+        except Exception:
+            pass
 
     elif req.method == "upgma":
         _patch(job_id, phase="tree_running")
         try:
             newick = _upgma_newick(aln_fasta)
+            result_data = {"newick": newick, "method": "upgma"}
             _patch(job_id, phase="complete",
                    newick=newick, done_at=time.time())
+            # AI interpretation (best-effort, never blocks)
+            try:
+                from app.ai.tool_interpreter import interpret_tool_result
+                ai_interp = await interpret_tool_result("phylo", result_data)
+                if ai_interp:
+                    _patch(job_id, ai_interpretation=ai_interp)
+            except Exception:
+                pass
         except Exception as e:
             _patch(job_id, phase="error", error=f"UPGMA computation failed: {e}")
 
     elif req.method == "ml":
         await _run_phyml_local(job_id, aln_fasta, req)
+        # AI interpretation for ML is handled inside _run_phyml_local after tree is built
 
     else:
         _patch(job_id, phase="error", error=f"Unknown method: {req.method}")

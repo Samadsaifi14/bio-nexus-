@@ -239,6 +239,17 @@ def _run_md(job: dict) -> None:
             solvent=payload.get("solvent"),
             run_length_ps=payload.get("run_length_ps"),
         )
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            import asyncio
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = asyncio.run(interpret_tool_result("md", result))
+            if ai_interp:
+                result["ai_interpretation"] = ai_interp
+        except Exception:
+            pass
+
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job["id"], "result", result)
         supabase = get_client()
@@ -260,6 +271,17 @@ def _run_function_predict(job: dict) -> None:
     pdb_id = payload.get("pdb_id", "")
     try:
         result = predict_function(pdb_id)
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            import asyncio
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = asyncio.run(interpret_tool_result("function_predict", result))
+            if ai_interp:
+                result["ai_interpretation"] = ai_interp
+        except Exception:
+            pass
+
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job["id"], "result", result)
         supabase = get_client()

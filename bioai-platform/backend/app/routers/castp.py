@@ -77,10 +77,23 @@ async def analyze_castp(body: CastpRequest):
     else:
         raise HTTPException(status_code=400, detail="Provide pdb_id, sequence, or pdb_text")
 
-    return CastpResponse(
+    response = CastpResponse(
         pdb_id=result["pdb_id"],
         probe_radius=result["probe_radius"],
         total_residues=result["total_residues"],
         pockets=[PocketInfo(**p) for p in result["pockets"]],
         sequence_source=source,
     )
+
+    # AI interpretation (best-effort, never blocks)
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("castp", result)
+        if ai_interp:
+            response_dict = response.model_dump()
+            response_dict["ai_interpretation"] = ai_interp
+            return response_dict
+    except Exception:
+        pass
+
+    return response

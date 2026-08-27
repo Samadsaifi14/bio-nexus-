@@ -98,9 +98,20 @@ async def get_interactions(
         ))
 
     interactions.sort(key=lambda x: x.combined_score, reverse=True)
-    return {
+    result = {
         "gene": gene_name,
         "species": species,
         "network_type": network_type,
         "interactions": interactions,
     }
+
+    # AI interpretation (best-effort, never blocks)
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("interactions", result)
+        if ai_interp:
+            result["ai_interpretation"] = ai_interp
+    except Exception:
+        pass
+
+    return result

@@ -129,7 +129,7 @@ async def run_alignment(req: AlignRequest):
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
-    return {
+    response = {
         "job_id": result["job_id"],
         "aln_fasta": result["aln_fasta"],
         "aln_clustal": "",
@@ -137,3 +137,14 @@ async def run_alignment(req: AlignRequest):
         "stype": req.stype,
         "method": result["method"],
     }
+
+    # AI interpretation (best-effort, never blocks)
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("alignment", response)
+        if ai_interp:
+            response["ai_interpretation"] = ai_interp
+    except Exception:
+        pass
+
+    return response

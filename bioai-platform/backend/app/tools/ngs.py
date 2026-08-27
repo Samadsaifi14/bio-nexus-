@@ -1066,7 +1066,7 @@ class NGSPipeline(BaseTool):
             report = _build_report(qc, trim_stats, align_result, variants, annotation, reference)
             consensus = _build_consensus(ref_content, variants)
 
-            return {
+            result = {
                 "reference": reference,
                 "reference_size": REFERENCE_SIZES.get(reference, 0),
                 "fastq_source": fastq_source,
@@ -1096,6 +1096,17 @@ class NGSPipeline(BaseTool):
                     "annotate": annotation.get("tool", "unknown"),
                 },
             }
+
+            # AI interpretation (best-effort, never blocks)
+            try:
+                from app.ai.tool_interpreter import interpret_tool_result
+                ai_interp = await interpret_tool_result("ngs", result)
+                if ai_interp:
+                    result["ai_interpretation"] = ai_interp
+            except Exception:
+                pass
+
+            return result
 
         except ValueError as e:
             return {"error": str(e), "progress": progress}

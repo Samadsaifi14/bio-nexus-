@@ -6,7 +6,7 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-AUDIT_MODEL = "groq/llama-3.3-70b-versatile"
+AUDIT_MODEL = "gemini/gemini-3.6-flash"
 
 ANALYSIS_PROMPT = """
 You are an intelligent observability engine for BioNexus, a bioinformatics SaaS platform.
@@ -57,7 +57,7 @@ def run_audit(session_id: str, triggered_by: str | None = None) -> None:
             }],
             max_tokens=1000,
             temperature=0.1,
-            api_key=settings.GROQ_API_KEY,
+            api_key=settings.GOOGLE_API_KEY,
             timeout=15,
         )
 

@@ -25,7 +25,7 @@ class Settings:
     UNIPROT_BASE_URL: str = "https://rest.uniprot.org/uniprotkb"
     ALPHAFOLD_DB_URL: str = "https://alphafold.ebi.ac.uk/api/prediction"
     DAILY_LIMIT: int = 50
-    DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "groq/llama-3.3-70b-versatile")
+    DEFAULT_MODEL: str = os.getenv("DEFAULT_MODEL", "gemini/gemini-3.6-flash")
     PRO_MODEL: str = os.getenv("PRO_MODEL", "claude-sonnet-4-20250514")
     NCBI_EMAIL: str = os.getenv("NCBI_EMAIL", "bioflow@example.com")
     NCBI_API_KEY: str = os.getenv("NCBI_API_KEY", "")

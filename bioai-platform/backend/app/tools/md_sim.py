@@ -66,10 +66,13 @@ PRODUCTION_MIN_PS = 2.0  # absolute floor so huge systems still produce real dyn
 # real platform speed at runtime (fast OpenCL/GPU locally, slow CPU-only in
 # free-tier containers), so runs always fit the budget wherever they deploy.
 _EST_STEPS_PER_SEC = 1_400_000.0
-# Production wall-clock budget. Keep this comfortably inside the job window
-# (status timeout 60 min, worker sweep 90 min) while leaving room for the PDB
-# fetch, minimization, and equilibration that run before production.
-_PRODUCTION_BUDGET_SECONDS = 1500.0  # 25 min of dynamics
+# Production wall-clock budget. Sized to use most of the real job window
+# (status timeout 60 min, frontend poll 65 min, worker sweep 90 min) while
+# leaving room for the PDB fetch, minimization, equilibration, SASA and AI
+# interpretation that run around production. The engine calibrates real
+# throughput at runtime, so this is the max dynamics it will run before the
+# job must finish.
+_PRODUCTION_BUDGET_SECONDS = 2400.0  # 40 min of dynamics
 
 
 def _adaptive_production_steps(n_atoms: int) -> int:
@@ -756,7 +759,10 @@ def _run_openmm(
     if mode == "production" and run_length_ps and int(run_length_ps * 500) > production_steps:
         notes.append(
             f"Requested {int(run_length_ps)} ps of production dynamics, but the engine "
-            f"clamped the run to {production_steps / 500:.0f} ps to fit the wall-clock budget."
+            f"clamped the run to {production_steps / 500:.1f} ps to fit the wall-clock budget "
+            f"({_PRODUCTION_BUDGET_SECONDS / 60:.0f} min). This structure runs at ~{cal_rate:.0f} "
+            f"steps/s on CPU; the full {int(run_length_ps)} ps would need hundreds of hours here. "
+            f"Use a smaller structure or a GPU/paid plan for longer sampling."
         )
 
     return _to_native({

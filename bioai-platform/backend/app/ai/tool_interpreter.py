@@ -176,9 +176,9 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
                             {"role": "system", "content": system_prompt},
                             {"role": "user", "content": user_prompt},
                         ],
-                        max_tokens=512,
+                        max_tokens=2000,
                         temperature=0.3,
-                        timeout=15,
+                        timeout=60,
                         api_key=candidate["api_key"],
                     )
                     response_text = response.choices[0].message.content or ""

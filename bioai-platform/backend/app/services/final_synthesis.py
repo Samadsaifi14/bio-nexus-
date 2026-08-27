@@ -171,7 +171,7 @@ async def _polish_with_llm(headline: str, summary_parts: list[str]) -> str | Non
             model=candidate["model"],
             messages=[{"role": "user", "content": prompt}],
             temperature=0.3,
-            max_tokens=300,
+            max_tokens=1000,
             timeout=20,
             api_key=candidate["api_key"],
         )

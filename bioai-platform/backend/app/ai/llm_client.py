@@ -8,10 +8,13 @@ logger = logging.getLogger(__name__)
 
 class LLMClient:
     def __init__(self):
-        self.api_key = settings.GROQ_API_KEY
+        # Groq is currently provider-restricted (org_restricted error), so the
+        # primary provider is Google Gemini. GROQ_API_KEY is kept only as a
+        # possible secondary when it is un-restricted again.
+        self.api_key = settings.GOOGLE_API_KEY
         self.fallback_key = settings.GOOGLE_API_KEY
-        self.model = settings.DEFAULT_MODEL
-        self.fallback_model = "gemini/gemini-2.0-flash"
+        self.model = settings.DEFAULT_MODEL or "gemini/gemini-3.6-flash"
+        self.fallback_model = "gemini/gemini-3.6-flash"
         self.pro_model = settings.PRO_MODEL
 
     def has_api_key(self) -> bool:
@@ -20,7 +23,8 @@ class LLMClient:
     def get_providers(self) -> list[dict]:
         providers = []
         if self.api_key:
-            providers.append({"model": self.model, "api_key": self.api_key, "name": "groq"})
+            name = "gemini" if ("gemini/" in self.model or "gemini-" in self.model) else "groq"
+            providers.append({"model": self.model, "api_key": self.api_key, "name": name})
         if self.fallback_key:
             providers.append({"model": self.fallback_model, "api_key": self.fallback_key, "name": "gemini"})
         return providers

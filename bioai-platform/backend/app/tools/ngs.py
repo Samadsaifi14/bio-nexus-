@@ -336,8 +336,16 @@ def _run_alignment(fastq_path: str, ref_path: str, tmpdir: str) -> dict:
 
 
 def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
-    """Naive seed-and-extend aligner. Produces SAM only — no BAM, no BAI.
-    Used only when native tools are unavailable for diagnostic/debugging purposes.
+    """DEGRADED-MODE fallback aligner — raised when minimap2 is unavailable.
+
+    This is NOT a real aligner. It seeds on the first 20bp of each read,
+    scans the reference at coarse steps, and has no indel handling. The
+    alignment statistics it produces (mapped_reads, mapping_rate) are NOT
+    trustworthy for real analysis. This exists solely to allow the pipeline
+    to complete on systems without minimap2 (e.g. Windows, some container
+    builds) for demonstration purposes.
+
+    Callers must surface the 'degraded_mode: true' flag in the UI.
     """
     ref_name = "unknown"
     ref_seq_lines = []
@@ -350,11 +358,10 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
     ref_seq = "".join(ref_seq_lines)
     ref_len = len(ref_seq) if ref_seq else 30000
 
-    # Build minimap2-style alignment: match reads against reference
     total = 0
     mapped = 0
     unmapped = 0
-    reads: list[tuple[str, str, str, int, str, str]] = []
+    reads: list[tuple[str, str, str, int, str, int, int]] = []
 
     with open(fastq_path) as fin:
         line_no = 0
@@ -370,9 +377,8 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
             elif line_no % 4 == 0:
                 qual = line.strip()
                 total += 1
-                reads.append((qname, seq, qual))
+                reads.append((qname, seq, qual, 0, "*", 4, 0))
 
-    # Simple seed-and-extend alignment: find best match in reference
     import random as _rnd
     for idx in range(len(reads)):
         qname, seq, qual = reads[idx]
@@ -380,12 +386,10 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
             unmapped += 1
             continue
 
-        # Take a 20bp seed from the read and scan the reference
         seed = seq[:20].upper()
         best_pos = -1
         best_score = 0
 
-        # Scan reference with a sliding window (sample positions for speed)
         step = max(1, ref_len // 500)
         for pos in range(0, ref_len - len(seq), step):
             ref_window = ref_seq[pos:pos + len(seq)]
@@ -394,9 +398,7 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                 best_score = matches
                 best_pos = pos
 
-        # Refine best position
         if best_pos >= 0 and best_score >= 10:
-            # Calculate CIGAR - use M for both match and mismatch (SAM spec)
             ref_segment = ref_seq[best_pos:best_pos + len(seq)]
             cigar_ops = []
             match_count = 0
@@ -412,13 +414,12 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                 cigar_ops.append(f"{match_count}M")
 
             cigar = "".join(cigar_ops) if cigar_ops else f"{len(seq)}M"
-            # Collapse consecutive M operations
             prev = None
             while prev != cigar:
                 prev = cigar
                 cigar = re.sub(r'(\d+)M(\d+)M', lambda m: f"{int(m.group(1)) + int(m.group(2))}M", cigar)
 
-            mapq = min(60, best_score * 3)
+            mapq = 0  # Untrustworthy — do not pretend otherwise
 
             if len(qual) < len(seq):
                 qual = qual + "I" * (len(seq) - len(qual))
@@ -430,7 +431,6 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
         else:
             unmapped += 1
 
-    # Write SAM only
     with open(sam_path, "w") as out:
         out.write(f"@HD\tVN:1.6\tSO:coordinate\n")
         out.write(f"@SQ\tSN:{ref_name}\tLN:{ref_len}\n")
@@ -449,7 +449,8 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
 
     logger.warning(
         "DEGRADED MODE: used pure-Python aligner (no minimap2/samtools). "
-        "SAM output only — no BAM/BAI. Genome browser visualization unavailable."
+        "Alignment statistics are NOT trustworthy. SAM output only — no BAM/BAI. "
+        "Genome browser visualization unavailable."
     )
 
     return {
@@ -459,6 +460,12 @@ def _python_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
         "total_alignments": total,
         "sam_path": sam_path,
         "read_region": read_region,
+        "degraded_mode": True,
+        "degradation_warning": (
+            "minimap2 was not available — used a naive Python fallback aligner. "
+            "Mapping statistics and variant calls from this run are for demonstration "
+            "only and should NOT be used for real analysis."
+        ),
     }
 
 
@@ -616,8 +623,8 @@ def _python_variant_calling(sam_path: str, ref_path: str, vcf_path: str) -> dict
                 elif op == "S":
                     offset += l
 
-    min_depth = 2
-    min_alt_freq = 0.2
+    min_depth = 10
+    min_alt_freq = 0.5
     variants = []
     for pos in sorted(pileup.keys()):
         counts = pileup[pos]
@@ -691,30 +698,107 @@ def _parse_vcf(vcf_path: str) -> list[dict]:
 # ---------------------------------------------------------------------------
 
 def _run_annotation(vcf_path: str, ref_name: str, tmpdir: str) -> dict:
-    annotated_path = os.path.join(tmpdir, "annotated.vcf")
-    snpeff = _find_tool("snpeff")
+    """Annotate variants using SnpEff when available, otherwise basic lookup.
 
-    if snpeff:
+    When SnpEff is found, we run it and parse its annotated VCF output.
+    If SnpEff is not installed or fails, we fall back to _basic_annotation.
+    """
+    snpeff = _find_tool("snpeff")
+    annotated_path = os.path.join(tmpdir, "annotated.vcf")
+
+    if snpeff and os.path.exists(vcf_path) and os.path.getsize(vcf_path) > 0:
         try:
-            subprocess.run(
+            proc = subprocess.run(
                 [snpeff, "ann", ref_name, vcf_path],
                 capture_output=True, text=True, timeout=120,
             )
+            if proc.returncode == 0 and proc.stdout.strip():
+                with open(annotated_path, "w") as f:
+                    f.write(proc.stdout)
+                annotation = _parse_snpeff_output(annotated_path, ref_name)
+                if annotation.get("total_annotated", 0) > 0:
+                    return annotation
+            else:
+                logger.warning(
+                    "SnpEff returned non-zero or empty output (exit %d): %s",
+                    proc.returncode,
+                    proc.stderr[:300] if proc.stderr else "",
+                )
         except Exception as e:
-            logger.warning("SnpEff failed, using basic annotation: %s", e)
+            logger.warning("SnpEff failed, falling back to basic annotation: %s", e)
 
     return _basic_annotation(vcf_path, ref_name)
 
 
+def _parse_snpeff_output(vcf_path: str, ref_name: str) -> dict:
+    """Parse SnpEff-annotated VCF for EFF fields."""
+    annotations = []
+    with open(vcf_path) as f:
+        for line in f:
+            if line.startswith("#"):
+                continue
+            parts = line.strip().split("\t")
+            if len(parts) < 8:
+                continue
+            pos = int(parts[1])
+            ref_base = parts[3]
+            alt_base = parts[4]
+            info = {}
+            for item in parts[7].split(";"):
+                if "=" in item:
+                    k, v = item.split("=", 1)
+                    info[k] = v
+
+            eff = ""
+            gene = "unknown"
+            mutation = f"{ref_base}{pos}{alt_base}"
+            protein_change = ""
+            for item in parts[7].split(";"):
+                if item.startswith("EFF="):
+                    eff = item[4:]
+                    break
+            if eff:
+                # SnpEff EFF format: TYPE(TRANSCRIPT,GENE,...)
+                eff_match = re.match(r"(\w+)\(([^,]+),([^,]+)", eff)
+                if eff_match:
+                    eff_type = eff_match.group(1)
+                    gene = eff_match.group(3)
+                    mutation = f"{ref_base}{pos}{alt_base} ({eff_type})"
+
+            annotations.append({
+                "pos": pos,
+                "ref": ref_base,
+                "alt": alt_base,
+                "depth": int(info.get("DP", "0")),
+                "freq": float(info.get("AF", "0")),
+                "gene": gene,
+                "mutation": mutation,
+                "significance": "Annotated (SnpEff)" if eff else "Novel variant",
+                "protein_change": protein_change,
+            })
+
+    return {
+        "tool": "snpeff",
+        "reference": ref_name,
+        "annotations": annotations,
+        "total_annotated": len(annotations),
+        "known_variants_found": sum(1 for a in annotations if a["significance"] != "Novel variant"),
+    }
+
+
 KNOWN_VARIANTS = {
     "sars-cov-2": {
-        23403: {"gene": "S", "mutation": "D614G", "significance": "Increased transmissibility", "protein_change": "Asp614Gly"},
-        28881: {"gene": "N", "mutation": "R203K", "significance": "Common variant", "protein_change": "Arg203Lys"},
-        28882: {"gene": "N", "mutation": "G204R", "significance": "Common variant", "protein_change": "Gly204Arg"},
-        21563: {"gene": "ORF1ab", "mutation": "P13L", "significance": "Early divergence marker", "protein_change": "Pro13Leu"},
-        28883: {"gene": "N", "mutation": "G204R", "significance": "Common variant", "protein_change": "Gly204Arg"},
-        26245: {"gene": "ORF1ab", "mutation": "R203K", "significance": "Common in Wuhan-Hu-1", "protein_change": "Arg203Lys"},
-        29742: {"gene": "ORF10", "mutation": "G12V", "significance": "Minor variant", "protein_change": "Gly12Val"},
+        # D614G: A→G at position 23403 in Spike
+        (23403, "A", "G"): {"gene": "S", "mutation": "D614G", "significance": "Increased transmissibility", "protein_change": "Asp614Gly"},
+        # P13L in ORF1ab
+        (21563, "C", "T"): {"gene": "ORF1ab", "mutation": "P13L", "significance": "Early divergence marker", "protein_change": "Pro13Leu"},
+        # R203K+G204R in Nucleocapsid — real mutation is a compound GGG→AAC
+        # encoding K203 and R204; we record each substitution independently
+        # but only match when ref/alt are correct.
+        (28881, "G", "A"): {"gene": "N", "mutation": "R203K", "significance": "Common in B.1.1 lineage", "protein_change": "Arg203Lys"},
+        (28883, "G", "A"): {"gene": "N", "mutation": "G204R", "significance": "Common in B.1.1 lineage", "protein_change": "Gly204Arg"},
+        # ORF10 G12V
+        (29742, "G", "T"): {"gene": "ORF10", "mutation": "G12V", "significance": "Minor variant", "protein_change": "Gly12Val"},
     },
     "lambda": {},
     "ecoli-k12": {},
@@ -754,8 +838,9 @@ def _basic_annotation(vcf_path: str, ref_name: str) -> dict:
                     "protein_change": "",
                 }
 
-                if pos in known:
-                    k = known[pos]
+                lookup_key = (pos, ref_base, alt_base)
+                if lookup_key in known:
+                    k = known[lookup_key]
                     annotation["gene"] = k["gene"]
                     annotation["mutation"] = k["mutation"]
                     annotation["significance"] = k["significance"]
@@ -801,6 +886,13 @@ async def _download_reference(ref_name: str) -> str:
 # ---------------------------------------------------------------------------
 
 def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 500, read_len: int = 100) -> str:
+    """Generate synthetic FASTQ reads from a reference sequence.
+
+    Reads are sampled from the reference WITHOUT introducing mutations.
+    Synthetic data should represent clean, error-free reads so that any
+    variants detected are real features of the reference — not artifacts
+    of a naive noise injector.
+    """
     ref = "".join(line.strip().upper() for line in ref_seq.splitlines() if not line.startswith(">"))
     if len(ref) < read_len:
         ref = ref * ((read_len // len(ref)) + 1)
@@ -808,12 +900,7 @@ def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 500, read_len: int 
     for i in range(num_reads):
         start = random.randint(0, len(ref) - read_len)
         seq = ref[start:start + read_len]
-        mut_rate = 0.01
-        seq = "".join(
-            random.choice("ACGT") if random.random() < mut_rate else b
-            for b in seq
-        )
-        qual = "".join(chr(33 + min(40, random.randint(20, 40))) for _ in range(read_len))
+        qual = "".join(chr(33 + 40) for _ in range(read_len))
         lines.append(f"@read{i + 1}")
         lines.append(seq)
         lines.append("+")
@@ -991,6 +1078,8 @@ class NGSPipeline(BaseTool):
                     "unmapped_reads": align_result.get("unmapped_reads", 0),
                     "total_alignments": align_result.get("total_alignments", 0),
                     "read_region": align_result.get("read_region", ""),
+                    "degraded_mode": align_result.get("degraded_mode", False),
+                    "degradation_warning": align_result.get("degradation_warning", ""),
                 },
                 "variants": variants[:30],
                 "annotation": annotation,
@@ -1042,14 +1131,26 @@ def _summarize_trimming(trim_stats: dict) -> dict:
 
 
 def _build_consensus(reference_seq: str, variants: list[dict]) -> str:
+    """Build consensus sequence from variants that pass quality filters.
+
+    Only applies variants with depth >= 10 and allele frequency >= 0.5.
+    Low-confidence variants are skipped to prevent false positives from
+    propagating into the exported consensus.
+    """
     ref_lines = reference_seq.splitlines()
     ref = "".join(line.strip().upper() for line in ref_lines if not line.startswith(">"))
     seq = list(ref)
+    applied = 0
     for v in variants:
         pos = v.get("pos", 0) - 1
         alt = v.get("alt", "")
-        if 0 <= pos < len(seq):
+        depth = v.get("depth", 0)
+        freq = v.get("freq", 0)
+        if depth < 10 or freq < 0.5:
+            continue
+        if 0 <= pos < len(seq) and len(alt) == 1:
             seq[pos] = alt
+            applied += 1
     return "".join(seq)
 
 

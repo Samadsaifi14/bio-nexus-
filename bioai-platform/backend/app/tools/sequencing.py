@@ -2,6 +2,7 @@
 import logging
 import os
 import platform
+import random
 import re
 import shutil
 import tempfile
@@ -73,7 +74,10 @@ async def _ensure_minimap2() -> str:
 
 
 def _fallback_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
-    """Pure-Python fallback when minimap2 is unavailable (e.g. Windows without conda)."""
+    """Pure-Python fallback when minimap2 is unavailable.
+
+    This marks ALL reads as unmapped — it is not a real aligner.
+    """
     total = 0
     with open(fastq_path) as fin, open(sam_path, "w") as out:
         out.write("@HD\tVN:1.6\tSO:unsorted\n")
@@ -92,11 +96,21 @@ def _fallback_alignment(fastq_path: str, ref_path: str, sam_path: str) -> dict:
                 total += 1
                 flag = 4  # unmapped
                 out.write(f"{qname}\t{flag}\t*\t0\t0\t*\t*\t0\t0\t{seq}\t{qual}\n")
-    return {"mapped_reads": 0, "unmapped_reads": total, "total_alignments": total}
+    return {
+        "mapped_reads": 0,
+        "unmapped_reads": total,
+        "total_alignments": total,
+        "degraded_mode": True,
+        "degradation_warning": "minimap2 unavailable — all reads marked unmapped. Results are for demonstration only.",
+    }
 
 
 def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 100, read_len: int = 100) -> str:
-    import random
+    """Generate synthetic FASTQ reads without per-read mutations.
+
+    Clean reads from the reference ensure that any detected variants
+    are real features, not noise artifacts.
+    """
     ref = "".join(line.strip().upper() for line in ref_seq.splitlines() if not line.startswith(">"))
     if len(ref) < read_len:
         ref = ref * ((read_len // len(ref)) + 1)
@@ -104,12 +118,7 @@ def _generate_synthetic_fastq(ref_seq: str, num_reads: int = 100, read_len: int 
     for i in range(num_reads):
         start = random.randint(0, len(ref) - read_len)
         seq = ref[start:start + read_len]
-        mut_rate = 0.01
-        seq = "".join(
-            random.choice("ACGT") if random.random() < mut_rate else b
-            for b in seq
-        )
-        qual = "".join(chr(33 + min(40, random.randint(20, 40))) for _ in range(read_len))
+        qual = "".join(chr(33 + 40) for _ in range(read_len))
         lines.append(f"@read{i + 1}")
         lines.append(seq)
         lines.append("+")
@@ -229,8 +238,8 @@ def _parse_sam_for_variants(sam_path: str, reference_seq: str) -> list[dict]:
                     if op == "S":
                         offset += l
 
-    min_depth = 2
-    min_alt_freq = 0.2
+    min_depth = 10
+    min_alt_freq = 0.5
     variants: list[dict] = []
     for pos in sorted(pileup.keys()):
         counts = pileup[pos]
@@ -257,13 +266,18 @@ def _parse_sam_for_variants(sam_path: str, reference_seq: str) -> list[dict]:
 
 
 def _build_consensus(reference_seq: str, variants: list[dict]) -> str:
+    """Build consensus from variants with depth >= 10 and freq >= 0.5."""
     ref_lines = reference_seq.splitlines()
     ref = "".join(line.strip().upper() for line in ref_lines if not line.startswith(">"))
     seq = list(ref)
     for v in variants:
         pos = v.get("pos", 0) - 1
         alt = v.get("alt", "")
-        if 0 <= pos < len(seq):
+        depth = v.get("depth", 0)
+        freq = v.get("freq", 0)
+        if depth < 10 or freq < 0.5:
+            continue
+        if 0 <= pos < len(seq) and len(alt) == 1:
             seq[pos] = alt
     return "".join(seq)
 

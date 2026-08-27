@@ -24,7 +24,7 @@ async def job_count(user_id: str | None = Depends(get_user_id)):
 async def list_jobs(user_id: str | None = Depends(get_user_id)):
     try:
         supabase = get_supabase()
-        query = supabase.table("jobs").select("*").order("created_at", desc=True).limit(50)
+        query = supabase.table("jobs").select("*, parent_job_id").order("created_at", desc=True).limit(50)
         if user_id:
             query = query.eq("user_id", user_id)
         result = query.execute()
@@ -36,7 +36,7 @@ async def list_jobs(user_id: str | None = Depends(get_user_id)):
 @router.get("/{job_id}")
 async def get_job(job_id: str, user_id: str | None = Depends(get_user_id)):
     supabase = get_supabase()
-    result = supabase.table("jobs").select("*").eq("id", job_id).execute()
+    result = supabase.table("jobs").select("*, parent_job_id").eq("id", job_id).execute()
     if not result.data:
         raise HTTPException(status_code=404, detail="Job not found")
     job = result.data[0]

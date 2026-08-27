@@ -90,6 +90,7 @@ export interface JobStatus {
   error: string | null;
   error_message?: string | null;
   share_token: string | null;
+  parent_job_id: string | null;
 }
 
 export interface PathwayEnrichmentPathway {

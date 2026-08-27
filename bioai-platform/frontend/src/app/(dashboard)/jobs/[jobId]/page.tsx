@@ -33,6 +33,10 @@ import { StructureComparison } from '@/components/structure/StructureComparison'
 import { BackButton, CriticalButton } from '@/components/ui';
 import { setPrefill } from '@/lib/cross-link';
 import { downloadText } from '@/lib/export-utils';
+import { JobGraph } from '@/components/pipeline/JobGraph';
+import { branchFromJob } from '@/lib/api';
+
+const STEP_ORDER = ['blast', 'uniprot', 'msa', 'phylo', 'domains', 'pathway_enrichment', 'alphafold', 'interpret'];
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
@@ -312,6 +316,22 @@ export default function JobPage() {
           {shareCreating ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <ShareNetwork className="w-4 h-4" />}
           Share
         </CriticalButton>
+      </motion.div>
+
+      <motion.div variants={fadeUp} className="glass-card p-4">
+        <JobGraph
+          jobId={jobId}
+          onNodeClick={(id) => router.push(`/jobs/${id}`)}
+          onBranch={async (sourceId) => {
+            try {
+              const { job_id } = await branchFromJob(sourceId, STEP_ORDER);
+              toast.success('Branched — new job started');
+              router.push(`/jobs/${job_id}`);
+            } catch (err) {
+              toast.error(extractErrorMessage(err, 'Failed to branch'));
+            }
+          }}
+        />
       </motion.div>
 
       <motion.div variants={fadeUp} whileHover={cardHover}>

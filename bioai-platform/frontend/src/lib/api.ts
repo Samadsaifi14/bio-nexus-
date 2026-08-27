@@ -468,7 +468,7 @@ export async function deleteApiKey(id: string): Promise<void> {
   await api.delete(`/api/keys/${id}`);
 }
 
-export function getExportUrl(jobId: string, format: 'pdf' | 'json'): string {
+export function getExportUrl(jobId: string, format: 'pdf' | 'json' | 'ro-crate'): string {
   return `/api/backend/api/export/job/${jobId}?format=${format}`;
 }
 
@@ -1192,5 +1192,124 @@ export async function runStructurePrepSequence(sequence: string, probeRadius = 1
 
 export async function getStructurePrepStatus(jobId: string): Promise<StructurePrepResult> {
   const res = await longApi.get(`/api/structure-prep/status/${jobId}`);
+  return res.data;
+}
+
+// --- History DAG -----------------------------------------------------------
+
+export interface JobNode {
+  id: string;
+  tool: string;
+  query_preview: string;
+  status: string;
+  parent_job_id: string | null;
+  created_at: string;
+  completed_at: string | null;
+  error: string | null;
+}
+
+export interface JobGraph {
+  nodes: JobNode[];
+  edges: Array<{ from: string; to: string }>;
+  focus: string;
+}
+
+export async function getJobGraph(jobId: string): Promise<JobGraph> {
+  const res = await api.get(`/api/history/graph/${jobId}`);
+  return res.data;
+}
+
+export async function getJobChildren(jobId: string): Promise<{ children: JobNode[] }> {
+  const res = await api.get(`/api/history/children/${jobId}`);
+  return res.data;
+}
+
+export async function branchFromJob(
+  sourceJobId: string,
+  steps: string[],
+  parameters?: Record<string, unknown>
+): Promise<{ job_id: string; parent_job_id: string }> {
+  const res = await api.post('/api/history/branch', {
+    source_job_id: sourceJobId,
+    steps,
+    parameters,
+  });
+  return res.data;
+}
+
+// --- Pipeline Templates ----------------------------------------------------
+
+export interface PipelineTemplate {
+  id: string;
+  name: string;
+  description: string;
+  steps: string[];
+  parameters: Record<string, unknown>;
+  share_token: string | null;
+  user_id: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export async function getTemplates(): Promise<PipelineTemplate[]> {
+  const res = await api.get('/api/templates');
+  return res.data.templates || [];
+}
+
+export async function createTemplate(
+  name: string,
+  description: string,
+  steps: string[],
+  parameters?: Record<string, unknown>
+): Promise<PipelineTemplate> {
+  const res = await api.post('/api/templates', { name, description, steps, parameters });
+  return res.data;
+}
+
+export async function updateTemplate(
+  templateId: string,
+  updates: Partial<Pick<PipelineTemplate, 'name' | 'description' | 'steps' | 'parameters'>>
+): Promise<PipelineTemplate> {
+  const res = await api.put(`/api/templates/${templateId}`, updates);
+  return res.data;
+}
+
+export async function deleteTemplate(templateId: string): Promise<void> {
+  await api.delete(`/api/templates/${templateId}`);
+}
+
+export async function shareTemplate(
+  templateId: string
+): Promise<{ token: string; url: string }> {
+  const res = await api.post(`/api/templates/${templateId}/share`);
+  return res.data;
+}
+
+export async function getSharedTemplate(token: string): Promise<PipelineTemplate> {
+  const res = await api.get(`/api/templates/shared/${token}`);
+  return res.data;
+}
+
+// --- Tool Cards ------------------------------------------------------------
+
+export interface ToolCard {
+  id: string;
+  name: string;
+  category: string;
+  inputs: Record<string, string>;
+  outputs: Record<string, string>;
+  external: string;
+  version: string;
+  cli_binary: string | null;
+  api_endpoint: string | null;
+}
+
+export async function getToolCards(): Promise<ToolCard[]> {
+  const res = await api.get('/api/tools');
+  return res.data.tools || [];
+}
+
+export async function getToolCard(toolId: string): Promise<ToolCard> {
+  const res = await api.get(`/api/tools/${toolId}`);
   return res.data;
 }

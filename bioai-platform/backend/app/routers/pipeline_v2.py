@@ -104,6 +104,7 @@ class PipelineV2RunRequest(BaseModel):
     max_hits: int = Field(100, description="Max BLAST hits to return")
     query_accession: str = Field("", description="Optional query accession for display")
     alignment_mode: str = Field("global", description="Alignment mode for the MSA step: 'global' (full-length) or 'local' (Smith-Waterman refinement of query vs top hit)")
+    parent_job_id: str | None = Field(None, description="Parent job ID for DAG branching")
 
 
 @router.post("/run")
@@ -150,7 +151,7 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
         }
 
     # Best-effort persistence so wizard jobs appear in history and can be shared.
-    _persist_v2_job(job_id, {
+    persist_payload = {
         "id": job_id,
         "user_id": user_id,
         "tool": "wizard_v2",
@@ -161,7 +162,10 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
         "title": "Wizard pipeline",
         "description": "Pipeline v2 wizard run",
         "created_at": now,
-    })
+    }
+    if req.parent_job_id:
+        persist_payload["parent_job_id"] = req.parent_job_id
+    _persist_v2_job(job_id, persist_payload)
 
     t = threading.Thread(
         target=_run_pipeline,

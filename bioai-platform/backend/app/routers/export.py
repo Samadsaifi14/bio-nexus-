@@ -5,14 +5,81 @@ from fastapi.responses import StreamingResponse, JSONResponse
 from app.services.auth import require_user_id
 from app.services.supabase import get_supabase
 from app.services.export import export_blast_pdf, export_uniprot_pdf
+from app.tools.tool_cards import get_tool_cards
 
 router = APIRouter()
+
+
+def _build_ro_crate(job: dict, context: dict) -> dict:
+    """Build a minimal RO-Crate-style JSON-LD manifest for a job."""
+    job_id = job["id"]
+    steps = context.get("steps") or {}
+    query = context.get("query") or {}
+    sequence = query.get("sequence") or context.get("sequence") or ""
+
+    # Collect tool actions from completed steps
+    actions = []
+    tool_cards = {c["id"]: c for c in get_tool_cards()}
+    for step_name, step_data in steps.items():
+        if not step_data or step_data.get("status") not in ("complete", "success"):
+            continue
+        card = tool_cards.get(step_name, {})
+        action = {
+            "@type": "CreateAction",
+            "name": card.get("name", step_name),
+            "description": f"Step {step_name} in analysis pipeline",
+            "instrument": {
+                "@type": "SoftwareApplication",
+                "name": card.get("name", step_name),
+                "version": card.get("version", "unknown"),
+                "url": card.get("external", ""),
+            },
+            "result": {
+                "@type": "Dataset",
+                "name": f"{step_name} results",
+            },
+        }
+        actions.append(action)
+
+    return {
+        "@context": "https://w3id.org/ro/crate/1.1/context",
+        "@graph": [
+            {
+                "@type": "Dataset",
+                "@id": f"https://bio-nexus.app/jobs/{job_id}",
+                "name": f"Bio Nexus analysis: {job.get('query_preview', 'unknown')}",
+                "description": "Protein analysis pipeline run",
+                "dateCreated": job.get("created_at", ""),
+                "dateModified": job.get("completed_at") or job.get("created_at", ""),
+                "measurementTechnique": "Computational biology analysis",
+            },
+            {
+                "@type": "SoftwareApplication",
+                "@id": "#bio-nexus-platform",
+                "name": "Bio Nexus Platform",
+                "version": "0.2.0",
+                "url": "https://bio-nexus.app",
+                "description": "Integrated bioinformatics analysis platform",
+            },
+            *actions,
+        ],
+        "_metadata": {
+            "job_id": job_id,
+            "sequence_length": len(sequence) if sequence else 0,
+            "steps_completed": [s for s, d in steps.items() if d and d.get("status") == "complete"],
+            "tool_versions": {c["id"]: c["version"] for c in get_tool_cards() if c["id"] in steps},
+            "parameters": {
+                "blast_params": context.get("blast_params", {}),
+                "alignment_mode": context.get("alignment_mode", "global"),
+            },
+        },
+    }
 
 
 @router.get("/job/{job_id}")
 async def export_job(
     job_id: str,
-    format: str = Query("pdf", regex="^(pdf|json)$"),
+    format: str = Query("pdf", regex="^(pdf|json|ro-crate)$"),
     user_id: str = require_user_id,
 ):
     supabase = get_supabase()
@@ -29,6 +96,14 @@ async def export_job(
     blast_data = steps.get("blast", {}).get("data") or context.get("blast") or {}
     uniprot_data = steps.get("uniprot", {}).get("data") or context.get("uniprot") or {}
     sequence = (context.get("query") or {}).get("sequence") or context.get("sequence") or ""
+
+    if format == "ro-crate":
+        ro_crate = _build_ro_crate(job.data[0], context)
+        return JSONResponse(
+            content=ro_crate,
+            media_type="application/ld+json",
+            headers={"Content-Disposition": f'attachment; filename="bio-nexus-{job_id[:8]}-ro-crate.jsonld"'},
+        )
 
     if format == "json":
         return JSONResponse(

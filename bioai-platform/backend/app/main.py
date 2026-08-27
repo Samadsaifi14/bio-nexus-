@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, audit, admet, md, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, audit, admet, md, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards
 from app.services.cache import init_redis
 
 setup_logging()
@@ -74,6 +74,9 @@ app.include_router(swissmodel.router)
 app.include_router(structure_predict.router)
 app.include_router(structure_export.router)
 app.include_router(structure_prep.router)
+app.include_router(history.router, prefix="/api/history", tags=["history"])
+app.include_router(templates.router, prefix="/api/templates", tags=["templates"])
+app.include_router(tool_cards.router, prefix="/api/tools", tags=["tool_cards"])
 
 TERMINAL_STATUSES = {"complete", "failed"}
 NON_TERMINAL_STATUSES = {

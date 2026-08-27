@@ -320,12 +320,23 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
+        bs = req.bootstrap if req.bootstrap else 0
+        if bs <= 0:
+            timeout_s = 900
+        elif bs <= 100:
+            timeout_s = 900
+        elif bs <= 500:
+            timeout_s = 1800
+        else:
+            timeout_s = 3600
         try:
-            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=900)
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.communicate()
-            _patch(job_id, phase="error", error="PhyML timed out after 15 minutes")
+            _patch(job_id, phase="error",
+                   error=f"PhyML timed out after {timeout_s // 60} minutes "
+                         f"(bootstrap={bs} may require more time — try reducing to 100-200)")
             return
 
         if proc.returncode != 0:

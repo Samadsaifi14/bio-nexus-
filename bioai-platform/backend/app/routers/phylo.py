@@ -286,79 +286,122 @@ def fasta_to_phylip(fasta: str) -> str:
 
 
 async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> None:
-    """Run PhyML as a subprocess on a temp PHYLIP file."""
+    """Run ML tree building — prefers IQ-TREE2 (ultrafast bootstrap), falls back to PhyML."""
     _patch(job_id, phase="tree_running")
 
     import os
     import shutil
     import tempfile
 
+    iqtree_path = shutil.which("iqtree2") or shutil.which("iqtree")
     phyml_path = shutil.which("phyml")
-    if not phyml_path:
+
+    if not iqtree_path and not phyml_path:
         _patch(job_id, phase="error",
-               error="PhyML binary not found. ML method requires PhyML compiled from "
-                     "https://github.com/stephaneguindon/phyml. Try NJ or UPGMA instead.")
+               error="No ML tree tool found. Install IQ-TREE2 (recommended) or PhyML.")
         return
 
-    fd, phy_path = tempfile.mkstemp(suffix=".phy")
+    use_iqtree = iqtree_path is not None
+    engine = "iqtree2" if use_iqtree else "phyml"
+
+    fd, aln_path = tempfile.mkstemp(suffix=".phy")
     os.close(fd)
     try:
-        with open(phy_path, "w") as f:
+        with open(aln_path, "w") as f:
             f.write(fasta_to_phylip(aln_fasta))
 
+        bs = req.bootstrap if req.bootstrap else 0
         datatype = "aa" if req.seq_type == "protein" else "nt"
         model = req.model if req.model else ("LG" if req.seq_type == "protein" else "GTR")
 
+        if use_iqtree:
+            out_prefix = aln_path.replace(".phy", "")
+            cmd = [
+                iqtree_path,
+                "-s", aln_path,
+                "-m", model,
+                "-nt", "AUTO",
+                "-pre", out_prefix,
+            ]
+            if bs > 0:
+                cmd += ["-bb", str(bs)]
+            else:
+                cmd += ["-bb", "0"]
+            # IQ-TREE timeout: much shorter since ultrafast bootstrap is fast
+            if bs <= 0:
+                timeout_s = 300
+            elif bs <= 1000:
+                timeout_s = 600
+            else:
+                timeout_s = 1200
+        else:
+            cmd = [
+                "phyml",
+                "-i", aln_path,
+                "-d", datatype,
+                "-m", model,
+                "-b", str(bs),
+                "-o", "tlr",
+                "--no_memory_check",
+            ]
+            # PhyML timeout (slow classic bootstrap)
+            if bs <= 0:
+                timeout_s = 900
+            elif bs <= 100:
+                timeout_s = 900
+            elif bs <= 500:
+                timeout_s = 1800
+            else:
+                timeout_s = 3600
+
+        _patch(job_id, engine=engine, bootstrap=bs)
+        logger.info(f"[{job_id}] Running {engine} with bootstrap={bs}")
+
         proc = await asyncio.create_subprocess_exec(
-            "phyml",
-            "-i", phy_path,
-            "-d", datatype,
-            "-m", model,
-            "-b", str(req.bootstrap if req.bootstrap else 0),
-            "-o", "tlr",
-            "--no_memory_check",
+            *cmd,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
-        bs = req.bootstrap if req.bootstrap else 0
-        if bs <= 0:
-            timeout_s = 900
-        elif bs <= 100:
-            timeout_s = 900
-        elif bs <= 500:
-            timeout_s = 1800
-        else:
-            timeout_s = 3600
         try:
             _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
         except asyncio.TimeoutError:
             proc.kill()
             await proc.communicate()
             _patch(job_id, phase="error",
-                   error=f"PhyML timed out after {timeout_s // 60} minutes "
-                         f"(bootstrap={bs} may require more time — try reducing to 100-200)")
+                   error=f"{engine} timed out after {timeout_s // 60} minutes "
+                         f"(bootstrap={bs}). Try reducing to 100-200.")
             return
 
         if proc.returncode != 0:
             err_text = stderr.decode("utf-8", errors="replace")[:500] if stderr else ""
             _patch(job_id, phase="error",
-                   error=f"PhyML failed (exit {proc.returncode}): {err_text}")
+                   error=f"{engine} failed (exit {proc.returncode}): {err_text}")
             return
 
-        tree_path = phy_path + "_phyml_tree.txt"
-        stats_path = phy_path + "_phyml_stats.txt"
-
+        # Read output tree
         newick = None
         stats = None
-        if os.path.exists(tree_path):
-            with open(tree_path) as f:
-                newick = f.read().strip()
-        if os.path.exists(stats_path):
-            with open(stats_path) as f:
-                stats = f.read().strip()
+        if use_iqtree:
+            tree_file = aln_path.replace(".phy", ".treefile")
+            iqtree_file = aln_path.replace(".phy", ".iqtree")
+            if os.path.exists(tree_file):
+                with open(tree_file) as f:
+                    newick = f.read().strip()
+            if os.path.exists(iqtree_file):
+                with open(iqtree_file) as f:
+                    stats = f.read().strip()
+        else:
+            tree_path = aln_path + "_phyml_tree.txt"
+            stats_path = aln_path + "_phyml_stats.txt"
+            if os.path.exists(tree_path):
+                with open(tree_path) as f:
+                    newick = f.read().strip()
+            if os.path.exists(stats_path):
+                with open(stats_path) as f:
+                    stats = f.read().strip()
 
         if not newick:
-            _patch(job_id, phase="error", error="PhyML produced no output tree")
+            _patch(job_id, phase="error", error=f"{engine} produced no output tree")
             return
 
         _patch(job_id, phase="complete", newick=newick, stats=stats, done_at=time.time())
@@ -366,19 +409,24 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
         # AI interpretation (best-effort, never blocks)
         try:
             from app.ai.tool_interpreter import interpret_tool_result
-            result_data = {"newick": newick, "method": "ml", "stats": stats}
+            result_data = {"newick": newick, "method": "ml", "engine": engine, "stats": stats}
             ai_interp = await interpret_tool_result("phylo", result_data)
             if ai_interp:
                 _patch(job_id, ai_interpretation=ai_interp)
         except Exception:
             pass
     except Exception as e:
-        _patch(job_id, phase="error", error=f"PhyML error: {e}")
+        _patch(job_id, phase="error", error=f"ML tree error: {e}")
     finally:
-        for suffix in ["", "_phyml_tree.txt", "_phyml_stats.txt", "_phyml_boot_trees.txt"]:
-            p = phy_path + suffix
-            if os.path.exists(p):
-                os.remove(p)
+        # Clean up all temp files (IQ-TREE produces many)
+        dir_name = os.path.dirname(aln_path)
+        base_name = os.path.basename(aln_path).replace(".phy", "")
+        for f in os.listdir(dir_name):
+            if f.startswith(base_name):
+                try:
+                    os.remove(os.path.join(dir_name, f))
+                except OSError:
+                    pass
 
 
 # ─── Main pipeline worker ─────────────────────────────────────────────────────

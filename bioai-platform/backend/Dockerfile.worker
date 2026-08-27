@@ -33,6 +33,13 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
     chmod +x /usr/local/bin/phyml && \
     rm -rf /tmp/phyml.tar.bz2 /tmp/bin
 
+# IQ-TREE2 (ultrafast bootstrap — 10-100x faster than PhyML for bootstrap)
+RUN wget -q https://github.com/iqtree/iqtree2/releases/download/v2.3.6/iqtree-2.3.6-Linux-intel.tar.gz -O /tmp/iqtree.tar.gz && \
+    tar xzf /tmp/iqtree.tar.gz -C /opt && \
+    cp /opt/iqtree-2.3.6-Linux-intel/bin/iqtree2 /usr/local/bin/iqtree2 && \
+    chmod +x /usr/local/bin/iqtree2 && \
+    rm -rf /tmp/iqtree.tar.gz /opt/iqtree-2.3.6-Linux-intel
+
 # minimap2 (for sequencing)
 RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
     tar xjf /tmp/minimap2.tar.bz2 -C /tmp --no-same-owner && \

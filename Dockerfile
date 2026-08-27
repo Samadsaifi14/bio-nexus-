@@ -22,6 +22,13 @@ RUN wget -qO /tmp/phyml.tar.bz2 \
     chmod +x /usr/local/bin/phyml && \
     rm -rf /tmp/phyml.tar.bz2 /tmp/bin
 
+# IQ-TREE2 (ultrafast bootstrap — 10-100x faster than PhyML for bootstrap)
+RUN wget -q https://github.com/iqtree/iqtree2/releases/download/v2.3.6/iqtree-2.3.6-Linux-intel.tar.gz -O /tmp/iqtree.tar.gz && \
+    tar xzf /tmp/iqtree.tar.gz -C /opt && \
+    cp /opt/iqtree-2.3.6-Linux-intel/bin/iqtree2 /usr/local/bin/iqtree2 && \
+    chmod +x /usr/local/bin/iqtree2 && \
+    rm -rf /tmp/iqtree.tar.gz /opt/iqtree-2.3.6-Linux-intel
+
 # Download pre-compiled AutoDock Vina binary from GitHub releases
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina

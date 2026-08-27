@@ -323,11 +323,13 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
                 "-nt", "AUTO",
                 "-pre", out_prefix,
             ]
+            # IQ-TREE ultrafast bootstrap (-bb) REQUIRES >= 1000 samples; passing
+            # 0 or <1000 errors out. Sample count is a quality knob, not a
+            # speed knob — it only scales UFBoot iterations, ~seconds for 1000.
             if bs > 0:
-                cmd += ["-bb", str(bs)]
-            else:
-                cmd += ["-bb", "0"]
-            # IQ-TREE timeout: much shorter since ultrafast bootstrap is fast
+                bb = max(1000, bs)
+                cmd += ["-bb", str(bb), "-alrt", str(bb)]
+            # IQ-TREE timeout: ultrafast bootstrap is fast even at 1000+
             if bs <= 0:
                 timeout_s = 300
             elif bs <= 1000:

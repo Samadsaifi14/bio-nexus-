@@ -117,7 +117,7 @@ def fetch_pdb_from_rcsb(pdb_id: str) -> str:
     url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
     try:
         # pdb_id is length- and charset-restricted above
-        data = urllib.request.urlopen(url, timeout=30)  # nosemgrep.read().decode("utf-8", errors="replace")
+        data = urllib.request.urlopen(url, timeout=30).read().decode("utf-8", errors="replace")  # nosemgrep
     except Exception as e:
         raise RuntimeError(f"Failed to fetch PDB {pdb_id} from RCSB: {e}")
     if "ATOM" not in data and "HETATM" not in data:

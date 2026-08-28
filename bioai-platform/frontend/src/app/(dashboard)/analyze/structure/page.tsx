@@ -10,6 +10,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { StructureResult } from '@/lib/api';
 import { DockingViewer } from '@/components/DockingViewer';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 import { consumeParam, setPrefill } from '@/lib/cross-link';
 
@@ -135,6 +136,7 @@ export default function StructurePage() {
 
       {result && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          <AIResultSummary toolName="structure" result={result as unknown as Record<string, unknown>} />
           <div className="data-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>

@@ -24,6 +24,7 @@ import { runNGS, getNGSStatus, listNGSReferences } from '@/lib/api';
 import type { NGSResult, NGSReference } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 
 const GenomeViewer = lazy(() => import('@/components/GenomeViewer'));
 
@@ -211,6 +212,10 @@ export default function NGSPage() {
               title="NGS Pipeline complete"
               subtitle={`${result.result?.reference ?? ''} · All 6 steps finished · igv.js viewer ready`}
             />
+          )}
+
+          {isComplete && result.result && (
+            <AIResultSummary toolName="ngs" result={result.result as unknown as Record<string, unknown>} />
           )}
 
           {/* Pipeline Progress */}

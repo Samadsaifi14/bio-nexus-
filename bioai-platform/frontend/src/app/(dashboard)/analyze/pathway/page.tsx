@@ -10,6 +10,7 @@ import type { PathwayResult, KEGGPathwayResult, EnrichmentResult } from '@/lib/a
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PathwayDiagram from '@/components/results/PathwayDiagram';
 import { BackButton, PageHeader, ClaySegmented, CriticalButton, FlatInput, FlatTextarea } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { consumeParam } from '@/lib/cross-link';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
@@ -145,6 +146,7 @@ export default function PathwayPage() {
 
       {tab === 'reactome' && reactomeResults && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
+          <AIResultSummary toolName="pathway" result={{ query, results: reactomeResults } as unknown as Record<string, unknown>} />
           <p className="text-xs text-text-muted mb-2">{reactomeResults.length} pathway{reactomeResults.length !== 1 ? 's' : ''} found</p>
           {reactomeResults.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
@@ -189,6 +191,7 @@ export default function PathwayPage() {
 
       {tab === 'kegg' && keggResults && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
+          <AIResultSummary toolName="pathway" result={{ query, results: keggResults } as unknown as Record<string, unknown>} />
           <p className="text-xs text-text-muted mb-2">{keggResults.length} pathway{keggResults.length !== 1 ? 's' : ''} found</p>
           {keggResults.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
@@ -236,6 +239,7 @@ export default function PathwayPage() {
 
       {tab === 'enrichment' && enrichmentResult && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
+          <AIResultSummary toolName="pathway_enrichment" result={enrichmentResult as unknown as Record<string, unknown>} />
           <p className="text-xs text-text-muted mb-2">{enrichmentResult.pathways.length} enriched pathway{enrichmentResult.pathways.length !== 1 ? 's' : ''} found</p>
           {enrichmentResult.pathways.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No significantly enriched pathways found</p></div>

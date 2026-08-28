@@ -8,6 +8,7 @@ import { querySwissModel, type SwissModelResult } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 
 export default function SwissModelPage() {
@@ -85,6 +86,7 @@ export default function SwissModelPage() {
 
       {result && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
+          <AIResultSummary toolName="swissmodel" result={result as unknown as Record<string, unknown>} />
           <motion.div variants={fadeUp} className="data-card p-5">
             <div className="flex items-center justify-between mb-2">
               <h3 className="font-semibold text-text-primary">{result.accession}</h3>

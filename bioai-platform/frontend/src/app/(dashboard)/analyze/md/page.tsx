@@ -8,6 +8,7 @@ import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { runMD, getMDStatus, getMDForceFields, type MDSimulationResult, type MDForceFieldsMenu } from "@/lib/api";
 import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { ClaySegmented, ClaySlider, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { consumeParam } from '@/lib/cross-link';
 
 const MODES = [
@@ -219,6 +220,7 @@ export default function MDPage() {
               <Download className="w-3.5 h-3.5" /> Export traces (TSV)
             </button>
           </div>
+          <AIResultSummary toolName="md" result={result as unknown as Record<string, unknown>} />
           {/* Simulation Parameters */}
           <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">

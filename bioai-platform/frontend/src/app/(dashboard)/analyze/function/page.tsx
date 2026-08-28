@@ -6,6 +6,7 @@ import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";
 import { BackButton, PageHeader, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { LearnPopover } from "@/components/LearnPopover";
 import { consumeParam } from '@/lib/cross-link';
 
@@ -136,6 +137,7 @@ export default function FunctionPage() {
               A predictive heuristic model &mdash; this is <em>not</em> UniProt&apos;s curated function annotation (see the UniProt tool for experimentally documented function).
             </p>
           </div>
+          <AIResultSummary toolName="function_predict" result={result as unknown as Record<string, unknown>} />
           {/* Header */}
           <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>

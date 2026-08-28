@@ -9,6 +9,7 @@ import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/
 import type { SequencingResult, SequencingReference } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'Sars Cov 2' },
@@ -174,6 +175,7 @@ export default function SequencingPage() {
 
       {result && (
         <motion.div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          <AIResultSummary toolName="sequencing" result={result as unknown as Record<string, unknown>} />
           {result.status === 'complete' && (
             <ResultsReadyBanner
               title="Pipeline complete"

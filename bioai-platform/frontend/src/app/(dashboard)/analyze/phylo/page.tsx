@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import dynamic from 'next/dynamic'
 import { useAuditTrail } from '@/hooks/useAuditTrail'
 import { CriticalButton, FlatTextarea, PageHeader, ResultsReadyBanner } from '@/components/ui'
+import { AIResultSummary } from '@/components/results/AIResultSummary'
 import { parseFasta } from '@/lib/sequence-utils'
 
 const PhyloTreeViewer = dynamic(
@@ -371,6 +372,16 @@ export default function PhyloPage() {
           <ResultsReadyBanner
             title="Tree complete"
             subtitle={`${METHOD_INFO[job.method].label}${job.model ? ` · ${job.model}` : ''}${job.done_at ? ` · ${Math.round(job.done_at - job.created_at)}s` : ''}`}
+          />
+          <AIResultSummary
+            toolName="phylo"
+            result={{
+              method: job.method,
+              seq_type: job.seq_type,
+              model: job.model,
+              bootstrap: job.bootstrap,
+              newick: job.newick,
+            } as unknown as Record<string, unknown>}
           />
           <div className="data-card p-4 flex flex-wrap gap-4 items-center">
             <div className="flex gap-4 text-sm flex-wrap flex-1">

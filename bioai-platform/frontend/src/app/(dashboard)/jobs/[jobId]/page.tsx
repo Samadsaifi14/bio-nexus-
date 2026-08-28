@@ -7,6 +7,7 @@ import toast from 'react-hot-toast';
 import type { JobStatus, JobStepStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
 import { AIInterpretation } from '@/components/results/AIInterpretation';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BlastPanel } from '@/components/results/BlastPanel';
 import { ScoreBars } from '@/components/results/ScoreBars';
 import { UniprotPanel } from '@/components/results/UniprotPanel';
@@ -386,6 +387,17 @@ export default function JobPage() {
                 {context.uniprot && !context.uniprot._de_novo && <UniprotPanel data={context.uniprot} />}
               </div>
             </motion.div>
+          )}
+
+          {context.blast.hits.length > 0 && (
+            <AIResultSummary
+              toolName="blast"
+              result={{
+                hits: context.blast.hits,
+                count: context.blast.count,
+                source: context.blast?.source ?? 'NCBI BLAST',
+              } as unknown as Record<string, unknown>}
+            />
           )}
 
           {isDeNovo && context.uniprot?._de_novo && (

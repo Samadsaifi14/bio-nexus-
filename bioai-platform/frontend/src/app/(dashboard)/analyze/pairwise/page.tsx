@@ -8,6 +8,7 @@ import { runPairwiseAlignment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisplay';
 import type { PairwiseAlignResult } from '@/types/pipeline';
 import { stripFastaHeader, cleanSequence } from '@/lib/sequence-utils';
@@ -191,7 +192,8 @@ export default function PairwiseAlignPage() {
         )}
 
         {result && !loading && (
-          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mt-8">
+          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mt-8 space-y-4">
+            <AIResultSummary toolName="pairwise_alignment" result={result as unknown as Record<string, unknown>} />
             <PairwiseResultDisplay
               result={result}
               queryLabel="Sequence A"

@@ -9,6 +9,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 
 type InputMode = 'pdb_id' | 'sequence';
 
@@ -164,6 +165,7 @@ export default function CastpPage() {
 
       {result && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
+          <AIResultSummary toolName="castp" result={result as unknown as Record<string, unknown>} />
           <motion.div variants={fadeUp} className="data-card p-5">
             <h3 className="font-semibold text-text-primary mb-1">Structure Viewer</h3>
             <p className="text-xs text-text-muted mb-4">

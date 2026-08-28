@@ -8,6 +8,7 @@ import { predictStructure, getPredictionStatus, type PredictionResult } from '@/
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 
 function PredictResultDisplay({ pdb, result, seqLen }: { pdb: string; result: PredictionResult; seqLen: number }) {
@@ -192,7 +193,17 @@ export default function PredictStructurePage() {
       )}
 
       {result && result.pdb && (
-        <PredictResultDisplay pdb={result.pdb} result={result} seqLen={seqLen} />
+        <div className="space-y-4">
+          <AIResultSummary
+            toolName="structure_predict"
+            result={{
+              mean_plddt: result.mean_plddt,
+              ptm: result.ptm,
+              sequence_length: seqLen,
+            } as unknown as Record<string, unknown>}
+          />
+          <PredictResultDisplay pdb={result.pdb} result={result} seqLen={seqLen} />
+        </div>
       )}
     </div>
   );

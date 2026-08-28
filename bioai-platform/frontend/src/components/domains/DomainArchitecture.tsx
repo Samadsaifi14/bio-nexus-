@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef, useCallback } from "react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 
 const DB_COLORS: Record<string, string> = {
   PFAM:    "#4ADE80",
@@ -151,6 +152,7 @@ export function DomainArchitecture({ accession }: { accession: string }) {
 
   return (
     <div className="space-y-4 relative">
+      <AIResultSummary toolName="domains" result={(data ?? domainsOnly) as unknown as Record<string, unknown>} />
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div>
           <h3 className="text-text-primary font-semibold">Domain &amp; Motif Analysis</h3>

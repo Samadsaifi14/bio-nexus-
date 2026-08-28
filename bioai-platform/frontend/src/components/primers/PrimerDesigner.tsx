@@ -5,6 +5,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { downloadTsv, downloadText } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { CriticalButton, FlatInput, FlatTextarea } from "@/components/ui";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { searchPrimerTargets, analyzePrimer, fetchSequence } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import type { PrimerSearchHit, PrimerAnalyzeResponse, PrimerStructure } from "@/lib/api";
@@ -282,6 +283,7 @@ export function PrimerDesigner() {
 
       {pairs.length > 0 && (
         <div className="space-y-4">
+          <AIResultSummary toolName="primers" result={{ pairs, sequence_length: sequence.replace(/\s/g, "").length } as unknown as Record<string, unknown>} />
           <div className="flex items-center justify-between">
             <div className="flex gap-2 flex-wrap">
               {pairs.map(p => (

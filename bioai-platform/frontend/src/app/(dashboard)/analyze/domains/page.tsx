@@ -9,6 +9,7 @@ import { scanPrositeSequence, type ScanPrositeResult } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { BackButton, CriticalButton, FlatInput, FlatTextarea, PageHeader } from "@/components/ui";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { consumeParam, setPrefill } from '@/lib/cross-link';
 
 const EXAMPLE_ACCESSIONS = [
@@ -118,6 +119,7 @@ export default function DomainsPage() {
         {scanError && <p className="mt-2 text-xs text-error">{scanError}</p>}
         {scanResult && (
           <div className="mt-4">
+            <AIResultSummary toolName="domains" result={scanResult as unknown as Record<string, unknown>} />
             <div className="flex items-center justify-between mb-2">
               <p className="text-xs font-medium text-text-muted uppercase tracking-wider">
                 {scanResult.count} PROSITE match{scanResult.count !== 1 ? "es" : ""} in a {scanResult.sequence_length}-residue sequence

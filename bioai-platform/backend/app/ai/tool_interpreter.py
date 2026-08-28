@@ -102,6 +102,68 @@ _TOOL_PROMPTS: dict[str, str] = {
         "completed. Summarize the pLDDT confidence, structure availability, and "
         "what regions are well-predicted vs disordered. 2-3 sentences max."
     ),
+    "blast": (
+        "You are a bioinformatician. A BLAST search just completed. Summarize how "
+        "many database hits were found, the top hit (accession and description), its "
+        "E-value, percent identity and bit score, and what these numbers mean for how "
+        "confidently the query matches a known sequence. Explain in plain language. "
+        "3-4 sentences max."
+    ),
+    "msa": (
+        "You are a sequence analyst. A multiple sequence alignment just completed. "
+        "Summarize the number of sequences aligned, alignment length, percent identity, "
+        "gaps introduced, and which regions are highly conserved. Explain what the "
+        "conservation suggests functionally, in plain language. 2-3 sentences max."
+    ),
+    "dotplot": (
+        "You are a bioinformatician. A dot plot comparison of two sequences just "
+        "completed. Summarize the lengths of the two sequences, how many dots/matches "
+        "were found, the percentage on the main diagonal, and whether any repeats "
+        "(off-diagonal), inverted repeats (anti-diagonal), or indel gaps were detected. "
+        "Explain what this reveals about sequence similarity and repeats, in plain "
+        "language. 3-4 sentences max."
+    ),
+    "domains": (
+        "You are a protein bioinformatician. A PROSITE motif/domain scan just "
+        "completed. Summarize how many domains or motifs were found, the names and "
+        "positions of the most important ones, and what they suggest about the "
+        "protein's function. 2-3 sentences max."
+    ),
+    "motif": (
+        "You are a sequence analyst. A motif/pattern scan just completed. Summarize "
+        "which patterns were searched, how many matches were found and where, and "
+        "what they suggest about the sequence. 2-3 sentences max."
+    ),
+    "structure": (
+        "You are a structural bioinformatician. A protein structure lookup just "
+        "completed. Summarize the PDB ID, method (X-ray, cryo-EM, etc.), resolution, "
+        "title, and what the structure represents. Note the reliability (resolution or "
+        "confidence). 2-3 sentences max."
+    ),
+    "uniprot": (
+        "You are a protein bioinformatician. A UniProt record was just retrieved. "
+        "Summarize the protein name, organism, gene, its known function, subcellular "
+        "location, and any domains or active sites. Explain the key function in plain "
+        "language. 3-4 sentences max."
+    ),
+    "pairwise_alignment": (
+        "You are a sequence analyst. A pairwise sequence alignment just completed. "
+        "Summarize the method (global or local), scoring matrix, alignment length, "
+        "percent identity and similarity, gaps, and what the alignment says about how "
+        "similar the two sequences are. 2-3 sentences max."
+    ),
+    "pathway": (
+        "You are a molecular biologist. A pathway search just completed. Summarize "
+        "how many pathways were found, the names of the top ones, and what their "
+        "functions are in plain language. Explain why the searched genes or proteins "
+        "are associated with these pathways. 3-4 sentences max."
+    ),
+    "sequences": (
+        "You are a sequence analyst. An automatic sequence analysis just completed. "
+        "Summarize the sequence type (protein or nucleotide), its length, composition "
+        "details, and the most notable computed properties or warnings. Explain what "
+        "these mean in plain language. 2-3 sentences max."
+    ),
 }
 
 
@@ -148,10 +210,14 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
     user_prompt = (
         f"Tool: {tool_name}\n"
         f"Results:\n{result_text}\n\n"
+        "You are explaining these results to a non-expert with no prior knowledge of "
+        "bioinformatics or chemistry. Write in plain, simple language. When you must "
+        "use a technical term (E-value, RMSD, bootstrap, kcal/mol, TPSA, etc.), briefly "
+        "explain what it means in everyday words right after using it.\n\n"
         "Return a JSON object with exactly these keys:\n"
-        '  "headline": one sentence summary (max 12 words)\n'
-        '  "summary": 2-5 sentence interpretation\n'
-        '  "findings": list of 2-4 key observations\n'
+        '  "headline": one sentence plain-language summary (max 12 words)\n'
+        '  "summary": 2-5 sentence interpretation a complete beginner can understand\n'
+        '  "findings": list of 2-4 key observations, each written simply\n'
         '  "caveats": list of 0-3 caveats or limitations\n'
         "Return ONLY the JSON, no markdown fences."
     )

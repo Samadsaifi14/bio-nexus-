@@ -17,6 +17,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { downloadText } from '@/lib/export-utils';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySlider, ClayToggle, FlatTextarea, PageHeader } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import type { DotPlotResult, DotPlotFeatures } from '@/types/pipeline';
 
 const SCORING_OPTIONS = ['identity', 'blosum62', 'blosum50', 'blosum45', 'pam30', 'pam70', 'pam250'];
@@ -334,6 +335,7 @@ export default function DotPlotPage() {
 
         {result && !loading && (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4 mt-8">
+            <AIResultSummary toolName="dotplot" result={result as unknown as Record<string, unknown>} />
             <div className="data-card p-5">
               <div className="flex items-center gap-3 mb-4 flex-wrap">
                 <h3 className="text-sm font-semibold text-text-primary">Dot plot</h3>

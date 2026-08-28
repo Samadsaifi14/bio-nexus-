@@ -9,6 +9,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 import { SequenceUtilitiesView } from '@/components/sequences/SequenceUtilitiesView';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import type { SequenceUtilitiesResult } from '@/types/pipeline';
 
 type SeqType = 'auto' | 'dna' | 'rna' | 'protein';
@@ -112,6 +113,7 @@ export default function SequenceUtilitiesPage() {
 
         {result && !loading && (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mt-8">
+            <AIResultSummary toolName="sequences" result={result as unknown as Record<string, unknown>} />
             <SequenceUtilitiesView result={result} />
           </motion.div>
         )}

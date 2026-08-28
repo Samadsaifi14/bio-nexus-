@@ -11,6 +11,7 @@ import { DockingViewer } from '@/components/DockingViewer';
 import { StructureExportMenu } from '@/components/StructureExportMenu';
 import { InteractionPanel } from '@/components/InteractionPanel';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { consumeParam } from '@/lib/cross-link';
 import { downloadText } from '@/lib/export-utils';
 
@@ -369,6 +370,10 @@ export default function DockingPage() {
               </div>
             )}
           </div>
+
+          {(result.status === 'complete' || result.status === 'completed') && result.result && (
+            <AIResultSummary toolName="docking" result={result.result as unknown as Record<string, unknown>} />
+          )}
 
           {result.result?.poses && result.result.poses.length > 0 && (
             <div className="data-card p-5">

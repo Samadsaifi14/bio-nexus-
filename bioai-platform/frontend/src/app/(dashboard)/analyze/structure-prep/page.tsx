@@ -7,6 +7,7 @@ import { fadeUp, stagger } from '@/lib/animations';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 import { runStructurePrep, runStructurePrepSequence, getStructurePrepStatus, type StructurePrepResult } from '@/lib/api';
 
@@ -224,6 +225,7 @@ export default function StructurePrepPage() {
 
       {result && result.status === 'complete' && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
+          <AIResultSummary toolName="structure_prep" result={result as unknown as Record<string, unknown>} />
           {result.chain_health && (
             <motion.div variants={fadeUp} className="data-card p-5">
               <div className="flex items-center gap-3 mb-3">

@@ -18,6 +18,7 @@ import { extractErrorMessage } from '@/lib/errors';
 import { downloadText, downloadTsv } from '@/lib/export-utils';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { setPrefill } from '@/lib/cross-link';
 import { MotifTrack, MatchTable, SequenceHighlight, TRACK_COLORS } from '@/components/motifs/MotifTrack';
 import type { MotifLibraryHit, MotifLibraryPattern, MotifLibraryResult, MotifPatternScanResult } from '@/types/pipeline';
@@ -411,6 +412,7 @@ export default function MotifScannerPage() {
 
         {patternResult && !loading && (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4 mt-8">
+            <AIResultSummary toolName="motif" result={patternResult as unknown as Record<string, unknown>} />
             <div className="data-card p-5">
               <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <h3 className="text-sm font-semibold text-text-primary">Pattern matches</h3>
@@ -463,6 +465,7 @@ export default function MotifScannerPage() {
 
         {result && !loading && (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4 mt-8">
+            <AIResultSummary toolName="motif" result={result as unknown as Record<string, unknown>} />
             <div className="data-card p-5">
               <div className="flex items-center gap-3 mb-1 flex-wrap">
                 <h3 className="text-sm font-semibold text-text-primary">Motif library scan</h3>

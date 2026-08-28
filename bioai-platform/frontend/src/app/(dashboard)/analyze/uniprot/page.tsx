@@ -11,6 +11,7 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import type { UniprotSummary } from '@/types/pipeline';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
 import { BackButton, PageHeader, CriticalButton, FlatInput, ClaySegmented } from '@/components/ui';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { consumeParam, setPrefill } from '@/lib/cross-link';
 import { downloadFasta } from '@/lib/export-utils';
 
@@ -246,6 +247,7 @@ export default function UniprotLookupPage() {
 
       {detail && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          <AIResultSummary toolName="uniprot" result={detail as unknown as Record<string, unknown>} />
           <div className="data-card divide-y divide-glass-border">
             <div className="p-6">
               <div className="flex items-start justify-between mb-4">

@@ -8,6 +8,7 @@ import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { computeADMET, searchCompounds, type ADMETResult } from "@/lib/api";
 import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { BackButton, PageHeader, CriticalButton, FlatInput } from "@/components/ui";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 import SwissADMEView from "@/components/admet/SwissADMEView";
 import ProToxView from "@/components/admet/ProToxView";
 import { consumeParam } from '@/lib/cross-link';
@@ -275,8 +276,7 @@ export default function ADMETPage() {
 
       {result && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
-          {/* Header strip */}
-          <div className="data-card p-4 flex flex-wrap items-center gap-4">
+          {/* Header strip */}          <div className="data-card p-4 flex flex-wrap items-center gap-4">
             <div>
               <p className="text-xs text-text-muted">{result.chemical_name ? "Compound" : "Formula"}</p>
               <p className="text-sm font-mono font-medium text-text-primary">
@@ -336,6 +336,8 @@ export default function ADMETPage() {
               <span className="text-warn font-semibold">3b</span> ADMET & toxicity — rule-based heuristics, research screening only (no ML classifiers).
             </p>
           </div>
+
+          <AIResultSummary toolName="admet" result={result as unknown as Record<string, unknown>} />
 
           {/* Tabs */}
           <div className="flex gap-1 p-1 bg-surface-1 rounded-lg overflow-x-auto">

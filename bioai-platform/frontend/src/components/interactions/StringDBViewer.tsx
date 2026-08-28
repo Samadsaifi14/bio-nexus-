@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { LearnPopover } from "@/components/LearnPopover";
+import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { viewerBg } from "@/lib/theme-canvas";
 import { downloadTsv, downloadJson, downloadCanvasPng } from "@/lib/export-utils";
 
@@ -222,6 +223,19 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
           </tbody>
         </table>
       </div>
+
+      <AIResultSummary
+        toolName="interactions"
+        result={{
+          gene: geneName,
+          species,
+          network_type: networkType,
+          interactions: interactions.map(i => ({
+            partner_gene: i.partner_gene,
+            combined_score: i.combined_score,
+          })),
+        }}
+      />
     </div>
   );
 }

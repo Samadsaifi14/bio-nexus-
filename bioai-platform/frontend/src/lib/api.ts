@@ -100,6 +100,36 @@ export async function interpretStream(payload: {
   return res;
 }
 
+export type AIInterpretation = {
+  headline: string;
+  summary: string;
+  findings: string[];
+  caveats: string[];
+};
+
+export async function interpretToolResult(
+  toolName: string,
+  result: Record<string, unknown>,
+): Promise<AIInterpretation> {
+  const supabase = getSupabase();
+  const { data: { session } } = await supabase.auth.getSession();
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+  if (session?.access_token) {
+    headers['Authorization'] = `Bearer ${session.access_token}`;
+  }
+  const res = await fetch('/api/backend/api/ai/tool-interpret', {
+    method: 'POST',
+    headers,
+    body: JSON.stringify({ tool_name: toolName, result }),
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => null);
+    const msg = (body && typeof body.detail === 'string' && body.detail) || 'Could not generate AI summary';
+    throw new Error(msg);
+  }
+  return res.json();
+}
+
 export async function fetchSequence(accession: string, dbPreference?: string): Promise<SequenceResult> {
   const res = await api.post('/api/sequences/fetch', {
     accession,

@@ -1,17 +1,41 @@
-﻿"""CASTp pocket/cavity analysis endpoints."""
+﻿"""CASTp pocket/cavity analysis endpoints.
+
+Pipeline (single identifier input): search PDB -> resolve to UniProt -> use a
+linked experimental structure or model via ESMFold -> run CASTp pocket analysis
+-> return the full resolution trace so the UI can show exactly which database
+and step produced the structure, like the CASTp site does.
+"""
 
 import logging
+import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
+from typing import Any
+
+from app.services.identifier_resolution import is_uniprot_accession, resolve_to_uniprot
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/castp", tags=["CASTp"])
 
+_PDB_ID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
+# A raw amino-acid sequence is a long run of protein letters (with optional
+# spaces/newlines); gene names / accessions are short identifiers.
+_AA_ALPHABET = set("ACDEFGHIKLMNPQRSTVWY")
+
+
+def _looks_like_sequence(ident: str) -> bool:
+    ident = (ident or "").replace("\n", "").replace(" ", "").replace("-", "").replace(".", "")
+    if len(ident) < 15:
+        return False
+    if not all(c in _AA_ALPHABET for c in ident.upper()):
+        return False
+    return bool(set(ident.upper()) & {"A", "C", "D", "E", "F", "G", "H", "I", "K", "L", "M", "N", "P", "Q", "R", "S", "T", "V", "W", "Y"})
+
 
 class CastpRequest(BaseModel):
-    pdb_id: str = Field(default="", description="4-character PDB ID (mutually exclusive with sequence)")
-    sequence: str = Field(default="", description="Amino acid sequence for structure prediction + analysis")
+    pdb_id: str = Field(default="", description="Unified identifier: PDB ID, UniProt accession, gene name, or raw sequence")
+    sequence: str = Field(default="", description="Backward-compat: raw amino acid sequence")
     pdb_text: str = Field(default="", description="Raw PDB text content")
     probe_radius: float = Field(default=1.4, ge=0.0, le=5.0, description="Probe radius in Angstroms")
 
@@ -26,63 +50,225 @@ class PocketInfo(BaseModel):
     radius: float
 
 
+class PipelineStep(BaseModel):
+    step: str
+    status: str
+    detail: str
+
+
+class UniProtSummary(BaseModel):
+    accession: str = ""
+    name: str = ""
+    organism: str = ""
+    gene_names: list[str] = []
+    sequence_length: int = 0
+
+
 class CastpResponse(BaseModel):
     pdb_id: str
     probe_radius: float
     total_residues: int
     pockets: list[PocketInfo]
     sequence_source: str = ""
+    structure_source: str = ""
+    structure_pdb: str = Field(default="", description="Resolved structure PDB text (modeled/uploaded only; RCSB PDBs load by id)")
+    pipeline: list[PipelineStep] = []
+    uniprot: UniProtSummary | None = None
+
+
+async def _fetch_pdb_rcsb(pdb_id: str) -> str:
+    import httpx
+    async with httpx.AsyncClient(timeout=30) as client:
+        resp = await client.get(f"https://files.rcsb.org/download/{pdb_id.upper()}.pdb")
+        if resp.status_code != 200:
+            raise RuntimeError(f"PDB {pdb_id.upper()} not found on RCSB")
+        return resp.text
+
+
+async def _uniprot_summary(accession: str) -> UniProtSummary:
+    from app.tools.uniprot import UniprotTool
+    try:
+        data = await UniprotTool().run({"accession": accession})
+        if "error" in data:
+            return UniProtSummary(accession=accession, name="", organism="", gene_names=[], sequence_length=0)
+        return UniProtSummary(
+            accession=data.get("accession", accession),
+            name=data.get("full_name", ""),
+            organism=data.get("organism", ""),
+            gene_names=data.get("gene_names", []) or [],
+            sequence_length=data.get("sequence_length", 0),
+        )
+    except Exception as exc:
+        logger.warning("UniProt summary failed for %s: %s", accession, exc)
+        return UniProtSummary(accession=accession, name="", organism="", gene_names=[], sequence_length=0)
+
+
+async def _resolve_pipeline(identifier: str) -> dict[str, Any]:
+    """Resolve an identifier to structure text via PDB -> UniProt -> model.
+
+    Returns dict with pdb_text, pdb_id, source, provenance, uniprot.
+    """
+    ident = (identifier or "").strip()
+    provenance: list[dict] = []
+    uniprot: UniProtSummary | None = None
+    pdb_text: str | None = None
+    pdb_id = ident.upper()
+    source = ""
+
+    # Step 1 — look for an existing PDB entry first.
+    if _PDB_ID_RE.match(ident):
+        try:
+            pdb_text = await _fetch_pdb_rcsb(ident.upper())
+            pdb_id = ident.upper()
+            source = "pdb"
+            provenance.append({"step": "pdb", "status": "ok", "detail": f"Found {ident.upper()} in the RCSB PDB"})
+        except Exception as exc:
+            provenance.append({"step": "pdb", "status": "skip", "detail": f"No PDB entry {ident.upper()} on RCSB ({type(exc).__name__})"})
+    elif is_uniprot_accession(ident):
+        provenance.append({"step": "pdb", "status": "skip", "detail": f"{ident} is a UniProt accession (not a PDB ID)"})
+    else:
+        provenance.append({"step": "pdb", "status": "skip", "detail": f"{ident} is not a 4-character PDB ID"})
+
+    # Raw sequence input — model it directly, no UniProt lookup needed.
+    if pdb_text is None and _looks_like_sequence(ident):
+        seq = ident.replace("\n", "").replace(" ", "").replace("-", "").replace(".", "")
+        provenance.append({"step": "sequence", "status": "ok", "detail": f"Detected a {len(seq)}-residue amino-acid sequence"})
+        provenance.append({"step": "uniprot", "status": "skip", "detail": "Raw sequence provided; modeling directly"})
+        modeled = await _esmfold_or_raise(seq, provenance)
+        pdb_text = modeled
+        pdb_id = "predicted"
+        source = "model_esmfold"
+        return {"pdb_text": pdb_text, "pdb_id": pdb_id, "source": source, "provenance": provenance, "uniprot": uniprot}
+
+    # Step 2 — resolve to UniProt.
+    if pdb_text is None and ident and not _looks_like_sequence(ident):
+        resolved = await resolve_to_uniprot(accession=ident)
+        if resolved.get("status") == "resolved" and resolved.get("accession"):
+            acc = resolved["accession"]
+            method = resolved.get("method", "")
+            provenance.append({"step": "uniprot", "status": "ok", "detail": f"Mapped {ident} -> UniProt {acc} ({method})"})
+            uniprot = await _uniprot_summary(acc)
+            # 2a — UniProt-linked experimental structure.
+            linked = await _linked_pdb(acc)
+            if linked:
+                try:
+                    pdb_text = await _fetch_pdb_rcsb(linked)
+                    pdb_id = linked
+                    source = "uniprot_pdb"
+                    provenance.append({"step": "structure", "status": "ok", "detail": f"UniProt {acc} is linked to experimental structure {linked}; using it"})
+                except Exception as exc:
+                    provenance.append({"step": "structure", "status": "skip", "detail": f"Linked PDB {linked} unavailable ({type(exc).__name__})"})
+            # 2b — model the UniProt sequence.
+            if pdb_text is None:
+                if uniprot.sequence_length > 0:
+                    seq = await _uniprot_sequence(acc)
+                    if seq:
+                        provenance.append({"step": "structure", "status": "ok", "detail": f"No experimental structure for {acc}; modeling {len(seq)} aa via ESMFold"})
+                        pdb_text = await _esmfold_or_raise(seq, provenance)
+                        pdb_id = "predicted"
+                        source = "model_esmfold"
+                    else:
+                        provenance.append({"step": "structure", "status": "error", "detail": f"UniProt {acc} returned no sequence"})
+                else:
+                    provenance.append({"step": "structure", "status": "error", "detail": f"No sequence available for {acc}"})
+        else:
+            provenance.append({"step": "uniprot", "status": "error", "detail": f"Could not map {ident} to a UniProt entry"})
+
+    return {"pdb_text": pdb_text, "pdb_id": pdb_id, "source": source, "provenance": provenance, "uniprot": uniprot}
+
+
+async def _linked_pdb(accession: str) -> str | None:
+    from app.tools.uniprot import UniprotTool
+    try:
+        data = await UniprotTool().run({"accession": accession})
+        pdbs = data.get("pdb_ids") or []
+        return pdbs[0] if pdbs else None
+    except Exception:
+        return None
+
+
+async def _uniprot_sequence(accession: str) -> str | None:
+    from app.tools.uniprot import UniprotTool
+    try:
+        data = await UniprotTool().run({"accession": accession})
+        seq = data.get("sequence", "") or ""
+    except Exception as exc:
+        logger.warning("UniProt sequence fetch failed for %s: %s", accession, exc)
+        return None
+    return seq if seq else None
+
+
+async def _esmfold_or_raise(seq: str, provenance: list[dict]) -> str:
+    from app.tools.structure_prep import esmfold_predict
+    if len(seq) < 10:
+        raise HTTPException(status_code=400, detail="Sequence too short (min 10 residues)")
+    if len(seq) > 400:
+        raise HTTPException(status_code=400, detail="Sequence too long (max 400 residues for ESMFold)")
+    modeled = await esmfold_predict(seq)
+    if not modeled:
+        provenance.append({"step": "structure", "status": "error", "detail": "ESMFold could not predict a valid structure"})
+        raise HTTPException(status_code=400, detail="ESMFold could not predict a valid structure for this sequence")
+    return modeled
 
 
 @router.post("/analyze", response_model=CastpResponse)
 async def analyze_castp(body: CastpRequest):
-    from app.tools.castp import analyze_pockets_pdb_id, analyze_pockets_pdb_text
+    from app.tools.castp import analyze_pockets_pdb_text
 
     probe = body.probe_radius
-    source = ""
+    provenance: list[PipelineStep] = []
+    uniprot: UniProtSummary | None = None
+    structure_source = ""
+    pdb_text: str | None = None
+    pdb_id = "custom"
 
     if body.pdb_text.strip():
-        result = await analyze_pockets_pdb_text(body.pdb_text.strip(), "custom", probe)
-        source = "pdb_text"
-    elif body.pdb_id.strip():
-        pdb_id = body.pdb_id.strip().upper()
-        if len(pdb_id) != 4 or not pdb_id.isalnum():
-            raise HTTPException(status_code=400, detail="Invalid PDB ID â€” must be 4 alphanumeric characters")
-        try:
-            result = await analyze_pockets_pdb_id(pdb_id, probe)
-        except Exception as e:
-            logger.exception("CASTp analysis failed for %s", pdb_id)
-            raise HTTPException(status_code=500, detail=f"CASTp analysis failed: {e}")
-        source = "pdb_id"
+        pdb_text = body.pdb_text.strip()
+        pdb_id = "custom"
+        structure_source = "pdb_text"
+        provenance.append({"step": "input", "status": "ok", "detail": "Analyzing uploaded PDB text directly"})
     elif body.sequence.strip():
         seq = body.sequence.strip().upper().replace("\n", "").replace(" ", "").replace("-", "")
         if len(seq) < 10:
             raise HTTPException(status_code=400, detail="Sequence too short (min 10 residues)")
         if len(seq) > 400:
             raise HTTPException(status_code=400, detail="Sequence too long (max 400 residues for ESMFold)")
-        try:
-            from app.tools.structure_prep import esmfold_predict
-
-            pdb_text = await esmfold_predict(seq)
-            if not pdb_text:
-                raise HTTPException(status_code=400, detail="ESMFold could not predict a valid structure for this sequence")
-
-            result = await analyze_pockets_pdb_text(pdb_text, "predicted", probe)
-            source = "sequence_esmfold"
-        except HTTPException:
-            raise
-        except Exception as e:
-            logger.exception("CASTp ESMFold prediction failed")
-            raise HTTPException(status_code=500, detail=f"Structure prediction failed: {e}")
+        provenance.append({"step": "sequence", "status": "ok", "detail": f"Received {len(seq)}-residue amino-acid sequence"})
+        modeled = await _esmfold_or_raise(seq, provenance)
+        pdb_text = modeled
+        pdb_id = "predicted"
+        structure_source = "model_esmfold"
+        provenance.append({"step": "structure", "status": "ok", "detail": "Modeled structure via ESMFold, then running CASTp"})
+    elif body.pdb_id.strip():
+        resolution = await _resolve_pipeline(body.pdb_id)
+        pdb_text = resolution["pdb_text"]
+        pdb_id = resolution["pdb_id"]
+        structure_source = resolution["source"]
+        provenance = [PipelineStep(**s) for s in resolution["provenance"]]
+        uniprot = resolution["uniprot"]
+        if not pdb_text:
+            detail = " / ".join(p.detail for p in provenance if p.status == "error") or "Could not resolve the input to a structure"
+            raise HTTPException(status_code=404, detail=detail)
     else:
         raise HTTPException(status_code=400, detail="Provide pdb_id, sequence, or pdb_text")
+
+    result = await analyze_pockets_pdb_text(pdb_text, pdb_id, probe)
+
+    # Only embed the PDB text for structures that can't be loaded from RCSB by
+    # id (modeled / uploaded). For a real RCSB entry the viewer fetches it via
+    # pdb_id, keeping the response lean.
+    embed_pdb = structure_source in ("model_esmfold", "pdb_text")
 
     response = CastpResponse(
         pdb_id=result["pdb_id"],
         probe_radius=result["probe_radius"],
         total_residues=result["total_residues"],
         pockets=[PocketInfo(**p) for p in result["pockets"]],
-        sequence_source=source,
+        sequence_source=structure_source,
+        structure_source=structure_source,
+        structure_pdb=pdb_text if embed_pdb else "",
+        pipeline=provenance,
+        uniprot=uniprot,
     )
 
     # AI interpretation (best-effort, never blocks)

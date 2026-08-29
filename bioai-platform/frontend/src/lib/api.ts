@@ -1104,12 +1104,30 @@ export interface PocketInfo {
   radius: number;
 }
 
+export interface CastpPipelineStep {
+  step: string;
+  status: string;
+  detail: string;
+}
+
+export interface CastpUniProt {
+  accession: string;
+  name: string;
+  organism: string;
+  gene_names: string[];
+  sequence_length: number;
+}
+
 export interface CastpResult {
   pdb_id: string;
   probe_radius: number;
   total_residues: number;
   pockets: PocketInfo[];
   sequence_source?: string;
+  structure_source?: string;
+  structure_pdb?: string;
+  pipeline?: CastpPipelineStep[];
+  uniprot?: CastpUniProt | null;
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {

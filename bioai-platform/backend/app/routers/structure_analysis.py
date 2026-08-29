@@ -5,6 +5,7 @@ import math
 import re
 import secrets
 import httpx
+import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from Bio.PDB import PDBParser, PPBuilder
@@ -286,13 +287,25 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
                     continue
                 seen.add(match_pdb)
 
+                seq_id = entry.get("seqId", 0)
+                try:
+                    seq_id_frac = float(seq_id) / 100.0
+                except (TypeError, ValueError):
+                    seq_id_frac = 0.0
+                seq_id_frac = min(max(seq_id_frac, 0.0), 1.0)
+
+                rmsd = _alignment_rmsd(
+                    pdb_bytes, chain, entry.get("qAln", ""), entry.get("dbAln", ""),
+                    entry.get("qStartPos", 1), entry.get("tCa", ""),
+                )
+
                 results.append(StructureMatch(
                     pdb_id=match_pdb,
                     chain=match_chain,
                     description=target,
                     tm_score=round(entry.get("score", 0) / 100.0, 4),
-                    rmsd=0,
-                    seq_identity=entry.get("seqId", 0),
+                    rmsd=round(rmsd, 2),
+                    seq_identity=round(seq_id_frac, 4),
                     aligned_length=entry.get("alnLength", 0),
                 ))
                 if len(results) >= max_results:
@@ -331,3 +344,97 @@ def _parse_chain(raw: str) -> str:
         if ch.isalnum():
             return ch
     return ""
+
+
+# ── Real RMSD from the Foldseek TM-align alignment ─────────────────────────
+#
+# Kickseek's tmalign ``/result`` mode returns the aligned target Cα
+# coordinates in ``tCa`` and the query/target aligned sequences in ``qAln`` /
+# ``dbAln``. Superposing the paired Cα atoms and measuring the residual after
+# optimal rigid-body fit gives the true structural RMSD for every hit. This
+# fixes the previous bug where RMSD was hardcoded to 0 for every match.
+
+
+def _kabsch_rmsd(ref: np.ndarray, mov: np.ndarray) -> float:
+    """RMSD (Å) of ``mov`` onto ``ref`` after optimal Kabsch superposition."""
+    ref = np.asarray(ref, dtype=np.float64)
+    mov = np.asarray(mov, dtype=np.float64)
+    n = ref.shape[0]
+    if n == 0 or ref.shape != mov.shape:
+        return 0.0
+    if n == 1:
+        return float(np.linalg.norm(mov[0] - ref[0]))
+    ref_c = ref - ref.mean(axis=0)
+    mov_c = mov - mov.mean(axis=0)
+    H = mov_c.T @ ref_c
+    U, _, Vt = np.linalg.svd(H)
+    d = np.sign(np.linalg.det(Vt.T @ U.T))
+    R = Vt.T @ np.diag([1.0, 1.0, d]) @ U.T
+    aligned = mov_c @ R.T
+    return float(np.sqrt(((ref_c - aligned) ** 2).sum() / n))
+
+
+def _parse_tca(tca: str) -> np.ndarray:
+    """Parse Foldseek ``tCa`` (comma-separated target Cα coords, Å) to (N,3)."""
+    if not tca:
+        return np.zeros((0, 3))
+    try:
+        nums = [float(v) for v in str(tca).split(",") if v.strip()]
+    except ValueError:
+        return np.zeros((0, 3))
+    coords = [(nums[i], nums[i + 1], nums[i + 2]) for i in range(0, len(nums) - 2, 3)]
+    return np.asarray(coords, dtype=np.float64)
+
+
+def _query_cas(pdb_bytes: bytes, chain: str) -> np.ndarray:
+    """All Cα coordinates (Å) of a query PDB chain, in residue order."""
+    try:
+        text = pdb_bytes.decode("utf-8", errors="replace")
+        parser = PDBParser(QUIET=True)
+        structure = parser.get_structure("q", io.StringIO(text))
+    except Exception:
+        return np.zeros((0, 3))
+    cas: list[np.ndarray] = []
+    model = structure[0]
+    for ch in model:
+        if chain and ch.id != chain:
+            continue
+        for res in ch:
+            if res.id[0] != " ":
+                continue
+            if "CA" in res:
+                cas.append(np.asarray(res["CA"].coord, dtype=np.float64))
+    return np.asarray(cas, dtype=np.float64) if cas else np.zeros((0, 3))
+
+
+def _alignment_rmsd(pdb_bytes: bytes, chain: str, q_aln: str, db_aln: str,
+                    q_start_pos: int, tca: str) -> float:
+    """Compute the Cα RMSD (Å) over the structurally aligned residues only."""
+    tcoords = _parse_tca(tca)
+    qcas = _query_cas(pdb_bytes, chain)
+    if tcoords.shape[0] == 0:
+        return 0.0
+    pairs_q: list[np.ndarray] = []
+    pairs_t: list[np.ndarray] = []
+    q_idx = max(int(q_start_pos or 1) - 1, 0)
+    t_idx = 0
+    gap_chars = ("-", ".", " ")
+    for a, b in zip(q_aln or "", db_aln or ""):
+        t_gap = b in gap_chars
+        if not t_gap:
+            t_coord = tcoords[t_idx] if t_idx < tcoords.shape[0] else None
+            t_idx += 1
+        else:
+            t_coord = None
+        q_gap = a in gap_chars
+        if not q_gap:
+            q_coord = qcas[q_idx] if 0 <= q_idx < qcas.shape[0] else None
+            q_idx += 1
+        else:
+            q_coord = None
+        if q_coord is not None and t_coord is not None:
+            pairs_q.append(q_coord)
+            pairs_t.append(t_coord)
+    if not pairs_q:
+        return 0.0
+    return float(_kabsch_rmsd(np.array(pairs_q), np.array(pairs_t)))

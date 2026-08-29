@@ -1,45 +1,98 @@
 'use client';
 
-import { useState } from 'react';
+import { Fragment, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CircleNotch as LoaderCircle, MagnifyingGlass as Search, Funnel as Filter, Dna } from '@phosphor-icons/react';
+import {
+  CircleNotch as LoaderCircle,
+  MagnifyingGlass as Search,
+  Funnel as Filter,
+  Dna,
+  FloppyDisk as Database,
+  GitBranch as Branch,
+  Atom,
+  CheckCircle as Check,
+  XCircle as X,
+  ArrowRight,
+} from '@phosphor-icons/react';
 import { fadeUp, stagger } from '@/lib/animations';
-import { runCastp, runCastpSequence, type CastpResult } from '@/lib/api';
+import { runCastp, type CastpResult, type CastpPipelineStep } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 
-type InputMode = 'pdb_id' | 'sequence';
+const STEP_META: Record<string, { label: string; icon: typeof Database }> = {
+  pdb: { label: 'PDB Search', icon: Database },
+  sequence: { label: 'Sequence Input', icon: Dna },
+  uniprot: { label: 'UniProt Mapping', icon: Branch },
+  structure: { label: 'Structure', icon: Atom },
+  input: { label: 'Structure Input', icon: Database },
+};
+
+function PipelineView({ pipeline }: { pipeline: CastpPipelineStep[] }) {
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {pipeline.map((step, i) => {
+        const meta = STEP_META[step.step] ?? { label: step.step, icon: Database };
+        const Icon = meta.icon;
+        const ok = step.status === 'ok';
+        return (
+          <div key={i} className="flex items-center gap-1.5">
+            {i > 0 && <ArrowRight className="w-3 h-3 text-text-muted/40" />}
+            <div
+              className={`flex items-center gap-1.5 px-2.5 py-1 rounded-lg border text-xs ${
+                ok
+                  ? 'bg-accent-cyan/10 border-accent-cyan/25 text-accent-cyan'
+                  : step.status === 'skip'
+                  ? 'bg-surface-1 border-glass-border text-text-muted'
+                  : 'bg-error/10 border-error/25 text-error'
+              }`}
+              title={step.detail}
+            >
+              <Icon className="w-3.5 h-3.5" />
+              <span className="font-medium whitespace-nowrap">{meta.label}</span>
+              {ok ? (
+                <Check className="w-3 h-3" />
+              ) : step.status === 'skip' ? (
+                <span className="opacity-60">skip</span>
+              ) : (
+                <X className="w-3 h-3" />
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
 
 export default function CastpPage() {
-  const [mode, setMode] = useState<InputMode>('pdb_id');
-  const [pdbId, setPdbId] = useState('');
-  const [sequence, setSequence] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [probeRadius, setProbeRadius] = useState(1.4);
   const [result, setResult] = useState<CastpResult | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showResidues, setShowResidues] = useState<number | null>(null);
+  const [viewerUrl, setViewerUrl] = useState<string | undefined>(undefined);
   const audit = useAuditTrail();
 
-  const canSubmit = mode === 'pdb_id' ? pdbId.trim().length > 0 : sequence.trim().length >= 10;
-
   const handleAnalyze = async () => {
-    if (mode === 'pdb_id' && !pdbId.trim()) return;
-    if (mode === 'sequence' && sequence.trim().length < 10) return;
-
-    const label = mode === 'pdb_id' ? `pdb:${pdbId.trim().toUpperCase()}` : `seq:${sequence.trim().length}aa`;
+    if (!identifier.trim()) return;
+    const label = identifier.trim().toUpperCase();
     audit.emitStarted('castp_analyze', 'CASTp', label);
     setLoading(true);
     setError(null);
     setResult(null);
     try {
-      const res = mode === 'pdb_id'
-        ? await runCastp(pdbId.trim().toUpperCase(), probeRadius)
-        : await runCastpSequence(sequence.trim(), probeRadius);
+      const res = await runCastp(identifier.trim(), probeRadius);
       setResult(res);
+      setViewerUrl(undefined);
+      // Modeled / uploaded structures ship their PDB text — show via Blob URL.
+      if (res.structure_pdb) {
+        const blob = new Blob([res.structure_pdb], { type: 'text/plain' });
+        setViewerUrl(URL.createObjectURL(blob));
+      }
       audit.emitSuccess('castp_analyze', 'CASTp', label, `${res.pockets.length} pockets`);
     } catch (err: unknown) {
       const msg = extractErrorMessage(err, 'Analysis failed');
@@ -55,72 +108,37 @@ export default function CastpPage() {
       <BackButton />
       <PageHeader
         title="CASTp Pocket Analysis"
-        subtitle="Identify binding pockets and cavities in protein structures. Accepts PDB IDs or raw amino acid sequences (auto-predicted via ESMFold)."
+        subtitle="Resolves any identifier — PDB ID, UniProt accession, gene name, or raw sequence — through PDB search, UniProt mapping, and ESMFold modeling before running CASTp pocket detection."
       />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
-        <div className="flex gap-2 mb-4">
-          <button
-            onClick={() => { setMode('pdb_id'); setError(null); setResult(null); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'pdb_id'
-                ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
-                : 'bg-surface-1 text-text-muted hover:text-text-secondary border border-transparent'
-            }`}
-          >
-            PDB ID
-          </button>
-          <button
-            onClick={() => { setMode('sequence'); setError(null); setResult(null); }}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              mode === 'sequence'
-                ? 'bg-accent-cyan/20 text-accent-cyan border border-accent-cyan/30'
-                : 'bg-surface-1 text-text-muted hover:text-text-secondary border border-transparent'
-            }`}
-          >
-            <Dna className="w-3 h-3 inline mr-1" />
-            Amino Acid Sequence
-          </button>
+        <div className="flex gap-3">
+          <FlatInput
+            type="text"
+            value={identifier}
+            onChange={(e) => { setIdentifier(e.target.value); setResult(null); setError(null); }}
+            onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
+            placeholder="PDB ID, UniProt accession, gene name, or sequence (e.g. 1TIM, P04637, TP53, ...)"
+            className="flex-1"
+          />
+          <CriticalButton onClick={handleAnalyze} disabled={loading || !identifier.trim()}>
+            {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+            {loading ? 'Resolving & Analyzing...' : 'Analyze'}
+          </CriticalButton>
         </div>
 
-        {mode === 'pdb_id' ? (
-          <div className="flex gap-3">
-            <FlatInput
-              type="text"
-              value={pdbId}
-              onChange={(e) => { setPdbId(e.target.value); setResult(null); setError(null); }}
-              onKeyDown={(e) => e.key === 'Enter' && handleAnalyze()}
-              placeholder="PDB ID (e.g. 1TIM, 4HHB, 1FME)"
-              className="flex-1"
-            />
-            <CriticalButton onClick={handleAnalyze} disabled={loading || !pdbId.trim()}>
-              {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-              Analyze
-            </CriticalButton>
-          </div>
-        ) : (
-          <div>
-            <textarea
-              value={sequence}
-              onChange={(e) => { setSequence(e.target.value); setResult(null); setError(null); }}
-              placeholder="Paste amino acid sequence (10–768 residues, e.g. MVSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTL..."
-              rows={4}
-              className="w-full bg-surface-0 border border-glass-border rounded-lg p-3 text-sm font-mono text-text-primary placeholder-text-muted focus:outline-none focus:border-accent-cyan/50 resize-none"
-            />
-            <div className="flex items-center justify-between mt-2">
-              <span className="text-xs text-text-muted">
-                {sequence.trim().length > 0 ? `${sequence.trim().replace(/[\s\n]/g, '').length} residues` : 'Min 10 residues'}
-              </span>
-              <CriticalButton onClick={handleAnalyze} disabled={loading || sequence.trim().length < 10}>
-                {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                {loading ? 'Predicting & Analyzing...' : 'Predict Structure & Analyze'}
-              </CriticalButton>
-            </div>
-            <p className="text-[10px] text-text-muted mt-2">
-              Sequence mode: ESMFold predicts the 3D structure, then CASTp identifies pockets. Takes ~15–60s.
-            </p>
-          </div>
-        )}
+        <div className="flex flex-wrap items-center gap-2 mt-3 text-xs text-text-muted">
+          <span>Try:</span>
+          {['1TIM', '4HHB', 'P04637', 'TP53'].map((id) => (
+            <button
+              key={id}
+              onClick={() => { setIdentifier(id); setError(null); setResult(null); }}
+              className="text-accent-cyan hover:text-accent-cyan/80 underline"
+            >
+              {id}
+            </button>
+          ))}
+        </div>
 
         <div className="mt-4">
           <label className="block text-xs text-text-muted mb-2">
@@ -141,20 +159,6 @@ export default function CastpPage() {
             <span>5.0</span>
           </div>
         </div>
-
-        {mode === 'pdb_id' && (
-          <div className="flex gap-3 mt-3">
-            {['1TIM', '4HHB', '1FME'].map((id) => (
-              <button
-                key={id}
-                onClick={() => { setPdbId(id); setError(null); setResult(null); }}
-                className="text-xs text-accent-cyan hover:text-accent-cyan/80 underline"
-              >
-                {id}
-              </button>
-            ))}
-          </div>
-        )}
       </motion.div>
 
       {error && (
@@ -166,17 +170,47 @@ export default function CastpPage() {
       {result && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
           <AIResultSummary toolName="castp" result={result as unknown as Record<string, unknown>} />
+
+          {result.pipeline && result.pipeline.length > 0 && (
+            <motion.div variants={fadeUp} className="data-card p-4">
+              <h3 className="font-semibold text-text-primary mb-3 text-sm">Resolution Pipeline</h3>
+              <PipelineView pipeline={result.pipeline} />
+              {result.uniprot && (
+                <div className="mt-3 pt-3 border-t border-glass-border text-xs text-text-muted">
+                  <span className="font-medium text-text-secondary">Resolved to:</span>{' '}
+                  <span className="font-mono text-accent-cyan">{result.uniprot.accession}</span>
+                  {result.uniprot.name && <span> — {result.uniprot.name}</span>}
+                  {result.uniprot.organism && <span> · {result.uniprot.organism}</span>}
+                  {result.uniprot.gene_names?.length > 0 && (
+                    <span> · genes: {result.uniprot.gene_names.join(', ')}</span>
+                  )}
+                  {result.uniprot.sequence_length > 0 && <span> · {result.uniprot.sequence_length} aa</span>}
+                </div>
+              )}
+            </motion.div>
+          )}
+
           <motion.div variants={fadeUp} className="data-card p-5">
             <h3 className="font-semibold text-text-primary mb-1">Structure Viewer</h3>
             <p className="text-xs text-text-muted mb-4">
               {result.pdb_id.toUpperCase()} · {result.total_residues} residues · {result.pockets.length} pockets detected
-              {result.sequence_source && (
+              {result.structure_source && (
                 <span className="ml-2 px-1.5 py-0.5 bg-accent-cyan/10 text-accent-cyan rounded text-[10px]">
-                  {result.sequence_source === 'sequence_esmfold' ? 'ESMFold predicted' : result.sequence_source}
+                  {result.structure_source === 'model_esmfold'
+                    ? 'ESMFold modeled'
+                    : result.structure_source === 'uniprot_pdb'
+                    ? 'UniProt-linked PDB'
+                    : result.structure_source === 'pdb'
+                    ? 'RCSB PDB'
+                    : 'Uploaded structure'}
                 </span>
               )}
             </p>
-            <DockingViewer pdbId={result.pdb_id} ligandPdb="" />
+            <DockingViewer
+              pdbId={viewerUrl ? 'predicted' : result.pdb_id}
+              pdbUrl={viewerUrl}
+              ligandPdb=""
+            />
           </motion.div>
 
           <motion.div variants={fadeUp} className="data-card p-5">
@@ -205,8 +239,8 @@ export default function CastpPage() {
                   </thead>
                   <tbody>
                     {result.pockets.map((p) => (
-                      <>
-                        <tr key={p.id} className="border-b border-glass-border/50 hover:bg-surface-1 transition-colors">
+                      <Fragment key={p.id}>
+                        <tr>
                           <td className="py-2 text-accent-cyan font-mono">{p.id}</td>
                           <td className="py-2">{p.area_sa.toLocaleString()}</td>
                           <td className="py-2">{p.volume_sa.toLocaleString()}</td>
@@ -234,7 +268,7 @@ export default function CastpPage() {
                             </td>
                           </tr>
                         )}
-                      </>
+                      </Fragment>
                     ))}
                   </tbody>
                 </table>

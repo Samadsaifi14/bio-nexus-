@@ -50,6 +50,8 @@ from app.ngs.stages.stage11_variant_calling import run_variant_calling, call_var
 from app.ngs.stages.stage12_normalize import run_variant_normalization, normalize_variants
 from app.ngs.stages.stage13_variant_qc import run_variant_qc_stage, variant_qc
 from app.ngs.stages.stage14_filter import run_variant_filter, filter_variants
+from app.ngs.stages.stage15_sv import run_sv_detection, detect_sv
+from app.ngs.stages.stage16_cnv import run_cnv_detection, call_cnv
 
 
 # ---------------------------------------------------------------------------
@@ -796,3 +798,80 @@ def test_call_to_filter_pipeline():
     finals = [v for v in filtered["variants"]["final"]]
     assert len(finals) >= 1
     assert finals[0]["pos"] == 50
+
+
+def _pair(qname, pos1, pos2, chrom="chr1", strand2_rev=True, tlen=None, proper=True,
+          chrom2=None):
+    """Two mate records for one template. Returns (rec1, rec2)."""
+    fl1 = 0x40 | (0 if not strand2_rev else 0x2) if proper else 0x40
+    rec1 = {
+        "qname": qname, "flag": fl1, "rname": chrom, "pos": pos1, "mapq": 60,
+        "cigar": "30M", "rnext": chrom2 or chrom, "pnext": pos2, "tlen": tlen or 0,
+        "seq": "A" * 30, "qual": "I" * 30, "is_unmapped": False,
+        "is_proper_pair": proper, "is_secondary": False, "is_supplementary": False,
+        "is_duplicate": False, "is_first_in_pair": True, "is_second_in_pair": False,
+        "mate_unmapped": False,
+    }
+    rec2 = {
+        "qname": qname, "flag": (0x80 | (0x10 if strand2_rev else 0)) | (0x2 if proper else 0),
+        "rname": chrom2 or chrom, "pos": pos2, "mapq": 60, "cigar": "30M",
+        "rnext": chrom, "pnext": pos1, "tlen": -(tlen or 0), "seq": "A" * 30,
+        "qual": "I" * 30, "is_unmapped": False, "is_proper_pair": proper,
+        "is_secondary": False, "is_supplementary": False, "is_duplicate": False,
+        "is_first_in_pair": False, "is_second_in_pair": True, "mate_unmapped": False,
+    }
+    return rec1, rec2
+
+
+def test_sv_detects_deletion_duplication_translocation():
+    records = []
+    # 4 normal pairs, insert span ~100 bp (baseline)
+    for i in range(4):
+        a, b = _pair(f"n{i}", 100 + i * 10, 200 + i * 10, tlen=100, strand2_rev=True)
+        records += [a, b]
+    a, b = _pair("del1", 1000, 5000, tlen=4000, strand2_rev=True)   # large deletion
+    records += [a, b]
+    a, b = _pair("dup1", 300, 350, tlen=0, strand2_rev=False)       # same strand -> DUP
+    records += [a, b]
+    a, b = _pair("tra1", 10, 20, chrom="chr1", chrom2="chr2", tlen=0, strand2_rev=True)
+    records += [a, b]
+    report = detect_sv(records)
+    assert report["n_deletions"] >= 1
+    assert report["n_duplications"] >= 1
+    assert report["n_translocations"] >= 1
+
+
+def test_sv_run_returns_report():
+    records = []
+    for i in range(4):
+        a, b = _pair(f"n{i}", 100 + i * 10, 200 + i * 10, tlen=100)
+        records += [a, b]
+    a, b = _pair("del1", 1000, 5000, tlen=4000)
+    records += [a, b]
+    out = run_sv_detection(records)
+    assert out["summary"]["report"]["n_deletions"] >= 1
+    assert out["summary"]["decision"] != "STOP"
+
+
+def test_cnv_detects_amplified_region():
+    records = []
+    # background: 2 reads spread over the contig
+    for pos in range(500, 30000, 2000):
+        records.append(_base_rec(f"bg{pos}", pos, "A" * 30))
+    # amplification: dense band around 1kb (many read starts in bin 0)
+    for i in range(40):
+        records.append(_base_rec(f"amp{i}", 100 + i, "A" * 30))
+    report = call_cnv(records, bin_size=1000)
+    amps = [s for s in report["segments"] if s["type"] == "AMP"]
+    assert len(amps) >= 1
+    assert any(s["copy_number"] >= 3 for s in amps)  # genuinely amplified by read count
+
+
+def test_cnv_run_returns_report():
+    records = []
+    for pos in range(500, 30000, 2000):
+        records.append(_base_rec(f"bg{pos}", pos, "A" * 30))
+    for i in range(40):
+        records.append(_base_rec(f"amp{i}", 100 + i, "A" * 30))
+    out = run_cnv_detection(records, bin_size=1000)
+    assert out["summary"]["report"]["n_amplifications"] >= 1

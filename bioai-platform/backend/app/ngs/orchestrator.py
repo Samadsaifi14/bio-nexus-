@@ -117,10 +117,12 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
     ``include`` filters by stage id so the caller can build lighter DAGs during development.
     """
     from app.ngs.stages.stage0_input import stage0_contract
+    from app.ngs.stages.stage1_raw_qc import raw_qc_contract
 
     all_stages = {
         "input_validation": stage0_contract(),
-        # raw_qc, multiqc, preprocessing, reference_validation, alignment, bam_processing,
+        "raw_read_qc": raw_qc_contract(),
+        # multiqc, preprocessing, reference_validation, alignment, bam_processing,
         # alignment_qc, coverage, contamination, identity, variant_calling, variant_norm,
         # variant_qc, variant_filter, annotation, prioritization, final_gate
     }

@@ -255,13 +255,21 @@ class StageContract:
     version: str
     inputs: list[str]
     outputs: list[str]
-    rules: list[ThresholdRule]
+    # rules can be a fixed list, or a callable that resolves assay-aware rules from the sample.
+    rules: Any
     fail_blocks: bool = True
     run: Optional[Callable[[dict, dict], tuple[dict, dict]]] = None
     expectation: Optional[str] = None
 
-    def evaluate(self, metric_values: dict[str, Any]) -> QcResult:
-        metrics = apply_rules(self.rules, metric_values)
+    def resolve_rules(self, sample: dict) -> list[ThresholdRule]:
+        if callable(self.rules):
+            resolved = self.rules(sample)
+            return list(resolved) if resolved is not None else []
+        return list(self.rules)
+
+    def evaluate(self, metric_values: dict[str, Any], sample: Optional[dict] = None) -> QcResult:
+        rules = self.resolve_rules(sample or {})
+        metrics = apply_rules(rules, metric_values)
         return QcResult.from_metrics(metrics, fail_blocks=self.fail_blocks)
 
 
@@ -275,7 +283,7 @@ def run_contract(contract: StageContract, sample: dict, stage_state: dict) -> St
         except Exception as exc:  # any failure becomes a FAIL contract
             data = {"error": str(exc)}
             metric_values = {}
-    qc = contract.evaluate(metric_values)
+    qc = contract.evaluate(metric_values, sample)
     return StageResult(
         step=contract.step,
         tool=contract.tool,

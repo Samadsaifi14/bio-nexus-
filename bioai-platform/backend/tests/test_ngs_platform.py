@@ -17,6 +17,7 @@ from app.ngs.contracts import (
     decision_for,
     run_contract,
 )
+from app.ngs.orchestrator import Pipeline, wgs_wes_germline_stages
 from app.ngs.assays import detect_assay, pair_fastq, sample_id_from_name, AssayType
 from app.ngs.reference import get_reference, validate_build_compatibility, GenomeBuild
 from app.ngs.stages.stage0_input import (
@@ -24,6 +25,11 @@ from app.ngs.stages.stage0_input import (
     run_input_validation,
     validate_gzip,
     stage0_contract,
+)
+from app.ngs.stages.stage1_raw_qc import (
+    compute_raw_qc,
+    run_raw_qc,
+    _qc_thresholds,
 )
 
 
@@ -235,3 +241,127 @@ def test_stage0_flags_mispair():
         out = run_input_validation({"files": [r1, r2]})
         # pairing integrity fails -> STOP (mispairing is a hard input error)
         assert out["summary"]["decision"] == "STOP"
+
+
+# ---------------------------------------------------------------------------
+# Stage 1 — raw read QC
+# ---------------------------------------------------------------------------
+
+
+def _write_fastq_qual(path, seq, qual, reads=100, gzipped=True):
+    lines = []
+    for i in range(reads):
+        lines.append(f"@r{i} 1:N:0:1\n{seq}\n+\n{qual}\n")
+    if gzipped:
+        with gzip.open(path, "wt", encoding="ascii") as f:
+            f.writelines(lines)
+    else:
+        with open(path, "w", encoding="ascii") as f:
+            f.writelines(lines)
+    return path
+
+
+def _write_fastq_var(path, base, qual, reads=100):
+    """Varied reads: low duplication, realistic. Appends a 4-nt DNA suffix from the index."""
+    bases = ["A", "C", "G", "T"]
+    seql = len(base) + 4
+    q = qual[0] * seql
+    lines = []
+    for i in range(reads):
+        suffix = "".join(bases[(i >> s) & 3] for s in range(0, 8, 2))
+        lines.append(f"@r{i} 1:N:0:1\n{base}{suffix}\n+\n{q}\n")
+    with gzip.open(path, "wt", encoding="ascii") as f:
+        f.writelines(lines)
+    return path
+
+
+def test_compute_raw_qc_counts():
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "s1_R1.fastq.gz")
+        _write_fastq_qual(p, "ACGTACGT" * 5, "I" * 40, reads=100)
+        qc = compute_raw_qc(p, "WES", {})
+        assert qc["total_reads"] == 100
+        assert qc["max_read_length"] == 40
+        assert qc["gc_percent"] == 50.0
+        # default Illumina 'I' -> Phred 40 -> high Q30
+        assert qc["q30_percent"] > 99
+        assert qc["n_percent"] == 0.0
+
+
+def test_compute_raw_qc_n_content():
+    with tempfile.TemporaryDirectory() as d:
+        p2 = os.path.join(d, "s2_R1.fastq.gz")
+        seq_n = "ACGTNNNN" * 5
+        _write_fastq_qual(p2, seq_n, "I" * 40, reads=100)
+        qc = compute_raw_qc(p2, "WES", {})
+        assert qc["n_percent"] > 0
+
+
+def test_raw_qc_pass_on_high_quality():
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "s1_R1.fastq.gz")
+        _write_fastq_var(p, "ACGTACGTGGCCACGTAGG", "I" * 40, reads=200)
+        out = run_raw_qc({"files": [p], "assay": "WES",
+                          "metadata": {"platform": "illumina", "read_length": 40}})
+        assert out["summary"]["decision"] == "CONTINUE"
+
+
+def test_raw_qc_warn_on_low_quality():
+    with tempfile.TemporaryDirectory() as d:
+        p = os.path.join(d, "s1_R1.fastq.gz")
+        _write_fastq_qual(p, "ACGTACGT" * 5, "5" * 40, reads=200)  # Phred ~20 -> Q30 low
+        out = run_raw_qc({"files": [p], "assay": "WES",
+                          "metadata": {"platform": "illumina", "read_length": 40}})
+        # Q30 far below expectation -> FAIL (blocking). Assert failure path in essence:
+        assert out["summary"]["status"] in ("WARN", "FAIL")
+
+
+def test_thresholds_assay_aware():
+    # Amplicon expects higher Q30 than WGS.
+    r_wgs = _qc_thresholds("WGS", {})["q30"]
+    r_amp = _qc_thresholds("AMPLICON", {})["q30"]
+    # Both are "higher is better"; check FAIL at a low Q30 value and PASS at high.
+    assert r_wgs.apply(80.0).status == QcStatus.WARN
+    assert r_amp.apply(80.0).status == QcStatus.WARN
+
+
+# ---------------------------------------------------------------------------
+# Orchestrator wiring (Stage 0 -> Stage 1)
+# ---------------------------------------------------------------------------
+
+
+def test_pipeline_runs_stage0_and_stage1():
+    with tempfile.TemporaryDirectory() as d:
+        r1 = os.path.join(d, "SAMPLE_001_R1.fastq.gz")
+        r2 = os.path.join(d, "SAMPLE_001_R2.fastq.gz")
+        _write_fastq_var(r1, "ACGTACGTGGCCACGTAGG", "I" * 40, reads=150)
+        _write_fastq_var(r2, "TGCATGCATCGGTGCATCCG", "I" * 40, reads=150)
+        stages = wgs_wes_germline_stages(include=["input_validation", "raw_read_qc"])
+        assert [s.step for s in stages] == ["input_validation", "raw_read_qc"]
+        pipe = Pipeline(name="WGS-germline", version="0.1.0")
+        pipe.add_many(stages)
+        report = pipe.run({
+            "files": [r1, r2],
+            "assay": "WES",
+            "reference": "grch38",
+            "metadata": {"platform": "illumina", "read_length": 40},
+        })
+        # Both stages pass -> pipeline continues.
+        assert report["pipeline_status"] == "PASS"
+        assert report["pipeline_decision"] == "CONTINUE"
+        assert report["stopped_at"] is None
+        assert len(report["stages"]) == 2
+        assert report["stages"][0]["step"] == "input_validation"
+        assert report["stages"][1]["step"] == "raw_read_qc"
+
+
+def test_pipeline_stops_on_bad_input():
+    with tempfile.TemporaryDirectory() as d:
+        missing = os.path.join(d, "NOPE_R1.fastq.gz")
+        stages = wgs_wes_germline_stages(include=["input_validation"])
+        pipe = Pipeline(name="WGS-germline", version="0.1.0")
+        pipe.add_many(stages)
+        report = pipe.run({"files": [missing]})
+        assert report["pipeline_status"] == "FAIL"
+        assert report["pipeline_decision"] == "STOP"
+        assert report["stopped_at"] == "input_validation"

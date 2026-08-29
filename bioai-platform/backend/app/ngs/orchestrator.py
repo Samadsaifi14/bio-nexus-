@@ -21,7 +21,6 @@ from __future__ import annotations
 
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Callable, Optional
 
 from app.ngs.contracts import (
@@ -60,6 +59,11 @@ class Pipeline:
     def run(self, sample: dict) -> dict:
         """Execute stages in order; stop on a blocking FAIL. Returns full result dict."""
         for contract in self.stages:
+            # Expose the stages completed so far so trailing meta-gates (e.g. final_gate) can
+            # read the accumulated PASS/WARN/FAIL + decisions of every earlier stage.
+            self.state["pipeline_report"] = {
+                "stages": [r.to_dict() for r in self.results],
+            }
             stage_result = run_contract(contract, sample, self.state)
             self.results.append(stage_result)
 
@@ -135,6 +139,8 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
     from app.ngs.stages.stage16_cnv import stage16_contract
     from app.ngs.stages.stage17_annotation import stage17_contract
     from app.ngs.stages.stage18_knowledge import stage18_contract
+    from app.ngs.stages.stage19_prioritize import stage19_contract
+    from app.ngs.stages.stage21_final_gate import stage21_contract
 
     all_stages = {
         "input_validation": stage0_contract(),
@@ -156,7 +162,8 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
         "copy_number": stage16_contract(),
         "annotation": stage17_contract(),
         "knowledge": stage18_contract(),
-        # prioritization, final_gate
+        "prioritization": stage19_contract(),
+        "final_gate": stage21_contract(),
     }
     if include:
         return [all_stages[s] for s in include if s in all_stages]

@@ -54,6 +54,8 @@ from app.ngs.stages.stage15_sv import run_sv_detection, detect_sv
 from app.ngs.stages.stage16_cnv import run_cnv_detection, call_cnv
 from app.ngs.stages.stage17_annotation import run_annotation_stage, annotate_variant
 from app.ngs.stages.stage18_knowledge import run_knowledge_stage, apply_knowledge
+from app.ngs.stages.stage19_prioritize import run_prioritize, prioritize_variants
+from app.ngs.stages.stage21_final_gate import run_final_gate, evaluate_gate
 
 
 # ---------------------------------------------------------------------------
@@ -916,3 +918,80 @@ def test_knowledge_registry_classifies():
     assert v1["clinvar"]["tag"] == "pathogenic"
     assert v1["omim"]["mode"] == "AD"
     assert out["variants"][1]["gnomad"]["af"] == 0.3
+
+
+def test_prioritize_scores_with_evidence_chain():
+    variants = [
+        {"chrom": "chr1", "pos": 5, "ref": "T", "alt": "C",
+         "annotation": {"gene": "GENE1", "consequence": "nonsense"},
+         "clinvar": {"significance": "Pathogenic", "tag": "pathogenic"},
+         "gnomad": {"af": 1e-6},
+         "omim": {"gene": "GENE1", "condition": "Hereditary syndrome", "mode": "AD"},
+         "cosegregates": True},
+        {"chrom": "chr1", "pos": 40, "ref": "C", "alt": "A",
+         "annotation": {"gene": "GENE2", "consequence": "intronic"},
+         "gnomad": {"af": 0.3}},
+    ]
+    report = prioritize_variants(variants, autosomal_mode="AD")
+    assert report["variants"][0]["prio"]["rank"] == 1   # high-evidence variant sorts first
+    chain = report["variants"][0]["prio"]["evidence"]
+    rules = {e["rule"] for e in chain}
+    assert "consequence_impact" in rules
+    assert "clinvar" in rules
+    assert "population_frequency" in rules
+    # the visible chain exposes the observed value + weight for every contributing rule
+    assert all({"rule", "observed", "weight", "verdict"} <= set(e) for e in chain)
+    assert report["variants"][0]["prio"]["score"] > report["variants"][1]["prio"]["score"]
+
+
+def test_final_gate_ready_when_all_pass():
+    report = {"stages": [
+        {"step": "contamination", "tool": "t", "decision": "CONTINUE",
+         "qc": {"status": "PASS", "metrics": []}},
+    ]}
+    gate = evaluate_gate(report)
+    assert gate["verdict"] == "ANALYSIS_READY"
+
+
+def test_final_gate_ready_with_warnings():
+    report = {"stages": [
+        {"step": "coverage", "tool": "t", "decision": "CONTINUE_WITH_WARNING",
+         "qc": {"status": "WARN", "metrics": [{"name": "coverage_30x", "value": 70}]}},
+    ]}
+    gate = evaluate_gate(report)
+    assert gate["verdict"] == "ANALYSIS_READY_WITH_WARNINGS"
+    assert gate["warning_stages"][0]["stage"] == "coverage"
+
+
+def test_final_gate_blocks_on_contamination_fail():
+    report = {"stages": [
+        {"step": "contamination", "tool": "t", "decision": "STOP",
+         "qc": {"status": "FAIL",
+                "metrics": [{"name": "contam_ok", "value": 80.0}]}},
+    ]}
+    gate = evaluate_gate(report)
+    assert gate["verdict"] == "NOT_ANALYSIS_READY"
+    assert gate["blocking_stages"][0]["stage"] == "contamination"
+    assert gate["blocking_stages"][0]["metrics"]["contam_ok"] == 80.0
+
+
+def test_final_gate_run_and_pipeline_integration():
+    # End-to-end: a pipeline whose contamination fails must be gated NOT_ANALYSIS_READY.
+    from app.ngs.stages.stage9_contamination import run_contamination
+    records = [
+        _base_rec("a", 71, "A" * 30),
+        _base_rec("b", 90, "A" * 30),
+        _base_rec("c", 71, "A" * 29 + "C"),
+    ]
+    contam = run_contamination(records, [{"pos": 100, "ref": "A"}])
+    assert contam["summary"]["decision"] == "STOP"
+    pipeline_report = {"stages": [
+        {"step": "input_validation", "tool": "t", "decision": "CONTINUE",
+         "qc": {"status": "PASS", "metrics": []}},
+        {"step": "contamination", "tool": "t", "decision": "STOP",
+         "qc": {"status": "FAIL", "metrics": [{"name": "contam_rate",
+                                              "value": contam["summary"]["contam_rate"]}]}},
+    ]}
+    gate = run_final_gate(pipeline_report)
+    assert gate["summary"]["verdict"] == "NOT_ANALYSIS_READY"
+    assert gate["summary"]["decision"] == "STOP"

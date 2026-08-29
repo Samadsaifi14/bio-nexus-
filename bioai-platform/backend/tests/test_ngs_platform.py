@@ -46,6 +46,10 @@ from app.ngs.stages.stage7_alignment_qc import run_alignment_qc, alignment_qc
 from app.ngs.stages.stage8_coverage import run_coverage, coverage_engine
 from app.ngs.stages.stage9_contamination import run_contamination, contamination_engine
 from app.ngs.stages.stage10_identity import run_identity, identity_engine
+from app.ngs.stages.stage11_variant_calling import run_variant_calling, call_variants
+from app.ngs.stages.stage12_normalize import run_variant_normalization, normalize_variants
+from app.ngs.stages.stage13_variant_qc import run_variant_qc_stage, variant_qc
+from app.ngs.stages.stage14_filter import run_variant_filter, filter_variants
 
 
 # ---------------------------------------------------------------------------
@@ -720,3 +724,75 @@ def test_identity_sex_mismatch_stops():
     assert out["summary"]["predicted_sex"] == "male"
     assert out["summary"]["sex_match"] is False
     assert out["summary"]["decision"] == "STOP"
+
+
+def _vcf_reads(n_alt=6, n_ref=2):
+    """Reads at pos21 (len30): pos50 is 'C' in alt reads, 'A' (ref) otherwise."""
+    records = ([_base_rec(f"alt{i}", 21, "A" * 29 + "C") for i in range(n_alt)] +
+               [_base_rec(f"ref{i}", 21, "A" * 30) for i in range(n_ref)])
+    return records, "A" * 60
+
+
+def test_variant_calling_calls_snp_and_orthogonal():
+    records, ref = _vcf_reads()
+    out = run_variant_calling(records, {"chr1": ref})
+    snps = [v for v in out["variants"]["variants"] if v["type"] == "SNP"]
+    pos50 = [v for v in snps if v["pos"] == 50]
+    assert len(pos50) == 1
+    assert pos50[0]["ref"] == "A" and pos50[0]["alt"] == "C"
+    assert pos50[0]["n_alt"] == 6
+    # primary sees it; orthogonal requires af >= 0.35 and dp >= 12 -> here af 0.75, dp 8
+    assert "primary" in pos50[0]["callers"]
+    assert out["variants"]["n_primary"] >= 1
+
+
+def test_variant_normalization_trims_shared_prefix():
+    norm = normalize_variants([{"ref": "GAA", "alt": "GAT"}])
+    assert norm[0]["ref"] == "A"
+    assert norm[0]["alt"] == "T"
+    # multiallelic alt reduces to biallelic first allele
+    norm2 = normalize_variants([{"ref": "C", "alt": "A,T"}])
+    assert norm2[0]["alt"] == "A"
+    assert norm2[0]["biallelic"] is False
+
+
+def test_variant_qc_classifies():
+    good = variant_qc({"dp": 30, "af": 0.5, "n_alt": 15, "genotype_quality": 99})
+    assert good["status"] == "PASS"
+    bad_depth = variant_qc({"dp": 4, "af": 0.5, "n_alt": 2, "genotype_quality": 50})
+    assert "low_depth" in bad_depth["reasons_fail"]
+    assert bad_depth["status"] == "FAIL"
+    low_complex = variant_qc({"dp": 20, "af": 0.5, "n_alt": 10,
+                              "genotype_quality": 50, "context": "AAAAAT"})
+    assert "low_complexity_context" in low_complex["reasons_warn"]
+
+
+def test_filter_engine_keeps_rare_pass():
+    variants = [
+        {"chrom": "chr1", "pos": 1, "ref": "A", "alt": "C", "biallelic": True,
+         "qc": {"status": "PASS"}, "gnomad_af": 0.0005},
+        {"chrom": "chr1", "pos": 2, "ref": "G", "alt": "T", "biallelic": True,
+         "qc": {"status": "PASS"}, "gnomad_af": 0.05},          # COMMON -> reject
+        {"chrom": "chr1", "pos": 3, "ref": "C", "alt": "A", "biallelic": True,
+         "qc": {"status": "FAIL"}, "gnomad_af": 0.0},           # QC FAIL -> reject
+    ]
+    out = filter_variants(variants, max_af=0.01)
+    assert out["n_final"] == 1
+    assert out["n_rejected"] == 2
+    assert out["final"][0]["pos"] == 1
+
+
+def test_call_to_filter_pipeline():
+    records, ref = _vcf_reads()
+    call = call_variants(records, {"chr1": ref})
+    norm = normalize_variants(call["variants"])
+    qc_report = run_variant_qc_stage(norm)
+    passed = [v for v in qc_report["variants"] if v["qc"]["status"] != "FAIL"]
+    # attach a rare population frequency to the called SNP so it passes the filter
+    for v in passed:
+        if v["pos"] == 50:
+            v["gnomad_af"] = 0.0001
+    filtered = run_variant_filter(passed, max_af=0.01)
+    finals = [v for v in filtered["variants"]["final"]]
+    assert len(finals) >= 1
+    assert finals[0]["pos"] == 50

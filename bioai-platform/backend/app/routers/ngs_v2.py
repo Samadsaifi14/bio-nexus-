@@ -26,6 +26,7 @@ from pydantic import BaseModel
 
 from app.ngs.assays import AssayRouter, pair_fastq
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
+from app.ngs.visualization import build_visualization
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ngs/v2", tags=["ngs-v2"])
@@ -200,4 +201,5 @@ def analyze(payload: AnalyzeRequest):
             "reads_loaded": {os.path.basename(f): len(reads_all[f]) for f in files},
         },
         "pipeline": report,
+        "visualization": build_visualization(pipe.state),
     }

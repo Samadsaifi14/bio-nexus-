@@ -15,11 +15,13 @@ import {
   Fingerprint,
   ListChecks,
   SealCheck,
+  MapTrifold,
 } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runNgs2Analyze } from '@/lib/api';
 import type { Ngs2AnalyzeResult, Ngs2Stage, Ngs2Metric } from '@/lib/api';
 import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
+import GenomeViewer from '@/components/GenomeViewer';
 
 const ASSAY_OPTIONS = [
   { value: '', label: 'Auto-detect assay' },
@@ -226,6 +228,29 @@ export default function NgsV2Page() {
               ))}
             </div>
           </div>
+
+          {/* IGV visualization (Stage 20) */}
+          {result.visualization && (result.visualization.sam || result.visualization.vcf) && (
+            <div className="data-card p-5">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                  <MapTrifold className="w-4 h-4 text-accent-cyan" /> IGV — Alignment & Variant Tracks
+                </h3>
+                <span className="text-[11px] text-text-muted font-mono">
+                  {result.visualization.n_mapped} mapped · {result.visualization.n_variants} variants
+                </span>
+              </div>
+              <p className="text-[11px] text-text-muted mb-3">
+                Tracks serialized from the real pipeline state (mapping decisions and variant calls) —
+                recompute metrics, never fabricated clinical results.
+              </p>
+              <GenomeViewer
+                samText={result.visualization.sam}
+                vcfText={result.visualization.vcf}
+                locus={result.visualization.locus ?? undefined}
+              />
+            </div>
+          )}
 
           {/* Stage contracts / evidence chain */}
           <div className="data-card p-5">

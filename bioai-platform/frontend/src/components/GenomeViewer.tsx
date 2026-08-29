@@ -31,6 +31,8 @@ interface VcfRecord {
 interface GenomeViewerProps {
   samUrl?: string;
   vcfUrl?: string;
+  samText?: string;
+  vcfText?: string;
   locus?: string;
   className?: string;
 }
@@ -253,6 +255,8 @@ function ReadsTrack({
 export default function GenomeViewer({
   samUrl,
   vcfUrl,
+  samText: initialSamText,
+  vcfText: initialVcfText,
   locus,
   className = '',
 }: GenomeViewerProps) {
@@ -296,8 +300,12 @@ export default function GenomeViewer({
       setError('');
       try {
         const [samRes, vcfRes] = await Promise.allSettled([
-          samUrl ? fetch(samUrl).then(r => r.ok ? r.text() : Promise.reject(new Error(`SAM HTTP ${r.status}`))) : Promise.resolve(''),
-          vcfUrl ? fetch(vcfUrl).then(r => r.ok ? r.text() : Promise.reject(new Error(`VCF HTTP ${r.status}`))) : Promise.resolve(''),
+          initialSamText !== undefined
+            ? Promise.resolve(initialSamText)
+            : (samUrl ? fetch(samUrl).then(r => r.ok ? r.text() : Promise.reject(new Error(`SAM HTTP ${r.status}`))) : Promise.resolve('')),
+          initialVcfText !== undefined
+            ? Promise.resolve(initialVcfText)
+            : (vcfUrl ? fetch(vcfUrl).then(r => r.ok ? r.text() : Promise.reject(new Error(`VCF HTTP ${r.status}`))) : Promise.resolve('')),
         ]);
         if (cancelled) return;
         const newSam = samRes.status === 'fulfilled' ? samRes.value : '';
@@ -323,7 +331,7 @@ export default function GenomeViewer({
     }
     load();
     return () => { cancelled = true; };
-  }, [samUrl, vcfUrl]);
+  }, [samUrl, vcfUrl, initialSamText, initialVcfText, parsedLocus]);
 
   const zoom = useCallback((factor: number) => {
     const mid = (viewStart + viewEnd) / 2;

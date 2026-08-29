@@ -879,6 +879,16 @@ export type Ngs2AnalyzeResult = {
     stages: Ngs2Stage[];
     provenance: Record<string, unknown>;
   };
+  visualization: Ngs2Visualization;
+};
+
+export type Ngs2Visualization = {
+  sam: string;
+  vcf: string;
+  locus: string | null;
+  n_reads: number;
+  n_mapped: number;
+  n_variants: number;
 };
 
 export async function runNgs2Analyze(payload: {

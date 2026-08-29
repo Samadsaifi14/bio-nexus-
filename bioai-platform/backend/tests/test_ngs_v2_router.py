@@ -80,3 +80,33 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     assert gate["step"] == "final_gate"
     assert gate["decision"] in ("CONTINUE", "CONTINUE_WITH_WARNING")
 
+
+def test_analyze_emits_igv_tracks(client, tmp_path):
+    r1, _ = _write_fastq(tmp_path, "HUM0001_R1.fastq.gz", 200, seed=7)
+    r2, _ = _write_fastq(tmp_path, "HUM0001_R2.fastq.gz", 200, seed=8)
+    payload = {
+        "file_paths": [r1, r2],
+        "reference": "grch38",
+        "metadata": {"platform": "illumina"},
+        "synthetic_reference": True,
+    }
+    r = client.post("/api/ngs/v2/analyze", json=payload)
+    assert r.status_code == 200
+    viz = r.json()["visualization"]
+
+    # SAM track: real aligned_records serialized (read lines, not just headers).
+    assert "sam" in viz and viz["sam"].startswith("@HD")
+    read_lines = [ln for ln in viz["sam"].splitlines() if not ln.startswith("@")]
+    assert read_lines
+    assert viz["n_reads"] == len(read_lines)
+    assert viz["n_mapped"] > 0
+
+    # VCF track: header present; variant lines carry the real ref/alt columns.
+    assert "vcf" in viz and "##fileformat=VCFv4.2" in viz["vcf"]
+    var_lines = [ln for ln in viz["vcf"].splitlines() if not ln.startswith("#")]
+    if var_lines:
+        cols = var_lines[0].split("\t")
+        assert len(cols) == 8
+    assert viz["n_variants"] == len(var_lines)
+    assert viz["locus"]
+

@@ -121,6 +121,10 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
     from app.ngs.stages.stage2_multiqc import stage2_contract
     from app.ngs.stages.stage3_preproc import stage3_contract
     from app.ngs.stages.stage4_reference import stage4_contract
+    from app.ngs.stages.stage5_alignment import stage5_contract
+    from app.ngs.stages.stage6_bam import stage6_contract
+    from app.ngs.stages.stage7_alignment_qc import stage7_contract
+    from app.ngs.stages.stage8_coverage import stage8_contract
 
     all_stages = {
         "input_validation": stage0_contract(),
@@ -128,8 +132,11 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
         "multiqc": stage2_contract(),
         "preprocessing": stage3_contract(),
         "reference_validation": stage4_contract(),
-        # alignment, bam_processing,
-        # alignment_qc, coverage, contamination, identity, variant_calling, variant_norm,
+        "alignment": stage5_contract(),
+        "bam_processing": stage6_contract(),
+        "alignment_qc": stage7_contract(),
+        "coverage": stage8_contract(),
+        # contamination, identity, variant_calling, variant_norm,
         # variant_qc, variant_filter, annotation, prioritization, final_gate
     }
     if include:

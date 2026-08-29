@@ -39,6 +39,11 @@ from app.ngs.stages.stage3_preproc import (
     trim_read,
 )
 from app.ngs.stages.stage4_reference import run_reference_validation
+from app.ngs.sam import map_reads
+from app.ngs.stages.stage5_alignment import run_alignment, choose_aligner
+from app.ngs.stages.stage6_bam import run_bam_processing, process_bam
+from app.ngs.stages.stage7_alignment_qc import run_alignment_qc, alignment_qc
+from app.ngs.stages.stage8_coverage import run_coverage, coverage_engine
 
 
 # ---------------------------------------------------------------------------
@@ -543,3 +548,111 @@ def test_reference_validation_match_continues():
 def test_reference_validation_unknown_reference():
     out = run_reference_validation({"reference": "banana"})
     assert out["summary"]["decision"] == "STOP"
+
+
+# ---------------------------------------------------------------------------
+# Stages 6-8: BAM processing, alignment QC, coverage (pure-Python aligned data)
+# ---------------------------------------------------------------------------
+
+
+def _make_ref_and_reads(ref_len=800, n_reads=40):
+    import random
+    random.seed(7)
+    ref = "".join(random.choice("ACGT") for _ in range(ref_len))
+    reads = []
+    for i in range(n_reads):
+        start = (i * 13) % (ref_len - 40)
+        # 30nt exact read, well above min_len 20
+        reads.append((f"r{i}", ref[start:start + 30], "I" * 30))
+    # one unmapped read
+    reads.append(("unmapped", "G" * 30, "I" * 30))
+    return ref, reads
+
+
+def _make_records(ref, reads, n_reads=40):
+    records = map_reads(ref, reads[:n_reads], ref_name="chr1", seed_len=8, min_len=20)
+    unmapped = [r for r in map_reads(ref, reads[n_reads:], ref_name="chr1", seed_len=8, min_len=20)]
+    return records + [r for r in unmapped if r["is_unmapped"]]
+
+
+def _mk_rec(qname, pos, mapq=60, strand=0):
+    return {
+        "qname": qname, "flag": strand, "rname": "chr1", "pos": pos, "mapq": mapq,
+        "cigar": "30M", "rnext": "*", "pnext": 0, "tlen": 0, "seq": "A" * 30, "qual": "I" * 30,
+        "is_secondary": False, "is_supplementary": False, "is_unmapped": False,
+        "is_proper_pair": True, "is_duplicate": False,
+        "is_first_in_pair": False, "is_second_in_pair": False, "mate_unmapped": False,
+    }
+
+
+def test_bam_processing_marks_duplicates():
+    # Two reads sharing a 5' position are candidate duplicates -> the lower-MAPQ one is marked.
+    records = [
+        _mk_rec("A1", 100, mapq=60),
+        _mk_rec("A2", 100, mapq=30),   # same 5' pos, lower MAPQ -> duplicate
+        _mk_rec("B1", 200, mapq=60),   # distinct position -> not a duplicate
+        _mk_rec("C1", 0, mapq=0),      # unmapped
+    ]
+    records[-1]["is_unmapped"] = True
+    records[3]["flag"] = 4
+    processed, stats = process_bam(records=records)
+    assert stats["total_records"] == 4
+    assert stats["duplicate_records"] == 1
+    dup_names = {r["qname"] for r in processed if r["is_duplicate"]}
+    assert dup_names == {"A2"}
+
+
+def test_choose_aligner_by_assay():
+    assert choose_aligner("WGS", 150) == "bwa-mem2"
+    assert choose_aligner("RNA-SEQ", 150) == "STAR"
+    assert choose_aligner("WGS", 5000) == "minimap2"  # long-read
+
+
+def test_alignment_run_and_mapping_ok():
+    ref, reads = _make_ref_and_reads(ref_len=600, n_reads=20)
+    out = run_alignment(reads[:20], ref, assay="WGS", read_length=30)
+    assert out["summary"]["meta"]["aligner"] == "bwa-mem2"
+    assert out["summary"]["decision"] != "STOP"
+    assert out["summary"]["meta"]["mapped"] >= 18
+    assert len(out["records"]) == 20
+
+
+def test_alignment_qc_computes_mapping_rate():
+    ref, reads = _make_ref_and_reads(n_reads=40)
+    records = _make_records(ref, reads, n_reads=40)
+    qc = alignment_qc(records)
+    # 40 mapped + 1 unmapped -> mapping ~ 40/41 ~ 97.5%
+    assert 90 <= qc["mapping_rate"] <= 100
+    assert qc["unmapped_reads"] == 1
+    assert qc["median_mapq"] == 60
+
+
+def test_alignment_qc_run_decisions():
+    ref, reads = _make_ref_and_reads(n_reads=40)
+    records = _make_records(ref, reads, n_reads=40)
+    out = run_alignment_qc(records=records)
+    # high mapping + proper pairs -> PASS / not STOP
+    assert out["summary"]["decision"] != "STOP"
+    assert out["summary"]["status"] in ("PASS", "WARN")
+
+
+def test_coverage_engine_metrics():
+    ref, reads = _make_ref_and_reads(ref_len=400, n_reads=30)
+    records = _make_records(ref, reads, n_reads=30)
+    ref_lengths = {"chr1": len(ref)}
+    targets = [{"name": "GENE1", "contig": "chr1", "start": 10, "end": 60}]
+    eng = coverage_engine(records, ref_lengths, targets)
+    g = eng["genome"]
+    assert g["max_depth"] >= 1
+    assert 0 <= g["coverage_30x"] <= 100
+    assert eng["n_targets"] == 1
+    assert eng["target"]["min_depth"] >= 0
+
+
+def test_coverage_run_returns_report():
+    ref, reads = _make_ref_and_reads(ref_len=400, n_reads=30)
+    records = _make_records(ref, reads, n_reads=30)
+    out = run_coverage(records=records, ref_lengths={"chr1": len(ref)},
+                       targets=[{"name": "BRCA1", "contig": "chr1", "start": 5, "end": 60}])
+    assert "genome" in out["summary"]
+    assert out["summary"]["target"] is not None

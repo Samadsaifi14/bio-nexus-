@@ -56,14 +56,17 @@ async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float) -> d
             None, _run_fpocket_analysis, fpocket, pdb_text, pdb_id, probe_radius,
         )
         if result["pockets"]:
+            _attach_structure_summary(pdb_text, result)
             return result
         logger.info("fpocket found no pockets for %s, falling back to SASA heuristic", pdb_id)
 
     # 2. Fallback: Biopython SASA + KDTree clustering
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(
+    result = await loop.run_in_executor(
         None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius,
     )
+    _attach_structure_summary(pdb_text, result)
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -388,3 +391,179 @@ def _build_adj_brute(coords: list[tuple], probe_radius: float) -> dict[int, list
                 adj[i].append(j)
                 adj[j].append(i)
     return adj
+
+
+# ---------------------------------------------------------------------------
+# Structure summary (chains + residue details + gap ranges)
+# ---------------------------------------------------------------------------
+
+_PDB_AA = {
+    "ALA": "A", "CYS": "C", "ASP": "D", "GLU": "E", "PHE": "F", "GLY": "G",
+    "HIS": "H", "ILE": "I", "LYS": "K", "LEU": "L", "MET": "M", "ASN": "N",
+    "PRO": "P", "GLN": "Q", "ARG": "R", "SER": "S", "THR": "T", "VAL": "V",
+    "TRP": "W", "TYR": "Y",
+}
+
+
+def _parse_pdb_chains(pdb_text: str) -> dict:
+    """Parse PDB into per-chain ordered residue records (only those with coords).
+
+    Returns {chains: [{id, residues: [{num, name, one}...]}], by_key: {chain: {num: name}}}
+    """
+    order: dict[str, list[dict]] = {}
+    seen: dict[tuple, bool] = {}
+    for line in pdb_text.splitlines():
+        if not line.startswith("ATOM"):
+            continue
+        chain = line[21].strip() or "A"
+        resname = line[17:20].strip()
+        try:
+            resseq = int(line[22:26].strip())
+        except (ValueError, IndexError):
+            continue
+        key = (chain, resseq)
+        if key in seen:
+            continue
+        seen[key] = True
+        order.setdefault(chain, []).append({
+            "num": resseq,
+            "name": resname,
+            "one": _PDB_AA.get(resname, resname),
+        })
+    chains = [
+        {"id": cid, "residues": res}
+        for cid, res in sorted(order.items())
+    ]
+    for chain in chains:
+        chain["residues"].sort(key=lambda r: r["num"])
+    return {"chains": chains}
+
+
+def _chain_sequence(residues: list[dict]) -> str:
+    return "".join(r["one"] for r in residues)
+
+
+def _residue_key(chain: str, num: int) -> str:
+    return f"{chain}{num}"
+
+
+def _coverage_gaps(residues: list[dict]) -> list[dict]:
+    """Missing-residue (coordinate) gaps within a modelled/observed chain."""
+    gaps = []
+    nums = [r["num"] for r in residues]
+    if len(nums) < 2:
+        return gaps
+    prev = nums[0]
+    for n in nums[1:]:
+        if n > prev + 1:
+            gaps.append({"start": prev + 1, "end": n - 1, "count": n - prev - 1})
+        prev = n
+    return gaps
+
+
+def _pocket_gap_ranges(chain: dict, pocket_nums: set[int]) -> list[dict]:
+    """Calculate lining-residue gaps: for each gap between pocket residues in a
+    chain, report the residues present in the chain but not lining the pocket."""
+    residues = chain["residues"]
+    nums = [r["num"] for r in residues]
+    if len(nums) < 2:
+        return []
+    gaps = []
+    prev_pocket = None
+    for n in nums:
+        in_pocket = n in pocket_nums
+        if in_pocket:
+            if prev_pocket is not None and n > prev_pocket + 1:
+                in_between = [r for r in residues if prev_pocket < r["num"] < n]
+                non_lining = [r for r in in_between if r["num"] not in pocket_nums]
+                if non_lining:
+                    gaps.append({
+                        "start": non_lining[0]["num"],
+                        "end": non_lining[-1]["num"],
+                        "count": len(non_lining),
+                        "coordinate_present": True,
+                    })
+            prev_pocket = n
+    return gaps
+
+
+def _attach_structure_summary(pdb_text: str, result: dict) -> None:
+    """Enrich a pocket-analysis result with chain info, structured pocket
+    residues, and gap ranges for the structure and each pocket."""
+    try:
+        parsed = _parse_pdb_chains(pdb_text)
+    except Exception as exc:
+        logger.warning("Structure summary parse failed: %s", exc)
+        return
+
+    chains_out = []
+    chains = parsed["chains"]
+    for chain in chains:
+        one = _chain_sequence(chain["residues"])
+        chains_out.append({
+            "id": chain["id"],
+            "residue_count": len(chain["residues"]),
+            "sequence": one,
+            "gaps": _coverage_gaps(chain["residues"]),
+        })
+    result["chains"] = chains_out
+
+    # Build lookup: chain -> {num: residue}
+    by_num = {
+        chain["id"]: {r["num"]: r for r in chain["residues"]}
+        for chain in chains
+    }
+
+    for pocket in result.get("pockets", []):
+        raw = pocket.get("residues", [])
+        parsed_res = []
+        for entry in raw:
+            # entries look like "A10GLY" or "A10CYS"
+            m = re.match(r"([A-Za-z0-9])(\d+)([A-Za-z]+)", entry)
+            chain = ""
+            num = 0
+            name = entry
+            if m:
+                chain = m.group(1)
+                num = int(m.group(2))
+                name = m.group(3)
+            # cross-check against coordinates
+            coord_present = False
+            if chain in by_num and num in by_num[chain] and by_num[chain][num]["name"] == name:
+                coord_present = True
+            parsed_res.append({
+                "chain": chain,
+                "residue_number": num,
+                "residue_name": name,
+                "one": _PDB_AA.get(name, name),
+                "label": f"{chain}{num}{name}",
+                "coordinate_present": coord_present,
+            })
+        pocket["residue_details"] = parsed_res
+
+        # gap ranges per chain in the pocket
+        pocket_nums_by_chain: dict[str, set[int]] = {}
+        for r in parsed_res:
+            if r["chain"]:
+                pocket_nums_by_chain.setdefault(r["chain"], set()).add(r["residue_number"])
+
+        pocket_gap_ranges = []
+        for chain in chains:
+            nums = pocket_nums_by_chain.get(chain["id"])
+            if not nums:
+                continue
+            gaps = _pocket_gap_ranges(chain, nums)
+            if gaps:
+                pocket_gap_ranges.append({"chain": chain["id"], "gaps": gaps})
+        pocket["gap_ranges"] = pocket_gap_ranges
+
+        # chain span summary
+        spans = {}
+        for r in parsed_res:
+            if not r["chain"]:
+                continue
+            s = spans.setdefault(r["chain"], {"min": r["residue_number"], "max": r["residue_number"], "count": 0})
+            s["min"] = min(s["min"], r["residue_number"])
+            s["max"] = max(s["max"], r["residue_number"])
+            s["count"] += 1
+        pocket["chain_spans"] = [{"chain": k, **v} for k, v in spans.items()]

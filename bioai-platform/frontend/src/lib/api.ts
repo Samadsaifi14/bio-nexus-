@@ -618,8 +618,18 @@ export type DockingResult = {
   error?: string;
 };
 
-export async function runDocking(pdbId: string, smiles: string, pdbUrl?: string): Promise<{ job_id: string; status: string }> {
-  const res = await longApi.post('/api/docking/run', { pdb_id: pdbId, smiles, pdb_url: pdbUrl || '' });
+export async function runDocking(
+  pdbId: string,
+  smiles: string,
+  pdbUrl?: string,
+  gridCenter?: number[],
+): Promise<{ job_id: string; status: string }> {
+  const res = await longApi.post('/api/docking/run', {
+    pdb_id: pdbId,
+    smiles,
+    pdb_url: pdbUrl || '',
+    ...(gridCenter && gridCenter.length === 3 ? { grid_center: gridCenter } : {}),
+  });
   return res.data;
 }
 
@@ -1118,16 +1128,75 @@ export interface CastpUniProt {
   sequence_length: number;
 }
 
+export interface CastpChainGap {
+  start: number;
+  end: number;
+  count: number;
+}
+
+export interface CastpChain {
+  id: string;
+  residue_count: number;
+  sequence: string;
+  gaps: CastpChainGap[];
+}
+
+export interface CastpPocketResidue {
+  chain: string;
+  residue_number: number;
+  residue_name: string;
+  one: string;
+  label: string;
+  coordinate_present: boolean;
+}
+
+export interface CastpPocketGap {
+  chain: string;
+  gaps: CastpChainGap[];
+}
+
+export interface CastpChainSpan {
+  chain: string;
+  min: number;
+  max: number;
+  count: number;
+}
+
+export interface CastpActiveSiteResidue {
+  chain: string;
+  residue_number: number;
+  residue_name: string;
+  one?: string;
+  role: string;
+  source: string;
+}
+
+export interface CastpPocket {
+  id: number;
+  area_sa: number;
+  volume_sa: number;
+  num_residues: number;
+  residues: string[];
+  centroid: number[];
+  radius: number;
+  residue_details: CastpPocketResidue[];
+  gap_ranges: CastpPocketGap[];
+  chain_spans: CastpChainSpan[];
+  active_site_hits: CastpActiveSiteResidue[];
+}
+
 export interface CastpResult {
   pdb_id: string;
   probe_radius: number;
   total_residues: number;
-  pockets: PocketInfo[];
+  pockets: CastpPocket[];
   sequence_source?: string;
   structure_source?: string;
   structure_pdb?: string;
   pipeline?: CastpPipelineStep[];
   uniprot?: CastpUniProt | null;
+  chains?: CastpChain[];
+  active_sites?: CastpActiveSiteResidue[];
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {

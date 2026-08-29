@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { CircleNotch as LoaderCircle, TestTube as FlaskConical, CheckCircle, XCircle, Warning as AlertTriangle, Hexagon, FileText, Copy, Check, DownloadSimple, CaretDown as ChevronDown, CaretRight as ChevronRight } from '@phosphor-icons/react';
+import { CircleNotch as LoaderCircle, TestTube as FlaskConical, CheckCircle, XCircle, Warning as AlertTriangle, Hexagon, FileText, Copy, Check, DownloadSimple, CaretDown as ChevronDown, CaretRight as ChevronRight, Target, X } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
@@ -189,12 +189,22 @@ export default function DockingPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [gridCenter, setGridCenter] = useState<number[] | null>(null);
 
   useEffect(() => {
     const storedPdb = consumeParam('docking_pdb_id');
     const storedSmiles = consumeParam('docking_smiles');
+    const storedCentroid = consumeParam('docking_centroid');
     if (storedPdb && !pdbId) setPdbId(storedPdb);
     if (storedSmiles) setSmiles(storedSmiles);
+    if (storedCentroid) {
+      try {
+        const parsed = JSON.parse(storedCentroid);
+        if (Array.isArray(parsed) && parsed.length === 3) setGridCenter(parsed);
+      } catch {
+        // ignore malformed centroid
+      }
+    }
   }, []);
 
   const startDocking = async () => {
@@ -208,7 +218,12 @@ export default function DockingPage() {
     setResult(null);
     setJobId(null);
     try {
-      const { job_id } = await runDocking(pdbId.trim().toUpperCase(), smiles.trim(), pdbUrl.trim() || undefined);
+      const { job_id } = await runDocking(
+        pdbId.trim().toUpperCase(),
+        smiles.trim(),
+        pdbUrl.trim() || undefined,
+        gridCenter || undefined,
+      );
       setJobId(job_id);
       setPolling(true);
       audit.emitSuccess('docking_run', 'AutoDock Vina', inputSummary, `job_id:${job_id}`);
@@ -276,7 +291,7 @@ export default function DockingPage() {
           <FlatInput
             type="text"
             value={pdbId}
-            onChange={(e) => { setPdbId(e.target.value.toUpperCase()); setResult(null); setError(null); }}
+            onChange={(e) => { setPdbId(e.target.value.toUpperCase()); setResult(null); setError(null); setGridCenter(null); }}
             onKeyDown={(e) => e.key === 'Enter' && startDocking()}
             placeholder="e.g. 1TIM"
             className="w-full px-4 py-3 rounded-xl text-sm font-mono"
@@ -293,6 +308,20 @@ export default function DockingPage() {
               </button>
             ))}
           </div>
+          {gridCenter && (
+            <div className="mt-2 flex items-center gap-1.5 text-xs text-accent-cyan bg-accent-cyan/10 border border-accent-cyan/25 px-2 py-1.5 rounded">
+              <Target className="w-3.5 h-3.5" />
+              Docking box centered on CASTp pocket centroid (
+              {gridCenter.map((n) => n.toFixed(2)).join(', ')} Å)
+              <button
+                onClick={() => setGridCenter(null)}
+                className="ml-auto text-text-muted hover:text-text-primary"
+                aria-label="Clear pocket centroid"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          )}
         </div>
 
         {pdbUrl && (

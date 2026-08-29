@@ -52,6 +52,8 @@ from app.ngs.stages.stage13_variant_qc import run_variant_qc_stage, variant_qc
 from app.ngs.stages.stage14_filter import run_variant_filter, filter_variants
 from app.ngs.stages.stage15_sv import run_sv_detection, detect_sv
 from app.ngs.stages.stage16_cnv import run_cnv_detection, call_cnv
+from app.ngs.stages.stage17_annotation import run_annotation_stage, annotate_variant
+from app.ngs.stages.stage18_knowledge import run_knowledge_stage, apply_knowledge
 
 
 # ---------------------------------------------------------------------------
@@ -875,3 +877,42 @@ def test_cnv_run_returns_report():
         records.append(_base_rec(f"amp{i}", 100 + i, "A" * 30))
     out = run_cnv_detection(records, bin_size=1000)
     assert out["summary"]["report"]["n_amplifications"] >= 1
+
+
+def test_annotation_protein_consequence():
+    tx = [{"gene": "GENE1", "chrom": "chr1", "strand": "+", "cds_offset": 1,
+           "exons": [{"start": 1, "end": 60}], "cds_seq": "ATGTTTTGG"}]
+    miss = annotate_variant({"chrom": "chr1", "pos": 5, "ref": "T", "alt": "C"}, tx)
+    assert miss["annotation"]["consequence"] == "missense"
+    syn = annotate_variant({"chrom": "chr1", "pos": 6, "ref": "T", "alt": "C"}, tx)
+    assert syn["annotation"]["consequence"] == "synonymous"
+    non = annotate_variant({"chrom": "chr1", "pos": 8, "ref": "G", "alt": "A"}, tx)
+    assert non["annotation"]["consequence"] == "nonsense"
+
+
+def test_annotation_intronic_and_splice():
+    tx = [{"gene": "GENE2", "chrom": "chr1", "strand": "+",
+           "exons": [{"start": 1, "end": 10}, {"start": 40, "end": 60}]}]
+    intronic = annotate_variant({"chrom": "chr1", "pos": 25, "ref": "A", "alt": "C"}, tx)
+    assert intronic["annotation"]["consequence"] == "intronic"
+    splice = annotate_variant({"chrom": "chr1", "pos": 11, "ref": "A", "alt": "C"}, tx)
+    assert splice["annotation"]["consequence"] == "splice_region"
+
+
+def test_knowledge_registry_classifies():
+    variants = [
+        {"chrom": "chr1", "pos": 5, "ref": "T", "alt": "C",
+         "annotation": {"gene": "GENE1"}},
+        {"chrom": "chr1", "pos": 20, "ref": "C", "alt": "G",
+         "annotation": {"gene": "GENE3"}},
+    ]
+    clinvar = {("chr1", 5, "T", "C"): {"significance": "Pathogenic",
+               "condition": "Hereditary syndrome", "review_status": "criteria_provided"}}
+    omim = {"GENE1": {"condition": "Hereditary syndrome", "mode": "AD", "mim": 113705}}
+    gnomad = {("chr1", 20, "C", "G"): {"af": 0.3, "filters": "PASS", "hom": True}}
+    out = apply_knowledge(variants, clinvar=clinvar, omim=omim, gnomad=gnomad)
+    assert out["n_pathogenic"] == 1
+    v1 = out["variants"][0]
+    assert v1["clinvar"]["tag"] == "pathogenic"
+    assert v1["omim"]["mode"] == "AD"
+    assert out["variants"][1]["gnomad"]["af"] == 0.3

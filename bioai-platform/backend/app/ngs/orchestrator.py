@@ -133,6 +133,8 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
     from app.ngs.stages.stage14_filter import stage14_contract
     from app.ngs.stages.stage15_sv import stage15_contract
     from app.ngs.stages.stage16_cnv import stage16_contract
+    from app.ngs.stages.stage17_annotation import stage17_contract
+    from app.ngs.stages.stage18_knowledge import stage18_contract
 
     all_stages = {
         "input_validation": stage0_contract(),
@@ -152,7 +154,9 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
         "variant_filter": stage14_contract(),
         "structural_variant": stage15_contract(),
         "copy_number": stage16_contract(),
-        # annotation, prioritization, final_gate
+        "annotation": stage17_contract(),
+        "knowledge": stage18_contract(),
+        # prioritization, final_gate
     }
     if include:
         return [all_stages[s] for s in include if s in all_stages]

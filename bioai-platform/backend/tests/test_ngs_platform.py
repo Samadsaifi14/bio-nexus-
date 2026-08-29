@@ -38,6 +38,7 @@ from app.ngs.stages.stage3_preproc import (
     run_preprocessing,
     trim_read,
 )
+from app.ngs.stages.stage4_reference import run_reference_validation
 
 
 # ---------------------------------------------------------------------------
@@ -514,3 +515,31 @@ def test_preprocess_stops_on_large_read_loss():
             "metadata": {"quality_trim": "no", "min_length": 30, "out_dir": out_dir},
         })
         assert out["summary"]["decision"] == "STOP"  # near-total read loss after 30nt filter
+
+
+# ---------------------------------------------------------------------------
+# Stage 4 — reference validation
+# ---------------------------------------------------------------------------
+
+
+def test_reference_validation_resolves_grch38():
+    out = run_reference_validation({"reference": "grch38"})
+    assert out["summary"]["status"] == "PASS"
+    assert out["summary"]["reference"]["build"] == "GRCh38"
+
+
+def test_reference_validation_mismatch_stops():
+    # GRCh38 data against a GRCh37 annotation is a provenance error -> STOP.
+    out = run_reference_validation({"reference": "grch38", "annotation_build": "GRCh37"})
+    assert out["summary"]["decision"] == "STOP"
+    assert "PROVENANCE" in out["summary"]["reference"]["build_message"]
+
+
+def test_reference_validation_match_continues():
+    out = run_reference_validation({"reference": "grch38", "annotation_build": "GRCh38"})
+    assert out["summary"]["decision"] == "CONTINUE"
+
+
+def test_reference_validation_unknown_reference():
+    out = run_reference_validation({"reference": "banana"})
+    assert out["summary"]["decision"] == "STOP"

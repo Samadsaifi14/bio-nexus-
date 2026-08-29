@@ -44,6 +44,8 @@ from app.ngs.stages.stage5_alignment import run_alignment, choose_aligner
 from app.ngs.stages.stage6_bam import run_bam_processing, process_bam
 from app.ngs.stages.stage7_alignment_qc import run_alignment_qc, alignment_qc
 from app.ngs.stages.stage8_coverage import run_coverage, coverage_engine
+from app.ngs.stages.stage9_contamination import run_contamination, contamination_engine
+from app.ngs.stages.stage10_identity import run_identity, identity_engine
 
 
 # ---------------------------------------------------------------------------
@@ -656,3 +658,65 @@ def test_coverage_run_returns_report():
                        targets=[{"name": "BRCA1", "contig": "chr1", "start": 5, "end": 60}])
     assert "genome" in out["summary"]
     assert out["summary"]["target"] is not None
+
+
+def _base_rec(qname, pos, seq, mapq=60):
+    length = len(seq)
+    return {
+        "qname": qname, "flag": 0, "rname": "chr1", "pos": pos, "mapq": mapq,
+        "cigar": f"{length}M", "rnext": "*", "pnext": 0, "tlen": 0, "seq": seq,
+        "qual": "I" * length, "is_secondary": False, "is_supplementary": False,
+        "is_unmapped": False, "is_proper_pair": True, "is_duplicate": False,
+        "is_first_in_pair": False, "is_second_in_pair": False, "mate_unmapped": False,
+    }
+
+
+def test_contamination_engine_detects_alt_reads():
+    # Homozygous-ref SNP at pos 100 (ref A). Two clean reads + one read with an alt C.
+    records = [
+        _base_rec("a", 71, "A" * 30),        # covers 71..100, pos100 = A
+        _base_rec("b", 90, "A" * 30),        # covers 90..119, pos100 = A
+        _base_rec("c", 71, "A" * 29 + "C"),  # pos100 = C (alt)
+    ]
+    eng = contamination_engine(records, [{"pos": 100, "ref": "A"}])
+    assert eng["alt_reads"] == 1
+    assert eng["total_reads"] == 3
+    assert eng["contam_rate"] > 20.0
+    assert eng["status"] == "FAIL"
+
+
+def test_contamination_run_stops_on_high_rate():
+    records = [
+        _base_rec("a", 71, "A" * 30),
+        _base_rec("b", 90, "A" * 30),
+        _base_rec("c", 71, "A" * 29 + "C"),
+    ]
+    out = run_contamination(records, [{"pos": 100, "ref": "A"}])
+    assert out["summary"]["decision"] == "STOP"   # fail_blocks gate
+    assert out["summary"]["contam_rate"] > 20.0
+
+
+def test_contamination_clean_passes():
+    records = [_base_rec("a", 71, "A" * 30), _base_rec("b", 90, "A" * 30)]
+    eng = contamination_engine(records, [{"pos": 100, "ref": "A"}])
+    assert eng["contam_rate"] == 0.0
+    assert eng["status"] == "PASS"
+
+
+def test_identity_concordance_and_sex():
+    # Locus 100: all A -> called A/A matches expected A/A.
+    records = [_base_rec("a", 71, "A" * 30), _base_rec("b", 90, "A" * 30)]
+    out = run_identity(records, expected_gt=[{"pos": 100, "gt": "A/A"}],
+                       expected_sex="female", chr_x_depth=500, chr_y_depth=2)
+    assert out["summary"]["concordance"] == 100.0
+    assert out["summary"]["predicted_sex"] == "female"
+    assert out["summary"]["sex_match"] is True
+    assert out["summary"]["decision"] == "CONTINUE"
+
+
+def test_identity_sex_mismatch_stops():
+    records = [_base_rec("a", 71, "A" * 30)]
+    out = run_identity(records, expected_sex="female", chr_x_depth=100, chr_y_depth=90)
+    assert out["summary"]["predicted_sex"] == "male"
+    assert out["summary"]["sex_match"] is False
+    assert out["summary"]["decision"] == "STOP"

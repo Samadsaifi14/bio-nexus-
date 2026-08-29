@@ -818,6 +818,97 @@ export async function listNGSReferences(): Promise<NGSReference[]> {
 }
 
 // ---------------------------------------------------------------------------
+// Multi-assay NGS Platform (v2): assay router + QC contract engine + readiness gate
+// ---------------------------------------------------------------------------
+
+export type Ngs2Detection = {
+  assay: string;
+  sample_type: string;
+  library_type: string;
+  confidence: number;
+  evidence: string[];
+  pairs: string[][];
+};
+
+export type Ngs2StageContract = {
+  step: string;
+  tool: string;
+  inputs: string[];
+  outputs: string[];
+  fail_blocks: boolean;
+  expectation: string;
+};
+
+export type Ngs2Metric = {
+  name: string;
+  value: number | null;
+  status: string;
+  expected: string | null;
+  detail: string | null;
+};
+
+export type Ngs2Stage = {
+  step: string;
+  tool: string;
+  version: string;
+  inputs: string[];
+  outputs: string[];
+  qc: {
+    status: string;
+    decision: string;
+    metrics: Ngs2Metric[];
+  } | null;
+  decision: string;
+  data: Record<string, unknown>;
+};
+
+export type Ngs2AnalyzeResult = {
+  detection: Ngs2Detection;
+  requested: {
+    assay: string;
+    reference: string;
+    synthetic_reference: boolean;
+    reads_loaded: Record<string, number>;
+  };
+  pipeline: {
+    pipeline: string;
+    pipeline_status: string;
+    pipeline_decision: string;
+    stopped_at: string | null;
+    warnings: string[];
+    stages: Ngs2Stage[];
+    provenance: Record<string, unknown>;
+  };
+};
+
+export async function runNgs2Analyze(payload: {
+  file_paths: string[];
+  reference?: string;
+  assay?: string;
+  sample_type?: string;
+  metadata?: Record<string, unknown>;
+  synthetic_reference?: boolean;
+}): Promise<Ngs2AnalyzeResult> {
+  const res = await longApi.post('/api/ngs/v2/analyze', payload);
+  return res.data;
+}
+
+export async function listNgs2Stages(): Promise<Ngs2StageContract[]> {
+  const res = await api.get('/api/ngs/v2/stages');
+  return res.data.stages || [];
+}
+
+export async function detectNgs2Assay(payload: {
+  file_paths: string[];
+  reference?: string;
+  assay?: string;
+  metadata?: Record<string, unknown>;
+}): Promise<Ngs2Detection> {
+  const res = await api.post('/api/ngs/v2/detect', payload);
+  return res.data;
+}
+
+// ---------------------------------------------------------------------------
 // ADMET descriptors
 // ---------------------------------------------------------------------------
 

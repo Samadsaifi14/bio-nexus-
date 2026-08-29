@@ -32,6 +32,12 @@ from app.ngs.stages.stage1_raw_qc import (
     _qc_thresholds,
 )
 from app.ngs.stages.stage2_multiqc import cross_sample_report, run_multiqc
+from app.ngs.stages.stage3_preproc import (
+    plan_preprocessing,
+    preprocess_fastq,
+    run_preprocessing,
+    trim_read,
+)
 
 
 # ---------------------------------------------------------------------------
@@ -422,3 +428,89 @@ def test_multiqc_run_helper():
     # Outliers are surfaced but MultiQC is not a hard gate (fail_blocks=False):
     assert out["summary"]["decision"] == "CONTINUE_WITH_WARNING"
     assert len(out["summary"]["anomalies"]) >= 1
+
+
+# ---------------------------------------------------------------------------
+# Stage 3 — preprocessing
+# ---------------------------------------------------------------------------
+
+
+def test_plan_adapter_trim_from_observed_contamination():
+    qc = {"adapter_percent": 30.0}
+    plan = plan_preprocessing({}, qc)
+    assert plan["adapter_trim"] is True
+
+
+def test_plan_no_steps_when_clean():
+    plan = plan_preprocessing({}, {"adapter_percent": 1.0, "mean_quality": 38})
+    assert plan["adapter_trim"] is False
+    assert plan["umi_extraction"] is False
+    assert plan["quality_trim"] is False
+
+
+def test_plan_umi_when_declared():
+    plan = plan_preprocessing({"umi": "yes"}, {})
+    assert plan["umi_extraction"] is True
+
+
+def test_trim_read_quality_tail():
+    seq = "ACGTACGTACGTACGT"
+    qual = "IIIIIIII" + "!!!!!!!!"  # poor-quality 3' tail
+    plan = {"adapter_trim": False, "umi_extraction": False,
+            "quality_trim": True, "min_qual": 20, "min_len": 4}
+    keep = seq[:8]
+    good = "I" * 8
+    res = trim_read("@r1", keep, good, plan)
+    assert res is not None and res[0] is not None
+    lines = res[0].split("\n")
+    assert lines[1] == keep  # ~8 high-quality bases survive
+
+
+def test_trim_read_adapter_removal():
+    seq = "ACGTACGTACGT" + "AGATCGGAAGAGC"  # adapter seed at 3'
+    qual = "I" * len(seq)
+    plan = {"adapter_trim": True, "umi_extraction": False,
+            "quality_trim": False, "min_qual": 20, "min_len": 4}
+    res = trim_read("@r1", seq, qual, plan)
+    assert res[1]["adapter_removed"] is True
+    assert "AGATCGGAAGAGC" not in res[0].split("\n")[1]
+
+
+def test_preprocess_fastq_adapter_and_threading():
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, "S1_R1.fastq.gz")
+        reads = []
+        for i in range(60):
+            seq = ("ACGTACGTACGTACGTACGT" + "AGATCGGAAGAGCG" + "G" * 10)
+            reads.append(f"@r{i}\n{seq}\n+\n{'I'*len(seq)}\n")
+        with gzip.open(src, "wt") as f:
+            f.writelines(reads)
+        plan = plan_preprocessing({"quality_trim": "no", "min_length": 5}, {"adapter_percent": 40})
+        out_dir = os.path.join(d, "clean")
+        os.makedirs(out_dir, exist_ok=True)
+        stats = preprocess_fastq(src, out_dir, plan, sample_name="S1")
+        assert stats["raw_reads"] == 60
+        assert stats["adapter_removed_reads"] == 60
+        assert stats["discarded_reads"] == 0
+        assert stats["out_path"].endswith(".fastq.gz")
+        assert os.path.exists(stats["out_path"])
+
+
+def test_preprocess_stops_on_large_read_loss():
+    with tempfile.TemporaryDirectory() as d:
+        src = os.path.join(d, "S1_R1.fastq.gz")
+        reads = []
+        for i in range(50):
+            seq = "ACGT"  # very short
+            reads.append(f"@r{i}\n{seq}\n+\nIIII\n")
+        with gzip.open(src, "wt") as f:
+            f.writelines(reads)
+        out_dir = os.path.join(d, "clean")
+        os.makedirs(out_dir, exist_ok=True)
+        out = run_preprocessing({
+            "files": [src],
+            "sample_id": "S1",
+            "workdir": d,
+            "metadata": {"quality_trim": "no", "min_length": 30, "out_dir": out_dir},
+        })
+        assert out["summary"]["decision"] == "STOP"  # near-total read loss after 30nt filter

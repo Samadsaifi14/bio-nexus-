@@ -31,6 +31,7 @@ from app.ngs.stages.stage1_raw_qc import (
     run_raw_qc,
     _qc_thresholds,
 )
+from app.ngs.stages.stage2_multiqc import cross_sample_report, run_multiqc
 
 
 # ---------------------------------------------------------------------------
@@ -365,3 +366,59 @@ def test_pipeline_stops_on_bad_input():
         assert report["pipeline_status"] == "FAIL"
         assert report["pipeline_decision"] == "STOP"
         assert report["stopped_at"] == "input_validation"
+
+
+def _raw_qc_like(q30, mean_q=None, gc=None, adapter=1.0, dup=12.0, reads=1_000_000):
+    return {
+        "q30_percent": q30,
+        "mean_quality": mean_q if mean_q is not None else (30 + (q30 - 90) / 5),
+        "gc_percent": gc if gc is not None else 45.0,
+        "adapter_percent": adapter,
+        "duplication_percent": dup,
+        "total_reads": reads,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Stage 2 — MultiQC anomaly detection
+# ---------------------------------------------------------------------------
+
+
+def test_multiqc_flags_blueprint_anomaly():
+    # The blueprint's exact example: Q30 94 / 93 / 91 / 61 -> the 61 must be flagged.
+    cohort = {
+        "S1": _raw_qc_like(94.0),
+        "S2": _raw_qc_like(93.0),
+        "S3": _raw_qc_like(91.0),
+        "S4": _raw_qc_like(61.0),
+    }
+    report = cross_sample_report(cohort)
+    flagged = {a["sample"] for a in report["anomalies"] if a["metric"] == "q30"}
+    assert "S4" in flagged
+    assert "S1" not in flagged
+
+
+def test_multiqc_no_anomaly_on_consistent_cohort():
+    cohort = {f"S{i}": _raw_qc_like(93.0 + (i % 3)) for i in range(6)}
+    report = cross_sample_report(cohort)
+    assert report["anomalies"] == []
+
+
+def test_multiqc_high_duplication_flagged():
+    cohort = {
+        "A": _raw_qc_like(93.0, dup=10.0),
+        "B": _raw_qc_like(93.0, dup=12.0),
+        "C": _raw_qc_like(93.0, dup=11.0),
+        "D": _raw_qc_like(93.0, dup=90.0),  # duplicated sample
+    }
+    report = cross_sample_report(cohort)
+    dup_flagged = [a["sample"] for a in report["anomalies"] if a["metric"] == "duplication"]
+    assert "D" in dup_flagged
+
+
+def test_multiqc_run_helper():
+    cohort = {"S1": _raw_qc_like(94), "S2": _raw_qc_like(92), "S3": _raw_qc_like(60)}
+    out = run_multiqc(cohort)
+    # Outliers are surfaced but MultiQC is not a hard gate (fail_blocks=False):
+    assert out["summary"]["decision"] == "CONTINUE_WITH_WARNING"
+    assert len(out["summary"]["anomalies"]) >= 1

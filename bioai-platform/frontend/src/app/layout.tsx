@@ -4,6 +4,7 @@ import { GeistMono } from 'geist/font/mono';
 import Script from 'next/script';
 import { MotionConfig } from 'framer-motion';
 import './globals.css';
+import './scientific-ui.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
 import { themeInitScript } from '@/lib/theme';

@@ -1,137 +1,63 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, ChartBar as BarChart3, Funnel, Rocket, HouseLine, Wrench } from '@phosphor-icons/react';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, Funnel, Rocket, HouseLine, Wrench } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
-import { fadeUp, stagger, hoverGlow, press } from '@/lib/animations';
-import { ReactNode } from 'react';
+import { fadeUp, stagger, press } from '@/lib/animations';
 import { CriticalButton } from '@/components/ui';
 
-type Operation = {
-  id: string;
-  name: string;
-  description: string;
-  icon: typeof Dna;
-  active: boolean;
-  badge?: string | null;
-};
+type Operation = { id: string; name: string; description: string; icon: typeof Dna; badge?: string };
+type Group = { title: string; description: string; items: Operation[] };
 
-const groups: { title: string; items: Operation[] }[] = [
-  {
-    title: 'Sequence Analysis',
-    items: [
-      { id: 'blast',     name: 'BLAST Search',             description: 'Find similar sequences across organisms.',                 icon: Search,    active: true },
-      { id: 'pairwise',  name: 'Pairwise Alignment',       description: 'Align two sequences directly — global (NW) or local (SW) with full-length match, mismatch and gap views.', icon: ArrowSwap, active: true },
-      { id: 'uniprot',   name: 'UniProt Lookup',           description: 'Retrieve detailed annotations for a known protein.',       icon: Globe,     active: true },
-      { id: 'alignment', name: 'Multiple Sequence Alignment', description: 'Align sequences to find conserved regions and relationships.', icon: Layout, active: true },
-      { id: 'domains',   name: 'Domain Analysis',          description: 'Fetch domain/motif annotations from InterPro.',             icon: Layers,    active: true },
-      { id: 'phylo',     name: 'Phylogenetic Tree',        description: 'Build and visualize phylogenetic trees from sequences.',     icon: GitFork,   active: true },
-      { id: 'sequencing', name: 'Sequencing Pipeline',     description: 'Raw FASTQ → QC → alignment → variant calling → report for genomic data.', icon: Dna, active: true, badge: 'New' },
-      { id: 'ngs',        name: 'NGS Pipeline',             description: 'Full 6-step NGS analysis: QC → Trimming → Alignment → Variants → Annotation → Report with igv.js visualization.', icon: BarChart3, active: true, badge: 'New' },
-      { id: 'sequences',  name: 'Sequence Utilities',      description: 'GC content, reverse complement, translation, molecular weight, restriction sites.', icon: Calculator, active: true },
-      { id: 'motif',      name: 'Motif Scanner',           description: 'Scan a protein against curated PROSITE patterns or a custom motif.', icon: Target, active: true },
-      { id: 'dotplot',    name: 'Dot Plot',                description: 'Visual self/dot-plot comparison of two sequences with window & stringency.', icon: ChartScatter, active: true },
-    ],
-  },
-  {
-    title: 'Structure & Networks',
-    items: [
-      { id: 'structure',   name: 'Structure Lookup',       description: 'Fetch 3D protein structures from PDB and visualize them.',  icon: Dna,       active: true },
-      { id: 'pathway',     name: 'Pathway Analysis',       description: 'Map genes to biological pathways from Reactome/KEGG.',      icon: GitBranch, active: true },
-      { id: 'interactions', name: 'Protein Interactions',  description: 'Explore interaction partners from the STRING database.',     icon: Share2,    active: true },
-      { id: 'compare',     name: 'Structure Compare',      description: 'Find structurally similar proteins via PDBeFold (TM-align).', icon: Shuffle, active: true },
-      { id: 'docking',     name: 'Molecular Docking',      description: 'Dock a small molecule into a protein using AutoDock Vina (free, CPU-based).', icon: Atom, active: true, badge: 'New' },
-      { id: 'md',          name: 'MD Simulation',          description: 'Implicit solvent molecular dynamics using OpenMM. Minimize, equilibrate, or run.', icon: Activity, active: true },
-      { id: 'md-v2',       name: 'MD Pipeline (v2)',       description: 'Staged MD DAG: structure QC → prep → force-field gate → build → EM → NVT → NPT → production → trajectory QC → convergence.', icon: Layers, active: true, badge: 'New' },
-      { id: 'function',    name: 'Function Prediction',    description: 'Predict protein function (GO terms) from structure. DeepFRI-inspired.', icon: Brain, active: true },
-      { id: 'structure-prep', name: 'Structure Pipeline', description: 'Full prep pipeline: broken chain detection → SWISS-MODEL repair → PyMOL cleanup → fpocket + CASTp pockets.', icon: Wrench, active: true, badge: 'New' },
-      { id: 'castp',        name: 'CASTp Pocket Analysis',  description: 'Identify binding pockets and cavities using solvent-accessible surface area.', icon: Funnel, active: true, badge: 'New' },
-      { id: 'swissmodel',   name: 'SWISS-MODEL Repository',  description: 'Query homology models and experimental structures from the SMR database.', icon: HouseLine, active: true, badge: 'New' },
-      { id: 'predict-structure', name: 'Structure Prediction', description: 'Predict 3D protein structure from sequence using ESMFold (Facebook AI).', icon: Rocket, active: true, badge: 'New' },
-    ],
-  },
-  {
-    title: 'Drug Discovery',
-    items: [
-      { id: 'admet',   name: 'ADMET Descriptors',  description: 'Compute molecular descriptors from SMILES. Lipinski, Veber, QED analysis.', icon: Pill, active: true },
-    ],
-  },
-  {
-    title: 'Utilities',
-    items: [
-      { id: 'tools',   name: 'Utility Tools',   description: 'Format conversion, sequence validation, and everyday utilities.', icon: Beaker, active: true },
-      { id: 'primers', name: 'Primer Design',   description: 'Design PCR primers using Primer3 — instant, no rate limits.',      icon: FlaskConical, active: true },
-    ],
-  },
+const groups: Group[] = [
+  { title: 'Genomics', description: 'Raw sequencing data to quality-controlled, traceable evidence.', items: [
+    { id: 'ngs-v2', name: 'NGS Analysis', description: 'Multi-assay FASTQ workflow with 21-stage QC contracts, coverage, contamination, identity, variant evidence and an analysis-readiness gate.', icon: Dna, badge: 'Flagship' },
+    { id: 'sequencing', name: 'Consensus Sequencing', description: 'Focused reference/consensus workflow for compact sequencing analyses and teaching datasets.', icon: Layers },
+  ]},
+  { title: 'Sequence Biology', description: 'Similarity, conservation, evolution, motifs and sequence-level interpretation.', items: [
+    { id: 'blast', name: 'BLAST Search', description: 'Similarity search with hit-level scores, identity, coverage, alignments and source evidence.', icon: Search },
+    { id: 'pairwise', name: 'Pairwise Alignment', description: 'Global or local two-sequence alignment with scoring and complete match/mismatch/gap views.', icon: ArrowSwap },
+    { id: 'alignment', name: 'Multiple Sequence Alignment', description: 'Conservation-aware MSA with alignment statistics and exportable aligned sequences.', icon: Layout },
+    { id: 'phylo', name: 'Phylogenetic Analysis', description: 'Tree inference and interactive visualization with branch/support evidence.', icon: GitFork },
+    { id: 'domains', name: 'Domains & Families', description: 'InterPro-backed domain architecture, coordinates and functional evidence.', icon: Layers },
+    { id: 'motif', name: 'Motif Scanner', description: 'PROSITE/custom motif scanning with residue coordinates and match evidence.', icon: Target },
+    { id: 'uniprot', name: 'UniProt Evidence', description: 'Curated protein annotations, identifiers and functional evidence.', icon: Globe },
+    { id: 'sequences', name: 'Sequence Utilities', description: 'GC content, reverse complement, translation, molecular weight and restriction sites.', icon: Calculator },
+    { id: 'dotplot', name: 'Dot Plot', description: 'Pairwise/self similarity visualization with tunable window and stringency.', icon: ChartScatter },
+  ]},
+  { title: 'Structural Biology', description: 'Structure retrieval, validation, pockets and simulation with explicit QC states.', items: [
+    { id: 'structure', name: 'Structure Analysis', description: 'PDB structures with 3D visualization and structural quality context.', icon: Dna },
+    { id: 'structure-prep', name: 'Structure Preparation', description: 'Broken-chain detection, repair, cleanup and pocket preparation workflow.', icon: Wrench },
+    { id: 'castp', name: 'Pocket Analysis', description: 'CASTp-style cavity and solvent-accessible pocket characterization.', icon: Funnel },
+    { id: 'compare', name: 'Structure Compare', description: 'Structural similarity and comparative geometry.', icon: Shuffle },
+    { id: 'predict-structure', name: 'Structure Prediction', description: 'Sequence-to-structure prediction with confidence-aware output.', icon: Rocket },
+    { id: 'swissmodel', name: 'SWISS-MODEL', description: 'Homology-model and experimental-structure retrieval.', icon: HouseLine },
+    { id: 'md-v2', name: 'Molecular Dynamics', description: 'Staged MD with structure QC, force-field gate, equilibration, production, trajectory QC and convergence evidence.', icon: Activity, badge: 'QC workflow' },
+    { id: 'function', name: 'Function Prediction', description: 'Structure-informed functional predictions with confidence context.', icon: Brain },
+  ]},
+  { title: 'Drug Discovery', description: 'Molecular interaction and developability evidence for research workflows.', items: [
+    { id: 'docking', name: 'Molecular Docking', description: 'AutoDock Vina docking with pose, affinity and interaction evidence.', icon: Atom },
+    { id: 'admet', name: 'ADMET & Drug-likeness', description: 'Physicochemical, pharmacokinetic, structural-alert and toxicity-oriented evidence.', icon: Pill },
+  ]},
+  { title: 'Systems Biology & Utilities', description: 'Networks, pathways and experimental design helpers.', items: [
+    { id: 'pathway', name: 'Pathway Analysis', description: 'Pathway enrichment with gene membership and statistical evidence.', icon: GitBranch },
+    { id: 'interactions', name: 'Protein Interactions', description: 'STRING-backed interaction networks and evidence channels.', icon: Share2 },
+    { id: 'primers', name: 'Primer Design', description: 'Primer3-backed primer design and oligo QC.', icon: FlaskConical },
+    { id: 'tools', name: 'Utility Tools', description: 'Validation, formatting and common bioinformatics helpers.', icon: Beaker },
+  ]},
 ];
 
 function OperationCard({ op, router }: { op: Operation; router: ReturnType<typeof useRouter> }) {
   const Icon = op.icon;
-  return (
-    <motion.div variants={fadeUp} whileHover={op.active ? hoverGlow : undefined} whileTap={op.active ? press : undefined}>
-      <button
-        onClick={() => op.active && router.push(`/analyze/${op.id}`)}
-        disabled={!op.active}
-        className="relative text-left p-5 rounded-2xl glass-card cursor-pointer hover:bg-surface-1 transition w-full disabled:opacity-50"
-      >
-        <div className="flex items-start gap-4">
-          <motion.div
-            className="p-3 rounded-xl bg-accent-cyan/10"
-            whileHover={{ scale: 1.08, rotate: 3 }}
-            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-          >
-            <Icon className="w-5 h-5 text-accent-cyan" />
-          </motion.div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2">
-              <h3 className="font-semibold text-text-primary">{op.name}</h3>
-              {op.badge && (
-                <span className="text-[10px] font-medium text-warn bg-warn/10 px-2 py-0.5 rounded-full whitespace-nowrap">
-                  {op.badge}
-                </span>
-              )}
-            </div>
-            <p className="text-sm text-text-muted mt-1 leading-relaxed">{op.description}</p>
-          </div>
-        </div>
-      </button>
-    </motion.div>
-  );
+  return <motion.button variants={fadeUp} whileTap={press} onClick={() => router.push(`/analyze/${op.id}`)} className="group w-full rounded-xl border border-glass-border bg-surface-0 p-4 text-left transition hover:border-accent-cyan/35 hover:bg-surface-1">
+    <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg border border-glass-border bg-surface-1 p-2"><Icon className="h-4 w-4 text-accent-cyan" /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="text-sm font-semibold text-text-primary">{op.name}</h3>{op.badge && <span className="rounded border border-accent-cyan/25 bg-accent-cyan/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent-cyan">{op.badge}</span>}</div><p className="mt-1 text-xs leading-5 text-text-muted">{op.description}</p></div></div>
+  </motion.button>;
 }
 
 export default function AnalyzePage() {
   const router = useRouter();
-
-  return (
-    <div>
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mb-8">
-        <div className="glass-card p-6 border border-accent-cyan/20 bg-accent-cyan/5">
-          <div className="flex items-center justify-between">
-            <div>
-              <h2 className="text-lg font-semibold text-text-primary">New: Guided Analysis Wizard</h2>
-              <p className="text-sm text-text-secondary mt-1">A step-by-step 4-step pipeline &mdash; paste a sequence and get BLAST, pathways, and AI interpretation in one flow.</p>
-            </div>
-            <CriticalButton onClick={() => router.push('/wizard')}
-              className="px-5 py-2.5 text-sm flex-shrink-0">
-              Launch Wizard &rarr;
-            </CriticalButton>
-          </div>
-        </div>
-      </motion.div>
-
-      <motion.h1 variants={fadeUp} className="text-2xl font-bold text-text-primary mb-1">What do you want to do?</motion.h1>
-      <motion.p variants={fadeUp} className="text-text-muted mb-8">Choose an operation to get started with your analysis.</motion.p>
-
-      {groups.map(group => (
-        <div key={group.title} className="mb-10">
-          <motion.h2 variants={fadeUp} className="text-sm font-semibold text-text-muted uppercase tracking-wider mb-4">{group.title}</motion.h2>
-          <motion.div variants={stagger} initial="hidden" whileInView="show" viewport={{ once: true, margin: '-40px' }} className="grid md:grid-cols-2 gap-4">
-            {group.items.map(op => (
-              <OperationCard key={op.id} op={op} router={router} />
-            ))}
-          </motion.div>
-        </div>
-      ))}
-    </div>
-  );
+  return <div className="max-w-6xl">
+    <motion.div variants={fadeUp} initial={{ y: 18 }} animate="show" className="mb-8 flex flex-col justify-between gap-4 border-b border-glass-border pb-6 md:flex-row md:items-end"><div><p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-accent-cyan">Scientific workspace</p><h1 className="text-2xl font-semibold text-text-primary">Choose a research workflow</h1><p className="mt-2 max-w-2xl text-sm text-text-muted">Run established bioinformatics methods while preserving QC, raw outputs, methods and provenance as first-class results.</p></div><CriticalButton onClick={() => router.push('/wizard')} className="px-4 py-2.5 text-sm">Guided workflow</CriticalButton></motion.div>
+    {groups.map((group) => <section key={group.title} className="mb-9"><div className="mb-3"><h2 className="text-sm font-semibold text-text-primary">{group.title}</h2><p className="mt-0.5 text-xs text-text-muted">{group.description}</p></div><motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{group.items.map((op) => <OperationCard key={op.id} op={op} router={router} />)}</motion.div></section>)}
+  </div>;
 }

@@ -21,11 +21,18 @@ jobs:
   deploy-frontend:
     name: Deploy Frontend to Vercel
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/frontend
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: team_y6MYl4hpatRBHMHSwAzCzQ5f
+      VERCEL_PROJECT_ID: prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - name: Ensure backend API URL is set
-        run: npx vercel env add NEXT_PUBLIC_API_URL production https://samad14-bio-nexus-api.hf.space --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --token "$VERCEL_TOKEN" || true
-      - name: Deploy to Vercel
-        run: npx vercel --token "$VERCEL_TOKEN" --project prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG --scope team_y6MYl4hpatRBHMHSwAzCzQ5f --prod --yes
+      - name: Pull production project settings
+        run: npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
+      - name: Build production frontend
+        run: npx vercel build --prod --token "$VERCEL_TOKEN"
+      - name: Deploy production frontend
+        run: npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"

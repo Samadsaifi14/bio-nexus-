@@ -73,13 +73,14 @@ def get_engine_status():
 @router.post("/analyze")
 async def analyze(payload: AnalyzeRequest):
     """Run the full in-process staged MD DAG over a structure and return the audit report."""
-    from app.tools.structure_prep import fetch_pdb_text
-
     if payload.pdb_text:
+        # Keep provided/offline structures independent of the network fetch stack.
         pdb_text = payload.pdb_text
         pdb_id = payload.pdb_id
     else:
         try:
+            from app.tools.structure_prep import fetch_pdb_text
+
             pdb_text = await fetch_pdb_text(payload.pdb_id)
             pdb_id = payload.pdb_id.upper()
         except HTTPException:

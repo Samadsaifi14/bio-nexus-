@@ -258,9 +258,13 @@ def analyze(payload: AnalyzeRequest):
         "assay": assay,
         "sample_type": payload.sample_type or detection["sample_type"],
         "metadata": {**(payload.metadata or {}), **({"demo_profile": payload.demo_profile} if payload.demo_profile else {})},
+        "demonstration_data": bool(
+            payload.demo_profile or (payload.metadata or {}).get("demonstration_data")
+        ),
+        "synthetic_reference": bool(payload.synthetic_reference or payload.demo_profile),
         "reads": list(reads_all.values())[0] if reads_all else [],
     }
-    use_synthetic_reference = bool(payload.synthetic_reference or payload.demo_profile)
+    use_synthetic_reference = sample["synthetic_reference"]
     if use_synthetic_reference and sample["reads"]:
         sample["reference_seq"] = _synthetic_reference(sample["reads"])
         sample["contig"] = "chr1"

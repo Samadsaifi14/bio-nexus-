@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 from typing import Callable, Optional
 
 from app.ngs.contracts import (
@@ -80,8 +81,46 @@ class Pipeline:
                                self.name, contract.step)
                 break
 
+        self.provenance = self._build_provenance(sample)
+
         # Merge any structured payload from the last successful stage into state for consumers.
         return self.report()
+
+    def _build_provenance(self, sample: dict) -> dict:
+        """Build a compact, deterministic audit record from facts observed by this run."""
+        metadata = sample.get("metadata") or {}
+        input_stage = next((r for r in self.results if r.step == "input_validation"), None)
+        checksums = input_stage.data.get("checksums", {}) if input_stage else {}
+        files = []
+        for path in sample.get("files") or []:
+            item = {"name": os.path.basename(path)}
+            checksum = checksums.get(path) or checksums.get(os.path.basename(path))
+            if checksum:
+                item["checksum"] = {"algorithm": "md5", "value": checksum}
+            files.append(item)
+
+        reference = self.state.get("reference", {}).get("declared") or {
+            "id": sample.get("reference")
+        }
+        return {
+            "schema_version": "1.0",
+            "pipeline": {"name": self.name, "version": self.version},
+            "analysis": {
+                "assay": sample.get("assay"),
+                "sample_type": sample.get("sample_type"),
+                "platform": metadata.get("platform"),
+                "demonstration_data": bool(
+                    sample.get("demonstration_data") or metadata.get("demonstration_data")
+                ),
+                "synthetic_reference": bool(sample.get("synthetic_reference")),
+            },
+            "inputs": files,
+            "reference": reference,
+            "tools": [
+                {"stage": r.step, "name": r.tool, "version": r.version}
+                for r in self.results
+            ],
+        }
 
     def report(self) -> dict:
         return {

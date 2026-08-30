@@ -15,8 +15,8 @@ A stage result looks like:
       "step": "alignment",
       "tool": "bwa-mem2",
       "version": "2.2.1",
-      "input": ["clean_R1", "clean_R2"],
-      "output": ["sample.bam"],
+      "inputs": ["clean_R1", "clean_R2"],
+      "outputs": ["sample.bam"],
       "qc": {
         "mapping_rate": {"value": 97.8, "status": "PASS"},
         "proper_pair":   {"value": 96.2, "status": "PASS"}
@@ -233,8 +233,11 @@ class StageResult:
             "step": self.step,
             "tool": self.tool,
             "version": self.version,
-            "input": self.inputs,
-            "output": self.outputs,
+            # Keep the runtime report aligned with the public stage-contract endpoint and
+            # frontend API type.  The old singular keys made otherwise successful runs crash
+            # when the evidence-chain UI tried to render ``stage.outputs.join(...)``.
+            "inputs": self.inputs,
+            "outputs": self.outputs,
             "qc": self.qc.to_dict() if self.qc else None,
             "decision": self.decision.value,
             "data": self.data,

@@ -862,6 +862,23 @@ export type Ngs2Stage = {
   data: Record<string, unknown>;
 };
 
+type LegacyNgs2Stage = Omit<Ngs2Stage, 'inputs' | 'outputs'> & {
+  inputs?: string[];
+  outputs?: string[];
+  input?: string[];
+  output?: string[];
+};
+
+function normalizeNgs2Stage(stage: LegacyNgs2Stage): Ngs2Stage {
+  return {
+    ...stage,
+    inputs: Array.isArray(stage.inputs) ? stage.inputs
+      : Array.isArray(stage.input) ? stage.input : [],
+    outputs: Array.isArray(stage.outputs) ? stage.outputs
+      : Array.isArray(stage.output) ? stage.output : [],
+  };
+}
+
 export type Ngs2AnalyzeResult = {
   detection: Ngs2Detection;
   requested: {
@@ -900,7 +917,13 @@ export async function runNgs2Analyze(payload: {
   synthetic_reference?: boolean;
 }): Promise<Ngs2AnalyzeResult> {
   const res = await longApi.post('/api/ngs/v2/analyze', payload);
-  return res.data;
+  const result = res.data as Ngs2AnalyzeResult & {
+    pipeline?: { stages?: LegacyNgs2Stage[] };
+  };
+  if (result.pipeline && Array.isArray(result.pipeline.stages)) {
+    result.pipeline.stages = result.pipeline.stages.map(normalizeNgs2Stage);
+  }
+  return result;
 }
 
 export async function listNgs2Stages(): Promise<Ngs2StageContract[]> {

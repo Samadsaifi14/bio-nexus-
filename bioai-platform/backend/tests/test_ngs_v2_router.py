@@ -72,6 +72,9 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     stages = body["pipeline"]["stages"]
     steps = [s["step"] for s in stages]
     assert len(steps) == 21
+    assert all(isinstance(s["inputs"], list) for s in stages)
+    assert all(isinstance(s["outputs"], list) for s in stages)
+    assert all("input" not in s and "output" not in s for s in stages)
     # The pipeline should NOT have hard-stopped on a blocking gate for a genuine read set.
     assert body["pipeline"]["pipeline_status"] in ("PASS", "WARN")
 
@@ -79,6 +82,14 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     gate = stages[-1]
     assert gate["step"] == "final_gate"
     assert gate["decision"] in ("CONTINUE", "CONTINUE_WITH_WARNING")
+
+    provenance = body["pipeline"]["provenance"]
+    assert provenance["schema_version"] == "1.0"
+    assert provenance["pipeline"] == {"name": "WGS-germline", "version": "0.1.0"}
+    assert provenance["analysis"]["synthetic_reference"] is True
+    assert len(provenance["inputs"]) == 2
+    assert all(item["checksum"]["algorithm"] == "md5" for item in provenance["inputs"])
+    assert len(provenance["tools"]) == 21
 
 
 def test_analyze_emits_igv_tracks(client, tmp_path):
@@ -109,4 +120,3 @@ def test_analyze_emits_igv_tracks(client, tmp_path):
         assert len(cols) == 8
     assert viz["n_variants"] == len(var_lines)
     assert viz["locus"]
-

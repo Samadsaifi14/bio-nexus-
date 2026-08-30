@@ -3,8 +3,6 @@ name: Scientific integrity gate
 on:
   pull_request:
     branches: [main]
-  push:
-    branches: [feat/scientific-integrity-polish]
 
 permissions:
   contents: read
@@ -44,3 +42,23 @@ jobs:
         env:
           PYTHONPATH: .
         run: pytest -q tests/test_ngs_platform.py
+
+  md-integrity:
+    name: Staged MD regression and contract tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install staged MD test dependencies
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy biopython openmm httpx2
+      - name: Run staged MD suite
+        env:
+          PYTHONPATH: .
+          OPENMM_CPU_THREADS: '2'
+        run: pytest -q tests/test_md_v2.py tests/test_md_v2_sync_budget.py

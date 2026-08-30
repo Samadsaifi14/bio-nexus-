@@ -2,15 +2,17 @@
 
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise } from '@phosphor-icons/react';
+import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise, ShieldWarning, ShieldCheck } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runNgs2Analyze } from '@/lib/api';
 import type { Ngs2AnalyzeResult } from '@/lib/api';
+import { validateScientificStages } from '@/lib/scientificIntegrity';
 import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
-import ScientificResultsWorkspace from '@/components/results/ScientificResultsWorkspace';
+import ScientificResultsWorkspace, { type ScientificStatus } from '@/components/results/ScientificResultsWorkspace';
 import StageEvidenceTable from '@/components/results/StageEvidenceTable';
 import { ProvenancePanel } from '@/components/results/ProvenancePanel';
 import NgsArtifactPanel from '@/components/results/NgsArtifactPanel';
+import NgsEvidenceInterpretation from '@/components/results/NgsEvidenceInterpretation';
 import GenomeViewer from '@/components/GenomeViewer';
 
 const ASSAY_OPTIONS = [
@@ -29,6 +31,14 @@ const DEMOS = [
 
 type DemoMeta = { profile: string; label: string; description: string; synthetic: boolean; read_pairs: number };
 type ExtendedResult = Ngs2AnalyzeResult & { demo?: DemoMeta | null; requested: Ngs2AnalyzeResult['requested'] & { demo_profile?: string | null; reads_analyzed?: number } };
+
+function readinessStatus(verdict: string, integrityBlocked: boolean): { status: ScientificStatus; label: string } {
+  if (integrityBlocked) return { status: 'FAIL', label: 'INTEGRITY REVIEW REQUIRED' };
+  if (verdict === 'ANALYSIS_READY' || verdict === 'PASS') return { status: 'PASS', label: 'ANALYSIS READY' };
+  if (verdict === 'ANALYSIS_READY_WITH_WARNINGS' || verdict === 'WARN') return { status: 'WARN', label: 'READY WITH WARNINGS' };
+  if (verdict === 'NOT_ANALYSIS_READY' || verdict === 'FAIL') return { status: 'FAIL', label: 'NOT ANALYSIS READY' };
+  return { status: 'INFO', label: verdict || 'STATUS NOT REPORTED' };
+}
 
 export default function NgsV2Page() {
   const [filePaths, setFilePaths] = useState('');
@@ -64,9 +74,12 @@ export default function NgsV2Page() {
 
   const stages = Array.isArray(result?.pipeline?.stages) ? result!.pipeline.stages : [];
   const visualization = result?.visualization ?? { sam: '', vcf: '', locus: null, n_reads: 0, n_mapped: 0, n_variants: 0 };
-  const warnings = Array.isArray(result?.pipeline?.warnings) ? result!.pipeline.warnings : [];
+  const warnings = Array.isArray(result?.pipeline?.warnings) ? [...new Set(result!.pipeline.warnings.filter(Boolean))] : [];
   const verdict = result?.pipeline?.pipeline_status ?? 'INFO';
-  const status = verdict === 'PASS' ? 'PASS' : verdict === 'WARN' ? 'WARN' : verdict === 'FAIL' ? 'FAIL' : 'INFO';
+  const integrityIssues = validateScientificStages(stages);
+  const integrityErrors = integrityIssues.filter((issue) => issue.level === 'ERROR');
+  const integrityWarnings = integrityIssues.filter((issue) => issue.level === 'WARN');
+  const readiness = readinessStatus(verdict, integrityErrors.length > 0);
   const gate = stages[stages.length - 1];
   const passed = stages.filter(s => s.qc?.status === 'PASS').length;
   const warned = stages.filter(s => s.qc?.status === 'WARN').length;
@@ -76,7 +89,7 @@ export default function NgsV2Page() {
 
   return <div className="scientific-page max-w-6xl space-y-6 pb-12">
     <BackButton />
-    <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, IGV tracks and a final analysis-readiness decision." />
+    <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, genome inspection and an evidence-backed analysis-readiness decision." />
 
     {!result && <>
       <motion.section variants={fadeUp} initial={{ y: 18 }} animate="show" className="data-card overflow-hidden">
@@ -99,16 +112,17 @@ export default function NgsV2Page() {
       <ScientificResultsWorkspace
         title={result.demo ? result.demo.label : `${result.detection?.assay ?? 'NGS'} sequencing result`}
         subtitle={`${result.pipeline?.pipeline ?? 'NGS pipeline'} · ${result.requested?.reference ?? 'reference not reported'}${result.demo ? ' · SYNTHETIC DEMONSTRATION DATA' : ''}`}
-        status={status}
-        statusLabel={verdict === 'PASS' ? 'ANALYSIS READY' : verdict === 'WARN' ? 'READY WITH WARNINGS' : verdict === 'FAIL' ? 'NOT ANALYSIS READY' : verdict}
+        status={readiness.status}
+        statusLabel={readiness.label}
+        integrityNotice={integrityErrors.length > 0 ? <div className="flex items-start gap-2 rounded-lg border border-error/20 bg-error/5 p-3 text-xs leading-5 text-text-secondary"><ShieldWarning className="mt-0.5 h-4 w-4 shrink-0 text-error"/><span><strong className="text-error">Scientific integrity gate blocked this result.</strong> {integrityErrors.length} structural evidence issue{integrityErrors.length === 1 ? '' : 's'} must be resolved before the run is treated as analysis-ready. Raw evidence remains visible for debugging.</span></div> : <div className="flex items-start gap-2 rounded-lg border border-good/20 bg-good/5 p-3 text-xs leading-5 text-text-secondary"><ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-good"/><span><strong className="text-text-primary">Scientific integrity gate passed.</strong> No duplicate stage IDs, duplicate per-stage metrics, invalid QC states, or non-finite metric values were detected in the emitted result structure.{integrityWarnings.length ? ` ${integrityWarnings.length} non-blocking provenance warning${integrityWarnings.length === 1 ? '' : 's'} remain.` : ''}</span></div>}
         metadata={[{ label: 'Assay', value: result.detection?.assay ?? '—' }, { label: 'Library', value: result.detection?.library_type ?? '—' }, { label: 'Sample type', value: result.detection?.sample_type ?? '—' }, { label: 'Reference', value: result.requested?.reference ?? '—' }, { label: 'Pipeline', value: result.pipeline?.pipeline ?? '—' }, { label: 'Final gate', value: gate?.qc?.status ?? '—' }]}
         metrics={[{ label: 'Reads loaded', value: totalReads.toLocaleString() }, { label: 'Reads analyzed', value: result.requested?.reads_analyzed?.toLocaleString?.() ?? totalReads.toLocaleString() }, { label: 'Stages', value: stages.length }, { label: 'PASS', value: passed, status: 'PASS' }, { label: 'WARN', value: warned, status: warned ? 'WARN' : 'PASS' }, { label: 'FAIL', value: failed, status: failed ? 'FAIL' : 'PASS' }, { label: 'Mapped reads', value: Number(visualization.n_mapped || 0).toLocaleString() }, { label: 'Variants', value: Number(visualization.n_variants || 0).toLocaleString() }]}
-        overview={<div className="space-y-5">{result.demo && <div className="rounded-lg border border-info/20 bg-info/5 p-4 text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Demonstration dataset:</strong> {result.demo.description} This is synthetic test data, not a biological sample.</div>}<div className="grid gap-3 md:grid-cols-3"><div className="result-callout"><Database/><div><b>Assay routing</b><p>{result.detection?.assay ?? 'Unknown'} · {result.detection?.library_type ?? 'Unknown'}.</p></div></div><div className="result-callout"><FileText/><div><b>Evidence chain</b><p>{stages.length} stages returned with QC and decision records.</p></div></div><div className="result-callout"><MapTrifold/><div><b>Genome evidence</b><p>{visualization.n_mapped || 0} mapped reads and {visualization.n_variants || 0} variants.</p></div></div></div>{warnings.length > 0 && <div className="rounded-lg border border-warn/20 bg-warn/5 p-4"><div className="flex items-center gap-2 text-xs font-semibold text-warn"><Warning/>Warnings ({warnings.length})</div><ul className="mt-2 space-y-1 font-mono text-[11px] text-text-muted">{warnings.map((w,i)=><li key={i}>• {w}</li>)}</ul></div>}</div>}
-        qc={<div className="space-y-4"><div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">QC is shown as observed metrics from each stage. Missing fields from an older/partial backend response are displayed as “not reported” instead of crashing the page.</div><StageEvidenceTable stages={stages}/></div>}
-        results={<div className="space-y-5">{(visualization.sam || visualization.vcf) ? <div><div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-text-primary">Genome evidence viewer</h3><span className="font-mono text-[10px] text-text-muted">{visualization.n_mapped || 0} mapped · {visualization.n_variants || 0} variants</span></div><GenomeViewer samText={visualization.sam || ''} vcfText={visualization.vcf || ''} locus={visualization.locus ?? undefined}/></div> : <div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-sm text-text-muted">No SAM/VCF visualization was emitted. Review the QC table to see which stage stopped or warned.</div>}<StageEvidenceTable stages={stages}/></div>}
+        overview={<div className="space-y-5">{result.demo && <div className="rounded-lg border border-info/20 bg-info/5 p-4 text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Demonstration dataset:</strong> {result.demo.description} This is synthetic test data, not a biological sample.</div>}<div className="grid gap-3 md:grid-cols-3"><div className="result-callout"><Database/><div><b>Assay routing</b><p>{result.detection?.assay ?? 'Unknown'} · {result.detection?.library_type ?? 'Unknown'}.</p></div></div><div className="result-callout"><FileText/><div><b>Evidence chain</b><p>{stages.length} unique stages returned with QC and decision records.</p></div></div><div className="result-callout"><MapTrifold/><div><b>Genome evidence</b><p>{visualization.n_mapped || 0} mapped reads and {visualization.n_variants || 0} variants.</p></div></div></div>{warnings.length > 0 && <div className="rounded-lg border border-warn/20 bg-warn/5 p-4"><div className="flex items-center gap-2 text-xs font-semibold text-warn"><Warning/>Warnings ({warnings.length})</div><ul className="mt-2 space-y-1 text-[11px] text-text-muted">{warnings.map((w)=><li key={w}>• {w}</li>)}</ul></div>}</div>}
+        qc={<div className="space-y-4"><div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">QC contains observed values only. WARN and FAIL states are derived from the stage contracts; missing/partial fields are labelled rather than guessed.</div><StageEvidenceTable stages={stages}/></div>}
+        results={<div className="space-y-5">{(visualization.sam || visualization.vcf) ? <div><div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-text-primary">Genome evidence viewer</h3><span className="font-mono text-[10px] text-text-muted">{visualization.n_mapped || 0} mapped · {visualization.n_variants || 0} variants</span></div><GenomeViewer samText={visualization.sam || ''} vcfText={visualization.vcf || ''} locus={visualization.locus ?? undefined}/></div> : <div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-sm text-text-muted">No SAM/VCF visualization was emitted. Review QC to identify the stopping or warning stage.</div>}<StageEvidenceTable stages={stages}/></div>}
         raw={<NgsArtifactPanel vcf={visualization.vcf || ''} sam={visualization.sam || ''} pipeline={result.pipeline}/>} 
         methods={<ProvenancePanel provenance={result.pipeline?.provenance ?? {}}/>}
-        ai={<div className="rounded-lg border border-info/20 bg-info/5 p-4 text-sm leading-6 text-text-secondary">AI interpretation is separated from deterministic evidence. Use the QC, Results and Raw Data tabs for the actual scientific output.</div>}
+        interpretation={<NgsEvidenceInterpretation stages={stages} pipelineStatus={verdict} warnings={warnings} integrityErrors={integrityErrors.map((issue) => issue.message)} demonstration={Boolean(result.demo)}/>} 
       />
     </>}
   </div>;

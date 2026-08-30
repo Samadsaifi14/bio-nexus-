@@ -12,17 +12,24 @@ const nextConfig = {
     root: import.meta.dirname,
   },
   async rewrites() {
-    const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+    // Production must never proxy API calls to localhost. A newly-created
+    // Vercel project may not yet have NEXT_PUBLIC_API_URL configured, so use
+    // the canonical Bio Nexus API endpoint as the Vercel-safe fallback.
+    const backendUrl =
+      process.env.NEXT_PUBLIC_API_URL ||
+      (process.env.VERCEL
+        ? 'https://samad14-bio-nexus-api.hf.space'
+        : 'http://localhost:8000');
+
     return [
       {
         source: '/api/backend/:path*',
-        destination: `${backendUrl}/:path*`,
+        destination: `${backendUrl.replace(/\/$/, '')}/:path*`,
       },
     ];
   },
 };
 
-// Force clean Vercel rebuild — reads NEXT_PUBLIC_API_URL at build time
 export default withSentryConfig(nextConfig, {
   silent: true,
   hideSourceMaps: true,

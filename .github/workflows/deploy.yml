@@ -30,6 +30,11 @@ jobs:
       VERCEL_PROJECT_ID: prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Reset and pin Vercel project link
+        run: |
+          rm -rf .vercel
+          mkdir -p .vercel
+          printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
       - name: Pull production project settings
         run: npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
       - name: Build production frontend

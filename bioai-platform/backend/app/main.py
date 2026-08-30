@@ -14,7 +14,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, audit, admet, md, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards
 from app.services.cache import init_redis
 
 setup_logging()
@@ -68,6 +68,7 @@ app.include_router(ngs_v2.router)
 app.include_router(audit.router)
 app.include_router(admet.router)
 app.include_router(md.router)
+app.include_router(md_v2.router)
 app.include_router(function_predict.router)
 app.include_router(seq_tools.router)
 app.include_router(castp.router)

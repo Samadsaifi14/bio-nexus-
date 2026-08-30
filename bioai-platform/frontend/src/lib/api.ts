@@ -919,6 +919,88 @@ export async function detectNgs2Assay(payload: {
 }
 
 // ---------------------------------------------------------------------------
+// Staged Molecular Dynamics (v2): in-process MD DAG + QC contract engine
+// ---------------------------------------------------------------------------
+
+export type Md2Metric = {
+  name: string;
+  value: number | null;
+  status: string;
+  expected: string | null;
+  detail: string | null;
+};
+
+export type Md2Stage = {
+  step: string;
+  tool: string;
+  version: string;
+  inputs: string[];
+  outputs: string[];
+  qc: {
+    status: string;
+    decision: string;
+    metrics: Md2Metric[];
+  } | null;
+  decision: string;
+  data: Record<string, unknown>;
+};
+
+export type Md2EngineStatus = {
+  primary: string;
+  engines: Record<string, { available: boolean; version?: string; note?: string }>;
+};
+
+export type Md2StageContract = {
+  step: string;
+  tool: string;
+  inputs: string[];
+  outputs: string[];
+  fail_blocks: boolean;
+  expectation: string;
+};
+
+export type Md2AnalyzeResult = {
+  requested: {
+    pdb_id: string;
+    forcefield: string;
+    solvent: string;
+    production_ps: number | null;
+    source: string;
+  };
+  pipeline: {
+    pipeline: string;
+    pipeline_status: string;
+    pipeline_decision: string;
+    stopped_at: string | null;
+    warnings: string[];
+    stages: Md2Stage[];
+    provenance: Record<string, unknown>;
+  };
+};
+
+export async function runMd2Analyze(payload: {
+  pdb_id: string;
+  forcefield?: string;
+  solvent?: string;
+  production_ps?: number;
+  nvt_ps?: number;
+}): Promise<Md2AnalyzeResult> {
+  const res = await longApi.post('/api/md/v2/analyze', payload);
+  return res.data;
+}
+
+export async function listMd2Stages(): Promise<Md2StageContract[]> {
+  const res = await api.get('/api/md/v2/stages');
+  return res.data.stages || [];
+}
+
+export async function getMd2EngineStatus(): Promise<Md2EngineStatus> {
+  const res = await api.get('/api/md/v2/engine');
+  return res.data;
+}
+
+
+// ---------------------------------------------------------------------------
 // ADMET descriptors
 // ---------------------------------------------------------------------------
 

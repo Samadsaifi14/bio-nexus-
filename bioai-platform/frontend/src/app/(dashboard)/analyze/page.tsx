@@ -42,6 +42,7 @@ const groups: { title: string; items: Operation[] }[] = [
       { id: 'compare',     name: 'Structure Compare',      description: 'Find structurally similar proteins via PDBeFold (TM-align).', icon: Shuffle, active: true },
       { id: 'docking',     name: 'Molecular Docking',      description: 'Dock a small molecule into a protein using AutoDock Vina (free, CPU-based).', icon: Atom, active: true, badge: 'New' },
       { id: 'md',          name: 'MD Simulation',          description: 'Implicit solvent molecular dynamics using OpenMM. Minimize, equilibrate, or run.', icon: Activity, active: true },
+      { id: 'md-v2',       name: 'MD Pipeline (v2)',       description: 'Staged MD DAG: structure QC → prep → force-field gate → build → EM → NVT → NPT → production → trajectory QC → convergence.', icon: Layers, active: true, badge: 'New' },
       { id: 'function',    name: 'Function Prediction',    description: 'Predict protein function (GO terms) from structure. DeepFRI-inspired.', icon: Brain, active: true },
       { id: 'structure-prep', name: 'Structure Pipeline', description: 'Full prep pipeline: broken chain detection → SWISS-MODEL repair → PyMOL cleanup → fpocket + CASTp pockets.', icon: Wrench, active: true, badge: 'New' },
       { id: 'castp',        name: 'CASTp Pocket Analysis',  description: 'Identify binding pockets and cavities using solvent-accessible surface area.', icon: Funnel, active: true, badge: 'New' },

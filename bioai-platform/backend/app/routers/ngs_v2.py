@@ -1,16 +1,12 @@
 """
-Multi-assay NGS platform router (blueprint points 2 / 26).
+Multi-assay NGS platform router.
 
-This is deliberately *self-contained*: it does not depend on Supabase job persistence or the
-durable worker. It runs the in-process stage DAG synchronously over the supplied FASTQ reads
-and returns the full machine-auditable report (per-stage QC contract status + decision +
-evidence chain + final analysis-readiness gate).
+The v2 route runs a self-contained, auditable stage DAG and returns per-stage QC contracts,
+evidence, provenance, visualization data and a final analysis-readiness gate.
 
-The pipeline only "completes" when the caller supplies enough real input for the later stages:
-WGS/WES variant analysis needs an alignment. When no real reference is available, the client
-may request a deterministic *synthetic reference* so the user's actual reads can be genuinely
-mapped (pure-Python aligner) and the whole 21-stage DAG computes real metrics. The response is
-explicit that this is a synthetic demonstration reference.
+For product evaluation and teaching, the router can also generate deterministic demonstration
+FASTQ pairs. Demo datasets are explicitly labelled in the response and still pass through the
+same FASTQ reader, QC stages, alignment logic and final gate as user-supplied files.
 """
 
 from __future__ import annotations
@@ -19,12 +15,13 @@ import gzip
 import logging
 import os
 import random
+import tempfile
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from app.ngs.assays import AssayRouter, pair_fastq
+from app.ngs.assays import AssayRouter
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
 from app.ngs.visualization import build_visualization
 
@@ -57,57 +54,132 @@ _STAGE_INTRO = {
     "final_gate": "Analysis-readiness gate: ANALYSIS_READY / ANALYSIS_READY_WITH_WARNINGS / NOT_ANALYSIS_READY.",
 }
 
+_DEMO_PROFILES = {
+    "wgs-clean": {
+        "label": "Clean paired-end WGS",
+        "assay": "WGS",
+        "description": "High-quality 2x150 bp Illumina-like reads intended to exercise the complete 21-stage DAG.",
+        "read_pairs": 180,
+        "low_quality_fraction": 0.0,
+        "duplicate_fraction": 0.03,
+    },
+    "wgs-mixed-quality": {
+        "label": "Mixed-quality WGS",
+        "assay": "WGS",
+        "description": "Paired-end reads with a low-quality tail and modest duplicate burden to demonstrate WARN states.",
+        "read_pairs": 180,
+        "low_quality_fraction": 0.22,
+        "duplicate_fraction": 0.12,
+    },
+    "wes-small": {
+        "label": "Compact WES demo",
+        "assay": "WES",
+        "description": "Compact paired-end exome-style demonstration dataset for fast UI testing.",
+        "read_pairs": 120,
+        "low_quality_fraction": 0.05,
+        "duplicate_fraction": 0.08,
+    },
+}
+
 
 class AnalyzeRequest(BaseModel):
-    file_paths: list[str] = []          # local .fastq / .fastq.gz paths
-    fastq_url: Optional[str] = None     # reserved for remote fetch (kept explicit for provenance)
-    reference: Optional[str] = None     # declared genome build, e.g. "grch38"
-    assay: Optional[str] = None         # declared assay override (else auto-detected)
+    file_paths: list[str] = []
+    fastq_url: Optional[str] = None
+    reference: Optional[str] = None
+    assay: Optional[str] = None
     sample_type: Optional[str] = None
     metadata: dict = {}
-    synthetic_reference: bool = False   # align to a deterministic demo reference so stages 5-21 run
+    synthetic_reference: bool = False
+    demo_profile: Optional[str] = None
 
 
 class DetectRequest(BaseModel):
     file_paths: list[str] = []
     fastq_url: Optional[str] = None
     reference: Optional[str] = None
-    assay: Optional[str] = None     # declared assay override (else auto-detected)
+    assay: Optional[str] = None
     metadata: dict = {}
 
 
 def _read_fastq(path: str, cap: int = 2000) -> list[tuple[str, str, str]]:
-    """Read FASTQ (optionally gzipped) into a list of (qname, seq, qual) tuples."""
+    """Read FASTQ (optionally gzipped) into (qname, seq, qual) tuples."""
     if not os.path.isfile(path):
         raise HTTPException(status_code=400, detail=f"file not found: {path}")
     reads: list[tuple[str, str, str]] = []
     try:
-        opener = gzip.open(path, "rt", encoding="utf-8", errors="replace") if path.endswith(".gz") \
-            else open(path, "r", encoding="utf-8", errors="replace")
+        opener = gzip.open(path, "rt", encoding="utf-8", errors="replace") if path.endswith(".gz") else open(path, "r", encoding="utf-8", errors="replace")
         with opener as fh:
             while len(reads) < cap:
                 name = fh.readline()
                 if not name:
                     break
                 seq = fh.readline().strip()
-                fh.readline()          # '+'
+                fh.readline()
                 qual = fh.readline().strip()
                 if not name.startswith("@"):
                     continue
                 reads.append((name[1:].split()[0], seq, qual))
-    except Exception as exc:  # pragma: no cover - surfaced to caller
+    except Exception as exc:  # pragma: no cover
         raise HTTPException(status_code=400, detail=f"failed to read {path}: {exc}")
     return reads
 
 
-def _synthetic_reference(reads: list[tuple[str, str, str]], seed: int = 11,
-                         min_len: int = 5000) -> str:
-    """Deterministic demo reference built from the supplied reads.
+def _demo_sequence(rng: random.Random, length: int = 150) -> str:
+    return "".join(rng.choice("ACGT") for _ in range(length))
 
-    Unique ACGT read sequences are stacked (with a short random filler between them) so the
-    in-process aligner maps the *real* reads rather than inventing alignments. Clearly a demo
-    reference: it is derived from the sample's own reads and padd is random.
+
+def _write_demo_fastqs(profile_name: str) -> tuple[list[str], dict]:
+    """Create a deterministic paired FASTQ demo in a temporary directory.
+
+    These reads are synthetic and are never presented as biological reference data. They are
+    deliberately routed through the same on-disk FASTQ validation path as uploaded/local data.
     """
+    if profile_name not in _DEMO_PROFILES:
+        raise HTTPException(status_code=400, detail=f"unknown demo_profile: {profile_name}")
+    profile = _DEMO_PROFILES[profile_name]
+    rng = random.Random(20260830 + list(_DEMO_PROFILES).index(profile_name))
+    directory = tempfile.mkdtemp(prefix=f"bionexus-{profile_name}-")
+    r1_path = os.path.join(directory, f"BN_DEMO_{profile['assay']}_R1.fastq")
+    r2_path = os.path.join(directory, f"BN_DEMO_{profile['assay']}_R2.fastq")
+
+    unique_pairs: list[tuple[str, str]] = []
+    duplicate_fraction = float(profile["duplicate_fraction"])
+    low_quality_fraction = float(profile["low_quality_fraction"])
+    n_pairs = int(profile["read_pairs"])
+
+    with open(r1_path, "w", encoding="utf-8") as r1, open(r2_path, "w", encoding="utf-8") as r2:
+        for i in range(n_pairs):
+            duplicate = bool(unique_pairs) and rng.random() < duplicate_fraction
+            if duplicate:
+                seq1, seq2 = rng.choice(unique_pairs)
+            else:
+                seq1, seq2 = _demo_sequence(rng), _demo_sequence(rng)
+                unique_pairs.append((seq1, seq2))
+
+            low_quality = rng.random() < low_quality_fraction
+            if low_quality:
+                # 100 high-quality bases followed by an intentionally weak tail.
+                qual1 = "I" * 100 + "+" * 50
+                qual2 = "I" * 95 + "+" * 55
+            else:
+                qual1 = "I" * len(seq1)
+                qual2 = "I" * len(seq2)
+
+            qname = f"BNDEMO:{profile_name}:{i:05d}"
+            r1.write(f"@{qname}/1\n{seq1}\n+\n{qual1}\n")
+            r2.write(f"@{qname}/2\n{seq2}\n+\n{qual2}\n")
+
+    return [r1_path, r2_path], {
+        "profile": profile_name,
+        "label": profile["label"],
+        "description": profile["description"],
+        "synthetic": True,
+        "read_pairs": n_pairs,
+    }
+
+
+def _synthetic_reference(reads: list[tuple[str, str, str]], seed: int = 11, min_len: int = 5000) -> str:
+    """Build a deterministic demo reference from supplied reads so actual reads are mapped."""
     rng = random.Random(seed)
     seen: list[str] = []
     for _q, seq, _qual in reads:
@@ -117,17 +189,16 @@ def _synthetic_reference(reads: list[tuple[str, str, str]], seed: int = 11,
     if not seen:
         return "".join(rng.choice("ACGT") for _ in range(min_len))
     filler = lambda: "".join(rng.choice("ACGT") for _ in range(25))  # noqa: E731
-    chunks = [filler(), *seen, filler()]
-    body = "".join(chunks)
+    body = "".join([filler(), *seen, filler()])
     if len(body) < min_len:
         body += "".join(rng.choice("ACGT") for _ in range(min_len - len(body)))
     return body[:max(min_len, len(body))]
 
 
-def _detection(payload) -> dict:
-    files = payload.file_paths or []
+def _detection(payload, files: Optional[list[str]] = None) -> dict:
+    chosen_files = files if files is not None else (payload.file_paths or [])
     return _DETECTOR.detect(
-        files=files,
+        files=chosen_files,
         reference=payload.reference,
         metadata={**(payload.metadata or {}), **({"assay": payload.assay} if payload.assay else {})},
         fastq_url=payload.fastq_url,
@@ -136,32 +207,37 @@ def _detection(payload) -> dict:
 
 @router.get("/stages")
 def list_stages():
-    """Return the ordered stage contracts (names + human explanations) for the WGS germline DAG."""
     contracts = wgs_wes_germline_stages()
     return {
         "pipeline": "wgs-wes-germline",
         "stages": [
             {"step": c.step, "tool": c.tool, "inputs": c.inputs, "outputs": c.outputs,
-             "fail_blocks": c.fail_blocks,
-             "expectation": _STAGE_INTRO.get(c.step, "")}
+             "fail_blocks": c.fail_blocks, "expectation": _STAGE_INTRO.get(c.step, "")}
             for c in contracts
         ],
     }
 
 
+@router.get("/demos")
+def list_demos():
+    return {"demos": [{"id": key, **value} for key, value in _DEMO_PROFILES.items()]}
+
+
 @router.post("/detect")
 def detect(payload: DetectRequest):
-    """Detect assay / library / sample type with an evidence + confidence score (no pipeline run)."""
     return _detection(payload)
 
 
 @router.post("/analyze")
 def analyze(payload: AnalyzeRequest):
-    """Run the full in-process stage DAG over the supplied reads and return the audit report."""
-    files = payload.file_paths or []
+    """Run the full stage DAG over user FASTQ files or an explicitly selected demo dataset."""
+    files = list(payload.file_paths or [])
+    demo: Optional[dict] = None
+    if payload.demo_profile:
+        files, demo = _write_demo_fastqs(payload.demo_profile)
+
     if not files and not payload.fastq_url:
-        raise HTTPException(status_code=400,
-                            detail="provide at least one local file_paths entry (or fastq_url)")
+        raise HTTPException(status_code=400, detail="provide file_paths, fastq_url, or demo_profile")
 
     reads_all: dict[str, list[tuple[str, str, str]]] = {}
     for f in files:
@@ -170,22 +246,22 @@ def analyze(payload: AnalyzeRequest):
         if not got:
             raise HTTPException(status_code=400, detail=f"no FASTQ records read from {f}")
 
-    detection = _detection(payload)
-    assay = (payload.assay or detection["assay"] or "WGS").upper()
+    detection = _detection(payload, files=files)
+    demo_assay = _DEMO_PROFILES[payload.demo_profile]["assay"] if payload.demo_profile else None
+    assay = (payload.assay or demo_assay or detection["assay"] or "WGS").upper()
     if assay in ("UNKNOWN", ""):
         assay = "WGS"
 
-    # Build the sample context. Stages 0-4 run on the real files; stages 5+ need an alignment,
-    # which we provide (honestly) via a deterministic synthetic reference when requested.
     sample: dict = {
         "files": files,
         "reference": payload.reference or "grch38",
         "assay": assay,
         "sample_type": payload.sample_type or detection["sample_type"],
-        "metadata": payload.metadata or {},
+        "metadata": {**(payload.metadata or {}), **({"demo_profile": payload.demo_profile} if payload.demo_profile else {})},
         "reads": list(reads_all.values())[0] if reads_all else [],
     }
-    if payload.synthetic_reference and sample["reads"]:
+    use_synthetic_reference = bool(payload.synthetic_reference or payload.demo_profile)
+    if use_synthetic_reference and sample["reads"]:
         sample["reference_seq"] = _synthetic_reference(sample["reads"])
         sample["contig"] = "chr1"
 
@@ -197,9 +273,11 @@ def analyze(payload: AnalyzeRequest):
         "requested": {
             "assay": assay,
             "reference": sample["reference"],
-            "synthetic_reference": payload.synthetic_reference,
+            "synthetic_reference": use_synthetic_reference,
+            "demo_profile": payload.demo_profile,
             "reads_loaded": {os.path.basename(f): len(reads_all[f]) for f in files},
         },
+        "demo": demo,
         "pipeline": report,
         "visualization": build_visualization(pipe.state),
     }

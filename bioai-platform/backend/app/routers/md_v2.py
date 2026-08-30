@@ -24,6 +24,12 @@ from app.md.orchestrator import STAGE_INTRO, build_md_pipeline
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/md/v2", tags=["md-v2"])
 
+# MD v2 currently runs inside one HTTP request. Keep explicit production requests
+# inside the hosting/proxy budget instead of allowing a long OpenMM run to be
+# terminated upstream as an opaque 502. Longer trajectories belong on the durable
+# background-job MD endpoint/workflow.
+SYNC_PRODUCTION_MAX_PS = 20.0
+
 
 class AnalyzeRequest(BaseModel):
     pdb_id: str = Field(..., min_length=1, max_length=32, description="PDB ID or structure label")
@@ -34,8 +40,8 @@ class AnalyzeRequest(BaseModel):
         default=None, pattern=r"^(obc1|obc2|gbn2)$",
         description="Implicit solvent model")
     production_ps: Optional[float] = Field(
-        default=None, ge=20, le=5000,
-        description="Desired production length in ps (engine clamps to wall-clock budget)")
+        default=None, ge=1, le=5000,
+        description="Desired production length in ps; synchronous v2 execution is capped to its hosting budget")
     nvt_ps: Optional[float] = Field(default=None, ge=5, le=5000)
     pdb_text: Optional[str] = Field(
         default=None,
@@ -84,27 +90,56 @@ async def analyze(payload: AnalyzeRequest):
     if not pdb_text or "ATOM" not in pdb_text:
         raise HTTPException(status_code=400, detail="structure contains no ATOM records")
 
+    requested_production_ps = payload.production_ps
+    effective_production_ps = (
+        min(float(requested_production_ps), SYNC_PRODUCTION_MAX_PS)
+        if requested_production_ps is not None
+        else None
+    )
+    production_was_capped = (
+        requested_production_ps is not None
+        and effective_production_ps is not None
+        and float(requested_production_ps) > effective_production_ps
+    )
+
     sample: dict = {
         "pdb_id": pdb_id,
         "pdb_text": pdb_text,
         "forcefield": payload.forcefield,
         "solvent": payload.solvent,
     }
-    if payload.production_ps:
-        sample["production_steps"] = int(payload.production_ps * 1000 / 2.0)  # 2 fs timestep
+    if effective_production_ps is not None:
+        sample["production_steps"] = int(effective_production_ps * 1000 / 2.0)  # 2 fs timestep
     if payload.nvt_ps:
         sample["nvt_steps"] = int(payload.nvt_ps * 1000 / 2.0)
 
     pipe = build_md_pipeline()
-    # Pipeline.run is synchronous CPU/OpenMM work; keep the event loop free.
-    report = await asyncio.to_thread(pipe.run, sample)
+    try:
+        report = await asyncio.to_thread(pipe.run, sample)
+    except Exception as exc:
+        logger.exception("MD v2 pipeline failed for %s", pdb_id)
+        raise HTTPException(
+            status_code=503,
+            detail=f"MD engine failed before producing a scientific result: {type(exc).__name__}: {exc}",
+        ) from exc
+
+    warnings = report.setdefault("warnings", [])
+    if production_was_capped:
+        warnings.append(
+            f"Requested production length {requested_production_ps:g} ps was capped to "
+            f"{effective_production_ps:g} ps for synchronous hosted execution. "
+            "Use the durable MD workflow for longer trajectories."
+        )
 
     return {
         "requested": {
             "pdb_id": pdb_id,
             "forcefield": payload.forcefield or "default (amber14)",
             "solvent": payload.solvent or "default (obc2)",
-            "production_ps": payload.production_ps,
+            "production_ps": requested_production_ps,
+            "effective_production_ps": effective_production_ps,
+            "production_capped": production_was_capped,
+            "synchronous_limit_ps": SYNC_PRODUCTION_MAX_PS,
             "source": "provided-pdb-text" if payload.pdb_text else "rcsb",
         },
         "pipeline": report,

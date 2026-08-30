@@ -13,6 +13,20 @@ body {
   font-feature-settings: "kern" 1, "liga" 1, "tnum" 1;
 }
 
+/* Prevent browser caret-navigation from looking like an editable Word document across
+   dashboard chrome. Real editing controls keep their normal caret. */
+body,
+body * {
+  caret-color: transparent;
+}
+
+input,
+textarea,
+[contenteditable="true"],
+[role="textbox"] {
+  caret-color: auto;
+}
+
 main {
   isolation: isolate;
 }

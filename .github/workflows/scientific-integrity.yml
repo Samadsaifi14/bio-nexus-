@@ -39,7 +39,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install NGS test dependencies
-        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy httpx2
       - name: Run NGS contract and stage suite
         env:
           PYTHONPATH: .

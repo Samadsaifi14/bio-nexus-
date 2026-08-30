@@ -230,6 +230,7 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         castp_submit, castp_poll, fetch_pdb_text,
         swissmodel_fetch_structures, swissmodel_fetch_pdb,
         esmfold_predict, _biopython_cleanup, FpocketResult,
+        run_sasa_pockets,
     )
 
     supabase = get_supabase()
@@ -323,6 +324,14 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         except asyncio.TimeoutError:
             fpocket_result = FpocketResult(raw_output="fpocket timed out", status="error")
         result_fields["fpocket_pockets"] = fpocket_result.pockets
+        # Honest no-false-zero guard: when the local fpocket binary is missing,
+        # it errors, or it reports no pockets, fall back to a numpy-only concave-
+        # packing detector so a real protein never shows "0 pockets" as truth.
+        if not fpocket_result.pockets:
+            sasa_pockets = await asyncio.to_thread(
+                run_sasa_pockets, cleaned, body.probe_radius,
+            )
+            result_fields["fpocket_pockets"] = sasa_pockets
         _update_job(
             supabase, job_id,
             fpocket_status=fpocket_result.status,

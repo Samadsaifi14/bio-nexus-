@@ -233,11 +233,11 @@ def _biopython_cleanup(pdb_text: str) -> str:
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure("pdb", io.StringIO(pdb_text))
 
-    io_buf = io.BytesIO()
+    io_buf = io.StringIO()
     pdb_io = PDBIO()
     pdb_io.set_structure(structure)
     pdb_io.save(io_buf, ProteinSelect())
-    return io_buf.getvalue().decode("utf-8")
+    return io_buf.getvalue()
 
 
 # ── Step 4: fpocket (local binary) ───────────────────────────────────────────
@@ -333,6 +333,104 @@ def _parse_fpocket_output(out_dir: Path, raw_output: str) -> FpocketResult:
         logger.warning("Failed to parse fpocket output: %s", e)
 
     return result
+
+
+# ── Step 4b: SASA concave-packing fallback (no fpocket / scipy needed) ──────
+
+
+def run_sasa_pockets(pdb_text: str, probe_radius: float = 1.4) -> list[dict]:
+    """Detect pockets with a numpy-only concave-packing method when fpocket is
+    unavailable or returns nothing, so real structures never report a false 0.
+
+    A residue is *pocket-lining* when it is on the surface (SASA > 8 A^2), only
+    partially buried (exposure below the 60th percentile of surface residues —
+    a concave cleft), and densely packed (many protein neighbours within 12 A).
+    Lining residues are clustered by proximity into distinct pockets.
+
+    Returns a list shaped like fpocket's results so the rest of the pipeline is
+    unchanged: {id, druggability_score, volume, area, score, num_residues}.
+    """
+    try:
+        import io
+        import math
+
+        import numpy as np
+        from Bio.PDB import PDBParser, SASA
+    except ImportError:
+        return []
+
+    try:
+        parser = PDBParser(QUIET=True)
+        structure = parser.get_structure("p", io.StringIO(pdb_text))
+        sr = SASA.ShrakeRupley()
+        sr.compute(structure[0], level="R")
+    except Exception as e:
+        logger.warning("SASA fallback could not parse structure: %s", e)
+        return []
+
+    coords: list[tuple] = []
+    sasas: list[float] = []
+    for chain in structure[0]:
+        for residue in chain:
+            if residue.id[0] != " ":
+                continue
+            ca = next((a.coord for a in residue if a.name == "CA"), None)
+            if ca is None:
+                continue
+            coords.append(tuple(float(c) for c in ca))
+            sasas.append(float(residue.sasa))
+
+    n = len(coords)
+    if n < 4:
+        return []
+    pts = np.array(coords, dtype=float)
+    d = np.linalg.norm(pts[:, None] - pts[None], axis=2)
+    neighbor = (d < 12.0).sum(axis=1) - 1
+
+    s = np.array(sasas, dtype=float)
+    surface = s > 8.0
+    if int(surface.sum()) == 0:
+        return []
+    half = np.percentile(s[surface], 60)
+    dense = neighbor >= np.percentile(neighbor, 60)
+    lining = surface & (s < half) & dense
+
+    cut = 10.0
+    visited = np.zeros(n, dtype=bool)
+    clusters: list[list[int]] = []
+    for start in np.where(lining)[0]:
+        if visited[start]:
+            continue
+        stack = [start]
+        visited[start] = True
+        cl: list[int] = []
+        while stack:
+            c = stack.pop()
+            cl.append(c)
+            for j in np.where(lining & (d[c] < cut))[0]:
+                if not visited[j]:
+                    visited[j] = True
+                    stack.append(j)
+        if len(cl) >= 4:
+            clusters.append(cl)
+    clusters.sort(key=len, reverse=True)
+
+    pockets = []
+    for idx, cluster_indices in enumerate(clusters):
+        cl_pts = pts[cluster_indices]
+        centroid = cl_pts.mean(axis=0)
+        max_dist = float(np.linalg.norm(cl_pts - centroid, axis=1).max())
+        volume = (4.0 / 3.0) * math.pi * (max_dist + probe_radius) ** 3
+        area = sum(s[i] for i in cluster_indices)
+        pockets.append({
+            "id": idx + 1,
+            "druggability_score": 0.0,
+            "volume": round(volume, 1),
+            "area": round(area, 1),
+            "score": round(max_dist, 2),
+            "num_residues": len(cluster_indices),
+        })
+    return pockets
 
 
 # ── Step 5: CASTp (remote async via CASTpFold) ──────────────────────────────

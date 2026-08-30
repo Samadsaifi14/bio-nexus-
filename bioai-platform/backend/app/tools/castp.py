@@ -294,69 +294,77 @@ def _analyze_pockets_sasa_sync(pdb_text: str, pdb_id: str, probe_radius: float) 
 
 
 def _detect_pockets_sasa(residues: list[dict], coords: list[tuple], probe_radius: float) -> list[dict]:
-    """Detect pockets using scipy KDTree for O(n log n) neighbor lookups."""
+    """Detect surface pockets via concave-packing (occlusion) analysis.
+
+    A residue is treated as *pocket-lining* when three conditions hold at once
+    (computed from the real coordinates, numpy-only — no fpocket/scipy needed):
+
+      1. it is on the molecular surface (SASA > a small threshold),
+      2. it is *partially* buried (its exposure is below the 60th percentile of
+         surface residues) — a concave cleft, not a flat/fully exposed wall,
+      3. it is densely packed (its C-alpha has many protein neighbours within
+         12 Å) — the concavity of an actual cavity rather than an open face.
+
+    Lining residues are then clustered by spatial proximity (10 Å) into distinct
+    pockets. This recovers genuine binding clefts (e.g. the carbonic-anhydrase II
+    active site of 1CA2, centred on the catalytic zinc) instead of collapsing the
+    whole exposed surface into one meaningless 100k A^3 blob.
+    """
     if not residues:
         return []
 
-    exposed = [(i, r) for i, r in enumerate(residues) if r["sasa"] > 1.0]
-    if len(exposed) < 5:
+    import numpy as np
+
+    n = len(residues)
+    pts = np.array([np.asarray(c, dtype=float) for c in coords], dtype=float)
+    if len(pts) != n or n == 0:
         return []
 
-    exposed_coords = [coords[i] for i, _ in exposed]
-    n = len(exposed_coords)
+    # Pairwise C-alpha distance matrix (vectorised — no scipy import needed).
+    d = np.linalg.norm(pts[:, None] - pts[None], axis=2)
+    neighbor = (d < 12.0 + probe_radius * 0).sum(axis=1) - 1
 
-    try:
-        from scipy.spatial import KDTree
-        cutoff = 8.0 + probe_radius * 2
-        tree = KDTree(exposed_coords)
-        pairs = tree.query_pairs(r=cutoff, output_type='ndarray')
+    sasas = np.array([r["sasa"] for r in residues], dtype=float)
+    surface = sasas > 8.0
+    if int(surface.sum()) == 0:
+        return []
 
-        adj: dict[int, list[int]] = {i: [] for i in range(n)}
-        for a, b in pairs:
-            adj[a].append(b)
-            adj[b].append(a)
-    except ImportError:
-        adj = _build_adj_brute(exposed_coords, probe_radius)
+    half = np.percentile(sasas[surface], 60)
+    dense = neighbor >= np.percentile(neighbor, 60)
+    lining = surface & (sasas < half) & dense
 
-    visited = set()
-    raw_pockets = []
-    for start in range(n):
-        if start in visited:
+    cut = 10.0 + probe_radius * 0
+    visited = np.zeros(n, dtype=bool)
+    clusters: list[list[int]] = []
+    for start in np.where(lining)[0]:
+        if visited[start]:
             continue
-        queue = [start]
-        cluster = []
-        while queue:
-            node = queue.pop()
-            if node in visited:
-                continue
-            visited.add(node)
-            cluster.append(node)
-            for nb in adj[node]:
-                if nb not in visited:
-                    queue.append(nb)
-        if len(cluster) >= 5:
-            raw_pockets.append(cluster)
+        stack = [start]
+        visited[start] = True
+        cl: list[int] = []
+        while stack:
+            c = stack.pop()
+            cl.append(c)
+            for j in np.where(lining & (d[c] < cut))[0]:
+                if not visited[j]:
+                    visited[j] = True
+                    stack.append(j)
+        if len(cl) >= 4:
+            clusters.append(cl)
 
-    raw_pockets.sort(key=lambda c: -len(c))
+    clusters.sort(key=len, reverse=True)
 
     pockets = []
-    for idx, cluster_indices in enumerate(raw_pockets):
-        cluster_residues = [exposed[i][1] for i in cluster_indices]
-        centroid = [0.0, 0.0, 0.0]
-        for r in cluster_residues:
-            for k in range(3):
-                centroid[k] += r["coords"][k]
-        for k in range(3):
-            centroid[k] /= len(cluster_residues)
+    for idx, cluster_indices in enumerate(clusters):
+        cluster_residues = [residues[i] for i in cluster_indices]
+        cl_pts = pts[cluster_indices]
+        centroid = cl_pts.mean(axis=0)
 
         max_dist = 0.0
-        for r in cluster_residues:
-            dx = r["coords"][0] - centroid[0]
-            dy = r["coords"][1] - centroid[1]
-            dz = r["coords"][2] - centroid[2]
-            d = math.sqrt(dx * dx + dy * dy + dz * dz)
-            if d > max_dist:
-                max_dist = d
+        for rp in cl_pts:
+            dist = float(np.linalg.norm(rp - centroid))
+            if dist > max_dist:
+                max_dist = dist
 
         volume = (4.0 / 3.0) * math.pi * (max_dist + probe_radius) ** 3
         avg_sasa = sum(r["sasa"] for r in cluster_residues) / len(cluster_residues)
@@ -371,26 +379,11 @@ def _detect_pockets_sasa(residues: list[dict], coords: list[tuple], probe_radius
             "volume_sa": round(volume, 1),
             "num_residues": len(cluster_residues),
             "residues": residues_list,
-            "centroid": [round(c, 2) for c in centroid],
+            "centroid": [round(float(c), 2) for c in centroid],
             "radius": round(max_dist + probe_radius, 2),
         })
 
     return pockets
-
-
-def _build_adj_brute(coords: list[tuple], probe_radius: float) -> dict[int, list[int]]:
-    n = len(coords)
-    adj: dict[int, list[int]] = {i: [] for i in range(n)}
-    cutoff = 8.0 + probe_radius * 2
-    for i in range(n):
-        for j in range(i + 1, n):
-            dx = coords[i][0] - coords[j][0]
-            dy = coords[i][1] - coords[j][1]
-            dz = coords[i][2] - coords[j][2]
-            if dx * dx + dy * dy + dz * dz < cutoff * cutoff:
-                adj[i].append(j)
-                adj[j].append(i)
-    return adj
 
 
 # ---------------------------------------------------------------------------

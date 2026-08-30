@@ -1,0 +1,205 @@
+/* Bio Nexus scientific interface layer
+   Dense, restrained surfaces for research workflows. This intentionally reduces decorative
+   effects on data-heavy screens while keeping the existing theme tokens intact. */
+
+:root {
+  --scientific-radius: 12px;
+  --scientific-control-height: 40px;
+  --scientific-rule: rgb(var(--glass-border) / 0.14);
+}
+
+body {
+  text-rendering: optimizeLegibility;
+  font-feature-settings: "kern" 1, "liga" 1, "tnum" 1;
+}
+
+main {
+  isolation: isolate;
+}
+
+.data-card {
+  border-radius: var(--scientific-radius) !important;
+  border: 1px solid var(--data-card-border) !important;
+  background: var(--data-card-bg) !important;
+  box-shadow: var(--data-card-shadow) !important;
+}
+
+.data-card:hover {
+  border-color: var(--data-card-border-hover) !important;
+}
+
+/* Keep glass for navigation/chrome; scientific content should read flatter and denser. */
+.glass-card:has(table),
+.glass-card:has(pre),
+.glass-card:has(.font-mono) {
+  backdrop-filter: none;
+  background: rgb(var(--bg-surface-0) / 0.97);
+  border-color: var(--data-card-border);
+  box-shadow: var(--data-card-shadow);
+}
+
+.scientific-page {
+  width: 100%;
+  margin-inline: auto;
+}
+
+.scientific-page h1,
+.scientific-page h2,
+.scientific-page h3 {
+  letter-spacing: -0.015em;
+}
+
+.scientific-chip {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border-radius: 8px;
+  background: rgb(var(--bg-surface-1));
+  padding: 6px 10px;
+  color: rgb(var(--text-secondary));
+  font-size: 12px;
+  line-height: 1;
+  transition: border-color var(--motion-fast), background var(--motion-fast), color var(--motion-fast);
+}
+
+.scientific-chip:hover {
+  border-color: rgb(var(--accent-cyan) / 0.36);
+  background: rgb(var(--accent-cyan) / 0.06);
+  color: rgb(var(--text-primary));
+}
+
+.scientific-segment {
+  min-height: 34px;
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border-radius: 7px;
+  padding: 6px 12px;
+  background: rgb(var(--bg-surface-1));
+  color: rgb(var(--text-muted));
+  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-size: 11px;
+  letter-spacing: .06em;
+}
+
+.scientific-segment.active {
+  border-color: rgb(var(--accent-cyan) / .36);
+  background: rgb(var(--accent-cyan) / .08);
+  color: rgb(var(--accent-cyan));
+}
+
+.scientific-option {
+  min-height: 104px;
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border-radius: 10px;
+  padding: 14px;
+  background: rgb(var(--bg-surface-1));
+  text-align: left;
+  transition: border-color var(--motion-fast), background var(--motion-fast);
+}
+
+.scientific-option:hover,
+.scientific-option.active {
+  border-color: rgb(var(--accent-cyan) / .35);
+  background: rgb(var(--accent-cyan) / .045);
+}
+
+.scientific-select {
+  width: 100%;
+  min-height: var(--scientific-control-height);
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border-radius: 8px;
+  background: rgb(var(--bg-surface-0));
+  padding: 0 12px;
+  color: rgb(var(--text-primary));
+  font-size: 13px;
+  outline: none;
+}
+
+.scientific-select:focus {
+  border-color: rgb(var(--accent-cyan) / .45);
+  box-shadow: 0 0 0 3px rgb(var(--accent-cyan) / .07);
+}
+
+.result-callout {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  min-height: 86px;
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border-radius: 10px;
+  background: rgb(var(--bg-surface-1));
+  padding: 12px;
+  color: rgb(var(--text-muted));
+}
+
+.result-callout > svg {
+  width: 17px;
+  height: 17px;
+  flex: 0 0 auto;
+  color: rgb(var(--accent-cyan));
+}
+
+.result-callout b {
+  display: block;
+  margin-bottom: 3px;
+  color: rgb(var(--text-primary));
+  font-size: 12px;
+}
+
+.result-callout p {
+  color: rgb(var(--text-muted));
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.provenance-grid {
+  display: grid;
+  grid-template-columns: minmax(140px, 190px) 1fr;
+  overflow: hidden;
+  border: 1px solid rgb(var(--glass-border) / var(--glass-border-a));
+  border-radius: 10px;
+}
+
+.provenance-grid > * {
+  min-width: 0;
+  border-bottom: 1px solid var(--scientific-rule);
+  padding: 9px 12px;
+  font-size: 11px;
+}
+
+.provenance-grid > :nth-last-child(-n+2) {
+  border-bottom: 0;
+}
+
+.provenance-grid > span {
+  background: rgb(var(--bg-surface-1));
+  color: rgb(var(--text-muted));
+}
+
+.provenance-grid > code {
+  overflow-wrap: anywhere;
+  background: rgb(var(--bg-surface-0));
+  color: rgb(var(--text-primary));
+}
+
+/* Production result tables: dense, stable headers, numerical alignment. */
+table thead th {
+  font-variant-numeric: tabular-nums;
+}
+
+table tbody td {
+  font-variant-numeric: tabular-nums;
+}
+
+pre,
+code,
+.font-mono {
+  font-variant-numeric: tabular-nums slashed-zero;
+}
+
+@media (max-width: 640px) {
+  .provenance-grid { grid-template-columns: 1fr; }
+  .provenance-grid > span { border-bottom: 0; padding-bottom: 3px; }
+  .provenance-grid > code { padding-top: 3px; }
+}

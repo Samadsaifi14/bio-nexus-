@@ -1,26 +1,15 @@
 'use client';
 
 import { useState } from 'react';
-import type { ReactElement } from 'react';
 import { motion } from 'framer-motion';
-import {
-  Dna,
-  CheckCircle,
-  Warning as WarningCircle,
-  XCircle,
-  CircleNotch as LoaderCircle,
-  FlowArrow as GitBranch,
-  ShieldCheck,
-  Exam,
-  Fingerprint,
-  ListChecks,
-  SealCheck,
-  MapTrifold,
-} from '@phosphor-icons/react';
+import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runNgs2Analyze } from '@/lib/api';
-import type { Ngs2AnalyzeResult, Ngs2Stage, Ngs2Metric } from '@/lib/api';
+import type { Ngs2AnalyzeResult } from '@/lib/api';
 import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
+import ScientificResultsWorkspace from '@/components/results/ScientificResultsWorkspace';
+import StageEvidenceTable from '@/components/results/StageEvidenceTable';
+import { ProvenancePanel, RawEvidence } from '@/components/results/ProvenancePanel';
 import GenomeViewer from '@/components/GenomeViewer';
 
 const ASSAY_OPTIONS = [
@@ -31,23 +20,14 @@ const ASSAY_OPTIONS = [
   { value: 'Amplicon', label: 'Targeted Amplicon' },
 ];
 
-const STATUS_PALETTE: Record<string, { text: string; chip: string; icon: ReactElement }> = {
-  PASS: {
-    text: 'text-good',
-    chip: 'bg-good/10 text-good border-good/25',
-    icon: <CheckCircle className="w-4 h-4" weight="fill" />,
-  },
-  WARN: {
-    text: 'text-warn',
-    chip: 'bg-warn/10 text-warn border-warn/25',
-    icon: <WarningCircle className="w-4 h-4" weight="fill" />,
-  },
-  FAIL: {
-    text: 'text-error',
-    chip: 'bg-error/10 text-error border-error/25',
-    icon: <XCircle className="w-4 h-4" weight="fill" />,
-  },
-};
+const DEMOS = [
+  { id: 'wgs-clean', title: 'Clean WGS', subtitle: '2×150 bp · high-quality paired reads', assay: 'WGS' },
+  { id: 'wgs-mixed-quality', title: 'Mixed-quality WGS', subtitle: 'low-quality tails + duplicates', assay: 'WGS' },
+  { id: 'wes-small', title: 'Compact WES', subtitle: 'small paired-end exome-style run', assay: 'WES' },
+] as const;
+
+type DemoMeta = { profile: string; label: string; description: string; synthetic: boolean; read_pairs: number };
+type ExtendedResult = Ngs2AnalyzeResult & { demo?: DemoMeta | null; requested: Ngs2AnalyzeResult['requested'] & { demo_profile?: string | null } };
 
 export default function NgsV2Page() {
   const [filePaths, setFilePaths] = useState('');
@@ -55,266 +35,69 @@ export default function NgsV2Page() {
   const [reference, setReference] = useState('grch38');
   const [synthetic, setSynthetic] = useState(true);
   const [loading, setLoading] = useState(false);
+  const [runningDemo, setRunningDemo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<Ngs2AnalyzeResult | null>(null);
+  const [result, setResult] = useState<ExtendedResult | null>(null);
 
-  const run = async () => {
+  const run = async (demoProfile?: string) => {
     const files = filePaths.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-    if (files.length === 0) return;
-    setLoading(true);
-    setError(null);
-    setResult(null);
+    if (!demoProfile && files.length === 0) return;
+    setLoading(true); setRunningDemo(demoProfile ?? null); setError(null); setResult(null);
     try {
-      const res = await runNgs2Analyze({
-        file_paths: files,
+      const payload = {
+        file_paths: demoProfile ? [] : files,
         reference: reference || undefined,
-        assay: assay || undefined,
-        metadata: { platform: 'illumina' },
-        synthetic_reference: synthetic,
-      });
-      setResult(res);
+        assay: demoProfile ? undefined : (assay || undefined),
+        metadata: { platform: 'illumina', source: demoProfile ? 'bionexus-demo' : 'user' },
+        synthetic_reference: demoProfile ? true : synthetic,
+        demo_profile: demoProfile,
+      };
+      const res = await runNgs2Analyze(payload as Parameters<typeof runNgs2Analyze>[0] & { demo_profile?: string });
+      setResult(res as ExtendedResult);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to run analysis');
-    } finally {
-      setLoading(false);
-    }
+    } finally { setLoading(false); setRunningDemo(null); }
   };
 
-  const verdict = result?.pipeline.pipeline_status ?? null;
+  const verdict = result?.pipeline.pipeline_status ?? 'INFO';
+  const status = verdict === 'PASS' ? 'PASS' : verdict === 'WARN' ? 'WARN' : verdict === 'FAIL' ? 'FAIL' : 'INFO';
   const gate = result?.pipeline.stages[result.pipeline.stages.length - 1];
+  const passed = result?.pipeline.stages.filter(s => s.qc?.status === 'PASS').length ?? 0;
+  const warned = result?.pipeline.stages.filter(s => s.qc?.status === 'WARN').length ?? 0;
+  const failed = result?.pipeline.stages.filter(s => s.qc?.status === 'FAIL').length ?? 0;
+  const totalReads = result ? Object.values(result.requested.reads_loaded).reduce((a, b) => a + b, 0) : 0;
 
-  const statusChip = (s?: string) => STATUS_PALETTE[s ?? ''] ?? {
-    text: 'text-text-muted',
-    chip: 'bg-surface-1 text-text-muted border-glass-border',
-    icon: <ListChecks className="w-4 h-4" />,
-  };
+  return <div className="scientific-page max-w-6xl space-y-6 pb-12">
+    <BackButton />
+    <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, IGV tracks and a final analysis-readiness decision." />
 
-  const metricValue = (m: Ngs2Metric) =>
-    typeof m.value === 'number' ? m.value : '—';
+    <motion.section variants={fadeUp} initial={{ y: 18 }} animate="show" className="data-card overflow-hidden">
+      <div className="border-b border-glass-border p-5"><div className="flex items-center gap-2"><TestTube className="h-4 w-4 text-accent-cyan"/><h2 className="text-sm font-semibold text-text-primary">Try a complete analysis</h2></div><p className="mt-1 text-xs leading-5 text-text-muted">These are deterministic synthetic FASTQ pairs. They run through the same validation and 21-stage analysis DAG as supplied files and are clearly marked as demonstration data.</p></div>
+      <div className="grid gap-px bg-glass-border md:grid-cols-3">{DEMOS.map(demo => <button key={demo.id} disabled={loading} onClick={() => run(demo.id)} className="bg-surface-0 p-4 text-left transition hover:bg-surface-1 disabled:opacity-50"><div className="flex items-center justify-between"><span className="text-sm font-semibold text-text-primary">{demo.title}</span><span className="rounded border border-accent-cyan/20 bg-accent-cyan/5 px-1.5 py-0.5 font-mono text-[9px] text-accent-cyan">DEMO</span></div><p className="mt-1 text-xs text-text-muted">{demo.subtitle}</p><p className="mt-3 text-[11px] font-medium text-accent-cyan">{runningDemo === demo.id ? 'Running…' : 'Run demo →'}</p></button>)}</div>
+    </motion.section>
 
-  const renderMetric = (m: Ngs2Metric) => {
-    const pal = statusChip(m.status);
-    return (
-      <div key={m.name} className={`flex items-center gap-2 text-[11px] px-2.5 py-1 rounded-md border ${pal.chip}`}>
-        <span className="font-mono">{metricValue(m)}</span>
-        <span className="opacity-70">{m.name}</span>
-      </div>
-    );
-  };
+    <section className="data-card p-5 space-y-4">
+      <div><label className="mb-1.5 block text-sm font-medium text-text-primary">Or analyze server-local FASTQ files</label><FlatInput type="text" value={filePaths} onChange={(e) => { setFilePaths(e.target.value); setResult(null); setError(null); }} onKeyDown={(e) => e.key === 'Enter' && run()} placeholder="/data/SAMPLE_001_R1.fastq.gz, /data/SAMPLE_001_R2.fastq.gz" className="w-full px-4 py-3 text-sm font-mono"/><p className="mt-1.5 text-[11px] text-text-muted">Separate paired paths with commas. Public deployments can use the demos above without filesystem access.</p></div>
+      <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs text-text-muted">Assay</label><select value={assay} onChange={e => setAssay(e.target.value)} className="scientific-select">{ASSAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div><div><label className="mb-1.5 block text-xs text-text-muted">Reference build</label><select value={reference} onChange={e => setReference(e.target.value)} className="scientific-select"><option value="grch38">GRCh38</option><option value="grch37">GRCh37</option></select></div></div>
+      <label className="flex items-start gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><input type="checkbox" checked={synthetic} onChange={e => setSynthetic(e.target.checked)} className="mt-0.5 accent-cyan-500"/><span><span className="block text-xs font-medium text-text-primary">Synthetic demonstration reference</span><span className="mt-0.5 block text-[11px] leading-4 text-text-muted">For local test reads, derive a deterministic non-clinical reference so alignment-dependent stages can execute. Do not use this mode for biological interpretation.</span></span></label>
+      <CriticalButton onClick={() => run()} disabled={loading || !filePaths.trim()} className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">{loading && !runningDemo ? <CircleNotch className="h-4 w-4 animate-spin"/> : <Dna className="h-4 w-4"/>}{loading && !runningDemo ? 'Running 21-stage pipeline…' : 'Run FASTQ analysis'}</CriticalButton>
+    </section>
 
-  return (
-    <div className="max-w-4xl">
-      <BackButton />
-      <PageHeader
-        title="Multi-Assay NGS Platform"
-        subtitle="Assay router · QC contract engine · evidence chain · analysis-readiness gate"
-      />
+    {error && <div className="rounded-xl border border-error/25 bg-error/8 p-4 text-sm text-error">{error}</div>}
 
-      {/* Input */}
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
-        <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">FASTQ file paths (server-local)</label>
-          <FlatInput
-            type="text"
-            value={filePaths}
-            onChange={(e) => { setFilePaths(e.target.value); setResult(null); setError(null); }}
-            onKeyDown={(e) => e.key === 'Enter' && run()}
-            placeholder="/data/SAMPLE_001_R1.fastq.gz, /data/SAMPLE_001_R2.fastq.gz"
-            className="w-full px-4 py-3 rounded-xl text-sm font-mono"
-          />
-          <p className="text-[11px] text-text-muted mt-1.5">
-            The v2 engine runs in-process on the platform backend and reads local FASTQ files. Separate paths with commas.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">Assay</label>
-            <select
-              value={assay}
-              onChange={(e) => setAssay(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm bg-surface-1 text-text-primary"
-            >
-              {ASSAY_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <label className="block text-sm font-medium text-text-primary mb-1.5">Reference build</label>
-            <select
-              value={reference}
-              onChange={(e) => setReference(e.target.value)}
-              className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm bg-surface-1 text-text-primary"
-            >
-              <option value="grch38">GRCh38</option>
-              <option value="grch37">GRCh37</option>
-            </select>
-          </div>
-        </div>
-
-        <label className="flex items-center gap-2 cursor-pointer select-none">
-          <input
-            type="checkbox"
-            checked={synthetic}
-            onChange={(e) => setSynthetic(e.target.checked)}
-            className="accent-cyan-500 w-4 h-4"
-          />
-          <span className="text-sm text-text-primary">Run on a synthetic demonstration reference</span>
-          <span className="text-[11px] text-text-muted">so all 21 stages (alignment → final gate) compute real metrics</span>
-        </label>
-
-        <CriticalButton onClick={run} disabled={loading || !filePaths.trim()} className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
-          {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Dna className="w-4 h-4" />}
-          {loading ? 'Running 21-stage DAG...' : 'Run Full Analysis'}
-        </CriticalButton>
-      </motion.div>
-
-      {error && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-error/20">
-          <div className="flex items-center gap-2">
-            <XCircle className="w-5 h-5 text-error flex-shrink-0" />
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        </motion.div>
-      )}
-
-      {result && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-          {/* Readiness gate banner */}
-          <div className={`rounded-xl border px-4 py-4 flex items-start gap-3 ${
-            verdict === 'PASS' ? 'bg-good/10 border-good/25' :
-            verdict === 'WARN' ? 'bg-warn/10 border-warn/25' :
-            'bg-error/10 border-error/25'
-          }`}>
-            {verdict === 'PASS' ? <SealCheck className="w-6 h-6 text-good shrink-0 mt-0.5" />
-              : verdict === 'WARN' ? <WarningCircle className="w-6 h-6 text-warn shrink-0 mt-0.5" />
-              : <XCircle className="w-6 h-6 text-error shrink-0 mt-0.5" />}
-            <div className="min-w-0">
-              <p className="text-sm font-bold text-text-primary">
-                {verdict === 'PASS' ? 'ANALYSIS READY'
-                  : verdict === 'WARN' ? 'ANALYSIS READY — WITH WARNINGS'
-                  : 'NOT ANALYSIS READY'}
-              </p>
-              <p className="text-xs text-text-muted mt-0.5">
-                Final gate: {gate?.qc?.status ?? '—'} · stopped at{' '}
-                <span className="font-mono">{result.pipeline.stopped_at ?? 'none'}</span>
-              </p>
-            </div>
-          </div>
-
-          {/* Detection summary */}
-          <div className="data-card p-5">
-            <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-              <GitBranch className="w-4 h-4 text-accent-cyan" /> Assay Router — Detection
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
-              {[
-                { label: 'Assay', value: result.detection.assay },
-                { label: 'Sample Type', value: result.detection.sample_type },
-                { label: 'Library', value: result.detection.library_type },
-                { label: 'Confidence', value: `${(result.detection.confidence * 100).toFixed(0)}%` },
-              ].map(({ label, value }) => (
-                <div key={label} className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-[11px] text-text-muted">{label}</p>
-                  <p className="text-sm font-bold text-text-primary font-mono">{value}</p>
-                </div>
-              ))}
-            </div>
-            <p className="text-xs text-text-muted mb-1">Evidence:</p>
-            <div className="flex flex-wrap gap-1.5">
-              {result.detection.evidence.map((ev, i) => (
-                <span key={i} className="text-[11px] px-2 py-0.5 rounded bg-accent-cyan/10 text-accent-cyan font-mono">{ev}</span>
-              ))}
-            </div>
-          </div>
-
-          {/* IGV visualization (Stage 20) */}
-          {result.visualization && (result.visualization.sam || result.visualization.vcf) && (
-            <div className="data-card p-5">
-              <div className="flex items-center justify-between mb-3">
-                <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                  <MapTrifold className="w-4 h-4 text-accent-cyan" /> IGV — Alignment & Variant Tracks
-                </h3>
-                <span className="text-[11px] text-text-muted font-mono">
-                  {result.visualization.n_mapped} mapped · {result.visualization.n_variants} variants
-                </span>
-              </div>
-              <p className="text-[11px] text-text-muted mb-3">
-                Tracks serialized from the real pipeline state (mapping decisions and variant calls) —
-                recompute metrics, never fabricated clinical results.
-              </p>
-              <GenomeViewer
-                samText={result.visualization.sam}
-                vcfText={result.visualization.vcf}
-                locus={result.visualization.locus ?? undefined}
-              />
-            </div>
-          )}
-
-          {/* Stage contracts / evidence chain */}
-          <div className="data-card p-5">
-            <div className="flex items-center justify-between mb-3">
-              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-                <ListChecks className="w-4 h-4 text-accent-cyan" /> Stage Evidence Chain ({result.pipeline.stages.length})
-              </h3>
-              <span className="text-[11px] text-text-muted font-mono">pipeline: {result.pipeline.pipeline}</span>
-            </div>
-
-            <div className="space-y-2">
-              {result.pipeline.stages.map((stage: Ngs2Stage, i: number) => {
-                const pal = statusChip(stage.qc?.status);
-                return (
-                  <div key={stage.step}>
-                    <div className="border border-glass-border rounded-xl p-3">
-                      <div className="flex items-center gap-3">
-                        <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${pal.chip}`}>
-                          {pal.icon}
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <span className="text-sm font-medium text-text-primary">{stage.step}</span>
-                            {stage.decision === 'STOP' && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-error/15 text-error font-semibold">BLOCKING</span>
-                            )}
-                          </div>
-                          <p className="text-[11px] text-text-muted truncate font-mono">{stage.tool}</p>
-                        </div>
-                        <span className={`text-[11px] font-semibold uppercase ${pal.text}`}>{stage.qc?.status ?? '—'}</span>
-                      </div>
-                      <div className="mt-2 flex flex-wrap gap-1.5 pl-11">
-                        {stage.qc?.metrics?.map((m) => renderMetric(m))}
-                      </div>
-                    </div>
-                    {i < result.pipeline.stages.length - 1 && (
-                      <div className={`w-px h-2 ml-5.5 ${stage.decision === 'STOP' ? 'bg-error/40' : 'bg-glass-border'}`} />
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-
-            {result.pipeline.warnings.length > 0 && (
-              <div className="mt-4 p-3 rounded-lg bg-warn/5 border border-warn/20">
-                <p className="text-xs font-semibold text-warn mb-1 flex items-center gap-1">
-                  <WarningCircle className="w-4 h-4" /> Warnings ({result.pipeline.warnings.length})
-                </p>
-                <ul className="text-[11px] text-text-muted space-y-0.5">
-                  {result.pipeline.warnings.map((w, idx) => (
-                    <li key={idx} className="font-mono">• {w}</li>
-                  ))}
-                </ul>
-              </div>
-            )}
-          </div>
-
-          <div className="flex items-center gap-4 text-[11px] text-text-muted">
-            <span className="flex items-center gap-1"><ShieldCheck className="w-3.5 h-3.5 text-good" /> PASS — continue</span>
-            <span className="flex items-center gap-1"><Exam className="w-3.5 h-3.5 text-warn" /> WARN — continue with warning</span>
-            <span className="flex items-center gap-1"><Fingerprint className="w-3.5 h-3.5 text-error" /> FAIL — STOP (blocking gates)</span>
-          </div>
-        </motion.div>
-      )}
-    </div>
-  );
+    {result && <ScientificResultsWorkspace
+      title={result.demo ? result.demo.label : `${result.detection.assay} sequencing result`}
+      subtitle={`${result.pipeline.pipeline} · ${result.requested.reference}${result.demo ? ' · SYNTHETIC DEMONSTRATION DATA' : ''}`}
+      status={status}
+      statusLabel={verdict === 'PASS' ? 'ANALYSIS READY' : verdict === 'WARN' ? 'READY WITH WARNINGS' : verdict === 'FAIL' ? 'NOT ANALYSIS READY' : verdict}
+      metadata={[{ label: 'Assay', value: result.detection.assay }, { label: 'Library', value: result.detection.library_type }, { label: 'Sample type', value: result.detection.sample_type }, { label: 'Reference', value: result.requested.reference }, { label: 'Pipeline', value: result.pipeline.pipeline }, { label: 'Final gate', value: gate?.qc?.status ?? '—' }]}
+      metrics={[{ label: 'Reads loaded', value: totalReads.toLocaleString() }, { label: 'Stages', value: result.pipeline.stages.length }, { label: 'PASS', value: passed, status: 'PASS' }, { label: 'WARN', value: warned, status: warned ? 'WARN' : 'PASS' }, { label: 'FAIL', value: failed, status: failed ? 'FAIL' : 'PASS' }, { label: 'Mapped reads', value: result.visualization.n_mapped.toLocaleString() }, { label: 'Variants', value: result.visualization.n_variants.toLocaleString() }, { label: 'Detection confidence', value: `${(result.detection.confidence * 100).toFixed(0)}%` }]}
+      overview={<div className="space-y-5">{result.demo && <div className="rounded-lg border border-info/20 bg-info/5 p-4 text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Demonstration dataset:</strong> {result.demo.description} It is synthetic and intended to test execution, QC visualization and result handling—not biological or clinical conclusions.</div>}<div className="grid gap-3 md:grid-cols-3"><div className="result-callout"><Database/><div><b>Assay routing</b><p>{result.detection.assay} · {result.detection.library_type} · {(result.detection.confidence*100).toFixed(0)}% detection confidence.</p></div></div><div className="result-callout"><FileText/><div><b>Evidence chain</b><p>{result.pipeline.stages.length} stages preserve tool, version, metrics, outputs and decisions.</p></div></div><div className="result-callout"><MapTrifold/><div><b>Visualization</b><p>{result.visualization.n_mapped} mapped reads and {result.visualization.n_variants} variants serialized for inspection.</p></div></div></div>{result.pipeline.warnings.length > 0 && <div className="rounded-lg border border-warn/20 bg-warn/5 p-4"><div className="flex items-center gap-2 text-xs font-semibold text-warn"><Warning/>Warnings ({result.pipeline.warnings.length})</div><ul className="mt-2 space-y-1 font-mono text-[11px] text-text-muted">{result.pipeline.warnings.map((w,i)=><li key={i}>• {w}</li>)}</ul></div>}</div>}
+      qc={<StageEvidenceTable stages={result.pipeline.stages}/>} 
+      results={<div className="space-y-5">{(result.visualization.sam || result.visualization.vcf) ? <div><div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-text-primary">Genome evidence viewer</h3><span className="font-mono text-[10px] text-text-muted">{result.visualization.n_mapped} mapped · {result.visualization.n_variants} variants</span></div><GenomeViewer samText={result.visualization.sam} vcfText={result.visualization.vcf} locus={result.visualization.locus ?? undefined}/></div> : <p className="text-sm text-text-muted">No alignment/variant visualization was emitted.</p>}<div><h3 className="mb-2 text-sm font-semibold text-text-primary">Complete stage evidence</h3><StageEvidenceTable stages={result.pipeline.stages}/></div></div>}
+      raw={<div className="space-y-5"><RawEvidence label="Pipeline report" value={result.pipeline}/>{result.visualization.vcf && <RawEvidence label="VCF" value={result.visualization.vcf}/>} {result.visualization.sam && <RawEvidence label="SAM" value={result.visualization.sam}/>}</div>}
+      methods={<ProvenancePanel provenance={result.pipeline.provenance}/>} 
+      ai={<div className="rounded-lg border border-info/20 bg-info/5 p-4 text-sm leading-6 text-text-secondary">AI interpretation is intentionally separated from the deterministic NGS evidence. The current v2 result prioritizes stage QC, raw artifacts, provenance and the final readiness gate. Any future AI summary should cite these emitted metrics and never override a blocking QC decision.</div>}
+    />}
+  </div>;
 }

@@ -1,0 +1,61 @@
+services:
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "7860:7860"
+    environment:
+      PORT: "7860"
+      REDIS_URL: "redis://redis:6379"
+      CELERY_BROKER_URL: "redis://redis:6379/1"
+      CELERY_RESULT_BACKEND: "redis://redis:6379/2"
+      # Override these via .env or shell environment:
+      # GROQ_API_KEY:
+      # SUPABASE_URL:
+      # SUPABASE_SERVICE_ROLE_KEY:
+      # SENTRY_DSN:
+      # CORS_ORIGIN: http://localhost:3000
+    env_file:
+      - path: ./backend/.env
+        required: false
+      - path: ./backend/.env.deploy
+        required: false
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:7860/health')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: "http://backend:7860"
+      NODE_ENV: "production"
+    env_file:
+      - path: ./frontend/.env.local
+        required: false
+    depends_on:
+      backend:
+        condition: service_healthy

@@ -2,8 +2,8 @@
 
 import { useState, useCallback } from 'react';
 import { motion } from 'framer-motion';
-import { Brain, CircleNotch as Loader2, WarningCircle as AlertTriangle, CheckCircle, Info } from '@phosphor-icons/react';
-import { fadeUp, fadeIn, cardHover } from '@/lib/animations';
+import { Brain, CircleNotch as Loader2, WarningCircle as AlertTriangle, CheckCircle, Info, ShieldCheck } from '@phosphor-icons/react';
+import { fadeUp, fadeIn } from '@/lib/animations';
 import { interpretToolResult, type AIInterpretation } from '@/lib/api';
 
 interface AIResultSummaryProps {
@@ -13,10 +13,22 @@ interface AIResultSummaryProps {
   compact?: boolean;
 }
 
+function numericTokens(value: string) {
+  return value.match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?%?/gi) ?? [];
+}
+
+function isNumericallyGrounded(interpretation: AIInterpretation, result: Record<string, unknown>) {
+  const source = JSON.stringify(result);
+  const sourceNumbers = new Set(numericTokens(source).map((token) => token.replace(/%$/, '').toLowerCase()));
+  const generated = [interpretation.headline, interpretation.summary, ...interpretation.findings, ...interpretation.caveats].join(' ');
+  const generatedNumbers = numericTokens(generated).map((token) => token.replace(/%$/, '').toLowerCase());
+  return generatedNumbers.every((token) => sourceNumbers.has(token));
+}
+
 export function AIResultSummary({
   toolName,
   result,
-  title = 'AI Interpretation',
+  title = 'AI Explanation',
   compact = false,
 }: AIResultSummaryProps) {
   const [interpretation, setInterpretation] = useState<AIInterpretation | null>(null);
@@ -30,102 +42,43 @@ export function AIResultSummary({
     setInterpretation(null);
     try {
       const data = await interpretToolResult(toolName, result);
+      if (!data?.summary?.trim()) throw new Error('AI explanation was empty and has been withheld.');
+      if (!isNumericallyGrounded(data, result)) {
+        throw new Error('AI explanation was withheld because it introduced a numeric claim that is not present in the analysis result. Review the deterministic result instead.');
+      }
       setInterpretation(data);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'AI summary failed. Please try again.');
+      setError(err instanceof Error ? err.message : 'AI explanation is unavailable. Use the deterministic result and provenance shown above.');
     } finally {
       setLoading(false);
     }
   }, [toolName, result, loading]);
 
   return (
-    <motion.div
-      variants={fadeUp}
-      whileHover={cardHover}
-      className="bg-accent-cyan/[0.06] rounded-2xl border border-accent-cyan/20 p-5"
-    >
-      <div className="flex items-center justify-between mb-3">
+    <motion.div variants={fadeUp} className="rounded-2xl border border-glass-border bg-surface-0 p-5">
+      <div className="mb-3 flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <Brain className="w-5 h-5 text-accent-cyan" />
-          <h3 className="font-semibold text-text-primary">{title}</h3>
+          <Brain className="h-5 w-5 text-accent-cyan" />
+          <div><h3 className="font-semibold text-text-primary">{title}</h3><p className="mt-0.5 flex items-center gap-1 text-[10px] text-text-muted"><ShieldCheck className="h-3 w-3"/>Numeric claims are checked against the emitted result before display.</p></div>
         </div>
         {!interpretation && !loading && (
-          <motion.button
-            variants={fadeIn}
-            onClick={handleInterpret}
-            className="px-4 py-2 bg-accent-cyan text-void text-sm font-medium rounded-lg hover:bg-accent-hover transition disabled:opacity-50"
-            disabled={loading}
-          >
-            Interpret with AI
+          <motion.button variants={fadeIn} onClick={handleInterpret} className="rounded-lg border border-accent-cyan/25 bg-accent-cyan/8 px-4 py-2 text-sm font-medium text-accent-cyan transition hover:bg-accent-cyan/12" disabled={loading}>
+            Explain result
           </motion.button>
         )}
       </div>
 
-      {error && !loading && (
-        <div className="bg-error/10 border border-error/30 rounded-xl p-4 mb-2">
-          <p className="text-sm text-error flex items-start gap-2">
-            <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5" />
-            {error}
-          </p>
-        </div>
-      )}
+      {error && !loading && <div className="mb-2 rounded-xl border border-warn/25 bg-warn/7 p-4"><p className="flex items-start gap-2 text-sm text-text-secondary"><AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warn" />{error}</p></div>}
 
-      {loading && (
-        <div className="flex items-center gap-2 text-sm text-text-muted py-2">
-          <Loader2 className="w-4 h-4 animate-spin" />
-          Summarizing your results in plain language...
-        </div>
-      )}
+      {loading && <div className="flex items-center gap-2 py-2 text-sm text-text-muted"><Loader2 className="h-4 w-4 animate-spin" />Generating an evidence-constrained explanation...</div>}
 
-      {interpretation && !loading && (
-        <motion.div variants={fadeIn} className="space-y-4">
-          <p className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-text-primary`}>
-            {interpretation.headline}
-          </p>
-          <p className={`${compact ? 'text-sm' : 'text-base'} text-text-secondary leading-relaxed`}>
-            {interpretation.summary}
-          </p>
-
-          {interpretation.findings.length > 0 && (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-text-muted mb-2 font-medium">Key findings</p>
-              <ul className="space-y-1.5">
-                {interpretation.findings.map((f, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-text-secondary">
-                    <CheckCircle className="w-4 h-4 text-good shrink-0 mt-0.5" />
-                    {f}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          {interpretation.caveats.length > 0 && (
-            <div>
-              <p className="text-xs uppercase tracking-wide text-text-muted mb-2 font-medium">
-                Things to keep in mind
-              </p>
-              <ul className="space-y-1.5">
-                {interpretation.caveats.map((c, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-text-secondary">
-                    <Info className="w-4 h-4 text-accent-amber shrink-0 mt-0.5" />
-                    {c}
-                  </li>
-                ))}
-              </ul>
-            </div>
-          )}
-
-          <div className="flex items-center justify-between pt-2 border-t border-accent-cyan/20">
-            <button
-              onClick={() => { setInterpretation(null); setError(null); }}
-              className="text-xs text-text-muted hover:text-text-primary transition"
-            >
-              Regenerate
-            </button>
-          </div>
-        </motion.div>
-      )}
+      {interpretation && !loading && <motion.div variants={fadeIn} className="space-y-4">
+        <p className={`${compact ? 'text-base' : 'text-lg'} font-semibold text-text-primary`}>{interpretation.headline}</p>
+        <p className={`${compact ? 'text-sm' : 'text-base'} leading-relaxed text-text-secondary`}>{interpretation.summary}</p>
+        {interpretation.findings.length > 0 && <div><p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Evidence-backed observations</p><ul className="space-y-1.5">{interpretation.findings.map((f, i) => <li key={`${f}-${i}`} className="flex items-start gap-2 text-sm text-text-secondary"><CheckCircle className="mt-0.5 h-4 w-4 shrink-0 text-good" />{f}</li>)}</ul></div>}
+        {interpretation.caveats.length > 0 && <div><p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">Limitations</p><ul className="space-y-1.5">{interpretation.caveats.map((c, i) => <li key={`${c}-${i}`} className="flex items-start gap-2 text-sm text-text-secondary"><Info className="mt-0.5 h-4 w-4 shrink-0 text-warn" />{c}</li>)}</ul></div>}
+        <div className="border-t border-glass-border pt-2"><button onClick={() => { setInterpretation(null); setError(null); }} className="text-xs text-text-muted transition hover:text-text-primary">Clear explanation</button></div>
+      </motion.div>}
     </motion.div>
   );
 }

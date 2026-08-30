@@ -6,22 +6,41 @@ with top-mode heavy-atom RMSD < 2.0 A. Run inside the API image:
     docker run --rm -v <host_dir>:/data bio-nexus-api:bookworm python /data/redock_benchmark.py
 """
 
+import os
+import re
+import subprocess
 import sys
+import tempfile
 import time
 
-sys.path.insert(0, "/app")
+import httpx
 
-from urllib.request import urlopen
+sys.path.insert(0, "/app")
 
 from app.tools.docking import compute_pocket_grid, run_vina
 
 PDB_ID = "1STP"
 LIG_RESNAME = "BTN"
+RCSB_DOWNLOAD_BASE = "https://files.rcsb.org/download"
+
+
+def fetch_rcsb_pdb(pdb_id: str) -> str:
+    """Fetch a PDB only from the fixed HTTPS RCSB download origin."""
+    normalized = pdb_id.strip().upper()
+    if re.fullmatch(r"[0-9][A-Z0-9]{3}", normalized) is None:
+        raise ValueError(f"invalid PDB identifier: {pdb_id!r}")
+    response = httpx.get(
+        f"{RCSB_DOWNLOAD_BASE}/{normalized}.pdb",
+        timeout=60.0,
+        follow_redirects=False,
+    )
+    response.raise_for_status()
+    return response.text
 
 
 def main() -> int:
     t0 = time.time()
-    pdb_text = urlopen(f"https://files.rcsb.org/download/{PDB_ID}.pdb", timeout=60).read().decode()
+    pdb_text = fetch_rcsb_pdb(PDB_ID)
 
     # Receptor: first model, altloc-filtered ATOM records (mirrors prod logic).
     ref_lines, prot_lines, seen_model = [], [], False
@@ -68,7 +87,6 @@ def main() -> int:
     assert site_off < 8.0, "pocket grid does not cover the crystal binding site"
 
     # Crystal ligand -> PDBQT (prod prep path: pH protonation + Gasteiger).
-    import subprocess, tempfile, os
     with tempfile.TemporaryDirectory() as tmp:
         lig_pdb = os.path.join(tmp, "lig.pdb")
         lig_pdbqt_path = os.path.join(tmp, "lig.pdbqt")
@@ -79,7 +97,8 @@ def main() -> int:
              "--partialcharge", "gasteiger", "-p", "7.4"],
             capture_output=True, text=True, timeout=120)
         assert r.returncode == 0 and os.path.isfile(lig_pdbqt_path), r.stderr[:500]
-        ligand_pdbqt = open(lig_pdbqt_path).read()
+        with open(lig_pdbqt_path) as ligand_file:
+            ligand_pdbqt = ligand_file.read()
     print("[3] crystal ligand converted to PDBQT")
 
     result = run_vina(
@@ -96,8 +115,7 @@ def main() -> int:
 
     # Top-pose heavy-atom RMSD vs crystal.
     # obabel reorders/renames ligand atoms, so poses can't be index-matched;
-    # use greedy nearest-neighbour pairing (tight upper bound of true RMSD,
-    # exact enough for the 2 A pass/fail bar).
+    # use symmetry-corrected assignment for the 2 A benchmark bar.
     out_models: dict[int, list[tuple]] = {}
     cur = None
     for line in result["result_sdf"].splitlines():

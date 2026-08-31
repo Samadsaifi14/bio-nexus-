@@ -219,10 +219,29 @@ async def startup():
     except Exception as e:
         logger.warning("MD force field verification failed during startup: %s", e)
 
-    # Launch durable worker (in-process)
-    from app.worker import start_worker
-    await start_worker()
-    logger.info("In-process durable worker started")
+    # Launch durable worker (in-process).
+    # Production (server) should run the worker; a local Windows dev box must NOT
+    # — otherwise it connects to the SAME production Supabase with a service-role
+    # key, steals queued jobs from the real worker, and strands them when the
+    # laptop sleeps/disconnects (job left stuck in a non-terminal status).
+    # Honor an explicit RUN_WORKER flag when set; otherwise auto-run only on
+    # non-Windows (i.e. the production container). The standalone worker remains
+    # available via `python -m app.worker` / the worker image regardless.
+    run_worker_env = os.getenv("RUN_WORKER")
+    if run_worker_env is not None:
+        run_worker = str(run_worker_env).strip().lower() in ("1", "true", "yes")
+    else:
+        run_worker = os.name != "nt"
+    if run_worker:
+        from app.worker import start_worker
+        await start_worker()
+        logger.info("In-process durable worker started")
+    else:
+        logger.info(
+            "In-process durable worker disabled (RUN_WORKER=%s, os=%s)",
+            run_worker_env if run_worker_env is not None else "(unset)",
+            os.name,
+        )
 
 
 @app.get("/health")

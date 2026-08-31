@@ -36,7 +36,7 @@ logger = logging.getLogger(__name__)
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
 POLL_INTERVAL = 3  # seconds
-STUCK_JOB_TIMEOUT_MIN = 90
+STUCK_JOB_TIMEOUT_MIN = 5
 SWEEP_EVERY = 20  # sweep every N poll ticks (~60s)
 
 # Per-type concurrency caps
@@ -129,13 +129,17 @@ def _patch(table: str, job_id: str, payload: dict) -> None:
 
 
 def _sweep_stuck(table: str) -> int:
-    """Reclaim jobs stuck in 'running' for longer than STUCK_JOB_TIMEOUT_MIN."""
+    """Reclaim anything claimed longer than STUCK_JOB_TIMEOUT_MIN.
+    A worker can die while a job is in a non-terminal sub-status (e.g.
+    submitted_to_ncbi, polling_ncbi) — not just 'running' — so sweep every
+    non-terminal row whose claimed_at has gone stale, not only 'running' ones."""
     import httpx
     from datetime import timedelta
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_TIMEOUT_MIN)).isoformat()
     url = (
         f"{_base()}/rest/v1/{table}"
-        f"?status=eq.running&claimed_at=lt.{cutoff}"
+        f"?status=not.in.(complete,failed)"
+        f"&claimed_at=lt.{cutoff}"
         f"&select=id"
     )
     resp = httpx.get(url, headers=_headers(), timeout=15)
@@ -151,7 +155,7 @@ def _sweep_stuck(table: str) -> int:
         })
         count += 1
     if count:
-        logger.warning("Sweep reclaimed %d stuck job(s) from %s", count, table)
+        logger.warning("Sweep reclaimed %d stale job(s) from %s", count, table)
     return count
 
 

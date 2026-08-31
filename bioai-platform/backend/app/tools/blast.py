@@ -81,10 +81,11 @@ class BlastTool(BaseTool):
     def _parse_hits(self, raw_hits: list[dict], max_hits: int) -> list[dict]:
         parsed = []
         for hit in raw_hits[:max_hits]:
-            hsps = hit.get("hsps", [{}])[0] if hit.get("hsps") else {}
-            desc = hit.get("hit_desc", "")
-            organism = ""
-            if "[" in desc and "]" in desc:
+            hsps = hit.get("hit_hsps") or []
+            hsp = hsps[0] if hsps else {}
+            desc = hit.get("hit_uni_de") or hit.get("hit_desc", "")
+            organism = hit.get("hit_os", "")
+            if not organism and "[" in desc and "]" in desc:
                 organism = desc.split("[")[-1].rstrip("]")
                 desc = desc.split("[")[0].strip()
             parsed.append({
@@ -92,14 +93,22 @@ class BlastTool(BaseTool):
                 "id": hit.get("hit_id", ""),
                 "description": desc,
                 "organism": organism,
-                "evalue": hsps.get("hsp_expect", 0),
-                "bit_score": hsps.get("hsp_bit_score", 0),
-                "identity_pct": hsps.get("hsp_identity", 0),
-                "alignment_length": hsps.get("hsp_align_len", 0),
+                "evalue": hsp.get("hsp_expect", 0),
+                "bit_score": hsp.get("hsp_bit_score", 0),
+                "score": hsp.get("hsp_score", 0),
+                # EBI returns hsp_identity/hsp_positive as percentages (0-100),
+                # unlike NCBI's raw residue counts — pass them through directly.
+                "identity_pct": hsp.get("hsp_identity", 0),
+                "positive": hsp.get("hsp_positive", 0),
+                "gaps": hsp.get("hsp_gaps", 0),
+                "alignment_length": hsp.get("hsp_align_len", 0),
                 "query_coverage_pct": 0,
-                "query_from": hsps.get("hsp_query_from", 0),
-                "query_to": hsps.get("hsp_query_to", 0),
-                "hit_from": hsps.get("hsp_hit_from", 0),
-                "hit_to": hsps.get("hsp_hit_to", 0),
+                "query_from": hsp.get("hsp_query_from", 0),
+                "query_to": hsp.get("hsp_query_to", 0),
+                "hit_from": hsp.get("hsp_hit_from", 0),
+                "hit_to": hsp.get("hsp_hit_to", 0),
+                "query_alignment": hsp.get("hsp_qseq", ""),
+                "hit_alignment": hsp.get("hsp_hseq", ""),
+                "midline": hsp.get("hsp_mseq", ""),
             })
         return parsed

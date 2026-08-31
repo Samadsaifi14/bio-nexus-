@@ -249,3 +249,64 @@ class TestEbiToolSubmit:
 def asyncio_run(coro):
     import asyncio
     return asyncio.run(coro)
+
+
+class TestEbiParseHits:
+    """EBI BLAST JSON nests HSPs under 'hit_hsps' and returns identity/positive
+    already as percentages. Regression: the old parser read 'hsps' (always empty),
+    so every EBI hit rendered with zero score / identity / coverage."""
+
+    def _sample(self):
+        return [{
+            "hit_num": 1,
+            "hit_id": "CRAM_CRAAB",
+            "hit_acc": "P01542",
+            "hit_desc": "Crambin OS=Crambe hispanica subsp. abyssinica OX=3721 GN=THI2 PE=1 SV=2",
+            "hit_uni_de": "Crambin",
+            "hit_os": "Crambe hispanica subsp. abyssinica",
+            "hit_len": 46,
+            "hit_hsps": [{
+                "hsp_num": 1,
+                "hsp_score": 113,
+                "hsp_bit_score": 48.1,
+                "hsp_expect": 2.7e-09,
+                "hsp_align_len": 20,
+                "hsp_identity": 100.0,
+                "hsp_positive": 100.0,
+                "hsp_gaps": 0,
+                "hsp_query_from": 1,
+                "hsp_query_to": 20,
+                "hsp_hit_from": 1,
+                "hsp_hit_to": 20,
+                "hsp_qseq": "TTCCPSIVARSNFNVCRLPG",
+                "hsp_hseq": "TTCCPSIVARSNFNVCRLPG",
+                "hsp_mseq": "TTCCPSIVARSNFNVCRLPG",
+            }],
+        }]
+
+    def test_parses_real_ebi_schema(self):
+        from app.tools.blast import BlastTool
+        hits = BlastTool()._parse_hits(self._sample(), max_hits=5)
+        assert len(hits) == 1
+        hit = hits[0]
+        assert hit["accession"] == "P01542"
+        assert hit["description"] == "Crambin"
+        assert hit["organism"] == "Crambe hispanica subsp. abyssinica"
+        assert hit["bit_score"] == 48.1
+        assert hit["score"] == 113
+        assert hit["identity_pct"] == 100.0  # already a percentage in EBI output
+        assert hit["positive"] == 100.0
+        assert hit["alignment_length"] == 20
+        assert hit["query_coverage_pct"] == 0  # recomputed in _build_blast_result
+        assert hit["query_alignment"] == "TTCCPSIVARSNFNVCRLPG"
+        assert hit["hit_alignment"] == "TTCCPSIVARSNFNVCRLPG"
+        assert hit["midline"] == "TTCCPSIVARSNFNVCRLPG"
+        assert hit["query_from"] == 1
+        assert hit["hit_to"] == 20
+
+    def test_missing_hsps_does_not_crash(self):
+        from app.tools.blast import BlastTool
+        hits = BlastTool()._parse_hits([{"hit_acc": "X1", "hit_desc": "no hsp"}], max_hits=5)
+        assert hits[0]["accession"] == "X1"
+        assert hits[0]["bit_score"] == 0
+        assert hits[0]["identity_pct"] == 0

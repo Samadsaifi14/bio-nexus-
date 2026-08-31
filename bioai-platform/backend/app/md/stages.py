@@ -28,14 +28,15 @@ def _engine(sample: dict, state: dict, *, forcefield: str | None = None, solvent
         return eng
     from app.md.engine import MdEngine
 
-    eng = MdEngine(
-        sample["pdb_text"],
-        sample["pdb_id"],
-        forcefield or sample.get("forcefield"),
-        solvent or sample.get("solvent"),
-        production_steps=sample.get("production_steps"),
-        nvt_steps=sample.get("nvt_steps"),
-    )
+    kwargs = {}
+    if sample.get("production_steps") is not None:
+        kwargs["production_steps"] = sample["production_steps"]
+    if sample.get("nvt_steps") is not None:
+        kwargs["nvt_steps"] = sample["nvt_steps"]
+    eng = MdEngine(sample["pdb_text"], sample["pdb_id"],
+                   forcefield or sample.get("forcefield"),
+                   solvent or sample.get("solvent"),
+                   **kwargs)
     state["md_engine"] = eng
     return eng
 
@@ -76,13 +77,25 @@ def md_input_contract() -> StageContract:
 
 def md_ff_contract() -> StageContract:
     def run(sample, state):
-        from app.tools.md_config import FF_LABELS, resolve_combo, verify_ff_solvent_combos
+        from app.tools.md_config import (
+            FF_LABELS, get_verified_combos_cached, resolve_combo,
+        )
 
+        cached = get_verified_combos_cached()  # warm at startup; {} when boot verification pending
         try:
-            ff_key, sol_key = resolve_combo(sample.get("forcefield"), sample.get("solvent"))
+            # Fast static validation (never triggers the tens-of-seconds full
+            # combinatorial probe on the hot path). Real createSystem verification
+            # is enforced against the warm startup cache when available.
+            ff_key, sol_key = resolve_combo(sample.get("forcefield"),
+                                            sample.get("solvent"), verify=False)
             state["md_ff"] = (ff_key, sol_key)
-            resolved, verified = 1, 1
+            resolved = 1
             detail = f"{FF_LABELS.get(ff_key, ff_key)} x {sol_key.upper()}"
+            if cached and sol_key not in cached.get(ff_key, ()):
+                verified = 0  # warm cache says this combo did not build
+                detail += f" — not in verified build set ({list(cached.get(ff_key, ()))})"
+            else:
+                verified = 1
         except ValueError as exc:
             resolved, verified = 0, 0
             detail = str(exc)
@@ -93,7 +106,8 @@ def md_ff_contract() -> StageContract:
             "forcefield": ff_key,
             "solvent": sol_key,
             "resolved_detail": detail,
-            "verified_combos": verify_ff_solvent_combos() if resolved else {},
+            "boot_verification": "warm" if cached else "pending",
+            "verified_combos": cached if resolved else {},
             "gromacs_available": gmx,
             "engines": engine_status(),
         }

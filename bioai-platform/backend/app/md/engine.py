@@ -44,14 +44,16 @@ from app.tools.md_sim import (
 logger = logging.getLogger(__name__)
 
 # Tangible simulation constants (kept small so the staged DAG completes inside
-# the free-tier job window while still producing a real micro-trajectory).
+# the free-tier job window while still producing a real micro-trajectory, AND
+# inside typical reverse-proxy upstream timeouts — several minutes blocks the
+# synchronous endpoint and surfaces as a gateway 502).
 TARGET_KELVIN = 300.0
 TIMESTEP_FS = 2.0           # Langevin middle, 2 fs
 NVT_STEPS = 300             # equilibration
 PRODUCTION_TARGET_PS = 80.0
 PRODUCTION_MAX_PS = 300.0
 PRODUCTION_MIN_PS = 1.0
-_PRODUCTION_BUDGET_SECONDS = 45.0
+_PRODUCTION_BUDGET_SECONDS = 18.0
 _EST_STEPS_PER_SEC = 1_400_000.0
 
 # Non-bonded setup (matches md_config verification probe).
@@ -74,7 +76,8 @@ class MdEngine:
     ):
         self.pdb_text = pdb_text
         self.pdb_id = pdb_id.upper().strip()
-        self.forcefield_key, self.solvent_key = resolve_combo(forcefield, solvent)
+        self.forcefield_key, self.solvent_key = resolve_combo(
+            forcefield, solvent, verify=False)
         self.forcefield_label = FF_LABELS.get(self.forcefield_key, self.forcefield_key)
         self.temperature_k = temperature_k
         self._production_steps = production_steps
@@ -242,7 +245,7 @@ class MdEngine:
         from openmm import unit
 
         sim = self._simulation()
-        steps = steps or self._nvt_steps
+        steps = steps or self._nvt_steps or NVT_STEPS
         # Burn-in: let the thermostat establish the target regime before we
         # sample, so the gate measures equilibrium temperature, not the cold
         # equilibration transient.
@@ -308,21 +311,30 @@ class MdEngine:
     # Production MD (Module 9)
     # ------------------------------------------------------------------
 
-    def _planned_production_steps(self) -> int:
-        if self._production_steps is not None:
-            return self._production_steps
+    def _planned_production_steps(self) -> tuple[int, bool]:
+        """Return (step_count, budget_clamped).
+
+        The wall-clock budget is always honoured — even when the caller asks for
+        an explicit length — so the synchronous endpoint never blocks a reverse
+        proxy past its upstream timeout. ``budget_clamped`` tells the caller the
+        requested length was cut to fit the budget.
+        """
         rate = max(_EST_STEPS_PER_SEC / max(self.n_particles, 1), 1.0)
         max_by_time = int(rate * _PRODUCTION_BUDGET_SECONDS)
+        floor = int(PRODUCTION_MIN_PS * 500)
+        if self._production_steps is not None:
+            planned = int(self._production_steps)
+            cap = max(max_by_time, floor)
+            return (planned if planned <= cap else cap), planned > cap
         target = int(PRODUCTION_TARGET_PS * 500)
         cap = int(PRODUCTION_MAX_PS * 500)
-        floor = int(PRODUCTION_MIN_PS * 500)
-        return int(max(min(target, cap, max_by_time), floor))
+        return int(max(min(target, cap, max_by_time), floor)), False
 
     def produce(self) -> tuple[dict, dict]:
         from openmm import unit
 
         sim = self._simulation()
-        steps = self._planned_production_steps()
+        steps, budget_clamped = self._planned_production_steps()
 
         if self._ref_coords is None:
             st = sim.context.getState(getEnergy=True, getPositions=True)
@@ -331,6 +343,7 @@ class MdEngine:
 
         sim.step(100)  # warm up
         t0 = time.time()
+        wall_budget_sec = _PRODUCTION_BUDGET_SECONDS
         self.frames = []
         self.frame_steps = []
         self.production_energy = []
@@ -339,9 +352,13 @@ class MdEngine:
 
         n_target_frames = min(steps // 20, 60)
         step_interval = max(20, steps // max(n_target_frames, 1))
+        wall_stopped = False
 
         done = 0
         while done < steps:
+            if time.time() - t0 >= wall_budget_sec:
+                wall_stopped = True
+                break
             batch = min(step_interval, steps - done)
             sim.step(batch)
             done += batch
@@ -366,8 +383,11 @@ class MdEngine:
         data = {
             "engine": "openmm",
             "platform": getattr(self, "platform_used", None),
-            "production_steps": steps,
-            "production_ps": round(steps / (1000.0 / TIMESTEP_FS), 1),
+            "production_steps": done,
+            "requested_production_steps": steps,
+            "production_ps": round(done / (1000.0 / TIMESTEP_FS), 1),
+            "budget_clamped": bool(budget_clamped or wall_stopped),
+            "wall_stopped": wall_stopped,
             "n_frames": len(self.frames),
             "final_energy_kj_mol": round(final, 2),
             "elapsed_seconds": elapsed,

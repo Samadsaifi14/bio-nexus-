@@ -131,6 +131,19 @@ def verify_ff_solvent_combos() -> dict[str, tuple[str, ...]]:
     return _VERIFIED
 
 
+def get_verified_combos_cached() -> dict[str, tuple[str, ...]]:
+    """Return verified combos *without* forcing the expensive probe.
+
+    The combinatorial (force field x solvent) createSystem() verification is a
+    startup/boot concern (warmed in ``main`` startup + ``GET /api/md/forcefields``).
+    The per-request gate only needs ``resolve_combo`` on the *requested* pair, so
+    hot paths read this cache if it is already warm and never trigger a fresh
+    full-library verification (which otherwise stalls the first request for tens
+    of seconds and trips reverse-proxy timeouts).
+    """
+    return _VERIFIED if _VERIFIED is not None else {}
+
+
 def get_forcefields_menu() -> dict:
     """Menu payload for GET /api/md/forcefields (verified combos only)."""
     verified = verify_ff_solvent_combos()
@@ -151,12 +164,19 @@ def get_forcefields_menu() -> dict:
     }
 
 
-def resolve_combo(forcefield: str | None, solvent: str | None) -> tuple[str, str]:
+def resolve_combo(forcefield: str | None, solvent: str | None,
+                  verify: bool = True) -> tuple[str, str]:
     """Normalize and validate a requested (forcefield, solvent) pair.
 
     Raises ValueError with a clear message when the force field or solvent is
-    unknown, or when the specific combination did not pass startup
-    verification. No silent fallback: an invalid request is an explicit error.
+    unknown, or (when ``verify``) when the specific combination did not pass
+    startup verification. No silent fallback: an invalid request is an explicit
+    error.
+
+    ``verify=False`` validates the pair against the static config only — it never
+    triggers the (tens-of-seconds) full combinatorial verification probe, so the
+    per-request MD gate can validate quickly; real verification remains a
+    startup/boot concern warmed in ``main`` and ``GET /api/md/forcefields``.
     """
     ff_key = (forcefield or DEFAULT_FORCEFIELD).strip().lower()
     sol_key = (solvent or DEFAULT_SOLVENT).strip().lower()
@@ -171,6 +191,9 @@ def resolve_combo(forcefield: str | None, solvent: str | None) -> tuple[str, str
             f"Unsupported solvent model: {solvent!r}. Choose from: "
             + ", ".join(SOLVENT_XML)
         )
+
+    if not verify:
+        return ff_key, sol_key
 
     verified = verify_ff_solvent_combos()
     if verified and sol_key not in verified.get(ff_key, ()):

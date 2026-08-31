@@ -72,6 +72,20 @@ def test_analyze_runs_full_dag(client):
     assert "readiness" in conv["data"]
 
 
+def test_analyze_default_nvt_with_production_ps(client):
+    """Regression: 'production_ps' without 'nvt_ps' must not crash the engine
+    (previously MdEngine init and NVT defaulted to None steps -> TypeError)."""
+    payload = _payload(production_ps=20)  # no nvt_ps -> engine default NVT
+    r = client.post("/api/md/v2/analyze", json=payload)
+    assert r.status_code == 200
+    body = r.json()
+    stages = body["pipeline"]["stages"]
+    assert len(stages) == 10
+    nvt = [s for s in stages if s["step"] == "md_nvt"][0]
+    assert nvt["qc"]["status"] == "PASS"
+    assert body["pipeline"]["pipeline_status"] in ("PASS", "WARN")
+
+
 def test_analyze_garbage_structure_stops_at_input(client):
     # Contains "ATOM" so the router's cheap pre-check passes; still unparseable,
     # so it must be caught by the md_input stage's own structure-QC gate.

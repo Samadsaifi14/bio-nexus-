@@ -59,7 +59,7 @@ export default function MdV2Page() {
   const [pdbId, setPdbId] = useState('');
   const [forcefield, setForcefield] = useState('');
   const [solvent, setSolvent] = useState('');
-  const [productionPs, setProductionPs] = useState(250);
+  const [productionPs, setProductionPs] = useState(50);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Awaited<ReturnType<typeof runMd2Analyze>> | null>(null);
@@ -161,13 +161,17 @@ export default function MdV2Page() {
             <FlatInput
               type="number"
               min={20}
-              max={2000}
+              max={300}
               value={productionPs}
               onChange={(e) => setProductionPs(Number(e.target.value) || 0)}
               className="w-full px-4 py-3 rounded-xl text-sm font-mono"
             />
           </div>
         </div>
+        <p className="text-[11px] text-text-muted -mt-2">
+          Production is capped by a short wall-clock budget on the backend, so the synchronous run
+          completes within the gateway timeout (large requests are clamped to a quick real trajectory).
+        </p>
 
         <CriticalButton onClick={run} disabled={loading || !pdbId.trim()} className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
           {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Atom className="w-4 h-4" />}

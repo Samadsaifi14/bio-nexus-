@@ -221,14 +221,30 @@ async def run_blast_with_retry(
     If NCBI dropped/lost the RID, no amount of polling helps — a fresh
     submit_blast() is the right fix.  retries=2 means 3 total attempts.
 
-    Falls back to synchronous mode when async RTOE is unreasonable (>300s),
-    which indicates NCBI server overload.  In sync mode NCBI blocks until
-    results are ready (up to the httpx timeout).
+    A hard wall-clock deadline (1.5x the poll budget) prevents the worker
+    from hanging forever if NCBI goes half-open (accepts TCP but never
+    completes the HTTP response).  The per-attempt httpx read timeout is
+    NOT sufficient because a slow trickle of bytes resets it each time.
     """
     last_error = None
     MAX_RTOE = 300  # if RTOE exceeds this, switch to sync mode
+    # Hard wall-clock deadline: 1.5x the per-attempt poll budget.
+    # Covers submit time + back-off sleep + a generous margin.
+    HARD_DEADLINE_S = max(int(max_wait_seconds * 1.5), max_wait_seconds + 120)
+
+    import time
+    t0 = time.monotonic()
 
     for attempt in range(retries + 1):
+        # Enforce hard wall-clock deadline before each attempt
+        elapsed = time.monotonic() - t0
+        if elapsed >= HARD_DEADLINE_S:
+            logger.warning(
+                "BLAST hard deadline reached (%.0fs / %ds) — aborting before attempt %d",
+                elapsed, HARD_DEADLINE_S, attempt + 1,
+            )
+            return {"error": f"BLAST hard deadline ({HARD_DEADLINE_S}s) exceeded after {elapsed:.0f}s"}
+
         # On retry after stuck/timeout, try sync mode first
         use_sync = attempt > 0
 
@@ -282,9 +298,17 @@ async def run_blast_with_retry(
                 logger.info("BLAST sync mode returned results inline for RID %s", rid)
                 return {"raw": submit_result["raw"], "rid": rid}
 
+        # Per-attempt poll budget is capped by the remaining wall-clock budget
+        remaining = HARD_DEADLINE_S - (time.monotonic() - t0)
+        per_attempt_budget = min(max_wait_seconds, int(remaining) - 30)  # 30s margin for fetch
+        if per_attempt_budget < 30:
+            logger.warning("BLAST: only %.0fs left of hard deadline, skipping poll", remaining)
+            last_error = f"BLAST: insufficient time remaining ({remaining:.0fs}s) for poll"
+            continue
+
         try:
             status_result = await check_status_until_ready(
-                rid, max_wait_seconds=max_wait_seconds, estimated_seconds=est,
+                rid, max_wait_seconds=per_attempt_budget, estimated_seconds=est,
             )
         except Exception as e:
             last_error = f"BLAST polling crashed: {e}"

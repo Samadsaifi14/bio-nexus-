@@ -129,10 +129,12 @@ def _patch(table: str, job_id: str, payload: dict) -> None:
 
 
 def _sweep_stuck(table: str) -> int:
-    """Reclaim anything claimed longer than STUCK_JOB_TIMEOUT_MIN.
+    """Fail any job claimed longer than STUCK_JOB_TIMEOUT_MIN.
+
     A worker can die while a job is in a non-terminal sub-status (e.g.
-    submitted_to_ncbi, polling_ncbi) — not just 'running' — so sweep every
-    non-terminal row whose claimed_at has gone stale, not only 'running' ones."""
+    submitted_to_ncbi, polling_ncbi) — not just 'running'.  We mark these
+    as **failed** (not re-queued) to avoid an infinite reclaim-retry loop
+    when the external service (NCBI/EBI) is unreachable."""
     import httpx
     from datetime import timedelta
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_TIMEOUT_MIN)).isoformat()
@@ -140,7 +142,7 @@ def _sweep_stuck(table: str) -> int:
         f"{_base()}/rest/v1/{table}"
         f"?status=not.in.(complete,failed)"
         f"&claimed_at=lt.{cutoff}"
-        f"&select=id"
+        f"&select=id,status"
     )
     resp = httpx.get(url, headers=_headers(), timeout=15)
     if resp.status_code != 200:
@@ -149,13 +151,15 @@ def _sweep_stuck(table: str) -> int:
     count = 0
     for row in stuck:
         _patch(table, row["id"], {
-            "status": "queued",
+            "status": "failed",
             "claimed_at": None,
             "claimed_by": None,
+            "error": f"Worker lost on restart (was {row.get('status', 'unknown')}) — please re-run",
+            "completed_at": datetime.now(timezone.utc).isoformat(),
         })
         count += 1
     if count:
-        logger.warning("Sweep reclaimed %d stale job(s) from %s", count, table)
+        logger.warning("Sweep failed %d stale job(s) from %s", count, table)
     return count
 
 

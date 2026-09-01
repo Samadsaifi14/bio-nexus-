@@ -284,15 +284,15 @@ async def run_blast_with_retry(
             attempt + 1, retries + 1, use_sync, rid, est,
         )
 
-        # Detect unreasonable RTOE — switch to sync on next attempt
+        # Detect unreasonable RTOE — bail out immediately instead of retrying
+        # in sync mode. A huge RTOE means NCBI is overloaded; sync-mode will
+        # block 300s x3 retries before the caller's EBI fallback can run.
         if not use_sync and est > MAX_RTOE:
             logger.warning(
-                "BLAST RTOE=%ds exceeds threshold (%ds), will use sync mode on retry", est, MAX_RTOE,
+                "BLAST RTOE=%ds exceeds threshold (%ds) — giving up on NCBI, caller falls back to EBI",
+                est, MAX_RTOE,
             )
-            last_error = f"NCBI estimated {est}s queue time (threshold {MAX_RTOE}s)"
-            if attempt < retries:
-                await asyncio.sleep(2)
-            continue
+            return {"error": f"NCBI estimated {est}s queue time (threshold {MAX_RTOE}s)"}
 
         if use_sync:
             # Sync mode: NCBI blocked and returned the result inline in the

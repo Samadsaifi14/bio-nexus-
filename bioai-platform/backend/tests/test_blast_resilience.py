@@ -251,6 +251,54 @@ def asyncio_run(coro):
     return asyncio.run(coro)
 
 
+class TestUnreasonableRtoeBails:
+    """Regression: when NCBI reports an enormous RTOE (overloaded), run_blast_with_retry
+    must return an error immediately so the caller's EBI fallback can run — it must NOT
+    `continue` into sync mode, which blocks 300s x3 and stalls the pipeline for ~15 min."""
+
+    async def _huge_rtoe_submit(self, *args, **kwargs):
+        return {"rid": "RID9", "estimated_seconds": 2300}
+
+    def test_huge_rtoe_returns_error_without_polling(self, monkeypatch, fake_clock):
+        monkeypatch.setattr(ncbi_blast, "submit_blast", self._huge_rtoe_submit)
+        called = {"submit_sync": False, "check": False}
+
+        async def fake_sync(*a, **k):
+            called["submit_sync"] = True
+            return {"error": "should never be used"}
+
+        async def fake_check(*a, **k):
+            called["check"] = True
+            return {"status": "READY", "rid": "x"}
+
+        monkeypatch.setattr(ncbi_blast, "submit_blast_sync", fake_sync)
+        monkeypatch.setattr(ncbi_blast, "check_status_until_ready", fake_check)
+
+        result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
+        assert "error" in result, result
+        assert "2300" in result["error"], result["error"]
+        assert not called["submit_sync"], "sync mode must not be attempted on huge RTOE"
+        assert not called["check"], "must not poll after bailing on huge RTOE"
+
+    def test_reasonable_rtoe_still_polls(self, monkeypatch, fake_clock):
+        async def good_submit(self, *args, **kwargs):
+            return {"rid": "RID10", "estimated_seconds": 5}
+
+        async def ready(*args, **kwargs):
+            return {"status": "READY", "raw": "Status=READY", "rid": args[0]}
+
+        async def fetch(rid, fmt="XML"):
+            return {"raw": "Status=READY", "rid": rid}
+
+        monkeypatch.setattr(ncbi_blast, "submit_blast", good_submit)
+        monkeypatch.setattr(ncbi_blast, "check_status_until_ready", ready)
+        monkeypatch.setattr(ncbi_blast, "fetch_results", fetch)
+
+        result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
+        assert "error" not in result, result
+        assert result["rid"] == "RID10"
+
+
 class TestEbiParseHits:
     """EBI BLAST JSON nests HSPs under 'hit_hsps' and returns identity/positive
     already as percentages. Regression: the old parser read 'hsps' (always empty),

@@ -16,6 +16,8 @@ import logging
 import os
 import random
 import tempfile
+import json
+from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException
@@ -208,6 +210,13 @@ def list_stages():
 @router.get("/demos")
 def list_demos():
     return {"demos": [{"id": key, **value} for key, value in _DEMO_PROFILES.items()]}
+
+
+@router.get("/benchmarks/portable")
+def portable_benchmark():
+    report_path = Path(__file__).resolve().parents[1] / "ngs" / "portable_benchmark_report.json"
+    with report_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
 
 
 @router.post("/detect")

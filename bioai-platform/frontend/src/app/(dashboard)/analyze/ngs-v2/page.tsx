@@ -1,11 +1,11 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
 import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise, ShieldWarning, ShieldCheck } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
-import { runNgs2Analyze } from '@/lib/api';
-import type { Ngs2AnalyzeResult } from '@/lib/api';
+import { getNgsPortableBenchmark, runNgs2Analyze } from '@/lib/api';
+import type { Ngs2AnalyzeResult, NgsPortableBenchmark } from '@/lib/api';
 import { validateScientificStages } from '@/lib/scientificIntegrity';
 import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
 import ScientificResultsWorkspace, { type ScientificStatus } from '@/components/results/ScientificResultsWorkspace';
@@ -14,6 +14,7 @@ import { ProvenancePanel } from '@/components/results/ProvenancePanel';
 import NgsArtifactPanel from '@/components/results/NgsArtifactPanel';
 import NgsEvidenceInterpretation from '@/components/results/NgsEvidenceInterpretation';
 import { NgsBenchmarkPanel } from '@/components/results/NgsBenchmarkPanel';
+import { NgsPortableBenchmarkCard } from '@/components/results/NgsPortableBenchmarkCard';
 import GenomeViewer from '@/components/GenomeViewer';
 
 const ASSAY_OPTIONS = [
@@ -51,6 +52,11 @@ export default function NgsV2Page() {
   const [runningDemo, setRunningDemo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<ExtendedResult | null>(null);
+  const [portableBenchmark, setPortableBenchmark] = useState<NgsPortableBenchmark | null>(null);
+
+  useEffect(() => {
+    getNgsPortableBenchmark().then(setPortableBenchmark).catch(() => setPortableBenchmark(null));
+  }, []);
 
   const resetResult = () => { setResult(null); setError(null); setRunningDemo(null); };
 
@@ -93,6 +99,7 @@ export default function NgsV2Page() {
   return <div className="scientific-page max-w-6xl space-y-6 pb-12">
     <BackButton />
     <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, genome inspection and an evidence-backed analysis-readiness decision." />
+    {portableBenchmark && <NgsPortableBenchmarkCard report={portableBenchmark} />}
 
     {!result && <>
       <motion.section variants={fadeUp} initial={{ y: 18 }} animate="show" className="data-card overflow-hidden">

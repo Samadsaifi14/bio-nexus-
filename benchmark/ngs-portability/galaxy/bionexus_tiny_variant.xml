@@ -1,0 +1,33 @@
+<tool id="bionexus_tiny_variant" name="Bio-Nexus tiny variant benchmark" version="1.0.0" profile="24.0">
+  <description>runs the portable samtools/bcftools calling contract</description>
+  <requirements>
+    <requirement type="package" version="1.24">samtools</requirement>
+    <requirement type="package" version="1.24">bcftools</requirement>
+  </requirements>
+  <command detect_errors="exit_code"><![CDATA[
+    SAMTOOLS_BIN="${SAMTOOLS_BIN:-samtools}" BCFTOOLS_BIN="${BCFTOOLS_BIN:-bcftools}"
+    bash '$__tool_directory__/../run_calling.sh'
+      '$reference' '$sam' '$calls_vcf' '$calls_tsv' '$metrics'
+  ]]></command>
+  <inputs>
+    <param name="reference" type="data" format="fasta" label="Reference FASTA" />
+    <param name="sam" type="data" format="sam" label="Coordinate-compatible SAM" />
+  </inputs>
+  <outputs>
+    <data name="calls_vcf" format="vcf" label="Filtered calls" />
+    <data name="calls_tsv" format="tabular" label="Normalized calls" />
+    <data name="metrics" format="json" label="Calling metrics" />
+  </outputs>
+  <tests>
+    <test>
+      <param name="reference" value="reference.fa" />
+      <param name="sam" value="reads.sam" />
+      <output name="calls_tsv" file="expected_calls.tsv" />
+      <output name="metrics" file="expected_metrics.json" compare="sim_size" delta="20" />
+    </test>
+  </tests>
+  <help><![CDATA[
+This deterministic positive-control wrapper uses the same command and filters as the Bio-Nexus
+and Nextflow portability benchmark. It is a workflow-conformance test, not clinical validation.
+  ]]></help>
+</tool>

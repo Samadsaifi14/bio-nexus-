@@ -1,0 +1,1 @@
+{"called_variants":1,"mapped_reads":20,"depth_at_truth":20,"filter":"QUAL>=20 && FORMAT/DP>=10"}

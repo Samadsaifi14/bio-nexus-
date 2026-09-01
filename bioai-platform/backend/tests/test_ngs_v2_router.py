@@ -40,6 +40,22 @@ def test_stages_lists_contracts(client):
     assert len(steps) == 21
 
 
+def test_portable_benchmark_reports_scoped_execution_parity(client):
+    response = client.get("/api/ngs/v2/benchmarks/portable")
+    assert response.status_code == 200
+    report = response.json()
+    assert report["status"] == "PASS"
+    assert report["workflow_output_parity"] is True
+    assert report["expected_call"] == {
+        "chrom": "chrTiny", "pos": 50, "ref": "C", "alt": "G",
+        "genotype": "0/1", "depth": 20, "allelic_depth": "10,10",
+    }
+    assert len({row["normalized_sha256"] for row in report["reports"]}) == 1
+    assert all(row["f1"] == 1.0 for row in report["reports"])
+    galaxy = next(row for row in report["reports"] if row["orchestrator"].startswith("Galaxy"))
+    assert galaxy["execution"] == "EXECUTED_WITHOUT_GALAXY_SERVER"
+
+
 def test_detect_returns_evidence(client, tmp_path):
     path, _ = _write_fastq(tmp_path, "HUM0001_R1.fastq.gz", 40)
     r = client.post("/api/ngs/v2/detect", json={"file_paths": [path]})

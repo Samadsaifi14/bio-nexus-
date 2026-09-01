@@ -936,6 +936,19 @@ export type Ngs2Visualization = {
   n_variants: number;
 };
 
+export type NgsPortableBenchmark = {
+  benchmark: string;
+  classification: string;
+  status: string;
+  workflow_output_parity: boolean;
+  biological_scope: string;
+  expected_call: { chrom: string; pos: number; ref: string; alt: string; genotype: string; depth: number; allelic_depth: string };
+  toolchain: Record<string, string>;
+  reports: Array<{ orchestrator: string; execution: string; normalized_sha256: string; tp: number; fp: number; fn: number; precision: number; recall: number; f1: number }>;
+  galaxy_validation: { wrapper_lint: string; local_server_test: string; reason: string };
+  limitations: string[];
+};
+
 export async function runNgs2Analyze(payload: {
   file_paths: string[];
   reference?: string;
@@ -952,6 +965,11 @@ export async function runNgs2Analyze(payload: {
     result.pipeline.stages = result.pipeline.stages.map(normalizeNgs2Stage);
   }
   return result;
+}
+
+export async function getNgsPortableBenchmark(): Promise<NgsPortableBenchmark> {
+  const res = await api.get('/api/ngs/v2/benchmarks/portable');
+  return res.data;
 }
 
 export async function listNgs2Stages(): Promise<Ngs2StageContract[]> {

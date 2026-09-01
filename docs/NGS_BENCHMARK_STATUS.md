@@ -9,6 +9,19 @@ Nextflow comparison or GIAB truth-set evaluation has completed. The current endp
 exploratory, sampled, surrogate implementation and must not be used for whole-run, research,
 diagnostic, or clinical conclusions.
 
+## Compact portability benchmark
+
+A separate synthetic positive control now runs without large downloads. It contains 20 mapped
+reads across a 200 bp reference and one known heterozygous SNP (`chrTiny:50 C>G`, `GT=0/1`,
+`DP=20`, `AD=10,10`). Bio-Nexus direct execution and Nextflow 26.04.6 produced byte-identical
+normalized call tables using samtools/bcftools 1.24. The Galaxy wrapper command produced the same
+table; wrapper lint passed, while a Galaxy 25.1 server bootstrap was interrupted by proxy failures.
+
+All three normalized tables have SHA-256
+`cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1` and score TP=1, FP=0,
+FN=0, precision=1.0, recall=1.0 and F1=1.0 against the synthetic truth. This proves only narrow
+workflow-output portability. It does not change the full-pipeline conclusion above.
+
 ## Defect found during validation review
 
 The FASTQ reader processes at most 2,000 records per input file. Earlier results did not expose

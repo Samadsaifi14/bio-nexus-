@@ -25,7 +25,14 @@ from pydantic import BaseModel
 
 from app.ngs.assays import AssayRouter
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
+from app.ngs.production import build_production_plan, evaluate_clinical_evidence
 from app.ngs.visualization import build_visualization
+from app.models.responses import (
+    NgsClinicalEvidenceRequest,
+    NgsClinicalEvidenceResponse,
+    NgsProductionPlanRequest,
+    NgsProductionPlanResponse,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ngs/v2", tags=["ngs-v2"])
@@ -217,6 +224,16 @@ def portable_benchmark():
     report_path = Path(__file__).resolve().parents[1] / "ngs" / "portable_benchmark_report.json"
     with report_path.open("r", encoding="utf-8") as handle:
         return json.load(handle)
+
+
+@router.post("/production/plan", response_model=NgsProductionPlanResponse)
+def production_plan(payload: NgsProductionPlanRequest):
+    return build_production_plan(payload)
+
+
+@router.post("/clinical/evaluate", response_model=NgsClinicalEvidenceResponse)
+def clinical_evidence(payload: NgsClinicalEvidenceRequest):
+    return evaluate_clinical_evidence(payload)
 
 
 @router.post("/detect")

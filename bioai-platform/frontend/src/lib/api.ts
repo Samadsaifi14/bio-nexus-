@@ -949,6 +949,77 @@ export type NgsPortableBenchmark = {
   limitations: string[];
 };
 
+export type NgsProductionPlanRequest = {
+  assay: 'WGS' | 'WES';
+  sample_model: 'singleton' | 'cohort' | 'duo' | 'trio' | 'family';
+  input_type: 'FASTQ' | 'BAM' | 'CRAM';
+  start_step: 'mapping' | 'markduplicates' | 'variant_calling';
+  samplesheet_path: string;
+  outdir: string;
+  genome: 'GRCh38' | 'GRCh37';
+  execution_profile: 'docker' | 'singularity' | 'apptainer' | 'slurm' | 'awsbatch';
+  caller: 'haplotypecaller' | 'deepvariant';
+  target_bed?: string;
+  custom_config?: string;
+  annotate_with_vep: boolean;
+  clinical_intent: boolean;
+};
+
+export type NgsProductionPlan = {
+  schema_version: string;
+  workflow: Record<string, string>;
+  state: 'PLANNED' | 'BLOCKED';
+  ready_to_launch: boolean;
+  blockers: string[];
+  warnings: string[];
+  command_argv: string[];
+  command_display: string;
+  required_artifacts: Array<{ id: string; required: boolean; description: string; patterns: string[] }>;
+  provenance_requirements: string[];
+  clinical_boundary: { clinical_intent: boolean; current_status: string; reason: string };
+};
+
+export type NgsClinicalEvidence = {
+  evidence_bundle_sha256?: string;
+  evidence_signature?: string;
+  assay_validation_id?: string;
+  workflow_status?: 'PLANNED' | 'COMPLETED' | 'FAILED';
+  sarek_revision?: string;
+  reference_build?: 'GRCh38' | 'GRCh37';
+  reference_manifest_sha256?: string;
+  samplesheet_sha256?: string;
+  container_digests_complete?: boolean;
+  complete_input_processed?: boolean;
+  required_artifacts_present?: boolean;
+  qc_pass?: boolean;
+  sample_identity_pass?: boolean;
+  contamination_pass?: boolean;
+  sex_ploidy_reviewed?: boolean;
+  truthset_name?: string;
+  benchmark_protocol_id?: string;
+  benchmark_acceptance_pass?: boolean;
+  confident_regions_sha256?: string;
+  same_sample_reference_regions?: boolean;
+  snv_precision?: number;
+  snv_recall?: number;
+  indel_precision?: number;
+  indel_recall?: number;
+  human_reviewed?: boolean;
+  reviewer_id?: string;
+  release_signature_id?: string;
+  unresolved_deviations?: string[];
+};
+
+export type NgsClinicalAssessment = {
+  schema_version: string;
+  status: 'SOFTWARE_GATE_PASSED' | 'NOT_CLINICALLY_RELEASABLE';
+  clinically_validated: false;
+  gates: Array<{ id: string; label: string; status: 'PASS' | 'FAIL'; evidence: string }>;
+  missing_or_failed: string[];
+  benchmark_summary: Record<string, unknown>;
+  disclaimer: string;
+};
+
 export async function runNgs2Analyze(payload: {
   file_paths: string[];
   reference?: string;
@@ -969,6 +1040,16 @@ export async function runNgs2Analyze(payload: {
 
 export async function getNgsPortableBenchmark(): Promise<NgsPortableBenchmark> {
   const res = await api.get('/api/ngs/v2/benchmarks/portable');
+  return res.data;
+}
+
+export async function buildNgsProductionPlan(payload: NgsProductionPlanRequest): Promise<NgsProductionPlan> {
+  const res = await api.post('/api/ngs/v2/production/plan', payload);
+  return res.data;
+}
+
+export async function evaluateNgsClinicalEvidence(payload: NgsClinicalEvidence): Promise<NgsClinicalAssessment> {
+  const res = await api.post('/api/ngs/v2/clinical/evaluate', payload);
   return res.data;
 }
 

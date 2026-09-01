@@ -15,6 +15,7 @@ import NgsArtifactPanel from '@/components/results/NgsArtifactPanel';
 import NgsEvidenceInterpretation from '@/components/results/NgsEvidenceInterpretation';
 import { NgsBenchmarkPanel } from '@/components/results/NgsBenchmarkPanel';
 import { NgsPortableBenchmarkCard } from '@/components/results/NgsPortableBenchmarkCard';
+import { NgsProductionSupportCard } from '@/components/results/NgsProductionSupportCard';
 import GenomeViewer from '@/components/GenomeViewer';
 
 const ASSAY_OPTIONS = [
@@ -99,6 +100,7 @@ export default function NgsV2Page() {
   return <div className="scientific-page max-w-6xl space-y-6 pb-12">
     <BackButton />
     <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, genome inspection and an evidence-backed analysis-readiness decision." />
+    <NgsProductionSupportCard defaultReference="GRCh38" />
     {portableBenchmark && <NgsPortableBenchmarkCard report={portableBenchmark} />}
 
     {!result && <>

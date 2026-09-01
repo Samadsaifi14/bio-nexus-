@@ -1,4 +1,6 @@
 import gzip
+import hashlib
+import hmac
 import os
 import random
 
@@ -7,6 +9,9 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from app.routers import ngs_v2
+from app.models.responses import NgsClinicalEvidenceRequest
+from app.ngs.production import clinical_signature_payload
+from app.config import settings
 
 
 @pytest.fixture(scope="module")
@@ -54,6 +59,105 @@ def test_portable_benchmark_reports_scoped_execution_parity(client):
     assert all(row["f1"] == 1.0 for row in report["reports"])
     galaxy = next(row for row in report["reports"] if row["orchestrator"].startswith("Galaxy"))
     assert galaxy["execution"] == "EXECUTED_WITHOUT_GALAXY_SERVER"
+
+
+def test_production_plan_pins_sarek_and_emits_auditable_argv(client):
+    response = client.post("/api/ngs/v2/production/plan", json={
+        "assay": "WGS",
+        "sample_model": "trio",
+        "input_type": "FASTQ",
+        "samplesheet_path": "/staged/family.csv",
+        "outdir": "/results/family",
+        "genome": "GRCh38",
+        "execution_profile": "docker",
+        "caller": "haplotypecaller",
+        "clinical_intent": True,
+    })
+    assert response.status_code == 200
+    plan = response.json()
+    assert plan["ready_to_launch"] is True
+    assert plan["state"] == "PLANNED"
+    assert plan["workflow"]["name"] == "nf-core/sarek"
+    assert plan["workflow"]["revision"] == "3.10.0"
+    assert plan["command_argv"][:5] == ["nextflow", "run", "nf-core/sarek", "-r", "3.10.0"]
+    assert ["--genome", "GATK.GRCh38"] == plan["command_argv"][plan["command_argv"].index("--genome"):plan["command_argv"].index("--genome") + 2]
+    assert "--joint_germline" in plan["command_argv"]
+    assert plan["clinical_boundary"]["current_status"] == "NOT_CLINICALLY_RELEASABLE"
+    assert {item["id"] for item in plan["required_artifacts"]} >= {"execution", "multiqc", "alignment", "small_variants", "provenance"}
+
+
+def test_production_wes_and_remote_executor_fail_closed(client):
+    response = client.post("/api/ngs/v2/production/plan", json={
+        "assay": "WES",
+        "samplesheet_path": "/staged/case.csv",
+        "outdir": "/results/case",
+        "execution_profile": "slurm",
+    })
+    assert response.status_code == 200
+    plan = response.json()
+    assert plan["state"] == "BLOCKED"
+    assert plan["ready_to_launch"] is False
+    assert any("target BED" in item for item in plan["blockers"])
+    assert any("custom configuration" in item for item in plan["blockers"])
+
+
+def test_clinical_gate_rejects_claims_without_evidence(client):
+    response = client.post("/api/ngs/v2/clinical/evaluate", json={})
+    assert response.status_code == 200
+    result = response.json()
+    assert result["status"] == "NOT_CLINICALLY_RELEASABLE"
+    assert result["clinically_validated"] is False
+    assert result["missing_or_failed"]
+    signature_gate = next(gate for gate in result["gates"] if gate["id"] == "evidence_signature")
+    assert signature_gate["status"] == "FAIL"
+
+
+def test_clinical_gate_passes_only_complete_signed_external_evidence(client, monkeypatch):
+    sha = "a" * 64
+    payload = {
+        "evidence_bundle_sha256": "d" * 64,
+        "assay_validation_id": "VAL-WGS-2026-04",
+        "workflow_status": "COMPLETED",
+        "sarek_revision": "3.10.0",
+        "reference_build": "GRCh38",
+        "reference_manifest_sha256": sha,
+        "samplesheet_sha256": "b" * 64,
+        "container_digests_complete": True,
+        "complete_input_processed": True,
+        "required_artifacts_present": True,
+        "qc_pass": True,
+        "sample_identity_pass": True,
+        "contamination_pass": True,
+        "sex_ploidy_reviewed": True,
+        "truthset_name": "GIAB HG002 v4.2.1",
+        "benchmark_protocol_id": "SOP-BENCH-07",
+        "benchmark_acceptance_pass": True,
+        "confident_regions_sha256": "c" * 64,
+        "same_sample_reference_regions": True,
+        "snv_precision": 0.999,
+        "snv_recall": 0.998,
+        "indel_precision": 0.995,
+        "indel_recall": 0.994,
+        "human_reviewed": True,
+        "reviewer_id": "reviewer-17",
+        "release_signature_id": "sig-2026-09-01-001",
+    }
+    signing_key = "test-only-clinical-attestation-key"
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_HMAC_KEY", signing_key)
+    evidence = NgsClinicalEvidenceRequest(**payload)
+    payload["evidence_signature"] = hmac.new(
+        signing_key.encode("utf-8"), clinical_signature_payload(evidence), hashlib.sha256,
+    ).hexdigest()
+    response = client.post("/api/ngs/v2/clinical/evaluate", json=payload)
+    assert response.status_code == 200
+    result = response.json()
+    assert result["status"] == "SOFTWARE_GATE_PASSED"
+    assert result["clinically_validated"] is False
+    assert result["missing_or_failed"] == []
+
+    payload["truthset_name"] = "synthetic positive control"
+    rejected = client.post("/api/ngs/v2/clinical/evaluate", json=payload).json()
+    assert rejected["status"] == "NOT_CLINICALLY_RELEASABLE"
 
 
 def test_detect_returns_evidence(client, tmp_path):

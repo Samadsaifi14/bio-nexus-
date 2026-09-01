@@ -77,3 +77,33 @@ report is ingested, all comparison entries remain `NOT_EVALUATED` and all accura
 A benchmark may change to `EVALUATED` only when its report includes input and resource checksums,
 the query VCF checksum, truth VCF/BED versions, benchmark command, evaluator version, stratified
 metrics, logs, and an artifact location. Missing evidence keeps the status `NOT_EVALUATED`.
+
+## Production WGS/WES support
+
+Bio-Nexus now exposes a production launch planner at `POST /api/ngs/v2/production/plan` for
+human WGS and WES from FASTQ, BAM or CRAM inputs. It supports singleton, cohort, duo, trio and
+family models across Docker, Singularity, Apptainer, SLURM and AWS Batch execution profiles.
+Plans pin `nf-core/sarek` 3.10.0, return a non-shell argument array, declare required artifacts
+and provenance, and block incomplete WES or cluster/cloud plans before launch.
+
+The planner is not the compute worker. The deployment must stage private inputs and references
+on an authorized durable worker, execute the returned argument array without shell interpolation,
+then import the actual run trace, reports, checksums, QC, alignment and variant artifacts. Until
+that import is implemented and completes, the plan remains `PLANNED` and never `EXECUTED`.
+
+## Clinical-intent software gate
+
+`POST /api/ngs/v2/clinical/evaluate` evaluates a signed evidence package. The gate requires:
+
+- a server-verified signature over the full evidence payload;
+- an assay-validation record and completed pinned workflow;
+- reference, sample-sheet, input and container provenance;
+- required artifacts plus run, identity, contamination and sex/ploidy QC;
+- a non-synthetic truth set, confident-region checksum, matched sample/reference/regions,
+  class-specific SNP/INDEL metrics and a passed approved benchmark protocol;
+- authorized human review, release signature and no unresolved deviations.
+
+If `NGS_CLINICAL_EVIDENCE_HMAC_KEY` is not configured, or any required evidence is missing, the
+gate returns `NOT_CLINICALLY_RELEASABLE`. A complete signed package can return
+`SOFTWARE_GATE_PASSED`, but `clinically_validated` remains `false`: the software does not replace
+laboratory validation, accreditation, jurisdictional compliance or report authorization.

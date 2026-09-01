@@ -227,7 +227,10 @@ async def run_blast_with_retry(
     NOT sufficient because a slow trickle of bytes resets it each time.
     """
     last_error = None
-    MAX_RTOE = 300  # if RTOE exceeds this, switch to sync mode
+    # If NCBI estimates a queue longer than this, don't wait — an overloaded
+    # NCBI can cost 10-15 min of sync-blocks + retries before the caller falls
+    # back to EBI. Bail out immediately so the EBI fallback takes over.
+    MAX_RTOE = 90
     # Hard wall-clock deadline: 1.5x the per-attempt poll budget.
     # Covers submit time + back-off sleep + a generous margin.
     HARD_DEADLINE_S = max(int(max_wait_seconds * 1.5), max_wait_seconds + 120)

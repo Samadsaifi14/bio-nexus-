@@ -713,6 +713,19 @@ async def _run_blast(
         except Exception:
             pass
 
+    # EBI is fast & reliable (~30s) and returns UniProt accessions the rest of
+    # the pipeline consumes directly. NCBI chronically stalls (long WAITING
+    # even with an API key), so run EBI FIRST and fall back to NCBI.
+    ebi_result = await _run_ebi_blast_fallback(sequence, program, database, seq_type, max_hits)
+    if ebi_result is not None:
+        if status_callback:
+            try:
+                await status_callback("parsing")
+            except Exception:
+                pass
+        return ebi_result
+
+    # EBI unavailable for this database or failed — try NCBI before failing.
     ncbi_error: str | None = None
     results = await ncbi_blast.run_blast_with_retry(
         sequence,
@@ -745,15 +758,8 @@ async def _run_blast(
     else:
         ncbi_error = results["error"]
 
-    # NCBI failed (timeout/stuck/overload) or returned unparsable output —
-    # try EBI before failing the job, so a single degraded provider doesn't
-    # kill the whole pipeline.
-    logger.warning("NCBI BLAST unavailable (%s) — falling back to EBI BLAST", ncbi_error)
-    ebi_result = await _run_ebi_blast_fallback(sequence, program, database, seq_type, max_hits)
-    if ebi_result is not None:
-        return ebi_result
-
-    return {"error": ncbi_error or "BLAST failed via NCBI and EBI", "count": 0, "hits": []}
+    logger.warning("EBI BLAST unavailable and NCBI failed (%s)", ncbi_error)
+    return {"error": ncbi_error or "BLAST failed via EBI and NCBI", "count": 0, "hits": []}
 
 
 async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_sequence: bool = True) -> dict:

@@ -127,13 +127,51 @@ class TestStuckThreshold:
 
 
 class TestPipelineBlastFallback:
-    def test_ncbi_success_shape(self, monkeypatch):
+    """EBI is now the PRIMARY provider (fast & reliable, ~30s); NCBI is the
+    fallback. Tests assert EBI-first ordering and the NCBI fallback path."""
+
+    def _fake_ebi_tool(self, hits):
+        class _FakeBlastTool:
+            async def run_uncached(self, input):
+                return {"hits": hits, "count": len(hits) if isinstance(hits, list) else 0,
+                        "source": "EBI BLAST", "database": "uniprotkb"}
+        return _FakeBlastTool
+
+    def test_ebi_success_never_calls_ncbi(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        called = {"ncbi": False}
+        async def fake_run_blast_with_retry(*args, **kwargs):
+            called["ncbi"] = True
+            return {"raw": SAMPLE_XML, "rid": "RID-X"}
+
+        hits = [{
+            "accession": "Q9H2H9", "description": "CCHC-type zinc finger protein 3",
+            "organism": "Homo sapiens", "evalue": 1e-30, "bit_score": 210.0,
+            "identity_pct": 98.7, "alignment_length": 152, "query_coverage_pct": 0,
+            "query_from": 1, "query_to": 152, "hit_from": 1, "hit_to": 152,
+        }]
+        monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
+        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool(hits))
+        result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
+        assert result["source"] == "ebi"
+        assert result["count"] == 1
+        assert result["top_hit"]["accession"] == "Q9H2H9"
+        assert result["database"] == "nr"  # reports the requested db, not EBI's
+        assert result["hits"][0]["organism"] == "Homo sapiens"
+        assert result["hits"][0]["hit_alignment"] == ""  # EBI lacks alignment text
+        assert result["hits"][0]["query_coverage_pct"] == pytest.approx(round(152 / len(PROTEIN_SEQ) * 100, 1))
+        assert called["ncbi"] is False, "NCBI must not be called when EBI succeeds"
+
+    def test_ebi_empty_then_ncbi_success(self, monkeypatch):
         from app.routers import pipeline_v2
 
         async def fake_run_blast_with_retry(*args, **kwargs):
             return {"raw": SAMPLE_XML, "rid": "RID-X"}
 
+        # EBI returns no hits → NCBI fallback must produce the NCBI-shaped result
         monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
+        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool([]))
         result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
         assert result["source"] == "ncbi"
         assert result["count"] == 1
@@ -145,60 +183,14 @@ class TestPipelineBlastFallback:
         assert result["hits"][0]["query_alignment"] == "AAAAA--"
         assert result["hits"][0]["midline"] == "AAAAA  "
 
-    def test_ncbi_failure_falls_back_to_ebi(self, monkeypatch):
-        from app.routers import pipeline_v2
-
-        async def fake_run_blast_with_retry(*args, **kwargs):
-            return {"error": "BLAST STUCK after polling (attempt 3/3): Job stuck in WAITING for 188.75s"}
-
-        class FakeEbiTool:
-            async def run_uncached(self, input):
-                assert input["database"] == "uniprotkb"  # nr mapped to EBI db
-                assert input["program"] == "blastp"
-                return {
-                    "hits": [{
-                        "accession": "Q9H2H9",
-                        "id": "tr|Q9H2H9|Q9H2H9_HUMAN",
-                        "description": "CCHC-type zinc finger protein 3",
-                        "organism": "Homo sapiens",
-                        "evalue": 1e-30,
-                        "bit_score": 210.0,
-                        "identity_pct": 98.7,
-                        "alignment_length": 152,
-                        "query_coverage_pct": 0,
-                        "query_from": 1,
-                        "query_to": 152,
-                        "hit_from": 1,
-                        "hit_to": 152,
-                    }],
-                    "count": 1,
-                    "source": "EBI BLAST",
-                    "database": "uniprotkb",
-                }
-
-        monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
-        monkeypatch.setattr(pipeline_v2, "BlastTool", FakeEbiTool)
-        result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
-        assert result["source"] == "ebi"
-        assert result["count"] == 1
-        assert result["top_hit"]["accession"] == "Q9H2H9"
-        assert result["database"] == "nr"  # reports the requested db, not EBI's
-        assert result["hits"][0]["organism"] == "Homo sapiens"
-        assert result["hits"][0]["hit_alignment"] == ""  # EBI lacks alignment text
-        assert result["hits"][0]["query_coverage_pct"] == pytest.approx(round(152 / len(PROTEIN_SEQ) * 100, 1))
-
     def test_both_providers_fail_returns_error(self, monkeypatch):
         from app.routers import pipeline_v2
 
         async def fake_run_blast_with_retry(*args, **kwargs):
             return {"error": "BLAST STUCK after polling (attempt 3/3): Job stuck in WAITING for 188.75s"}
 
-        class EmptyEbiTool:
-            async def run_uncached(self, input):
-                return {"error": "EBI down", "hits": []}
-
         monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
-        monkeypatch.setattr(pipeline_v2, "BlastTool", EmptyEbiTool)
+        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool([]))
         result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
         assert result["error"]
         assert "STUCK" in result["error"]

@@ -900,6 +900,9 @@ export type Ngs2AnalyzeResult = {
     reference: string;
     synthetic_reference: boolean;
     reads_loaded: Record<string, number>;
+    record_cap_per_file: number;
+    truncated_files: string[];
+    all_records_processed: boolean;
   };
   pipeline: {
     pipeline: string;
@@ -911,8 +914,13 @@ export type Ngs2AnalyzeResult = {
     provenance: Record<string, unknown>;
     validation: {
       claim: string;
+      analysis_grade: string;
+      research_ready: boolean;
       summary: string;
       same_or_better_supported: boolean;
+      surrogate_stages: string[];
+      production_requirements: Array<{ id: string; label: string; required: boolean; detail: string; status: string; evidence: string | null }>;
+      input_sampling?: { mode: string; record_cap_per_file: number; truncated_files: string[]; all_records_processed: boolean };
       comparisons: Ngs2BenchmarkComparison[];
     };
   };

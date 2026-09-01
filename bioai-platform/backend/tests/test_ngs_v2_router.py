@@ -99,6 +99,25 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     assert len(validation["comparisons"]) >= 3
     assert all(item["status"] != "EVALUATED" for item in validation["comparisons"])
     assert all(item["metrics"] is None for item in validation["comparisons"])
+    assert validation["analysis_grade"] == "EXPLORATORY_PREVIEW"
+    assert validation["research_ready"] is False
+    assert all(item["status"] == "MISSING" for item in validation["production_requirements"])
+    assert body["requested"]["all_records_processed"] is True
+
+
+def test_analyze_discloses_fastq_sampling(client, tmp_path):
+    r1, _ = _write_fastq(tmp_path, "HG002_R1.fastq.gz", 2001, seed=21)
+    r2, _ = _write_fastq(tmp_path, "HG002_R2.fastq.gz", 2001, seed=22)
+    response = client.post("/api/ngs/v2/analyze", json={
+        "file_paths": [r1, r2], "reference": "grch38", "assay": "WGS",
+        "synthetic_reference": True,
+    })
+    assert response.status_code == 200
+    body = response.json()
+    assert body["requested"]["record_cap_per_file"] == 2000
+    assert body["requested"]["all_records_processed"] is False
+    assert sorted(body["requested"]["truncated_files"]) == ["HG002_R1.fastq.gz", "HG002_R2.fastq.gz"]
+    assert body["pipeline"]["validation"]["input_sampling"]["mode"] == "SAMPLED_PREVIEW"
 
 
 def test_analyze_emits_igv_tracks(client, tmp_path):

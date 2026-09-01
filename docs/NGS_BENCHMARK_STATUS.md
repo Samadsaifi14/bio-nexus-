@@ -1,0 +1,66 @@
+# NGS benchmark status
+
+Last reviewed: 2026-09-01
+
+## Current conclusion
+
+Bio-Nexus NGS v2 has **not** been shown to match or outperform nf-core/sarek. No same-input
+Nextflow comparison or GIAB truth-set evaluation has completed. The current endpoint is an
+exploratory, sampled, surrogate implementation and must not be used for whole-run, research,
+diagnostic, or clinical conclusions.
+
+## Defect found during validation review
+
+The FASTQ reader processes at most 2,000 records per input file. Earlier results did not expose
+that cap and could display an analysis-readiness label. The API and UI now disclose the cap,
+list truncated files, label the analysis `EXPLORATORY_PREVIEW`, and set `research_ready=false`.
+
+## Full HG002 comparison requested
+
+The intended independent validation uses the same:
+
+- GIAB HG002 paired-end whole-genome reads;
+- GRCh38 reference sequence and contig naming;
+- GIAB HG002 benchmark VCF and benchmark BED;
+- sample metadata, intervals, and filtering policy;
+- variant classes and benchmark regions.
+
+The reference comparator is nf-core/sarek 3.10.0 under Nextflow, with exact pipeline revision,
+profile, containers, commands, checksums and resource versions retained. The Bio-Nexus callset
+and the selected Sarek callset must each be evaluated independently with GA4GH hap.py or vcfeval.
+
+Required reported metrics:
+
+1. SNP and INDEL true positives, false positives and false negatives.
+2. Precision, recall and F1 for SNPs and INDELs separately.
+3. Genotype concordance and no-call counts.
+4. Stratified performance in difficult-to-map, low-complexity, MHC and medically relevant regions.
+5. Callable-region and benchmark-region denominators.
+6. Coverage, duplication, insert size, mapping, contamination, sex and identity QC.
+7. Runtime, peak memory, storage, tool/container versions and complete provenance.
+
+“Same or better” is allowed only for a named metric and matched stratum when the measured value
+supports it. It must never be generalized from one caller, region, sample, or variant class to the
+whole pipeline.
+
+## Current execution blockers
+
+Preflight on 2026-09-01 found:
+
+- 29 GB free storage, 15 GiB RAM, 9 CPUs and no swap;
+- no Nextflow, Docker, Singularity or Apptainer;
+- no samtools, bcftools, BWA-MEM2, GATK or DeepVariant;
+- no HG002 WGS FASTQs or matching GIAB truth VCF/BED;
+- no configured GRCh38 FASTA, indexes, dictionary, annotation, known-sites or blacklist bundle;
+- repository inputs consist only of two tiny single-end cleaned FASTQs with no truth data.
+
+This workspace therefore cannot execute the selected full-genome comparison. A storage-backed
+HPC or cloud runner with a container runtime is required. Until a completed signed benchmark
+report is ingested, all comparison entries remain `NOT_EVALUATED` and all accuracy claims remain
+`NO_ACCURACY_CLAIM`.
+
+## Acceptance gate
+
+A benchmark may change to `EVALUATED` only when its report includes input and resource checksums,
+the query VCF checksum, truth VCF/BED versions, benchmark command, evaluator version, stratified
+metrics, logs, and an artifact location. Missing evidence keeps the status `NOT_EVALUATED`.

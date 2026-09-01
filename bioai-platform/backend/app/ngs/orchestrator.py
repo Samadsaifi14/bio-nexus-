@@ -68,6 +68,25 @@ BENCHMARK_REGISTRY = [
     },
 ]
 
+PRODUCTION_REQUIREMENTS = [
+    {"id": "complete_input", "label": "Complete FASTQ ingestion", "required": True,
+     "detail": "All records processed; no preview cap or silent subsampling."},
+    {"id": "production_alignment", "label": "Production read alignment", "required": True,
+     "detail": "Executed BWA-MEM2/DRAGMAP or another validated aligner with command and version."},
+    {"id": "bam_artifacts", "label": "Indexed alignment artifacts", "required": True,
+     "detail": "Coordinate-sorted BAM/CRAM, index, flagstat, idxstats and alignment metrics."},
+    {"id": "recalibration", "label": "Reference-matched recalibration", "required": True,
+     "detail": "BQSR or a documented no-BQSR workflow using build-matched known sites."},
+    {"id": "production_calls", "label": "Production germline callset", "required": True,
+     "detail": "Caller-generated VCF/gVCF with genotype, DP, GQ, AD, filters and index."},
+    {"id": "sample_qc", "label": "Sample QC and identity", "required": True,
+     "detail": "Coverage, duplication, insert size, contamination, sex and concordance when applicable."},
+    {"id": "truth_benchmark", "label": "GIAB/GA4GH truth comparison", "required": True,
+     "detail": "hap.py/vcfeval precision, recall and F1 inside the matching benchmark BED, stratified by SNP/INDEL."},
+    {"id": "reproducibility", "label": "Reproducible execution record", "required": True,
+     "detail": "Reference/resource checksums, exact commands, pipeline revision and container digests."},
+]
+
 
 class Pipeline:
     """Runs an ordered list of StageContracts over a shared sample/state context."""
@@ -157,6 +176,9 @@ class Pipeline:
         }
 
     def report(self) -> dict:
+        surrogate_stages = [r.step for r in self.results if r.evidence_level == "SURROGATE"]
+        requirements = [{**item, "status": "MISSING", "evidence": None}
+                        for item in PRODUCTION_REQUIREMENTS]
         return {
             "pipeline": self.name,
             "pipeline_version": self.version,
@@ -168,8 +190,12 @@ class Pipeline:
             "provenance": self.provenance,
             "validation": {
                 "claim": "NO_ACCURACY_CLAIM",
-                "summary": "No public truth-set comparison was executed for this run.",
+                "analysis_grade": "EXPLORATORY_PREVIEW",
+                "research_ready": False,
+                "summary": "This internal sampled/surrogate workflow has not been validated against a public truth set.",
                 "same_or_better_supported": False,
+                "surrogate_stages": surrogate_stages,
+                "production_requirements": requirements,
                 "comparisons": BENCHMARK_REGISTRY,
             },
         }

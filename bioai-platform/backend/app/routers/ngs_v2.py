@@ -27,6 +27,7 @@ from app.ngs.visualization import build_visualization
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ngs/v2", tags=["ngs-v2"])
+FASTQ_RECORD_CAP_PER_FILE = 2000
 
 _DETECTOR = AssayRouter()
 
@@ -101,7 +102,7 @@ class DetectRequest(BaseModel):
     metadata: dict = {}
 
 
-def _read_fastq(path: str, cap: int = 2000) -> list[tuple[str, str, str]]:
+def _read_fastq(path: str, cap: int = FASTQ_RECORD_CAP_PER_FILE) -> tuple[list[tuple[str, str, str]], bool]:
     if not os.path.isfile(path):
         raise HTTPException(status_code=400, detail=f"file not found: {path}")
     reads: list[tuple[str, str, str]] = []
@@ -118,9 +119,10 @@ def _read_fastq(path: str, cap: int = 2000) -> list[tuple[str, str, str]]:
                 if not name.startswith("@") or not plus.startswith("+"):
                     continue
                 reads.append((name[1:].split()[0], seq, qual))
+            truncated = bool(fh.readline())
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"failed to read {path}: {exc}")
-    return reads
+    return reads, truncated
 
 
 def _demo_sequence(rng: random.Random, length: int = 150) -> str:
@@ -223,9 +225,12 @@ def analyze(payload: AnalyzeRequest):
         raise HTTPException(status_code=400, detail="provide file_paths, fastq_url, or demo_profile")
 
     reads_all: dict[str, list[tuple[str, str, str]]] = {}
+    truncated_inputs: list[str] = []
     for f in files:
-        got = _read_fastq(f)
+        got, truncated = _read_fastq(f)
         reads_all[f] = got
+        if truncated:
+            truncated_inputs.append(os.path.basename(f))
         if not got:
             raise HTTPException(status_code=400, detail=f"no FASTQ records read from {f}")
 
@@ -253,6 +258,17 @@ def analyze(payload: AnalyzeRequest):
 
     pipe = build_dag(assay)
     report = pipe.run(sample)
+    report["validation"]["input_sampling"] = {
+        "mode": "SAMPLED_PREVIEW" if truncated_inputs else "COMPLETE_FOR_SUPPLIED_FILES",
+        "record_cap_per_file": FASTQ_RECORD_CAP_PER_FILE,
+        "truncated_files": truncated_inputs,
+        "all_records_processed": not truncated_inputs,
+    }
+    if truncated_inputs:
+        report["warnings"].append(
+            f"Only the first {FASTQ_RECORD_CAP_PER_FILE} records per FASTQ were analyzed; "
+            "this result is a sampled preview and cannot support whole-run QC or variant conclusions."
+        )
     return {
         "detection": detection,
         "requested": {
@@ -262,6 +278,9 @@ def analyze(payload: AnalyzeRequest):
             "demo_profile": payload.demo_profile,
             "reads_loaded": {os.path.basename(f): len(reads_all[f]) for f in files},
             "reads_analyzed": len(combined_reads),
+            "record_cap_per_file": FASTQ_RECORD_CAP_PER_FILE,
+            "truncated_files": truncated_inputs,
+            "all_records_processed": not truncated_inputs,
         },
         "demo": demo,
         "pipeline": report,

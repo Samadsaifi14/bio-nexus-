@@ -306,7 +306,7 @@ async def run_blast_with_retry(
         per_attempt_budget = min(max_wait_seconds, int(remaining) - 30)  # 30s margin for fetch
         if per_attempt_budget < 30:
             logger.warning("BLAST: only %.0fs left of hard deadline, skipping poll", remaining)
-            last_error = f"BLAST: insufficient time remaining ({remaining:.0fs}s) for poll"
+            last_error = f"BLAST: insufficient time remaining ({remaining:.0f}s) for poll"
             continue
 
         try:

@@ -298,6 +298,37 @@ class TestUnreasonableRtoeBails:
         assert "error" not in result, result
         assert result["rid"] == "RID10"
 
+    def test_low_remaining_budget_does_not_crash(self, monkeypatch, fake_clock):
+        """Regression: the per-attempt budget guard used an invalid f-string format
+        ({remaining:.0fs}) that raised ValueError and failed the whole job instead
+        of returning a readable error. It must return a clean error dict."""
+        import time as _time
+
+        wall = {"t": 0.0}
+        real_monotonic = _time.monotonic
+
+        def monkey_monotonic():
+            return wall["t"]
+
+        class _FakeSub:
+            async def __call__(self, *a, **k):
+                # advance the wall clock so the remaining budget is < 30s
+                wall["t"] = 900.0
+                return {"rid": "RID11", "estimated_seconds": 5}
+
+        async def never_poll(*a, **k):
+            raise AssertionError("must not poll when budget is exhausted")
+
+        monkeypatch.setattr(_time, "monotonic", monkey_monotonic)
+        monkeypatch.setattr(ncbi_blast, "submit_blast", _FakeSub())
+        monkeypatch.setattr(ncbi_blast, "check_status_until_ready", never_poll)
+
+        try:
+            result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
+            assert "error" in result, result
+        finally:
+            _time.monotonic = real_monotonic
+
 
 class TestEbiParseHits:
     """EBI BLAST JSON nests HSPs under 'hit_hsps' and returns identity/positive

@@ -123,6 +123,7 @@ def stage15_contract() -> StageContract:
         ],
         fail_blocks=False,
         run=_stage15_run,
+        evidence_level="SURROGATE",
     )
 
 

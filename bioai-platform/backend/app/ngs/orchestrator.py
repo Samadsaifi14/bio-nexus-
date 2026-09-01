@@ -35,6 +35,39 @@ from app.ngs.contracts import (
 
 logger = logging.getLogger(__name__)
 
+BENCHMARK_REGISTRY = [
+    {
+        "id": "giab-hg002-v4.2.1",
+        "source": "NIST Genome in a Bottle",
+        "scope": "HG002 germline small variants within benchmark regions",
+        "comparison_method": "GA4GH hap.py or vcfeval, stratified by variant type and genome context",
+        "url": "https://www.nist.gov/programs-projects/genome-bottle",
+        "status": "NOT_EVALUATED",
+        "metrics": None,
+        "reason": "This run did not supply HG002 reads, the matching truth VCF and benchmark BED, or a GA4GH comparison report.",
+    },
+    {
+        "id": "precisionfda-truth-v2",
+        "source": "FDA precisionFDA Truth Challenge V2",
+        "scope": "HG002/HG003/HG004 variants, including difficult-to-map regions",
+        "comparison_method": "Challenge-compatible precision, recall and F1 by region and variant class",
+        "url": "https://precision.fda.gov/challenges/10/results",
+        "status": "NOT_EVALUATED",
+        "metrics": None,
+        "reason": "No challenge-compatible callset and stratified evaluation output were produced by this run.",
+    },
+    {
+        "id": "seqc-gse47774",
+        "source": "NCBI GEO / SEQC consortium",
+        "scope": "RNA-seq accuracy and reproducibility reference dataset GSE47774",
+        "comparison_method": "Expression accuracy, replicate correlation and differential-expression reproducibility",
+        "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE47774",
+        "status": "NOT_APPLICABLE",
+        "metrics": None,
+        "reason": "This WGS/WES workflow does not produce RNA-seq expression estimates.",
+    },
+]
+
 
 class Pipeline:
     """Runs an ordered list of StageContracts over a shared sample/state context."""
@@ -117,7 +150,8 @@ class Pipeline:
             "inputs": files,
             "reference": reference,
             "tools": [
-                {"stage": r.step, "name": r.tool, "version": r.version}
+                {"stage": r.step, "implementation": r.tool, "version": r.version,
+                 "evidence_level": r.evidence_level}
                 for r in self.results
             ],
         }
@@ -132,6 +166,12 @@ class Pipeline:
             "warnings": self.warnings,
             "stages": [r.to_dict() for r in self.results],
             "provenance": self.provenance,
+            "validation": {
+                "claim": "NO_ACCURACY_CLAIM",
+                "summary": "No public truth-set comparison was executed for this run.",
+                "same_or_better_supported": False,
+                "comparisons": BENCHMARK_REGISTRY,
+            },
         }
 
     def _overall_status(self) -> QcStatus:

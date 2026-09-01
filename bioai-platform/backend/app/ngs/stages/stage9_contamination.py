@@ -104,6 +104,7 @@ def stage9_contract() -> StageContract:
         ],
         fail_blocks=True,   # contamination FAIL blocks downstream variant calling
         run=_stage9_run,
+        evidence_level="SURROGATE",
     )
 
 

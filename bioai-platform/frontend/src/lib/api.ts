@@ -832,7 +832,9 @@ export type Ngs2Detection = {
 
 export type Ngs2StageContract = {
   step: string;
-  tool: string;
+  operation: string;
+  implementation: string;
+  evidence_level: string;
   inputs: string[];
   outputs: string[];
   fail_blocks: boolean;
@@ -860,6 +862,18 @@ export type Ngs2Stage = {
   } | null;
   decision: string;
   data: Record<string, unknown>;
+  evidence_level: string;
+};
+
+export type Ngs2BenchmarkComparison = {
+  id: string;
+  source: string;
+  scope: string;
+  comparison_method: string;
+  url: string;
+  status: 'EVALUATED' | 'NOT_EVALUATED' | 'NOT_APPLICABLE';
+  metrics: Record<string, number> | null;
+  reason: string;
 };
 
 type LegacyNgs2Stage = Omit<Ngs2Stage, 'inputs' | 'outputs'> & {
@@ -895,6 +909,12 @@ export type Ngs2AnalyzeResult = {
     warnings: string[];
     stages: Ngs2Stage[];
     provenance: Record<string, unknown>;
+    validation: {
+      claim: string;
+      summary: string;
+      same_or_better_supported: boolean;
+      comparisons: Ngs2BenchmarkComparison[];
+    };
   };
   visualization: Ngs2Visualization;
 };

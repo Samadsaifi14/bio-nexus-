@@ -90,6 +90,15 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     assert len(provenance["inputs"]) == 2
     assert all(item["checksum"]["algorithm"] == "md5" for item in provenance["inputs"])
     assert len(provenance["tools"]) == 21
+    assert all("implementation" in item for item in provenance["tools"])
+    assert all("evidence_level" in stage for stage in stages)
+
+    validation = body["pipeline"]["validation"]
+    assert validation["claim"] == "NO_ACCURACY_CLAIM"
+    assert validation["same_or_better_supported"] is False
+    assert len(validation["comparisons"]) >= 3
+    assert all(item["status"] != "EVALUATED" for item in validation["comparisons"])
+    assert all(item["metrics"] is None for item in validation["comparisons"])
 
 
 def test_analyze_emits_igv_tracks(client, tmp_path):

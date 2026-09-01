@@ -145,6 +145,16 @@ Full build history and what's shipped in each phase lives in `IMPLEMENTATION_LOG
 | Outreach | Target M.Sc./PhD/MBBS students directly — "walk me through the last sequence you tried to analyze" |
 | Architecture discipline | New tools become new pipeline modules; the aggregator/AI/viz layers never get bolted-on special cases |
 
+### NGS evidence transparency acceptance criteria (September 2026)
+
+- Results name the scientific operation, not a crowded list of possible tools.
+- Every stage reports whether its output was directly measured, internally computed, inferred, or produced by a surrogate method.
+- A tool/version is reported only when that implementation actually executed; candidate or compatible tools are never shown as executed.
+- Synthetic demonstrations are permanently labelled and cannot support biological or accuracy claims.
+- Accuracy is reported only after comparison with a recognized truth set in its benchmark regions, with precision, recall and F1 split by variant class.
+- GIAB/GA4GH, precisionFDA and SEQC are registered as external comparison sources; an unexecuted comparison displays `NOT_EVALUATED`, never a fabricated score.
+- “Same or better” is permitted only when an executed, reproducible benchmark supports the claim for the same sample, reference build, confident regions and metric.
+
 ---
 
 ## 7. Weekly Rhythm

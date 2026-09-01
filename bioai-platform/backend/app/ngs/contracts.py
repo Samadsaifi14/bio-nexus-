@@ -227,6 +227,7 @@ class StageResult:
     qc: Optional[QcResult] = None
     decision: Decision = Decision.CONTINUE
     data: dict = field(default_factory=dict)   # stage-specific payload (parsed results)
+    evidence_level: str = "INTERNAL_COMPUTATION"
 
     def to_dict(self) -> dict:
         return {
@@ -241,6 +242,7 @@ class StageResult:
             "qc": self.qc.to_dict() if self.qc else None,
             "decision": self.decision.value,
             "data": self.data,
+            "evidence_level": self.evidence_level,
         }
 
 
@@ -269,6 +271,7 @@ class StageContract:
     fail_blocks: bool = True
     run: Optional[Callable[[dict, dict], tuple[dict, dict]]] = None
     expectation: Optional[str] = None
+    evidence_level: str = "INTERNAL_COMPUTATION"
 
     def resolve_rules(self, sample: dict) -> list[ThresholdRule]:
         if callable(self.rules):
@@ -302,6 +305,7 @@ def run_contract(contract: StageContract, sample: dict, stage_state: dict) -> St
         qc=qc,
         decision=qc.decision,
         data=data,
+        evidence_level=contract.evidence_level,
     )
 
 

@@ -15,9 +15,6 @@ feeds Stage 6 (BAM processing), Stage 7 (alignment QC) and Stage 8 (coverage).
 
 from __future__ import annotations
 
-import os
-import shutil
-import subprocess
 from typing import Optional
 
 from app.ngs.contracts import QcStatus, StageContract, ThresholdRule
@@ -38,10 +35,6 @@ def choose_aligner(assay: str, read_length: Optional[int]) -> str:
     return "bwa-mem2"
 
 
-def _find_tool(name: str) -> Optional[str]:
-    return shutil.which(name)
-
-
 def _align_python(
     ref_seq: str,
     reads: list[tuple[str, str, str]],
@@ -59,21 +52,15 @@ def align(
 ) -> tuple[list[dict], dict]:
     """Align reads to a reference sequence. Returns (SAM records, meta).
 
-    External tools are used when available; otherwise the pure-Python fallback runs. The
-    selection and execution record both go into the provenance/meta so it's auditable.
+    This endpoint currently executes the platform's seed-based Python aligner. The recommended
+    production aligner is recorded separately and must never be represented as executed.
     """
     aligner = choose_aligner(assay, read_length)
-    used_external = False
-    tool = _find_tool(aligner)
-    if tool:
-        used_external = True
-        # Real BWA/STAR would consume FASTQ + reference FASTA; for the surrogate we still
-        # produce records from the Python aligner but record the intended external tool.
     records = _align_python(ref_seq, reads, ref_name=ref_name)
     return records, {
-        "aligner": aligner,
-        "aligner_available": bool(tool),
-        "executor": "external" if used_external else "python-fallback",
+        "recommended_production_aligner": aligner,
+        "executed_implementation": "bionexus-seed-aligner",
+        "executor": "python-surrogate",
         "reference": ref_name,
         "read_length": read_length,
         "aligned_reads": len(records),
@@ -102,7 +89,7 @@ def _stage5_run(sample: dict, state: dict) -> tuple[dict, dict]:
 def stage5_contract() -> StageContract:
     return StageContract(
         step="alignment",
-        tool="platform-aligner (bwa-mem2 / minimap2 / STAR)",
+        tool="bionexus-seed-aligner",
         version="0.1.0",
         inputs=["clean_fastq", "reference_sequence"],
         outputs=["aligned_reads"],
@@ -112,6 +99,7 @@ def stage5_contract() -> StageContract:
         ],
         fail_blocks=False,
         run=_stage5_run,
+        evidence_level="SURROGATE",
     )
 
 

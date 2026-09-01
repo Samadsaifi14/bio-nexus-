@@ -196,7 +196,8 @@ def _detection(payload, files: Optional[list[str]] = None) -> dict:
 def list_stages():
     contracts = wgs_wes_germline_stages()
     return {"pipeline": "wgs-wes-germline", "stages": [
-        {"step": c.step, "tool": c.tool, "inputs": c.inputs, "outputs": c.outputs,
+        {"step": c.step, "operation": c.step.replace("_", " "), "implementation": c.tool,
+         "evidence_level": c.evidence_level, "inputs": c.inputs, "outputs": c.outputs,
          "fail_blocks": c.fail_blocks, "expectation": _STAGE_INTRO.get(c.step, "")}
         for c in contracts
     ]}

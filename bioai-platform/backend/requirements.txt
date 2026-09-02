@@ -2,7 +2,7 @@ fastapi
 uvicorn
 slowapi
 redis
-httpx
+httpx>=0.28.1
 aiohttp
 biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)
 litellm
@@ -20,5 +20,5 @@ pymol-open-source-whl>=3.2  # unofficial wheel of open-source PyMOL; provides th
 
 # dev / testing
 pytest>=7.0
-httpx>=0.24
+httpx>=0.28.1>=0.24
 boto3>=1.35,<2

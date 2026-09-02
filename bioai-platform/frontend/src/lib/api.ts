@@ -843,7 +843,7 @@ export type Ngs2StageContract = {
 
 export type Ngs2Metric = {
   name: string;
-  value: number | null;
+  value: number | string | boolean | null;
   status: string;
   expected: string | null;
   detail: string | null;
@@ -898,6 +898,7 @@ export type Ngs2AnalyzeResult = {
   requested: {
     assay: string;
     reference: string;
+    reference_template_requested?: string | null;
     synthetic_reference: boolean;
     reads_loaded: Record<string, number>;
     record_cap_per_file: number;

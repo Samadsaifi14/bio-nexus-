@@ -61,6 +61,43 @@ def test_portable_benchmark_reports_scoped_execution_parity(client):
     assert galaxy["execution"] == "EXECUTED_WITHOUT_GALAXY_SERVER"
 
 
+def test_clean_demo_uses_explicit_not_evaluated_states(client):
+    response = client.post("/api/ngs/v2/analyze", json={"demo_profile": "wgs-clean"})
+    assert response.status_code == 200
+    body = response.json()
+    stages = {stage["step"]: stage for stage in body["pipeline"]["stages"]}
+
+    assert body["requested"]["reference"] == "synthetic-positive-control"
+    assert body["requested"]["reference_template_requested"] == "grch38"
+    assert body["detection"]["sample_type"] == "synthetic-positive-control"
+    reference = body["pipeline"]["provenance"]["reference"]
+    assert reference["id"] == "synthetic-positive-control"
+    assert reference["reference_kind"] == "SYNTHETIC"
+    assert reference["build"] == "NOT_APPLICABLE"
+    assert reference["artifacts"] == [{"name": "In-memory synthetic reference", "present": True}]
+
+    assert stages["coverage"]["qc"]["status"] == "PASS"
+    assert stages["variant_filter"]["qc"]["status"] == "PASS"
+    assert stages["variant_filter"]["data"]["n_final"] == 0
+    assert stages["annotation"]["qc"]["status"] == "PASS"
+    assert stages["annotation"]["data"]["n_annotated"] == 0
+    assert stages["annotation"]["data"]["status"] == "NOT_APPLICABLE"
+    assert stages["contamination"]["data"]["status"] == "NOT_EVALUATED"
+    assert stages["contamination"]["qc"]["metrics"][0]["value"] is None
+    assert stages["identity"]["data"]["status"] == "NOT_EVALUATED"
+    assert len(stages["identity"]["qc"]["metrics"]) == 1
+    assert stages["final_gate"]["qc"]["metrics"][0]["value"] == "ANALYSIS_READY_WITH_WARNINGS"
+
+    warnings = body["pipeline"]["warnings"]
+    assert len(warnings) == 2
+    assert all("Not evaluated:" in warning for warning in warnings)
+    assert not any("(None)" in warning for warning in warnings)
+    assert not any(name in " ".join(warnings) for name in (
+        "contam_checked", "identity_checked", "candidate_frac", "gate_ok",
+    ))
+    assert all(tool["implementation"] for tool in body["pipeline"]["provenance"]["tools"])
+
+
 def test_production_plan_pins_sarek_and_emits_auditable_argv(client):
     response = client.post("/api/ngs/v2/production/plan", json={
         "assay": "WGS",

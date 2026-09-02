@@ -121,10 +121,19 @@ class Pipeline:
             self.results.append(stage_result)
 
             if stage_result.qc:
-                for m in stage_result.qc.metrics:
-                    if m.status == QcStatus.WARN:
+                unevaluated = stage_result.data.get("unevaluated")
+                if unevaluated:
+                    self.warnings.append(
+                        f"[{contract.step}] Not evaluated: {unevaluated}."
+                    )
+                elif contract.step != "final_gate":
+                    for metric in stage_result.qc.metrics:
+                        if metric.status != QcStatus.WARN or metric.value is None:
+                            continue
+                        expected = f"; expected {metric.expected}" if metric.expected else ""
+                        detail = f" — {metric.detail}" if metric.detail else ""
                         self.warnings.append(
-                            f"[{contract.step}] {m.name}: {m.value} ({m.expected})"
+                            f"[{contract.step}] {metric.name}: {metric.value}{expected}{detail}"
                         )
 
             if stage_result.decision == Decision.STOP:

@@ -265,6 +265,8 @@ def analyze(payload: AnalyzeRequest):
     assay = (payload.assay or demo_assay or detection["assay"] or "WGS").upper()
     if assay in ("UNKNOWN", ""):
         assay = "WGS"
+    if payload.demo_profile:
+        detection["sample_type"] = "synthetic-positive-control"
 
     combined_reads = [read for f in files for read in reads_all.get(f, [])]
     sample: dict = {
@@ -272,7 +274,11 @@ def analyze(payload: AnalyzeRequest):
         "reference": payload.reference or "grch38",
         "assay": assay,
         "sample_type": payload.sample_type or detection["sample_type"],
-        "metadata": {**(payload.metadata or {}), **({"demo_profile": payload.demo_profile} if payload.demo_profile else {})},
+        "metadata": {
+            **({"platform": "illumina-simulated"} if payload.demo_profile else {}),
+            **(payload.metadata or {}),
+            **({"demo_profile": payload.demo_profile} if payload.demo_profile else {}),
+        },
         "demonstration_data": bool(payload.demo_profile or (payload.metadata or {}).get("demonstration_data")),
         "synthetic_reference": bool(payload.synthetic_reference or payload.demo_profile),
         "reads": combined_reads,
@@ -299,7 +305,8 @@ def analyze(payload: AnalyzeRequest):
         "detection": detection,
         "requested": {
             "assay": assay,
-            "reference": sample["reference"],
+            "reference": "synthetic-positive-control" if use_synthetic_reference else sample["reference"],
+            "reference_template_requested": sample["reference"] if use_synthetic_reference else None,
             "synthetic_reference": use_synthetic_reference,
             "demo_profile": payload.demo_profile,
             "reads_loaded": {os.path.basename(f): len(reads_all[f]) for f in files},

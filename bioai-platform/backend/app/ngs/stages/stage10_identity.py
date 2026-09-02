@@ -107,7 +107,7 @@ def _stage10_run(sample: dict, state: dict) -> tuple[dict, dict]:
     if records is None:
         return ({"error": "identity needs aligned reads",
                  "unevaluated": "no aligned reads"},
-                {"identity_checked": 0.0})   # WARN: cannot assert identity without alignment
+                {})
     eng = identity_engine(
         records,
         expected_gt=sample.get("expected_gt"),
@@ -120,14 +120,35 @@ def _stage10_run(sample: dict, state: dict) -> tuple[dict, dict]:
     # unevaluated (WARN) rather than silently passing or hard-failing the pipeline.
     if eng["concordance"] is None and eng["sex_match"] is None:
         eng["unevaluated"] = ("no expected genotype or sex supplied; sample identity not asserted")
-        return eng, {"identity_checked": 0.0}
+        eng["status"] = "NOT_EVALUATED"
+        return eng, {}
     metrics = {}
     if eng["concordance"] is not None:
         metrics["concordance_ok"] = eng["concordance"]
     if eng["sex_match"] is not None:
         metrics["sex_ok"] = 100.0 if eng["sex_match"] else 0.0
-    metrics["identity_checked"] = 100.0
     return eng, metrics
+
+
+def _identity_rules(sample: dict) -> list[ThresholdRule]:
+    rules: list[ThresholdRule] = []
+    if sample.get("expected_gt"):
+        rules.append(ThresholdRule(
+            name="concordance_ok", metric="concordance_ok",
+            evaluate=lambda v: _match_rule(v, 99.0), expectation=">= 99%",
+        ))
+    if sample.get("expected_sex"):
+        rules.append(ThresholdRule(
+            name="sex_ok", metric="sex_ok", evaluate=lambda v: _bool_rule(v),
+            expectation="matches declared sample sex",
+        ))
+    if not rules:
+        rules.append(ThresholdRule(
+            name="identity_evidence", metric="identity_evidence",
+            evaluate=lambda _v: QcStatus.PASS, optional=True,
+            missing_detail="Not evaluated: expected genotypes and declared sample sex were not supplied.",
+        ))
+    return rules
 
 
 def stage10_contract() -> StageContract:
@@ -137,22 +158,10 @@ def stage10_contract() -> StageContract:
         version="0.1.0",
         inputs=["processed_bam", "expected_genotypes?", "expected_sex?"],
         outputs=["identity_report"],
-        rules=[
-            ThresholdRule(name="identity_checked", metric="identity_checked",
-                          evaluate=lambda v: _checked_rule(v)),
-            ThresholdRule(name="concordance_ok", metric="concordance_ok",
-                          evaluate=lambda v: _match_rule(v, 99.0), optional=True),
-            ThresholdRule(name="sex_ok", metric="sex_ok",
-                          evaluate=lambda v: _bool_rule(v), optional=True),
-        ],
+        rules=_identity_rules,
         fail_blocks=True,   # mislabeled/swapped sample stops the run
         run=_stage10_run,
     )
-
-
-def _checked_rule(v):
-    # 100 = a real check ran; 0 = unevaluated (WARN, not blocking)
-    return QcStatus.PASS if float(v) >= 100.0 else QcStatus.WARN
 
 
 def _match_rule(v, ok):
@@ -177,16 +186,13 @@ def run_identity(
     from app.ngs.contracts import apply_rules, QcResult
     eng = identity_engine(records, expected_gt, chr_x_depth, chr_y_depth, expected_sex)
     metrics = {}
-    if eng["concordance"] is None and eng["sex_match"] is None:
-        metrics["identity_checked"] = 0.0
-    else:
-        metrics["identity_checked"] = 100.0
     if eng["concordance"] is not None:
         metrics["concordance_ok"] = eng["concordance"]
     if eng["sex_match"] is not None:
         metrics["sex_ok"] = 100.0 if eng["sex_match"] else 0.0
     contract = stage10_contract()
-    result = QcResult.from_metrics(apply_rules(contract.resolve_rules({}), metrics),
+    sample = {"expected_gt": expected_gt, "expected_sex": expected_sex}
+    result = QcResult.from_metrics(apply_rules(contract.resolve_rules(sample), metrics),
                                    fail_blocks=True)
     return {
         "result": {"step": "identity", "qc": result.to_dict(),

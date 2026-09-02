@@ -18,12 +18,19 @@ function Scalar({ value }: { value: unknown }) {
 function MetadataRows({ data }: { data: UnknownRecord }) {
   return <div className="divide-y divide-glass-border">{Object.entries(data).map(([key, value]) => {
     if (Array.isArray(value) || (value && typeof value === 'object')) return null;
-    return <div key={key} className="grid gap-1 px-4 py-2.5 text-xs sm:grid-cols-[180px_1fr] sm:gap-4"><span className="text-text-muted">{titleCase(key)}</span><span className="break-words font-mono text-text-primary"><Scalar value={value}/></span></div>;
+    return <div key={key} className="grid gap-1 px-4 py-2.5 text-xs sm:grid-cols-[180px_1fr] sm:gap-4"><span className="text-text-muted">{titleCase(key)}:</span><span className="break-words font-mono text-text-primary"><Scalar value={value}/></span></div>;
   })}</div>;
 }
 
 function ToolTable({ tools }: { tools: unknown[] }) {
-  const rows = tools.filter((t): t is UnknownRecord => Boolean(t) && typeof t === 'object');
+  const rows: UnknownRecord[] = tools
+    .filter((t): t is UnknownRecord => Boolean(t) && typeof t === 'object')
+    .map((tool): UnknownRecord => ({
+      ...tool,
+      implementation: tool.implementation ?? tool.tool ?? tool.name,
+      evidence_level: tool.evidence_level ?? tool.evidence,
+    }))
+    .filter(tool => typeof tool.implementation === 'string' && tool.implementation.length > 0);
   if (!rows.length) return null;
   return <section className="space-y-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">Executed implementations</h4><p className="text-[11px] leading-5 text-text-muted">Implementation identifiers are audit metadata. They describe code that actually ran and are not claims of equivalence to similarly named production tools.</p><div className="overflow-x-auto rounded-xl border border-glass-border"><table className="min-w-full text-xs"><thead className="bg-surface-1 text-text-muted"><tr><th className="px-3 py-2 text-left">Stage</th><th className="px-3 py-2 text-left">Implementation</th><th className="px-3 py-2 text-left">Evidence</th><th className="px-3 py-2 text-left">Version</th></tr></thead><tbody className="divide-y divide-glass-border">{rows.map((tool, i)=><tr key={`${String(tool.stage)}-${i}`}><td className="whitespace-nowrap px-3 py-2 text-text-secondary">{titleCase(String(tool.stage ?? 'stage'))}</td><td className="px-3 py-2 font-mono text-text-primary">{String(tool.implementation ?? 'Not reported')}</td><td className="whitespace-nowrap px-3 py-2 text-text-secondary">{titleCase(String(tool.evidence_level ?? 'not reported'))}</td><td className="whitespace-nowrap px-3 py-2 font-mono text-text-secondary">{String(tool.version ?? 'Not reported')}</td></tr>)}</tbody></table></div></section>;
 }
@@ -33,14 +40,14 @@ function InputTable({ inputs }: { inputs: unknown[] }) {
   if (!rows.length) return null;
   return <section className="space-y-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">Input files</h4><div className="overflow-hidden rounded-xl border border-glass-border"><div className="divide-y divide-glass-border">{rows.map((input, i) => {
     const checksum = input.checksum && typeof input.checksum === 'object' ? input.checksum as UnknownRecord : null;
-    return <div key={i} className="grid gap-2 px-4 py-3 text-xs md:grid-cols-[1fr_100px_1fr]"><span className="font-mono text-text-primary">{String(input.name ?? 'Unnamed input')}</span><span className="uppercase text-text-muted">{String(checksum?.algorithm ?? 'checksum')}</span><span className="break-all font-mono text-text-secondary">{String(checksum?.value ?? 'Not reported')}</span></div>;
+    return <div key={i} className="grid gap-2 px-4 py-3 text-xs md:grid-cols-[1fr_100px_1fr]"><span className="font-mono text-text-primary">{String(input.name ?? 'Unnamed input')}</span><span className="uppercase text-text-muted">{String(checksum?.algorithm ?? 'checksum')}:</span><span className="break-all font-mono text-text-secondary">{String(checksum?.value ?? 'Not reported')}</span></div>;
   })}</div></div></section>;
 }
 
 function ReferencePanel({ reference }: { reference: UnknownRecord }) {
   const artifacts = Array.isArray(reference.artifacts) ? reference.artifacts.filter((a): a is UnknownRecord => Boolean(a) && typeof a === 'object') : [];
   const scalar = Object.fromEntries(Object.entries(reference).filter(([k, v]) => k !== 'artifacts' && !Array.isArray(v) && !(v && typeof v === 'object')));
-  return <section className="space-y-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">Reference</h4><div className="overflow-hidden rounded-xl border border-glass-border"><MetadataRows data={scalar}/>{artifacts.length > 0 && <div className="border-t border-glass-border p-4"><div className="mb-2 text-[11px] font-medium text-text-muted">Reference resources</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{artifacts.map((a,i)=><div key={i} className="flex items-center justify-between rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[11px]"><span className="text-text-secondary">{String(a.name ?? 'Artifact')}</span><span className={a.present ? 'text-good' : 'text-text-muted'}>{a.present ? 'Available' : 'Not bundled'}</span></div>)}</div></div>}</div></section>;
+  return <section className="space-y-2"><h4 className="text-xs font-semibold uppercase tracking-wider text-text-muted">Reference</h4><div className="overflow-hidden rounded-xl border border-glass-border"><MetadataRows data={scalar}/>{artifacts.length > 0 && <div className="border-t border-glass-border p-4"><div className="mb-2 text-[11px] font-medium text-text-muted">Reference resources</div><div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">{artifacts.map((a,i)=><div key={i} className="flex items-center justify-between gap-3 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[11px]"><span className="text-text-secondary">{String(a.name ?? 'Artifact')}:</span><span className={a.present ? 'text-good' : 'text-text-muted'}>{a.present ? (reference.reference_kind === 'SYNTHETIC' ? 'Generated' : 'Available') : 'Not bundled'}</span></div>)}</div></div>}</div></section>;
 }
 
 export function ProvenancePanel({ provenance }: { provenance?: Record<string, unknown> | null }) {

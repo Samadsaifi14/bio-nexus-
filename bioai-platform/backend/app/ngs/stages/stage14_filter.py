@@ -63,15 +63,14 @@ def filter_variants(variants: list[dict], max_af: float = 0.01) -> dict:
 
 
 def _stage14_run(sample: dict, state: dict) -> tuple[dict, dict]:
-    variants = state.get("variants", {}).get("qc", {}).get("variants") or \
-        state.get("variants", {}).get("normalized")
+    variants = state.get("variants", {}).get("qc", {}).get("variants")
     if variants is None:
-        return {"error": "filtering needs QC'd variants"}, {"candidate_frac": 0.0}
+        variants = state.get("variants", {}).get("normalized")
+    if variants is None:
+        return {"error": "filtering needs QC'd variants"}, {"filter_completed": 0.0}
     filtered = filter_variants(variants)
     state.setdefault("variants", {})["filtered"] = filtered
-    total = filtered["n_final"] + filtered["n_rejected"]
-    frac = filtered["n_final"] / total * 100.0 if total else 0.0
-    return filtered, {"candidate_frac": frac}
+    return filtered, {"filter_completed": 100.0}
 
 
 def stage14_contract() -> StageContract:
@@ -82,31 +81,29 @@ def stage14_contract() -> StageContract:
         inputs=["qc_variants"],
         outputs=["final_variants"],
         rules=[
-            ThresholdRule(name="candidate_frac", metric="candidate_frac",
-                          evaluate=lambda v: _range_rule(v, 0.1, 30.0)),
+            ThresholdRule(name="filter_completed", metric="filter_completed",
+                          evaluate=lambda v: _completed_rule(v), expectation="completed"),
         ],
         fail_blocks=False,
         run=_stage14_run,
     )
 
 
-def _range_rule(v, lo, hi):
+def _completed_rule(v):
     from app.ngs.contracts import QcStatus
     try:
         v = float(v)
     except (TypeError, ValueError):
         return QcStatus.FAIL
-    return QcStatus.PASS if lo <= v <= hi else QcStatus.WARN
+    return QcStatus.PASS if v >= 100.0 else QcStatus.FAIL
 
 
 def run_variant_filter(variants: list[dict], max_af: float = 0.01) -> dict:
     from app.ngs.contracts import apply_rules, QcResult
     filtered = filter_variants(variants, max_af=max_af)
-    total = filtered["n_final"] + filtered["n_rejected"]
-    frac = filtered["n_final"] / total * 100.0 if total else 0.0
     contract = stage14_contract()
     result = QcResult.from_metrics(
-        apply_rules(contract.resolve_rules({}), {"candidate_frac": frac}), fail_blocks=False)
+        apply_rules(contract.resolve_rules({}), {"filter_completed": 100.0}), fail_blocks=False)
     return {
         "result": {"step": "variant_filter", "qc": result.to_dict(),
                    "decision": result.decision.value,

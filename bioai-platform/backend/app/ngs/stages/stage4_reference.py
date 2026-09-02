@@ -40,6 +40,23 @@ def _stage4_run(sample: dict, state: dict) -> tuple[dict, dict]:
     meta = sample.get("metadata") or {}
     annotation_build = sample.get("annotation_build") or meta.get("annotation_build")
 
+    if sample.get("synthetic_reference"):
+        ref = {
+            "id": "synthetic-positive-control",
+            "reference_kind": "SYNTHETIC",
+            "build": "NOT_APPLICABLE",
+            "requested_template": str(ref_id or "not specified"),
+            "description": "Deterministic reference generated from demonstration reads",
+            "species": "NOT_APPLICABLE",
+            "generated_for_this_run": True,
+            "bundled": False,
+            "artifacts": [{"name": "In-memory synthetic reference", "present": True}],
+            "build_compatible": "NOT_APPLICABLE",
+            "build_message": "Synthetic coordinates are not GRCh37/GRCh38 coordinates.",
+        }
+        state.setdefault("reference", {})["declared"] = ref
+        return ref, {"reference_resolved": 100.0, "build_compatible": 100.0}
+
     if not ref_id:
         return {"error": "no reference specified"}, {"reference_resolved": 0.0,
                                                      "build_compatible": 100.0}

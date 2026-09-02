@@ -2,7 +2,7 @@
 
 import { CheckCircle, Warning, XCircle, ShieldCheck } from '@phosphor-icons/react';
 
-type Metric = { name?: string; value?: number | null; status?: string; expected?: string | null; detail?: string | null };
+type Metric = { name?: string; value?: number | string | boolean | null; status?: string; expected?: string | null; detail?: string | null };
 type Stage = { step?: string; qc?: { status?: string; metrics?: Metric[] } | null; decision?: string };
 
 function humanize(value: string) {
@@ -31,6 +31,7 @@ export default function NgsEvidenceInterpretation({
   const failedStages = stages.filter((s) => s.qc?.status === 'FAIL');
   const warnedStages = stages.filter((s) => s.qc?.status === 'WARN');
   const flaggedMetrics = stages.flatMap((stage) =>
+    stage.step === 'final_gate' ? [] :
     (stage.qc?.metrics || [])
       .filter((metric) => metric.status === 'WARN' || metric.status === 'FAIL')
       .map((metric) => ({ stage: stage.step || 'unknown stage', metric })),
@@ -59,7 +60,7 @@ export default function NgsEvidenceInterpretation({
     <div className="grid gap-3 md:grid-cols-3">
       <div className="rounded-xl border border-glass-border bg-surface-1 p-4"><p className="text-[10px] uppercase tracking-wider text-text-muted">Failed stages</p><p className="mt-1 font-mono text-lg font-semibold text-text-primary">{failedStages.length}</p></div>
       <div className="rounded-xl border border-glass-border bg-surface-1 p-4"><p className="text-[10px] uppercase tracking-wider text-text-muted">Warning stages</p><p className="mt-1 font-mono text-lg font-semibold text-text-primary">{warnedStages.length}</p></div>
-      <div className="rounded-xl border border-glass-border bg-surface-1 p-4"><p className="text-[10px] uppercase tracking-wider text-text-muted">Flagged metrics</p><p className="mt-1 font-mono text-lg font-semibold text-text-primary">{flaggedMetrics.length}</p></div>
+      <div className="rounded-xl border border-glass-border bg-surface-1 p-4"><p className="text-[10px] uppercase tracking-wider text-text-muted">Evidence gaps / flags</p><p className="mt-1 font-mono text-lg font-semibold text-text-primary">{flaggedMetrics.length}</p></div>
     </div>
 
     {integrityErrors.length > 0 && <section><h4 className="mb-2 text-xs font-semibold uppercase tracking-wider text-error">Integrity blockers</h4><div className="space-y-2">{[...new Set(integrityErrors)].map((item) => <div key={item} className="rounded-lg border border-error/20 bg-error/5 px-3 py-2 text-xs text-text-secondary">{item}</div>)}</div></section>}

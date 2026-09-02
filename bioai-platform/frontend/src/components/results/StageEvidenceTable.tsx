@@ -2,7 +2,7 @@
 
 import { CheckCircle, Warning, XCircle, Info } from '@phosphor-icons/react';
 
-type Metric = { name?: string; value?: number | string | null; status?: string; expected?: string | null; detail?: string | null };
+type Metric = { name?: string; value?: number | string | boolean | null; status?: string; expected?: string | null; detail?: string | null };
 type Stage = { step?: string; evidence_level?: string; inputs?: string[]; outputs?: string[]; qc?: { status?: string; decision?: string; metrics?: Metric[] } | null; decision?: string };
 
 const evidenceLabel = (level?: string) => level === 'MEASURED' ? 'Measured' : level === 'INFERRED' ? 'Inferred' : level === 'SURROGATE' ? 'Surrogate' : 'Computed from input';

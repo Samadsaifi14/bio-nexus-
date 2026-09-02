@@ -86,6 +86,7 @@ class ThresholdRule:
     evaluate: Callable[[Any], QcStatus]
     expectation: Optional[str] = None
     optional: bool = False   # missing metric -> WARN (not FAIL); used for conditional sub-checks
+    missing_detail: Optional[str] = None
 
     def apply(self, value: Any, detail: Optional[str] = None) -> Metric:
         return Metric(
@@ -153,7 +154,7 @@ def apply_rules(rules: list[ThresholdRule], values: dict[str, Any]) -> list[Metr
         elif rule.optional:
             metrics.append(
                 Metric(name=rule.metric, value=None, status=QcStatus.WARN, expected=rule.expectation,
-                       detail="optional metric not evaluated (no reference data supplied)")
+                       detail=rule.missing_detail or "optional metric not evaluated (required evidence was not supplied)")
             )
         else:
             metrics.append(

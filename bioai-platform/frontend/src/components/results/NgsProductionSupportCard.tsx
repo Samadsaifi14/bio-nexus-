@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import axios from 'axios';
 import { CircleNotch, ShieldCheck, Warning } from '@phosphor-icons/react';
 import { buildNgsProductionPlan } from '@/lib/api';
 import type { NgsProductionPlan } from '@/lib/api';
@@ -37,7 +38,11 @@ export function NgsProductionSupportCard({ defaultReference = 'GRCh38' }: NgsPro
         annotate_with_vep: true, clinical_intent: clinicalIntent,
       }));
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Could not build the production plan');
+      if (axios.isAxiosError(err) && err.response?.status === 404) {
+        setError('Production planning is not installed on the deployed BioNexus backend yet. The exploratory preview remains available; deploy the matching backend revision before using this plan validator.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Could not build the production plan');
+      }
     } finally { setLoading(false); }
   };
 

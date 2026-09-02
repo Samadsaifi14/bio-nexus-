@@ -20,18 +20,22 @@ import json
 from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.ngs.assays import AssayRouter
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
 from app.ngs.production import build_production_plan, evaluate_clinical_evidence
+from app.ngs.execution import artifact_manifest, executor_capabilities, get_run, submit_run
+from app.services.auth import require_user_id
 from app.ngs.visualization import build_visualization
 from app.models.responses import (
     NgsClinicalEvidenceRequest,
     NgsClinicalEvidenceResponse,
     NgsProductionPlanRequest,
     NgsProductionPlanResponse,
+    NgsProductionRunResponse,
+    NgsProductionSubmitResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -229,6 +233,49 @@ def portable_benchmark():
 @router.post("/production/plan", response_model=NgsProductionPlanResponse)
 def production_plan(payload: NgsProductionPlanRequest):
     return build_production_plan(payload)
+
+
+@router.get("/production/capabilities")
+def production_capabilities():
+    return executor_capabilities()
+
+
+@router.post("/production/submit", response_model=NgsProductionSubmitResponse)
+def production_submit(payload: NgsProductionPlanRequest, user_id: str = Depends(require_user_id)):
+    plan = build_production_plan(payload)
+    if not plan["ready_to_launch"]:
+        raise HTTPException(status_code=422, detail={"message": "production launch contract is blocked", "blockers": plan["blockers"]})
+    executor = "awsbatch" if payload.execution_profile == "awsbatch" else "slurm" if payload.execution_profile == "slurm" else "local"
+    try:
+        run = submit_run(executor, plan["command_argv"], payload.outdir, user_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Production Sarek submission failed")
+        raise HTTPException(status_code=502, detail=f"executor submission failed: {type(exc).__name__}") from exc
+    return {
+        "run_id": run["run_id"], "state": "SUBMITTED", "executor": executor,
+        "executor_job_id": run["executor_job_id"], "message": "Real nf-core/sarek run submitted; no exploratory fallback was used.",
+    }
+
+
+@router.get("/production/runs/{run_id}", response_model=NgsProductionRunResponse)
+def production_run_status(run_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        return get_run(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="production run not found") from exc
+
+
+@router.get("/production/runs/{run_id}/artifacts")
+def production_run_artifacts(run_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        return artifact_manifest(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="production run not found") from exc
+    except Exception as exc:
+        logger.exception("Production Sarek artifact import failed")
+        raise HTTPException(status_code=502, detail=f"artifact import failed: {type(exc).__name__}") from exc
 
 
 @router.post("/clinical/evaluate", response_model=NgsClinicalEvidenceResponse)

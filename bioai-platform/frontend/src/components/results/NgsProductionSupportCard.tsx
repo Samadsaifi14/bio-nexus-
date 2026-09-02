@@ -1,10 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import axios from 'axios';
 import { CircleNotch, ShieldCheck, Warning } from '@phosphor-icons/react';
-import { buildNgsProductionPlan } from '@/lib/api';
-import type { NgsProductionPlan } from '@/lib/api';
+import { buildNgsProductionPlan, getNgsProductionArtifacts, getNgsProductionCapabilities, getNgsProductionRun, submitNgsProductionRun } from '@/lib/api';
+import type { NgsProductionArtifacts, NgsProductionCapabilities, NgsProductionPlan, NgsProductionPlanRequest, NgsProductionRun } from '@/lib/api';
 import { FlatInput } from '@/components/ui';
 
 interface NgsProductionSupportCardProps {
@@ -26,17 +26,40 @@ export function NgsProductionSupportCard({ defaultReference = 'GRCh38' }: NgsPro
   const [clinicalIntent, setClinicalIntent] = useState(false);
   const [plan, setPlan] = useState<NgsProductionPlan | null>(null);
   const [loading, setLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [capabilities, setCapabilities] = useState<NgsProductionCapabilities | null>(null);
+  const [run, setRun] = useState<NgsProductionRun | null>(null);
+  const [artifacts, setArtifacts] = useState<NgsProductionArtifacts | null>(null);
+
+  useEffect(() => {
+    getNgsProductionCapabilities().then(setCapabilities).catch(() => setCapabilities(null));
+  }, []);
+
+  useEffect(() => {
+    if (!run || !['SUBMITTED', 'PENDING', 'RUNNING'].includes(run.state)) return;
+    const timer = window.setInterval(() => {
+      getNgsProductionRun(run.run_id).then(setRun).catch(() => undefined);
+    }, 5000);
+    return () => window.clearInterval(timer);
+  }, [run]);
+
+  useEffect(() => {
+    if (run?.state !== 'SUCCEEDED') return;
+    getNgsProductionArtifacts(run.run_id).then(setArtifacts).catch(() => setArtifacts(null));
+  }, [run?.run_id, run?.state]);
+
+  const request = (): NgsProductionPlanRequest => ({
+    assay, sample_model: sampleModel, input_type: inputType, start_step: startStep, samplesheet_path: samplesheet,
+    outdir, genome, execution_profile: profile, caller,
+    target_bed: targetBed || undefined, custom_config: customConfig || undefined,
+    annotate_with_vep: true, clinical_intent: clinicalIntent,
+  });
 
   const buildPlan = async () => {
     setLoading(true); setError(null);
     try {
-      setPlan(await buildNgsProductionPlan({
-        assay, sample_model: sampleModel, input_type: inputType, start_step: startStep, samplesheet_path: samplesheet,
-        outdir, genome, execution_profile: profile, caller,
-        target_bed: targetBed || undefined, custom_config: customConfig || undefined,
-        annotate_with_vep: true, clinical_intent: clinicalIntent,
-      }));
+      setPlan(await buildNgsProductionPlan(request()));
     } catch (err: unknown) {
       if (axios.isAxiosError(err) && err.response?.status === 404) {
         setError('Production planning is not installed on the deployed BioNexus backend yet. The exploratory preview remains available; deploy the matching backend revision before using this plan validator.');
@@ -45,6 +68,26 @@ export function NgsProductionSupportCard({ defaultReference = 'GRCh38' }: NgsPro
       }
     } finally { setLoading(false); }
   };
+
+  const submit = async () => {
+    setSubmitting(true); setError(null);
+    try {
+      const submission = await submitNgsProductionRun(request());
+      setRun(await getNgsProductionRun(submission.run_id));
+    } catch (err: unknown) {
+      if (axios.isAxiosError(err) && err.response?.status === 401) {
+        setError('Sign in before submitting a production run. Production jobs are private and tied to an authenticated account.');
+      } else if (axios.isAxiosError(err) && err.response?.status === 503) {
+        const detail = err.response.data?.detail;
+        setError(typeof detail === 'string' ? detail : 'The selected production executor is not configured.');
+      } else {
+        setError(err instanceof Error ? err.message : 'Could not submit the production run');
+      }
+    } finally { setSubmitting(false); }
+  };
+
+  const executorKey: 'local' | 'slurm' | 'awsbatch' = profile === 'awsbatch' ? 'awsbatch' : profile === 'slurm' ? 'slurm' : 'local';
+  const executorCapability = capabilities?.executors[executorKey];
 
   return <section className="data-card overflow-hidden">
     <div className="border-b border-glass-border p-5">
@@ -71,6 +114,13 @@ export function NgsProductionSupportCard({ defaultReference = 'GRCh38' }: NgsPro
       <div className={`flex items-start gap-2 rounded-lg border p-3 text-xs ${plan.ready_to_launch ? 'border-good/20 bg-good/5 text-good' : 'border-error/20 bg-error/5 text-error'}`}>{plan.ready_to_launch ? <ShieldCheck className="mt-0.5 shrink-0"/> : <Warning className="mt-0.5 shrink-0"/>}<div><strong>{plan.ready_to_launch ? 'Launch contract ready' : 'Launch blocked'}</strong><p className="mt-1 text-text-muted">{plan.workflow.name} {plan.workflow.revision} · {plan.workflow.assay} · {plan.workflow.execution_engine}</p></div></div>
       {plan.blockers.length > 0 && <ul className="space-y-1 text-[11px] text-error">{plan.blockers.map(item => <li key={item}>• {item}</li>)}</ul>}
       <details className="rounded-lg border border-glass-border bg-surface-1 p-3"><summary className="cursor-pointer text-xs font-medium text-text-primary">Reproducible launch details</summary><pre className="mt-3 overflow-x-auto whitespace-pre-wrap font-mono text-[10px] leading-5 text-text-muted">{plan.command_display}</pre><p className="mt-2 text-[11px] text-text-muted">{plan.required_artifacts.length} required artifact groups · {plan.provenance_requirements.length} provenance requirements</p></details>
+      <div className={`rounded-lg border p-3 text-xs ${executorCapability?.available ? 'border-good/20 bg-good/5' : 'border-warn/20 bg-warn/5'}`}>
+        <strong className={executorCapability?.available ? 'text-good' : 'text-warn'}>{executorCapability?.available ? `${executorKey} executor available` : `${executorKey} executor not configured`}</strong>
+        <p className="mt-1 leading-5 text-text-muted">{executorCapability ? (executorCapability.available ? 'Submitting starts the real pinned Sarek workflow. No preview fallback is used.' : `Missing: ${[...(!executorCapability.enabled ? ['server enable flag'] : []), ...executorCapability.missing].join(', ') || 'executor infrastructure'}.`) : 'Executor capability could not be read from the deployed backend.'}</p>
+      </div>
+      <button onClick={submit} disabled={submitting || !plan.ready_to_launch || !executorCapability?.available} className="inline-flex w-full items-center justify-center gap-2 rounded-lg border border-good/30 bg-good/10 px-4 py-2.5 text-xs font-semibold text-good hover:bg-good/15 disabled:opacity-50">{submitting && <CircleNotch className="animate-spin"/>}{submitting ? 'Submitting real Sarek run…' : 'Submit production run'}</button>
+      {run && <div className="rounded-lg border border-glass-border bg-surface-1 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-text-primary">{run.workflow} {run.revision}</strong><span className="font-mono text-accent-cyan">{run.state}</span></div><dl className="mt-2 grid gap-1 text-[11px] text-text-muted"><div><dt className="inline">Run ID: </dt><dd className="inline font-mono">{run.run_id}</dd></div><div><dt className="inline">Executor job: </dt><dd className="inline font-mono">{run.executor_job_id}</dd></div><div><dt className="inline">Results: </dt><dd className="inline font-mono">{run.outdir}</dd></div></dl>{run.message && <p className="mt-2 text-warn">{run.message}</p>}</div>}
+      {artifacts && <div className="rounded-lg border border-glass-border bg-surface-1 p-3 text-xs"><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-text-primary">Imported Sarek artifacts</strong><span className={artifacts.required_groups_complete ? 'text-good' : 'text-warn'}>{artifacts.required_groups_complete ? 'COMPLETE' : 'INCOMPLETE'}</span></div><p className="mt-1 text-[11px] leading-5 text-text-muted">{artifacts.observed_file_count} files observed at {artifacts.source}. {artifacts.claim}</p><div className="mt-2 grid gap-1 text-[11px] text-text-muted">{Object.entries(artifacts.groups).map(([group, files]) => <div key={group} className="flex justify-between gap-3"><span>{group.replaceAll('_', ' ')}</span><span className="font-mono">{files.length}</span></div>)}</div>{artifacts.missing_groups.length > 0 && <p className="mt-2 text-warn">Missing: {artifacts.missing_groups.join(', ')}</p>}</div>}
       <div className="rounded-lg border border-warn/20 bg-warn/5 p-3 text-[11px] leading-5 text-text-muted"><strong className="text-warn">{plan.clinical_boundary.current_status.replaceAll('_', ' ')}</strong> — {plan.clinical_boundary.reason}</div>
     </div>}
   </section>;

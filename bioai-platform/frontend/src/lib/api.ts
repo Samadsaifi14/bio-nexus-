@@ -980,6 +980,47 @@ export type NgsProductionPlan = {
   clinical_boundary: { clinical_intent: boolean; current_status: string; reason: string };
 };
 
+export type NgsProductionCapabilities = {
+  workflow: { name: string; revision: string };
+  executors: Record<'local' | 'slurm' | 'awsbatch', { available: boolean; enabled: boolean; missing: string[]; requirements: string[] }>;
+  fallback: null;
+  note: string;
+};
+
+export type NgsProductionSubmission = {
+  run_id: string;
+  state: 'SUBMITTED' | 'BLOCKED';
+  executor: 'local' | 'slurm' | 'awsbatch';
+  executor_job_id?: string | null;
+  message: string;
+};
+
+export type NgsProductionRun = {
+  run_id: string;
+  state: 'SUBMITTED' | 'PENDING' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'UNKNOWN';
+  executor: 'local' | 'slurm' | 'awsbatch';
+  executor_job_id: string;
+  workflow: string;
+  revision: string;
+  outdir: string;
+  submitted_at: string;
+  updated_at: string;
+  exit_code?: number | null;
+  message?: string | null;
+};
+
+export type NgsProductionArtifacts = {
+  run_id: string;
+  workflow: string;
+  revision: string;
+  source: string;
+  observed_file_count: number;
+  groups: Record<string, string[]>;
+  required_groups_complete: boolean;
+  missing_groups: string[];
+  claim: string;
+};
+
 export type NgsClinicalEvidence = {
   evidence_bundle_sha256?: string;
   evidence_signature?: string;
@@ -1046,6 +1087,26 @@ export async function getNgsPortableBenchmark(): Promise<NgsPortableBenchmark> {
 
 export async function buildNgsProductionPlan(payload: NgsProductionPlanRequest): Promise<NgsProductionPlan> {
   const res = await api.post('/api/ngs/v2/production/plan', payload);
+  return res.data;
+}
+
+export async function getNgsProductionCapabilities(): Promise<NgsProductionCapabilities> {
+  const res = await api.get('/api/ngs/v2/production/capabilities');
+  return res.data;
+}
+
+export async function submitNgsProductionRun(payload: NgsProductionPlanRequest): Promise<NgsProductionSubmission> {
+  const res = await api.post('/api/ngs/v2/production/submit', payload);
+  return res.data;
+}
+
+export async function getNgsProductionRun(runId: string): Promise<NgsProductionRun> {
+  const res = await api.get(`/api/ngs/v2/production/runs/${encodeURIComponent(runId)}`);
+  return res.data;
+}
+
+export async function getNgsProductionArtifacts(runId: string): Promise<NgsProductionArtifacts> {
+  const res = await api.get(`/api/ngs/v2/production/runs/${encodeURIComponent(runId)}/artifacts`);
   return res.data;
 }
 

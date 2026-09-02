@@ -116,8 +116,8 @@ export default function NgsV2Page() {
 
     {!result && <section className="data-card overflow-hidden">
       <div className="border-b border-glass-border p-5">
-        <h2 className="text-sm font-semibold text-text-primary">Choose one analysis mode</h2>
-        <p className="mt-1 text-xs leading-5 text-text-muted">Production planning and the exploratory preview are separate workflows. They do not share execution state or results.</p>
+        <h2 className="text-sm font-semibold text-text-primary">Choose the execution engine</h2>
+        <p className="mt-1 text-xs leading-5 text-text-muted">Both engines live in the same BioNexus NGS workspace. Production submits real Sarek runs to configured compute; preview remains a lightweight, separately identified test engine.</p>
       </div>
       <div className="grid gap-px bg-glass-border md:grid-cols-2">
         <button type="button" onClick={() => changeMode('production')} aria-pressed={analysisMode === 'production'} className={`group p-5 text-left transition ${analysisMode === 'production' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>

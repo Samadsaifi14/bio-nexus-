@@ -70,6 +70,28 @@ class NgsProductionPlanResponse(BaseModel):
     clinical_boundary: dict[str, Any]
 
 
+class NgsProductionSubmitResponse(BaseModel):
+    run_id: str
+    state: Literal["SUBMITTED", "BLOCKED"]
+    executor: Literal["local", "slurm", "awsbatch"]
+    executor_job_id: Optional[str] = None
+    message: str
+
+
+class NgsProductionRunResponse(BaseModel):
+    run_id: str
+    state: Literal["SUBMITTED", "PENDING", "RUNNING", "SUCCEEDED", "FAILED", "UNKNOWN"]
+    executor: Literal["local", "slurm", "awsbatch"]
+    executor_job_id: str
+    workflow: str
+    revision: str
+    outdir: str
+    submitted_at: str
+    updated_at: str
+    exit_code: Optional[int] = None
+    message: Optional[str] = None
+
+
 class NgsClinicalEvidenceRequest(BaseModel):
     evidence_bundle_sha256: Optional[str] = None
     evidence_signature: Optional[str] = None

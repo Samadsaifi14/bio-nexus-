@@ -61,6 +61,15 @@ def test_portable_benchmark_reports_scoped_execution_parity(client):
     assert galaxy["execution"] == "EXECUTED_WITHOUT_GALAXY_SERVER"
 
 
+def test_production_capabilities_are_explicit_and_have_no_preview_fallback(client):
+    response = client.get("/api/ngs/v2/production/capabilities")
+    assert response.status_code == 200
+    body = response.json()
+    assert set(body["executors"]) == {"local", "slurm", "awsbatch"}
+    assert body["fallback"] is None
+    assert body["workflow"] == {"name": "nf-core/sarek", "revision": "3.10.0"}
+
+
 def test_clean_demo_uses_explicit_not_evaluated_states(client):
     response = client.post("/api/ngs/v2/analyze", json={"demo_profile": "wgs-clean"})
     assert response.status_code == 200

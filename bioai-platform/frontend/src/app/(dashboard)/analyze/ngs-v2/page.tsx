@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise, ShieldWarning, ShieldCheck } from '@phosphor-icons/react';
+import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise, ShieldWarning, ShieldCheck, CaretRight } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { getNgsPortableBenchmark, runNgs2Analyze } from '@/lib/api';
 import type { Ngs2AnalyzeResult, NgsPortableBenchmark } from '@/lib/api';
@@ -34,6 +34,7 @@ const DEMOS = [
 
 type DemoMeta = { profile: string; label: string; description: string; synthetic: boolean; read_pairs: number };
 type ExtendedResult = Ngs2AnalyzeResult & { demo?: DemoMeta | null; requested: Ngs2AnalyzeResult['requested'] & { demo_profile?: string | null; reads_analyzed?: number } };
+type AnalysisMode = 'production' | 'preview';
 
 function readinessStatus(verdict: string, integrityBlocked: boolean, researchReady: boolean): { status: ScientificStatus; label: string } {
   if (integrityBlocked) return { status: 'FAIL', label: 'INTEGRITY REVIEW REQUIRED' };
@@ -45,6 +46,7 @@ function readinessStatus(verdict: string, integrityBlocked: boolean, researchRea
 }
 
 export default function NgsV2Page() {
+  const [analysisMode, setAnalysisMode] = useState<AnalysisMode | null>(null);
   const [filePaths, setFilePaths] = useState('');
   const [assay, setAssay] = useState('');
   const [reference, setReference] = useState('grch38');
@@ -60,6 +62,12 @@ export default function NgsV2Page() {
   }, []);
 
   const resetResult = () => { setResult(null); setError(null); setRunningDemo(null); };
+  const changeMode = (mode: AnalysisMode | null) => {
+    setAnalysisMode(mode);
+    setResult(null);
+    setError(null);
+    setRunningDemo(null);
+  };
 
   const run = async (demoProfile?: string) => {
     const files = filePaths.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
@@ -105,10 +113,28 @@ export default function NgsV2Page() {
   return <div className="scientific-page max-w-6xl space-y-6 pb-12">
     <BackButton />
     <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, genome inspection and an evidence-backed analysis-readiness decision." />
-    <NgsProductionSupportCard defaultReference="GRCh38" />
-    {portableBenchmark && <NgsPortableBenchmarkCard report={portableBenchmark} />}
 
-    {!result && <>
+    {!result && <section className="data-card overflow-hidden">
+      <div className="border-b border-glass-border p-5">
+        <h2 className="text-sm font-semibold text-text-primary">Choose one analysis mode</h2>
+        <p className="mt-1 text-xs leading-5 text-text-muted">Production planning and the exploratory preview are separate workflows. They do not share execution state or results.</p>
+      </div>
+      <div className="grid gap-px bg-glass-border md:grid-cols-2">
+        <button type="button" onClick={() => changeMode('production')} aria-pressed={analysisMode === 'production'} className={`group p-5 text-left transition ${analysisMode === 'production' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>
+          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">Production WGS/WES</span><span className="rounded border border-info/20 bg-info/5 px-2 py-0.5 font-mono text-[9px] text-info">PLAN ONLY</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Validate a pinned nf-core/sarek launch contract for external durable compute. BioNexus does not execute this run yet.</p></div><CaretRight className="mt-0.5 shrink-0 text-text-muted transition group-hover:translate-x-0.5"/></div>
+        </button>
+        <button type="button" onClick={() => changeMode('preview')} aria-pressed={analysisMode === 'preview'} className={`group p-5 text-left transition ${analysisMode === 'preview' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>
+          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">Exploratory preview</span><span className="rounded border border-warn/20 bg-warn/5 px-2 py-0.5 font-mono text-[9px] text-warn">RUNS HERE</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Run deterministic demonstrations or server-local FASTQ through the internal evidence preview. This is not Sarek or a clinical workflow.</p></div><CaretRight className="mt-0.5 shrink-0 text-text-muted transition group-hover:translate-x-0.5"/></div>
+        </button>
+      </div>
+    </section>}
+
+    {!result && analysisMode === 'production' && <>
+      <NgsProductionSupportCard defaultReference="GRCh38" />
+      {portableBenchmark && <NgsPortableBenchmarkCard report={portableBenchmark} />}
+    </>}
+
+    {!result && analysisMode === 'preview' && <>
       <motion.section variants={fadeUp} initial={{ y: 18 }} animate="show" className="data-card overflow-hidden">
         <div className="border-b border-glass-border p-5"><div className="flex items-center gap-2"><TestTube className="h-4 w-4 text-accent-cyan"/><h2 className="text-sm font-semibold text-text-primary">Try a complete analysis</h2></div><p className="mt-1 text-xs leading-5 text-text-muted">These deterministic synthetic FASTQ pairs run through the same validation and staged NGS analysis as supplied files.</p></div>
         <div className="grid gap-px bg-glass-border md:grid-cols-3">{DEMOS.map(demo => <button key={demo.id} disabled={loading} onClick={() => run(demo.id)} className="bg-surface-0 p-4 text-left transition hover:bg-surface-1 disabled:opacity-50"><div className="flex items-center justify-between"><span className="text-sm font-semibold text-text-primary">{demo.title}</span><span className="rounded border border-accent-cyan/20 bg-accent-cyan/5 px-1.5 py-0.5 font-mono text-[9px] text-accent-cyan">DEMO</span></div><p className="mt-1 text-xs text-text-muted">{demo.subtitle}</p><p className="mt-3 text-[11px] font-medium text-accent-cyan">{runningDemo === demo.id ? 'Running…' : 'Run demo →'}</p></button>)}</div>
@@ -125,7 +151,7 @@ export default function NgsV2Page() {
     {error && <div className="rounded-xl border border-error/25 bg-error/10 p-4 text-sm text-error"><p>{error}</p><button onClick={() => setError(null)} className="mt-2 text-xs underline">Dismiss</button></div>}
 
     {result && <>
-      <div className="flex justify-end"><button onClick={resetResult} className="inline-flex items-center gap-2 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-xs text-text-secondary hover:text-text-primary"><ArrowCounterClockwise/>Back to demo selection</button></div>
+      <div className="flex justify-end"><button onClick={resetResult} className="inline-flex items-center gap-2 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-xs text-text-secondary hover:text-text-primary"><ArrowCounterClockwise/>Back to preview inputs</button></div>
       <ScientificResultsWorkspace
         title={result.demo ? result.demo.label : `${result.detection?.assay ?? 'NGS'} sequencing result`}
         subtitle={`${result.pipeline?.pipeline ?? 'NGS pipeline'} · ${displayedReference}${result.demo ? ' · SYNTHETIC DEMONSTRATION DATA' : ''}`}

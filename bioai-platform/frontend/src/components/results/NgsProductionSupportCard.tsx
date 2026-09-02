@@ -44,7 +44,7 @@ export function NgsProductionSupportCard({ defaultReference = 'GRCh38' }: NgsPro
   return <section className="data-card overflow-hidden">
     <div className="border-b border-glass-border p-5">
       <div className="flex flex-wrap items-center gap-2"><h2 className="text-sm font-semibold text-text-primary">Production human WGS/WES</h2><span className="rounded border border-info/20 bg-info/5 px-2 py-0.5 font-mono text-[9px] text-info">PINNED WORKFLOW</span><span className="rounded border border-warn/20 bg-warn/5 px-2 py-0.5 font-mono text-[9px] text-warn">CLINICAL GATE FAIL-CLOSED</span></div>
-      <p className="mt-1 text-xs leading-5 text-text-muted">Build a reproducible launch contract for durable compute. A run is not marked executed until its real trace, QC, checksums, alignments and variant files are imported.</p>
+      <p className="mt-1 text-xs leading-5 text-text-muted">This form validates and displays a reproducible nf-core/sarek launch contract. It does not submit a job. A run is not marked executed until its real trace, QC, checksums, alignments and variant files are imported.</p>
     </div>
     <div className="grid gap-4 p-5 md:grid-cols-2">
       <div><label className="mb-1.5 block text-xs text-text-muted">Assay</label><select className="scientific-select" value={assay} onChange={event => { setAssay(event.target.value as 'WGS' | 'WES'); setPlan(null); }}><option value="WGS">Human WGS</option><option value="WES">Human WES</option></select></div>

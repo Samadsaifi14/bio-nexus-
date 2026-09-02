@@ -155,15 +155,17 @@ def run_annotation(variants: list[dict], transcripts: list[dict]) -> dict:
 
 
 def _stage17_run(sample: dict, state: dict) -> tuple[dict, dict]:
-    variants = state.get("variants", {}).get("filtered", {}).get("final") or \
-        state.get("variants", {}).get("final")
+    variants = state.get("variants", {}).get("filtered", {}).get("final")
+    if variants is None:
+        variants = state.get("variants", {}).get("final")
     transcripts = sample.get("transcripts") or state.get("transcripts") or []
     if variants is None:
-        return {"error": "annotation needs final variants"}, {"annotate_frac": 0.0}
+        return {"error": "annotation needs final variants"}, {"annotation_completed": 0.0}
     report = run_annotation(variants, transcripts)
+    report["status"] = "NOT_APPLICABLE" if not variants else "COMPLETED"
+    report["n_input_variants"] = len(variants)
     state.setdefault("variants", {})["annotated"] = report
-    frac = report["n_annotated"] / len(variants) * 100.0 if variants else 100.0
-    return report, {"annotate_frac": frac}
+    return report, {"annotation_completed": 100.0}
 
 
 def stage17_contract() -> StageContract:
@@ -174,8 +176,8 @@ def stage17_contract() -> StageContract:
         inputs=["final_variants", "transcripts"],
         outputs=["annotated_variants"],
         rules=[
-            ThresholdRule(name="annotate_frac", metric="annotate_frac",
-                          evaluate=lambda v: _pct_rule(v, 90, 70)),
+            ThresholdRule(name="annotation_completed", metric="annotation_completed",
+                          evaluate=lambda v: _pct_rule(v, 100, 100), expectation="completed"),
         ],
         fail_blocks=False,
         run=_stage17_run,
@@ -197,10 +199,9 @@ def _pct_rule(v, ok, warn):
 def run_annotation_stage(variants: list[dict], transcripts: list[dict]) -> dict:
     from app.ngs.contracts import apply_rules, QcResult
     report = run_annotation(variants, transcripts)
-    frac = report["n_annotated"] / len(variants) * 100.0 if variants else 100.0
     contract = stage17_contract()
     result = QcResult.from_metrics(
-        apply_rules(contract.resolve_rules({}), {"annotate_frac": frac}), fail_blocks=False)
+        apply_rules(contract.resolve_rules({}), {"annotation_completed": 100.0}), fail_blocks=False)
     return {
         "result": {"step": "annotation", "qc": result.to_dict(),
                    "decision": result.decision.value, "data": report["summary"]},

@@ -32,6 +32,14 @@ class Settings:
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
     CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bioai-platform.vercel.app")
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
+    NGS_CLINICAL_EVIDENCE_HMAC_KEY: str = os.getenv("NGS_CLINICAL_EVIDENCE_HMAC_KEY", "")
+    NGS_LOCAL_EXECUTION_ENABLED: bool = os.getenv("NGS_LOCAL_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
+    NGS_SLURM_EXECUTION_ENABLED: bool = os.getenv("NGS_SLURM_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
+    NGS_AWS_BATCH_EXECUTION_ENABLED: bool = os.getenv("NGS_AWS_BATCH_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
+    NGS_RUN_ROOT: str = os.getenv("NGS_RUN_ROOT", "/tmp/bionexus-ngs-runs")
+    NGS_AWS_REGION: str = os.getenv("NGS_AWS_REGION", "")
+    NGS_AWS_BATCH_JOB_QUEUE: str = os.getenv("NGS_AWS_BATCH_JOB_QUEUE", "")
+    NGS_AWS_BATCH_JOB_DEFINITION: str = os.getenv("NGS_AWS_BATCH_JOB_DEFINITION", "")
 
 
 settings = Settings()

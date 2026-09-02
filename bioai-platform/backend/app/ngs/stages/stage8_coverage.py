@@ -156,10 +156,35 @@ def _stage8_run(sample: dict, state: dict) -> tuple[dict, dict]:
     eng = coverage_engine(records, ref_lengths, targets)
     state.setdefault("coverage", {})["engine"] = eng
     g = eng["genome"]
+    if sample.get("synthetic_reference") or sample.get("demonstration_data"):
+        return eng, {
+            "synthetic_reference_covered": g["coverage_1x"],
+            "synthetic_uniformity": g["uniformity"],
+        }
     return eng, {
         "coverage_ok": g["coverage_30x"],
         "uniformity_ok": g["uniformity"],
     }
+
+
+def _coverage_rules(sample: dict) -> list[ThresholdRule]:
+    if sample.get("synthetic_reference") or sample.get("demonstration_data"):
+        return [
+            ThresholdRule(
+                name="synthetic_reference_covered", metric="synthetic_reference_covered",
+                evaluate=lambda v: _pct_rule(v, 95, 80), expectation=">= 95% at 1x",
+            ),
+            ThresholdRule(
+                name="synthetic_uniformity", metric="synthetic_uniformity",
+                evaluate=lambda v: _pct_rule(v, 95, 80), expectation=">= 95%",
+            ),
+        ]
+    return [
+        ThresholdRule(name="coverage_ok", metric="coverage_ok",
+                      evaluate=lambda v: _pct_rule(v, 85, 60), expectation=">= 85% at 30x"),
+        ThresholdRule(name="uniformity_ok", metric="uniformity_ok",
+                      evaluate=lambda v: _pct_rule(v, 80, 60), expectation=">= 80%"),
+    ]
 
 
 def stage8_contract() -> StageContract:
@@ -169,12 +194,7 @@ def stage8_contract() -> StageContract:
         version="0.1.0",
         inputs=["processed_bam", "reference_lengths", "target_regions?"],
         outputs=["coverage_report"],
-        rules=[
-            ThresholdRule(name="coverage_ok", metric="coverage_ok",
-                          evaluate=lambda v: _pct_rule(v, 85, 60)),
-            ThresholdRule(name="uniformity_ok", metric="uniformity_ok",
-                          evaluate=lambda v: _pct_rule(v, 80, 60)),
-        ],
+        rules=_coverage_rules,
         fail_blocks=False,
         run=_stage8_run,
     )

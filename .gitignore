@@ -40,6 +40,15 @@ tsconfig.tsbuildinfo
 
 # --- Temp / scratch ---
 tmp_hf/
+runtime/
+resource_readiness/
+.nextflow/
+.nextflow.log*
+benchmark/ngs-portability/work/
+dag-*.html
+report-*.html
+timeline-*.html
+trace-*.txt
 
 # --- Installed agent skills (restore via `npx skills experimental_install`) ---
 .agents/

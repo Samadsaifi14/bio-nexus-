@@ -145,6 +145,25 @@ Full build history and what's shipped in each phase lives in `IMPLEMENTATION_LOG
 | Outreach | Target M.Sc./PhD/MBBS students directly — "walk me through the last sequence you tried to analyze" |
 | Architecture discipline | New tools become new pipeline modules; the aggregator/AI/viz layers never get bolted-on special cases |
 
+### NGS evidence transparency acceptance criteria (September 2026)
+
+- Results name the scientific operation, not a crowded list of possible tools.
+- Every stage reports whether its output was directly measured, internally computed, inferred, or produced by a surrogate method.
+- A tool/version is reported only when that implementation actually executed; candidate or compatible tools are never shown as executed.
+- Synthetic demonstrations are permanently labelled and cannot support biological or accuracy claims.
+- Accuracy is reported only after comparison with a recognized truth set in its benchmark regions, with precision, recall and F1 split by variant class.
+- GIAB/GA4GH, precisionFDA and SEQC are registered as external comparison sources; an unexecuted comparison displays `NOT_EVALUATED`, never a fabricated score.
+- “Same or better” is permitted only when an executed, reproducible benchmark supports the claim for the same sample, reference build, confident regions and metric.
+
+### Production human WGS/WES and clinical-safeguard acceptance criteria (September 2026)
+
+- Production WGS/WES plans use a pinned nf-core/sarek release and emit an argument array, reference/build declaration, caller choice, execution profile and required-artifact manifest.
+- WES plans are blocked without a target BED; unsupported references, input types, sample models and container/executor profiles are rejected before launch.
+- The web preview pipeline is never relabelled as a production Sarek execution. A production result becomes `EXECUTED` only after its trace, reports, checksums, QC and variant artifacts are imported from the actual run.
+- Clinical intent is fail-closed. Missing assay-validation identity, sample identity, contamination, reference/checksum provenance, benchmark evidence, human review or signed release evidence blocks release.
+- Passing the software gate is labelled `SOFTWARE_GATE_PASSED`, not “clinically validated”. Laboratory validation, accreditation, jurisdictional compliance and report authorization remain external responsibilities.
+- Benchmark parity requires the same sample, reference, callable/confident regions, pipeline revision and variant-class metrics. Synthetic positive controls cannot satisfy the clinical benchmark gate.
+
 ---
 
 ## 7. Weekly Rhythm

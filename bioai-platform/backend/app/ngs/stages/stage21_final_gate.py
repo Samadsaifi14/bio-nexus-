@@ -75,19 +75,17 @@ def evaluate_gate(pipeline_report: dict) -> dict:
             f"{verdict}: {len(blocked)} blocking gate(s) failed"
             if blocked else
             (f"{verdict}: proceeding with {len(warners)} warning(s)"
-             if warners else "all {passed} pipeline stages passed")),
+             if warners else f"all {passed} pipeline stages passed")),
     }
 
 
 def _stage21_run(sample: dict, state: dict) -> tuple[dict, dict]:
     report = sample.get("pipeline_report") or state.get("pipeline_report")
     if report is None:
-        return {"error": "final gate needs the pipeline report"}, {"gate_ok": 100.0}
+        return {"error": "final gate needs the pipeline report"}, {"readiness_verdict": "NOT_ANALYSIS_READY"}
     gate = evaluate_gate(report)
     state.setdefault("final_gate", {})["result"] = gate
-    ok = 100.0 if gate["verdict"] == "ANALYSIS_READY" else (
-        60.0 if gate["verdict"] == "ANALYSIS_READY_WITH_WARNINGS" else 0.0)
-    return gate, {"gate_ok": ok}
+    return gate, {"readiness_verdict": gate["verdict"]}
 
 
 def stage21_contract() -> StageContract:
@@ -98,8 +96,11 @@ def stage21_contract() -> StageContract:
         inputs=["pipeline_report"],
         outputs=["readiness_verdict"],
         rules=[
-            ThresholdRule(name="gate_ok", metric="gate_ok",
-                          evaluate=lambda v: _gate_rule(v)),
+            ThresholdRule(
+                name="readiness_verdict", metric="readiness_verdict",
+                evaluate=lambda v: _gate_rule(v),
+                expectation="ANALYSIS_READY or ANALYSIS_READY_WITH_WARNINGS",
+            ),
         ],
         fail_blocks=True,   # a NOT_READY verdict stops the report from being finalised
         run=_stage21_run,
@@ -107,13 +108,9 @@ def stage21_contract() -> StageContract:
 
 
 def _gate_rule(v):
-    try:
-        v = float(v)
-    except (TypeError, ValueError):
-        return QcStatus.FAIL
-    if v >= 100.0:
+    if v == "ANALYSIS_READY":
         return QcStatus.PASS
-    if v >= 60.0:
+    if v == "ANALYSIS_READY_WITH_WARNINGS":
         return QcStatus.WARN
     return QcStatus.FAIL
 
@@ -121,10 +118,9 @@ def _gate_rule(v):
 def run_final_gate(pipeline_report: dict) -> dict:
     from app.ngs.contracts import apply_rules, QcResult
     gate = evaluate_gate(pipeline_report)
-    ok = 100.0 if gate["verdict"] == "ANALYSIS_READY" else (
-        60.0 if gate["verdict"] == "ANALYSIS_READY_WITH_WARNINGS" else 0.0)
     contract = stage21_contract()
-    result = QcResult.from_metrics(apply_rules(contract.resolve_rules({}), {"gate_ok": ok}),
+    result = QcResult.from_metrics(apply_rules(
+        contract.resolve_rules({}), {"readiness_verdict": gate["verdict"]}),
                                    fail_blocks=True)
     return {
         "result": {"step": "final_gate", "qc": result.to_dict(),

@@ -104,6 +104,7 @@ def stage6_contract() -> StageContract:
         ],
         fail_blocks=False,   # high duplication is a WARN, not a stop (it can be filtered)
         run=_stage6_run,
+        evidence_level="SURROGATE",
     )
 
 

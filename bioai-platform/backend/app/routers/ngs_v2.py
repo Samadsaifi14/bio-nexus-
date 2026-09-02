@@ -16,17 +16,31 @@ import logging
 import os
 import random
 import tempfile
+import json
+from pathlib import Path
 from typing import Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.ngs.assays import AssayRouter
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
+from app.ngs.production import build_production_plan, evaluate_clinical_evidence
+from app.ngs.execution import artifact_manifest, executor_capabilities, get_run, submit_run
+from app.services.auth import require_user_id
 from app.ngs.visualization import build_visualization
+from app.models.responses import (
+    NgsClinicalEvidenceRequest,
+    NgsClinicalEvidenceResponse,
+    NgsProductionPlanRequest,
+    NgsProductionPlanResponse,
+    NgsProductionRunResponse,
+    NgsProductionSubmitResponse,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ngs/v2", tags=["ngs-v2"])
+FASTQ_RECORD_CAP_PER_FILE = 2000
 
 _DETECTOR = AssayRouter()
 
@@ -101,7 +115,7 @@ class DetectRequest(BaseModel):
     metadata: dict = {}
 
 
-def _read_fastq(path: str, cap: int = 2000) -> list[tuple[str, str, str]]:
+def _read_fastq(path: str, cap: int = FASTQ_RECORD_CAP_PER_FILE) -> tuple[list[tuple[str, str, str]], bool]:
     if not os.path.isfile(path):
         raise HTTPException(status_code=400, detail=f"file not found: {path}")
     reads: list[tuple[str, str, str]] = []
@@ -118,9 +132,10 @@ def _read_fastq(path: str, cap: int = 2000) -> list[tuple[str, str, str]]:
                 if not name.startswith("@") or not plus.startswith("+"):
                     continue
                 reads.append((name[1:].split()[0], seq, qual))
+            truncated = bool(fh.readline())
     except Exception as exc:
         raise HTTPException(status_code=400, detail=f"failed to read {path}: {exc}")
-    return reads
+    return reads, truncated
 
 
 def _demo_sequence(rng: random.Random, length: int = 150) -> str:
@@ -196,7 +211,8 @@ def _detection(payload, files: Optional[list[str]] = None) -> dict:
 def list_stages():
     contracts = wgs_wes_germline_stages()
     return {"pipeline": "wgs-wes-germline", "stages": [
-        {"step": c.step, "tool": c.tool, "inputs": c.inputs, "outputs": c.outputs,
+        {"step": c.step, "operation": c.step.replace("_", " "), "implementation": c.tool,
+         "evidence_level": c.evidence_level, "inputs": c.inputs, "outputs": c.outputs,
          "fail_blocks": c.fail_blocks, "expectation": _STAGE_INTRO.get(c.step, "")}
         for c in contracts
     ]}
@@ -205,6 +221,66 @@ def list_stages():
 @router.get("/demos")
 def list_demos():
     return {"demos": [{"id": key, **value} for key, value in _DEMO_PROFILES.items()]}
+
+
+@router.get("/benchmarks/portable")
+def portable_benchmark():
+    report_path = Path(__file__).resolve().parents[1] / "ngs" / "portable_benchmark_report.json"
+    with report_path.open("r", encoding="utf-8") as handle:
+        return json.load(handle)
+
+
+@router.post("/production/plan", response_model=NgsProductionPlanResponse)
+def production_plan(payload: NgsProductionPlanRequest):
+    return build_production_plan(payload)
+
+
+@router.get("/production/capabilities")
+def production_capabilities():
+    return executor_capabilities()
+
+
+@router.post("/production/submit", response_model=NgsProductionSubmitResponse)
+def production_submit(payload: NgsProductionPlanRequest, user_id: str = Depends(require_user_id)):
+    plan = build_production_plan(payload)
+    if not plan["ready_to_launch"]:
+        raise HTTPException(status_code=422, detail={"message": "production launch contract is blocked", "blockers": plan["blockers"]})
+    executor = "awsbatch" if payload.execution_profile == "awsbatch" else "slurm" if payload.execution_profile == "slurm" else "local"
+    try:
+        run = submit_run(executor, plan["command_argv"], payload.outdir, user_id)
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Production Sarek submission failed")
+        raise HTTPException(status_code=502, detail=f"executor submission failed: {type(exc).__name__}") from exc
+    return {
+        "run_id": run["run_id"], "state": "SUBMITTED", "executor": executor,
+        "executor_job_id": run["executor_job_id"], "message": "Real nf-core/sarek run submitted; no exploratory fallback was used.",
+    }
+
+
+@router.get("/production/runs/{run_id}", response_model=NgsProductionRunResponse)
+def production_run_status(run_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        return get_run(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="production run not found") from exc
+
+
+@router.get("/production/runs/{run_id}/artifacts")
+def production_run_artifacts(run_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        return artifact_manifest(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="production run not found") from exc
+    except Exception as exc:
+        logger.exception("Production Sarek artifact import failed")
+        raise HTTPException(status_code=502, detail=f"artifact import failed: {type(exc).__name__}") from exc
+
+
+@router.post("/clinical/evaluate", response_model=NgsClinicalEvidenceResponse)
+def clinical_evidence(payload: NgsClinicalEvidenceRequest):
+    return evaluate_clinical_evidence(payload)
 
 
 @router.post("/detect")
@@ -222,9 +298,12 @@ def analyze(payload: AnalyzeRequest):
         raise HTTPException(status_code=400, detail="provide file_paths, fastq_url, or demo_profile")
 
     reads_all: dict[str, list[tuple[str, str, str]]] = {}
+    truncated_inputs: list[str] = []
     for f in files:
-        got = _read_fastq(f)
+        got, truncated = _read_fastq(f)
         reads_all[f] = got
+        if truncated:
+            truncated_inputs.append(os.path.basename(f))
         if not got:
             raise HTTPException(status_code=400, detail=f"no FASTQ records read from {f}")
 
@@ -233,6 +312,8 @@ def analyze(payload: AnalyzeRequest):
     assay = (payload.assay or demo_assay or detection["assay"] or "WGS").upper()
     if assay in ("UNKNOWN", ""):
         assay = "WGS"
+    if payload.demo_profile:
+        detection["sample_type"] = "synthetic-positive-control"
 
     combined_reads = [read for f in files for read in reads_all.get(f, [])]
     sample: dict = {
@@ -240,7 +321,11 @@ def analyze(payload: AnalyzeRequest):
         "reference": payload.reference or "grch38",
         "assay": assay,
         "sample_type": payload.sample_type or detection["sample_type"],
-        "metadata": {**(payload.metadata or {}), **({"demo_profile": payload.demo_profile} if payload.demo_profile else {})},
+        "metadata": {
+            **({"platform": "illumina-simulated"} if payload.demo_profile else {}),
+            **(payload.metadata or {}),
+            **({"demo_profile": payload.demo_profile} if payload.demo_profile else {}),
+        },
         "demonstration_data": bool(payload.demo_profile or (payload.metadata or {}).get("demonstration_data")),
         "synthetic_reference": bool(payload.synthetic_reference or payload.demo_profile),
         "reads": combined_reads,
@@ -252,15 +337,30 @@ def analyze(payload: AnalyzeRequest):
 
     pipe = build_dag(assay)
     report = pipe.run(sample)
+    report["validation"]["input_sampling"] = {
+        "mode": "SAMPLED_PREVIEW" if truncated_inputs else "COMPLETE_FOR_SUPPLIED_FILES",
+        "record_cap_per_file": FASTQ_RECORD_CAP_PER_FILE,
+        "truncated_files": truncated_inputs,
+        "all_records_processed": not truncated_inputs,
+    }
+    if truncated_inputs:
+        report["warnings"].append(
+            f"Only the first {FASTQ_RECORD_CAP_PER_FILE} records per FASTQ were analyzed; "
+            "this result is a sampled preview and cannot support whole-run QC or variant conclusions."
+        )
     return {
         "detection": detection,
         "requested": {
             "assay": assay,
-            "reference": sample["reference"],
+            "reference": "synthetic-positive-control" if use_synthetic_reference else sample["reference"],
+            "reference_template_requested": sample["reference"] if use_synthetic_reference else None,
             "synthetic_reference": use_synthetic_reference,
             "demo_profile": payload.demo_profile,
             "reads_loaded": {os.path.basename(f): len(reads_all[f]) for f in files},
             "reads_analyzed": len(combined_reads),
+            "record_cap_per_file": FASTQ_RECORD_CAP_PER_FILE,
+            "truncated_files": truncated_inputs,
+            "all_records_processed": not truncated_inputs,
         },
         "demo": demo,
         "pipeline": report,

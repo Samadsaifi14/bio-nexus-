@@ -1,0 +1,43 @@
+{
+  "benchmark": "bionexus-tiny-target-v1",
+  "classification": "SYNTHETIC_POSITIVE_CONTROL",
+  "workflow_output_parity": true,
+  "biological_scope": "one heterozygous SNP in a 200 bp synthetic target",
+  "reports": [
+    {
+      "orchestrator": "bionexus-direct",
+      "normalized_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "orchestrator": "nextflow-26.04.6",
+      "normalized_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "orchestrator": "galaxy-wrapper-command",
+      "normalized_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  ],
+  "limitations": [
+    "Tests deterministic workflow portability, not real-sample accuracy.",
+    "Does not validate indels, difficult regions, structural variants, CNVs or annotation.",
+    "Cannot support claims of parity with nf-core/sarek as a whole or a public Galaxy server."
+  ]
+}

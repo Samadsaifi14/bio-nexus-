@@ -79,14 +79,14 @@ def _stage9_run(sample: dict, state: dict) -> tuple[dict, dict]:
     if records is None:
         return ({"error": "contamination needs aligned records",
                  "unevaluated": "no aligned reads"},
-                {"contam_checked": 0.0, "contam_ok": 100.0})
+                {})
     if not sites:
         return ({"unevaluated": "no SNP panel supplied; contamination not asserted",
-                 "contam_rate": 0.0},
-                {"contam_checked": 0.0, "contam_ok": 100.0})
+                 "contam_rate": None, "status": "NOT_EVALUATED"},
+                {})
     eng = contamination_engine(records, sites)
     state.setdefault("contamination", {})["engine"] = eng
-    return eng, {"contam_checked": 100.0, "contam_ok": round(100.0 - eng["contam_rate"], 3)}
+    return eng, {"contamination_pct": eng["contam_rate"]}
 
 
 def stage9_contract() -> StageContract:
@@ -97,30 +97,27 @@ def stage9_contract() -> StageContract:
         inputs=["processed_bam", "snp_sites"],
         outputs=["contamination_report"],
         rules=[
-            ThresholdRule(name="contam_checked", metric="contam_checked",
-                          evaluate=lambda v: _checked_rule(v)),
-            ThresholdRule(name="contam_ok", metric="contam_ok",
-                          evaluate=lambda v: _invert_pct_rule(v, 98.0, 95.0)),
+            ThresholdRule(
+                name="contamination_pct", metric="contamination_pct",
+                evaluate=lambda v: _contamination_rule(v), expectation="<= 2%",
+                optional=True,
+                missing_detail="Not evaluated: a reference-matched SNP panel was not supplied.",
+            ),
         ],
         fail_blocks=True,   # contamination FAIL blocks downstream variant calling
         run=_stage9_run,
+        evidence_level="SURROGATE",
     )
 
 
-def _checked_rule(v):
-    # 100 = a real SNP-panel check ran; 0 = unevaluated (WARN, not blocking)
-    return QcStatus.PASS if float(v) >= 100.0 else QcStatus.WARN
-
-
-def _invert_pct_rule(v, ok, warn):
-    # ok = min "purity" for PASS, warn = min for WARN; below warn -> FAIL
+def _contamination_rule(v):
     try:
         v = float(v)
     except (TypeError, ValueError):
         return QcStatus.FAIL
-    if v >= ok:
+    if v <= 2.0:
         return QcStatus.PASS
-    if v >= warn:
+    if v <= 5.0:
         return QcStatus.WARN
     return QcStatus.FAIL
 
@@ -131,8 +128,7 @@ def run_contamination(
 ) -> dict:
     from app.ngs.contracts import apply_rules, QcResult
     eng = contamination_engine(records, snp_sites)
-    metrics = {"contam_ok": round(100.0 - eng["contam_rate"], 3),
-               "contam_checked": 100.0 if snp_sites else 0.0}
+    metrics = {"contamination_pct": eng["contam_rate"]} if snp_sites else {}
     contract = stage9_contract()
     result = QcResult.from_metrics(apply_rules(contract.resolve_rules({}), metrics),
                                    fail_blocks=True)

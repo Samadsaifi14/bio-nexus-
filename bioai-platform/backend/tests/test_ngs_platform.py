@@ -545,6 +545,15 @@ def test_reference_validation_resolves_grch38():
     assert out["summary"]["reference"]["build"] == "GRCh38"
 
 
+def test_synthetic_reference_never_claims_grch38_coordinates():
+    out = run_reference_validation({"reference": "grch38", "synthetic_reference": True})
+    reference = out["summary"]["reference"]
+    assert out["summary"]["status"] == "PASS"
+    assert reference["id"] == "synthetic-positive-control"
+    assert reference["build"] == "NOT_APPLICABLE"
+    assert reference["requested_template"] == "grch38"
+
+
 def test_reference_validation_mismatch_stops():
     # GRCh38 data against a GRCh37 annotation is a provenance error -> STOP.
     out = run_reference_validation({"reference": "grch38", "annotation_build": "GRCh37"})
@@ -623,7 +632,9 @@ def test_choose_aligner_by_assay():
 def test_alignment_run_and_mapping_ok():
     ref, reads = _make_ref_and_reads(ref_len=600, n_reads=20)
     out = run_alignment(reads[:20], ref, assay="WGS", read_length=30)
-    assert out["summary"]["meta"]["aligner"] == "bwa-mem2"
+    assert out["summary"]["meta"]["recommended_production_aligner"] == "bwa-mem2"
+    assert out["summary"]["meta"]["executed_implementation"] == "bionexus-seed-aligner"
+    assert out["summary"]["meta"]["executor"] == "python-surrogate"
     assert out["summary"]["decision"] != "STOP"
     assert out["summary"]["meta"]["mapped"] >= 18
     assert len(out["records"]) == 20

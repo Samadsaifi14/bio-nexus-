@@ -131,6 +131,7 @@ def stage11_contract() -> StageContract:
         rules=[],
         fail_blocks=False,
         run=_stage11_run,
+        evidence_level="SURROGATE",
     )
 
 

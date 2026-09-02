@@ -115,7 +115,7 @@ def _stage11_run(sample: dict, state: dict) -> tuple[dict, dict]:
     ref_seq = sample.get("reference_seq") or state.get("reference_seq")
     if not records:
         return {"error": "variant calling needs aligned records"}, {}
-    ref_map = {"chr1": ref_seq} if isinstance(ref_seq, str) else (ref_seq or {"chr1": ""})
+    ref_map = {sample.get("contig", "chr1"): ref_seq} if isinstance(ref_seq, str) else (ref_seq or {"chr1": ""})
     vcf = call_variants(records, ref_map)
     state.setdefault("variants", {})["call"] = vcf
     return vcf, {"variants_called": len(vcf["variants"])}

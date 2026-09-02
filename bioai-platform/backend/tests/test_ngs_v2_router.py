@@ -107,6 +107,24 @@ def test_clean_demo_uses_explicit_not_evaluated_states(client):
     assert all(tool["implementation"] for tool in body["pipeline"]["provenance"]["tools"])
 
 
+def test_truth_bearing_demo_recovers_declared_synthetic_variant(client):
+    response = client.post("/api/ngs/v2/analyze", json={"demo_profile": "wgs-truth-control"})
+    assert response.status_code == 200
+    body = response.json()
+    benchmark = body["demo"]["functional_benchmark"]
+    assert benchmark["classification"] == "SYNTHETIC_FUNCTIONAL_CONTROL"
+    assert benchmark["status"] == "PASS"
+    assert benchmark["tp"] == 1
+    assert benchmark["fp"] == 0
+    assert benchmark["fn"] == 0
+    assert benchmark["precision"] == 1.0
+    assert benchmark["recall"] == 1.0
+    assert body["visualization"]["n_variants"] >= 1
+    assert "does not establish biological accuracy" in benchmark["claim"]
+    complete_input = next(item for item in body["pipeline"]["validation"]["production_requirements"] if item["id"] == "complete_input")
+    assert complete_input["status"] == "DEMO_ONLY"
+
+
 def test_production_plan_pins_sarek_and_emits_auditable_argv(client):
     response = client.post("/api/ngs/v2/production/plan", json={
         "assay": "WGS",
@@ -267,7 +285,9 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     assert all(item["metrics"] is None for item in validation["comparisons"])
     assert validation["analysis_grade"] == "EXPLORATORY_PREVIEW"
     assert validation["research_ready"] is False
-    assert all(item["status"] == "MISSING" for item in validation["production_requirements"])
+    requirements = {item["id"]: item for item in validation["production_requirements"]}
+    assert requirements["complete_input"]["status"] == "OBSERVED_FOR_SUPPLIED_FILES"
+    assert all(item["status"] == "MISSING" for key, item in requirements.items() if key != "complete_input")
     assert body["requested"]["all_records_processed"] is True
 
 

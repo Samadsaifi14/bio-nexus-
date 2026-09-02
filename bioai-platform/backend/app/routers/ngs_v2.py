@@ -69,6 +69,15 @@ _STAGE_INTRO = {
 }
 
 _DEMO_PROFILES = {
+    "wgs-truth-control": {
+        "label": "Truth-bearing WGS functional control",
+        "assay": "WGS",
+        "description": "Compact paired-end synthetic control with one declared heterozygous SNV for observed-versus-expected pipeline testing.",
+        "read_pairs": 16,
+        "low_quality_fraction": 0.0,
+        "duplicate_fraction": 0.0,
+        "truth_bearing": True,
+    },
     "wgs-clean": {
         "label": "Clean paired-end WGS",
         "assay": "WGS",
@@ -142,10 +151,41 @@ def _demo_sequence(rng: random.Random, length: int = 150) -> str:
     return "".join(rng.choice("ACGT") for _ in range(length))
 
 
-def _write_demo_fastqs(profile_name: str) -> tuple[list[str], dict]:
+def _write_truth_control_fastqs(profile_name: str, profile: dict) -> tuple[list[str], dict, dict]:
+    rng = random.Random(20260902)
+    reference = "".join(rng.choice("ACGT") for _ in range(5000))
+    position = 1001
+    ref = reference[position - 1]
+    alt = next(base for base in "ACGT" if base != ref)
+    directory = tempfile.mkdtemp(prefix=f"bionexus-{profile_name}-")
+    paths = [os.path.join(directory, f"BN_TRUTH_WGS_R{mate}.fastq") for mate in (1, 2)]
+    starts = list(range(position - 56, position - 24))
+    for mate_index, path in enumerate(paths):
+        with open(path, "w", encoding="utf-8") as handle:
+            for local_index, start in enumerate(starts[mate_index::2]):
+                sequence = reference[start:start + 150]
+                carries_alt = local_index % 2 == mate_index % 2
+                if carries_alt:
+                    offset = position - 1 - start
+                    sequence = sequence[:offset] + alt + sequence[offset + 1:]
+                qname = f"BNTRUTH:{mate_index + 1}:{local_index:04d}:{'ALT' if carries_alt else 'REF'}"
+                handle.write(f"@{qname}/{mate_index + 1}\n{sequence}\n+\n{'I' * len(sequence)}\n")
+    truth = [{"chrom": "chrSynthetic", "pos": position, "ref": ref, "alt": alt, "genotype": "0/1"}]
+    public = {
+        "profile": profile_name, "label": profile["label"], "description": profile["description"],
+        "synthetic": True, "read_pairs": profile["read_pairs"], "truth_set": truth,
+        "truth_scope": "Synthetic functional control only; not GIAB, GA4GH, clinical, or production validation.",
+    }
+    runtime = {"reference_seq": reference, "contig": "chrSynthetic", "truth_set": truth}
+    return paths, public, runtime
+
+
+def _write_demo_fastqs(profile_name: str) -> tuple[list[str], dict, dict]:
     if profile_name not in _DEMO_PROFILES:
         raise HTTPException(status_code=400, detail=f"unknown demo_profile: {profile_name}")
     profile = _DEMO_PROFILES[profile_name]
+    if profile.get("truth_bearing"):
+        return _write_truth_control_fastqs(profile_name, profile)
     rng = random.Random(20260830 + list(_DEMO_PROFILES).index(profile_name))
     directory = tempfile.mkdtemp(prefix=f"bionexus-{profile_name}-")
     r1_path = os.path.join(directory, f"BN_DEMO_{profile['assay']}_R1.fastq")
@@ -178,6 +218,24 @@ def _write_demo_fastqs(profile_name: str) -> tuple[list[str], dict]:
         "description": profile["description"],
         "synthetic": True,
         "read_pairs": n_pairs,
+    }, {}
+
+
+def _synthetic_truth_benchmark(expected: list[dict], observed: list[dict]) -> dict:
+    key = lambda item: (item.get("chrom"), int(item.get("pos", 0)), item.get("ref"), item.get("alt"))
+    expected_keys = {key(item) for item in expected}
+    observed_keys = {key(item) for item in observed}
+    tp = len(expected_keys & observed_keys)
+    fp = len(observed_keys - expected_keys)
+    fn = len(expected_keys - observed_keys)
+    precision = tp / (tp + fp) if tp + fp else None
+    recall = tp / (tp + fn) if tp + fn else None
+    return {
+        "classification": "SYNTHETIC_FUNCTIONAL_CONTROL",
+        "status": "PASS" if fp == 0 and fn == 0 else "FAIL",
+        "tp": tp, "fp": fp, "fn": fn, "precision": precision, "recall": recall,
+        "expected": expected, "observed": observed,
+        "claim": "This checks deterministic functional behavior on one synthetic SNV only. It does not establish biological accuracy or parity with Sarek, Galaxy, GIAB, or GA4GH benchmarks.",
     }
 
 
@@ -292,8 +350,9 @@ def detect(payload: DetectRequest):
 def analyze(payload: AnalyzeRequest):
     files = list(payload.file_paths or [])
     demo: Optional[dict] = None
+    demo_runtime: dict = {}
     if payload.demo_profile:
-        files, demo = _write_demo_fastqs(payload.demo_profile)
+        files, demo, demo_runtime = _write_demo_fastqs(payload.demo_profile)
     if not files and not payload.fastq_url:
         raise HTTPException(status_code=400, detail="provide file_paths, fastq_url, or demo_profile")
 
@@ -332,8 +391,8 @@ def analyze(payload: AnalyzeRequest):
     }
     use_synthetic_reference = sample["synthetic_reference"]
     if use_synthetic_reference and combined_reads:
-        sample["reference_seq"] = _synthetic_reference(combined_reads)
-        sample["contig"] = "chr1"
+        sample["reference_seq"] = demo_runtime.get("reference_seq") or _synthetic_reference(combined_reads)
+        sample["contig"] = demo_runtime.get("contig") or "chr1"
 
     pipe = build_dag(assay)
     report = pipe.run(sample)
@@ -343,6 +402,18 @@ def analyze(payload: AnalyzeRequest):
         "truncated_files": truncated_inputs,
         "all_records_processed": not truncated_inputs,
     }
+    complete_input = next((item for item in report["validation"]["production_requirements"] if item["id"] == "complete_input"), None)
+    if complete_input and not truncated_inputs:
+        complete_input["status"] = "DEMO_ONLY" if payload.demo_profile else "OBSERVED_FOR_SUPPLIED_FILES"
+        complete_input["evidence"] = (
+            "Every record in this compact demonstration was processed; this does not represent full-scale FASTQ ingestion."
+            if payload.demo_profile else "Every record in the supplied server-local FASTQ files was processed."
+        )
+    if demo_runtime.get("truth_set"):
+        observed = pipe.state.get("variants", {}).get("call", {}).get("variants", [])
+        benchmark = _synthetic_truth_benchmark(demo_runtime["truth_set"], observed)
+        demo["functional_benchmark"] = benchmark
+        report["validation"]["synthetic_functional_control"] = benchmark
     if truncated_inputs:
         report["warnings"].append(
             f"Only the first {FASTQ_RECORD_CAP_PER_FILE} records per FASTQ were analyzed; "

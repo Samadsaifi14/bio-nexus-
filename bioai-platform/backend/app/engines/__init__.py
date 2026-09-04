@@ -7,13 +7,14 @@ New engines register themselves here; the public API reads this registry.
 
 from app.engines.base import BaseEngine, EngineResult, ValidationReport
 from app.engines.blast_engine import blast_engine
+from app.engines.msa_engine import msa_engine
 from app.engines.uniprot_engine import uniprot_engine
 
 ENGINES: dict[str, BaseEngine] = {
-    engine.name: engine for engine in (blast_engine, uniprot_engine)
+    engine.name: engine for engine in (blast_engine, uniprot_engine, msa_engine)
 }
 
-__all__ = ["BaseEngine", "EngineResult", "ValidationReport", "ENGINES", "blast_engine", "uniprot_engine"]
+__all__ = ["BaseEngine", "EngineResult", "ValidationReport", "ENGINES", "blast_engine", "uniprot_engine", "msa_engine"]
 
 
 def get_engine(name: str) -> BaseEngine | None:

@@ -1,0 +1,18 @@
+{
+  "category": "msa",
+  "benchmarks": [
+    {
+      "name": "MSA_HEMOGLOBIN_ALIGNMENT_LENGTH",
+      "category": "msa",
+      "description": "MSA of human beta-globin against top homologs must produce a non-empty alignment.",
+      "input": {"accession": "P68871", "rounds": "top 5 hits"},
+      "section": "msa",
+      "expected_output": {"has_alignment": true},
+      "tolerance": {"has_alignment": 0},
+      "ground_truth": "Globins share conserved helical folds; ClustalΩ alignment of globins is well-formed.",
+      "citation": "Sievers F. et al. Mol. Syst. Biol. 2011 (ClustalΩ).",
+      "source": "EBI MSA",
+      "stage": "draft"
+    }
+  ]
+}

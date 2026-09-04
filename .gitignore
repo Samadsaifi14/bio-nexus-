@@ -32,7 +32,8 @@ backend/.env
 dump.rdb
 *.rdb
 bioai-platform/backend/app/bin/
-bioai-platform/backend/app/data/
+bioai-platform/backend/app/data/*
+!bioai-platform/backend/app/data/benchmarks/
 
 .vercel
 

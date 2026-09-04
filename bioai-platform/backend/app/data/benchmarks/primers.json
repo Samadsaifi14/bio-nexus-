@@ -1,0 +1,18 @@
+{
+  "category": "primers",
+  "benchmarks": [
+    {
+      "name": "PRIMER3_GC_BOUNDED",
+      "category": "primers",
+      "description": "Primer3 output primers must have GC content within 40-60% for a standard exon target.",
+      "input": {"target": "HBB exon 1", "engine": "Primer3"},
+      "section": "primers",
+      "expected_output": {"gc_between_40_60": true},
+      "tolerance": {"gc_between_40_60": 0},
+      "ground_truth": "Default Primer3 design targets GC 20-80% with optimal 50%; 40-60% is standard for real-time PCR.",
+      "citation": "Untergasser A. et al. Nucleic Acids Res. 2012 (Primer3).",
+      "source": "Primer3",
+      "stage": "draft"
+    }
+  ]
+}

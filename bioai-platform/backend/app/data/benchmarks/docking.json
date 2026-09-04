@@ -1,0 +1,18 @@
+{
+  "category": "docking",
+  "benchmarks": [
+    {
+      "name": "DOCKING_P53_APRIL_VINA_AFFINITY_BOUNDED",
+      "category": "docking",
+      "description": "Redocking a ligand to p53 DNA-binding domain must produce a finite binding affinity within a sane range.",
+      "input": {"target": "P04637 DBD", "engine": "AutoDock Vina"},
+      "section": "docking",
+      "expected_output": {"affinity_kcal_mol_bounded": true},
+      "tolerance": {"affinity_kcal_mol_bounded": 0},
+      "ground_truth": "AutoDock Vina affinities for organic ligands are typically -4 to -12 kcal/mol.",
+      "citation": "Trott O., Olson A.J. J. Comput. Chem. 2010 (AutoDock Vina).",
+      "source": "AutoDock Vina",
+      "stage": "draft"
+    }
+  ]
+}

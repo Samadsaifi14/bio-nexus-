@@ -1,0 +1,18 @@
+{
+  "category": "phylo",
+  "benchmarks": [
+    {
+      "name": "PHYLO_GLOBIN_NEWICK_WELLFORMED",
+      "category": "phylo",
+      "description": "Phylogeny from globin MSA must yield a well-formed Newick tree.",
+      "input": {"rounds": "top 5 hits"},
+      "section": "phylo",
+      "expected_output": {"has_newick": true},
+      "tolerance": {"has_newick": 0},
+      "ground_truth": "Globin family phylogeny reconstructs a resolved tree on conserved alignment.",
+      "citation": "Felsenstein J. (UPGMA/neighbor-joining methods).",
+      "source": "BioNexus phylo",
+      "stage": "draft"
+    }
+  ]
+}

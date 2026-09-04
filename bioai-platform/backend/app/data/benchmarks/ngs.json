@@ -1,0 +1,18 @@
+{
+  "category": "ngs",
+  "benchmarks": [
+    {
+      "name": "NGS_FASTQC_Q30_ABOVE_THRESHOLD",
+      "category": "ngs",
+      "description": "A good-quality FASTQ must report >80% bases above Q30 after trimming.",
+      "input": {"dataset": "bbs-1 demo read set", "engine": "FastQC"},
+      "section": "ngs",
+      "expected_output": {"q30_pct": 80.0},
+      "tolerance": {"q30_pct": 10.0},
+      "ground_truth": "Illumina NovaSeq runs typically yield 85-92% of bases ≥ Q30.",
+      "citation": "Andrews S. (FastQC). Babraham Bioinformatics.",
+      "source": "FastQC",
+      "stage": "draft"
+    }
+  ]
+}

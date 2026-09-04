@@ -1,0 +1,110 @@
+{
+  "category": "protein_blast",
+  "benchmarks": [
+    {
+      "name": "HUMAN_TP53_SWISSPROT_TOP_HIT",
+      "category": "protein_blast",
+      "description": "Human p53 (TP53) sequence must hit P04637 as top hit against Swiss-Prot with ~100% identity.",
+      "input": {
+        "accession": "P04637",
+        "database": "swissprot"
+      },
+      "section": "blast",
+      "expected_output": {
+        "top_hit_accession": "P04637",
+        "top_hit_identity": 100.0
+      },
+      "tolerance": {
+        "top_hit_accession": 0,
+        "top_hit_identity": 1.0
+      },
+      "ground_truth": "P04637 Homo sapiens Tumor suppressor p53 is the canonical Swiss-Prot entry for human p53.",
+      "citation": "Bairoch A. et al. Nucleic Acids Res. 2005; Matlashewski G. et al. EMBO J. 1984.",
+      "source": "UniProtKB/Swiss-Prot",
+      "stage": "curated"
+    },
+    {
+      "name": "INSULIN_SWISSPROT_TOP_HIT",
+      "category": "protein_blast",
+      "description": "A BLAST search must return an insulin entry as the top Swiss-Prot hit at ~100% identity.",
+      "input": {
+        "sequence": "insulin chain B",
+        "database": "swissprot"
+      },
+      "section": "blast",
+      "expected_output": {
+        "top_hit_identity": 100.0,
+        "top_hit_description": {
+          "contains": "Insulin"
+        }
+      },
+      "tolerance": {
+        "top_hit_identity": 1.0
+      },
+      "ground_truth": "Insulin B-chain peptide is identical across mammals, so the top Swiss-Prot hit is an insulin entry at ~100% identity regardless of species.",
+      "citation": "Bell G.I. et al. Nature 1980.",
+      "source": "UniProtKB/Swiss-Prot",
+      "stage": "curated"
+    },
+    {
+      "name": "HUMAN_TP53_NOT_INSULIN",
+      "category": "protein_blast",
+      "description": "Human p53 must NOT be matched as insulin; top hit must remain p53-family.",
+      "input": {
+        "accession": "P04637",
+        "database": "swissprot"
+      },
+      "section": "blast",
+      "expected_output": {
+        "top_hit_accession": "P04637"
+      },
+      "tolerance": {
+        "top_hit_accession": 0
+      },
+      "ground_truth": "Correct identification: p53 (P04637), not insulin (P01308).",
+      "citation": "UniProtKB/Swiss-Prot.",
+      "source": "UniProtKB/Swiss-Prot",
+      "stage": "curated"
+    },
+    {
+      "name": "HUMAN_OXTR_SWISSPROT_TOP_HIT",
+      "category": "protein_blast",
+      "description": "Human oxytocin receptor must hit P30559 as top hit.",
+      "input": {
+        "accession": "P30559",
+        "database": "swissprot"
+      },
+      "section": "blast",
+      "expected_output": {
+        "top_hit_accession": "P30559"
+      },
+      "tolerance": {
+        "top_hit_accession": 0
+      },
+      "ground_truth": "P30559 Oxytocin receptor is the human Swiss-Prot entry.",
+      "citation": "Kimura T. et al. Nature 1992.",
+      "source": "UniProtKB/Swiss-Prot",
+      "stage": "curated"
+    },
+    {
+      "name": "HUMAN_HBB_SWISSPROT_TOP_HIT",
+      "category": "protein_blast",
+      "description": "Human beta-globin must hit P68871 as top hit.",
+      "input": {
+        "accession": "P68871",
+        "database": "swissprot"
+      },
+      "section": "blast",
+      "expected_output": {
+        "top_hit_accession": "P68871"
+      },
+      "tolerance": {
+        "top_hit_accession": 0
+      },
+      "ground_truth": "P68871 Hemoglobin subunit beta is the human Swiss-Prot entry.",
+      "citation": "Lawn R.M. et al. Cell 1980.",
+      "source": "UniProtKB/Swiss-Prot",
+      "stage": "curated"
+    }
+  ]
+}

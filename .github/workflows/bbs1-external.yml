@@ -10,7 +10,7 @@ permissions:
 
 jobs:
   reference-concordance:
-    name: ADMET, UniProt and RCSB reference concordance
+    name: ADMET, UniProt, RCSB, BLAST, Primer3 and MSA concordance
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install benchmark dependencies
-        run: python -m pip install --upgrade pip httpx rdkit python-dotenv redis pydantic fastapi requests
+        run: python -m pip install --upgrade pip httpx rdkit primer3-py python-dotenv redis pydantic fastapi requests
       - name: Run external/reference concordance experiment
         env:
           PYTHONPATH: .

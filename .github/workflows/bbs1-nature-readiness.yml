@@ -22,7 +22,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install test dependencies
-        run: python -m pip install --upgrade pip pytest
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' httpx python-dotenv
       - name: Test deterministic AI factuality scorer
         env:
           PYTHONPATH: .
@@ -65,7 +65,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install dependencies
-        run: python -m pip install --upgrade pip httpx rdkit primer3-py biopython python-dotenv redis pydantic fastapi requests
+        run: python -m pip install --upgrade pip httpx rdkit primer3-py biopython python-dotenv redis 'pydantic[email]' fastapi requests
       - name: Run expanded suite
         env:
           PYTHONPATH: .

@@ -1,0 +1,65 @@
+{
+  "suite": "BioNexus Benchmark Suite v1.0 external reference concordance",
+  "status": "PASS",
+  "workflow_run_id": 33896573347,
+  "tested_head_sha": "c4365b7db78b1c30061abe431cc675c8ce9ce75c",
+  "generated_at_utc": "2026-09-04T16:42:04.496440+00:00",
+  "environment": {
+    "python": "3.12.14",
+    "rdkit": "2026.03.6",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+  },
+  "experiments": [
+    {
+      "name": "ADMET core descriptor concordance",
+      "status": "PASS",
+      "reference": "independent calls to the same installed RDKit public descriptor functions",
+      "case_count": 5,
+      "fields": ["molecular_weight", "logp", "tpsa", "hbd", "hba", "rotatable_bonds", "heavy_atoms"],
+      "cases": {
+        "aspirin": {"molecular_weight": 180.16, "logp": 1.31, "tpsa": 63.6, "hbd": 1, "hba": 4, "rotatable_bonds": 2, "heavy_atoms": 13},
+        "caffeine": {"molecular_weight": 194.19, "logp": -1.03, "tpsa": 61.82, "hbd": 0, "hba": 6, "rotatable_bonds": 0, "heavy_atoms": 14},
+        "acetaminophen": {"molecular_weight": 151.16, "logp": 1.35, "tpsa": 49.33, "hbd": 2, "hba": 3, "rotatable_bonds": 1, "heavy_atoms": 11},
+        "ibuprofen": {"molecular_weight": 206.28, "logp": 3.07, "tpsa": 37.3, "hbd": 1, "hba": 2, "rotatable_bonds": 4, "heavy_atoms": 15},
+        "ethanol": {"molecular_weight": 46.07, "logp": 0.0, "tpsa": 20.23, "hbd": 1, "hba": 1, "rotatable_bonds": 0, "heavy_atoms": 3}
+      },
+      "scope_note": "Only deterministic RDKit-derived quantities are validated here. Heuristic ADMET/toxicity labels are not treated as experimentally validated predictions."
+    },
+    {
+      "name": "UniProt field concordance",
+      "status": "PASS",
+      "reference": "UniProt REST API raw JSON",
+      "case_count": 3,
+      "fields": ["accession", "sequence", "sequence_length", "organism", "reviewed"],
+      "cases": {
+        "P69905": {"sequence_length": 142, "organism": "Homo sapiens", "reviewed": true},
+        "P68871": {"sequence_length": 147, "organism": "Homo sapiens", "reviewed": true},
+        "P04637": {"sequence_length": 393, "organism": "Homo sapiens", "reviewed": true}
+      }
+    },
+    {
+      "name": "RCSB structure retrieval byte/record concordance",
+      "status": "PASS",
+      "reference": "RCSB PDB download endpoint",
+      "case_count": 2,
+      "cases": {
+        "1CRN": {"atom_records": 327, "sha256": "b6fc10a1465a1aff8d8b86bcbf90944f975fd1d242778dcf5df269e869728c8b"},
+        "4HHB": {"atom_records": 4779, "sha256": "0f4c1805c8e140043bce380582b3a3cacb05824fd4ba82a9e4e35eea84da0886"}
+      },
+      "scope_note": "This validates identifier/retrieval integrity, not structural preparation or biological correctness."
+    },
+    {
+      "name": "Live EBI BLAST known-sequence recovery",
+      "status": "PASS",
+      "reference": "EMBL-EBI BLAST against UniProtKB/Swiss-Prot",
+      "query": "human hemoglobin beta UniProt P68871 sequence",
+      "target_accession": "P68871",
+      "target_present_in_top_5": true,
+      "hit_count": 5,
+      "max_identity_pct": 100.0,
+      "top_accessions": ["P68873", "P68872", "P68871", "P02024", "P02025"],
+      "scope_note": "Database releases can change ranking. The pre-specified criterion is exact target recovery among the first five hits with >=99% identity, not a fixed rank claim."
+    }
+  ],
+  "claim_boundary": "These results validate deterministic descriptor parity, selected UniProt parsing, RCSB retrieval integrity, and one live BLAST recovery case. They do not validate heuristic ADMET endpoints, docking pose accuracy, structure preparation, NGS clinical performance, or AI interpretation."
+}

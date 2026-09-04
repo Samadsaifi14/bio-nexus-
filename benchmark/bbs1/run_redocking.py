@@ -1,11 +1,11 @@
 """BBS-1 co-crystal redocking experiment using the canonical Vina 1IEP example.
 
-The benchmark downloads PDB 1IEP, isolates the crystallographic imatinib (STI),
-prepares a rigid receptor with the BioNexus receptor-preparation function,
-converts the crystal ligand through SDF using the same BioNexus ligand-prep
-path used for docking, docks with BioNexus `run_vina`, and evaluates the best
-pose against the crystallographic ligand using the existing symmetry-aware
-heavy-atom RMSD benchmark.
+The benchmark downloads PDB 1IEP, isolates chain A and its crystallographic
+imatinib (STI A 201), prepares a rigid receptor with the BioNexus receptor-
+preparation function, converts the crystal ligand through SDF using the same
+BioNexus ligand-prep path used for docking, docks with BioNexus `run_vina`, and
+evaluates the best pose against the crystallographic ligand using the existing
+symmetry-aware heavy-atom RMSD benchmark.
 
 A result is PASS only when the best-scoring pose RMSD is <= 2.0 Å. Raw Vina
 metadata, score, pose count, hashes and RMSD are written to JSON. Failures are
@@ -35,7 +35,10 @@ from app.tools.docking import (
 )
 
 PDB_ID = "1IEP"
+RECEPTOR_CHAIN = "A"
 LIGAND_RESNAME = "STI"
+LIGAND_CHAIN = "A"
+LIGAND_RESSEQ = 201
 GRID_CENTER = [15.190, 53.903, 16.917]
 GRID_SIZE = [20.0, 20.0, 20.0]
 EXHAUSTIVENESS = 32
@@ -51,14 +54,23 @@ def _extract_complex_parts(pdb_text: str) -> tuple[str, str]:
     receptor_lines: list[str] = []
     ligand_lines: list[str] = []
     for line in pdb_text.splitlines():
-        if line.startswith("ATOM  "):
+        if line.startswith("ATOM  ") and line[21].strip() == RECEPTOR_CHAIN:
             receptor_lines.append(line)
-        elif line.startswith("HETATM") and line[17:20].strip() == LIGAND_RESNAME:
-            ligand_lines.append(line)
+        elif line.startswith("HETATM"):
+            try:
+                resseq = int(line[22:26])
+            except ValueError:
+                continue
+            if (
+                line[17:20].strip() == LIGAND_RESNAME
+                and line[21].strip() == LIGAND_CHAIN
+                and resseq == LIGAND_RESSEQ
+            ):
+                ligand_lines.append(line)
     if not receptor_lines:
-        raise RuntimeError("1IEP receptor extraction returned no ATOM records")
+        raise RuntimeError("1IEP chain-A receptor extraction returned no ATOM records")
     if not ligand_lines:
-        raise RuntimeError("1IEP STI extraction returned no HETATM records")
+        raise RuntimeError("1IEP STI A 201 extraction returned no HETATM records")
     return "\n".join(receptor_lines + ["END"]) + "\n", "\n".join(ligand_lines + ["END"]) + "\n"
 
 
@@ -136,7 +148,10 @@ def main(output: Path) -> int:
         "environment": {"python_platform": platform.platform(), "rdkit": rdBase.rdkitVersion},
         "case": {
             "pdb_id": PDB_ID,
+            "receptor_chain": RECEPTOR_CHAIN,
             "ligand_resname": LIGAND_RESNAME,
+            "ligand_chain": LIGAND_CHAIN,
+            "ligand_resseq": LIGAND_RESSEQ,
             "grid_center_angstrom": GRID_CENTER,
             "grid_size_angstrom": GRID_SIZE,
             "exhaustiveness": EXHAUSTIVENESS,
@@ -156,8 +171,8 @@ def main(output: Path) -> int:
             "vina_meta": docked.get("vina_meta"),
         },
         "passed": rmsd.passed,
-        "claim_boundary": "This single 1IEP case measures co-crystal pose recovery under the specified preparation and Vina settings. It is not evidence of universal docking accuracy or affinity prediction accuracy.",
-        "reference_note": "1IEP/imatinib is the canonical AutoDock Vina basic-docking example; the box center and 20 Å box follow the Vina documentation example.",
+        "claim_boundary": "This single 1IEP chain-A case measures co-crystal pose recovery under the specified preparation and Vina settings. It is not evidence of universal docking accuracy or affinity prediction accuracy.",
+        "reference_note": "PDB 1IEP contains A and B kinase chains with separate STI ligands; this benchmark uses STI A 201, whose coordinates correspond to the canonical Vina example box around chain A.",
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")

@@ -73,8 +73,13 @@ def test_analyze_runs_full_dag(client):
 
 
 def test_analyze_default_nvt_with_production_ps(client):
-    """Regression: 'production_ps' without 'nvt_ps' must not crash the engine
-    (previously MdEngine init and NVT defaulted to None steps -> TypeError)."""
+    """Regression: 'production_ps' without 'nvt_ps' must not crash the engine.
+
+    A short stochastic NVT run can legitimately cross the configured
+    temperature-CV warning threshold on different CPU/OpenMM builds. WARN is a
+    scientifically valid QC state here and must not be converted into a false
+    PASS merely to make CI deterministic.
+    """
     payload = _payload(production_ps=20)  # no nvt_ps -> engine default NVT
     r = client.post("/api/md/v2/analyze", json=payload)
     assert r.status_code == 200
@@ -82,7 +87,8 @@ def test_analyze_default_nvt_with_production_ps(client):
     stages = body["pipeline"]["stages"]
     assert len(stages) == 10
     nvt = [s for s in stages if s["step"] == "md_nvt"][0]
-    assert nvt["qc"]["status"] == "PASS"
+    assert nvt["qc"]["status"] in ("PASS", "WARN")
+    assert nvt["qc"]["status"] != "FAIL"
     assert body["pipeline"]["pipeline_status"] in ("PASS", "WARN")
 
 

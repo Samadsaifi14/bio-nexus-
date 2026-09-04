@@ -1,12 +1,13 @@
 {
   "suite": "BioNexus Benchmark Suite v1.0 external reference concordance",
   "status": "PASS",
-  "workflow_run_id": 33896573347,
-  "tested_head_sha": "c4365b7db78b1c30061abe431cc675c8ce9ce75c",
-  "generated_at_utc": "2026-09-04T16:42:04.496440+00:00",
+  "workflow_run_id": 33897034372,
+  "tested_head_sha": "d7f789a76b724121be532fc72ecc5a3ea1c9bd98",
+  "generated_at_utc": "2026-09-04T16:47:15.650658+00:00",
   "environment": {
     "python": "3.12.14",
     "rdkit": "2026.03.6",
+    "primer3_py": "2.3.0",
     "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
   },
   "experiments": [
@@ -59,7 +60,31 @@
       "max_identity_pct": 100.0,
       "top_accessions": ["P68873", "P68872", "P68871", "P02024", "P02025"],
       "scope_note": "Database releases can change ranking. The pre-specified criterion is exact target recovery among the first five hits with >=99% identity, not a fixed rank claim."
+    },
+    {
+      "name": "Primer3 integration parity",
+      "status": "PASS",
+      "reference": "direct primer3-py 2.3.0 call",
+      "template_length": 800,
+      "template_sha256": "9a7b6cdca80d947ff940103c8ab2edbd437095a4bee6502e0581162ec66e3fa1",
+      "returned_pairs": 3,
+      "pairs": [
+        {"pair_index": 0, "left_seq": "AGGCGAGTACGTGTTCACAG", "right_seq": "AGGGAAACGCTGTAGAACGG", "left_tm": 60.03943679827182, "right_tm": 60.0376045227884, "left_gc": 55.0, "right_gc": 55.0, "left_pos": 110, "right_pos": 351, "product_size": 242, "penalty": 0.07704132106022143},
+        {"pair_index": 1, "left_seq": "TCAGGCGAGTACGTGTTCAC", "right_seq": "AGGGAAACGCTGTAGAACGG", "left_tm": 60.039797738227264, "right_tm": 60.0376045227884, "left_gc": 55.0, "right_gc": 55.0, "left_pos": 108, "right_pos": 351, "product_size": 244, "penalty": 0.0774022610156635},
+        {"pair_index": 2, "left_seq": "GTCAGGCGAGTACGTGTTCA", "right_seq": "AGGGAAACGCTGTAGAACGG", "left_tm": 60.039797738227264, "right_tm": 60.0376045227884, "left_gc": 55.0, "right_gc": 55.0, "left_pos": 107, "right_pos": 351, "product_size": 245, "penalty": 0.0774022610156635}
+      ],
+      "scope_note": "This validates preservation of Primer3 output for a fixed template and parameter set; it does not establish universal primer specificity or wet-lab performance."
+    },
+    {
+      "name": "Clustal Omega MSA integration parity",
+      "status": "PASS",
+      "reference": "independent EMBL-EBI Clustal Omega REST job",
+      "sequence_count": 3,
+      "alignment_lengths": {"HBA_P69905": 155, "HBB_P68871": 155, "MYOGLOBIN": 155},
+      "bionexus_alignment_sha256": "60a31e086a305bdf8ff85e4babcd6ee2ed30800473b4393f6c02c72c0fc0454d",
+      "reference_alignment_sha256": "60a31e086a305bdf8ff85e4babcd6ee2ed30800473b4393f6c02c72c0fc0454d",
+      "scope_note": "Parity is defined on parsed aligned sequences from two independent EBI jobs using identical inputs. It does not claim one MSA algorithm is biologically superior to another."
     }
   ],
-  "claim_boundary": "These results validate deterministic descriptor parity, selected UniProt parsing, RCSB retrieval integrity, and one live BLAST recovery case. They do not validate heuristic ADMET endpoints, docking pose accuracy, structure preparation, NGS clinical performance, or AI interpretation."
+  "claim_boundary": "These results validate deterministic descriptor parity, selected UniProt parsing, RCSB retrieval integrity, one live BLAST recovery case, fixed-input Primer3 integration parity, and one Clustal Omega MSA parity case. They do not validate heuristic ADMET endpoints, docking pose accuracy, structure preparation, NGS clinical performance, wet-lab primer performance, or AI interpretation."
 }

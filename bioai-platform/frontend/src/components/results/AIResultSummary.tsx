@@ -24,7 +24,7 @@ function identifierTokens(value: string) {
 function normalizeNumber(token: string) {
   const raw = token.replace(/%$/, '');
   const value = Number(raw);
-  return Number.isFinite(value) ? value.toPrecision(12).replace(/(?:\.0+|(?<=\..*?)0+)$/, '') : raw.toLowerCase();
+  return Number.isFinite(value) ? String(value) : raw.toLowerCase();
 }
 
 function isStructurallyGrounded(interpretation: AIInterpretation, result: Record<string, unknown>) {

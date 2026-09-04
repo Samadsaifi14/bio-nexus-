@@ -1,315 +1,225 @@
 "use client";
-import { useState, useEffect, useCallback } from "react";
+
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { motion } from "framer-motion";
-import { Brain, CircleNotch as Loader2, ArrowSquareOut as ExternalLink, Dna, Stack as Layers, Target, DownloadSimple as Download } from '@phosphor-icons/react';
+import {
+  ArrowSquareOut as ExternalLink,
+  Brain,
+  CircleNotch as Loader2,
+  DownloadSimple as Download,
+  Flask,
+  Info,
+  Target,
+} from "@phosphor-icons/react";
 import { fadeUp } from "@/lib/animations";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
-import { predictFunction, getFunctionStatus, type FunctionPredictionResult } from "@/lib/api";
-import { BackButton, PageHeader, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
+import {
+  getFunctionEvidenceStatus,
+  predictFunctionEvidence,
+  type FunctionEvidenceResult,
+} from "@/lib/functionEvidenceApi";
+import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from "@/components/ui";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { LearnPopover } from "@/components/LearnPopover";
-import { consumeParam } from '@/lib/cross-link';
+import { consumeParam } from "@/lib/cross-link";
 
-const NAMESPACE_COLORS: Record<string, { text: string; bg: string; label: string }> = {
-  MF: { text: "text-accent-cyan", bg: "bg-accent-cyan/10", label: "Molecular Function" },
-  BP: { text: "text-accent-purple", bg: "bg-accent-purple/10", label: "Biological Process" },
-  CC: { text: "text-accent-amber", bg: "bg-accent-amber/10", label: "Cellular Component" },
+const NS_LABELS: Record<string, string> = {
+  MF: "Molecular Function",
+  BP: "Biological Process",
+  CC: "Cellular Component",
 };
 
 export default function FunctionPage() {
   useAuditTrail();
-
   const [pdbId, setPdbId] = useState("");
   const [jobId, setJobId] = useState<string | null>(null);
-  const [status, setStatus] = useState<string>("");
-  const [result, setResult] = useState<FunctionPredictionResult | null>(null);
+  const [status, setStatus] = useState("");
+  const [result, setResult] = useState<FunctionEvidenceResult | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
   const poll = useCallback(async (id: string) => {
     try {
-      const res = await getFunctionStatus(id);
+      const res = await getFunctionEvidenceStatus(id);
       setStatus(res.status);
       if (res.status === "complete" && res.result) {
         setResult(res.result);
         setLoading(false);
       } else if (res.status === "failed") {
-        setError(res.error || "Prediction failed");
+        setError(res.error || "Function inference failed");
         setLoading(false);
       }
-    } catch {
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Could not read prediction status");
       setLoading(false);
     }
+  }, []);
+
+  useEffect(() => {
+    const stored = consumeParam("function_pdb_id");
+    if (stored) setPdbId(stored);
   }, []);
 
   useEffect(() => {
     if (!jobId) return;
     const start = Date.now();
-    const MAX_POLL_MS = 65 * 60 * 1000;
-    const iv = setInterval(() => {
-      if (Date.now() - start > MAX_POLL_MS) {
-        setError("Prediction is still running on the server. Check back in a few minutes.");
+    const maxPollMs = 65 * 60 * 1000;
+    const iv = window.setInterval(() => {
+      if (Date.now() - start > maxPollMs) {
+        setError("The InterPro-backed analysis is still running. The job was not converted into a result or confidence claim.");
         setLoading(false);
-        clearInterval(iv);
+        window.clearInterval(iv);
         return;
       }
-      poll(jobId);
+      void poll(jobId);
     }, 2000);
-    return () => clearInterval(iv);
+    return () => window.clearInterval(iv);
   }, [jobId, poll]);
 
-  useEffect(() => {
-    const stored = consumeParam('function_pdb_id');
-    if (stored) {
-      setPdbId(stored);
+  const grouped = useMemo(() => {
+    const base: Record<string, FunctionEvidenceResult["go_terms"]> = { MF: [], BP: [], CC: [] };
+    for (const term of result?.go_terms || []) {
+      (base[term.namespace] ||= []).push(term);
     }
-  }, []);
+    for (const terms of Object.values(base)) {
+      terms.sort((a, b) => b.support_count - a.support_count || b.supporting_domain_hits - a.supporting_domain_hits);
+    }
+    return base;
+  }, [result]);
 
-  const handleSubmit = async () => {
+  const submit = async () => {
     if (!pdbId.trim()) return;
     setLoading(true);
-    setError("");
     setResult(null);
+    setError("");
     try {
-      const res = await predictFunction(pdbId.trim());
+      const res = await predictFunctionEvidence(pdbId.trim());
       setJobId(res.job_id);
       setStatus(res.status);
-    } catch (e: any) {
-      setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Submission failed");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Submission failed");
       setLoading(false);
     }
   };
 
-  const groupedTerms = result ? {
-    MF: result.go_terms.filter(t => t.namespace === "MF").sort((a, b) => b.confidence - a.confidence),
-    BP: result.go_terms.filter(t => t.namespace === "BP").sort((a, b) => b.confidence - a.confidence),
-    CC: result.go_terms.filter(t => t.namespace === "CC").sort((a, b) => b.confidence - a.confidence),
-  } : { MF: [], BP: [], CC: [] };
-
   const exportJson = () => {
     if (!result) return;
     const a = document.createElement("a");
-    a.download = `${result.pdb_id}_function_prediction.json`;
+    a.download = `${result.pdb_id}_function_evidence.json`;
     a.href = "data:application/json;charset=utf-8," + encodeURIComponent(JSON.stringify(result, null, 2));
     a.click();
   };
 
   return (
-    <div className="max-w-4xl">
+    <div className="max-w-5xl">
       <BackButton />
-
-      <PageHeader title="Function Prediction" subtitle="Predict protein function from structure: GO terms and residue importance from a DeepFRI-inspired heuristic model." />
+      <PageHeader
+        title="Function Evidence"
+        subtitle="InterProScan → InterPro2GO evidence mapping for a PDB-derived protein sequence. Support counts are evidence counts, not probabilities."
+      />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
         <div className="data-card p-5">
-          <label className="block text-sm text-text-secondary mb-2">PDB ID</label>
+          <label className="mb-2 block text-sm text-text-secondary">PDB ID</label>
           <div className="flex gap-2">
-            <FlatInput value={pdbId} onChange={(e) => { setPdbId(e.target.value.toUpperCase()); setResult(null); setError(""); }}
-              placeholder="e.g. 1TIM" maxLength={4}
+            <FlatInput
+              value={pdbId}
+              onChange={(e) => {
+                setPdbId(e.target.value.toUpperCase());
+                setResult(null);
+                setError("");
+              }}
+              placeholder="e.g. 1TIM"
+              maxLength={4}
               className="w-32 font-mono uppercase"
-              onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
-            <CriticalButton onClick={handleSubmit} disabled={loading || !pdbId.trim()}>
-              {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Brain className="w-4 h-4" />}
-              {status === "running" || status === "queued" ? `Status: ${status}...` : "Predict Function"}
+              onKeyDown={(e) => e.key === "Enter" && void submit()}
+            />
+            <CriticalButton onClick={() => void submit()} disabled={loading || !pdbId.trim()}>
+              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Brain className="h-4 w-4" />}
+              {status === "running" || status === "queued" ? `Status: ${status}...` : "Map Function Evidence"}
             </CriticalButton>
           </div>
         </div>
       </motion.div>
 
-      {error && (
-        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="mt-4 glass-card p-4 border border-error/30">
-          <p className="text-error text-sm">{error}</p>
-        </motion.div>
-      )}
+      {error && <div className="mt-4 data-card border border-error/30 p-4 text-sm text-error">{error}</div>}
 
       {result && (
-        <motion.div id="function-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           <ResultsReadyBanner
-            title={`Prediction complete · ${result.pdb_id}`}
-            subtitle={`${result.method.replace(/_/g, ' ')} · ${result.sequence_length} residues`}
+            title={`${result.status === "inferred" ? "Evidence mapping complete" : "Insufficient mapping evidence"} · ${result.pdb_id}`}
+            subtitle={`${result.method_version} · ${result.sequence_length} residues`}
           />
-          <div className="flex flex-wrap items-center gap-2">
-            <button onClick={exportJson}
-              className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
-              <Download className="w-3.5 h-3.5" /> Export JSON
+
+          <div className="flex flex-wrap items-center gap-3">
+            <button onClick={exportJson} className="flex items-center gap-1.5 rounded border border-glass-border bg-surface-1 px-2.5 py-1 text-xs text-text-secondary hover:text-accent-cyan">
+              <Download className="h-3.5 w-3.5" /> Export JSON
             </button>
-            <p className="text-xs text-text-muted">
-              A predictive heuristic model &mdash; this is <em>not</em> UniProt&apos;s curated function annotation (see the UniProt tool for experimentally documented function).
-            </p>
+            <span className="text-xs text-text-muted">No calibrated function probability or residue saliency is reported.</span>
           </div>
+
           <AIResultSummary toolName="function_predict" result={result as unknown as Record<string, unknown>} />
-          {/* Header */}
-          <div className="data-card p-4 flex flex-wrap items-center gap-4">
-            <div>
-              <p className="text-xs text-text-muted">PDB Entry</p>
-              <a href={`https://www.rcsb.org/structure/${result.pdb_id}`} target="_blank" rel="noopener noreferrer"
-                className="text-sm font-mono font-medium text-accent-cyan hover:underline flex items-center gap-1">
-                {result.pdb_id} <ExternalLink className="w-3 h-3" />
-              </a>
-            </div>
-            <div className="h-6 w-px bg-surface-3" />
-            <div>
-              <p className="text-xs text-text-muted">Sequence Length</p>
-              <p className="text-sm font-semibold text-text-primary">{result.sequence_length} residues</p>
-            </div>
-            <div className="h-6 w-px bg-surface-3" />
-            <div>
-              <p className="text-xs text-text-muted">Prediction Method</p>
-              <p className="text-sm font-medium text-text-primary">{result.method.replace(/_/g, " ")}</p>
-            </div>
-            <div className="h-6 w-px bg-surface-3" />
-            <div>
-              <p className="text-xs text-text-muted">GO Terms Predicted</p>
-              <p className="text-sm font-semibold text-text-primary">{result.go_terms.length}</p>
+
+          <div className="data-card p-5">
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              <div><p className="text-xs text-text-muted">PDB entry</p><a className="flex items-center gap-1 font-mono text-sm text-accent-cyan hover:underline" target="_blank" rel="noreferrer" href={`https://www.rcsb.org/structure/${result.pdb_id}`}>{result.pdb_id}<ExternalLink className="h-3 w-3" /></a></div>
+              <div><p className="text-xs text-text-muted">GO mappings</p><p className="text-sm font-semibold text-text-primary">{result.go_terms.length}</p></div>
+              <div><p className="text-xs text-text-muted">Domain hits</p><p className="text-sm font-semibold text-text-primary">{result.domain_hits.length}</p></div>
+              <div><p className="text-xs text-text-muted">Inference state</p><p className="text-sm font-semibold text-text-primary">{result.status.replace(/_/g, " ")}</p></div>
             </div>
           </div>
 
-          {/* GO Terms by Namespace */}
-          {(["MF", "BP", "CC"] as const).map(ns => groupedTerms[ns].length > 0 && (
+          {result.status === "insufficient_evidence" && (
+            <div className="data-card border border-warn/30 p-5">
+              <div className="flex items-start gap-2"><Info className="mt-0.5 h-4 w-4 text-warn" /><div><h3 className="text-sm font-semibold text-text-primary">No supported GO mapping returned</h3><p className="mt-1 text-xs text-text-secondary">{result.note}</p></div></div>
+            </div>
+          )}
+
+          {Object.entries(grouped).map(([ns, terms]) => terms.length > 0 && (
             <div key={ns} className="data-card p-5">
-              <div className="flex items-center gap-2 mb-3">
-                <Target className={`w-4 h-4 ${NAMESPACE_COLORS[ns].text}`} />
-                <LearnPopover term={`GO ${NAMESPACE_COLORS[ns].label}`} topic="function"
-                  explanation="A Gene Ontology category. Molecular Function = what the protein does at a molecular level. Biological Process = the larger cellular pathway it participates in. Cellular Component = where it acts.">
-                  <h3 className="text-sm font-semibold text-text-primary">{NAMESPACE_COLORS[ns].label}</h3>
+              <div className="mb-3 flex items-center gap-2">
+                <Target className="h-4 w-4 text-accent-cyan" />
+                <LearnPopover term={`GO ${NS_LABELS[ns] || ns}`} topic="function" explanation="GO mapping support here means distinct InterPro entries associated with the GO term. It is not a calibrated posterior probability.">
+                  <h3 className="text-sm font-semibold text-text-primary">{NS_LABELS[ns] || ns}</h3>
                 </LearnPopover>
-                <span className="text-xs text-text-muted">({groupedTerms[ns].length} terms)</span>
+                <span className="text-xs text-text-muted">({terms.length} mappings)</span>
               </div>
               <div className="space-y-2">
-                {groupedTerms[ns].map((go, i) => (
-                  <div key={i} className={`flex items-center gap-3 ${NAMESPACE_COLORS[ns].bg} rounded-lg p-3`}>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-sm font-medium text-text-primary">{go.name}</span>
-                        <span className="text-xs font-mono text-text-muted">{go.go_id}</span>
-                      </div>
-                      <div className="flex items-center gap-2 mt-1">
-                        <div className="w-24 h-1.5 bg-surface-3 rounded-full">
-                          <div className={`h-full rounded-full ${NAMESPACE_COLORS[ns].text.replace("text-", "bg-")}`}
-                            style={{ width: `${go.confidence * 100}%` }} />
-                        </div>
-                        <span className="text-xs font-mono text-text-muted">{(go.confidence * 100).toFixed(1)}%</span>
-                        <span className={`text-xs ${go.confidence > 0.8 ? "text-good" : go.confidence > 0.6 ? "text-warn" : "text-text-muted"}`}>
-                          {go.confidence > 0.8 ? "High" : go.confidence > 0.6 ? "Medium" : "Low"} confidence
-                        </span>
-                      </div>
+                {terms.map((go) => (
+                  <div key={go.go_id} className="rounded-lg bg-surface-1 p-3">
+                    <div className="flex flex-wrap items-center justify-between gap-2">
+                      <div><span className="text-sm font-medium text-text-primary">{go.name}</span><span className="ml-2 font-mono text-xs text-text-muted">{go.go_id}</span></div>
+                      <span className="text-xs text-text-secondary">{go.support_count} InterPro entr{go.support_count === 1 ? "y" : "ies"} · {go.supporting_domain_hits} hit{go.supporting_domain_hits === 1 ? "" : "s"}</span>
                     </div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">{go.supporting_interpro_entries.map((entry) => <span key={entry} className="rounded bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-text-secondary">{entry}</span>)}</div>
+                    <p className="mt-2 text-[11px] text-text-muted">{go.confidence_note}</p>
                   </div>
                 ))}
               </div>
             </div>
           ))}
 
-          {/* EC Numbers */}
-          {result.ec_numbers && result.ec_numbers.length > 0 && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Layers className="w-4 h-4 text-accent-amber" /> EC Number Predictions
-              </h3>
-              <div className="space-y-2">
-                {result.ec_numbers.map((ec, i) => (
-                  <div key={i} className="flex items-center justify-between bg-surface-1 rounded-lg p-3">
-                    <div>
-                      <span className="text-sm font-mono font-medium text-text-primary">{ec.number}</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <div className="w-16 h-1.5 bg-surface-3 rounded-full">
-                        <div className="h-full rounded-full bg-accent-amber" style={{ width: `${ec.confidence * 100}%` }} />
-                      </div>
-                      <span className="text-xs font-mono text-text-muted">{(ec.confidence * 100).toFixed(1)}%</span>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ) || (
-            <div className="data-card p-4">
-              <p className="text-xs text-text-muted">
-                <strong className="text-text-primary">EC numbers:</strong> not predicted by the heuristic model — enzyme classification is out of scope for this approximation.
-              </p>
-            </div>
-          )}
-
-          {/* Saliency Map */}
-          {result.saliency.length > 0 && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
-                <Dna className="w-4 h-4 text-good" /> Residue Importance (Saliency Map)
-              </h3>
-              <p className="text-xs text-text-muted mb-3">Per-residue contribution to function prediction. Higher = more important. Charged/polar residues on the surface typically dominate.</p>
-              <div className="bg-surface-1 rounded-lg p-3 overflow-x-auto">
-                <div className="flex gap-px min-w-max">
-                  {result.saliency.map((score, i) => {
-                    const r = Math.round(59 + (220 - 59) * score);
-                    const g = Math.round(130 + (50 - 130) * score);
-                    const b = Math.round(246 + (80 - 246) * score);
-                    return (
-                      <div key={i} className="w-1.5 h-10 rounded-sm cursor-pointer hover:ring-1 hover:ring-white/50 transition-all"
-                        style={{ backgroundColor: `rgb(${r},${g},${b})` }}
-                        title={`Residue ${i + 1}: ${score.toFixed(3)}`} />
-                    );
-                  })}
-                </div>
-              </div>
-              <div className="flex justify-between text-xs text-text-muted mt-1">
-                <span>N-terminus</span>
-                <span>C-terminus</span>
-              </div>
-              <div className="flex items-center gap-4 mt-2">
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "rgb(59,130,246)" }} />
-                  <span className="text-xs text-text-muted">Low importance</span>
-                </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3 h-3 rounded" style={{ backgroundColor: "rgb(220,50,80)" }} />
-                  <span className="text-xs text-text-muted">High importance</span>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Sequence Composition Summary */}
-          {result.composition && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-1 flex items-center gap-2">
-                <Dna className="w-4 h-4 text-accent-cyan" /> Sequence Composition Analysis
-              </h3>
-              <p className="text-xs text-text-muted mb-3">Measured amino acid fractions from the actual sequence. Hydrophobic fraction and charge distribution drive the GO term assignment.</p>
-              <div className="grid grid-cols-5 gap-3">
-                {result.composition.aa.split("").map(aa => {
-                  const frac = result.composition?.fractions[aa] ?? 0;
-                  const width = Math.max(frac * 100, 1.5);
-                  return (
-                    <div key={aa} className="bg-surface-1 rounded-lg p-2">
-                      <div className="text-sm font-mono font-semibold text-text-primary">{aa}</div>
-                      <div className="w-full h-1.5 bg-surface-3 rounded-full mt-1">
-                        <div className="h-full rounded-full bg-accent-cyan" style={{ width: `${width}%` }} />
-                      </div>
-                      <div className="text-xs text-text-muted mt-1">{(frac * 100).toFixed(1)}%</div>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
-
-          {/* Interpretation */}
           <div className="data-card p-5">
-            <h3 className="text-sm font-semibold text-text-primary mb-3">Interpretation</h3>
-            <div className="space-y-2 text-xs text-text-secondary">
-              {result.go_terms.length > 0 && (
-                <p><strong className="text-text-primary">Top Prediction:</strong> {result.go_terms.sort((a, b) => b.confidence - a.confidence)[0].name} ({result.go_terms.sort((a, b) => b.confidence - a.confidence)[0].namespace}) with {(result.go_terms.sort((a, b) => b.confidence - a.confidence)[0].confidence * 100).toFixed(1)}% confidence.</p>
-              )}
-              <p><strong className="text-text-primary">Methodology:</strong> {result.method === "heuristic_composition" ? "Predictions are based on amino acid composition patterns (hydrophobic fraction, charge distribution). For production use, deploy the full DeepFRI GCN model with pre-trained weights." : "Predicted using the full GCN model."}</p>
-              {result.saliency.length > 0 && (() => {
-                const maxIdx = result.saliency.indexOf(Math.max(...result.saliency));
-                return <p><strong className="text-text-primary">Key Residue:</strong> Position {maxIdx + 1} shows highest importance (score: {result.saliency[maxIdx].toFixed(3)}). This residue likely contributes most to the predicted function.</p>;
-              })()}
-              <p><strong className="text-text-primary">Confidence Levels:</strong> High (&gt;80%) indicates strong compositional signal. Medium (60-80%) suggests moderate evidence. Low (&lt;60%) should be treated as tentative.</p>
+            <div className="mb-3 flex items-center gap-2"><Flask className="h-4 w-4 text-accent-amber" /><h3 className="text-sm font-semibold text-text-primary">Method provenance</h3></div>
+            <div className="grid gap-3 text-xs text-text-secondary sm:grid-cols-2">
+              <p><strong className="text-text-primary">Sequence source:</strong> {result.provenance.sequence_source}</p>
+              <p><strong className="text-text-primary">Domain source:</strong> {result.provenance.domain_source}</p>
+              <p><strong className="text-text-primary">GO mapping:</strong> {result.provenance.go_mapping_source}</p>
+              <p><strong className="text-text-primary">Method:</strong> {result.method_version}</p>
             </div>
+            <p className="mt-3 text-xs text-text-muted">{result.note}</p>
+            <p className="mt-2 text-xs text-text-muted">{result.ec_scope_note}</p>
           </div>
 
-          <p className="text-xs text-text-muted text-center">{result.note}</p>
+          {result.composition && (
+            <div className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary">Descriptive amino-acid composition</h3>
+              <p className="mt-1 text-xs text-text-muted">Measured directly from the fetched sequence. These measurements are not used as calibrated function evidence.</p>
+              <div className="mt-3 grid grid-cols-5 gap-2 sm:grid-cols-10">
+                {result.composition.aa.split("").map((aa) => <div key={aa} className="rounded bg-surface-1 p-2 text-center"><div className="font-mono text-sm text-text-primary">{aa}</div><div className="text-[11px] text-text-muted">{((result.composition.fractions[aa] || 0) * 100).toFixed(1)}%</div></div>)}
+              </div>
+            </div>
+          )}
         </motion.div>
       )}
     </div>

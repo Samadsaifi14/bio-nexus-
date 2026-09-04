@@ -1,26 +1,28 @@
-﻿"""Protein function prediction combining InterPro2GO domain mapping with
-heuristic composition-based fallback.
+"""Conservative protein-function inference from InterPro2GO mappings.
 
-Primary method: run InterProScan5 on the sequence, then map each domain hit
-to GO terms via the InterPro API (which embeds InterPro2GO transitive
-annotations).  This yields experimentally validated GO terms derived from
-curated domain-to-function mappings.
+BioNexus does not train a function-prediction model in this module. The
+research-grade path implemented here is deliberately narrower:
 
-Fallback: when InterProScan5 is unreachable or the sequence is too short,
-fall back to amino-acid-composition heuristics (low confidence, kept for
-completeness).
+1. Fetch the protein sequence represented by the requested PDB entry.
+2. Run InterProScan on that sequence.
+3. Map InterPro entries to Gene Ontology (GO) terms through the InterPro API.
+4. Report the mapping provenance and amount of supporting domain evidence.
 
-Outputs:
-- GO term predictions with confidence scores (MF / BP / CC)
-- Per-residue importance scores (saliency map)
-- Per-residue amino acid composition
+The previous implementation converted domain-hit counts and simple amino-acid
+composition thresholds into probability-like "confidence" percentages. Those
+numbers were not calibrated probabilities and therefore are not suitable for a
+research result. They have been removed. If InterProScan/InterPro2GO does not
+provide evidence, BioNexus returns no GO prediction and exposes sequence
+composition only as a descriptive measurement.
+
+EC-number inference is intentionally out of scope until a defensible,
+benchmarked mapping/prediction method is implemented.
 """
 
 from __future__ import annotations
 
 import json
 import logging
-import math
 import urllib.request
 
 logger = logging.getLogger(__name__)
@@ -30,13 +32,15 @@ _INTERPRO_ENTRY_API = "https://www.ebi.ac.uk/interpro/api/entry/interpro/{access
 _RCSB_SEQUENCE_API = "https://data.rcsb.org/rest/v1/core/polymer_entity/{pdb_id}/1"
 _RCSB_FASTA_API = "https://www.rcsb.org/fasta/entry/{pdb_id}"
 
+METHOD_VERSION = "interpro2go-evidence-v1"
+
 
 # ---------------------------------------------------------------------------
 # Sequence fetching
 # ---------------------------------------------------------------------------
 
 def _fetch_pdb_sequence(pdb_id: str) -> str:
-    """Fetch the amino acid sequence for a PDB entry from RCSB."""
+    """Fetch the canonical amino-acid sequence exposed for a PDB entry."""
     url = _RCSB_SEQUENCE_API.format(pdb_id=pdb_id)
     try:
         data = json.loads(urllib.request.urlopen(url, timeout=15).read())  # nosemgrep
@@ -47,29 +51,26 @@ def _fetch_pdb_sequence(pdb_id: str) -> str:
     try:
         url = _RCSB_FASTA_API.format(pdb_id=pdb_id)
         text = urllib.request.urlopen(url, timeout=15).read().decode()  # nosemgrep
-        lines = [l for l in text.splitlines() if not l.startswith(">")]
+        lines = [line for line in text.splitlines() if not line.startswith(">")]
         return "".join(lines).replace("\n", "")
-    except Exception as e:
-        raise RuntimeError(f"Could not fetch sequence for {pdb_id}: {e}")
+    except Exception as exc:
+        raise RuntimeError(f"Could not fetch sequence for {pdb_id}: {exc}") from exc
 
 
 # ---------------------------------------------------------------------------
-# InterProScan5 sequence search
+# InterProScan sequence search
 # ---------------------------------------------------------------------------
 
 def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
-    """Submit a sequence to InterProScan5 REST and poll for results.
+    """Submit a protein sequence to the configured InterProScan REST service.
 
-    Returns a list of domain hits: [{"accession", "name", "database",
-    "start", "end", "score"}, ...].  Empty list on any failure.
+    Returns domain/entry hits. An empty list means that no usable evidence was
+    obtained; callers must not reinterpret service failure as biological
+    evidence for absence of function.
     """
     import time
 
-    body = json.dumps({
-        "sequences": [{"sequence": sequence}],
-        "type": "PROTEIN",
-    })
-
+    body = json.dumps({"sequences": [{"sequence": sequence}], "type": "PROTEIN"})
     req = urllib.request.Request(
         _INTERPRO_SEARCH_URL,
         data=body.encode(),
@@ -83,11 +84,10 @@ def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
         job_id = job_data.get("jobId", "")
         if not job_id:
             return []
-    except Exception as e:
-        logger.warning("InterProScan5 submit failed: %s", e)
+    except Exception as exc:
+        logger.warning("InterProScan submit failed: %s", exc)
         return []
 
-    # Poll for completion
     status_url = f"https://www.ebi.ac.uk/interpro/service/rest/iprscan5/status/{job_id}"
     result_url = f"https://www.ebi.ac.uk/interpro/service/rest/iprscan5/result/{job_id}/json"
 
@@ -103,196 +103,165 @@ def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
         if status == "FINISHED":
             break
         if status in ("FAILED", "ERROR"):
-            logger.warning("InterProScan5 job %s status: %s", job_id, status)
+            logger.warning("InterProScan job %s status: %s", job_id, status)
             return []
         time.sleep(3)
     else:
-        logger.warning("InterProScan5 job %s timed out", job_id)
+        logger.warning("InterProScan job %s timed out", job_id)
         return []
 
     try:
         result_resp = urllib.request.urlopen(result_url, timeout=30)  # nosemgrep
         results = json.loads(result_resp.read())
-    except Exception as e:
-        logger.warning("InterProScan5 result fetch failed: %s", e)
+    except Exception as exc:
+        logger.warning("InterProScan result fetch failed: %s", exc)
         return []
 
     hits: list[dict] = []
     for entry in results.get("results", []):
-        acc = entry.get("accession", "")
+        accession = entry.get("accession", "")
         name = entry.get("name", "")
-        db = entry.get("database", "")
+        database = entry.get("database", "")
         for match in entry.get("matches", []):
             for loc in match.get("locations", []):
-                start = loc.get("start", 0)
-                end = loc.get("end", 0)
-                score = loc.get("score", 0)
                 hits.append({
-                    "accession": acc,
+                    "accession": accession,
                     "name": name,
-                    "database": db,
-                    "start": start,
-                    "end": end,
-                    "score": score,
+                    "database": database,
+                    "start": loc.get("start", 0),
+                    "end": loc.get("end", 0),
+                    "score": loc.get("score"),
                 })
 
-    hits.sort(key=lambda h: h["start"])
+    hits.sort(key=lambda hit: (hit.get("start", 0), hit.get("end", 0)))
     return hits
 
 
 # ---------------------------------------------------------------------------
-# InterPro → GO term mapping
+# InterPro -> GO mapping
 # ---------------------------------------------------------------------------
 
 def _fetch_interpro_go_terms(accession: str) -> list[dict]:
-    """Fetch GO annotations associated with an InterPro entry.
+    """Fetch GO terms associated with one InterPro entry.
 
-    Uses the InterPro API which includes InterPro2GO transitive mappings.
-    Returns [{"id": "GO:xxxx", "name": "...", "category": "MF|BP|CC"}, ...].
+    These are database mappings associated with InterPro entries. They are not
+    automatically equivalent to direct experimental evidence for the queried
+    protein, so the output is labelled `interpro2go_mapping` rather than
+    `experimentally_validated`.
     """
     url = _INTERPRO_ENTRY_API.format(accession=accession)
     try:
         resp = urllib.request.urlopen(url, timeout=15)  # nosemgrep
         data = json.loads(resp.read())
-    except Exception:
+    except Exception as exc:
+        logger.warning("InterPro GO lookup failed for %s: %s", accession, exc)
         return []
 
-    go_terms: list[dict] = []
-    # InterPro API returns go_terms in metadata
+    terms: list[dict] = []
+    namespace_map = {"F": "MF", "P": "BP", "C": "CC"}
     for go in data.get("metadata", {}).get("go_terms", []):
         go_id = go.get("id", "")
-        go_name = go.get("name", "")
-        category_code = go.get("category", "")
-        # Map single-letter codes to full namespace
-        ns_map = {"F": "MF", "P": "BP", "C": "CC"}
-        namespace = ns_map.get(category_code, category_code)
-        if go_id:
-            go_terms.append({
-                "id": go_id,
-                "name": go_name,
-                "category": namespace,
-            })
-
-    return go_terms
+        if not go_id:
+            continue
+        category = go.get("category", "")
+        terms.append({
+            "id": go_id,
+            "name": go.get("name", ""),
+            "category": namespace_map.get(category, category),
+        })
+    return terms
 
 
 def _interpro_to_go(hits: list[dict]) -> list[dict]:
-    """Map InterProScan5 domain hits to GO terms via InterPro2GO.
-
-    Each domain hit is annotated with its InterPro accession. We look up the
-    GO terms for each unique accession and aggregate them, weighting by the
-    number of hits from that domain family.
-    """
-    seen_accessions: dict[str, int] = {}
+    """Aggregate InterPro2GO mappings while preserving evidence provenance."""
+    accessions: dict[str, int] = {}
     for hit in hits:
-        acc = hit["accession"]
-        seen_accessions[acc] = seen_accessions.get(acc, 0) + 1
+        accession = hit.get("accession")
+        if accession:
+            accessions[accession] = accessions.get(accession, 0) + 1
 
-    all_go: dict[str, dict] = {}
-    for acc in seen_accessions:
-        for go in _fetch_interpro_go_terms(acc):
-            go_id = go["id"]
-            if go_id not in all_go:
-                all_go[go_id] = {**go, "evidence_count": 0}
-            all_go[go_id]["evidence_count"] += 1
+    aggregated: dict[str, dict] = {}
+    for accession, hit_count in accessions.items():
+        for go in _fetch_interpro_go_terms(accession):
+            record = aggregated.setdefault(
+                go["id"],
+                {
+                    "go_id": go["id"],
+                    "name": go["name"],
+                    "namespace": go["category"],
+                    "supporting_interpro_entries": [],
+                    "supporting_domain_hits": 0,
+                },
+            )
+            if accession not in record["supporting_interpro_entries"]:
+                record["supporting_interpro_entries"].append(accession)
+            record["supporting_domain_hits"] += hit_count
 
-    # Convert to list and assign confidence based on evidence count
-    go_list = []
-    for go_id, go in all_go.items():
-        # Confidence: base 0.6 + up to 0.35 from multiple domain evidence
-        confidence = min(0.6 + go["evidence_count"] * 0.1, 0.95)
-        go_list.append({
-            "go_id": go_id,
-            "name": go["name"],
-            "namespace": go["category"],
-            "confidence": round(confidence, 3),
-            "source": "interpro2go",
+    terms: list[dict] = []
+    for record in aggregated.values():
+        entries = sorted(record["supporting_interpro_entries"])
+        terms.append({
+            **record,
+            "supporting_interpro_entries": entries,
+            "support_count": len(entries),
+            "evidence_type": "interpro2go_mapping",
+            "source": "InterPro",
+            "source_url": "https://www.ebi.ac.uk/interpro/",
+            "confidence": None,
+            "confidence_note": (
+                "No calibrated probability is reported. Support count is the number of "
+                "distinct InterPro entries mapping this sequence to the GO term."
+            ),
         })
 
-    go_list.sort(key=lambda g: g["confidence"], reverse=True)
-    return go_list
+    terms.sort(
+        key=lambda term: (
+            -term["support_count"],
+            -term["supporting_domain_hits"],
+            term["go_id"],
+        )
+    )
+    return terms
 
 
 # ---------------------------------------------------------------------------
-# Heuristic composition-based fallback
+# Descriptive sequence measurements
 # ---------------------------------------------------------------------------
-
-def _heuristic_go_terms(sequence: str) -> list[dict]:
-    """Fallback GO prediction from amino acid composition."""
-    seq_upper = sequence.upper()
-    seq_len = len(seq_upper)
-    aa_comp = {}
-    for aa in seq_upper:
-        aa_comp[aa] = aa_comp.get(aa, 0) + 1
-
-    predicted_go = []
-
-    hydrophobic_fraction = sum(aa_comp.get(a, 0) for a in "AILMFWV") / max(seq_len, 1)
-    charged_fraction = sum(aa_comp.get(a, 0) for a in "DEKRH") / max(seq_len, 1)
-
-    if hydrophobic_fraction > 0.4:
-        predicted_go.append({
-            "go_id": "GO:0016020",
-            "name": "membrane",
-            "namespace": "CC",
-            "confidence": round(min(0.6 + hydrophobic_fraction * 0.3, 0.95), 3),
-            "source": "heuristic",
-        })
-    if charged_fraction > 0.25:
-        predicted_go.append({
-            "go_id": "GO:0005515",
-            "name": "protein binding",
-            "namespace": "MF",
-            "confidence": round(min(0.55 + charged_fraction * 0.2, 0.9), 3),
-            "source": "heuristic",
-        })
-    if hydrophobic_fraction > 0.4 and charged_fraction > 0.15:
-        predicted_go.append({
-            "go_id": "GO:0007165",
-            "name": "signal transduction",
-            "namespace": "BP",
-            "confidence": round(min(0.5 + hydrophobic_fraction * 0.2, 0.85), 3),
-            "source": "heuristic",
-        })
-
-    predicted_go.append({
-        "go_id": "GO:0003674",
-        "name": "molecular_function",
-        "namespace": "MF",
-        "confidence": 0.99,
-        "source": "heuristic",
-    })
-
-    return predicted_go
-
-
-def _saliency_from_composition(sequence: str) -> list[float]:
-    """Per-residue importance based on amino acid chemistry."""
-    seq_upper = sequence.upper()
-    saliency = []
-    for aa in seq_upper:
-        if aa in "DEKRH":
-            score = 0.6
-        elif aa in "STNQ":
-            score = 0.4
-        elif aa in "AGV":
-            score = 0.2
-        else:
-            score = 0.15
-        saliency.append(round(score, 3))
-    return saliency
-
 
 def _amino_acid_composition(sequence: str) -> dict:
     seq_upper = sequence.upper()
     seq_len = len(seq_upper)
-    aa_comp = {}
+    counts: dict[str, int] = {}
     for aa in seq_upper:
-        aa_comp[aa] = aa_comp.get(aa, 0) + 1
+        counts[aa] = counts.get(aa, 0) + 1
     return {
         "aa": "ACDEFGHIKLMNPQRSTVWY",
-        "fractions": {aa: round(aa_comp.get(aa, 0) / max(seq_len, 1), 4) for aa in "ACDEFGHIKLMNPQRSTVWY"},
+        "fractions": {
+            aa: round(counts.get(aa, 0) / max(seq_len, 1), 4)
+            for aa in "ACDEFGHIKLMNPQRSTVWY"
+        },
     }
+
+
+def _residue_chemistry_scores(sequence: str) -> list[float]:
+    """Return a descriptive residue-class score, not model saliency.
+
+    The score is retained only to support the existing visualization while the
+    UI migrates to the research-grade schema. It must never be interpreted as
+    feature attribution or causal residue importance.
+    """
+    values: list[float] = []
+    for aa in sequence.upper():
+        if aa in "DEKRH":
+            value = 0.6
+        elif aa in "STNQ":
+            value = 0.4
+        elif aa in "AGV":
+            value = 0.2
+        else:
+            value = 0.15
+        values.append(round(value, 3))
+    return values
 
 
 # ---------------------------------------------------------------------------
@@ -300,48 +269,73 @@ def _amino_acid_composition(sequence: str) -> dict:
 # ---------------------------------------------------------------------------
 
 def predict_function(pdb_id: str) -> dict:
-    """Predict protein function for a PDB entry.
+    """Infer GO terms for a PDB entry from InterPro2GO evidence.
 
-    Uses InterPro2GO domain-to-GO mapping as the primary method. Falls back
-    to composition heuristics when InterProScan5 is unavailable.
+    If no InterPro2GO evidence is available, the function returns an explicit
+    `insufficient_evidence` state. It does not fabricate GO terms from sequence
+    composition.
     """
     sequence = _fetch_pdb_sequence(pdb_id)
     if not sequence:
         raise RuntimeError(f"No sequence available for PDB {pdb_id}")
 
-    seq_len = len(sequence)
-    method = "interpro2go"
-    go_terms = []
-    domain_hits = []
+    domain_hits = _run_interproscan(sequence)
+    go_terms = _interpro_to_go(domain_hits) if domain_hits else []
 
-    # Primary: InterProScan5 → InterPro2GO
-    try:
-        domain_hits = _run_interproscan(sequence)
-        if domain_hits:
-            go_terms = _interpro_to_go(domain_hits)
-        else:
-            logger.info("InterProScan5 returned no domain hits for %s, using heuristic", pdb_id)
-            go_terms = _heuristic_go_terms(sequence)
-            method = "heuristic_fallback"
-    except Exception as e:
-        logger.warning("InterProScan5 failed for %s: %s — using heuristic", pdb_id, e)
-        go_terms = _heuristic_go_terms(sequence)
-        method = "heuristic_fallback"
+    if go_terms:
+        status = "inferred"
+        method = "interpro2go"
+        note = (
+            "GO terms are inferred from InterPro entry-to-GO mappings. They are not direct "
+            "experimental annotations for this protein and no calibrated probability is reported."
+        )
+    else:
+        status = "insufficient_evidence"
+        method = "interpro2go_no_evidence"
+        note = (
+            "No InterPro2GO-supported GO term was obtained. BioNexus does not substitute "
+            "composition heuristics for a function prediction in research-grade mode."
+        )
 
-    saliency = _saliency_from_composition(sequence)
     composition = _amino_acid_composition(sequence)
+    chemistry_scores = _residue_chemistry_scores(sequence)
 
     return {
         "pdb_id": pdb_id.upper(),
-        "sequence_length": seq_len,
+        "sequence_length": len(sequence),
+        "status": status,
         "go_terms": go_terms,
         "ec_numbers": [],
+        "ec_scope_note": (
+            "EC-number inference is not implemented in the research-grade function module; "
+            "no EC number is returned unless a separately validated method is added."
+        ),
         "domain_hits": [
-            {"accession": h["accession"], "name": h["name"],
-             "database": h["database"], "start": h["start"], "end": h["end"]}
-            for h in domain_hits
+            {
+                "accession": hit.get("accession", ""),
+                "name": hit.get("name", ""),
+                "database": hit.get("database", ""),
+                "start": hit.get("start", 0),
+                "end": hit.get("end", 0),
+                "score": hit.get("score"),
+            }
+            for hit in domain_hits
         ],
-        "saliency": saliency,
+        # Backward-compatible field: intentionally empty so clients do not present
+        # residue chemistry as model saliency/feature attribution.
+        "saliency": [],
+        "residue_chemistry_scores": chemistry_scores,
+        "residue_chemistry_note": (
+            "Descriptive residue-class scores only; not model saliency or feature importance."
+        ),
         "composition": composition,
         "method": method,
+        "method_version": METHOD_VERSION,
+        "provenance": {
+            "sequence_source": "RCSB PDB",
+            "domain_source": "InterProScan",
+            "go_mapping_source": "InterPro2GO via InterPro API",
+            "retrieval_is_live": True,
+        },
+        "note": note,
     }

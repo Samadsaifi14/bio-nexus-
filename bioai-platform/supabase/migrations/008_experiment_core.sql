@@ -66,7 +66,8 @@ create table if not exists benchmarks (
   citation text,
   source text,
   stage text not null default 'draft',
-  created_at timestamptz default now()
+  created_at timestamptz default now(),
+  unique (category, name)
 );
 
 -- 4. Benchmark runs — measured vs expected outcomes for an experiment.

@@ -1,17 +1,4 @@
-"""BBS-1 co-crystal redocking experiment using the canonical Vina 1IEP example.
-
-The benchmark downloads PDB 1IEP, isolates chain A and its crystallographic
-imatinib (STI A 201), prepares a rigid receptor with the BioNexus receptor-
-preparation function, converts the crystal ligand through SDF using the same
-BioNexus ligand-prep path used for docking, docks with BioNexus `run_vina`, and
-evaluates the best pose against the crystallographic ligand using the existing
-symmetry-aware heavy-atom RMSD benchmark.
-
-A result is PASS only when the best-scoring pose RMSD is <= 2.0 Å. Raw Vina
-metadata, score, pose count, hashes and RMSD are written to JSON. Failures are
-not converted to WARN or PASS.
-"""
-
+"""BBS-1 co-crystal redocking experiment using canonical 1IEP/STI chain A."""
 from __future__ import annotations
 
 import argparse
@@ -27,12 +14,7 @@ from pathlib import Path
 from rdkit import Chem, rdBase
 
 from app.benchmarking.docking_redock import evaluate_redocking
-from app.tools.docking import (
-    _sdf_to_pdbqt,
-    fetch_pdb_from_rcsb,
-    pdb_to_pdbqt_receptor,
-    run_vina,
-)
+from app.tools.docking import _sdf_to_pdbqt, fetch_pdb_from_rcsb, pdb_to_pdbqt_receptor, run_vina
 
 PDB_ID = "1IEP"
 RECEPTOR_CHAIN = "A"
@@ -51,14 +33,19 @@ def sha256(text: str) -> str:
 
 
 def _extract_complex_parts(pdb_text: str) -> tuple[str, str]:
+    """Extract chain A receptor and STI A 201 including its PDB CONECT graph."""
+    lines = pdb_text.splitlines()
     receptor_lines: list[str] = []
     ligand_lines: list[str] = []
-    for line in pdb_text.splitlines():
+    ligand_serials: set[int] = set()
+
+    for line in lines:
         if line.startswith("ATOM  ") and line[21].strip() == RECEPTOR_CHAIN:
             receptor_lines.append(line)
         elif line.startswith("HETATM"):
             try:
                 resseq = int(line[22:26])
+                serial = int(line[6:11])
             except ValueError:
                 continue
             if (
@@ -67,11 +54,32 @@ def _extract_complex_parts(pdb_text: str) -> tuple[str, str]:
                 and resseq == LIGAND_RESSEQ
             ):
                 ligand_lines.append(line)
+                ligand_serials.add(serial)
+
+    conect_lines: list[str] = []
+    for line in lines:
+        if not line.startswith("CONECT"):
+            continue
+        try:
+            serials = [int(x) for x in line[6:].split()]
+        except ValueError:
+            continue
+        if serials and serials[0] in ligand_serials:
+            # Keep only connectivity that is wholly internal to the selected ligand.
+            internal = [serials[0], *[x for x in serials[1:] if x in ligand_serials]]
+            if len(internal) > 1:
+                conect_lines.append("CONECT" + "".join(f"{x:5d}" for x in internal))
+
     if not receptor_lines:
         raise RuntimeError("1IEP chain-A receptor extraction returned no ATOM records")
     if not ligand_lines:
         raise RuntimeError("1IEP STI A 201 extraction returned no HETATM records")
-    return "\n".join(receptor_lines + ["END"]) + "\n", "\n".join(ligand_lines + ["END"]) + "\n"
+    if not conect_lines:
+        raise RuntimeError("1IEP STI A 201 extraction returned no internal CONECT records")
+
+    receptor = "\n".join(receptor_lines + ["END"]) + "\n"
+    ligand = "\n".join(ligand_lines + conect_lines + ["END"]) + "\n"
+    return receptor, ligand
 
 
 def _obabel_convert(text: str, input_ext: str, output_ext: str, extra: list[str] | None = None) -> str:
@@ -80,8 +88,7 @@ def _obabel_convert(text: str, input_ext: str, output_ext: str, extra: list[str]
         inp = Path(tmp) / f"input.{input_ext}"
         out = Path(tmp) / f"output.{output_ext}"
         inp.write_text(text, encoding="utf-8")
-        cmd = ["obabel", str(inp), "-O", str(out), *extra]
-        proc = subprocess.run(cmd, capture_output=True, text=True, timeout=180)
+        proc = subprocess.run(["obabel", str(inp), "-O", str(out), *extra], capture_output=True, text=True, timeout=180)
         if proc.returncode != 0 or not out.exists():
             raise RuntimeError(f"Open Babel conversion failed: {proc.stderr[:1200]}")
         content = out.read_text(encoding="utf-8", errors="replace")
@@ -91,7 +98,6 @@ def _obabel_convert(text: str, input_ext: str, output_ext: str, extra: list[str]
 
 
 def _bionexus_sdf_to_pdbqt(sdf_text: str) -> str:
-    """Run the same BioNexus SDF->PDBQT preparation used by the product path."""
     with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False, mode="w", encoding="utf-8") as fh:
         fh.write(sdf_text)
         path = fh.name
@@ -112,15 +118,16 @@ def _mol_from_sdf_text(sdf: str) -> Chem.Mol:
     finally:
         os.unlink(path)
     if mol is None:
-        raise RuntimeError("RDKit could not parse Open Babel SDF")
+        raise RuntimeError("RDKit could not parse SDF for symmetry-aware RMSD")
     return mol
 
 
 def main(output: Path) -> int:
     complex_pdb = fetch_pdb_from_rcsb(PDB_ID)
     receptor_pdb, crystal_ligand_pdb = _extract_complex_parts(complex_pdb)
-
     receptor_pdbqt = pdb_to_pdbqt_receptor(receptor_pdb)
+
+    # PDB CONECT records retain the deposited STI bond graph during PDB->SDF.
     crystal_sdf = _obabel_convert(crystal_ligand_pdb, "pdb", "sdf")
     crystal_ligand_pdbqt = _bionexus_sdf_to_pdbqt(crystal_sdf)
 
@@ -140,8 +147,8 @@ def main(output: Path) -> int:
     predicted_sdf = _obabel_convert(best_pose_pdb, "pdb", "sdf")
     crystal_mol = _mol_from_sdf_text(crystal_sdf)
     predicted_mol = _mol_from_sdf_text(predicted_sdf)
-
     rmsd = evaluate_redocking(crystal_mol, predicted_mol, threshold_angstrom=RMSD_THRESHOLD_ANGSTROM)
+
     result = {
         "suite": "BBS-1 co-crystal redocking",
         "generated_at_utc": datetime.now(timezone.utc).isoformat(),
@@ -149,14 +156,12 @@ def main(output: Path) -> int:
         "case": {
             "pdb_id": PDB_ID,
             "receptor_chain": RECEPTOR_CHAIN,
-            "ligand_resname": LIGAND_RESNAME,
-            "ligand_chain": LIGAND_CHAIN,
-            "ligand_resseq": LIGAND_RESSEQ,
+            "ligand": f"{LIGAND_RESNAME} {LIGAND_CHAIN} {LIGAND_RESSEQ}",
             "grid_center_angstrom": GRID_CENTER,
             "grid_size_angstrom": GRID_SIZE,
             "exhaustiveness": EXHAUSTIVENESS,
             "seed": SEED,
-            "ligand_preparation": "BioNexus _sdf_to_pdbqt after crystallographic PDB->SDF conversion",
+            "ligand_preparation": "deposited PDB coordinates + CONECT -> SDF -> BioNexus _sdf_to_pdbqt",
             "vina_version": docked.get("vina_version"),
             "best_affinity_kcal_mol": docked.get("affinity"),
             "num_poses": docked.get("num_poses"),
@@ -171,8 +176,8 @@ def main(output: Path) -> int:
             "vina_meta": docked.get("vina_meta"),
         },
         "passed": rmsd.passed,
-        "claim_boundary": "This single 1IEP chain-A case measures co-crystal pose recovery under the specified preparation and Vina settings. It is not evidence of universal docking accuracy or affinity prediction accuracy.",
-        "reference_note": "PDB 1IEP contains A and B kinase chains with separate STI ligands; this benchmark uses STI A 201, whose coordinates correspond to the canonical Vina example box around chain A.",
+        "claim_boundary": "This single 1IEP chain-A case measures co-crystal pose recovery under the specified preparation and Vina settings. It is not evidence of universal docking or affinity-prediction accuracy.",
+        "reference_note": "PDB 1IEP contains two kinase chains and two STI instances; STI A 201 is selected to match the canonical chain-A Vina example box.",
     }
     output.parent.mkdir(parents=True, exist_ok=True)
     output.write_text(json.dumps(result, indent=2, sort_keys=True), encoding="utf-8")

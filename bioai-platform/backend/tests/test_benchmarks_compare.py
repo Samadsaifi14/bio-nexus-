@@ -28,6 +28,14 @@ def test_compare_metric_contains_matcher():
     assert not compare_metric("Cellular tumor antigen p53", {"contains": "Insulin"}, 0)
 
 
+def test_metric_value_full_name_contains():
+    ctx = {"uniprot": {"accession": "Q9TTA1", "full_name": "Cellular tumor antigen p53"}}
+    got = _metric_value(ctx, "uniprot", "full_name")
+    assert got == "Cellular tumor antigen p53"
+    assert compare_metric(got, {"contains": "p53"}, 0)
+    assert not compare_metric(got, {"contains": "Insulin"}, 0)
+
+
 def test_compare_metric_contains_requires_string():
     assert not compare_metric(100.0, {"contains": "Insulin"}, 0)
     assert not compare_metric(None, {"contains": "Insulin"}, 0)

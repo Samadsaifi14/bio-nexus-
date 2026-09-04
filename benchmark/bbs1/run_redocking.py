@@ -2,9 +2,10 @@
 
 The benchmark downloads PDB 1IEP, isolates the crystallographic imatinib (STI),
 prepares a rigid receptor with the BioNexus receptor-preparation function,
-converts the crystal ligand to PDBQT with Open Babel, docks with BioNexus
-`run_vina`, and evaluates the best pose against the crystallographic ligand
-using the existing symmetry-aware heavy-atom RMSD benchmark.
+converts the crystal ligand through SDF using the same BioNexus ligand-prep
+path used for docking, docks with BioNexus `run_vina`, and evaluates the best
+pose against the crystallographic ligand using the existing symmetry-aware
+heavy-atom RMSD benchmark.
 
 A result is PASS only when the best-scoring pose RMSD is <= 2.0 Å. Raw Vina
 metadata, score, pose count, hashes and RMSD are written to JSON. Failures are
@@ -26,7 +27,12 @@ from pathlib import Path
 from rdkit import Chem, rdBase
 
 from app.benchmarking.docking_redock import evaluate_redocking
-from app.tools.docking import fetch_pdb_from_rcsb, pdb_to_pdbqt_receptor, run_vina
+from app.tools.docking import (
+    _sdf_to_pdbqt,
+    fetch_pdb_from_rcsb,
+    pdb_to_pdbqt_receptor,
+    run_vina,
+)
 
 PDB_ID = "1IEP"
 LIGAND_RESNAME = "STI"
@@ -72,6 +78,18 @@ def _obabel_convert(text: str, input_ext: str, output_ext: str, extra: list[str]
         return content
 
 
+def _bionexus_sdf_to_pdbqt(sdf_text: str) -> str:
+    """Run the same BioNexus SDF->PDBQT preparation used by the product path."""
+    with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False, mode="w", encoding="utf-8") as fh:
+        fh.write(sdf_text)
+        path = fh.name
+    try:
+        return _sdf_to_pdbqt(path)
+    finally:
+        if os.path.exists(path):
+            os.unlink(path)
+
+
 def _mol_from_sdf_text(sdf: str) -> Chem.Mol:
     with tempfile.NamedTemporaryFile(suffix=".sdf", delete=False, mode="w", encoding="utf-8") as fh:
         fh.write(sdf)
@@ -91,12 +109,8 @@ def main(output: Path) -> int:
     receptor_pdb, crystal_ligand_pdb = _extract_complex_parts(complex_pdb)
 
     receptor_pdbqt = pdb_to_pdbqt_receptor(receptor_pdb)
-    crystal_ligand_pdbqt = _obabel_convert(
-        crystal_ligand_pdb,
-        "pdb",
-        "pdbqt",
-        ["-h", "--partialcharge", "gasteiger"],
-    )
+    crystal_sdf = _obabel_convert(crystal_ligand_pdb, "pdb", "sdf")
+    crystal_ligand_pdbqt = _bionexus_sdf_to_pdbqt(crystal_sdf)
 
     docked = run_vina(
         protein_pdbqt=receptor_pdbqt,
@@ -111,7 +125,6 @@ def main(output: Path) -> int:
     if not best_pose_pdb:
         raise RuntimeError("Vina returned no best-pose PDB")
 
-    crystal_sdf = _obabel_convert(crystal_ligand_pdb, "pdb", "sdf")
     predicted_sdf = _obabel_convert(best_pose_pdb, "pdb", "sdf")
     crystal_mol = _mol_from_sdf_text(crystal_sdf)
     predicted_mol = _mol_from_sdf_text(predicted_sdf)
@@ -128,6 +141,7 @@ def main(output: Path) -> int:
             "grid_size_angstrom": GRID_SIZE,
             "exhaustiveness": EXHAUSTIVENESS,
             "seed": SEED,
+            "ligand_preparation": "BioNexus _sdf_to_pdbqt after crystallographic PDB->SDF conversion",
             "vina_version": docked.get("vina_version"),
             "best_affinity_kcal_mol": docked.get("affinity"),
             "num_poses": docked.get("num_poses"),
@@ -137,6 +151,7 @@ def main(output: Path) -> int:
             "passed": rmsd.passed,
             "receptor_pdb_sha256": sha256(receptor_pdb),
             "crystal_ligand_pdb_sha256": sha256(crystal_ligand_pdb),
+            "crystal_ligand_sdf_sha256": sha256(crystal_sdf),
             "best_pose_pdb_sha256": sha256(best_pose_pdb),
             "vina_meta": docked.get("vina_meta"),
         },

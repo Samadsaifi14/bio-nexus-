@@ -154,6 +154,15 @@ class TestExperimentManager:
         assert a == b
         assert a != c
 
+    def test_deterministic_seed_fits_postgres_bigint(self, fake_sb):
+        # Regression: seed must never overflow a signed 64-bit bigint column
+        # (Postgres max is 2^63-1). The masking above guarantees it.
+        bigint_max = (1 << 63) - 1
+        for seq in ["MGHHHH", "FVNQHLCGSHLVEALYLVCGERGFFYTPKT", "MKWVTFISLL" * 5, "A" * 2000]:
+            for params in (None, {"fast_mode": True}, {"blast_params": {"database": "nr"}}):
+                seed = exp_svc.deterministic_seed(seq, params)
+                assert 0 <= seed <= bigint_max
+
     def test_fingerprint_fields(self, fake_sb):
         fp = exp_svc.build_fingerprint("MGHHHH", {"fast_mode": True})
         assert "git_commit" in fp

@@ -120,9 +120,13 @@ def _input_sha256(sequence: str) -> str:
 
 def deterministic_seed(sequence: str, parameters: dict | None = None) -> int:
     """Deterministic random seed derived from input + params so a rerun with
-    identical inputs reproduces identical stochastic behavior."""
+    identical inputs reproduces identical stochastic behavior.
+
+    Masked to the signed 64-bit range so the value always fits a Postgres
+    bigint column (2^63-1), regardless of the input hash.
+    """
     payload = sequence.strip().upper() + repr(sorted((parameters or {}).items()))
-    return int.from_bytes(hashlib.sha256(payload.encode()).digest()[:8], "big")
+    return int.from_bytes(hashlib.sha256(payload.encode()).digest()[:8], "big") & 0x7FFFFFFFFFFFFFFF
 
 
 def make_experiment_id() -> str:

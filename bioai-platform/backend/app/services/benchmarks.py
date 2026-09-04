@@ -75,11 +75,17 @@ def load_benchmark_files() -> list[dict]:
 
 def seed_benchmarks() -> int:
     """Upsert the JSON catalog into the database by (category, name).
-    Returns the number of records upserted (best-effort)."""
+    Returns the number of records upserted (best-effort).
+
+    Tolerates a missing `benchmarks.section` column (migration 009): if the
+    first insert fails on that field, seeding retries without it and disables
+    the column for the remainder of the run.
+    """
     records = load_benchmark_files()
     if not records:
         return 0
     count = 0
+    omit_section = False
     try:
         for rec in records:
             row = {
@@ -94,10 +100,24 @@ def seed_benchmarks() -> int:
                 "source": rec.get("source", "bbs-1"),
                 "stage": rec.get("stage", "curated"),
             }
-            get_supabase().table("benchmarks") \
-                .upsert(row, on_conflict="category,name") \
-                .execute()
-            count += 1
+            if not omit_section:
+                row["section"] = rec.get("section", "blast")
+            try:
+                get_supabase().table("benchmarks") \
+                    .upsert(row, on_conflict="category,name") \
+                    .execute()
+                count += 1
+            except Exception as e:
+                if not omit_section and "section" in str(e):
+                    omit_section = True
+                    logger.warning("benchmarks.section column missing - retrying without it")
+                    get_supabase().table("benchmarks") \
+                        .upsert({k: v for k, v in row.items() if k != "section"},
+                                on_conflict="category,name") \
+                        .execute()
+                    count += 1
+                else:
+                    logger.warning("Benchmark seed failed for %s: %s", rec.get("name"), e)
     except Exception as e:
         logger.warning("Benchmark seed failed after %d records: %s", count, e)
     logger.info("Benchmark catalog seeded: %d records", count)
@@ -143,6 +163,9 @@ def _metric_value(context: dict, section: str, key: str):
             return (seg.get("top_hit") or {}).get("description")
         if key == "hit_count":
             return seg.get("count")
+        if key == "gene_name":
+            names = seg.get("gene_names") or []
+            return names[0] if names else None
         return seg.get(key)
     except Exception:
         return None

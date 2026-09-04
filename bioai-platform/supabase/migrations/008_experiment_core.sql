@@ -33,7 +33,7 @@ create table if not exists experiments (
 --    can be reconstructed from (experiment_id, deps).
 create table if not exists experiment_steps (
   id uuid primary key default gen_random_uuid(),
-  experiment_id uuid references experiments(id) on delete cascade,
+  experiment_id text references experiments(experiment_id) on delete cascade,
   node_id text not null,
   tool text,
   tool_version text,
@@ -73,7 +73,7 @@ create table if not exists benchmarks (
 create table if not exists benchmark_runs (
   id uuid primary key default gen_random_uuid(),
   benchmark_id uuid references benchmarks(id) on delete cascade,
-  experiment_id uuid references experiments(id) on delete set null,
+  experiment_id text references experiments(experiment_id) on delete set null,
   status text not null default 'running',
   metrics jsonb,
   passed_checks jsonb,

@@ -28,6 +28,11 @@ async def list_experiments(limit: int = 20, user_id: str | None = Depends(get_us
         result = q.execute()
         return {"experiments": result.data or []}
     except Exception as e:
+        # Pre-migration the table may not exist — degrade to an empty list so
+        # the UI never hard-fails (same philosophy as the best-effort services).
+        if "experiments" in str(e):
+            logger.warning("Experiments list degraded (table missing or unreachable): %s", e)
+            return {"experiments": []}
         raise HTTPException(status_code=500, detail=f"Experiments list error: {type(e).__name__}: {e}")
 
 

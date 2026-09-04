@@ -37,7 +37,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install deterministic benchmark dependencies
-        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' httpx numpy biopython rdkit
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' httpx numpy biopython rdkit python-dotenv
       - name: Record environment
         run: |
           python --version

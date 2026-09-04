@@ -139,6 +139,8 @@ def _metric_value(context: dict, section: str, key: str):
             return (seg.get("top_hit") or {}).get("accession")
         if key == "top_hit_identity":
             return (seg.get("top_hit") or {}).get("identity_pct")
+        if key == "top_hit_description":
+            return (seg.get("top_hit") or {}).get("description")
         if key == "hit_count":
             return seg.get("count")
         return seg.get(key)
@@ -147,13 +149,18 @@ def _metric_value(context: dict, section: str, key: str):
 
 
 def compare_metric(actual, expected, tolerance: float) -> bool:
-    """Compare one metric within absolute tolerance.
+    """Compare one metric.
 
-    Strings match exactly; numbers match within |delta| <= tolerance.
+    - Dict matcher `{"contains": "..."}` passes when the actual string
+      contains the substring (used for species-agnostic top-hit checks).
+    - Numbers match within absolute tolerance.
+    - Otherwise exact string match.
     Missing/None actual is never a pass (no silent success).
     """
     if actual is None:
         return False
+    if isinstance(expected, dict) and isinstance(expected.get("contains"), str):
+        return isinstance(actual, str) and expected["contains"] in actual
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
         try:
             return abs(float(actual) - float(expected)) <= float(tolerance)

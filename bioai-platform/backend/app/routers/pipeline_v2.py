@@ -193,19 +193,26 @@ async def run_pipeline(
     status_callback=None,
     fast_mode: bool = False,
     blast_params: dict | None = None,
+    job_id: str | None = None,
 ) -> dict:
     """Public async entry point for the pipeline (used by pipeline_worker).
 
     Creates a temporary in-memory job, runs the configured steps, and
     returns the context dict with all results.
     """
-    job_id = f"worker-{uuid.uuid4().hex[:12]}"
+    if job_id:
+        # Real persisted job (worker path): reuse its id so the experiment
+        # record can FK to jobs(id).
+        external_job_id = job_id
+    else:
+        external_job_id = f"worker-{uuid.uuid4().hex[:12]}"
+    job_key = job_id or external_job_id
     requested = list(STEP_ORDER)
     steps_dict = {s: {"status": "pending", "progress": 0, "data": None, "error": None} for s in STEP_ORDER}
 
     with _jobs_lock:
-        _jobs[job_id] = {
-            "job_id": job_id,
+        _jobs[job_key] = {
+            "job_id": external_job_id,
             "status": "running",
             "current_step": None,
             "steps": steps_dict,
@@ -218,7 +225,7 @@ async def run_pipeline(
 
     try:
         await _execute(
-            job_id,
+            external_job_id,
             sequence,
             requested,
             status_callback=status_callback,
@@ -296,6 +303,37 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
     _failed_step = None
     _failed_error = None
 
+    # Milestone 1 — register this run as a reproducible Experiment (best-effort).
+    experiment_id = None
+    try:
+        from app.services.experiment import begin_experiment
+        experiment_id = begin_experiment(
+            job_id,
+            sequence,
+            "protein_analysis",
+            parameters={
+                "fast_mode": fast_mode,
+                "blast_params": blast_params or {},
+                "alignment_mode": alignment_mode,
+                "steps": steps,
+            },
+        )
+    except Exception as e:
+        logger.warning("[%s] Experiment registration failed (continuing): %s", job_id, e)
+
+    def _record_provenance_and_finalize(status: str, error: str | None = None):
+        if experiment_id:
+            try:
+                from app.services.provenance import record_pipeline_provenance
+                record_pipeline_provenance(experiment_id, context)
+            except Exception as e:
+                logger.warning("[%s] Provenance recording failed (continuing): %s", job_id, e)
+            try:
+                from app.services.experiment import finalize_experiment
+                finalize_experiment(job_id, status, error)
+            except Exception as e:
+                logger.warning("[%s] Experiment finalize failed (continuing): %s", job_id, e)
+
     async def _notify(step_key: str):
         if status_callback:
             try:
@@ -346,6 +384,7 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _jobs[job_id]["status"] = "complete"
                 _jobs[job_id]["context"] = context
         _persist_v2_final(job_id, "complete", context)
+        _record_provenance_and_finalize("complete")
         return
 
     # ---- Step 2: Fan-out — UniProt, MSA, Pathway run in parallel ----
@@ -497,6 +536,7 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _jobs[job_id]["status"] = "failed"
                 _jobs[job_id]["error"] = f"Pipeline failed at {_failed_step}: {_failed_error}"
         _persist_v2_final(job_id, "failed", context, error=f"Pipeline failed at {_failed_step}: {_failed_error}")
+        _record_provenance_and_finalize("failed", error=f"Pipeline failed at {_failed_step}: {_failed_error}")
     else:
         await _finalize_context(job_id, context)
         with _jobs_lock:
@@ -504,6 +544,7 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _jobs[job_id]["status"] = "complete"
                 _jobs[job_id]["context"] = context
         _persist_v2_final(job_id, "complete", context)
+        _record_provenance_and_finalize("complete")
 
 
 async def _finalize_context(job_id: str, context: dict):

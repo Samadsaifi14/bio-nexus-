@@ -154,6 +154,7 @@ async def process_job(job_id: str) -> None:
             status_callback=_status_cb,
             fast_mode=fast_mode,
             blast_params=blast_params,
+            job_id=job_id,
         )
 
         done_at = datetime.datetime.utcnow().isoformat()

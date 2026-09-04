@@ -70,16 +70,17 @@ def test_plus_strand_missense_across_second_exon():
 
 def test_negative_strand_allele_is_complemented_before_codon_edit():
     tx = _minus_two_exon_tx()
-    # Genomic C>T at position 305 becomes transcript-oriented G>A at CDS pos 1.
-    result = annotate_variant({"chrom": "chr2", "pos": 305, "ref": "C", "alt": "T"}, [tx])
+    # Genomic T>C at position 305 becomes transcript-oriented A>G at CDS pos 1.
+    result = annotate_variant({"chrom": "chr2", "pos": 305, "ref": "T", "alt": "C"}, [tx])
     ann = result["annotation"]
     assert ann["cds_pos"] == 1
-    assert ann["oriented_ref"] == "G"
-    assert ann["oriented_alt"] == "A"
+    assert ann["oriented_ref"] == "A"
+    assert ann["oriented_alt"] == "G"
     assert ann["codon_ref"] == "ATG"
-    # The supplied CDS begins A at this coordinate, so a reference mismatch is expected;
-    # this verifies that mismatch is surfaced rather than silently translated.
-    assert ann["consequence"] == "reference_mismatch"
+    assert ann["codon_alt"] == "GTG"
+    assert ann["aa_ref"] == "M"
+    assert ann["aa_alt"] == "V"
+    assert ann["consequence"] == "missense"
 
 
 def test_reference_mismatch_is_explicit():

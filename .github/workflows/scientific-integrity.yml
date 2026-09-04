@@ -24,6 +24,36 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  bbs1-core:
+    name: BBS-1 deterministic scientific tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install deterministic benchmark dependencies
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' httpx numpy biopython rdkit
+      - name: Record environment
+        run: |
+          python --version
+          python -m pip freeze | sort
+          uname -a
+      - name: Run BBS-1 hardening tests
+        env:
+          PYTHONPATH: .
+        run: >-
+          pytest -q
+          tests/test_function_research_grade.py
+          tests/test_ngs_annotation_research_grade.py
+          tests/test_pathway_enrichment_research_grade.py
+          tests/test_docking_redock_benchmark.py
+          tests/test_alignment_pairwise.py
+
   ngs-integrity:
     name: NGS scientific contract tests
     runs-on: ubuntu-latest
@@ -37,11 +67,11 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install NGS test dependencies
-        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy httpx2
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy httpx biopython
       - name: Run NGS contract and stage suite
         env:
           PYTHONPATH: .
-        run: pytest -q tests/test_ngs_platform.py
+        run: pytest -q tests/test_ngs_platform.py tests/test_ngs_annotation_research_grade.py
 
   md-integrity:
     name: Staged MD regression and contract tests
@@ -56,7 +86,7 @@ jobs:
           python-version: '3.12'
           cache: pip
       - name: Install staged MD test dependencies
-        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy biopython openmm httpx2
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy biopython openmm httpx
       - name: Run staged MD suite
         env:
           PYTHONPATH: .

@@ -21,10 +21,10 @@ import httpx
 from rdkit import Chem, rdBase
 from rdkit.Chem import Descriptors, Lipinski, rdMolDescriptors
 
-# backend working directory is added to PYTHONPATH by CI
 from app.tools.admet import compute_descriptors
 from app.tools.uniprot import UniprotTool
 from app.tools.docking import fetch_pdb_from_rcsb
+from app.tools.blast import BlastTool
 
 
 ADMET_CASES = {
@@ -37,6 +37,7 @@ ADMET_CASES = {
 
 UNIPROT_CASES = ("P69905", "P68871", "P04637")
 RCSB_CASES = ("1CRN", "4HHB")
+HBB_SEQUENCE = "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH"
 
 
 def _sha256_text(text: str) -> str:
@@ -96,8 +97,7 @@ async def run_uniprot() -> dict:
     async with httpx.AsyncClient(timeout=30, follow_redirects=True) as client:
         for accession in UNIPROT_CASES:
             observed = await tool.run({"accession": accession})
-            url = f"https://rest.uniprot.org/uniprotkb/{accession}.json"
-            response = await client.get(url)
+            response = await client.get(f"https://rest.uniprot.org/uniprotkb/{accession}.json")
             response.raise_for_status()
             raw = response.json()
             raw_entry_type = (raw.get("entryType") or "").lower()
@@ -161,6 +161,37 @@ async def run_rcsb() -> dict:
     }
 
 
+async def run_ebi_blast() -> dict:
+    tool = BlastTool()
+    observed = await tool.run_uncached({
+        "sequence": HBB_SEQUENCE,
+        "program": "blastp",
+        "database": "uniprotkb_swissprot",
+        "max_hits": 5,
+    })
+    error = observed.get("error")
+    hits = observed.get("hits") or []
+    accessions = [str(h.get("accession") or "") for h in hits]
+    max_identity = max((float(h.get("identity_pct") or 0) for h in hits), default=0.0)
+    target_present = any(acc == "P68871" or "P68871" in acc for acc in accessions)
+    passed = error is None and len(hits) > 0 and target_present and max_identity >= 99.0
+    return {
+        "name": "Live EBI BLAST known-sequence recovery",
+        "reference": "EMBL-EBI BLAST against UniProtKB/Swiss-Prot",
+        "passed": passed,
+        "query": "human hemoglobin beta UniProt P68871 sequence",
+        "database": observed.get("database"),
+        "source": observed.get("source"),
+        "error": error,
+        "hit_count": len(hits),
+        "top_accessions": accessions,
+        "target_accession": "P68871",
+        "target_present": target_present,
+        "max_identity_pct": max_identity,
+        "scope_note": "This is a live service recovery/concordance case. Database releases can change ranking, so the criterion is recovery of the exact target among the first five hits with >=99% identity, not a frozen rank claim.",
+    }
+
+
 async def main(output: Path) -> int:
     result = {
         "suite": "BioNexus Benchmark Suite v1.0 external reference concordance",
@@ -176,6 +207,7 @@ async def main(output: Path) -> int:
     result["experiments"].append(run_admet())
     result["experiments"].append(await run_uniprot())
     result["experiments"].append(await run_rcsb())
+    result["experiments"].append(await run_ebi_blast())
     result["passed"] = all(exp["passed"] for exp in result["experiments"])
 
     output.parent.mkdir(parents=True, exist_ok=True)

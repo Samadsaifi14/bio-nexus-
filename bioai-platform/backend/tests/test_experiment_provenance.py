@@ -291,6 +291,50 @@ class TestBenchmarks:
         missing = bench_svc.run_benchmark("b2", "ghost-job")
         assert missing["status"] == "error"
 
+    def test_run_benchmark_prefers_storage_result_over_params(self, fake_sb, monkeypatch):
+        # Worker jobs store only params in context_json; the real result is in
+        # the storage artifact. The runner must read storage, not the params.
+        import app.services.artifact_storage as art
+
+        fake_sb._seed("benchmarks", [{
+            "id": "b3", "category": "protein_blast", "name": "storage case",
+            "section": "blast",
+            "expected_output": {"top_hit_accession": "P01308", "top_hit_identity": 100.0},
+            "tolerance": {"top_hit_accession": 0, "top_hit_identity": 1.0},
+        }])
+        fake_sb._seed("jobs", [{
+            "id": "job-worker",
+            "context_json": {"sequence": "MALWMRLL", "database": "swissprot", "max_hits": 100},
+            "storage_url": "gs://job-artifacts/job-worker/context.json",
+        }])
+        monkeypatch.setattr(
+            art, "download_json",
+            lambda url: {
+                "sequence": "MALWMRLL",
+                "blast": {"top_hit": {"accession": "P01308", "identity_pct": 100.0}, "count": 1},
+            },
+        )
+        s = bench_svc.run_benchmark("b3", "job-worker")
+        assert s["status"] == "passed"
+
+    def test_run_benchmark_uses_inline_result_context_when_present(self, fake_sb):
+        # Wizard jobs write the full result into context_json directly.
+        fake_sb._seed("benchmarks", [{
+            "id": "b4", "category": "protein_blast", "name": "inline case",
+            "section": "blast",
+            "expected_output": {"top_hit_accession": "P04637"},
+            "tolerance": {"top_hit_accession": 0},
+        }])
+        fake_sb._seed("jobs", [{
+            "id": "job-wizard",
+            "context_json": {
+                "blast": {"top_hit": {"accession": "P04637"}, "count": 1},
+                "uniprot": {"accession": "P04637"},
+            },
+        }])
+        s = bench_svc.run_benchmark("b4", "job-wizard")
+        assert s["status"] == "passed"
+
     def test_batch_summary_counts_by_status(self, fake_sb):
         fake_sb._seed("benchmark_runs", [
             {"status": "passed", "passed_checks": {}},

@@ -106,6 +106,12 @@ def seed_benchmarks() -> int:
 
 # --- Benchmark runner -----------------------------------------------------
 
+#: Sections a full pipeline result context always contains. When context_json
+#: carries these it IS the result context (wizard path); otherwise it is only
+#: the input parameters and the real result lives in the storage artifact.
+_RESULT_SECTIONS = ("blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment", "alphafold", "interpret")
+
+
 def _fetch_job_context(job_id: str) -> dict | None:
     """Read the stored pipeline context for a job (context_json or storage)."""
     try:
@@ -113,11 +119,13 @@ def _fetch_job_context(job_id: str) -> dict | None:
         if not resp.data:
             return None
         row = resp.data[0]
-        if row.get("context_json"):
-            return row["context_json"]
+        inline = row.get("context_json")
+        if isinstance(inline, dict) and any(k in inline for k in _RESULT_SECTIONS):
+            return inline
         if row.get("storage_url"):
             from app.services.artifact_storage import download_json
             return download_json(row["storage_url"])
+        return inline if isinstance(inline, dict) else None
     except Exception as e:
         logger.warning("Benchmark context fetch failed (job %s): %s", job_id, e)
     return None

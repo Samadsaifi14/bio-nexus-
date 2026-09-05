@@ -42,7 +42,8 @@ jobs:
           app/services/figure_export.py
           app/routers/structure_insights.py
           app/tools/alignment_insights.py
+          app/tools/primer_advanced.py
       - name: Run BBS-2 foundation regression tests
         env:
           PYTHONPATH: .
-        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py
+        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py tests/test_primer_advanced.py

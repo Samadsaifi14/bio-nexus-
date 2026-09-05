@@ -1,5 +1,7 @@
 import logging
 import os
+import threading
+from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 
 import sentry_sdk
@@ -14,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts
 from app.services.cache import init_redis
 
 setup_logging()
@@ -22,7 +24,20 @@ logger = logging.getLogger(__name__)
 
 from app.deps import limiter
 
-app = FastAPI(title="Bio Nexus API", version="0.2.0")
+_CONTINUOUS_PAPERS_STOP = threading.Event()
+
+
+@asynccontextmanager
+async def lifespan(app):
+    from app.services.paper_artifacts import start_continuous_thread
+    if os.environ.get("BIONEXUS_CONTINUOUS_PAPERS", "1") != "0":
+        app.state.continuous_thread = start_continuous_thread(_CONTINUOUS_PAPERS_STOP)
+        logger.info("continuous paper generation daemon started")
+    yield
+    _CONTINUOUS_PAPERS_STOP.set()
+
+
+app = FastAPI(title="Bio Nexus API", version="0.2.0", lifespan=lifespan)
 app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(RequestIDMiddleware)
@@ -88,6 +103,7 @@ app.include_router(publication.router)
 app.include_router(datasets.router)
 app.include_router(dashboard.router)
 app.include_router(reproducibility.router)
+app.include_router(paper_artifacts.router)
 
 TERMINAL_STATUSES = {"complete", "failed"}
 NON_TERMINAL_STATUSES = {

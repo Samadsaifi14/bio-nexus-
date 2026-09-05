@@ -2,43 +2,81 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
 
 from app.services.auth import get_user_id
-from app.services.experiment import finalize_experiment, get_experiment, begin_experiment, build_fingerprint
+from app.services.experiment import (
+    archive_manifest,
+    begin_experiment,
+    build_fingerprint,
+    compare_experiments,
+    doi_export_metadata,
+    finalize_experiment,
+    get_experiment,
+    get_experiment_by_id,
+    persist_archive,
+    search_experiments,
+)
 from app.services.provenance import trace_for_job, record_step
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
 
 
-@router.get("")
-async def list_experiments(limit: int = 20, user_id: str | None = Depends(get_user_id)):
-    """Recent experiments (provenance metadata for reproducibility)."""
-    from app.services.supabase import get_supabase
+class CloneExperimentRequest(BaseModel):
+    new_job_id: str = Field(..., description="Job UUID that will own the cloned experiment version")
+    sequence: str = Field(..., min_length=1, description="Original input sequence; checksum is verified against the source")
+    parameters: dict | None = None
 
+
+class DoiMetadataRequest(BaseModel):
+    title: str | None = None
+    creators: list[dict] | None = None
+
+
+@router.get("")
+async def list_experiments(
+    limit: int = Query(20, ge=1, le=200),
+    q: str | None = None,
+    pipeline: str | None = None,
+    status: str | None = None,
+    user_id: str | None = Depends(get_user_id),
+):
+    """Searchable experiment registry for reproducibility and audit review."""
     try:
-        sb = get_supabase()
-        q = sb.table("experiments") \
-            .select("experiment_id,job_id,pipeline,input_hash,git_commit,software_versions,"
-                    "container_hash,database_versions,environment,random_seed,parameters,status,"
-                    "started_at,finished_at,created_at") \
-            .order("created_at", desc=True) \
-            .limit(limit)
-        result = q.execute()
-        return {"experiments": result.data or []}
+        return {"experiments": search_experiments(query=q, pipeline=pipeline, status=status, limit=limit)}
     except Exception as e:
-        # Pre-migration the table may not exist — degrade to an empty list so
-        # the UI never hard-fails (same philosophy as the best-effort services).
         if "experiments" in str(e):
             logger.warning("Experiments list degraded (table missing or unreachable): %s", e)
-            return {"experiments": []}
+            return {"experiments": [], "degraded": True}
         raise HTTPException(status_code=500, detail=f"Experiments list error: {type(e).__name__}: {e}")
+
+
+@router.get("/id/{experiment_id}")
+async def get_experiment_by_experiment_id(experiment_id: str, user_id: str | None = Depends(get_user_id)):
+    exp = get_experiment_by_id(experiment_id)
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found")
+    return {"experiment": exp}
+
+
+@router.get("/compare/{left_experiment_id}/{right_experiment_id}")
+async def compare(
+    left_experiment_id: str,
+    right_experiment_id: str,
+    user_id: str | None = Depends(get_user_id),
+):
+    left = get_experiment_by_id(left_experiment_id)
+    right = get_experiment_by_id(right_experiment_id)
+    if not left or not right:
+        raise HTTPException(status_code=404, detail="One or both experiments were not found")
+    return compare_experiments(left, right)
 
 
 @router.get("/{job_id}")
 async def get_experiment_by_job(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """The immutable experiment record for a job, including its provenance DAG."""
+    """Immutable experiment record for a job, including its provenance DAG."""
     exp = get_experiment(job_id)
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found for job")
@@ -47,24 +85,71 @@ async def get_experiment_by_job(job_id: str, user_id: str | None = Depends(get_u
 
 @router.get("/{job_id}/provenance")
 async def get_provenance(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """Clickable provenance trace: nodes + edges for a job's experiment."""
     exp = get_experiment(job_id)
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found for job")
     return trace_for_job(job_id, exp["experiment_id"])
 
 
+@router.get("/{job_id}/archive")
+async def get_archive(job_id: str, persist: bool = False, user_id: str | None = Depends(get_user_id)):
+    """Return a checksum-addressed experiment archive manifest.
+
+    With ``persist=true`` the exact manifest is also stored with an archive
+    timestamp, providing an auditable export event.
+    """
+    exp = get_experiment(job_id)
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found for job")
+    return persist_archive(job_id) if persist else archive_manifest(exp)
+
+
+@router.post("/{job_id}/doi-metadata")
+async def build_doi_metadata(
+    job_id: str,
+    request: DoiMetadataRequest,
+    user_id: str | None = Depends(get_user_id),
+):
+    """Generate DOI-deposit-ready metadata without claiming a DOI was minted."""
+    exp = get_experiment(job_id)
+    if not exp:
+        raise HTTPException(status_code=404, detail="Experiment not found for job")
+    return doi_export_metadata(exp, title=request.title, creators=request.creators)
+
+
+@router.post("/{job_id}/clone")
+async def clone_experiment(
+    job_id: str,
+    request: CloneExperimentRequest,
+    user_id: str | None = Depends(get_user_id),
+):
+    """Clone an experiment as a new version after verifying identical input."""
+    source = get_experiment(job_id)
+    if not source:
+        raise HTTPException(status_code=404, detail="Source experiment not found")
+    candidate = build_fingerprint(request.sequence, request.parameters or source.get("parameters") or {})
+    if candidate["input_hash"] != source.get("input_hash"):
+        raise HTTPException(status_code=409, detail="Clone rejected: supplied sequence does not match source input checksum")
+    experiment_id = begin_experiment(
+        request.new_job_id,
+        request.sequence,
+        source.get("pipeline") or "cloned",
+        request.parameters or source.get("parameters") or {},
+        parent_experiment_id=source["experiment_id"],
+    )
+    if not experiment_id:
+        raise HTTPException(status_code=500, detail="Experiment clone could not be registered")
+    return {"experiment_id": experiment_id, "parent_experiment_id": source["experiment_id"]}
+
+
 @router.post("/{job_id}/finalize")
 async def finalize(job_id: str, status: str, error: str | None = None):
-    """Manually finalize an experiment (used by tests / admin).
-    Immutable fingerprint fields are never overwritten."""
     finalize_experiment(job_id, status, error)
     return {"ok": True}
 
 
 @router.post("/debug/new")
 async def debug_new(job_id: str, sequence: str, pipeline: str = "debug"):
-    """Create an experiment record on demand (used by tests)."""
     exp_id = begin_experiment(job_id, sequence, pipeline)
     if not exp_id:
         raise HTTPException(status_code=500, detail="Experiment creation failed")
@@ -73,7 +158,6 @@ async def debug_new(job_id: str, sequence: str, pipeline: str = "debug"):
 
 @router.post("/debug/trace")
 async def debug_trace(job_id: str, node_id: str, tool: str, deps: list[str] | None = None):
-    """Record a provenance node on demand (used by tests)."""
     exp = get_experiment(job_id)
     if not exp:
         raise HTTPException(status_code=404, detail="Experiment not found")
@@ -83,5 +167,4 @@ async def debug_trace(job_id: str, node_id: str, tool: str, deps: list[str] | No
 
 @router.get("/debug/fingerprint")
 async def debug_fingerprint(sequence: str):
-    """Return the reproducibility fingerprint for an input (used by tests)."""
     return build_fingerprint(sequence)

@@ -219,7 +219,14 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
         '  "summary": 2-5 sentence interpretation a complete beginner can understand\n'
         '  "findings": list of 2-4 key observations, each written simply\n'
         '  "caveats": list of 0-3 caveats or limitations\n'
-        "Return ONLY the JSON, no markdown fences."
+        "Return ONLY the JSON, no markdown fences.\n\n"
+        "GROUNDING RULE: Every number you write MUST appear verbatim in the Results above "
+        "- same digits, same rounding, same unit (e.g. if Results say `0.999`, write "
+        "0.999, never 99.9% or 1.0; if they say `37142`, write 37142, never ~37,000). "
+        "Never convert, round, average, extrapolate, or estimate a number, and never "
+        "invent a unit. If the Results do not contain a number you want to use, describe "
+        "it qualitatively (\"an extremely significant hit\", \"high mapping rate\") "
+        "instead of writing a number. Copy values exactly as they are shown."
     )
 
     try:

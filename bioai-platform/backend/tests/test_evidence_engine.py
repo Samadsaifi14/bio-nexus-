@@ -10,12 +10,13 @@ from app.services.evidence_graph import assemble_evidence, keyword_vocab, senten
 
 CONTEXT = {
     "blast": {
+        "version": "2.14-test-fixture",
         "count": 12,
         "top_hit": {"accession": "P04637", "description": "Cellular tumor antigen p53", "identity_pct": 100.0},
         "hits": [{"accession": "P04637", "description": "p53", "identity_pct": 100.0}],
     },
-    "uniprot": {"accession": "P04637", "full_name": "Cellular tumor antigen p53", "gene_names": ["TP53"], "organism": "Homo sapiens"},
-    "domains": {"sequence_length": 393, "domains": [{"name": "p53", "accession": "IPR012345", "start": 92, "end": 292}]},
+    "uniprot": {"version": "test-pinned-release", "accession": "P04637", "full_name": "Cellular tumor antigen p53", "gene_names": ["TP53"], "organism": "Homo sapiens"},
+    "domains": {"version": "test-pinned-release", "sequence_length": 393, "domains": [{"name": "p53", "accession": "IPR012345", "start": 92, "end": 292}]},
     "interpret": {
         "interpretation": "The query is tumour suppressor p53 (TP53, Homo sapiens). It contains a DNA-binding domain detected by InterPro. This result is consistent with prior literature hypotheses, though the exact binding cavity is not fully resolved by this run."
     },
@@ -45,7 +46,6 @@ def test_assemble_evidence_sources_and_claims():
     assert "blast" in source_ids and "uniprot" in source_ids and "domains" in source_ids
     assert graph["claims"]
     assert all(c["id"].startswith("claim-") for c in graph["claims"])
-    # every edge references a real source
     for edge in graph["edges"]:
         assert edge["from"] in source_ids
 

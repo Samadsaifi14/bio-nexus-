@@ -7,7 +7,6 @@ counts as a passed benchmark.  This prevents benchmark-coverage inflation.
 
 from __future__ import annotations
 
-import math
 import re
 from dataclasses import dataclass, asdict
 from typing import Any
@@ -134,13 +133,42 @@ def unsupported_claim_rate(claims: list[dict]) -> dict:
     return {"claims": total, "unsupported": len(unsupported_ids), "unsupported_ids": unsupported_ids, "unsupported_claim_rate": rate, "passed": rate == 0.0}
 
 
-def evaluate_ai_bundle(generated_text: str, evidence_text: str, generated_citations: list[str], allowed_citations: list[str], claims: list[dict]) -> dict:
-    numeric = numeric_fidelity(generated_text, evidence_text)
-    citations = citation_fidelity(generated_citations, allowed_citations)
-    unsupported = unsupported_claim_rate(claims)
+def evaluate_ai_bundle(
+    generated_text: str | dict,
+    evidence_text: str | None = None,
+    generated_citations: list[str] | None = None,
+    allowed_citations: list[str] | None = None,
+    claims: list[dict] | None = None,
+) -> dict:
+    """Evaluate a generated AI bundle against supplied evidence.
+
+    The evaluator accepts both the original five-argument call signature and a
+    single dictionary payload.  Keeping both forms avoids breaking API clients,
+    tests, and archived benchmark runners created before the structured bundle
+    interface was introduced.
+    """
+    if isinstance(generated_text, dict):
+        bundle = generated_text
+        generated_text = str(bundle.get("generated_text") or "")
+        evidence_text = str(bundle.get("evidence_text") or "")
+        generated_citations = list(bundle.get("generated_citations") or [])
+        allowed_citations = list(bundle.get("allowed_citations") or [])
+        claims = list(bundle.get("claims") or [])
+
+    numeric = numeric_fidelity(str(generated_text or ""), str(evidence_text or ""))
+    citations = citation_fidelity(generated_citations or [], allowed_citations or [])
+    unsupported = unsupported_claim_rate(claims or [])
+    passed = numeric["passed"] and citations["passed"] and unsupported["passed"]
+
     return {
+        "benchmarks": {
+            "numeric_fidelity": numeric,
+            "citation_fidelity": citations,
+            "unsupported_claim_rate": unsupported,
+        },
+        # Backward-compatible aliases retained for existing API consumers.
         "numeric": numeric,
         "citations": citations,
         "unsupported_claims": unsupported,
-        "passed": numeric["passed"] and citations["passed"] and unsupported["passed"],
+        "passed": passed,
     }

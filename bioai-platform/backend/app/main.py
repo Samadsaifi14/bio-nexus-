@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
 from app.services.cache import init_redis
 
 setup_logging()
@@ -78,6 +78,7 @@ app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(api_keys.router, prefix="/api/keys", tags=["api_keys"])
 app.include_router(cache_stats.router)
 app.include_router(docking.router)
+app.include_router(docking_analytics.router)
 app.include_router(sequencing.router)
 app.include_router(ngs.router)
 app.include_router(ngs_v2.router)
@@ -138,8 +139,7 @@ async def _fail_stuck_jobs():
                 jid = job["id"]
                 logger.info(f"Startup resume: marking stuck job {jid} as failed")
                 await client.patch(
-                    f"{url}?id=eq.{jid}",
-                    headers=headers,
+                    f"{url}?id=eq.{jid}", headers=headers,
                     json={"status": "failed", "error": "Worker lost on restart — please re-run"},
                 )
             if stuck:
@@ -149,19 +149,12 @@ async def _fail_stuck_jobs():
 
 
 async def _ensure_docking_columns():
-    """Add any missing columns to docking_jobs via PostgREST schema introspection + ALTER hints."""
     try:
         import httpx
         from app.config import settings
-        headers = {
-            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-        }
+        headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}"}
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(
-                f"{settings.SUPABASE_URL}/rest/v1/docking_jobs?select=id&limit=0",
-                headers=headers,
-            )
+            resp = await client.get(f"{settings.SUPABASE_URL}/rest/v1/docking_jobs?select=id&limit=0", headers=headers)
             if resp.status_code == 200:
                 logger.info("docking_jobs table accessible")
             else:
@@ -171,15 +164,13 @@ async def _ensure_docking_columns():
 
 
 async def _fail_stuck_dockseq_jobs():
-    """Mark docking/sequencing jobs that were in-flight when the process restarted."""
     try:
         import httpx
         from app.config import settings
         headers = {
             "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
             "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal",
+            "Content-Type": "application/json", "Prefer": "return=minimal",
         }
         base = f"{settings.SUPABASE_URL}/rest/v1"
         grace_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
@@ -195,8 +186,7 @@ async def _fail_stuck_dockseq_jobs():
                     jid = job["id"]
                     logger.info(f"Startup resume: marking stuck {table} job {jid} as failed")
                     await client.patch(
-                        f"{base}/{table}?id=eq.{jid}",
-                        headers=headers,
+                        f"{base}/{table}?id=eq.{jid}", headers=headers,
                         json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")},
                     )
                 if stuck:
@@ -206,7 +196,6 @@ async def _fail_stuck_dockseq_jobs():
 
 
 def _sentry_filter(event, hint):
-    """Filter out noisy/harmless errors from Sentry."""
     if event.get("exception"):
         exc = event["exception"].get("values", [{}])[0]
         if exc.get("type") == "HTTPException" and exc.get("value", {}).get("status_code") == 429:
@@ -217,31 +206,24 @@ def _sentry_filter(event, hint):
 @app.on_event("startup")
 async def startup():
     sentry_sdk.init(
-        dsn=settings.SENTRY_DSN,
-        environment=os.getenv("ENVIRONMENT", "development"),
-        traces_sample_rate=0.1,
-        send_default_pii=False,
-        enable_tracing=True,
-        before_send=_sentry_filter,
+        dsn=settings.SENTRY_DSN, environment=os.getenv("ENVIRONMENT", "development"),
+        traces_sample_rate=0.1, send_default_pii=False, enable_tracing=True, before_send=_sentry_filter,
     )
     init_redis()
     await _ensure_docking_columns()
     await _fail_stuck_jobs()
     await _fail_stuck_dockseq_jobs()
-
     try:
         import openmm
         logger.info("OpenMM %s available — full MD simulation enabled", openmm.__version__)
     except ImportError as e:
         logger.warning("OpenMM not available (%s) — MD will use BioPython fallback", e)
-
     try:
         from app.tools.md_config import verify_ff_solvent_combos
         combos = verify_ff_solvent_combos()
         logger.info("MD force field verification: %d verified force fields", len(combos))
     except Exception as e:
         logger.warning("MD force field verification failed during startup: %s", e)
-
     run_worker_env = os.getenv("RUN_WORKER")
     if run_worker_env is not None:
         run_worker = str(run_worker_env).strip().lower() in ("1", "true", "yes")
@@ -252,56 +234,31 @@ async def startup():
         await start_worker()
         logger.info("In-process durable worker started")
     else:
-        logger.info(
-            "In-process durable worker disabled (RUN_WORKER=%s, os=%s)",
-            run_worker_env if run_worker_env is not None else "(unset)",
-            os.name,
-        )
+        logger.info("In-process durable worker disabled (RUN_WORKER=%s, os=%s)", run_worker_env if run_worker_env is not None else "(unset)", os.name)
 
 
 @app.get("/health")
 async def health():
     from app.services.cache import get_cache_stats
     import httpx
-
     stats = get_cache_stats()
-    health_data = {
-        "status": "ok",
-        "version": "0.2.0",
-        "cache": stats,
-        "worker": "unknown",
-        "queue_depth": {},
-        "openmm": None,
-    }
-
+    health_data = {"status": "ok", "version": "0.2.0", "cache": stats, "worker": "unknown", "queue_depth": {}, "openmm": None}
     try:
         import openmm
         from openmm import Platform
         platforms = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
-        health_data["openmm"] = {
-            "version": openmm.__version__,
-            "platforms": platforms,
-        }
+        health_data["openmm"] = {"version": openmm.__version__, "platforms": platforms}
     except Exception as exc:
         health_data["openmm"] = {"error": str(exc)}
-
     try:
-        headers = {
-            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-        }
+        headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}"}
         async with httpx.AsyncClient(timeout=5) as client:
             for table in ("docking_jobs", "sequencing_jobs", "ngs_jobs", "jobs"):
-                resp = await client.get(
-                    f"{settings.SUPABASE_URL}/rest/v1/{table}"
-                    f"?status=eq.queued&select=id",
-                    headers=headers,
-                )
+                resp = await client.get(f"{settings.SUPABASE_URL}/rest/v1/{table}?status=eq.queued&select=id", headers=headers)
                 if resp.status_code == 200:
                     health_data["queue_depth"][table] = len(resp.json())
     except Exception:
         pass
-
     return health_data
 
 
@@ -309,13 +266,8 @@ async def health():
 async def global_exception_handler(request: Request, exc: Exception):
     from app.logging_config import request_id_var
     rid = request_id_var.get("")
-
     if isinstance(exc, HTTPException):
         return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail, "request_id": rid})
-
     logger.exception("Unhandled exception")
     sentry_sdk.capture_exception(exc)
-    return JSONResponse(
-        status_code=500,
-        content={"detail": "Internal server error", "request_id": rid},
-    )
+    return JSONResponse(status_code=500, content={"detail": "Internal server error", "request_id": rid})

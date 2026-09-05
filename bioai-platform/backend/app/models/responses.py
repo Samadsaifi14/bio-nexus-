@@ -56,6 +56,29 @@ class NgsProductionPlanRequest(BaseModel):
     clinical_intent: bool = False
 
 
+class NgsRnaSeqProductionPlanRequest(BaseModel):
+    """Pinned nf-core/rnaseq launch request.
+
+    Differential expression and fusion detection are downstream analyses and
+    are intentionally not implied by this base RNA-seq execution request.
+    """
+    samplesheet_path: str = Field(min_length=1)
+    outdir: str = Field(min_length=1)
+    genome: Optional[str] = "GRCh38"
+    fasta: Optional[str] = None
+    gtf: Optional[str] = None
+    execution_profile: Literal["docker", "singularity", "apptainer", "slurm", "awsbatch"] = "docker"
+    aligner: Literal["star_salmon", "star_rsem", "hisat2", "bowtie2_salmon"] = "star_salmon"
+    pseudo_aligner: Optional[Literal["salmon"]] = None
+    strandedness: Literal["auto", "unstranded", "forward", "reverse"] = "auto"
+    custom_config: Optional[str] = None
+    trim_nextseq: Optional[int] = Field(default=None, ge=1, le=100)
+    skip_trimming: bool = False
+    save_trimmed: bool = False
+    differential_expression_requested: bool = False
+    fusion_detection_requested: bool = False
+
+
 class NgsProductionPlanResponse(BaseModel):
     schema_version: str
     workflow: dict[str, str]

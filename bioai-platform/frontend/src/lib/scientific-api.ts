@@ -15,6 +15,43 @@ async function scientificFetch<T>(path: string, init?: RequestInit): Promise<T> 
   return response.json() as Promise<T>;
 }
 
+export type EvidenceNodeType = 'claim' | 'evidence' | 'algorithm' | 'database' | 'version' | 'parameters' | 'confidence' | 'benchmark';
+export type EvidenceNode = { id: string; type: EvidenceNodeType; label: string; data: Record<string, unknown> };
+export type EvidenceEdge = { from: string; to: string; relation: string };
+export type EvidenceGraph = {
+  schema: 'bionexus-evidence-graph/v3';
+  reviewer_path: EvidenceNodeType[];
+  nodes: EvidenceNode[];
+  typed_edges: EvidenceEdge[];
+  edges: EvidenceEdge[];
+  claims: Array<Record<string, unknown>>;
+  sources: Array<Record<string, unknown>>;
+  summary: Record<string, unknown>;
+};
+export type EvidenceClaimTrace = {
+  schema: 'bionexus-evidence-claim-trace/v1';
+  claim_id: string;
+  claim: EvidenceNode;
+  reviewer_path: EvidenceNodeType[];
+  nodes: EvidenceNode[];
+  edges: EvidenceEdge[];
+  by_type: Partial<Record<EvidenceNodeType, EvidenceNode[]>>;
+  complete_path: boolean;
+  interpretation: string;
+};
+
+export function getExperimentEvidence(jobId: string): Promise<EvidenceGraph> {
+  return scientificFetch(`/api/experiments/${encodeURIComponent(jobId)}/evidence`);
+}
+
+export function getClaimEvidence(jobId: string, claimId: string): Promise<EvidenceClaimTrace> {
+  return scientificFetch(`/api/experiments/${encodeURIComponent(jobId)}/evidence/claims/${encodeURIComponent(claimId)}`);
+}
+
+export function validateExperimentEvidence(jobId: string): Promise<Record<string, unknown>> {
+  return scientificFetch(`/api/experiments/${encodeURIComponent(jobId)}/evidence/validate`);
+}
+
 export type AlignmentColumnInsight = {
   alignment_position: number;
   consensus: string;

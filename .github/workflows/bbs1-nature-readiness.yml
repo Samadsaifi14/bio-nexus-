@@ -1,0 +1,99 @@
+name: BBS-1 Nature-readiness gate
+
+on:
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  factuality-and-benchmark-code:
+    name: AI factuality and benchmark harness tests
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install test dependencies
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' httpx python-dotenv
+      - name: Test deterministic AI factuality scorer
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_ai_factuality_benchmark.py
+      - name: Syntax-check publication benchmark runners
+        run: |
+          python -m py_compile ../../benchmark/bbs1/run_reference_concordance_expanded.py
+          python -m py_compile ../../benchmark/bbs1/run_ngs_truthset.py
+          python -m py_compile ../../benchmark/bbs1/run_ai_factuality.py
+          python -m py_compile ../../benchmark/bbs1/run_workflow_burden.py
+          python -m py_compile ../../benchmark/bbs1/run_redocking.py
+
+  frontend-grounding-build:
+    name: Frontend grounding guard build
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/frontend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bioai-platform/frontend/package-lock.json
+      - run: npm ci
+      - run: npm run build
+
+  expanded-reference-suite:
+    name: Expanded external/reference suite
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip httpx rdkit primer3-py biopython python-dotenv redis 'pydantic[email]' fastapi requests
+      - name: Run expanded suite
+        env:
+          PYTHONPATH: .
+        run: python ../../benchmark/bbs1/run_reference_concordance_expanded.py --output ../../benchmark/bbs1/results/reference_concordance_expanded.json
+      - name: Retain result in log
+        if: always()
+        run: cat ../../benchmark/bbs1/results/reference_concordance_expanded.json || true
+
+  redocking-chemistry-fix:
+    if: github.event_name == 'workflow_dispatch'
+    name: 1IEP redocking after CCD bond-order fix
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install Open Babel
+        run: sudo apt-get update && sudo apt-get install -y openbabel
+      - name: Install dependencies
+        run: python -m pip install --upgrade pip rdkit requests
+      - name: Run redocking
+        env:
+          PYTHONPATH: .
+        run: python ../../benchmark/bbs1/run_redocking.py --output ../../benchmark/bbs1/results/redocking_1iep.json
+      - name: Retain result in log
+        if: always()
+        run: cat ../../benchmark/bbs1/results/redocking_1iep.json || true

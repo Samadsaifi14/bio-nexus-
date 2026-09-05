@@ -1,0 +1,90 @@
+{
+  "suite": "BioNexus Benchmark Suite v1.0 external reference concordance",
+  "status": "PASS",
+  "workflow_run_id": 33897034372,
+  "tested_head_sha": "d7f789a76b724121be532fc72ecc5a3ea1c9bd98",
+  "generated_at_utc": "2026-09-04T16:47:15.650658+00:00",
+  "environment": {
+    "python": "3.12.14",
+    "rdkit": "2026.03.6",
+    "primer3_py": "2.3.0",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39"
+  },
+  "experiments": [
+    {
+      "name": "ADMET core descriptor concordance",
+      "status": "PASS",
+      "reference": "independent calls to the same installed RDKit public descriptor functions",
+      "case_count": 5,
+      "fields": ["molecular_weight", "logp", "tpsa", "hbd", "hba", "rotatable_bonds", "heavy_atoms"],
+      "cases": {
+        "aspirin": {"molecular_weight": 180.16, "logp": 1.31, "tpsa": 63.6, "hbd": 1, "hba": 4, "rotatable_bonds": 2, "heavy_atoms": 13},
+        "caffeine": {"molecular_weight": 194.19, "logp": -1.03, "tpsa": 61.82, "hbd": 0, "hba": 6, "rotatable_bonds": 0, "heavy_atoms": 14},
+        "acetaminophen": {"molecular_weight": 151.16, "logp": 1.35, "tpsa": 49.33, "hbd": 2, "hba": 3, "rotatable_bonds": 1, "heavy_atoms": 11},
+        "ibuprofen": {"molecular_weight": 206.28, "logp": 3.07, "tpsa": 37.3, "hbd": 1, "hba": 2, "rotatable_bonds": 4, "heavy_atoms": 15},
+        "ethanol": {"molecular_weight": 46.07, "logp": 0.0, "tpsa": 20.23, "hbd": 1, "hba": 1, "rotatable_bonds": 0, "heavy_atoms": 3}
+      },
+      "scope_note": "Only deterministic RDKit-derived quantities are validated here. Heuristic ADMET/toxicity labels are not treated as experimentally validated predictions."
+    },
+    {
+      "name": "UniProt field concordance",
+      "status": "PASS",
+      "reference": "UniProt REST API raw JSON",
+      "case_count": 3,
+      "fields": ["accession", "sequence", "sequence_length", "organism", "reviewed"],
+      "cases": {
+        "P69905": {"sequence_length": 142, "organism": "Homo sapiens", "reviewed": true},
+        "P68871": {"sequence_length": 147, "organism": "Homo sapiens", "reviewed": true},
+        "P04637": {"sequence_length": 393, "organism": "Homo sapiens", "reviewed": true}
+      }
+    },
+    {
+      "name": "RCSB structure retrieval byte/record concordance",
+      "status": "PASS",
+      "reference": "RCSB PDB download endpoint",
+      "case_count": 2,
+      "cases": {
+        "1CRN": {"atom_records": 327, "sha256": "b6fc10a1465a1aff8d8b86bcbf90944f975fd1d242778dcf5df269e869728c8b"},
+        "4HHB": {"atom_records": 4779, "sha256": "0f4c1805c8e140043bce380582b3a3cacb05824fd4ba82a9e4e35eea84da0886"}
+      },
+      "scope_note": "This validates identifier/retrieval integrity, not structural preparation or biological correctness."
+    },
+    {
+      "name": "Live EBI BLAST known-sequence recovery",
+      "status": "PASS",
+      "reference": "EMBL-EBI BLAST against UniProtKB/Swiss-Prot",
+      "query": "human hemoglobin beta UniProt P68871 sequence",
+      "target_accession": "P68871",
+      "target_present_in_top_5": true,
+      "hit_count": 5,
+      "max_identity_pct": 100.0,
+      "top_accessions": ["P68873", "P68872", "P68871", "P02024", "P02025"],
+      "scope_note": "Database releases can change ranking. The pre-specified criterion is exact target recovery among the first five hits with >=99% identity, not a fixed rank claim."
+    },
+    {
+      "name": "Primer3 integration parity",
+      "status": "PASS",
+      "reference": "direct primer3-py 2.3.0 call",
+      "template_length": 800,
+      "template_sha256": "9a7b6cdca80d947ff940103c8ab2edbd437095a4bee6502e0581162ec66e3fa1",
+      "returned_pairs": 3,
+      "pairs": [
+        {"pair_index": 0, "left_seq": "AGGCGAGTACGTGTTCACAG", "right_seq": "AGGGAAACGCTGTAGAACGG", "left_tm": 60.03943679827182, "right_tm": 60.0376045227884, "left_gc": 55.0, "right_gc": 55.0, "left_pos": 110, "right_pos": 351, "product_size": 242, "penalty": 0.07704132106022143},
+        {"pair_index": 1, "left_seq": "TCAGGCGAGTACGTGTTCAC", "right_seq": "AGGGAAACGCTGTAGAACGG", "left_tm": 60.039797738227264, "right_tm": 60.0376045227884, "left_gc": 55.0, "right_gc": 55.0, "left_pos": 108, "right_pos": 351, "product_size": 244, "penalty": 0.0774022610156635},
+        {"pair_index": 2, "left_seq": "GTCAGGCGAGTACGTGTTCA", "right_seq": "AGGGAAACGCTGTAGAACGG", "left_tm": 60.039797738227264, "right_tm": 60.0376045227884, "left_gc": 55.0, "right_gc": 55.0, "left_pos": 107, "right_pos": 351, "product_size": 245, "penalty": 0.0774022610156635}
+      ],
+      "scope_note": "This validates preservation of Primer3 output for a fixed template and parameter set; it does not establish universal primer specificity or wet-lab performance."
+    },
+    {
+      "name": "Clustal Omega MSA integration parity",
+      "status": "PASS",
+      "reference": "independent EMBL-EBI Clustal Omega REST job",
+      "sequence_count": 3,
+      "alignment_lengths": {"HBA_P69905": 155, "HBB_P68871": 155, "MYOGLOBIN": 155},
+      "bionexus_alignment_sha256": "60a31e086a305bdf8ff85e4babcd6ee2ed30800473b4393f6c02c72c0fc0454d",
+      "reference_alignment_sha256": "60a31e086a305bdf8ff85e4babcd6ee2ed30800473b4393f6c02c72c0fc0454d",
+      "scope_note": "Parity is defined on parsed aligned sequences from two independent EBI jobs using identical inputs. It does not claim one MSA algorithm is biologically superior to another."
+    }
+  ],
+  "claim_boundary": "These results validate deterministic descriptor parity, selected UniProt parsing, RCSB retrieval integrity, one live BLAST recovery case, fixed-input Primer3 integration parity, and one Clustal Omega MSA parity case. They do not validate heuristic ADMET endpoints, docking pose accuracy, structure preparation, NGS clinical performance, wet-lab primer performance, or AI interpretation."
+}

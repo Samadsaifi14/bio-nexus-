@@ -5,6 +5,7 @@ import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
+from app.benchmarking.bbs2 import evaluate_ai_bundle, registry as bbs2_registry
 from app.services.benchmarks import (
     batch_summary,
     get_benchmark,
@@ -21,16 +22,35 @@ class RunRequest(BaseModel):
     job_id: str
 
 
+class AIBenchmarkRequest(BaseModel):
+    generated_text: str = ""
+    evidence_text: str = ""
+    generated_citations: list[str] = []
+    allowed_citations: list[str] = []
+    claims: list[dict] = []
+
+
 @router.get("")
 async def get_benchmarks(category: str | None = None, limit: int = 100):
-    """Benchmark catalog (BBS-1 expansion), optionally filtered by category."""
+    """Persisted benchmark catalog, optionally filtered by category."""
     records = list_benchmarks(category)
     return {"count": len(records), "benchmarks": records[:limit]}
 
 
+@router.get("/bbs2")
+async def get_bbs2_registry():
+    """Versioned BBS-2 benchmark specification and coverage semantics."""
+    return bbs2_registry()
+
+
+@router.post("/bbs2/ai/evaluate")
+async def evaluate_bbs2_ai(req: AIBenchmarkRequest):
+    """Run deterministic numeric/citation/unsupported-claim fidelity checks."""
+    return evaluate_ai_bundle(req.model_dump())
+
+
 @router.get("/summary")
 async def get_summary(category: str | None = None):
-    """Per-category pass/fail statistics across recorded benchmark runs."""
     return batch_summary(category)
 
 
@@ -44,20 +64,13 @@ async def get_one(benchmark_id: str):
 
 @router.post("/{benchmark_id}/run")
 async def run(benchmark_id: str, req: RunRequest):
-    """Execute a benchmark against the stored context of an existing job.
-
-    Compares measured vs expected within accepted tolerance and records the
-    verdict (passed/failed/error) to benchmark_runs.
-    """
     bench = get_benchmark(benchmark_id)
     if not bench:
         raise HTTPException(status_code=404, detail="Benchmark not found")
-    summary = run_benchmark(benchmark_id, req.job_id)
-    return {"run": summary}
+    return {"run": run_benchmark(benchmark_id, req.job_id)}
 
 
 @router.post("/seed")
 async def seed():
-    """Upsert the JSON benchmark catalog (app/data/benchmarks) into the DB."""
     count = seed_benchmarks()
     return {"seeded": count}

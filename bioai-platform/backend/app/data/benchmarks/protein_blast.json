@@ -21,7 +21,9 @@
       "ground_truth": "P04637 Homo sapiens Tumor suppressor p53 is the canonical Swiss-Prot entry for human p53.",
       "citation": "Bairoch A. et al. Nucleic Acids Res. 2005; Matlashewski G. et al. EMBO J. 1984.",
       "source": "UniProtKB/Swiss-Prot",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "INSULIN_SWISSPROT_TOP_HIT",
@@ -44,7 +46,9 @@
       "ground_truth": "Insulin B-chain peptide is identical across mammals, so the top Swiss-Prot hit is an insulin entry at ~100% identity regardless of species.",
       "citation": "Bell G.I. et al. Nature 1980.",
       "source": "UniProtKB/Swiss-Prot",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "HUMAN_TP53_NOT_INSULIN",
@@ -64,7 +68,9 @@
       "ground_truth": "Correct identification: p53 (P04637), not insulin (P01308).",
       "citation": "UniProtKB/Swiss-Prot.",
       "source": "UniProtKB/Swiss-Prot",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "HUMAN_OXTR_SWISSPROT_TOP_HIT",
@@ -84,7 +90,9 @@
       "ground_truth": "P30559 Oxytocin receptor is the human Swiss-Prot entry.",
       "citation": "Kimura T. et al. Nature 1992.",
       "source": "UniProtKB/Swiss-Prot",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "HUMAN_HBB_SWISSPROT_TOP_HIT",
@@ -104,7 +112,9 @@
       "ground_truth": "P68871 Hemoglobin subunit beta is the human Swiss-Prot entry.",
       "citation": "Lawn R.M. et al. Cell 1980.",
       "source": "UniProtKB/Swiss-Prot",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     }
   ]
 }

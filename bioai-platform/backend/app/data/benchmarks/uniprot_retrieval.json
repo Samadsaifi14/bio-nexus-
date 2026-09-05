@@ -5,66 +5,114 @@
       "name": "UNIPROT_TP53_RETRIEVAL",
       "category": "uniprot_retrieval",
       "description": "UniProt lookup for p53 must return a p53 whose full name contains 'p53' (species-agnostic: tied 100% swissprot hits rank by accession).",
-      "input": {"accession": "P04637"},
+      "input": {
+        "accession": "P04637"
+      },
       "section": "uniprot",
-      "expected_output": {"full_name": {"contains": "p53"}},
-      "tolerance": {"full_name": 0},
+      "expected_output": {
+        "full_name": {
+          "contains": "p53"
+        }
+      },
+      "tolerance": {
+        "full_name": 0
+      },
       "ground_truth": "p53 full name = Cellular tumor antigen p53.",
       "citation": "UniProt Consortium. Nucleic Acids Res. 2023.",
       "source": "UniProtKB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "UNIPROT_INSULIN_RETRIEVAL",
       "category": "uniprot_retrieval",
       "description": "UniProt lookup for insulin must return an entry whose full name contains 'Insulin' (species-agnostic: tied 100% swissprot hits rank by accession).",
-      "input": {"accession": "P01308"},
+      "input": {
+        "accession": "P01308"
+      },
       "section": "uniprot",
-      "expected_output": {"full_name": {"contains": "Insulin"}},
-      "tolerance": {"full_name": 0},
+      "expected_output": {
+        "full_name": {
+          "contains": "Insulin"
+        }
+      },
+      "tolerance": {
+        "full_name": 0
+      },
       "ground_truth": "Insulin full name = Insulin.",
       "citation": "UniProt Consortium. Nucleic Acids Res. 2023.",
       "source": "UniProtKB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "UNIPROT_OXTR_RETRIEVAL",
       "category": "uniprot_retrieval",
       "description": "UniProt lookup for the oxytocin receptor must return an entry whose full name contains 'oxytocin receptor' (species-agnostic).",
-      "input": {"accession": "P30559"},
+      "input": {
+        "accession": "P30559"
+      },
       "section": "uniprot",
-      "expected_output": {"full_name": {"contains": "oxytocin receptor"}},
-      "tolerance": {"full_name": 0},
+      "expected_output": {
+        "full_name": {
+          "contains": "oxytocin receptor"
+        }
+      },
+      "tolerance": {
+        "full_name": 0
+      },
       "ground_truth": "OXTR full name = Oxytocin receptor.",
       "citation": "UniProt Consortium. Nucleic Acids Res. 2023.",
       "source": "UniProtKB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "UNIPROT_PSA_RETRIEVAL",
       "category": "uniprot_retrieval",
       "description": "UniProt lookup for prostate-specific antigen must return an entry whose full name contains 'Prostate' (species-agnostic).",
-      "input": {"accession": "P07288"},
+      "input": {
+        "accession": "P07288"
+      },
       "section": "uniprot",
-      "expected_output": {"full_name": {"contains": "Prostate"}},
-      "tolerance": {"full_name": 0},
+      "expected_output": {
+        "full_name": {
+          "contains": "Prostate"
+        }
+      },
+      "tolerance": {
+        "full_name": 0
+      },
       "ground_truth": "PSA (KLK3) full name = Prostate-specific antigen.",
       "citation": "UniProt Consortium. Nucleic Acids Res. 2023.",
       "source": "UniProtKB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "UNIPROT_P53_MUST_BE_TP53_GENE",
       "category": "uniprot_retrieval",
       "description": "p53 UniProt entry must carry gene symbol TP53.",
-      "input": {"accession": "P04637"},
+      "input": {
+        "accession": "P04637"
+      },
       "section": "uniprot",
-      "expected_output": {"gene_name": "TP53"},
-      "tolerance": {"gene_name": 0},
+      "expected_output": {
+        "gene_name": "TP53"
+      },
+      "tolerance": {
+        "gene_name": 0
+      },
       "ground_truth": "P04637 gene name = TP53.",
       "citation": "UniProt Consortium. Nucleic Acids Res. 2023.",
       "source": "UniProtKB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     }
   ]
 }

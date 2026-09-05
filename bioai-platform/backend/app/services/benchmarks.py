@@ -73,51 +73,72 @@ def load_benchmark_files() -> list[dict]:
     return records
 
 
+def _benchmark_row(record: dict, omit_section: bool = False, omit_depth: bool = False) -> dict:
+    """Map one catalog record to its benchmarks table row (Component 6).
+
+    Pure and unit-testable: pulls the fields that survive into the database,
+    including difficulty and registry_version with registry defaults.
+    """
+    row = {
+        "category": record["category"],
+        "name": record["name"],
+        "description": record.get("description", ""),
+        "input": record.get("input", {}),
+        "expected_output": record.get("expected_output", {}),
+        "tolerance": record.get("tolerance", {}),
+        "ground_truth": record.get("ground_truth", ""),
+        "citation": record.get("citation", ""),
+        "source": record.get("source", "bbs-1"),
+        "stage": record.get("stage", "curated"),
+    }
+    if not omit_depth:
+        row["difficulty"] = record.get("difficulty", "easy")
+        row["registry_version"] = record.get("version", 1)
+    if not omit_section:
+        row["section"] = record.get("section", "blast")
+    return row
+
+
 def seed_benchmarks() -> int:
     """Upsert the JSON catalog into the database by (category, name).
     Returns the number of records upserted (best-effort).
 
-    Tolerates a missing `benchmarks.section` column (migration 009): if the
-    first insert fails on that field, seeding retries without it and disables
-    the column for the remainder of the run.
+    Tolerates missing columns exactly like migration 009's `section`: if the
+    first insert fails on `section`, seeding retries without it; if it fails
+    on the Component 6 depth columns (difficulty/registry_version, migration
+    010), seeding retries without those too. Later records reuse the disabled
+    flags so the whole catalog still seeds on partially-migrated databases.
     """
     records = load_benchmark_files()
     if not records:
         return 0
     count = 0
     omit_section = False
+    omit_depth = False
     try:
         for rec in records:
-            row = {
-                "category": rec["category"],
-                "name": rec["name"],
-                "description": rec.get("description", ""),
-                "input": rec.get("input", {}),
-                "expected_output": rec.get("expected_output", {}),
-                "tolerance": rec.get("tolerance", {}),
-                "ground_truth": rec.get("ground_truth", ""),
-                "citation": rec.get("citation", ""),
-                "source": rec.get("source", "bbs-1"),
-                "stage": rec.get("stage", "curated"),
-            }
-            if not omit_section:
-                row["section"] = rec.get("section", "blast")
+            row = _benchmark_row(rec, omit_section, omit_depth)
             try:
                 get_supabase().table("benchmarks") \
                     .upsert(row, on_conflict="category,name") \
                     .execute()
                 count += 1
             except Exception as e:
-                if not omit_section and "section" in str(e):
+                msg = str(e)
+                if not omit_section and "section" in msg:
                     omit_section = True
                     logger.warning("benchmarks.section column missing - retrying without it")
-                    get_supabase().table("benchmarks") \
-                        .upsert({k: v for k, v in row.items() if k != "section"},
-                                on_conflict="category,name") \
-                        .execute()
-                    count += 1
+                elif not omit_depth and any(c in msg for c in ("difficulty", "registry_version")):
+                    omit_depth = True
+                    logger.warning("benchmarks depth columns missing - retrying without them")
                 else:
                     logger.warning("Benchmark seed failed for %s: %s", rec.get("name"), e)
+                    continue
+                get_supabase().table("benchmarks") \
+                    .upsert(_benchmark_row(rec, omit_section, omit_depth),
+                            on_conflict="category,name") \
+                    .execute()
+                count += 1
     except Exception as e:
         logger.warning("Benchmark seed failed after %d records: %s", count, e)
     logger.info("Benchmark catalog seeded: %d records", count)
@@ -163,6 +184,9 @@ def _metric_value(context: dict, section: str, key: str):
             return (seg.get("top_hit") or {}).get("description")
         if key == "hit_count":
             return seg.get("count")
+        if key == "domain_count":
+            domains = seg.get("domains")
+            return len(domains) if isinstance(domains, list) else None
         if key == "gene_name":
             names = seg.get("gene_names") or []
             return names[0] if names else None
@@ -176,6 +200,8 @@ def compare_metric(actual, expected, tolerance: float) -> bool:
 
     - Dict matcher `{"contains": "..."}` passes when the actual string
       contains the substring (used for species-agnostic top-hit checks).
+    - Dict matcher `{"min": x}` passes when actual >= x (quantitative floors).
+    - Dict matcher `{"max": x}` passes when actual <= x (quantitative ceilings).
     - Numbers match within absolute tolerance.
     - Otherwise exact string match.
     Missing/None actual is never a pass (no silent success).
@@ -184,6 +210,16 @@ def compare_metric(actual, expected, tolerance: float) -> bool:
         return False
     if isinstance(expected, dict) and isinstance(expected.get("contains"), str):
         return isinstance(actual, str) and expected["contains"] in actual
+    if isinstance(expected, dict) and "min" in expected and isinstance(actual, (int, float)):
+        try:
+            return float(actual) >= float(expected["min"])
+        except (TypeError, ValueError):
+            return False
+    if isinstance(expected, dict) and "max" in expected and isinstance(actual, (int, float)):
+        try:
+            return float(actual) <= float(expected["max"])
+        except (TypeError, ValueError):
+            return False
     if isinstance(expected, (int, float)) and isinstance(actual, (int, float)):
         try:
             return abs(float(actual) - float(expected)) <= float(tolerance)

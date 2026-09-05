@@ -5,27 +5,45 @@
       "name": "HUMAN_TP53_CDS_TOP_HIT",
       "category": "dna_blast",
       "description": "Human p53 CDS nucleotide sequence must resolve to the TP53 gene / P04637-encoding transcript.",
-      "input": {"accession": "NM_000546", "database": "nt"},
+      "input": {
+        "accession": "NM_000546",
+        "database": "nt"
+      },
       "section": "blast",
-      "expected_output": {"hit_count": 1},
-      "tolerance": {"hit_count": 0},
+      "expected_output": {
+        "hit_count": 1
+      },
+      "tolerance": {
+        "hit_count": 0
+      },
       "ground_truth": "Human TP53 transcript NM_000546 is the reference RefSeq for p53 mRNA.",
       "citation": "NCBI RefSeq NM_000546.6; Matlashewski G. et al. EMBO J. 1984.",
       "source": "NCBI RefSeq",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "HUMAN_HBB_CDS_TOP_HIT",
       "category": "dna_blast",
       "description": "Human beta-globin CDS must resolve to the HBB gene (NM_000518).",
-      "input": {"accession": "NM_000518", "database": "nt"},
+      "input": {
+        "accession": "NM_000518",
+        "database": "nt"
+      },
       "section": "blast",
-      "expected_output": {"hit_count": 1},
-      "tolerance": {"hit_count": 0},
+      "expected_output": {
+        "hit_count": 1
+      },
+      "tolerance": {
+        "hit_count": 0
+      },
       "ground_truth": "Human HBB transcript NM_000518 is the reference RefSeq for beta-globin mRNA.",
       "citation": "NCBI RefSeq NM_000518.5; Lawn R.M. et al. Cell 1980.",
       "source": "NCBI RefSeq",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     }
   ]
 }

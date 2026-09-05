@@ -5,40 +5,64 @@
       "name": "PDB_TP53_STRUCTURE_AVAILABLE",
       "category": "structure_retrieval",
       "description": "Human p53 must resolve to at least one experimental PDB structure.",
-      "input": {"accession": "P04637"},
+      "input": {
+        "accession": "P04637"
+      },
       "section": "alphafold",
-      "expected_output": {"structure_available": true},
-      "tolerance": {"structure_available": 0},
+      "expected_output": {
+        "structure_available": true
+      },
+      "tolerance": {
+        "structure_available": 0
+      },
       "ground_truth": "Multiple human p53 PDB entries exist (e.g. 4MZR, 1TUP).",
       "citation": "Berman H.M. et al. Nucleic Acids Res. 2000 (wwPDB); Cho Y. et al. Science 1994.",
       "source": "RCSB PDB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "ALPHAFOLD_TP53_AVAILABLE",
       "category": "structure_retrieval",
       "description": "AlphaFold DB must have a predicted structure for human p53 (AF-P04637-F1).",
-      "input": {"accession": "P04637"},
+      "input": {
+        "accession": "P04637"
+      },
       "section": "alphafold",
-      "expected_output": {"structure_available": true},
-      "tolerance": {"structure_available": 0},
+      "expected_output": {
+        "structure_available": true
+      },
+      "tolerance": {
+        "structure_available": 0
+      },
       "ground_truth": "AlphaFold DB predicts p53: AF-P04637-F1-model_v4.",
       "citation": "Jumper J. et al. Nature 2021; Varadi M. et al. Nucleic Acids Res. 2022.",
       "source": "AlphaFold DB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     },
     {
       "name": "ALPHAFOLD_INSULIN_AVAILABLE",
       "category": "structure_retrieval",
       "description": "AlphaFold DB must have a predicted structure for human insulin (AF-P01308-F1).",
-      "input": {"accession": "P01308"},
+      "input": {
+        "accession": "P01308"
+      },
       "section": "alphafold",
-      "expected_output": {"structure_available": true},
-      "tolerance": {"structure_available": 0},
+      "expected_output": {
+        "structure_available": true
+      },
+      "tolerance": {
+        "structure_available": 0
+      },
       "ground_truth": "AlphaFold DB predicts insulin: AF-P01308-F1-model_v4.",
       "citation": "Jumper J. et al. Nature 2021; Varadi M. et al. Nucleic Acids Res. 2022.",
       "source": "AlphaFold DB",
-      "stage": "curated"
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
     }
   ]
 }

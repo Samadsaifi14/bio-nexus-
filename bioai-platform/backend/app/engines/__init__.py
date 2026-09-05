@@ -9,6 +9,7 @@ from app.engines.base import BaseEngine, EngineResult, ValidationReport
 from app.engines.alphafold_engine import alphafold_engine
 from app.engines.blast_engine import blast_engine
 from app.engines.domains_engine import domains_engine
+from app.engines.interpret_engine import interpret_engine
 from app.engines.msa_engine import msa_engine
 from app.engines.pathway_engine import pathway_engine
 from app.engines.phylo_engine import phylo_engine
@@ -16,13 +17,13 @@ from app.engines.uniprot_engine import uniprot_engine
 
 ENGINES: dict[str, BaseEngine] = {
     engine.name: engine
-    for engine in (blast_engine, uniprot_engine, msa_engine, phylo_engine, domains_engine, alphafold_engine, pathway_engine)
+    for engine in (blast_engine, uniprot_engine, msa_engine, phylo_engine, domains_engine, alphafold_engine, pathway_engine, interpret_engine)
 }
 
 __all__ = [
     "BaseEngine", "EngineResult", "ValidationReport", "ENGINES",
     "blast_engine", "uniprot_engine", "msa_engine", "phylo_engine",
-    "domains_engine", "alphafold_engine", "pathway_engine",
+    "domains_engine", "alphafold_engine", "pathway_engine", "interpret_engine",
 ]
 
 

@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
 from app.services.cache import init_redis
 
 setup_logging()
@@ -43,15 +43,9 @@ app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(RequestIDMiddleware)
 
 PROD_ORIGIN = settings.CORS_ORIGIN
-
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:3000",
-        "http://localhost:3001",
-        PROD_ORIGIN,
-        "https://bioai-platform.vercel.app",
-    ],
+    allow_origins=["http://localhost:3000", "http://localhost:3001", PROD_ORIGIN, "https://bioai-platform.vercel.app"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -74,6 +68,7 @@ app.include_router(primers.router)
 app.include_router(structure_analysis.router)
 app.include_router(structure_insights.router)
 app.include_router(phylo.router)
+app.include_router(phylo_insights.router)
 app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(api_keys.router, prefix="/api/keys", tags=["api_keys"])
 app.include_router(cache_stats.router)
@@ -110,89 +105,63 @@ app.include_router(paper_artifacts.router)
 app.include_router(plugins.router)
 
 TERMINAL_STATUSES = {"complete", "failed"}
-NON_TERMINAL_STATUSES = {
-    "submitted_to_ncbi", "polling_ncbi", "parsing",
-    "fetching_uniprot", "fetching_alphafold", "interpreting",
-}
+NON_TERMINAL_STATUSES = {"submitted_to_ncbi", "polling_ncbi", "parsing", "fetching_uniprot", "fetching_alphafold", "interpreting"}
 
 
 async def _fail_stuck_jobs():
     try:
         import httpx
         from app.config import settings
-        headers = {
-            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-            "Content-Type": "application/json",
-            "Prefer": "return=minimal",
-        }
+        headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
         url = f"{settings.SUPABASE_URL}/rest/v1/jobs"
         quoted = ",".join(f'"{s}"' for s in NON_TERMINAL_STATUSES)
-        select_url = f"{url}?select=id&status=in.({quoted})"
         async with httpx.AsyncClient(timeout=10) as client:
-            resp = await client.get(select_url, headers=headers)
+            resp = await client.get(f"{url}?select=id&status=in.({quoted})", headers=headers)
             if resp.status_code != 200:
-                logger.warning(f"Startup resume: failed to query jobs ({resp.status_code})")
+                logger.warning("Startup resume: failed to query jobs (%s)", resp.status_code)
                 return
             stuck = resp.json()
             for job in stuck:
-                jid = job["id"]
-                logger.info(f"Startup resume: marking stuck job {jid} as failed")
-                await client.patch(
-                    f"{url}?id=eq.{jid}", headers=headers,
-                    json={"status": "failed", "error": "Worker lost on restart — please re-run"},
-                )
+                await client.patch(f"{url}?id=eq.{job['id']}", headers=headers, json={"status": "failed", "error": "Worker lost on restart — please re-run"})
             if stuck:
-                logger.info(f"Startup resume: marked {len(stuck)} stuck job(s) as failed")
+                logger.info("Startup resume: marked %d stuck job(s) as failed", len(stuck))
     except Exception as e:
-        logger.warning(f"Startup resume: error: {e}")
+        logger.warning("Startup resume: error: %s", e)
 
 
 async def _ensure_docking_columns():
     try:
         import httpx
-        from app.config import settings
         headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}"}
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(f"{settings.SUPABASE_URL}/rest/v1/docking_jobs?select=id&limit=0", headers=headers)
             if resp.status_code == 200:
                 logger.info("docking_jobs table accessible")
             else:
-                logger.warning(f"docking_jobs table query returned {resp.status_code} — table may not exist")
+                logger.warning("docking_jobs table query returned %s — table may not exist", resp.status_code)
     except Exception as e:
-        logger.warning(f"ensure_docking_columns check: {e}")
+        logger.warning("ensure_docking_columns check: %s", e)
 
 
 async def _fail_stuck_dockseq_jobs():
     try:
         import httpx
-        from app.config import settings
-        headers = {
-            "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
-            "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
-            "Content-Type": "application/json", "Prefer": "return=minimal",
-        }
+        headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
         base = f"{settings.SUPABASE_URL}/rest/v1"
         grace_cutoff = (datetime.now(timezone.utc) - timedelta(minutes=30)).strftime("%Y-%m-%dT%H:%M:%S")
-        for table in ("docking_jobs", "sequencing_jobs", "ngs_jobs"):
-            select_url = f"{base}/{table}?select=id&status=not.in.(complete,failed)&created_at=lt.{grace_cutoff}"
-            async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.get(select_url, headers=headers)
+        async with httpx.AsyncClient(timeout=10) as client:
+            for table in ("docking_jobs", "sequencing_jobs", "ngs_jobs"):
+                resp = await client.get(f"{base}/{table}?select=id&status=not.in.(complete,failed)&created_at=lt.{grace_cutoff}", headers=headers)
                 if resp.status_code != 200:
-                    logger.warning(f"Startup resume: failed to query {table} ({resp.status_code})")
+                    logger.warning("Startup resume: failed to query %s (%s)", table, resp.status_code)
                     continue
                 stuck = resp.json()
                 for job in stuck:
-                    jid = job["id"]
-                    logger.info(f"Startup resume: marking stuck {table} job {jid} as failed")
-                    await client.patch(
-                        f"{base}/{table}?id=eq.{jid}", headers=headers,
-                        json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")},
-                    )
+                    await client.patch(f"{base}/{table}?id=eq.{job['id']}", headers=headers, json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")})
                 if stuck:
-                    logger.info(f"Startup resume: marked {len(stuck)} stuck {table} job(s) as failed")
+                    logger.info("Startup resume: marked %d stuck %s job(s) as failed", len(stuck), table)
     except Exception as e:
-        logger.warning(f"Startup resume: error for docking/sequencing: {e}")
+        logger.warning("Startup resume: error for docking/sequencing: %s", e)
 
 
 def _sentry_filter(event, hint):
@@ -205,10 +174,7 @@ def _sentry_filter(event, hint):
 
 @app.on_event("startup")
 async def startup():
-    sentry_sdk.init(
-        dsn=settings.SENTRY_DSN, environment=os.getenv("ENVIRONMENT", "development"),
-        traces_sample_rate=0.1, send_default_pii=False, enable_tracing=True, before_send=_sentry_filter,
-    )
+    sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=os.getenv("ENVIRONMENT", "development"), traces_sample_rate=0.1, send_default_pii=False, enable_tracing=True, before_send=_sentry_filter)
     init_redis()
     await _ensure_docking_columns()
     await _fail_stuck_jobs()
@@ -225,10 +191,7 @@ async def startup():
     except Exception as e:
         logger.warning("MD force field verification failed during startup: %s", e)
     run_worker_env = os.getenv("RUN_WORKER")
-    if run_worker_env is not None:
-        run_worker = str(run_worker_env).strip().lower() in ("1", "true", "yes")
-    else:
-        run_worker = os.name != "nt"
+    run_worker = str(run_worker_env).strip().lower() in ("1", "true", "yes") if run_worker_env is not None else os.name != "nt"
     if run_worker:
         from app.worker import start_worker
         await start_worker()
@@ -241,13 +204,11 @@ async def startup():
 async def health():
     from app.services.cache import get_cache_stats
     import httpx
-    stats = get_cache_stats()
-    health_data = {"status": "ok", "version": "0.2.0", "cache": stats, "worker": "unknown", "queue_depth": {}, "openmm": None}
+    health_data = {"status": "ok", "version": "0.2.0", "cache": get_cache_stats(), "worker": "unknown", "queue_depth": {}, "openmm": None}
     try:
         import openmm
         from openmm import Platform
-        platforms = [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]
-        health_data["openmm"] = {"version": openmm.__version__, "platforms": platforms}
+        health_data["openmm"] = {"version": openmm.__version__, "platforms": [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]}
     except Exception as exc:
         health_data["openmm"] = {"error": str(exc)}
     try:

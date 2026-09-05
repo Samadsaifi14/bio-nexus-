@@ -63,7 +63,7 @@ def test_evidence_validation_rejects_unsupported_claims():
     unsupported = {
         "sources": [{"id": "blast", "tool": "BLAST", "database": "nr", "version": "2.14"}],
         "claims": [
-            {"id": "claim-1", "text": "Consensus: the protein binds calmodulin in vivo at 37C.", "evidence": [], "rejected": False},
+            {"id": "claim-1", "text": "Consensus: the protein binds calmodulin in vivo at 37C.", "confidence": "medium", "evidence": [], "rejected": False},
         ],
         "edges": [],
     }
@@ -83,10 +83,22 @@ def test_evidence_validation_bad_reference():
     assert "graph_reference" in names
 
 
+def test_rejected_claim_requires_none_confidence():
+    rejected = {
+        "sources": [{"id": "blast", "tool": "BLAST", "database": "nr", "version": "2.14"}],
+        "claims": [{"id": "c1", "text": "Unsupported biological assertion.", "confidence": "none", "evidence": [], "rejected": True}],
+        "edges": [],
+    }
+    report = evidence_engine.validate(evidence_engine.parse(rejected))
+    by_name = {c["name"]: c for c in report.checks}
+    assert by_name["claim_fields"]["passed"] is True
+    assert by_name["honest_claims"]["passed"] is True
+
+
 def test_evidence_engine_describe():
     desc = evidence_engine.describe()
     assert desc["name"] == "evidence"
-    assert desc["version"] == "1.0.0"
+    assert desc["version"] == "1.1.0"
     assert "honesty" in desc["parameters"]
 
 

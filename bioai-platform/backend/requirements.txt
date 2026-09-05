@@ -21,6 +21,6 @@ pymol-open-source-whl>=3.2  # unofficial wheel of open-source PyMOL; provides th
 # primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)
 
 # dev / testing
-pytest>=7.0
+pytest>=9.1.1
 httpx>=0.24
 boto3>=1.35,<2

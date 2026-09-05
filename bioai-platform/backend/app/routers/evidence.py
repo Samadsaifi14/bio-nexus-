@@ -8,11 +8,9 @@ Reviewer-facing contracts:
 The claim route returns the exact typed subgraph a UI can open when a reviewer
 clicks an AI sentence.
 """
-
 from __future__ import annotations
 
 import logging
-
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.engines.evidence_engine import evidence_engine
@@ -26,7 +24,6 @@ router = APIRouter(tags=["evidence"])
 
 @router.get("/api/experiments/{job_id}/evidence")
 async def experiment_evidence(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """Evidence graph linking every AI claim to its supporting computation."""
     context = _fetch_job_context(job_id)
     if not context:
         raise HTTPException(status_code=404, detail="Job context not found or empty")
@@ -35,13 +32,12 @@ async def experiment_evidence(job_id: str, user_id: str | None = Depends(get_use
 
 def _claim_subgraph(graph: dict, claim_id: str) -> dict:
     nodes = graph.get("nodes") or []
-    edges = graph.get("edges") or []
+    edges = graph.get("typed_edges") or []
     node_by_id = {node.get("id"): node for node in nodes}
     claim = node_by_id.get(claim_id)
     if not claim or claim.get("type") != "claim":
         raise HTTPException(status_code=404, detail="Evidence claim not found")
 
-    # Traverse outward from the clicked claim. The graph is acyclic by contract.
     selected = {claim_id}
     frontier = [claim_id]
     while frontier:
@@ -71,7 +67,6 @@ def _claim_subgraph(graph: dict, claim_id: str) -> dict:
 
 @router.get("/api/experiments/{job_id}/evidence/claims/{claim_id}")
 async def experiment_claim_evidence(job_id: str, claim_id: str, user_id: str | None = Depends(get_user_id)):
-    """Return the reviewer-clickable provenance chain for one AI claim."""
     context = _fetch_job_context(job_id)
     if not context:
         raise HTTPException(status_code=404, detail="Job context not found or empty")
@@ -80,7 +75,6 @@ async def experiment_claim_evidence(job_id: str, claim_id: str, user_id: str | N
 
 @router.get("/api/experiments/{job_id}/evidence/validate")
 async def experiment_evidence_validate(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """Validation report over the evidence graph (honesty invariant)."""
     context = _fetch_job_context(job_id)
     if not context:
         raise HTTPException(status_code=404, detail="Job context not found or empty")

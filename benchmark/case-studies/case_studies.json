@@ -1,0 +1,62 @@
+{
+  "schema": "bionexus-case-study-registry/v1",
+  "policy": "A case study becomes published/validated only after its pinned inputs, checksums, ground truth, complete experiment archive, BBS-2 results and failed cases are committed. Protocol-ready entries are not scientific results.",
+  "case_studies": [
+    {
+      "id": "CS-RARE-DISEASE-VARIANT",
+      "title": "Rare-disease variant interpretation workflow",
+      "status": "protocol-ready",
+      "modules": ["ngs", "variant_annotation", "evidence", "publication"],
+      "required_inputs": ["version-pinned reference genome", "truth or curated VCF", "phenotype/interpretation evidence set"],
+      "required_ground_truth": ["curated pathogenic/benign classifications with source versions"],
+      "primary_endpoints": ["variant recall/precision", "annotation fidelity", "unsupported claim rate", "provenance completeness"],
+      "safety_boundary": "Research demonstration only; not a clinical diagnostic or treatment recommendation."
+    },
+    {
+      "id": "CS-PROTEIN-FAMILY-ANNOTATION",
+      "title": "Protein-family functional annotation",
+      "status": "protocol-ready",
+      "modules": ["blast", "hmmer", "msa", "domains", "uniprot", "go", "reactome", "structure"],
+      "required_inputs": ["curated protein-family sequence set with held-out annotations"],
+      "required_ground_truth": ["version-pinned UniProt/Pfam/InterPro annotations"],
+      "primary_endpoints": ["family assignment accuracy", "domain F1", "GO term F1", "citation fidelity"]
+    },
+    {
+      "id": "CS-DRUG-REPURPOSING",
+      "title": "Drug-repurposing workflow against a validated target",
+      "status": "protocol-ready",
+      "modules": ["structure", "pocket", "docking", "admet", "md", "evidence"],
+      "required_inputs": ["experimentally supported target structure", "predeclared ligand library", "known-active/decoy set"],
+      "required_ground_truth": ["measured activity/affinity set", "reference co-crystal poses when available"],
+      "primary_endpoints": ["redocking RMSD", "enrichment/rank correlation", "pose reproducibility", "MD stability metrics"],
+      "safety_boundary": "Computational research prioritisation only; not medical advice or evidence of efficacy."
+    },
+    {
+      "id": "CS-PRIMER-DESIGN",
+      "title": "Primer design and downstream validation",
+      "status": "protocol-ready",
+      "modules": ["primers", "oligo_qc", "off_target", "amplicon"],
+      "required_inputs": ["versioned target sequence", "variant/SNP panel", "specificity reference set"],
+      "required_ground_truth": ["known successful/failed primer pairs or orthogonal in-silico reference"],
+      "primary_endpoints": ["target amplification", "off-target count", "hairpin/dimer risk", "SNP overlap", "multiplex compatibility"]
+    },
+    {
+      "id": "CS-MICROBIAL-COMPARATIVE-GENOMICS",
+      "title": "Comparative microbial genomics",
+      "status": "protocol-ready",
+      "modules": ["ngs", "assembly_or_mapping", "annotation", "msa", "phylo"],
+      "required_inputs": ["versioned isolate read/genome set", "reference annotation"],
+      "required_ground_truth": ["known relatedness or benchmark taxonomy/variant set"],
+      "primary_endpoints": ["mapping/assembly QC", "variant concordance", "tree support", "metadata traceability"]
+    },
+    {
+      "id": "CS-RNASEQ-PATHWAY",
+      "title": "RNA-seq differential expression with pathway interpretation",
+      "status": "protocol-ready",
+      "modules": ["fastq_qc", "star_or_hisat2", "expression", "statistics", "go", "reactome", "ai_evidence"],
+      "required_inputs": ["public versioned RNA-seq dataset", "reference transcriptome/genome", "sample design matrix"],
+      "required_ground_truth": ["published or independently reproduced differential-expression/pathway reference"],
+      "primary_endpoints": ["read QC", "mapping/quantification fidelity", "DE concordance", "FDR", "pathway concordance", "unsupported claim rate"]
+    }
+  ]
+}

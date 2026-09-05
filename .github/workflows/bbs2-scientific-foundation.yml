@@ -47,7 +47,18 @@ jobs:
           app/ngs/rnaseq_production.py
           app/ngs/stages/rna_preview.py
           app/services/docking_pose_analytics.py
+          benchmark/case-studies/hbb-variant-mapping/run.py
       - name: Run BBS-2 foundation regression tests
         env:
           PYTHONPATH: .
-        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py tests/test_primer_advanced.py tests/test_rnaseq_production.py tests/test_docking_pose_analytics.py tests/test_phylo_insights.py
+        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py tests/test_primer_advanced.py tests/test_rnaseq_production.py tests/test_docking_pose_analytics.py tests/test_phylo_insights.py tests/test_hbb_case_study.py
+      - name: Execute HBB E7V reproducibility case
+        env:
+          PYTHONPATH: .
+        run: python benchmark/case-studies/hbb-variant-mapping/run.py
+      - name: Upload HBB case result
+        uses: actions/upload-artifact@v4
+        with:
+          name: hbb-e7v-case-result
+          path: bioai-platform/backend/benchmark/case-studies/hbb-variant-mapping/result.json
+          if-no-files-found: error

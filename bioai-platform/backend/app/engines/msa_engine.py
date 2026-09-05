@@ -55,8 +55,11 @@ class MSAEngine(BaseEngine):
         "Sievers F, Higgins DG. Clustal Omega for making accurate alignments of many protein sequences. Protein Sci 27:135-145, 2018.",
         "Madeira F, et al. Search and sequence analysis tools services from EMBL-EBI in 2022. Nucleic Acids Res 50:W276-W279, 2022.",
     ]
-    # Benchmarks for MSA are not yet in the seed catalog; keep honest and empty.
-    benchmarks: list[str] = []
+    benchmarks = [
+        "MSA_VALID_ALIGNMENT",
+        "MSA_ALIGNMENT_METHOD_RECORDED",
+        "MSA_HEMOGLOBIN_ALIGNMENT_LENGTH",
+    ]
     export_formats = ["json", "csv", "fasta"]
 
     def parse(self, raw: Any) -> EngineResult:

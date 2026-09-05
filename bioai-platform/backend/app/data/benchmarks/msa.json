@@ -19,7 +19,7 @@
       "ground_truth": "Globins share conserved helical folds; ClustalΩ alignment of globins is well-formed.",
       "citation": "Sievers F. et al. Mol. Syst. Biol. 2011 (ClustalΩ).",
       "source": "EBI MSA",
-      "stage": "draft",
+      "stage": "curated",
       "difficulty": "medium",
       "version": 1
     }

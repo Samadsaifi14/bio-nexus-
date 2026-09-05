@@ -187,6 +187,10 @@ def _metric_value(context: dict, section: str, key: str):
         if key == "domain_count":
             domains = seg.get("domains")
             return len(domains) if isinstance(domains, list) else None
+        if key == "has_alignment":
+            return bool(seg.get("aln_fasta"))
+        if key == "has_newick":
+            return bool(seg.get("phylotree_newick"))
         if key == "gene_name":
             names = seg.get("gene_names") or []
             return names[0] if names else None

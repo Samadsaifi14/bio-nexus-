@@ -45,7 +45,7 @@ class DomainsEngine(BaseEngine):
         "Mistry J, et al. Pfam: The protein families database in 2021. Nucleic Acids Res 49:D412-D419, 2021.",
         "de Castro E, et al. ScanProsite: detection of PROSITE signature matches. Nucleic Acids Res 34:W362-W365, 2006.",
     ]
-    benchmarks: list[str] = []
+    benchmarks = ["DOMAINS_ANNOTATED", "DOMAINS_GEOMETRY_VALID"]
     export_formats = ["json", "csv"]
 
     def parse(self, raw: Any) -> EngineResult:

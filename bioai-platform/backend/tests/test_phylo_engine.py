@@ -104,6 +104,6 @@ def test_figure_empty_tree():
 def test_describe_has_scientific_contract():
     eng = get_engine("phylo")
     d = eng.describe()
-    assert d["benchmarks"] == []
+    assert "PHYLO_GLOBIN_NEWICK_WELLFORMED" in d["benchmarks"]
     assert "newick" in d["export_formats"]
     assert "Felsenstein" in d["citations"][1]

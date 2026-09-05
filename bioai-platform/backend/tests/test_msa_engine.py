@@ -139,5 +139,5 @@ def test_describe_has_scientific_contract():
     d = eng.describe()
     assert d["name"] == "msa"
     assert "MAFFT" in d["citations"][0] or "Clustal" in d["citations"][1]
-    assert d["benchmarks"] == []
+    assert "MSA_VALID_ALIGNMENT" in d["benchmarks"]
     assert "fasta" in d["export_formats"]

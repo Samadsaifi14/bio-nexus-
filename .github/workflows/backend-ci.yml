@@ -1,0 +1,51 @@
+name: backend-ci
+
+# Component 7 - Automatic Validation.
+# Every push or PR against the backend runs the deterministic validation suite
+# (engine contracts + benchmark catalog + provenance) and fails the build on
+# any regression. Live behavioral checks against the deployed Space stay in the
+# manual verification loop; this CI gates *code* changes.
+
+on:
+  push:
+    paths:
+      - 'bioai-platform/backend/**'
+  pull_request:
+    paths:
+      - 'bioai-platform/backend/**'
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest
+          pip install -e . 2>/dev/null || true
+
+      - name: Deterministic validation suite
+        run: |
+          python -m pytest tests/test_benchmarks_compare.py \
+            tests/test_experiment_provenance.py \
+            tests/test_blast_engine.py \
+            tests/test_uniprot_engine.py \
+            tests/test_msa_engine.py \
+            tests/test_phylo_engine.py \
+            tests/test_domains_engine.py \
+            tests/test_alphafold_pathway_engines.py \
+            tests/test_interpret_engine.py \
+            -q
+
+      - name: Benchmark + engine registry integrity
+        run: |
+          python scripts/ci_validate.py

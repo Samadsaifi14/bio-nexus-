@@ -104,4 +104,4 @@ def test_describe_has_scientific_contract():
     d = eng.describe()
     assert "InterPro in 2022" in d["citations"][0]
     assert "Pfam" in d["databases"][0]
-    assert d["benchmarks"] == []
+    assert "DOMAINS_ANNOTATED" in d["benchmarks"]

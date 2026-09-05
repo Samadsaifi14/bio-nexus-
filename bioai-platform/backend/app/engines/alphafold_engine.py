@@ -42,7 +42,11 @@ class AlphaFoldEngine(BaseEngine):
         "Varadi M, et al. AlphaFold Protein Structure Database in 2024. Nucleic Acids Res 52:D368-D375, 2024.",
         "Lin Z, et al. Evolutionary-scale prediction of atomic-level protein structure with a language model. Science 379:1123-1130, 2023.",
     ]
-    benchmarks: list[str] = []
+    benchmarks = [
+        "PDB_TP53_STRUCTURE_AVAILABLE",
+        "ALPHAFOLD_TP53_AVAILABLE",
+        "ALPHAFOLD_INSULIN_AVAILABLE",
+    ]
     export_formats = ["json", "csv"]
 
     def parse(self, raw: Any) -> EngineResult:

@@ -63,7 +63,7 @@ class PhyloEngine(BaseEngine):
         "Felsenstein J. PHYLIP - Phylogeny Inference Package. Cladistics 5:164-166, 1989.",
         "Madeira F, et al. Search and sequence analysis tools services from EMBL-EBI in 2022. Nucleic Acids Res 50:W276-W279, 2022.",
     ]
-    benchmarks: list[str] = []
+    benchmarks = ["PHYLO_GLOBIN_NEWICK_WELLFORMED"]
     export_formats = ["json", "csv", "newick"]
 
     def parse(self, raw: Any) -> EngineResult:

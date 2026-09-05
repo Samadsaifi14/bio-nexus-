@@ -1,0 +1,51 @@
+{
+  "name": "clinical_variants",
+  "version": 1,
+  "type": "curated",
+  "date": "2026-01-20",
+  "category": "genomics",
+  "description": "Small curated variant interpretation set (HGVS) for NGS/evidence engine truth checks.",
+  "citation": "HGMD/ClinVar curated examples (pathogenic/benign anchors); simplified for demonstration.",
+  "records": [
+    {
+      "id": "variant-brca1-splice-P",
+      "type": "positive_control",
+      "label": "Pathogenic splice donor, breast cancer risk",
+      "gene": "BRCA1",
+      "variant": "c.135-1G>T",
+      "significance": "pathogenic",
+      "allele_frequency": "rare",
+      "notes": "Disrupts intron 2 splice donor; loss-of-function anchor used by NGS variant annotation."
+    },
+    {
+      "id": "variant-hbb-glu6val-P",
+      "type": "positive_control",
+      "label": "Sickle-cell disease risk variant",
+      "gene": "HBB",
+      "variant": "c.20A>T",
+      "significance": "pathogenic",
+      "allele_frequency": "common-in-populations",
+      "notes": "Glu6Val (E6V) in beta-globin; classic missense anchor for interpretation demos."
+    },
+    {
+      "id": "variant-acvr1-nonsense-B",
+      "type": "negative_control",
+      "label": "Benign population polymorphism",
+      "gene": "ACVR1",
+      "variant": "c.739T>C",
+      "significance": "benign",
+      "allele_frequency": "common",
+      "notes": "Synonymous variant; negative control — must not be flagged as a damaging claim."
+    },
+    {
+      "id": "variant-ldlr-homocys-P",
+      "type": "positive_control",
+      "label": "Familial hypercholesterolemia missense",
+      "gene": "LDLR",
+      "variant": "c.313+1G>A",
+      "significance": "pathogenic",
+      "allele_frequency": "rare",
+      "notes": "Splice donor of LDLR; loss-of-function anchor (with VLDLR synteny check in phylo evidence)."
+    }
+  ]
+}

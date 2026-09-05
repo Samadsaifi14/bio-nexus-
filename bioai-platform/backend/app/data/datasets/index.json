@@ -1,0 +1,25 @@
+{
+  "version": 1,
+  "datasets": [
+    {
+      "name": "protein_controls",
+      "category": "protein",
+      "type": "curated",
+      "date": "2026-01-15",
+      "version": 1,
+      "records_count": 3,
+      "description": "Curated positive/negative control proteins for BLAST and interpretation engines.",
+      "citation": "UniProt curated annotations (2026_01 release); verified manually for BioNexus demos."
+    },
+    {
+      "name": "clinical_variants",
+      "category": "genomics",
+      "type": "curated",
+      "date": "2026-01-20",
+      "version": 1,
+      "records_count": 4,
+      "description": "Small curated variant interpretation set (HGVS) for NGS/evidence engine truth checks.",
+      "citation": "HGMD/ClinVar curated examples (pathogenic/benign anchors); simplified for demonstration."
+    }
+  ]
+}

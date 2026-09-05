@@ -31,7 +31,7 @@ def test_evidence_graph_exposes_full_reviewer_path_without_breaking_legacy_edges
 def test_evidence_graph_marks_missing_benchmark_explicitly():
     context = {
         "sequence": {"sequence_length": 4, "tool_version": "1.0"},
-        "interpret": {"interpretation": "The recorded sequence length is 4."},
+        "interpret": {"interpretation": "The recorded sequence_length is 4."},
     }
     graph = assemble_evidence(context)
     benchmark_nodes = [n for n in graph["nodes"] if n["type"] == "benchmark"]

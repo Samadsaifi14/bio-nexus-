@@ -44,6 +44,8 @@ jobs:
             tests/test_domains_engine.py \
             tests/test_alphafold_pathway_engines.py \
             tests/test_interpret_engine.py \
+            tests/test_evidence_engine.py \
+            tests/test_figure_engine.py \
             -q
 
       - name: Benchmark + engine registry integrity

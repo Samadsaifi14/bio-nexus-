@@ -1,8 +1,4 @@
-"""Sequence-tool endpoints: sequence utilities, motif scanner and dot plot.
-
-All three are pure-local computations (no external services), so errors are
-user-input errors and map to HTTP 400.
-"""
+"""Sequence-tool endpoints: utilities, motif scanner, dot plot and MSA insights."""
 
 from __future__ import annotations
 
@@ -21,12 +17,10 @@ from app.tools.motif_scanner import (
     scan_pattern,
 )
 from app.tools.dotplot import DotPlotError, SCORING_OPTIONS, compute_dotplot
+from app.tools.alignment_insights import alignment_insights
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/seq-tools", tags=["sequence-tools"])
-
-
-# --- Sequence utilities ----------------------------------------------------
 
 
 class AnalyzeRequest(BaseModel):
@@ -73,9 +67,6 @@ async def analyze_sequence_endpoint(req: AnalyzeRequest):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-# --- Motif scanner ---------------------------------------------------------
-
-
 class PatternScanRequest(BaseModel):
     sequence: str = Field(..., min_length=1, description="Protein sequence (raw or FASTA)")
     pattern: str = Field(..., min_length=1, description="PROSITE pattern, e.g. [ST]-x-[RK]")
@@ -83,9 +74,7 @@ class PatternScanRequest(BaseModel):
 
 class LibraryScanRequest(BaseModel):
     sequence: str = Field(..., min_length=1, description="Protein sequence (raw or FASTA)")
-    categories: list[str] | None = Field(
-        None, description="Optional category filter, e.g. ['PTM', 'DNA binding']"
-    )
+    categories: list[str] | None = Field(None, description="Optional category filter")
 
 
 class MotifMatch(BaseModel):
@@ -139,28 +128,20 @@ async def scan_motif_library(req: LibraryScanRequest):
 
 @router.get("/motif-library/patterns")
 async def list_motif_patterns():
-    """Return the curated motif library so the UI can offer presets."""
     return get_motif_patterns()
 
 
 @router.get("/motif-library/categories")
 async def list_motif_categories_endpoint():
-    """Return the ordered list of motif categories for UI filters."""
     return list_motif_categories()
 
 
-# --- Dot plot --------------------------------------------------------------
-
-
 class DotPlotRequest(BaseModel):
-    seq_a: str = Field(..., min_length=1, description="First sequence (query, vertical axis)")
-    seq_b: str = Field(..., min_length=1, description="Second sequence (subject, horizontal axis)")
-    window: int = Field(10, ge=1, le=200, description="Comparison window length")
-    stringency: int = Field(80, ge=1, le=100, description="Percent identity/score required in the window")
-    scoring: str = Field(
-        "identity",
-        description="Similarity scheme: identity (nucleotides) or a BLOSUM/PAM matrix (proteins)",
-    )
+    seq_a: str = Field(..., min_length=1)
+    seq_b: str = Field(..., min_length=1)
+    window: int = Field(10, ge=1, le=200)
+    stringency: int = Field(80, ge=1, le=100)
+    scoring: str = Field("identity")
 
 
 class DotPlotFeatures(BaseModel):
@@ -189,12 +170,21 @@ class DotPlotResponse(BaseModel):
 @router.post("/dotplot", response_model=DotPlotResponse)
 async def run_dotplot(req: DotPlotRequest):
     try:
-        return compute_dotplot(
-            req.seq_a,
-            req.seq_b,
-            window=req.window,
-            stringency=req.stringency,
-            scoring=req.scoring,
-        )
+        return compute_dotplot(req.seq_a, req.seq_b, window=req.window, stringency=req.stringency, scoring=req.scoring)
     except DotPlotError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+class AlignmentInsightsRequest(BaseModel):
+    aligned_sequences: list[str] = Field(..., min_length=2, description="Already aligned sequences of equal length; gaps use '-' or '.'")
+    reference_index: int = Field(0, ge=0)
+    variants: list[dict[str, Any]] = Field(default_factory=list, description="Optional variants with a 1-based ungapped reference 'position'")
+
+
+@router.post("/alignment-insights")
+async def analyze_alignment_insights(req: AlignmentInsightsRequest):
+    """Return per-column conservation, Shannon entropy, sequence-logo weights and variant mapping."""
+    try:
+        return alignment_insights(req.aligned_sequences, req.reference_index, req.variants)
+    except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))

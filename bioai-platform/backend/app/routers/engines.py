@@ -10,6 +10,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
 from app.engines import ENGINES, get_engine
+from app.services.plugin_system import plugin_manager
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,8 @@ async def get_engine_info(name: str):
 
 @router.post("/{name}/validate")
 async def validate_result(name: str, body: ResultBody):
-    """Validate a canonical engine output; returns PASS/FAIL checks."""
+    """Validate a canonical engine output; returns PASS/FAIL checks,
+    augmented by any active plugin validation hooks."""
     engine = get_engine(name)
     if not engine:
         raise HTTPException(status_code=404, detail=f"unknown engine: {name}")
@@ -46,7 +48,10 @@ async def validate_result(name: str, body: ResultBody):
         result = engine.parse(body.result)
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"cannot parse result: {e}")
-    return engine.validate(result).to_dict()
+    report = engine.validate(result).to_dict()
+    report["checks"] += plugin_manager.before_validate(name, report)
+    report["valid"] = all(c.get("passed", False) for c in report["checks"])
+    return report
 
 
 @router.post("/{name}/export")

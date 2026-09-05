@@ -12,11 +12,12 @@ class ValidationBatteryPlugin(BioNexusPlugin):
     version = "1.0.0"
     description = "Appends evidence-presence and export-readiness checks to every engine validation."
 
-    def before_validate(self, engine_name: str, report: dict) -> list[dict]:
+    def before_validate(self, engine_name: str, report: dict, result: object = None) -> list[dict]:
+        evidence = getattr(result, "evidence", None) if result is not None else None
         checks = [
             {
                 "name": f"{engine_name}:evidence_recorded",
-                "passed": bool(report.get("result", {}).get("evidence")),
+                "passed": bool(evidence),
                 "detail": "result carries evidence",
             },
             {

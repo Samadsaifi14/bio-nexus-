@@ -49,7 +49,7 @@ async def validate_result(name: str, body: ResultBody):
     except Exception as e:
         raise HTTPException(status_code=422, detail=f"cannot parse result: {e}")
     report = engine.validate(result).to_dict()
-    report["checks"] += plugin_manager.before_validate(name, report)
+    report["checks"] += plugin_manager.before_validate(name, report, result)
     report["valid"] = all(c.get("passed", False) for c in report["checks"])
     return report
 

@@ -18,7 +18,7 @@ class CheckerA(BioNexusPlugin):
     def on_register(self):
         self.registered = True
 
-    def before_validate(self, engine_name, report):
+    def before_validate(self, engine_name, report, result=None):
         return [{"name": f"{engine_name}:marker", "passed": True, "detail": "plugin check added"}]
 
     def on_event(self, event, payload):
@@ -51,6 +51,16 @@ def test_hook_appends_extra_checks(tmp_path):
     manager = PluginManager(str(_write_plugins(tmp_path)))
     manager.load_dir()
     extra = manager.before_validate("blast", {"valid": True})
+    assert any(c["name"] == "blast:marker" and c["passed"] for c in extra)
+
+
+def test_hook_accepts_parsed_result(monkeypatch, tmp_path):
+    class FakeResult:
+        evidence = {"blast": "hit"}
+
+    manager = PluginManager(str(_write_plugins(tmp_path)))
+    manager.load_dir()
+    extra = manager.before_validate("blast", {"valid": True}, FakeResult())
     assert any(c["name"] == "blast:marker" and c["passed"] for c in extra)
 
 

@@ -38,9 +38,9 @@ class BioNexusPlugin:
     def on_disable(self) -> None:
         pass
 
-    def before_validate(self, engine_name: str, report: dict) -> list[dict]:
+    def before_validate(self, engine_name: str, report: dict, result: Any = None) -> list[dict]:
         """Return extra validation checks [{name, passed, detail}] appended to
-        the engine's native PASS/FAIL report."""
+        the engine's native PASS/FAIL report. `result` is the parsed EngineResult."""
         return []
 
     def after_export(self, engine_name: str, payload: dict) -> dict | None:
@@ -130,12 +130,12 @@ class PluginManager:
         with self._lock:
             return [p for n, p in self.plugins.items() if n in self.enabled]
 
-    def before_validate(self, engine_name: str, report: dict) -> list[dict]:
+    def before_validate(self, engine_name: str, report: dict, result: Any = None) -> list[dict]:
         """Collect extra checks from every active plugin, containing failures."""
         extra: list[dict] = []
         for p in self._active():
             try:
-                extra.extend(p.before_validate(engine_name, report))
+                extra.extend(p.before_validate(engine_name, report, result))
             except Exception as e:
                 extra.append({"name": f"{p.name}:validate_error", "passed": False, "detail": str(e)})
         return extra

@@ -19,7 +19,7 @@
       "ground_truth": "AutoDock Vina affinities for organic ligands are typically -4 to -12 kcal/mol.",
       "citation": "Trott O., Olson A.J. J. Comput. Chem. 2010 (AutoDock Vina).",
       "source": "AutoDock Vina",
-      "stage": "draft",
+      "stage": "curated",
       "difficulty": "medium",
       "version": 1
     }

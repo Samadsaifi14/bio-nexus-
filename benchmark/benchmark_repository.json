@@ -1,0 +1,101 @@
+{
+  "name": "BioNexus Benchmark Suite",
+  "short_name": "BBS-2",
+  "schema_version": "1.0",
+  "license": "repository license applies",
+  "doi": null,
+  "doi_status": "not_minted",
+  "publication_policy": "A DOI must only be inserted after an immutable public release is deposited in a DOI-minting repository such as Zenodo.",
+  "status_semantics": {
+    "defined": "benchmark contract exists",
+    "fixture_ready": "versioned input and expected output with checksums exist",
+    "executable": "BioNexus can execute the benchmark end to end",
+    "validated": "a persisted run passed a predeclared acceptance criterion",
+    "regression": "benchmark is enforced by continuous integration"
+  },
+  "domains": [
+    {
+      "id": "proteins",
+      "scope": ["sequence analysis", "annotation", "domains", "structure-linked interpretation"],
+      "preferred_ground_truth": ["UniProtKB reviewed records", "Pfam/InterPro pinned releases"]
+    },
+    {
+      "id": "dna",
+      "scope": ["sequence analysis", "alignment", "primer design", "motif detection"],
+      "preferred_ground_truth": ["version-pinned reference sequences", "curated assay references"]
+    },
+    {
+      "id": "rna",
+      "scope": ["RNA-seq QC", "quantification", "differential-expression contracts"],
+      "preferred_ground_truth": ["SEQC/MAQC reference datasets", "version-pinned transcriptomes"]
+    },
+    {
+      "id": "docking",
+      "scope": ["redocking", "cross-docking", "pose RMSD", "pose clustering", "affinity ranking"],
+      "preferred_ground_truth": ["crystallographic ligand poses", "published affinity datasets"]
+    },
+    {
+      "id": "md",
+      "scope": ["RMSD", "RMSF", "SASA", "radius of gyration", "PCA", "DCCM", "free-energy landscapes"],
+      "preferred_ground_truth": ["pinned trajectories analysed by trusted reference implementations"]
+    },
+    {
+      "id": "ngs",
+      "scope": ["FASTQ QC", "alignment", "variant calling", "annotation", "CNV", "structural variants"],
+      "preferred_ground_truth": ["Genome in a Bottle truth sets", "SEQC/MAQC reference datasets"]
+    },
+    {
+      "id": "ai",
+      "scope": ["numeric fidelity", "citation fidelity", "unsupported claim rate", "biological correctness"],
+      "preferred_ground_truth": ["deterministic BioNexus evidence", "expert-reviewed answer keys"]
+    },
+    {
+      "id": "structures",
+      "scope": ["PDB retrieval", "AlphaFold retrieval", "secondary structure", "surface calculations", "interfaces"],
+      "preferred_ground_truth": ["RCSB PDB", "AlphaFold DB", "DSSP/reference structural tools"]
+    },
+    {
+      "id": "variants",
+      "scope": ["variant mapping", "variant calling", "annotation fidelity"],
+      "preferred_ground_truth": ["GIAB truth VCFs", "reviewed reference records"]
+    }
+  ],
+  "required_fixture_fields": [
+    "benchmark_id",
+    "domain",
+    "source",
+    "source_version",
+    "license_or_accession",
+    "input_sha256",
+    "expected_output_sha256",
+    "acceptance_rule",
+    "tolerance",
+    "software_versions",
+    "database_versions"
+  ],
+  "required_run_fields": [
+    "benchmark_id",
+    "fixture_sha256",
+    "git_commit",
+    "container_digest",
+    "operating_system",
+    "hardware",
+    "software_versions",
+    "database_versions",
+    "parameters",
+    "seed",
+    "metrics",
+    "sample_size",
+    "confidence_interval",
+    "effect_size",
+    "pass",
+    "failure_reason"
+  ],
+  "robustness_matrix": {
+    "organisms": ["human", "bacterial", "plant_or_other_eukaryote"],
+    "operating_systems": ["ubuntu-latest", "windows-latest", "macos-latest"],
+    "software_versions": "at least current pinned release plus one supported prior release where feasible",
+    "database_versions": "current pinned release plus archived release where redistribution/licensing permits"
+  },
+  "scientific_boundary": "Presence in this manifest does not mean a domain is validated. Validation requires external ground truth, an executable comparator, persisted raw outputs and a predeclared acceptance rule."
+}

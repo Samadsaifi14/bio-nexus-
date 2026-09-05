@@ -51,7 +51,7 @@
 - `GET` `/api/engines/{name}` — 
 - `POST` `/api/engines/{name}/export` — Export an engine result to JSON or CSV.
 - `POST` `/api/engines/{name}/figure` — Render a publication-style SVG figure for the result.
-- `POST` `/api/engines/{name}/validate` — Validate a canonical engine output; returns PASS/FAIL checks.
+- `POST` `/api/engines/{name}/validate` — Validate a canonical engine output; returns PASS/FAIL checks,
 - `GET` `/api/experiments` — Recent experiments (provenance metadata for reproducibility).
 - `GET` `/api/experiments/debug/fingerprint` — Return the reproducibility fingerprint for an input (used by tests).
 - `POST` `/api/experiments/debug/new` — Create an experiment record on demand (used by tests).
@@ -64,6 +64,9 @@
 - `POST` `/api/experiments/{job_id}/ledger` — 
 - `GET` `/api/experiments/{job_id}/ledger/validate` — 
 - `GET` `/api/experiments/{job_id}/paper` — Manuscript draft generated from the recorded experiment. Zero external calls.
+- `GET` `/api/experiments/{job_id}/paper/latest` — 
+- `POST` `/api/experiments/{job_id}/paper/regenerate` — 
+- `GET` `/api/experiments/{job_id}/paper/versions` — 
 - `GET` `/api/experiments/{job_id}/provenance` — Clickable provenance trace: nodes + edges for a job's experiment.
 - `GET` `/api/figure/formats` — Publication formats the Figure Engine can emit (SVG only by design:
 - `GET` `/api/figures/{job_id}` — One publication figure for a recorded experiment (paneled, captioned).
@@ -100,6 +103,9 @@
 - `GET` `/api/ngs/v2/production/runs/{run_id}/artifacts` — 
 - `POST` `/api/ngs/v2/production/submit` — 
 - `GET` `/api/ngs/v2/stages` — 
+- `POST` `/api/paper/continuous` — 
+- `GET` `/api/paper/continuous/subscriptions` — 
+- `POST` `/api/paper/continuous/tick` — 
 - `GET` `/api/paper/journal-formats` — Journal templates the Publication Engine can emit.
 - `POST` `/api/pathways/detail` — 
 - `POST` `/api/pathways/enrichment` — 
@@ -111,6 +117,11 @@
 - `GET` `/api/pipelines/definitions` — 
 - `POST` `/api/pipelines/run` — 
 - `GET` `/api/pipelines/{pipeline_type}/definition` — 
+- `GET` `/api/plugins` — 
+- `POST` `/api/plugins/event` — 
+- `POST` `/api/plugins/reload` — 
+- `POST` `/api/plugins/{name}/disable` — 
+- `POST` `/api/plugins/{name}/enable` — 
 - `POST` `/api/primers/analyze` — Run oligo QC (hairpin, self-/hetero-dimer, Tm, GC) and in-silico PCR.
 - `POST` `/api/primers/design` — 
 - `POST` `/api/primers/search` — Search NCBI Nucleotide for a gene/sequence to design primers against.

@@ -161,6 +161,21 @@
   - Felsenstein J. PHYLIP - Phylogeny Inference Package. Cladistics 5:164-166, 1989.
   - Madeira F, et al. Search and sequence analysis tools services from EMBL-EBI in 2022. Nucleic Acids Res 50:W276-W279, 2022.
 
+## stats
+
+- **Version:** 1.0.0
+- **Tool:** pure-Python statistical inference (Welch t / Mann-Whitney U / Cohen's d) (version detected at runtime)
+- **Databases:** result statistics from recorded experiments
+- **Parameters:** {'tests': 'welch_t | mann_whitney_u', 'alpha': 0.05, 'anomaly': 'z-score threshold (default 3.0)', 'note': 'p-values use a deterministic normal-approximation survival function (no scipy dependency)'}
+- **Benchmarks:** STATS_P_VALUE_IN_UNIT_INTERVAL
+- **Exports:** json, csv
+- **Figures:** svg
+
+- **Citations:**
+  - Welch BL. The generalization of Student's problem when several different population variances are involved. Biometrika 34:28-35, 1947.
+  - Mann HB, Whitney DR. On a test of whether one of two random variables is stochastically larger than the other. Ann Math Stat 18:50-60, 1947.
+  - Cohen J. Statistical Power Analysis for the Behavioral Sciences. 2nd ed. Erlbaum, 1988.
+
 ## uniprot
 
 - **Version:** 1.0.0

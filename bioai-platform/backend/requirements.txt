@@ -10,6 +10,8 @@ sentry-sdk
 python-dotenv
 supabase
 reportlab
+cairosvg>=2.7
+Pillow>=10
 pydantic[email]
 rdkit
 numpy

@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, export, api_keys, cache_stats, docking, sequencing, ngs, ngs_v2, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
 from app.services.cache import init_redis
 
 setup_logging()
@@ -72,6 +72,7 @@ app.include_router(domains.router)
 app.include_router(interactions.router)
 app.include_router(primers.router)
 app.include_router(structure_analysis.router)
+app.include_router(structure_insights.router)
 app.include_router(phylo.router)
 app.include_router(export.router, prefix="/api/export", tags=["export"])
 app.include_router(api_keys.router, prefix="/api/keys", tags=["api_keys"])
@@ -155,7 +156,6 @@ async def _ensure_docking_columns():
             "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,
             "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}",
         }
-        # Check if result_sdf exists by querying it (most basic column the worker needs)
         async with httpx.AsyncClient(timeout=10) as client:
             resp = await client.get(
                 f"{settings.SUPABASE_URL}/rest/v1/docking_jobs?select=id&limit=0",
@@ -206,7 +206,6 @@ async def _fail_stuck_dockseq_jobs():
 
 def _sentry_filter(event, hint):
     """Filter out noisy/harmless errors from Sentry."""
-    # Don't report rate limit hits
     if event.get("exception"):
         exc = event["exception"].get("values", [{}])[0]
         if exc.get("type") == "HTTPException" and exc.get("value", {}).get("status_code") == 429:
@@ -229,15 +228,12 @@ async def startup():
     await _fail_stuck_jobs()
     await _fail_stuck_dockseq_jobs()
 
-    # Check OpenMM availability
     try:
         import openmm
         logger.info("OpenMM %s available — full MD simulation enabled", openmm.__version__)
     except ImportError as e:
         logger.warning("OpenMM not available (%s) — MD will use BioPython fallback", e)
 
-    # Verify MD force field / solvent combinations at startup (real
-    # alanine-dipeptide createSystem probe). Failures never block boot.
     try:
         from app.tools.md_config import verify_ff_solvent_combos
         combos = verify_ff_solvent_combos()
@@ -245,14 +241,6 @@ async def startup():
     except Exception as e:
         logger.warning("MD force field verification failed during startup: %s", e)
 
-    # Launch durable worker (in-process).
-    # Production (server) should run the worker; a local Windows dev box must NOT
-    # — otherwise it connects to the SAME production Supabase with a service-role
-    # key, steals queued jobs from the real worker, and strands them when the
-    # laptop sleeps/disconnects (job left stuck in a non-terminal status).
-    # Honor an explicit RUN_WORKER flag when set; otherwise auto-run only on
-    # non-Windows (i.e. the production container). The standalone worker remains
-    # available via `python -m app.worker` / the worker image regardless.
     run_worker_env = os.getenv("RUN_WORKER")
     if run_worker_env is not None:
         run_worker = str(run_worker_env).strip().lower() in ("1", "true", "yes")
@@ -296,7 +284,6 @@ async def health():
     except Exception as exc:
         health_data["openmm"] = {"error": str(exc)}
 
-    # Check worker health via queue depths
     try:
         headers = {
             "apikey": settings.SUPABASE_SERVICE_ROLE_KEY,

@@ -19,7 +19,7 @@
       "ground_truth": "Illumina NovaSeq runs typically yield 85-92% of bases ≥ Q30.",
       "citation": "Andrews S. (FastQC). Babraham Bioinformatics.",
       "source": "FastQC",
-      "stage": "draft",
+      "stage": "curated",
       "difficulty": "medium",
       "version": 1
     }

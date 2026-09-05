@@ -1,0 +1,25 @@
+{
+  "category": "statistics",
+  "benchmarks": [
+    {
+      "name": "STATS_P_VALUE_IN_UNIT_INTERVAL",
+      "category": "statistics",
+      "description": "A finished statistical test reports a p-value inside the unit interval.",
+      "input": {
+        "dataset": "result statistics",
+        "engine": "welch_t / mann_whitney_u"
+      },
+      "section": "stats",
+      "expected_output": {
+        "p_value": {"min": 0, "max": 1}
+      },
+      "tolerance": {},
+      "ground_truth": "By definition a probability; reported p-values outside [0,1] signal a broken inference.",
+      "citation": "Wasserstein RL, Lazar NA. The ASA statement on p-values. Am Stat 70:129-133, 2016.",
+      "source": "BioNexus stats engine",
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
+    }
+  ]
+}

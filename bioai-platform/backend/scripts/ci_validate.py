@@ -31,7 +31,7 @@ DESCRIBE_KEYS = (
 )
 
 # Pipeline result sections plus standalone tool sections used by the catalog.
-KNOWN_SECTIONS = set(_RESULT_SECTIONS) | {"primers", "ngs", "docking", "md", "admet"}
+KNOWN_SECTIONS = set(_RESULT_SECTIONS) | {"primers", "ngs", "docking", "md", "admet", "stats"}
 
 
 def check_catalog() -> list[str]:

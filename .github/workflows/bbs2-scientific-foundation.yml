@@ -41,6 +41,7 @@ jobs:
           app/services/dataset_library.py
           app/services/figure_export.py
           app/routers/structure_insights.py
+          app/routers/phylo_insights.py
           app/tools/alignment_insights.py
           app/tools/primer_advanced.py
           app/ngs/rnaseq_production.py
@@ -49,4 +50,4 @@ jobs:
       - name: Run BBS-2 foundation regression tests
         env:
           PYTHONPATH: .
-        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py tests/test_primer_advanced.py tests/test_rnaseq_production.py tests/test_docking_pose_analytics.py
+        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py tests/test_primer_advanced.py tests/test_rnaseq_production.py tests/test_docking_pose_analytics.py tests/test_phylo_insights.py

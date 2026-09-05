@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 set -uo pipefail
 
-echo "==> Installing system tools (samtools, minimap2)"
-apt-get update -qq && apt-get install -y -qq --no-install-recommends samtools 2>/dev/null && \
+echo "==> Installing system tools and figure renderer libraries"
+apt-get update -qq && apt-get install -y -qq --no-install-recommends \
+    samtools libcairo2 libpango-1.0-0 libpangocairo-1.0-0 2>/dev/null && \
     echo "     samtools installed: $(samtools --version | head -1)" || \
-    { echo "     ERROR: samtools installation failed"; exit 1; }
+    { echo "     ERROR: system dependency installation failed"; exit 1; }
 
 MINIMAP2_DEST="/usr/local/bin/minimap2"
 MINIMAP2_URL="https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2"
@@ -24,6 +25,7 @@ minimap2 --version 2>&1 | head -1
 
 echo "==> Installing Python dependencies"
 pip install -r requirements.txt
+python -c "import cairosvg; from PIL import Image; print('figure export renderer ready')"
 
 echo "==> Downloading AutoDock Vina binary …"
 VINA_DEST="/usr/local/bin/vina"

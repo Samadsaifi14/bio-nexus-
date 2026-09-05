@@ -4,6 +4,7 @@ FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates git libnetcdf-dev \
     openbabel libgl1 libgomp1 libopenblas-dev \
+    libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools && \
     rm -rf /var/lib/apt/lists/*
 
@@ -18,10 +19,10 @@ RUN wget -q "https://mafft.cbrc.jp/alignment/software/mafft-7.526-linux.tgz" -O 
     rm /tmp/mafft.tgz || echo "mafft download skipped (optional)"
 
 # fpocket (pocket detection) — not packaged in Debian repos; build from source
-# NOTE: tags carry no "v" prefix (4.2.3, not v4.2.3) — a wrong prefix kills the build
 RUN git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket && \
     make -C /tmp/fpocket && make -C /tmp/fpocket install && \
     rm -rf /tmp/fpocket
+
 # minimap2 (for NGS read alignment)
 RUN wget -q https://github.com/lh3/minimap2/releases/download/v2.28/minimap2-2.28_x64-linux.tar.bz2 -O /tmp/minimap2.tar.bz2 && \
     tar xjf /tmp/minimap2.tar.bz2 -C /tmp --no-same-owner && \
@@ -51,14 +52,13 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
+RUN python -c "import cairosvg; from PIL import Image; print('figure export renderer ready')"
 
 # primer3-py is optional — skip silently if it fails
 RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-py skipped (optional)"
 
 COPY . .
 
-# Run as non-root (HF Spaces convention: uid 1000). Runtime writes go to
-# /tmp (tool downloads) and $HOME (caches), both writable for this user.
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 

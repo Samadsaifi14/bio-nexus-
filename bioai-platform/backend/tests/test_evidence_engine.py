@@ -16,7 +16,7 @@ CONTEXT = {
         "hits": [{"accession": "P04637", "description": "p53", "identity_pct": 100.0}],
     },
     "uniprot": {"version": "test-pinned-release", "accession": "P04637", "full_name": "Cellular tumor antigen p53", "gene_names": ["TP53"], "organism": "Homo sapiens"},
-    "domains": {"version": "test-pinned-release", "sequence_length": 393, "domains": [{"name": "p53", "accession": "IPR012345", "start": 92, "end": 292}]},
+    "domains": {"provider": "InterPro", "version": "test-pinned-release", "sequence_length": 393, "domains": [{"name": "p53", "accession": "IPR012345", "start": 92, "end": 292}]},
     "interpret": {
         "interpretation": "The query is tumour suppressor p53 (TP53, Homo sapiens). It contains a DNA-binding domain detected by InterPro. This result is consistent with prior literature hypotheses, though the exact binding cavity is not fully resolved by this run."
     },
@@ -37,7 +37,7 @@ def test_keyword_vocab_has_sections():
     vocab = keyword_vocab(CONTEXT)
     assert "P04637" in vocab["blast"]
     assert "TP53" in vocab["uniprot"]
-    assert "interpro" in vocab["domains"] or "Interpro" in vocab["domains"]
+    assert "InterPro" in vocab["domains"]
 
 
 def test_assemble_evidence_sources_and_claims():

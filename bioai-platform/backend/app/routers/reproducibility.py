@@ -1,23 +1,14 @@
-"""Reproducibility Ledger routes (Component 16).
-
-- GET /api/experiments/{job_id}/ledger            — the full carbon chain.
-- GET /api/experiments/{job_id}/ledger/validate   — enforcement report.
-- POST /api/experiments/{job_id}/ledger           — record one carbon step.
-"""
-
+"""Reproducibility Ledger and deposition-bundle routes."""
 from __future__ import annotations
 
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.services.auth import get_user_id
-from app.services.reproducibility import (
-    enforce,
-    get_ledger,
-    record_carbon,
-)
+from app.services.reproducibility import enforce, get_ledger, record_carbon
+from app.services.reproducibility_bundle import build_bundle
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["reproducibility"])
@@ -36,10 +27,19 @@ async def ledger_validate(job_id: str, user_id: str | None = Depends(get_user_id
     return {"job_id": job_id, **enforce(get_ledger(job_id))}
 
 
+@router.get("/api/experiments/{job_id}/reproducibility-bundle")
+async def reproducibility_bundle(job_id: str, user_id: str | None = Depends(get_user_id)):
+    """Generate Docker/Conda/pip/CITATION/RO-Crate/manifests/checksums metadata."""
+    bundle = build_bundle(job_id)
+    if bundle is None:
+        raise HTTPException(status_code=404, detail="Experiment not found for job")
+    return bundle
+
+
 class RecordCarbonRequest(BaseModel):
     step: str
     input: object | None = None
-    process: dict = {}
+    process: dict = Field(default_factory=dict)
     output: object | None = None
 
 

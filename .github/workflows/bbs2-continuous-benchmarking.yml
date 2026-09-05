@@ -1,0 +1,61 @@
+name: BBS-2 continuous benchmarking
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  schedule:
+    - cron: '17 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  benchmark-matrix:
+    name: ${{ matrix.os }} / Python ${{ matrix.python }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+        python: ['3.11', '3.12']
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+      - name: Install benchmark dependencies
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy biopython httpx cairosvg Pillow python-dotenv
+      - name: Validate benchmark repository manifest
+        run: python -c "import json, pathlib; p=pathlib.Path('../../benchmark/benchmark_repository.json'); d=json.loads(p.read_text()); assert d['short_name']=='BBS-2'; assert len(d['domains'])>=9; print('domains', [x['id'] for x in d['domains']])"
+      - name: Run deterministic scientific regression suite
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_alignment_insights.py tests/test_primer_advanced.py tests/test_structure_insights.py tests/test_docking_pose_analytics.py tests/test_phylo_insights.py tests/test_rnaseq_production.py
+      - name: Generate continuous benchmark environment report
+        run: python ../../benchmark/continuous_report.py continuous-benchmark-report.json
+      - name: Upload per-environment benchmark report
+        uses: actions/upload-artifact@v4
+        with:
+          name: bbs2-${{ runner.os }}-py${{ matrix.python }}
+          path: bioai-platform/backend/continuous-benchmark-report.json
+          if-no-files-found: error
+
+  benchmark-summary:
+    name: Cross-platform benchmark gate
+    if: always()
+    needs: benchmark-matrix
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require all matrix jobs to pass
+        run: |
+          echo "matrix result: ${{ needs.benchmark-matrix.result }}"
+          test "${{ needs.benchmark-matrix.result }}" = "success"
+      - name: Scientific interpretation boundary
+        run: echo "Cross-platform CI compatibility is not equivalent to external biological validation."

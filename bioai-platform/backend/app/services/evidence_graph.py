@@ -1,182 +1,202 @@
-"""AI Evidence Engine (BioNexus 2.0, Component 9).
+"""Evidence graph assembly for BioNexus audited AI.
 
-Every reported biological statement becomes a claim node that links back to the
-computation and database release that supports it:
+Graph shape:
+    claim -> source/computation -> tool -> database -> version -> timestamp
 
-    Claim -> Evidence -> Tool -> Database -> Version -> Citation -> Confidence
-
-Unsupported sentences are not silently carried: they are flagged `rejected` so
-the reader sees exactly what the AI could not back up (honest-AI invariant
-shared with the interpret engine).
-
-This module builds the graph from a job's stored result context. The engine
-(app/engines/evidence_engine.py) validates the graph under the engine contract.
+Every claim is assigned one of the project evidence classes. Unsupported claims
+remain visible but are marked rejected; they are never silently promoted into a
+scientific result. Numeric claims are admitted only when the same numeric token
+appears in their linked evidence payload (or a future explicit derived-compute
+node supplies it).
 """
 
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import Any
 
-#: Static tool/database identity per result section.
+from app.services.evidence_policy import classify_claim, classify_source
+
 SECTION_META: dict[str, dict[str, str]] = {
-    "blast": {"tool": "BLAST+", "database": "EBI/NCBI", "version": "blast 2.14+"},
-    "uniprot": {"tool": "UniProt API", "database": "UniProtKB", "version": "UniProt release 2025_05"},
-    "msa": {"tool": "EBI MSA", "database": "SWISS-PROT homologs", "version": "Clustal Omega 1.2.4"},
-    "phylo": {"tool": "Guide tree", "database": "EBI MSA", "version": "Clustal Omega 1.2.4"},
-    "domains": {"tool": "InterPro", "database": "InterPro", "version": "InterPro release 108"},
-    "pathway_enrichment": {"tool": "Reactome", "database": "Reactome", "version": "Reactome 2025"},
-    "alphafold": {"tool": "AlphaFold DB", "database": "AlphaFold", "version": "v4"},
-    "interpret": {"tool": "AI interpreter", "database": "synthesis", "version": "n/a"},
+    "blast": {"tool": "BLAST", "database": "configured BLAST database"},
+    "uniprot": {"tool": "UniProt API", "database": "UniProtKB"},
+    "msa": {"tool": "MSA engine", "database": "input/homolog sequences"},
+    "phylo": {"tool": "phylogenetics engine", "database": "aligned sequences"},
+    "domains": {"tool": "InterPro/Pfam annotation", "database": "InterPro/Pfam"},
+    "pathway_enrichment": {"tool": "pathway enrichment", "database": "Reactome/GO/KEGG"},
+    "alphafold": {"tool": "AlphaFold retrieval", "database": "AlphaFold DB"},
+    "pdb": {"tool": "PDB retrieval", "database": "RCSB PDB"},
+    "docking": {"tool": "docking engine", "database": "input receptor/ligand"},
+    "md": {"tool": "molecular dynamics engine", "database": "trajectory"},
+    "ngs": {"tool": "NGS workflow", "database": "reference genome/annotation"},
+    "stats": {"tool": "BioNexus statistics engine", "database": "recorded result data"},
+    "primers": {"tool": "primer design engine", "database": "target/reference sequence"},
+    "sequence": {"tool": "sequence analysis engine", "database": "input sequence"},
+    "interpret": {"tool": "Evidence-Aware AI", "database": "recorded BioNexus evidence"},
 }
 
-#: Engine citations that back each section's evidence.
 SECTION_CITATIONS: dict[str, str] = {
     "blast": "Camacho C, et al. BLAST+. BMC Bioinformatics 10:421, 2009.",
-    "uniprot": "UniProt Consortium. Nucleic Acids Res 51:D523-D531, 2023.",
-    "msa": "Madeira F, et al. EMBL-EBI services 2022. Nucleic Acids Res 50:W276-W279, 2022.",
-    "phylo": "Felsenstein J. PHYLIP. Cladistics 5:164-166, 1989.",
-    "domains": "Paysan-Lafosse T, et al. InterPro in 2022. Nucleic Acids Res 51:D418-D427, 2023.",
-    "pathway_enrichment": "Gillespie M, et al. Reactome 2022. Nucleic Acids Res 50:D687-D692, 2022.",
-    "alphafold": "Jumper J, et al. Nature 596:583-589, 2021; Varadi M, et al. Nucleic Acids Res 52:D368, 2024.",
-    "interpret": "BioNexus AI interpretation with evidence provenance.",
+    "uniprot": "UniProt Consortium. UniProt: the Universal Protein Knowledgebase.",
+    "msa": "Madeira F, et al. Search and sequence analysis tools services at EMBL-EBI.",
+    "domains": "Paysan-Lafosse T, et al. InterPro protein classification resource.",
+    "pathway_enrichment": "Gillespie M, et al. Reactome pathway knowledgebase.",
+    "alphafold": "Jumper J, et al. Highly accurate protein structure prediction with AlphaFold. Nature 2021.",
+    "pdb": "Berman HM, et al. The Protein Data Bank. Nucleic Acids Res 2000.",
 }
 
-CONFIDENCE_TIERS = ("high", "medium", "low")
+
+def _utc_now() -> str:
+    return datetime.now(timezone.utc).isoformat()
 
 
 def sentence_split(text: str) -> list[str]:
-    """Split free text into sentences (keep short; avoids acronym-wrecking)."""
     if not text:
         return []
     parts = [p.strip() for p in re.split(r"(?<=[.;!?])\s+", text)]
     return [p for p in parts if len(p) > 8]
 
 
+def _flatten_tokens(value: Any) -> list[str]:
+    text = str(value or "")
+    tokens = re.findall(r"[A-Za-z0-9_.:-]{3,}", text)
+    # preserve stable ordering while avoiding huge vocabularies
+    seen: set[str] = set()
+    out: list[str] = []
+    for token in tokens:
+        low = token.lower()
+        if low in seen:
+            continue
+        seen.add(low)
+        out.append(token)
+        if len(out) >= 80:
+            break
+    return out
+
+
 def keyword_vocab(context: dict) -> dict[str, list[str]]:
-    """Keyword per section: accessions, gene names, names, species, signifiers."""
-    vocab: dict[str, list[str]] = {}
+    return {section: _flatten_tokens(payload) for section, payload in context.items() if payload and section != "interpret"}
 
-    blast = context.get("blast") or {}
-    if blast:
-        words = []
-        top = blast.get("top_hit") or {}
-        if top.get("accession"):
-            words.append(str(top["accession"]))
-        if top.get("description"):
-            words += str(top["description"]).replace("-", " ").split()
-        for h in (blast.get("hits") or [])[:5]:
-            if h.get("accession"):
-                words.append(str(h["accession"]))
-        words += [str(blast.get("database") or ""), str(blast.get("program") or "")]
-        vocab["blast"] = [w for w in words if len(w) >= 3]
 
-    uniprot = context.get("uniprot") or {}
-    if uniprot:
-        words = [str(uniprot.get("accession") or "")]
-        words += f"{uniprot.get('full_name') or ''} {uniprot.get('organism') or ''}".split()
-        words += [g for g in (uniprot.get("gene_names") or [])]
-        vocab["uniprot"] = [w for w in words if len(w) >= 3]
+def _version_from_payload(section: str, payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    for key in ("database_version", "db_version", "release", "version", "tool_version"):
+        value = payload.get(key)
+        if value:
+            return str(value)
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        for key in ("database_version", "release", "version", "tool_version"):
+            if metadata.get(key):
+                return str(metadata[key])
+    return None
 
-    msa = context.get("msa") or {}
-    if msa:
-        vocab["msa"] = ["alignment", str(msa.get("method") or ""), str(msa.get("alignment_mode") or "")]
 
-    phylo = context.get("phylo") or {}
-    if phylo:
-        vocab["phylo"] = ["phylogen", "tree", "newick"]
-
-    domains = context.get("domains") or {}
-    if domains:
-        words = [str(d.get("name") or "") for d in (domains.get("domains") or [])]
-        words += [str(d.get("accession") or "") for d in (domains.get("domains") or [])][:10]
-        words += ["domain", "interpro", "pfam"]
-        vocab["domains"] = [w for w in words if len(w) >= 3]
-
-    pathway = context.get("pathway_enrichment") or {}
-    if pathway:
-        words = [str(p.get("name") or "") for p in (pathway.get("pathways") or [])][:8]
-        words += [str(p.get("stId") or "") for p in (pathway.get("pathways") or [])][:8]
-        words += ["pathway", "enrichment", "reactome"]
-        vocab["pathway_enrichment"] = [w for w in words if len(w) >= 3]
-
-    alphafold = context.get("alphafold") or {}
-    if alphafold:
-        words = ["alphafold", "structure", str(alphafold.get("pdb_id") or "")]
-        words += [str(alphafold.get("uniprot_accession") or "")]
-        vocab["alphafold"] = [w for w in words if len(w) >= 3]
-
-    return vocab
+def _timestamp_from_payload(payload: Any) -> str | None:
+    if not isinstance(payload, dict):
+        return None
+    for key in ("retrieved_at", "timestamp", "created_at", "completed_at", "run_at"):
+        if payload.get(key):
+            return str(payload[key])
+    metadata = payload.get("metadata")
+    if isinstance(metadata, dict):
+        for key in ("retrieved_at", "timestamp", "completed_at"):
+            if metadata.get(key):
+                return str(metadata[key])
+    return None
 
 
 def _source_nodes(context: dict, sources_present: list[str]) -> list[dict]:
     nodes: list[dict] = []
     for section in sources_present:
-        meta = SECTION_META.get(section, {})
-        nodes.append({
+        payload = context.get(section)
+        meta = SECTION_META.get(section, {"tool": section, "database": "recorded result"})
+        node = {
             "id": section,
             "tool": meta.get("tool", section),
-            "database": meta.get("database", ""),
-            "version": meta.get("version", ""),
-            "retrieved_at": "recorded",
-            "citation": SECTION_CITATIONS.get(section, ""),
-        })
+            "database": meta.get("database", "recorded result"),
+            "version": _version_from_payload(section, payload),
+            "retrieved_at": _timestamp_from_payload(payload),
+            "recorded_at": _utc_now(),
+            "evidence_class": classify_source(section, payload).value,
+            "citation": SECTION_CITATIONS.get(section),
+            "benchmark_refs": (payload.get("benchmark_refs") if isinstance(payload, dict) else None) or [],
+        }
+        nodes.append(node)
     return nodes
 
 
-def _link_claims(text: str, vocab: dict[str, list[str]], present: list[str]) -> list[dict]:
+def _link_claims(text: str, vocab: dict[str, list[str]], present: list[str], context: dict) -> list[dict]:
     claims: list[dict] = []
-    lowered = text.lower()
     for i, sentence in enumerate(sentence_split(text)):
-        evidence = []
         s_low = sentence.lower()
+        evidence: list[str] = []
         for section in present:
-            if any(kw.lower() in s_low for kw in vocab.get(section, []) if kw):
+            if any(token.lower() in s_low for token in vocab.get(section, []) if token):
                 evidence.append(section)
-        supported = bool(evidence)
-        confidence = "low"
-        if supported:
+        policy = classify_claim(sentence=sentence, evidence_sections=evidence, context=context)
+        confidence = "none"
+        if policy["admitted"]:
             confidence = "high" if len(evidence) >= 2 else "medium"
         claims.append({
             "id": f"claim-{i + 1}",
             "text": sentence,
             "confidence": confidence,
             "evidence": evidence,
-            "rejected": not supported,
+            "evidence_refs": evidence,
+            "evidence_class": policy["evidence_class"],
+            "numeric_claims": policy["numeric_claims"],
+            "unsupported_numeric_claims": policy["unsupported_numeric_claims"],
+            "rejected": not policy["admitted"],
+            "rejection_reason": None if policy["admitted"] else policy["reason"],
         })
     return claims
 
 
 def assemble_evidence(context: dict | None) -> dict:
-    """Build the evidence graph for a job's stored context.
-
-    Sections present in context become source nodes. Sentences of the AI
-    interpretation become claim nodes linked to the sources whose keywords
-    appear in the sentence; sentences with no linkable support are marked
-    rejected (honest-AI).
-    """
     ctx = context or {}
-    present = [s for s in SECTION_META if ctx.get(s)]
+    present = [s for s in ctx if s != "interpret" and ctx.get(s)]
     sources = _source_nodes(ctx, present)
 
     interp = ctx.get("interpret")
     text = ""
     if isinstance(interp, dict):
-        text = interp.get("interpretation") or ""
+        text = interp.get("interpretation") or interp.get("text") or ""
     elif isinstance(interp, str):
         text = interp
     if not text:
-        text = ctx.get("final_report") or ""
+        text = str(ctx.get("final_report") or "")
 
-    vocabulary = keyword_vocab(ctx)
-    claims = _link_claims(str(text), vocabulary, present)
+    claims = _link_claims(text, keyword_vocab(ctx), present, ctx)
     if not claims:
-        claims = [{"id": "claim-0", "text": (str(text)[:200] or "No AI interpretation recorded."),
-                   "confidence": "low", "evidence": [], "rejected": True}]
+        claims = [{
+            "id": "claim-0",
+            "text": str(text)[:200] or "No AI interpretation recorded.",
+            "confidence": "none",
+            "evidence": [],
+            "evidence_refs": [],
+            "evidence_class": "unsupported/insufficient evidence",
+            "numeric_claims": [],
+            "unsupported_numeric_claims": [],
+            "rejected": True,
+            "rejection_reason": "no auditable interpretation was recorded",
+        }]
 
-    edges = []
-    for claim in claims:
-        for sid in claim.get("evidence", []):
-            edges.append({"from": sid, "to": claim["id"]})
-
-    return {"sources": sources, "claims": claims, "edges": edges}
+    edges = [{"from": sid, "to": claim["id"], "relation": "supports"}
+             for claim in claims for sid in claim.get("evidence", [])]
+    rejected = sum(1 for claim in claims if claim.get("rejected"))
+    return {
+        "schema": "bionexus-evidence-graph/v2",
+        "generated_at_utc": _utc_now(),
+        "sources": sources,
+        "claims": claims,
+        "edges": edges,
+        "summary": {
+            "source_count": len(sources),
+            "claim_count": len(claims),
+            "rejected_claim_count": rejected,
+            "unsupported_claim_rate": (rejected / len(claims)) if claims else 0.0,
+        },
+    }

@@ -25,6 +25,10 @@ export default function RootLayout({
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar.css" />
+        <Script
+          src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar-component.js"
+          strategy="beforeInteractive"
+        />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans antialiased">
@@ -62,7 +66,6 @@ export default function RootLayout({
           </MotionConfig>
         </Providers>
         <Toaster position="bottom-right" />
-        <Script src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar-component.js" strategy="lazyOnload" />
       </body>
     </html>
   );

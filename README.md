@@ -40,7 +40,7 @@ Paste sequence → press Run → read one page that explains everything.    (Bio
 ## Features
 
 ### Sequence & alignment
-- **BLAST** — global/local database modes, DNA and protein queries, E-value/bit-score/identity explained inline
+- **BLAST** — DNA and protein similarity search with database/program selection and E-value/bit-score/identity explained inline
 - **Pairwise alignment** — global & local (Needleman-Wunsch / Smith-Waterman), standalone tool or "Align pair" from any BLAST hit
 - **MSA** — ClustalOmega, MUSCLE, Kalign, MAFFT, T-Coffee with method selector and color-coded viewer
 - **Primer design** — Primer3 with configurable product size, Tm, GC content

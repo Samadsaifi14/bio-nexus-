@@ -1,7 +1,7 @@
 """Regression coverage for backend worker startup.
 
 BLAST/pipeline jobs are persisted as ``queued`` and depend on the durable
-worker to claim them.  FastAPI applications configured with an explicit
+worker to claim them. FastAPI applications configured with an explicit
 lifespan must initialize those services from that lifespan rather than from a
 legacy startup-event hook.
 """
@@ -20,6 +20,22 @@ def _async_function(tree: ast.AST, name: str) -> ast.AsyncFunctionDef:
         if isinstance(node, ast.AsyncFunctionDef) and node.name == name:
             return node
     raise AssertionError(f"async function {name!r} not found in app/main.py")
+
+
+def _uses_legacy_startup_event(tree: ast.AST) -> bool:
+    for node in ast.walk(tree):
+        if not isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+            continue
+        for decorator in node.decorator_list:
+            if not isinstance(decorator, ast.Call):
+                continue
+            func = decorator.func
+            if not (isinstance(func, ast.Attribute) and func.attr == "on_event"):
+                continue
+            if decorator.args and isinstance(decorator.args[0], ast.Constant):
+                if decorator.args[0].value == "startup":
+                    return True
+    return False
 
 
 def test_lifespan_explicitly_initializes_backend_services():
@@ -43,9 +59,9 @@ def test_lifespan_explicitly_initializes_backend_services():
 
 def test_worker_startup_does_not_depend_on_legacy_startup_event():
     source = MAIN_PATH.read_text(encoding="utf-8")
-    assert '@app.on_event("startup")' not in source
-
     tree = ast.parse(source)
+    assert not _uses_legacy_startup_event(tree)
+
     startup = _async_function(tree, "_startup_services")
     start_worker_calls = [
         node

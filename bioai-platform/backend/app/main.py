@@ -29,12 +29,20 @@ _CONTINUOUS_PAPERS_STOP = threading.Event()
 
 @asynccontextmanager
 async def lifespan(app):
+    # FastAPI only executes the configured lifespan handler when one is
+    # supplied. Startup work therefore must live here instead of relying on
+    # legacy @app.on_event("startup") handlers, otherwise the durable worker
+    # can silently never start and queued BLAST jobs remain stuck forever.
+    await _startup_services()
+
     from app.services.paper_artifacts import start_continuous_thread
     if os.environ.get("BIONEXUS_CONTINUOUS_PAPERS", "1") != "0":
         app.state.continuous_thread = start_continuous_thread(_CONTINUOUS_PAPERS_STOP)
         logger.info("continuous paper generation daemon started")
-    yield
-    _CONTINUOUS_PAPERS_STOP.set()
+    try:
+        yield
+    finally:
+        _CONTINUOUS_PAPERS_STOP.set()
 
 
 app = FastAPI(title="Bio Nexus API", version="0.2.0", lifespan=lifespan)
@@ -172,8 +180,12 @@ def _sentry_filter(event, hint):
     return event
 
 
-@app.on_event("startup")
-async def startup():
+async def _startup_services():
+    """Initialize backend services that must be active before requests run.
+
+    This is invoked explicitly by ``lifespan`` so worker startup is guaranteed
+    on every FastAPI deployment that honors the application's lifespan.
+    """
     sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=os.getenv("ENVIRONMENT", "development"), traces_sample_rate=0.1, send_default_pii=False, enable_tracing=True, before_send=_sentry_filter)
     init_redis()
     await _ensure_docking_columns()

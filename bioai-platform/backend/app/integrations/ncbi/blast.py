@@ -100,15 +100,16 @@ async def submit_blast(
 
     result = {"rid": rid, "estimated_seconds": rtoe}
     if not async_flag and "Status=READY" in text:
-        # NCBI blocked and returned results inline in the submit response.
         result["raw"] = text
     return result
 
 
 async def submit_blast_sync(sequence: str, **kwargs) -> dict:
-    """Submit BLAST in synchronous (blocking) mode — NCBI returns results inline.
+    """Legacy synchronous BLAST helper.
 
-    Used as fallback when async mode yields unreasonable RTOE or jobs get stuck.
+    Kept for compatibility with tests and callers, but production retry logic
+    intentionally avoids this path because a blocking request can outlive the
+    job's wall-clock deadline.
     """
     kwargs.pop("async_flag", None)
     return await submit_blast(sequence, async_flag=False, **kwargs)
@@ -144,31 +145,18 @@ async def check_status_until_ready(
     max_wait_seconds: int = 300,
     estimated_seconds: int = 0,
 ) -> dict:
-    """Poll NCBI with exponential backoff until READY or budget exhausted.
-
-    Starts at 10s delay (NCBI rate-limit guidance: 1 req/10s without API key),
-    backs off to 25s ceiling.  Transient poll failures (timeouts, HTTP errors)
-    are tolerated up to 3 consecutive times before giving up.
-
-    If estimated_seconds is provided and the job stays in WAITING for more
-    than 5x that duration (minimum 60s), it's treated as stuck.
-    """
+    """Poll NCBI with exponential backoff until READY or budget exhausted."""
     elapsed = 0
-    # With an API key NCBI allows 3 req/s; without, 1 req/10s.
     delay = 5 if NCBI_API_KEY else 10
     consecutive_failures = 0
     max_consecutive_failures = 3
-    # Stuck-job threshold: 5x the RTOE, but at least half the poll budget.
-    # NCBI routinely exceeds its optimistic RTOE under load, so abandoning a
-    # job after just a few minutes wastes a healthy RID — a job that is merely
-    # slow deserves its full poll budget before being re-submitted.
     stuck_threshold = max(estimated_seconds * 5, max_wait_seconds // 2)
     stuck_threshold = min(stuck_threshold, max_wait_seconds)
 
     while elapsed < max_wait_seconds:
         try:
             result = await check_status(rid)
-            consecutive_failures = 0  # reset on success
+            consecutive_failures = 0
         except Exception as e:
             consecutive_failures += 1
             logger.warning(
@@ -190,11 +178,9 @@ async def check_status_until_ready(
         if status == "READY":
             return result
         if status not in ("WAITING", "UNKNOWN", "QUEUED"):
-            # FAILED / ERROR — bail immediately
             logger.warning("BLAST RID %s returned terminal status: %s", rid, status)
             return result
 
-        # Stuck-job detection: if WAITING far beyond RTOE, job is likely stuck
         if elapsed > stuck_threshold:
             logger.warning(
                 "BLAST RID %s stuck in %s for %ds (threshold=%ds), treating as STUCK",
@@ -204,7 +190,7 @@ async def check_status_until_ready(
 
         await asyncio.sleep(delay)
         elapsed += delay
-        delay = min(delay * 1.5, 15 if NCBI_API_KEY else 25)  # back off, cap at 15s (key) / 25s (no key)
+        delay = min(delay * 1.5, 15 if NCBI_API_KEY else 25)
 
     logger.warning("BLAST RID %s timed out after %ds", rid, max_wait_seconds)
     return {"status": "TIMEOUT", "rid": rid}
@@ -216,30 +202,27 @@ async def run_blast_with_retry(
     max_wait_seconds: int = 600,
     **submit_kwargs,
 ) -> dict:
-    """Submit + poll + fetch with retries on timeout/failure.
+    """Submit, poll and fetch BLAST results with a bounded runtime.
 
-    If NCBI dropped/lost the RID, no amount of polling helps — a fresh
-    submit_blast() is the right fix.  retries=2 means 3 total attempts.
-
-    A hard wall-clock deadline (1.5x the poll budget) prevents the worker
-    from hanging forever if NCBI goes half-open (accepts TCP but never
-    completes the HTTP response).  The per-attempt httpx read timeout is
-    NOT sufficient because a slow trickle of bytes resets it each time.
+    Production retries remain asynchronous. The previous synchronous retry
+    path could block for 300 seconds per HTTP attempt and therefore exceed the
+    advertised hard deadline. We cap both retry count and poll budget so a
+    degraded NCBI service cannot leave a BioNexus job apparently frozen.
     """
     last_error = None
-    # If NCBI estimates a queue longer than this, don't wait — an overloaded
-    # NCBI can cost 10-15 min of sync-blocks + retries before the caller falls
-    # back to EBI. Bail out immediately so the EBI fallback takes over.
     MAX_RTOE = 90
-    # Hard wall-clock deadline: 1.5x the per-attempt poll budget.
-    # Covers submit time + back-off sleep + a generous margin.
-    HARD_DEADLINE_S = max(int(max_wait_seconds * 1.5), max_wait_seconds + 120)
+
+    # The pipeline already has EBI as its primary BLAST provider. NCBI is the
+    # fallback, so fail it promptly enough for the overall job to terminate
+    # cleanly instead of consuming tens of minutes on repeated QBLAST waits.
+    retries = min(max(int(retries), 0), 1)
+    max_wait_seconds = min(max(int(max_wait_seconds), 60), 300)
+    HARD_DEADLINE_S = max_wait_seconds + 120
 
     import time
     t0 = time.monotonic()
 
     for attempt in range(retries + 1):
-        # Enforce hard wall-clock deadline before each attempt
         elapsed = time.monotonic() - t0
         if elapsed >= HARD_DEADLINE_S:
             logger.warning(
@@ -248,15 +231,10 @@ async def run_blast_with_retry(
             )
             return {"error": f"BLAST hard deadline ({HARD_DEADLINE_S}s) exceeded after {elapsed:.0f}s"}
 
-        # On retry after stuck/timeout, try sync mode first
-        use_sync = attempt > 0
-
+        # Never switch to synchronous QBLAST here. A blocking sync request can
+        # outlive the wall-clock budget before control returns to this loop.
         try:
-            if use_sync:
-                logger.info("BLAST attempt %d/%d: trying synchronous mode", attempt + 1, retries + 1)
-                submit_result = await submit_blast_sync(sequence, **submit_kwargs)
-            else:
-                submit_result = await submit_blast(sequence, **submit_kwargs)
+            submit_result = await submit_blast(sequence, **submit_kwargs)
         except Exception as e:
             last_error = f"BLAST submit request failed: {e}"
             logger.warning(
@@ -280,30 +258,19 @@ async def run_blast_with_retry(
         rid = submit_result["rid"]
         est = submit_result.get("estimated_seconds", 0)
         logger.info(
-            "BLAST submitted (attempt %d/%d, sync=%s), RID=%s, est=%ds",
-            attempt + 1, retries + 1, use_sync, rid, est,
+            "BLAST submitted (attempt %d/%d), RID=%s, est=%ds",
+            attempt + 1, retries + 1, rid, est,
         )
 
-        # Detect unreasonable RTOE — bail out immediately instead of retrying
-        # in sync mode. A huge RTOE means NCBI is overloaded; sync-mode will
-        # block 300s x3 retries before the caller's EBI fallback can run.
-        if not use_sync and est > MAX_RTOE:
+        if est > MAX_RTOE:
             logger.warning(
-                "BLAST RTOE=%ds exceeds threshold (%ds) — giving up on NCBI, caller falls back to EBI",
+                "BLAST RTOE=%ds exceeds threshold (%ds) — abandoning NCBI fallback",
                 est, MAX_RTOE,
             )
             return {"error": f"NCBI estimated {est}s queue time (threshold {MAX_RTOE}s)"}
 
-        if use_sync:
-            # Sync mode: NCBI blocked and returned the result inline in the
-            # submit response. If the raw XML came back ready, use it directly.
-            if submit_result.get("raw"):
-                logger.info("BLAST sync mode returned results inline for RID %s", rid)
-                return {"raw": submit_result["raw"], "rid": rid}
-
-        # Per-attempt poll budget is capped by the remaining wall-clock budget
         remaining = HARD_DEADLINE_S - (time.monotonic() - t0)
-        per_attempt_budget = min(max_wait_seconds, int(remaining) - 30)  # 30s margin for fetch
+        per_attempt_budget = min(max_wait_seconds, int(remaining) - 30)
         if per_attempt_budget < 30:
             logger.warning("BLAST: only %.0fs left of hard deadline, skipping poll", remaining)
             last_error = f"BLAST: insufficient time remaining ({remaining:.0f}s) for poll"

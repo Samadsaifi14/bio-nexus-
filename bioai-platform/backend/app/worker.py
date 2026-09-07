@@ -100,6 +100,14 @@ def _rpc(fn: str, worker_id: str) -> dict | None:
     return data if data else None
 
 
+# Tables that carry an updated_at column. The jobs table does NOT have one
+# (migration 005_worker_durable only adds claimed_at/claimed_by/attempts/
+# max_attempts to jobs), so a PATCH touching updated_at on it is rejected by
+# PostgREST and silently leaves the job queued forever. Only mention the column
+# for tables that actually define it.
+_TABLES_WITH_UPDATED_AT = {"docking_jobs", "sequencing_jobs", "ngs_jobs"}
+
+
 def _claim_direct(table: str, worker_id: str) -> dict | None:
     """Fallback: claim a queued job via direct Supabase queries (no RPC needed)."""
     import httpx
@@ -120,11 +128,13 @@ def _claim_direct(table: str, worker_id: str) -> dict | None:
         "status": "running",
         "claimed_at": now,
         "claimed_by": worker_id,
-        "attempts": job.get("attempts", 0) + 1,
-        "updated_at": now,
+        "attempts": (job.get("attempts") or 0) + 1,
     }
+    if table in _TABLES_WITH_UPDATED_AT:
+        patch_body["updated_at"] = now
     resp = httpx.patch(patch_url, headers=_headers(), json=patch_body, timeout=15)
     if resp.status_code != 200:
+        logger.warning("Direct claim PATCH failed for %s %s: %s %s", table, job["id"], resp.status_code, resp.text[:200])
         return None
     updated = resp.json()
     if isinstance(updated, list) and updated:
@@ -167,6 +177,90 @@ def _stale_recovery_payload(table: str, row: dict) -> dict:
     else:
         payload["done_at"] = now
     return payload
+
+
+# Table -> (claim RPC name) mirroring _DISPATCH below. The pipeline table is
+# special-cased: its claim RPC is named claim_next_pipeline_job, not derived
+# from the table name.
+_TABLE_TO_RPC = {
+    "jobs": "claim_next_pipeline_job",
+    "docking_jobs": "claim_next_docking_job",
+    "sequencing_jobs": "claim_next_sequencing_job",
+    "ngs_jobs": "claim_next_ngs_job",
+}
+
+
+def _claim_rcp_sql(table: str) -> str:
+    """Build a claim RPC definition for a queued-job table (mirrors migrations)."""
+    rpc_name = _TABLE_TO_RPC[table]
+    updated_at = ", updated_at=now()" if table in _TABLES_WITH_UPDATED_AT else ""
+    return f"""CREATE OR REPLACE FUNCTION {rpc_name}(worker_id text)
+RETURNS {table} LANGUAGE plpgsql SECURITY DEFINER AS $do$
+DECLARE job {table};
+BEGIN
+  SELECT * INTO job FROM {table} WHERE status = 'queued' AND attempts < max_attempts
+  ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED;
+  IF job.id IS NOT NULL THEN
+    UPDATE {table} SET status='running', claimed_at=now(), claimed_by=worker_id,
+    attempts=attempts+1{updated_at} WHERE id = job.id RETURNING * INTO job;
+  END IF;
+  RETURN job;
+END; $do$;"""
+
+
+def _ensure_claim_rpcs() -> None:
+    """Best-effort: create any missing claim RPCs so queued jobs are always claimable.
+
+    The claim RPCs live in backend/migrations/005_worker_durable.sql and
+    007_ngs_jobs.sql, but those migrations may not have been applied to a
+    deployed Supabase project. The polling loop already falls back to
+    ``_claim_direct`` when an RPC is absent; self-healing the RPC here restores
+    the reliable atomic claim path (FOR UPDATE SKIP LOCKED) so jobs cannot get
+    stuck in ``queued`` just because a migration was never run.
+    """
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        logger.warning("Supabase not configured — cannot ensure claim RPCs")
+        return
+    try:
+        import httpx
+        api = f"{_base()}/rest/v1/rpc/exec_sql"
+        # Ensure the worker-tracking columns exist first. The claim RPCs and the
+        # direct-claim fallback both filter on `attempts`/`max_attempts`, so if
+        # migration 005_worker_durable.sql was never applied to this project the
+        # jobs table would lack those columns and no claim could ever succeed —
+        # leaving every job stuck in "queued". Re-apply the column adds
+        # idempotently before creating the RPCs.
+        col_sql = (
+            "ALTER TABLE {table} "
+            "ADD COLUMN IF NOT EXISTS claimed_at timestamptz, "
+            "ADD COLUMN IF NOT EXISTS claimed_by text, "
+            "ADD COLUMN IF NOT EXISTS attempts integer NOT NULL DEFAULT 0, "
+            "ADD COLUMN IF NOT EXISTS max_attempts integer NOT NULL DEFAULT 3, "
+            "ADD COLUMN IF NOT EXISTS updated_at timestamptz"
+        )
+        for table in _TABLE_TO_RPC:
+            try:
+                col_resp = httpx.post(api, headers=_headers(), json={"query": col_sql.format(table=table)}, timeout=20)
+                if col_resp.status_code == 200:
+                    logger.info("Ensured worker-tracking columns for %s", table)
+                else:
+                    logger.warning("Worker-tracking column ensure for %s returned %s: %s",
+                                   table, col_resp.status_code, col_resp.text[:200])
+            except Exception as exc:
+                logger.warning("Worker-tracking column ensure for %s failed: %s", table, exc)
+        for table in _TABLE_TO_RPC:
+            for attempt in range(2):
+                try:
+                    resp = httpx.post(api, headers=_headers(), json={"query": _claim_rcp_sql(table)}, timeout=20)
+                    if resp.status_code == 200:
+                        logger.info("Ensured claim RPC %s for %s", _TABLE_TO_RPC[table], table)
+                        break
+                    logger.warning("Claim RPC ensure for %s returned %s (attempt %d): %s",
+                                   table, resp.status_code, attempt + 1, resp.text[:200])
+                except Exception as exc:
+                    logger.warning("Claim RPC ensure for %s failed (attempt %d): %s", table, attempt + 1, exc)
+    except Exception as exc:
+        logger.warning("Failed to ensure claim RPCs (exec_sql may be disabled): %s", exc)
 
 
 def _sweep_stuck(table: str) -> int:
@@ -394,7 +488,8 @@ async def _poll_once(sweep_counter: int) -> None:
             # Fallback: try direct claim when RPC is missing
             try:
                 job = _claim_direct(table, WORKER_ID)
-            except Exception:
+            except Exception as exc:
+                logger.exception("Direct claim failed for %s: %s", table, exc)
                 job = None
         if not job or not job.get("id"):
             continue
@@ -410,6 +505,12 @@ async def _poll_once(sweep_counter: int) -> None:
 async def _loop() -> None:
     global _shutdown
     logger.info("Worker started: id=%s polling every %ds", WORKER_ID, POLL_INTERVAL)
+    # Self-heal missing claim RPCs once before polling so queued jobs are always
+    # claimable via the atomic path (not just the direct-update fallback).
+    try:
+        await asyncio.to_thread(_ensure_claim_rpcs)
+    except Exception:
+        logger.exception("Failed to ensure claim RPCs at worker start")
     sweep_counter = 0
     while not _shutdown:
         sweep_counter += 1

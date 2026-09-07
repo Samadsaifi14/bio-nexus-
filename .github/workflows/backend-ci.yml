@@ -46,6 +46,7 @@ jobs:
             tests/test_interpret_engine.py \
             tests/test_evidence_engine.py \
             tests/test_figure_engine.py \
+            tests/test_lifespan_worker.py \
             -q
 
       - name: Benchmark + engine registry integrity

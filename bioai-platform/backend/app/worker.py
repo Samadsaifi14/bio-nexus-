@@ -36,7 +36,18 @@ logger = logging.getLogger(__name__)
 
 WORKER_ID = f"{socket.gethostname()}-{os.getpid()}"
 POLL_INTERVAL = 3  # seconds
-STUCK_JOB_TIMEOUT_MIN = 5
+# Long-running scientific jobs legitimately exceed a few minutes.  Keep the
+# reclaim window above the longest normal provider budget (BLAST ~65 min) and
+# use bounded attempts below so a dead worker is retried without looping
+# forever.  This also matches durable-worker-design.md.
+DEFAULT_STUCK_JOB_TIMEOUT_MIN = 90
+STUCK_JOB_TIMEOUT_MIN = DEFAULT_STUCK_JOB_TIMEOUT_MIN  # backwards-compatible name
+STUCK_JOB_TIMEOUT_BY_TABLE = {
+    "jobs": 90,
+    "docking_jobs": 90,
+    "sequencing_jobs": 90,
+    "ngs_jobs": 90,
+}
 SWEEP_EVERY = 20  # sweep every N poll ticks (~60s)
 
 # Per-type concurrency caps
@@ -103,7 +114,6 @@ def _claim_direct(table: str, worker_id: str) -> dict | None:
         return None
     job = rows[0]
     # 2. Claim it with an atomic update (only if still queued)
-    from datetime import datetime, timezone
     now = datetime.now(timezone.utc).isoformat()
     patch_url = f"{_base()}/rest/v1/{table}?id=eq.{job['id']}&status=eq.queued"
     patch_body = {
@@ -128,21 +138,55 @@ def _patch(table: str, job_id: str, payload: dict) -> None:
     httpx.patch(url, headers=_headers(), json=payload, timeout=15)
 
 
-def _sweep_stuck(table: str) -> int:
-    """Fail any job claimed longer than STUCK_JOB_TIMEOUT_MIN.
+def _stale_recovery_payload(table: str, row: dict) -> dict:
+    """Return a bounded recovery action for a stale worker claim.
 
-    A worker can die while a job is in a non-terminal sub-status (e.g.
-    submitted_to_ncbi, polling_ncbi) — not just 'running'.  We mark these
-    as **failed** (not re-queued) to avoid an infinite reclaim-retry loop
-    when the external service (NCBI/EBI) is unreachable."""
+    A stale claim is infrastructure failure, not scientific failure.  Requeue
+    while retry budget remains; only become terminal after max_attempts.
+    """
+    attempts = int(row.get("attempts") or 0)
+    max_attempts = int(row.get("max_attempts") or 3)
+    previous = row.get("status", "unknown")
+    if attempts < max_attempts:
+        return {
+            "status": "queued",
+            "claimed_at": None,
+            "claimed_by": None,
+            "error": f"Recovered stale worker claim (was {previous}); retrying with a fresh worker",
+        }
+
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "status": "failed",
+        "claimed_at": None,
+        "claimed_by": None,
+        "error": f"Worker recovery exhausted after {attempts} attempt(s) (was {previous})",
+    }
+    if table == "jobs":
+        payload["completed_at"] = now
+    else:
+        payload["done_at"] = now
+    return payload
+
+
+def _sweep_stuck(table: str) -> int:
+    """Recover jobs whose worker claim has stopped receiving heartbeats.
+
+    The timeout is deliberately longer than normal provider budgets. A stale
+    row is requeued while retry budget remains and is failed only after bounded
+    attempts are exhausted. This prevents a healthy long BLAST/MD/NGS run from
+    being declared dead after a few minutes and prevents infinite retry loops.
+    """
     import httpx
     from datetime import timedelta
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=STUCK_JOB_TIMEOUT_MIN)).isoformat()
+
+    timeout_min = STUCK_JOB_TIMEOUT_BY_TABLE.get(table, DEFAULT_STUCK_JOB_TIMEOUT_MIN)
+    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=timeout_min)).isoformat()
     url = (
         f"{_base()}/rest/v1/{table}"
         f"?status=not.in.(complete,failed)"
         f"&claimed_at=lt.{cutoff}"
-        f"&select=id,status"
+        f"&select=id,status,attempts,max_attempts"
     )
     resp = httpx.get(url, headers=_headers(), timeout=15)
     if resp.status_code != 200:
@@ -150,16 +194,10 @@ def _sweep_stuck(table: str) -> int:
     stuck = resp.json()
     count = 0
     for row in stuck:
-        _patch(table, row["id"], {
-            "status": "failed",
-            "claimed_at": None,
-            "claimed_by": None,
-            "error": f"Worker lost on restart (was {row.get('status', 'unknown')}) — please re-run",
-            "completed_at": datetime.now(timezone.utc).isoformat(),
-        })
+        _patch(table, row["id"], _stale_recovery_payload(table, row))
         count += 1
     if count:
-        logger.warning("Sweep failed %d stale job(s) from %s", count, table)
+        logger.warning("Recovered %d stale job(s) from %s", count, table)
     return count
 
 

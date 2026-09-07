@@ -17,6 +17,57 @@ def _cache_key(prefix: str, identifiers: list[str], extra: str = "") -> str:
     return f"{prefix}:{hashlib.sha256(payload.encode()).hexdigest()[:16]}"
 
 
+def _reactome_pathway(item: dict) -> dict:
+    species = item.get("species", {})
+    species_name = species.get("name", "") if isinstance(species, dict) else (species or "")
+    entities = item.get("entities", {}) or {}
+    found = entities.get("found", 0) or 0
+    total = entities.get("total", 0) or 0
+    fdr = entities.get("fdr")
+    p_value = entities.get("pValue")
+    return {
+        "stId": item.get("stId", ""),
+        "name": item.get("name", ""),
+        "species": species_name,
+        "entitiesFound": found,
+        "entitiesTotal": total,
+        "geneRatio": round(found / total, 4) if total else 0.0,
+        "reactomeFDR": fdr,
+        "reactomePValue": p_value,
+        # Backward-compatible aliases consumed by older UI builds.
+        "entitiesFDR": fdr,
+        "entitiesPValue": p_value,
+        "adjustedPValue": fdr,
+        "significance_source": "Reactome Analysis Service",
+        "correction_method": "Reactome-provided FDR",
+        "provider": "reactome",
+        "diagram_provider": "reactome",
+    }
+
+
+def _gprofiler_pathway(item: dict, organism: str) -> dict:
+    found = item.get("intersection_size", 0) or 0
+    total = item.get("term_size", 0) or 0
+    adjusted = item.get("adjusted_p_value")
+    return {
+        "stId": item.get("term_id", ""),
+        "name": item.get("term_name", ""),
+        "species": organism,
+        "entitiesFound": found,
+        "entitiesTotal": total,
+        "geneRatio": round(found / total, 4) if total else 0.0,
+        "reactomeFDR": None,
+        "reactomePValue": None,
+        "entitiesFDR": None,
+        "entitiesPValue": None,
+        "adjustedPValue": adjusted,
+        "significance_source": "g:Profiler",
+        "correction_method": item.get("correction_method", "g_SCS"),
+        "provider": "gprofiler",
+        "diagram_provider": None,
+    }
+
+
 async def run_enrichment(identifiers: list[str]) -> dict | None:
     """Run Reactome over-representation analysis.
 
@@ -53,26 +104,7 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
                 logger.warning("No analysis token returned from Reactome")
                 return None
 
-            pathways = []
-            for item in data.get("pathways", []):
-                species = item.get("species", {})
-                species_name = species.get("name", "") if isinstance(species, dict) else (species or "")
-                entities = item.get("entities", {}) or {}
-                found = entities.get("found", 0) or 0
-                total = entities.get("total", 0) or 0
-                pathways.append({
-                    "stId": item.get("stId", ""),
-                    "name": item.get("name", ""),
-                    "species": species_name,
-                    "entitiesFound": found,
-                    "entitiesTotal": total,
-                    "geneRatio": round(found / total, 4) if total else 0.0,
-                    "reactomeFDR": entities.get("fdr"),
-                    "reactomePValue": entities.get("pValue"),
-                    "significance_source": "Reactome Analysis Service",
-                    "correction_method": "Reactome-provided FDR",
-                })
-
+            pathways = [_reactome_pathway(item) for item in data.get("pathways", [])]
             pathways.sort(
                 key=lambda p: (
                     p["reactomeFDR"] is None,
@@ -84,6 +116,12 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
                 "token": token,
                 "pathways": pathways,
                 "method": "Reactome over-representation analysis",
+                "provider": "reactome",
+                "provider_label": "Reactome Analysis Service",
+                "degraded": False,
+                "provider_attempts": [
+                    {"provider": "reactome", "status": "success"},
+                ],
                 "significance_note": (
                     "P-value and FDR are reported exactly as supplied by the Reactome Analysis Service. "
                     "BioNexus does not reinterpret these values as model confidence."
@@ -188,6 +226,48 @@ async def run_gprofiler_enrichment(
     except Exception as exc:
         logger.warning("g:Profiler enrichment failed: %s", exc)
         return None
+
+
+async def run_resilient_enrichment(
+    identifiers: list[str],
+    organism: str = "hsapiens",
+) -> dict | None:
+    """Run enrichment through an evidence-preserving provider chain.
+
+    Reactome is primary because BioNexus exposes its native pathway IDs,
+    p-values and FDR.  If the service is unavailable or returns no analysis
+    token, g:Profiler is a legitimate independent enrichment fallback.  Its
+    g_SCS-adjusted p-values remain labelled as such and are never relabelled as
+    Reactome FDR.  If both providers fail, return None so the API can expose an
+    honest terminal failure rather than synthetic pathway data.
+    """
+    reactome = await run_enrichment(identifiers)
+    if reactome is not None:
+        return reactome
+
+    attempts = [{"provider": "reactome", "status": "unavailable"}]
+    gprofiler = await run_gprofiler_enrichment(identifiers, organism)
+    if gprofiler is None:
+        attempts.append({"provider": "gprofiler", "status": "unavailable"})
+        logger.warning("All pathway enrichment providers unavailable")
+        return None
+
+    attempts.append({"provider": "gprofiler", "status": "success"})
+    pathways = [_gprofiler_pathway(item, organism) for item in gprofiler.get("results", [])]
+    return {
+        "token": "",
+        "pathways": pathways,
+        "method": "g:Profiler over-representation analysis (fallback)",
+        "provider": "gprofiler",
+        "provider_label": "g:Profiler",
+        "degraded": True,
+        "provider_attempts": attempts,
+        "significance_note": (
+            "Reactome was unavailable. Results are from g:Profiler. adjustedPValue is the "
+            "g:Profiler p-value returned under g_SCS correction; it is not Reactome FDR."
+        ),
+        "from_cache": bool(gprofiler.get("from_cache", False)),
+    }
 
 
 async def run_cross_validated_enrichment(

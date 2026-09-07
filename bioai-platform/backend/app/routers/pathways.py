@@ -179,10 +179,13 @@ async def kegg_search(req: KEGGSearchRequest):
 
 @router.post("/enrichment")
 async def pathway_enrichment(req: EnrichmentRequest):
-    from app.services.pathway_enrichment import run_enrichment as _run_enrichment
-    result = await _run_enrichment(req.identifiers)
+    from app.services.pathway_enrichment import run_resilient_enrichment
+    result = await run_resilient_enrichment(req.identifiers)
     if result is None:
-        raise HTTPException(status_code=502, detail="Enrichment analysis failed")
+        raise HTTPException(
+            status_code=503,
+            detail="Pathway enrichment providers are currently unavailable; no synthetic result was generated",
+        )
 
     # AI interpretation (best-effort, never blocks)
     try:

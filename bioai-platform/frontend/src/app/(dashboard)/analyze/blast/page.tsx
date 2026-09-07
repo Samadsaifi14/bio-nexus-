@@ -42,17 +42,6 @@ export default function BlastWizardPage() {
   const [advancedDb, setAdvancedDb] = useState('nr');
   const [advancedProgram, setAdvancedProgram] = useState('');
   const [fastMode, setFastMode] = useState(false);
-  const [alignMode, setAlignMode] = useState<'global' | 'local'>('global');
-
-  useEffect(() => {
-    const storedMode = sessionStorage.getItem('blast_align_mode');
-    if (storedMode === 'global' || storedMode === 'local') setAlignMode(storedMode);
-  }, []);
-
-  const handleAlignModeChange = (mode: 'global' | 'local') => {
-    setAlignMode(mode);
-    sessionStorage.setItem('blast_align_mode', mode);
-  };
 
   useEffect(() => {
     if (inputMode === 'paste') {
@@ -274,25 +263,6 @@ export default function BlastWizardPage() {
             />
           </div>
 
-          <div className="glass p-4 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border border-glass-border">
-            <div>
-              <p className="text-sm font-medium text-text-primary">Alignment mode</p>
-              <p className="text-xs text-text-muted mt-0.5">
-                {alignMode === 'global'
-                  ? 'Global: Needleman-Wunsch — aligns the entire query against the full subject, including divergent tails.'
-                  : 'Local: Smith-Waterman — finds the single best matching region between the two sequences.'}
-              </p>
-            </div>
-            <ClaySegmented
-              options={[
-                { value: 'global', label: 'Global (NW)' },
-                { value: 'local', label: 'Local (SW)' },
-              ]}
-              value={alignMode}
-              onChange={handleAlignModeChange}
-            />
-          </div>
-
           <div className="border-t border-glass-border pt-4">
             <button
               onClick={() => setShowAdvanced(!showAdvanced)}
@@ -377,7 +347,6 @@ export default function BlastWizardPage() {
                   We&apos;ll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
                   <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
                   {detectedType} sequence against the <strong>{fastMode ? 'Swiss-Prot (fast)' : (advancedDb || dbLabel)}</strong> database.
-                  <span className="ml-1">Pairwise alignment uses <strong>{alignMode === 'global' ? 'global (Needleman-Wunsch)' : 'local (Smith-Waterman)'}</strong>.</span>
                   {fastMode && <span className="text-accent-cyan ml-1">~5-10s expected</span>}
                 </p>
               </div>

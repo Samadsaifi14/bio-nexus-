@@ -64,8 +64,8 @@ export default function RootLayout({
         />
         <Providers>
           <MotionConfig reducedMotion="user">
-            {children}
             <ScientificDataSurface />
+            {children}
           </MotionConfig>
         </Providers>
         <Toaster position="bottom-right" />

@@ -18,3 +18,8 @@ services:
         value: "true"
       - key: CORS_ORIGIN
         value: "https://bio-nexus-ebon.vercel.app"
+      # Ensure the in-process durable worker starts so queued jobs (BLAST,
+      # docking, NGS, MD) are always claimed. Without this the worker can be
+      # silently disabled and every job stays stuck in "queued".
+      - key: RUN_WORKER
+        value: "true"

@@ -10,7 +10,7 @@ import { Providers } from './providers';
 import { themeInitScript } from '@/lib/theme';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { ORG_ID, SITE_NAME, SITE_URL, WEBSITE_ID } from '@/lib/seo';
-import { ScientificResultWorkspace } from '@/components/results/ScientificResultWorkspace';
+import { ScientificDataSurface } from '@/components/results/ScientificDataSurface';
 
 export const metadata: Metadata = {
   title: 'Bio Nexus — One interface for every bioinformatics tool',
@@ -64,7 +64,7 @@ export default function RootLayout({
         <Providers>
           <MotionConfig reducedMotion="user">
             {children}
-            <ScientificResultWorkspace />
+            <ScientificDataSurface />
           </MotionConfig>
         </Providers>
         <Toaster position="bottom-right" />

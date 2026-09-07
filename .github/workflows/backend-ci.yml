@@ -30,8 +30,11 @@ jobs:
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest
-          pip install -e . 2>/dev/null || true
+          # The backend directory is not an installable Python package, so
+          # `pip install -e . || true` silently left CI without FastAPI. Keep
+          # CI deterministic by installing the lightweight runtime/test deps
+          # exercised by this suite; heavy scientific providers are mocked.
+          pip install pytest fastapi 'httpx>=0.24' biopython numpy python-dotenv slowapi 'pydantic[email]' pillow
 
       - name: Deterministic validation suite
         run: |

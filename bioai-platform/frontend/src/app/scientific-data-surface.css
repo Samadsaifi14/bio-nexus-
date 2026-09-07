@@ -1,0 +1,21 @@
+[data-scientific-data-surface="true"] {
+  position: relative;
+  left: 50%;
+  width: min(1240px, calc(100vw - 4rem));
+  max-width: none;
+  transform: translateX(-50%);
+}
+
+[data-scientific-data-surface="true"] table {
+  font-variant-numeric: tabular-nums;
+}
+
+[data-scientific-data-surface="true"] svg text {
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 720px) {
+  [data-scientific-data-surface="true"] {
+    width: calc(100vw - 1.5rem);
+  }
+}

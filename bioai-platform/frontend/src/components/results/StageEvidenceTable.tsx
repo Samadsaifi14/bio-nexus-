@@ -3,6 +3,7 @@
 import { CheckCircle, Warning, XCircle, Info } from '@phosphor-icons/react';
 import type { Ngs2Stage } from '@/lib/api';
 import NgsScientificPlots from '@/components/results/NgsScientificPlots';
+import NgsAdvancedPlots from '@/components/results/NgsAdvancedPlots';
 
 const evidenceLabel = (level?: string) => level === 'MEASURED' ? 'Measured' : level === 'INFERRED' ? 'Inferred' : level === 'SURROGATE' ? 'Surrogate' : 'Computed from input';
 
@@ -19,6 +20,7 @@ export default function StageEvidenceTable({ stages = [] }: { stages?: Ngs2Stage
   if (!Array.isArray(stages) || !stages.length) return <div className="rounded-xl border border-glass-border bg-surface-1 p-4 text-sm text-text-muted">No QC stages were returned for this run.</div>;
   return <div className="space-y-4">
     <NgsScientificPlots stages={stages}/>
+    <NgsAdvancedPlots stages={stages}/>
     <div className="overflow-x-auto rounded-xl border border-glass-border">
       <table className="w-full min-w-[860px] text-left text-xs">
         <thead className="bg-surface-1 text-[10px] uppercase tracking-[0.08em] text-text-muted"><tr><th className="px-3 py-2.5">Analysis step</th><th className="px-3 py-2.5">Evidence</th><th className="px-3 py-2.5">QC</th><th className="px-3 py-2.5">Observed metrics</th><th className="px-3 py-2.5">Artifacts</th><th className="px-3 py-2.5">Decision</th></tr></thead>

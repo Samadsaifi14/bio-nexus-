@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from typing import Optional
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request
@@ -15,7 +16,8 @@ router = APIRouter(prefix="/api/audit", tags=["audit"])
 
 _SESSION_EVENT_COUNTS: dict[str, int] = {}
 _AUDIT_INTERVAL = 5
-_MAX_SESSIONS = 1000  # cap to prevent unbounded memory growth
+_MAX_SESSIONS = 1000
+_MAX_SUMMARY = 240
 
 
 class AuditEventIn(BaseModel):
@@ -29,6 +31,26 @@ class AuditEventIn(BaseModel):
     duration_ms: int = 0
     metadata: Optional[dict] = None
     timestamp: Optional[str] = None
+
+
+def _compact(value: str) -> str:
+    """Keep audit records useful without storing raw sequences, URLs or traces."""
+    text = re.sub(r"\s+", " ", str(value or "")).strip()
+    # Redact sequence-like runs; lengths/DB names remain useful for diagnostics.
+    text = re.sub(r"(?i)\b[ACDEFGHIKLMNPQRSTVWYBXZJUO]{24,}\b", "[sequence-redacted]", text)
+    # Avoid persisting query strings/tokens from provider URLs.
+    text = re.sub(r"https?://\S+", "[url-redacted]", text)
+    # Collapse common traceback-ish details to the exception class/message prefix.
+    text = text.replace("Traceback (most recent call last):", "")
+    return text[:_MAX_SUMMARY]
+
+
+def _sanitize_metadata(metadata: Optional[dict]) -> Optional[dict]:
+    if not metadata:
+        return None
+    allowed = {"database", "program", "sequence_length", "hit_count", "provider", "status_code"}
+    clean = {k: v for k, v in metadata.items() if k in allowed and isinstance(v, (str, int, float, bool, type(None)))}
+    return clean or None
 
 
 def _should_trigger_audit(session_id: str) -> bool:
@@ -45,11 +67,16 @@ def _should_trigger_audit(session_id: str) -> bool:
 @limiter.exempt
 async def receive_event(event: AuditEventIn, request: Request, background: BackgroundTasks):
     sb = get_supabase()
+    payload = event.model_dump(exclude_none=True)
+    payload["input_summary"] = _compact(event.input_summary)
+    payload["output_summary"] = _compact(event.output_summary)
+    payload["metadata"] = _sanitize_metadata(event.metadata)
 
     try:
-        sb.table("audit_events").insert(event.model_dump(exclude_none=True)).execute()
-    except Exception as e:
-        logger.warning(f"Failed to store audit event: {e}")
+        sb.table("audit_events").insert(payload).execute()
+    except Exception as exc:
+        # Do not echo database/provider payloads into logs.
+        logger.warning("Failed to store audit event (%s)", type(exc).__name__)
 
     should_audit = event.status == "failed" or _should_trigger_audit(event.session_id)
     if should_audit:

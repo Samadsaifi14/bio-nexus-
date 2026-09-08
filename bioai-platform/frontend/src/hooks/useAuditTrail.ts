@@ -8,13 +8,22 @@ const SESSION_ID = typeof crypto !== 'undefined' && crypto.randomUUID
   ? crypto.randomUUID()
   : `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`;
 
+const compact = (value: string) => value
+  .replace(/\s+/g, ' ')
+  .replace(/\b[ACDEFGHIKLMNPQRSTVWYBXZJUO]{24,}\b/gi, '[sequence-redacted]')
+  .replace(/https?:\/\/\S+/gi, '[url-redacted]')
+  .trim()
+  .slice(0, 240);
+
 export function useAuditTrail() {
-  const { user, isGuest } = useAuth();
+  const { user } = useAuth();
   const t0Ref = useRef<Record<string, number>>({});
 
   const emit = useCallback(async (event: Omit<AuditEvent, 'session_id' | 'timestamp'>) => {
     const body: AuditEvent = {
       ...event,
+      input_summary: compact(event.input_summary || ''),
+      output_summary: compact(event.output_summary || ''),
       session_id: SESSION_ID,
       user_id: user?.id ?? null,
       timestamp: new Date().toISOString(),
@@ -23,6 +32,7 @@ export function useAuditTrail() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
+      keepalive: true,
     }).catch(() => {});
   }, [user?.id]);
 

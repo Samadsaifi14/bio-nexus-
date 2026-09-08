@@ -6,6 +6,7 @@ import type { Ngs2Stage } from '@/lib/api';
 type Obj = Record<string, unknown>;
 type Point = { x: number; y: number };
 type MultiPoint = { x: number; values: Array<{ key: string; y: number }> };
+type BarRow = { label: string; value: number };
 
 function isObj(value: unknown): value is Obj {
   return !!value && typeof value === 'object' && !Array.isArray(value);
@@ -55,11 +56,12 @@ function LineChart({ title, subtitle, points, xLabel, yLabel }: { title: string;
 }
 
 function QualityBandChart({ rows }: { rows: Obj[] }) {
-  const pts: MultiPoint[] = rows.map(row => {
+  const pts: MultiPoint[] = rows.flatMap(row => {
     const x = num(row.position);
     const mean = num(row.mean), p25 = num(row.p25), p75 = num(row.p75);
-    return x === null || mean === null ? null : { x, values: [{ key: 'Mean', y: mean }, ...(p25 === null ? [] : [{ key: 'P25', y: p25 }]), ...(p75 === null ? [] : [{ key: 'P75', y: p75 }])] };
-  }).filter((p): p is MultiPoint => !!p);
+    if (x === null || mean === null) return [];
+    return [{ x, values: [{ key: 'Mean', y: mean }, ...(p25 === null ? [] : [{ key: 'P25', y: p25 }]), ...(p75 === null ? [] : [{ key: 'P75', y: p75 }])] }];
+  });
   if (pts.length < 2) return null;
   const all = pts.flatMap(p => p.values.map(v => v.y));
   const W=720,H=260,L=58,R=20,T=20,B=46;
@@ -83,7 +85,7 @@ function QualityBandChart({ rows }: { rows: Obj[] }) {
   </div>;
 }
 
-function BarChart({ title, subtitle, rows, xLabel, yLabel }: { title: string; subtitle: string; rows: Array<{ label: string; value: number }>; xLabel: string; yLabel: string }) {
+function BarChart({ title, subtitle, rows, xLabel, yLabel }: { title: string; subtitle: string; rows: BarRow[]; xLabel: string; yLabel: string }) {
   if (!rows.length) return null;
   const valid = rows.filter(r => Number.isFinite(r.value));
   if (!valid.length) return null;
@@ -103,14 +105,17 @@ function BarChart({ title, subtitle, rows, xLabel, yLabel }: { title: string; su
 }
 
 function MetricBars({ data }: { data: Obj }) {
-  const pctKeys = [
+  const pctKeys: Array<[string, unknown]> = [
     ['Mapping rate', data.mapping_rate],
     ['Proper pairs', data.proper_pair_rate],
     ['High MAPQ', data.high_mapq_percent],
     ['Duplicate rate', data.duplicate_rate],
     ['Insert outliers', data.insert_size_outlier_percent],
-  ] as const;
-  const rows = pctKeys.map(([label,value]) => ({ label, value: num(value) })).filter((r): r is {label:string;value:number} => r.value !== null);
+  ];
+  const rows: BarRow[] = pctKeys.flatMap(([label, value]) => {
+    const parsed = num(value);
+    return parsed === null ? [] : [{ label, value: parsed }];
+  });
   if (!rows.length) return null;
   return <BarChart title="Alignment QC rates" subtitle="Percentages computed from returned SAM alignment records. Metrics with different units are kept out of this chart." rows={rows} xLabel="Alignment metric" yLabel="Percent (%)"/>;
 }
@@ -122,16 +127,16 @@ export default function NgsScientificPlots({ stages = [] }: { stages?: Ngs2Stage
   const aln = stageData(stages, 'alignment_qc');
 
   const qualityRows = raw && Array.isArray(raw.quality_by_position) ? raw.quality_by_position.filter(isObj) : [];
-  const gcValues = raw && Array.isArray(raw.gc_by_window) ? raw.gc_by_window.map(num).filter((v): v is number => v !== null) : [];
+  const gcValues: number[] = raw && Array.isArray(raw.gc_by_window) ? raw.gc_by_window.flatMap(value => { const parsed = num(value); return parsed === null ? [] : [parsed]; }) : [];
   const gcPoints = gcValues.map((y, i) => ({ x: i + 1, y }));
-  const lengthRows = raw && Array.isArray(raw.read_length_distribution) ? raw.read_length_distribution.filter(isObj).map(r => ({ label: String(r.length ?? ''), value: num(r.count) })).filter((r): r is {label:string;value:number} => !!r.label && r.value !== null) : [];
-  const coverageRows = aln && isObj(aln.coverage_by_contig) ? Object.entries(aln.coverage_by_contig).map(([label,value]) => ({ label, value: num(value) })).filter((r): r is {label:string;value:number} => r.value !== null) : [];
-  const readFlow = pre ? [
-    { label: 'Raw', value: num(pre.raw_reads) },
-    { label: 'Retained', value: num(pre.retained_reads) },
-    { label: 'Discarded', value: num(pre.discarded_reads) },
-    { label: 'Adapter-trimmed', value: num(pre.adapter_removed_reads) },
-  ].filter((r): r is {label:string;value:number} => r.value !== null) : [];
+  const lengthRows: BarRow[] = raw && Array.isArray(raw.read_length_distribution) ? raw.read_length_distribution.filter(isObj).flatMap(r => { const value = num(r.count); const label = String(r.length ?? ''); return value === null || !label ? [] : [{ label, value }]; }) : [];
+  const coverageRows: BarRow[] = aln && isObj(aln.coverage_by_contig) ? Object.entries(aln.coverage_by_contig).flatMap(([label, value]) => { const parsed = num(value); return parsed === null ? [] : [{ label, value: parsed }]; }) : [];
+  const readFlow: BarRow[] = pre ? [
+    ['Raw', pre.raw_reads],
+    ['Retained', pre.retained_reads],
+    ['Discarded', pre.discarded_reads],
+    ['Adapter-trimmed', pre.adapter_removed_reads],
+  ].flatMap(([label, value]) => { const parsed = num(value); return parsed === null ? [] : [{ label: String(label), value: parsed }]; }) : [];
 
   const hasAny = qualityRows.length > 1 || gcPoints.length > 1 || lengthRows.length > 0 || readFlow.length > 0 || !!aln || coverageRows.length > 0;
   if (!hasAny) return null;

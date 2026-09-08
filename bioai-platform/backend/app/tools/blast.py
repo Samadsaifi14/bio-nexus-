@@ -189,12 +189,15 @@ class BlastTool(BaseTool):
             if not accession:
                 continue
 
-            identity = hsp.get("hsp_identity", hsp.get("identity_pct", hsp.get("identity", 0)))
             align_len = hsp.get("hsp_align_len", hsp.get("alignment_length", 0)) or 0
-            if isinstance(identity, (int, float)) and align_len and identity <= align_len:
-                identity_pct = round(float(identity) / float(align_len) * 100, 1)
+            if "hsp_identity" in hsp:
+                # EMBL-EBI NCBI BLAST JSON reports hsp_identity as percentage.
+                identity_pct = hsp.get("hsp_identity") or 0
+            elif "identity_pct" in hsp:
+                identity_pct = hsp.get("identity_pct") or 0
             else:
-                identity_pct = identity or 0
+                identity_count = hsp.get("identity", 0) or 0
+                identity_pct = round(float(identity_count) / float(align_len) * 100, 1) if align_len else 0
 
             parsed.append({
                 "accession": accession,

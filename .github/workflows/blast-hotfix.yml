@@ -1,0 +1,36 @@
+name: BLAST Integrity Hotfix
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/blast-hotfix.yml'
+
+permissions:
+  contents: write
+
+jobs:
+  patch:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+      - name: Apply patch
+        run: python .github/scripts/apply_blast_integrity_hotfix.py
+      - name: Validate Python syntax
+        run: |
+          python -m py_compile bioai-platform/backend/app/routers/pipeline_v2.py
+          python -m py_compile bioai-platform/backend/app/services/final_synthesis.py
+          python -m py_compile bioai-platform/backend/app/tools/blast.py
+          python -m py_compile bioai-platform/backend/tests/test_blast_false_denovo_guard.py
+      - name: Commit patched source
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add bioai-platform/backend/app/routers/pipeline_v2.py
+          git add bioai-platform/backend/app/services/final_synthesis.py
+          git add bioai-platform/backend/app/tools/blast.py
+          git add bioai-platform/backend/tests/test_blast_false_denovo_guard.py
+          git commit -m 'fix(blast): distinguish provider failure from true zero hits'
+          git push origin HEAD:main

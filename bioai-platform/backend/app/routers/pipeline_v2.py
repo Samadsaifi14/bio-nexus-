@@ -361,18 +361,23 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
             fast_mode=fast_mode,
             blast_params=blast_params,
         )
+        provider_failed = bool(result.get("error")) or result.get("search_complete") is False
         zero_hits = result.get("count", 0) == 0
-        if zero_hits and (detect_sequence_type(sequence) or "protein") == "protein":
-            # Tier 6: no database match at all — characterize from sequence
-            # alone instead of failing the run (techspec.md §1).
+        confirmed_zero_hits = zero_hits and not provider_failed
+
+        if confirmed_zero_hits and (detect_sequence_type(sequence) or "protein") == "protein":
+            # Enter de novo mode only after a provider completed normally and
+            # explicitly returned zero hits. Network/provider failures are not
+            # biological evidence of novelty.
             denovo_mode = True
-            result["_note"] = "No BLAST hits found — switching to de novo characterization"
+            result["_note"] = "Completed BLAST search returned no hits — switching to de novo characterization"
             _mark("blast", "complete", progress=100, data=result)
         else:
-            _mark("blast", "failed" if zero_hits else "complete", progress=100, data=result)
-            if zero_hits:
+            blast_failed = provider_failed or zero_hits
+            _mark("blast", "failed" if blast_failed else "complete", progress=100, data=result)
+            if blast_failed:
                 _failed_step = "blast"
-                _failed_error = result.get("error", "No BLAST hits found")
+                _failed_error = result.get("error", "BLAST completed without usable hits")
         context["blast"] = result
 
     if denovo_mode:
@@ -643,6 +648,7 @@ def _build_blast_result(
     top_hit = hits[0] if hits else None
     return {
         "count": len(hits),
+        "search_complete": True,
         "source": source,
         "database": database,
         "program": program,
@@ -739,7 +745,7 @@ async def _run_blast(
         )
     except ValueError as e:
         logger.warning("BLAST param resolution failed: %s", e)
-        return {"error": str(e), "count": 0, "hits": []}
+        return {"error": str(e), "count": 0, "hits": [], "search_complete": False}
 
     try:
         max_hits = int(blast_params.get("max_hits") or 100)
@@ -800,7 +806,12 @@ async def _run_blast(
         ncbi_error = results["error"]
 
     logger.warning("EBI BLAST unavailable and NCBI failed (%s)", ncbi_error)
-    return {"error": ncbi_error or "BLAST failed via EBI and NCBI", "count": 0, "hits": []}
+    return {
+        "error": ncbi_error or "BLAST failed via EBI and NCBI",
+        "count": 0,
+        "hits": [],
+        "search_complete": False,
+    }
 
 
 async def _run_uniprot(top_hit: dict, query_sequence: str | None = None, try_sequence: bool = True) -> dict:

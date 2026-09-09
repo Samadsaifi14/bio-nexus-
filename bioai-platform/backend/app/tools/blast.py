@@ -140,6 +140,7 @@ class BlastTool(BaseTool):
                     await asyncio.sleep(2 * (attempt + 1))
         if last_error:
             logger.warning("EBI BLAST JSON retrieval failed for %s: %s", job_id, last_error)
+            raise RuntimeError(f"EBI BLAST JSON retrieval failed: {last_error}") from last_error
         return []
 
     @staticmethod
@@ -170,7 +171,7 @@ class BlastTool(BaseTool):
             return list(parsed.get("hits", []))[:max_hits]
         except Exception as exc:
             logger.warning("EBI BLAST XML fallback failed for %s: %s", job_id, exc)
-            return []
+            raise RuntimeError(f"EBI BLAST XML retrieval failed: {exc}") from exc
 
     def _parse_hits(self, raw_hits: list[dict], max_hits: int) -> list[dict]:
         parsed = []

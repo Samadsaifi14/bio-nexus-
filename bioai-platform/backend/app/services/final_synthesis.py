@@ -47,9 +47,9 @@ def build_findings(context: dict) -> tuple[list[dict], list[dict]]:
             "source_tool": "blast",
             "page_url": f"https://www.ncbi.nlm.nih.gov/protein/{top_hit.get('accession', '')}" if top_hit.get("accession") else None,
         })
-    elif blast.get("count", 0) == 0:
+    elif blast.get("search_complete") is True and blast.get("count", 0) == 0:
         findings.append({
-            "claim": "No significant similarity to any database sequence.",
+            "claim": "No significant similarity was found in the completed BLAST search.",
             "confidence_tier": tier,
             "source_tool": "blast",
             "page_url": None,

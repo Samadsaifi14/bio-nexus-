@@ -1,5 +1,6 @@
 name: One-time BLAST false de-novo fix
 
+# Triggered intentionally after initial installation so GitHub recognizes the workflow.
 on:
   push:
     branches: [main]
@@ -144,7 +145,6 @@ jobs:
           test = Path('bioai-platform/backend/tests/test_blast_false_denovo_guard.py')
           test.write_text('''import asyncio\n\n\ndef test_provider_error_is_not_treated_as_denovo(monkeypatch):\n    from app.routers import pipeline_v2 as pv\n\n    job_id = "guard-test"\n    seq = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEA"\n    pv._jobs[job_id] = {\n        "job_id": job_id, "status": "running", "steps": {\n            s: {"status": "pending", "progress": 0, "data": None, "error": None}\n            for s in pv.STEP_ORDER\n        }, "requested_steps": ["blast"], "sequence": seq, "error": None,\n    }\n\n    async def fake_blast(*args, **kwargs):\n        return {"error": "provider timeout", "count": 0, "hits": [], "search_complete": False}\n\n    async def forbidden_denovo(*args, **kwargs):\n        raise AssertionError("de novo branch must not run on provider failure")\n\n    monkeypatch.setattr(pv, "_run_blast", fake_blast)\n    monkeypatch.setattr(pv, "_run_denovo_steps", forbidden_denovo)\n    monkeypatch.setattr(pv, "_persist_v2_final", lambda *a, **k: None)\n    monkeypatch.setattr(pv, "_capture_run_sources", lambda *a, **k: None)\n\n    asyncio.run(pv._execute(job_id, seq, ["blast"]))\n    job = pv._jobs[job_id]\n    assert job["status"] == "failed"\n    assert "provider timeout" in job["error"]\n    assert job["steps"]["blast"]["status"] == "failed"\n    pv._jobs.pop(job_id, None)\n''')
 
-          # One-time workflow: remove itself in the same commit as the fix.
           Path('.github/workflows/fix-blast-false-denovo.yml').unlink()
 
       - name: Syntax and patch assertions

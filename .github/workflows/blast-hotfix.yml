@@ -1,5 +1,6 @@
 name: BLAST Integrity Hotfix
 
+# Trigger revision 1
 on:
   push:
     branches: [main]

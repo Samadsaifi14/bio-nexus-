@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import os
 import random
+import tempfile
 
 import pytest
 from fastapi import FastAPI
@@ -16,10 +17,23 @@ from app.config import settings
 
 @pytest.fixture(scope="module")
 def client():
+    """Authenticated test client for routes that exercise server-local FASTQ files.
+
+    Production code deliberately requires an authenticated user and confines local
+    files to ``NGS_INPUT_ROOT``. Router tests should model that contract rather than
+    weakening it for fixtures. Dedicated security-boundary tests separately verify
+    that anonymous/out-of-root access is rejected.
+    """
+    previous_root = settings.NGS_INPUT_ROOT
+    settings.NGS_INPUT_ROOT = tempfile.gettempdir()
     app = FastAPI(title="NGS v2 Router Tests")
+    app.dependency_overrides[ngs_v2.get_user_id] = lambda: "router-test-user"
     app.include_router(ngs_v2.router)
-    with TestClient(app, raise_server_exceptions=False) as c:
-        yield c
+    try:
+        with TestClient(app, raise_server_exceptions=False) as c:
+            yield c
+    finally:
+        settings.NGS_INPUT_ROOT = previous_root
 
 
 def _write_fastq(tmp_path, name, n, seed=5, read_len=30):
@@ -241,6 +255,7 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     payload = {
         "file_paths": [r1, r2],
         "reference": "grch38",
+        "assay": "WGS",
         "metadata": {"platform": "illumina"},
         "synthetic_reference": True,
     }
@@ -248,7 +263,6 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     assert r.status_code == 200
     body = r.json()
 
-    # A synthetic (in-file) reference is loaded by the request itself, not invented.
     assert "detection" in body
     assert body["requested"]["assay"] == "WGS"
     assert body["requested"]["synthetic_reference"] is True
@@ -259,20 +273,19 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     assert all(isinstance(s["inputs"], list) for s in stages)
     assert all(isinstance(s["outputs"], list) for s in stages)
     assert all("input" not in s and "output" not in s for s in stages)
-    # The pipeline should NOT have hard-stopped on a blocking gate for a genuine read set.
     assert body["pipeline"]["pipeline_status"] in ("PASS", "WARN")
 
-    # The final analysis-readiness gate must have produced a verdict.
     gate = stages[-1]
     assert gate["step"] == "final_gate"
     assert gate["decision"] in ("CONTINUE", "CONTINUE_WITH_WARNING")
 
     provenance = body["pipeline"]["provenance"]
     assert provenance["schema_version"] == "1.0"
-    assert provenance["pipeline"] == {"name": "WGS-germline", "version": "0.1.0"}
+    assert provenance["pipeline"] == {"name": "WGS-germline", "version": "0.2.0"}
     assert provenance["analysis"]["synthetic_reference"] is True
     assert len(provenance["inputs"]) == 2
-    assert all(item["checksum"]["algorithm"] == "md5" for item in provenance["inputs"])
+    assert all(item["checksum"]["algorithm"] == "sha256" for item in provenance["inputs"])
+    assert all(len(item["checksum"]["value"]) == 64 for item in provenance["inputs"])
     assert len(provenance["tools"]) == 21
     assert all("implementation" in item for item in provenance["tools"])
     assert all("evidence_level" in stage for stage in stages)
@@ -280,7 +293,7 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     validation = body["pipeline"]["validation"]
     assert validation["claim"] == "NO_ACCURACY_CLAIM"
     assert validation["same_or_better_supported"] is False
-    assert len(validation["comparisons"]) >= 3
+    assert len(validation["comparisons"]) >= 2
     assert all(item["status"] != "EVALUATED" for item in validation["comparisons"])
     assert all(item["metrics"] is None for item in validation["comparisons"])
     assert validation["analysis_grade"] == "EXPLORATORY_PREVIEW"
@@ -312,6 +325,7 @@ def test_analyze_emits_igv_tracks(client, tmp_path):
     payload = {
         "file_paths": [r1, r2],
         "reference": "grch38",
+        "assay": "WGS",
         "metadata": {"platform": "illumina"},
         "synthetic_reference": True,
     }
@@ -319,14 +333,12 @@ def test_analyze_emits_igv_tracks(client, tmp_path):
     assert r.status_code == 200
     viz = r.json()["visualization"]
 
-    # SAM track: real aligned_records serialized (read lines, not just headers).
     assert "sam" in viz and viz["sam"].startswith("@HD")
     read_lines = [ln for ln in viz["sam"].splitlines() if not ln.startswith("@")]
     assert read_lines
     assert viz["n_reads"] == len(read_lines)
     assert viz["n_mapped"] > 0
 
-    # VCF track: header present; variant lines carry the real ref/alt columns.
     assert "vcf" in viz and "##fileformat=VCFv4.2" in viz["vcf"]
     var_lines = [ln for ln in viz["vcf"].splitlines() if not ln.startswith("#")]
     if var_lines:

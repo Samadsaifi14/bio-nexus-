@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { MagnifyingGlass as Search, CaretRight as ChevronRight, CircleNotch as LoaderCircle, CheckCircle as CircleCheck } from '@phosphor-icons/react';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import toast from 'react-hot-toast';
-import { runPipeline, fetchSequence } from '@/lib/api';
+import { fetchSequence } from '@/lib/api';
+import { runBlastPipeline, type BlastProgram } from '@/lib/blastApi';
 import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
 import type { SequenceResult, SequenceType } from '@/types/pipeline';
 import { motion } from 'framer-motion';
@@ -17,15 +18,16 @@ import { consumeParam } from '@/lib/cross-link';
 const SAMPLES = [
   {
     label: 'p53 (human)',
-    seq: `>P53_HUMAN Cellular tumor antigen p53 [Homo sapiens]
-MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD`,
+    seq: `>P53_HUMAN Cellular tumor antigen p53 [Homo sapiens]\nMEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD`,
   },
   {
     label: 'Insulin (human)',
-    seq: `>INS_HUMAN Insulin [Homo sapiens]
-MALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
+    seq: `>INS_HUMAN Insulin [Homo sapiens]\nMALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
   },
 ];
+
+const PROTEIN_DATABASES = new Set(['nr', 'swissprot', 'pdbaa', 'refseq_protein']);
+const NUCLEOTIDE_DATABASES = new Set(['nt', 'refseq_rna', 'refseq_genomic']);
 
 export default function BlastWizardPage() {
   const router = useRouter();
@@ -40,8 +42,17 @@ export default function BlastWizardPage() {
   const audit = useAuditTrail();
   const [showAdvanced, setShowAdvanced] = useState(false);
   const [advancedDb, setAdvancedDb] = useState('nr');
-  const [advancedProgram, setAdvancedProgram] = useState('');
+  const [advancedProgram, setAdvancedProgram] = useState<BlastProgram | ''>('');
   const [fastMode, setFastMode] = useState(false);
+
+  const defaultProgram: BlastProgram = detectedType === 'protein' ? 'blastp' : 'blastn';
+  const effectiveProgram: BlastProgram = advancedProgram || defaultProgram;
+  const proteinTargetSearch = effectiveProgram === 'blastp' || effectiveProgram === 'blastx';
+  const effectiveDatabase = fastMode && proteinTargetSearch
+    ? 'swissprot'
+    : proteinTargetSearch
+      ? (PROTEIN_DATABASES.has(advancedDb) ? advancedDb : 'nr')
+      : (NUCLEOTIDE_DATABASES.has(advancedDb) ? advancedDb : 'nt');
 
   useEffect(() => {
     if (inputMode === 'paste') {
@@ -65,6 +76,23 @@ export default function BlastWizardPage() {
     }
   }, []);
 
+  useEffect(() => {
+    // Reset incompatible defaults whenever sequence type changes. A protein query can
+    // only use blastp here; nucleotide/RNA input can choose blastn or blastx.
+    if (detectedType === 'protein') {
+      setAdvancedProgram('');
+      if (!PROTEIN_DATABASES.has(advancedDb)) setAdvancedDb('nr');
+    } else if (detectedType === 'dna' || detectedType === 'rna') {
+      if (advancedProgram === 'blastp') setAdvancedProgram('');
+      if (!NUCLEOTIDE_DATABASES.has(advancedDb) && advancedProgram !== 'blastx') setAdvancedDb('nt');
+    }
+  }, [detectedType, advancedDb, advancedProgram]);
+
+  useEffect(() => {
+    // Swiss-Prot fast mode is valid only when the target database is protein.
+    if (!proteinTargetSearch && fastMode) setFastMode(false);
+  }, [proteinTargetSearch, fastMode]);
+
   const handleFetchAccession = async () => {
     if (!rawInput.trim()) return;
     setAccessionLoading(true);
@@ -83,6 +111,12 @@ export default function BlastWizardPage() {
     } finally {
       setAccessionLoading(false);
     }
+  };
+
+  const handleProgramChange = (program: BlastProgram) => {
+    setAdvancedProgram(program);
+    setFastMode(false);
+    setAdvancedDb(program === 'blastn' ? 'nt' : 'nr');
   };
 
   const handleSubmit = async () => {
@@ -124,11 +158,18 @@ export default function BlastWizardPage() {
       : rawInput.split('\n')[0]?.startsWith('>')
         ? rawInput.split('\n')[0].slice(1).split(/\s+/)[0]
         : undefined;
-    const inputSummary = `seq_len:${clean.length},db:${advancedDb || 'nr'}`;
+    const inputSummary = `seq_len:${clean.length},program:${effectiveProgram},db:${effectiveDatabase}`;
     audit.emitStarted('blast_search', 'BLAST', inputSummary);
     setSubmitting(true);
     try {
-      const result = await runPipeline(seq, 'blast', fastMode ? 'swissprot' : (advancedDb || 'nr'), 100, queryAccession, fastMode);
+      const result = await runBlastPipeline({
+        sequence: seq,
+        database: effectiveDatabase,
+        program: effectiveProgram,
+        maxHits: 100,
+        queryAccession,
+        fastMode,
+      });
       audit.emitSuccess('blast_search', 'BLAST', inputSummary, `job_id:${result.job_id}`);
       router.push(`/jobs/${result.job_id}`);
     } catch (err: unknown) {
@@ -143,9 +184,6 @@ export default function BlastWizardPage() {
       setSubmitting(false);
     }
   };
-
-  const programLabel = detectedType === 'protein' ? 'blastp' : 'blastn';
-  const dbLabel = detectedType === 'protein' ? 'nr' : 'nt';
 
   return (
     <div className="max-w-2xl">
@@ -228,7 +266,7 @@ export default function BlastWizardPage() {
                   value={rawInput}
                   onChange={(e) => { setRawInput(e.target.value); setAccessionResult(null); }}
                   onKeyDown={(e) => e.key === 'Enter' && handleFetchAccession()}
-                  placeholder="e.g. NP_000509.1, P04637, 1TIM"
+                  placeholder="e.g. NP_000509.1, P04637, NM_000546"
                   className="flex-1 font-mono"
                 />
                 <CriticalButton
@@ -254,14 +292,20 @@ export default function BlastWizardPage() {
             </motion.div>
           )}
 
-          <div className="glass p-4 border border-accent-cyan/20">
-            <ClayToggle
-              checked={fastMode}
-              onChange={setFastMode}
-              label="Fast mode"
-              hint="Search Swiss-Prot (~560K sequences) instead of nr (~300M). Much faster, slightly fewer hits."
-            />
-          </div>
+          {proteinTargetSearch ? (
+            <div className="glass p-4 border border-accent-cyan/20">
+              <ClayToggle
+                checked={fastMode}
+                onChange={setFastMode}
+                label="Fast mode"
+                hint="Use curated Swiss-Prot instead of the larger protein database. Faster, but searches a narrower reference set."
+              />
+            </div>
+          ) : (
+            <div className="glass p-4 border border-glass-border text-xs leading-5 text-text-muted">
+              Fast mode is not applied to blastn because Swiss-Prot is a protein database. Choose blastx if you want a translated nucleotide query against a protein database.
+            </div>
+          )}
 
           <div className="border-t border-glass-border pt-4">
             <button
@@ -275,16 +319,17 @@ export default function BlastWizardPage() {
                 <div>
                   <label className="text-xs font-medium text-text-secondary block mb-1">Database</label>
                   <select
-                    value={advancedDb}
+                    value={effectiveDatabase}
+                    disabled={fastMode && proteinTargetSearch}
                     onChange={(e) => setAdvancedDb(e.target.value)}
-                    className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
+                    className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary disabled:opacity-60"
                   >
-                    {detectedType === 'protein' ? (
+                    {proteinTargetSearch ? (
                       <>
-                        <option value="nr">nr (non-redundant)</option>
+                        <option value="nr">nr (non-redundant protein)</option>
                         <option value="swissprot">Swiss-Prot</option>
-                        <option value="pdbaa">PDB</option>
-                        <option value="refseq_protein">RefSeq</option>
+                        <option value="pdbaa">PDB protein sequences</option>
+                        <option value="refseq_protein">RefSeq Protein</option>
                       </>
                     ) : (
                       <>
@@ -298,16 +343,16 @@ export default function BlastWizardPage() {
                 <div>
                   <label className="text-xs font-medium text-text-secondary block mb-1">Program</label>
                   <select
-                    value={advancedProgram || programLabel}
-                    onChange={(e) => setAdvancedProgram(e.target.value)}
+                    value={effectiveProgram}
+                    onChange={(e) => handleProgramChange(e.target.value as BlastProgram)}
                     className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
                   >
                     {detectedType === 'protein' ? (
-                      <option value="blastp">blastp</option>
+                      <option value="blastp">blastp — protein → protein</option>
                     ) : (
                       <>
-                        <option value="blastn">blastn</option>
-                        <option value="blastx">blastx</option>
+                        <option value="blastn">blastn — nucleotide → nucleotide</option>
+                        <option value="blastx">blastx — translated nucleotide → protein</option>
                       </>
                     )}
                   </select>
@@ -335,7 +380,7 @@ export default function BlastWizardPage() {
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-6">
           <div>
             <h2 className="text-lg font-semibold text-text-primary mb-1">Confirm and run</h2>
-            <p className="text-sm text-text-secondary">Review your analysis settings before submitting.</p>
+            <p className="text-sm text-text-secondary">Review the effective search contract before submitting.</p>
           </div>
 
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-6 space-y-4">
@@ -344,10 +389,10 @@ export default function BlastWizardPage() {
               <div>
                 <p className="font-medium text-text-primary">BLAST Search</p>
                 <p className="text-sm text-text-secondary">
-                  We&apos;ll run a <strong>{advancedProgram || programLabel}</strong> search of your{' '}
-                  <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? 'aa' : 'bp'}{' '}
-                  {detectedType} sequence against the <strong>{fastMode ? 'Swiss-Prot (fast)' : (advancedDb || dbLabel)}</strong> database.
-                  {fastMode && <span className="text-accent-cyan ml-1">~5-10s expected</span>}
+                  BioNexus will submit <strong>{effectiveProgram}</strong> for your{' '}
+                  <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? ' aa' : ' bp'}{' '}
+                  {detectedType} sequence against <strong>{effectiveDatabase}</strong>.
+                  {fastMode && <span className="text-accent-cyan ml-1">Curated Swiss-Prot scope</span>}
                 </p>
               </div>
             </div>
@@ -370,8 +415,8 @@ export default function BlastWizardPage() {
               </div>
             )}
 
-            <div className="pt-2 text-xs text-text-muted">
-              <p>BLAST searches against NCBI nr typically take 30s–5min. Your results will be saved and you can return to them later.</p>
+            <div className="pt-2 text-xs leading-5 text-text-muted">
+              <p>Provider searches may take seconds to minutes depending on database size and service load. The stored result records the program, database and provider evidence returned for this job.</p>
             </div>
           </motion.div>
 

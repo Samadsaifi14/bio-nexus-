@@ -1,4 +1,5 @@
--- Durable ownership and execution state for real nf-core/sarek runs.
+-- Durable ownership and execution state for production NGS workflows.
+-- This table is shared by nf-core/sarek and nf-core/rnaseq executions.
 CREATE TABLE IF NOT EXISTS ngs_production_runs (
   run_id uuid PRIMARY KEY,
   user_id uuid NOT NULL REFERENCES auth.users(id) ON DELETE CASCADE,
@@ -11,8 +12,13 @@ CREATE TABLE IF NOT EXISTS ngs_production_runs (
   submitted_at timestamptz NOT NULL,
   updated_at timestamptz NOT NULL,
   exit_code integer,
-  message text
+  message text,
+  command_sha256 text CHECK (command_sha256 IS NULL OR command_sha256 ~ '^[0-9a-f]{64}$')
 );
+
+-- Safe for installations that already applied the earlier Sarek-only migration.
+ALTER TABLE ngs_production_runs
+  ADD COLUMN IF NOT EXISTS command_sha256 text;
 
 CREATE INDEX IF NOT EXISTS idx_ngs_production_runs_user_updated
   ON ngs_production_runs(user_id, updated_at DESC);

@@ -25,7 +25,14 @@ def rnaseq_production_submit(payload: NgsRnaSeqProductionPlanRequest, user_id: s
         raise HTTPException(status_code=422, detail={"message": "RNA-seq production launch contract is blocked", "blockers": plan["blockers"]})
     executor = "awsbatch" if payload.execution_profile == "awsbatch" else "slurm" if payload.execution_profile == "slurm" else "local"
     try:
-        run = submit_run(executor, plan["command_argv"], payload.outdir, user_id)
+        run = submit_run(
+            executor,
+            plan["command_argv"],
+            payload.outdir,
+            user_id,
+            workflow=plan["workflow"]["name"],
+            revision=plan["workflow"]["revision"],
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     return {

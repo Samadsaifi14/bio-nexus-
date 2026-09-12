@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1150" viewBox="0 0 1800 1150" role="img" aria-labelledby="title desc">
+<title id="title">Figure III. BioNexus evidence-to-claim boundary</title><desc id="desc">Evidence classes feed structured claims; unsupported claims are rejected and AI interpretation remains above deterministic scientific results.</desc>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#17202a}.h{font-size:34px;font-weight:700}.s{font-size:21px;font-weight:700}.b{font-size:17px}.m{font-size:15px;fill:#4b5563}.box{fill:#fff;stroke:#263238;stroke-width:2}.good{fill:#eef7f4;stroke:#26695c;stroke-width:2}.warn{fill:#fff8e7;stroke:#8a6d1d;stroke-width:2}.bad{fill:#fff0f0;stroke:#9b2c2c;stroke-width:2}.ai{fill:#f5f2fb;stroke:#5b4a78;stroke-width:2}.arrow{stroke:#263238;stroke-width:3;fill:none;marker-end:url(#a)}.broken{stroke:#9b2c2c;stroke-width:3;fill:none;stroke-dasharray:12 9}</style><defs><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 z" fill="#263238"/></marker></defs>
+<text x="90" y="70" class="h">Evidence-to-claim traceability</text><text x="90" y="105" class="m">A citation or AI explanation does not upgrade weak evidence. Claim strength is bounded by the recorded evidence.</text>
+
+<text x="100" y="175" class="s">Evidence classes</text>
+<rect x="90" y="205" width="390" height="75" rx="14" class="good"/><text x="120" y="251" class="b">Deterministic computation</text>
+<rect x="90" y="300" width="390" height="75" rx="14" class="good"/><text x="120" y="346" class="b">Reference retrieval</text>
+<rect x="90" y="395" width="390" height="75" rx="14" class="box"/><text x="120" y="441" class="b">Evidence-backed inference</text>
+<rect x="90" y="490" width="390" height="75" rx="14" class="warn"/><text x="120" y="536" class="b">Heuristic / surrogate</text>
+<rect x="90" y="585" width="390" height="75" rx="14" class="good"/><text x="120" y="631" class="b">Experimental observation</text>
+<rect x="90" y="680" width="390" height="75" rx="14" class="good"/><text x="120" y="726" class="b">Benchmark result</text>
+<rect x="90" y="775" width="390" height="75" rx="14" class="bad"/><text x="120" y="821" class="b">Unsupported / insufficient</text>
+
+<rect x="665" y="285" width="460" height="390" rx="20" class="box"/><text x="705" y="335" class="s">Structured evidence record</text><text x="705" y="385" class="b">Source identifier</text><text x="705" y="425" class="b">Software / database version</text><text x="705" y="465" class="b">Input + parameter snapshot</text><text x="705" y="505" class="b">Raw result / computed metric</text><text x="705" y="545" class="b">Evidence class</text><text x="705" y="585" class="b">Experiment ID + checksum</text><text x="705" y="625" class="m">Missing fields stay missing; zeros are not invented.</text>
+<path d="M480 245 C570 245 570 365 665 365" class="arrow"/><path d="M480 338 C570 338 570 405 665 405" class="arrow"/><path d="M480 432 C570 432 570 445 665 445" class="arrow"/><path d="M480 527 C570 527 570 485 665 485" class="arrow"/><path d="M480 622 C570 622 570 525 665 525" class="arrow"/><path d="M480 717 C570 717 570 565 665 565" class="arrow"/>
+
+<rect x="1310" y="260" width="390" height="120" rx="16" class="good"/><text x="1345" y="310" class="s">Supported claim</text><text x="1345" y="347" class="m">Traceable to recorded evidence</text>
+<rect x="1310" y="455" width="390" height="120" rx="16" class="bad"/><text x="1345" y="505" class="s">Reject / unsupported</text><text x="1345" y="542" class="m">No matching evidence or source</text>
+<path d="M1125 400 C1200 400 1200 320 1310 320" class="arrow"/><path d="M480 812 C860 812 1120 515 1310 515" class="broken"/>
+
+<rect x="665" y="785" width="1035" height="175" rx="20" class="ai"/><text x="705" y="835" class="s">AI-generated interpretation layer</text><text x="705" y="875" class="b">May summarize, contextualize and explain recorded evidence.</text><text x="705" y="912" class="b">Numeric/source claims must be grounded in the result payload; otherwise they are withheld or corrected.</text><text x="705" y="945" class="m">Grounding validation ≠ independent scientific validation. Deterministic/reference result remains authoritative.</text><path d="M895 675 V785" class="arrow"/>
+
+<rect x="300" y="1010" width="1200" height="80" rx="16" class="box"/><text x="345" y="1058" class="s">Publication rule: claim strength ≤ evidence strength</text><text x="960" y="1058" class="m">Missing result ≠ negative biological finding</text>
+</svg>

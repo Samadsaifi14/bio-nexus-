@@ -1,11 +1,14 @@
-"""Real nf-core/sarek executor adapters.
+"""Durable Nextflow executor adapters for production NGS workflows.
 
 No adapter falls back to the exploratory Python pipeline. Disabled or incomplete
-infrastructure is reported as unavailable before a job is accepted.
+infrastructure is reported as unavailable before a job is accepted. Run records
+preserve the actual workflow name/revision that was submitted so RNA-seq jobs can
+never be mislabeled as Sarek executions.
 """
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import shutil
@@ -45,7 +48,12 @@ def executor_capabilities() -> dict[str, Any]:
     except ImportError:
         aws_missing.append("boto3")
     return {
+        # Backward-compatible primary workflow field for the existing WGS/WES UI.
         "workflow": {"name": "nf-core/sarek", "revision": "3.10.0"},
+        "workflows": [
+            {"name": "nf-core/sarek", "revision": "3.10.0", "assays": ["WGS", "WES"]},
+            {"name": "nf-core/rnaseq", "revision": "3.26.0", "assays": ["RNA-seq"]},
+        ],
         "executors": {
             "local": {
                 "available": settings.NGS_LOCAL_EXECUTION_ENABLED and not local_missing,
@@ -86,9 +94,24 @@ def _run_dir(run_id: str) -> Path:
     return path
 
 
-def submit_run(executor: str, command_argv: list[str], outdir: str, user_id: str) -> dict[str, Any]:
+def submit_run(
+    executor: str,
+    command_argv: list[str],
+    outdir: str,
+    user_id: str,
+    *,
+    workflow: str = "nf-core/sarek",
+    revision: str = "3.10.0",
+) -> dict[str, Any]:
+    """Submit an already validated argv contract to durable compute.
+
+    ``workflow`` and ``revision`` are explicit provenance, not inferred from the
+    command string. This prevents an RNA-seq run from being persisted as Sarek.
+    """
     if executor not in {"local", "slurm", "awsbatch"}:
         raise ValueError(f"unsupported executor: {executor}")
+    if not workflow or not revision:
+        raise ValueError("workflow and revision are required")
     _require(executor)
     if executor == "local" and "-profile" in command_argv:
         profile_index = command_argv.index("-profile") + 1
@@ -121,19 +144,23 @@ def submit_run(executor: str, command_argv: list[str], outdir: str, user_id: str
         import boto3
         client = boto3.client("batch", region_name=settings.NGS_AWS_REGION)
         response = client.submit_job(
-            jobName=f"bionexus-sarek-{run_id[:8]}",
+            jobName=f"bionexus-ngs-{run_id[:8]}",
             jobQueue=settings.NGS_AWS_BATCH_JOB_QUEUE,
             jobDefinition=settings.NGS_AWS_BATCH_JOB_DEFINITION,
             containerOverrides={"command": command_argv, "environment": [{"name": "BIONEXUS_RUN_ID", "value": run_id}]},
-            tags={"BioNexusRunId": run_id, "Workflow": "nf-core-sarek-3.10.0"},
+            tags={"BioNexusRunId": run_id, "Workflow": workflow, "Revision": revision},
         )
         executor_job_id = response["jobId"]
 
+    command_sha256 = hashlib.sha256(
+        json.dumps(command_argv, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
+    ).hexdigest()
     record = {
         "run_id": run_id, "state": "SUBMITTED", "executor": executor,
-        "executor_job_id": executor_job_id, "workflow": "nf-core/sarek", "revision": "3.10.0",
+        "executor_job_id": executor_job_id, "workflow": workflow, "revision": revision,
         "outdir": outdir, "submitted_at": submitted_at, "updated_at": submitted_at,
         "exit_code": None, "message": None, "user_id": user_id,
+        "command_sha256": command_sha256,
     }
     _persist_record(record)
     return record
@@ -155,7 +182,8 @@ def _persist_record(record: dict[str, Any]) -> None:
         get_supabase().table("ngs_production_runs").upsert(record, on_conflict="run_id").execute()
     except Exception:
         # The executor-local record keeps self-hosted operation functional; hosted
-        # deployments should apply migration 011 for durable cross-restart status.
+        # deployments should apply the ngs_production_runs migration for durable
+        # cross-restart status.
         pass
 
 
@@ -225,6 +253,34 @@ def _aws_state(state: str) -> str:
     return {"SUBMITTED": "SUBMITTED", "PENDING": "PENDING", "RUNNABLE": "PENDING", "STARTING": "PENDING", "RUNNING": "RUNNING", "SUCCEEDED": "SUCCEEDED", "FAILED": "FAILED"}.get(state, "UNKNOWN")
 
 
+def _artifact_groups(workflow: str, files: list[str]) -> dict[str, list[str]]:
+    lower = {path: path.lower() for path in files}
+    execution = [path for path, value in lower.items() if "pipeline_info/execution_" in value]
+    provenance = [path for path, value in lower.items() if value.endswith(("run_manifest.json", "checksums.sha256"))]
+    multiqc = [path for path, value in lower.items() if "multiqc" in value]
+
+    if workflow == "nf-core/rnaseq":
+        return {
+            "execution": execution,
+            "fastqc": [path for path, value in lower.items() if "fastqc" in value],
+            "multiqc": multiqc,
+            "alignment": [path for path, value in lower.items() if value.endswith((".bam", ".cram", ".bai", ".crai", ".csi"))],
+            "quantification": [path for path, value in lower.items() if any(token in value for token in ("salmon", "rsem", "featurecounts", "gene_counts", "transcript_counts", "gene_tpm", "transcript_tpm"))],
+            "expression_qc": [path for path, value in lower.items() if any(token in value for token in ("deseq2", "rseqc", "qualimap", "pca", "heatmap"))],
+            "provenance": provenance,
+        }
+
+    return {
+        "execution": execution,
+        "multiqc": multiqc,
+        "alignment": [path for path, value in lower.items() if value.endswith((".bam", ".cram", ".bai", ".crai"))],
+        "small_variants": [path for path, value in lower.items() if value.endswith((".vcf.gz", ".vcf.gz.tbi", ".g.vcf.gz", ".g.vcf.gz.tbi"))],
+        "coverage": [path for path, value in lower.items() if "mosdepth" in value or "coverage" in value],
+        "identity_qc": [path for path, value in lower.items() if any(token in value for token in ("contamination", "fingerprint", "verifybamid", "sex"))],
+        "provenance": provenance,
+    }
+
+
 def artifact_manifest(run_id: str, user_id: str) -> dict[str, Any]:
     """Inventory actual output objects; never synthesize missing artifact evidence."""
     record = _load_record(run_id, user_id)
@@ -246,20 +302,11 @@ def artifact_manifest(run_id: str, user_id: str) -> dict[str, Any]:
         else:
             files = [str(path) for path in root.rglob("*") if path.is_file()]
 
-    lower = {path: path.lower() for path in files}
-    groups = {
-        "execution": [path for path, value in lower.items() if "pipeline_info/execution_" in value],
-        "multiqc": [path for path, value in lower.items() if "multiqc" in value],
-        "alignment": [path for path, value in lower.items() if value.endswith((".bam", ".cram", ".bai", ".crai"))],
-        "small_variants": [path for path, value in lower.items() if value.endswith((".vcf.gz", ".vcf.gz.tbi", ".g.vcf.gz", ".g.vcf.gz.tbi"))],
-        "coverage": [path for path, value in lower.items() if "mosdepth" in value or "coverage" in value],
-        "identity_qc": [path for path, value in lower.items() if any(token in value for token in ("contamination", "fingerprint", "verifybamid", "sex"))],
-        "provenance": [path for path, value in lower.items() if value.endswith(("run_manifest.json", "checksums.sha256"))],
-    }
+    groups = _artifact_groups(record["workflow"], files)
     missing = [name for name, evidence in groups.items() if not evidence]
     return {
         "run_id": run_id, "workflow": record["workflow"], "revision": record["revision"],
         "source": outdir, "observed_file_count": len(files), "groups": groups,
         "required_groups_complete": not missing, "missing_groups": missing,
-        "claim": "Observed artifact inventory only; presence does not imply QC or clinical validity.",
+        "claim": "Observed artifact inventory only; presence does not imply QC, biological validity, or clinical validity.",
     }

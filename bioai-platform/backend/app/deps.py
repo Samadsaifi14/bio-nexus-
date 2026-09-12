@@ -1,34 +1,16 @@
-import base64
-import json
-import logging
+"""Shared request dependencies.
 
-from fastapi import Request
+Rate limiting deliberately keys on the network source address. Authentication is
+validated separately in ``app.services.auth``. Do not derive a limiter identity by
+base64-decoding an unverified JWT: an attacker can mint arbitrary ``sub`` claims
+and rotate them to evade per-user quotas.
+"""
+
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-logger = logging.getLogger(__name__)
 
-
-def _rate_limit_key(request: Request) -> str:
-    """Use user ID from JWT for authenticated requests, fall back to IP."""
-    auth = request.headers.get("Authorization", "")
-    if auth.startswith("Bearer "):
-        try:
-            token = auth[7:]
-            parts = token.split(".")
-            if len(parts) == 3:
-                payload = parts[1]
-                padding = 4 - len(payload) % 4
-                if padding != 4:
-                    payload += "=" * padding
-                decoded = base64.urlsafe_b64decode(payload)
-                claims = json.loads(decoded)
-                uid = claims.get("sub")
-                if uid:
-                    return f"user:{uid}"
-        except Exception:
-            pass
-    return get_remote_address(request)
-
-
-limiter = Limiter(key_func=_rate_limit_key, default_limits=[])
+# A verified user-aware limiter can be introduced later via middleware that stores
+# an authenticated principal on request.state. Until then IP-based limiting is the
+# fail-closed option because it cannot be bypassed by forging JWT payload claims.
+limiter = Limiter(key_func=get_remote_address, default_limits=[])

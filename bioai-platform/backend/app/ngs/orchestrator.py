@@ -102,12 +102,13 @@ class Pipeline:
         metadata = sample.get("metadata") or {}
         input_stage = next((r for r in self.results if r.step == "input_validation"), None)
         checksums = input_stage.data.get("checksums", {}) if input_stage else {}
+        checksum_algorithm = input_stage.data.get("checksum_algorithm", "sha256") if input_stage else "sha256"
         files = []
         for path in sample.get("files") or []:
             item = {"name": os.path.basename(path)}
             checksum = checksums.get(path) or checksums.get(os.path.basename(path))
             if checksum:
-                item["checksum"] = {"algorithm": "md5", "value": checksum}
+                item["checksum"] = {"algorithm": checksum_algorithm, "value": checksum}
             files.append(item)
         reference = self.state.get("reference", {}).get("declared") or {"id": sample.get("reference")}
         return {
@@ -135,7 +136,7 @@ class Pipeline:
         surrogate_stages = [r.step for r in self.results if r.evidence_level == "SURROGATE"]
         is_rna = self.name == "rna-seq"
         summary = (
-            "This FASTQ preview evaluates read-level quality only. Splice-aware alignment and expression quantification require the pinned production nf-core/rnaseq workflow."
+            "This FASTQ preview evaluates read-level quality and measured trimming evidence. Splice-aware alignment and expression quantification require the pinned production nf-core/rnaseq workflow."
             if is_rna else
             "This internal sampled/surrogate workflow has not been validated against a public truth set."
         )
@@ -178,9 +179,9 @@ class Pipeline:
 
 def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageContract]:
     from app.ngs.stages.stage0_input import stage0_contract
-    from app.ngs.stages.stage1_raw_qc import raw_qc_contract
+    from app.ngs.stages.stage1_raw_qc_pair import raw_qc_pair_contract
     from app.ngs.stages.stage2_multiqc import stage2_contract
-    from app.ngs.stages.stage3_preproc import stage3_contract
+    from app.ngs.stages.stage3_preproc_pair import stage3_pair_contract
     from app.ngs.stages.stage4_reference import stage4_contract
     from app.ngs.stages.stage5_alignment import stage5_contract
     from app.ngs.stages.stage6_bam import stage6_contract
@@ -199,8 +200,8 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
     from app.ngs.stages.stage19_prioritize import stage19_contract
     from app.ngs.stages.stage21_final_gate import stage21_contract
     all_stages = {
-        "input_validation": stage0_contract(), "raw_read_qc": raw_qc_contract(), "multiqc": stage2_contract(),
-        "preprocessing": stage3_contract(), "reference_validation": stage4_contract(), "alignment": stage5_contract(),
+        "input_validation": stage0_contract(), "raw_read_qc": raw_qc_pair_contract(), "multiqc": stage2_contract(),
+        "preprocessing": stage3_pair_contract(), "reference_validation": stage4_contract(), "alignment": stage5_contract(),
         "bam_processing": stage6_contract(), "alignment_qc": stage7_contract(), "coverage": stage8_contract(),
         "contamination": stage9_contract(), "identity": stage10_contract(), "variant_calling": stage11_contract(),
         "variant_normalization": stage12_contract(), "variant_qc": stage13_contract(), "variant_filter": stage14_contract(),
@@ -214,24 +215,32 @@ def wgs_wes_germline_stages(include: Optional[list[str]] = None) -> list[StageCo
 
 def rna_seq_preview_stages() -> list[StageContract]:
     from app.ngs.stages.stage0_input import stage0_contract
-    from app.ngs.stages.stage1_raw_qc import raw_qc_contract
+    from app.ngs.stages.stage1_raw_qc_pair import raw_qc_pair_contract
     from app.ngs.stages.stage2_multiqc import stage2_contract
+    from app.ngs.stages.stage3_preproc_pair import stage3_pair_contract
     from app.ngs.stages.rna_preview import rna_read_summary_contract, rna_production_boundary_contract
-    return [stage0_contract(), raw_qc_contract(), stage2_contract(), rna_read_summary_contract(), rna_production_boundary_contract()]
+    return [
+        stage0_contract(),
+        raw_qc_pair_contract(),
+        stage2_contract(),
+        stage3_pair_contract(),
+        rna_read_summary_contract(),
+        rna_production_boundary_contract(),
+    ]
 
 
 def build_dag(assay: str) -> Pipeline:
     assay_l = assay.lower()
     if assay_l in ("wgs", "wes"):
-        pipe = Pipeline(name=f"{assay}-germline", version="0.1.0")
+        pipe = Pipeline(name=f"{assay}-germline", version="0.2.0")
         pipe.add_many(wgs_wes_germline_stages())
         return pipe
     if assay_l in ("rna-seq", "rnaseq"):
-        pipe = Pipeline(name="rna-seq", version="0.2.0")
+        pipe = Pipeline(name="rna-seq", version="0.4.0")
         pipe.add_many(rna_seq_preview_stages())
         return pipe
     if assay_l in ("amplicon", "panel", "targeted"):
         return Pipeline(name="amplicon-variants", version="0.1.0")
-    pipe = Pipeline(name="generic", version="0.1.0")
+    pipe = Pipeline(name="generic", version="0.2.0")
     pipe.add_many(wgs_wes_germline_stages())
     return pipe

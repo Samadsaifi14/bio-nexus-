@@ -13,6 +13,11 @@ _env_supabase_url = _env_file.get("SUPABASE_URL")
 _env_supabase_key = _env_file.get("SUPABASE_SERVICE_ROLE_KEY")
 
 
+def _csv_env(name: str, default: str) -> tuple[str, ...]:
+    raw = os.getenv(name, default)
+    return tuple(item.strip().rstrip("/") for item in raw.split(",") if item.strip())
+
+
 class Settings:
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GOOGLE_API_KEY: str = os.getenv("GOOGLE_API_KEY", "")
@@ -30,13 +35,28 @@ class Settings:
     NCBI_EMAIL: str = os.getenv("NCBI_EMAIL", "bioflow@example.com")
     NCBI_API_KEY: str = os.getenv("NCBI_API_KEY", "")
     DEMO_MODE: bool = os.getenv("DEMO_MODE", "false").lower() in ("true", "1", "yes")
-    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bioai-platform.vercel.app")
+
+    # Exact origins only. CORS_ORIGIN remains for backwards compatibility; the
+    # comma-separated CORS_ORIGINS variable is preferred for deployments with
+    # more than one trusted frontend.
+    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bio-nexus-ebon.vercel.app").rstrip("/")
+    CORS_ORIGINS: tuple[str, ...] = _csv_env(
+        "CORS_ORIGINS",
+        "http://localhost:3000,http://localhost:3001,https://bio-nexus-ebon.vercel.app,https://bioai-platform.vercel.app",
+    )
+
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
     NGS_CLINICAL_EVIDENCE_HMAC_KEY: str = os.getenv("NGS_CLINICAL_EVIDENCE_HMAC_KEY", "")
     NGS_LOCAL_EXECUTION_ENABLED: bool = os.getenv("NGS_LOCAL_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
     NGS_SLURM_EXECUTION_ENABLED: bool = os.getenv("NGS_SLURM_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
     NGS_AWS_BATCH_EXECUTION_ENABLED: bool = os.getenv("NGS_AWS_BATCH_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
     NGS_RUN_ROOT: str = os.getenv("NGS_RUN_ROOT", "/tmp/bionexus-ngs-runs")
+
+    # Server-local exploratory FASTQ import is intentionally sandboxed. A user
+    # supplied path must resolve below this root; arbitrary filesystem reads are
+    # never accepted by the NGS preview API.
+    NGS_INPUT_ROOT: str = os.getenv("NGS_INPUT_ROOT", "/data")
+
     NGS_AWS_REGION: str = os.getenv("NGS_AWS_REGION", "")
     NGS_AWS_BATCH_JOB_QUEUE: str = os.getenv("NGS_AWS_BATCH_JOB_QUEUE", "")
     NGS_AWS_BATCH_JOB_DEFINITION: str = os.getenv("NGS_AWS_BATCH_JOB_DEFINITION", "")

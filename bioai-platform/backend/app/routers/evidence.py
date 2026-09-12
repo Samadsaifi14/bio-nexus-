@@ -1,33 +1,30 @@
 """AI Evidence Engine routes.
 
-Reviewer-facing contracts:
-- GET /api/experiments/{job_id}/evidence
-- GET /api/experiments/{job_id}/evidence/claims/{claim_id}
-- GET /api/experiments/{job_id}/evidence/validate
-
-The claim route returns the exact typed subgraph a UI can open when a reviewer
-clicks an AI sentence.
+Reviewer-facing evidence for private experiments is owner-scoped. Public sharing is
+handled by explicit share tokens; a job UUID alone never authorizes access.
 """
 from __future__ import annotations
 
-import logging
 from fastapi import APIRouter, Depends, HTTPException
 
 from app.engines.evidence_engine import evidence_engine
-from app.services.auth import get_user_id
-from app.services.benchmarks import _fetch_job_context
+from app.services.auth import require_user_id
+from app.services.job_access import fetch_owned_job_context
 from app.services.evidence_graph import assemble_evidence
 
-logger = logging.getLogger(__name__)
 router = APIRouter(tags=["evidence"])
 
 
-@router.get("/api/experiments/{job_id}/evidence")
-async def experiment_evidence(job_id: str, user_id: str | None = Depends(get_user_id)):
-    context = _fetch_job_context(job_id)
+def _owned_context(job_id: str, user_id: str) -> dict:
+    context = fetch_owned_job_context(job_id, user_id)
     if not context:
         raise HTTPException(status_code=404, detail="Job context not found or empty")
-    return assemble_evidence(context)
+    return context
+
+
+@router.get("/api/experiments/{job_id}/evidence")
+async def experiment_evidence(job_id: str, user_id: str = Depends(require_user_id)):
+    return assemble_evidence(_owned_context(job_id, user_id))
 
 
 def _claim_subgraph(graph: dict, claim_id: str) -> dict:
@@ -66,19 +63,13 @@ def _claim_subgraph(graph: dict, claim_id: str) -> dict:
 
 
 @router.get("/api/experiments/{job_id}/evidence/claims/{claim_id}")
-async def experiment_claim_evidence(job_id: str, claim_id: str, user_id: str | None = Depends(get_user_id)):
-    context = _fetch_job_context(job_id)
-    if not context:
-        raise HTTPException(status_code=404, detail="Job context not found or empty")
-    return _claim_subgraph(assemble_evidence(context), claim_id)
+async def experiment_claim_evidence(job_id: str, claim_id: str, user_id: str = Depends(require_user_id)):
+    return _claim_subgraph(assemble_evidence(_owned_context(job_id, user_id)), claim_id)
 
 
 @router.get("/api/experiments/{job_id}/evidence/validate")
-async def experiment_evidence_validate(job_id: str, user_id: str | None = Depends(get_user_id)):
-    context = _fetch_job_context(job_id)
-    if not context:
-        raise HTTPException(status_code=404, detail="Job context not found or empty")
-    graph = assemble_evidence(context)
+async def experiment_evidence_validate(job_id: str, user_id: str = Depends(require_user_id)):
+    graph = assemble_evidence(_owned_context(job_id, user_id))
     result = evidence_engine.parse(graph)
     report = evidence_engine.validate(result)
     return report.to_dict()

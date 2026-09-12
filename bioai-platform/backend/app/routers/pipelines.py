@@ -1,15 +1,14 @@
-from fastapi import APIRouter, HTTPException, Depends, Request
-from pydantic import BaseModel
-from app.services.validators import validate_fasta
-from app.pipeline.definitions.protein_analysis import get_pipeline_definition
-from app.services.supabase import get_supabase
-from app.services.rate_limit import check_daily_limit, check_daily_limit_pipelines
-from app.services.auth import get_user_id
-from app.models.responses import PipelineRunResponse, PipelineDefinitionResponse
-from app.deps import limiter
 from datetime import datetime, timezone
 import uuid
 
+from fastapi import APIRouter, HTTPException, Depends, Request
+from pydantic import BaseModel, Field
+
+from app.services.validators import validate_fasta
+from app.pipeline.definitions.protein_analysis import get_pipeline_definition
+from app.services.supabase import get_supabase
+from app.services.auth import require_user_id
+from app.models.responses import PipelineRunResponse, PipelineDefinitionResponse
 
 router = APIRouter()
 
@@ -19,13 +18,24 @@ class PipelineRunRequest(BaseModel):
     pipeline_type: str = "protein_analysis"
     database: str = ""
     program: str = ""
-    max_hits: int = 100
+    max_hits: int = Field(default=100, ge=1, le=100)
     query_accession: str = ""
     fast_mode: bool = False
 
 
 @router.post("/run", response_model=PipelineRunResponse)
-async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str | None = Depends(get_user_id)):
+async def run_pipeline(
+    request: Request,
+    req: PipelineRunRequest,
+    user_id: str = Depends(require_user_id),
+):
+    """Create a private, owner-scoped scientific pipeline job.
+
+    The full sequence is retained only in the authenticated job context required by
+    the worker. ``query_preview`` deliberately contains metadata rather than sequence
+    characters so list/history surfaces cannot accidentally reveal biological input.
+    Explicit sharing remains available through the share-token endpoint.
+    """
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)
@@ -40,12 +50,13 @@ async def run_pipeline(request: Request, req: PipelineRunRequest, user_id: str |
         "id": job_id,
         "user_id": user_id,
         "tool": "pipeline",
-        "query_preview": clean,
+        "query_preview": f"sequence_length:{len(clean)}",
         "status": "queued",
         "pipeline_type": req.pipeline_type,
         "steps_completed": [],
         "context_json": {
             "sequence": clean,
+            "length": len(clean),
             "fast_mode": req.fast_mode,
             "database": req.database,
             "program": req.program,

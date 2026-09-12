@@ -1,13 +1,13 @@
 """
 Stage 0 — Input validation.
 
-Before FastQC, verify the data itself:
+Before read QC, verify the data itself:
     * file existence
     * gzip integrity when the file is actually gzip-compressed
     * FASTQ structure
     * R1/R2 pairing
     * sample names / duplicate uploads
-    * optional checksums
+    * full-file SHA-256 provenance (with legacy MD5 verification support)
     * sequencing metadata
 
 A genuine FAIL here blocks downstream analysis. Plain .fastq files are valid FASTQ inputs;
@@ -79,9 +79,11 @@ def probe_fastq(path: str, n_records: int = 2000) -> dict:
                 out["content_lines"] = i + 1
                 if i % 4 == 0:
                     if not line.startswith(b"@"):
-                        out["error"] = f"line {i + 1}: expected '@' header, got {line[:30]!r}"
+                        out["error"] = f"line {i + 1}: expected '@' header"
                         break
                     if i == 0:
+                        # A read identifier is useful for structural diagnostics but should
+                        # never be logged or returned in a public error string.
                         out["first_header"] = line.decode("utf-8", "replace").strip()
                 elif i % 4 == 1:
                     length = len(line.rstrip(b"\r\n"))
@@ -118,17 +120,30 @@ def probe_fastq(path: str, n_records: int = 2000) -> dict:
                 and out["has_valid_quality"]
             )
     except (OSError, EOFError, gzip.BadGzipFile) as exc:
-        out["error"] = f"read error: {exc}"
+        # Do not expose arbitrary server paths through provider/OS exception text.
+        out["error"] = f"read error: {type(exc).__name__}"
         out["records_ok"] = False
     return out
 
 
-def checksum_md5(path: str, sample_bytes: int = 1024 * 1024) -> Optional[str]:
+def checksums(path: str, chunk_bytes: int = 8 * 1024 * 1024) -> dict[str, str] | None:
+    """Hash the complete file once, producing SHA-256 plus legacy MD5.
+
+    SHA-256 is the provenance identifier used by BioNexus. MD5 is retained only to
+    verify older manifests that still provide a 32-character digest; it is never
+    presented as the authoritative reproducibility checksum.
+    """
     try:
-        h = hashlib.md5()
+        sha256 = hashlib.sha256()
+        md5 = hashlib.md5()
         with open(path, "rb") as fh:
-            h.update(fh.read(sample_bytes))
-        return h.hexdigest()
+            while True:
+                chunk = fh.read(chunk_bytes)
+                if not chunk:
+                    break
+                sha256.update(chunk)
+                md5.update(chunk)
+        return {"sha256": sha256.hexdigest(), "md5": md5.hexdigest()}
     except OSError:
         return None
 
@@ -150,7 +165,7 @@ def _stage0_run(sample: dict, state: dict) -> tuple[dict, dict]:
 
     files = _resolve_local_paths(sample.get("files", []))
     metadata = sample.get("metadata") or {}
-    data: dict = {"files": [], "pairs": [], "failures": [], "checksums": {}}
+    data: dict = {"files": [], "pairs": [], "failures": [], "checksums": {}, "checksum_algorithm": "sha256"}
 
     present = 0
     fastq_ok = 0
@@ -161,7 +176,7 @@ def _stage0_run(sample: dict, state: dict) -> tuple[dict, dict]:
     for f in files:
         rec: dict = {"file": os.path.basename(f)}
         if not os.path.isfile(f):
-            data["failures"].append(f"missing file: {f}")
+            data["failures"].append(f"missing file: {os.path.basename(f)}")
             rec["exists"] = False
             data["files"].append(rec)
             continue
@@ -169,8 +184,6 @@ def _stage0_run(sample: dict, state: dict) -> tuple[dict, dict]:
         present += 1
         rec["exists"] = True
 
-        # Gzip validation only applies to compressed inputs. A normal .fastq file must not
-        # receive a 0% gzip score simply because it is intentionally uncompressed.
         is_gzip_path = str(f).lower().endswith(".gz")
         rec["compression"] = "gzip" if is_gzip_path else "none"
         if is_gzip_path:
@@ -194,19 +207,37 @@ def _stage0_run(sample: dict, state: dict) -> tuple[dict, dict]:
         else:
             data["failures"].append(f"FASTQ structure failed: {os.path.basename(f)}")
 
-        rec["md5"] = checksum_md5(f)
-        declared_md5 = (sample.get("checksums") or {}).get(f) or (
-            (sample.get("checksums") or {}).get(os.path.basename(f))
-        )
-        if declared_md5 and declared_md5.lower() != rec["md5"]:
-            data["failures"].append(f"checksum mismatch: {os.path.basename(f)}")
+        digests = checksums(f)
+        if digests is None:
+            rec["sha256"] = None
+            rec["md5_legacy"] = None
             rec["checksum_match"] = False
+            data["failures"].append(f"checksum unavailable: {os.path.basename(f)}")
         else:
-            rec["checksum_match"] = True
-        data["checksums"][os.path.basename(f)] = rec["md5"]
+            rec["sha256"] = digests["sha256"]
+            rec["md5_legacy"] = digests["md5"]
+            declared = (sample.get("checksums") or {}).get(f) or (
+                (sample.get("checksums") or {}).get(os.path.basename(f))
+            )
+            if declared:
+                declared = str(declared).strip().lower()
+                if len(declared) == 64:
+                    match = declared == digests["sha256"]
+                    rec["declared_checksum_algorithm"] = "sha256"
+                elif len(declared) == 32:
+                    match = declared == digests["md5"]
+                    rec["declared_checksum_algorithm"] = "md5-legacy"
+                else:
+                    match = False
+                    rec["declared_checksum_algorithm"] = "unsupported"
+                rec["checksum_match"] = match
+                if not match:
+                    data["failures"].append(f"checksum mismatch: {os.path.basename(f)}")
+            else:
+                rec["checksum_match"] = True
+            data["checksums"][os.path.basename(f)] = digests["sha256"]
         data["files"].append(rec)
 
-    # R1/R2 pairing.
     basenames = [os.path.basename(f) for f in files]
     pairs, singles = pair_fastq(basenames)
     data["pairs"] = [list(p) for p in pairs]
@@ -215,8 +246,6 @@ def _stage0_run(sample: dict, state: dict) -> tuple[dict, dict]:
     if not pair_ok:
         data["failures"].append("orphan R2 file(s) present without a matching R1")
 
-    # Duplicate sample IDs should identify duplicate libraries/uploads, not the normal R1/R2
-    # mates of one paired-end library. Count one logical library per resolved pair plus singles.
     logical_inputs: list[str] = [p[0] for p in pairs] + list(singles)
     seen: dict[str, list[str]] = {}
     for name in logical_inputs:
@@ -229,7 +258,6 @@ def _stage0_run(sample: dict, state: dict) -> tuple[dict, dict]:
 
     metric_values = {
         "files_present": (present / exists_total * 100.0) if exists_total else 0.0,
-        # No .gz files means the gzip check is N/A, which is a valid PASS state.
         "gzip_integrity": (compressed_ok / compressed_total * 100.0) if compressed_total else 100.0,
         "fastq_structure": (fastq_ok / present * 100.0) if present else 0.0,
         "pairing_integrity": 100.0 if pair_ok else 0.0,
@@ -261,9 +289,9 @@ def stage0_contract() -> StageContract:
     return StageContract(
         step="input_validation",
         tool="platform-input-validation",
-        version="0.1.1",
+        version="0.2.0",
         inputs=["fastq_files"],
-        outputs=["validation_report"],
+        outputs=["validation_report", "sha256_checksums"],
         rules=[
             ThresholdRule(name="files_present", metric="files_present", evaluate=lambda v: _pct(v, 100, 100)),
             ThresholdRule(name="gzip_integrity", metric="gzip_integrity", evaluate=lambda v: _pct(v, 100, 100)),

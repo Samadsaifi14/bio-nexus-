@@ -1,12 +1,12 @@
 """
 Multi-assay NGS platform router.
 
-The v2 route runs a self-contained, auditable stage DAG and returns per-stage QC contracts,
-evidence, provenance, visualization data and a final analysis-readiness gate.
+The v2 route provides two deliberately separate paths:
+- an exploratory, sampled/surrogate evidence preview; and
+- production launch contracts submitted to configured durable Nextflow compute.
 
-For product evaluation and teaching, the router can also generate deterministic demonstration
-FASTQ pairs. Demo datasets are explicitly labelled in the response and still pass through the
-same FASTQ reader, QC stages, alignment logic and final gate as user-supplied files.
+Demonstration data is always labelled. User-supplied server-local FASTQ paths
+require authentication and must resolve beneath the configured NGS input root.
 """
 
 from __future__ import annotations
@@ -23,11 +23,12 @@ from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
+from app.config import settings
 from app.ngs.assays import AssayRouter
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
 from app.ngs.production import build_production_plan, evaluate_clinical_evidence
 from app.ngs.execution import artifact_manifest, executor_capabilities, get_run, submit_run
-from app.services.auth import require_user_id
+from app.services.auth import get_user_id, require_user_id
 from app.ngs.visualization import build_visualization
 from app.models.responses import (
     NgsClinicalEvidenceRequest,
@@ -41,6 +42,7 @@ from app.models.responses import (
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/ngs/v2", tags=["ngs-v2"])
 FASTQ_RECORD_CAP_PER_FILE = 2000
+_ALLOWED_FASTQ_SUFFIXES = (".fastq", ".fq", ".fastq.gz", ".fq.gz")
 
 _DETECTOR = AssayRouter()
 
@@ -50,22 +52,22 @@ _STAGE_INTRO = {
     "multiqc": "Cohort anomaly detection vs. robust median/MAD baseline.",
     "preprocessing": "Adaptor trimming and quality filtering; read-retention and post-trim quality.",
     "reference_validation": "Resolve the reference build and refuse GRCh38/GRCh37 mismatch.",
-    "alignment": "Select aligner by assay/length and map reads.",
-    "bam_processing": "Mark duplicates and produce a coordinate-sorted BAM-equivalent.",
-    "alignment_qc": "Mapping rate, proper-pair rate, MAPQ, insert size, duplicate rate, per-contig coverage.",
-    "coverage": "Genome/target depth at 1x/10x/20x/30x/50x plus uniformity.",
-    "contamination": "VerifyBAMID-style alternate-allele fraction at homozygous-ref SNP sites.",
-    "identity": "Genotype concordance plus chrX/chrY sex prediction; swaps STOP the run.",
-    "variant_calling": "Primary allele-fraction caller plus orthogonal stricter caller.",
-    "variant_normalization": "Left-normalize and de-biallelic variants.",
-    "variant_qc": "Tiered depth / allele-balance / homopolymer / GQ checks.",
-    "variant_filter": "Population-frequency and evidence filtering (REJECT_COMMON etc.).",
-    "structural_variant": "Deletion/duplication/translocation discovery from pair orientation.",
-    "copy_number": "Read-depth binning, log2 ratio, AMP > +0.6 / DEL < -0.3.",
-    "annotation": "Transcript consequence, impact and synonymous/missense/nonsense/frameshift.",
-    "knowledge": "Cross-reference ClinVar / OMIM / gnomAD.",
-    "prioritization": "Weighted score with an explicit evidence chain per candidate.",
-    "final_gate": "Analysis-readiness gate: ANALYSIS_READY / ANALYSIS_READY_WITH_WARNINGS / NOT_ANALYSIS_READY.",
+    "alignment": "Preview alignment evidence selected by assay/length; production alignment is a separate workflow requirement.",
+    "bam_processing": "Preview BAM-equivalent processing evidence; production requires real indexed BAM/CRAM artifacts.",
+    "alignment_qc": "Mapping, pairing, MAPQ, insert-size, duplicate and coverage evidence when evaluated.",
+    "coverage": "Genome/target depth summaries when evaluated.",
+    "contamination": "Contamination evidence when the required markers are available.",
+    "identity": "Genotype concordance and sex/ploidy evidence when available; unresolved identity blocks production release.",
+    "variant_calling": "Exploratory candidate calling only; production claims require caller-generated VCF/gVCF artifacts.",
+    "variant_normalization": "Normalize exploratory variant representation.",
+    "variant_qc": "Tiered depth / allele-balance / homopolymer / genotype-quality evidence when available.",
+    "variant_filter": "Evidence filtering of exploratory candidates.",
+    "structural_variant": "Exploratory pair-orientation evidence only.",
+    "copy_number": "Exploratory read-depth evidence only.",
+    "annotation": "Exploratory consequence annotation where evidence is available.",
+    "knowledge": "Cross-reference external knowledge where identifiers are available.",
+    "prioritization": "Evidence-linked exploratory prioritization; not a clinical classification.",
+    "final_gate": "Analysis-readiness gate for the preview, never a clinical release decision.",
 }
 
 _DEMO_PROFILES = {
@@ -81,7 +83,7 @@ _DEMO_PROFILES = {
     "wgs-clean": {
         "label": "Clean paired-end WGS",
         "assay": "WGS",
-        "description": "High-quality 2x150 bp Illumina-like reads intended to exercise the complete 21-stage DAG.",
+        "description": "High-quality 2x150 bp Illumina-like reads intended to exercise the exploratory evidence DAG.",
         "read_pairs": 180,
         "low_quality_fraction": 0.0,
         "duplicate_fraction": 0.03,
@@ -124,9 +126,25 @@ class DetectRequest(BaseModel):
     metadata: dict = {}
 
 
+def _safe_local_fastq(path: str) -> str:
+    """Resolve a server-local FASTQ below NGS_INPUT_ROOT or fail closed."""
+    if not path.lower().endswith(_ALLOWED_FASTQ_SUFFIXES):
+        raise HTTPException(status_code=400, detail="NGS preview accepts FASTQ/FQ inputs only")
+    root = Path(settings.NGS_INPUT_ROOT).expanduser().resolve()
+    try:
+        candidate = Path(path).expanduser().resolve(strict=True)
+    except (FileNotFoundError, OSError):
+        raise HTTPException(status_code=400, detail="NGS input is unavailable") from None
+    try:
+        candidate.relative_to(root)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="NGS input is outside the configured import root") from None
+    if not candidate.is_file():
+        raise HTTPException(status_code=400, detail="NGS input is unavailable")
+    return str(candidate)
+
+
 def _read_fastq(path: str, cap: int = FASTQ_RECORD_CAP_PER_FILE) -> tuple[list[tuple[str, str, str]], bool]:
-    if not os.path.isfile(path):
-        raise HTTPException(status_code=400, detail=f"file not found: {path}")
     reads: list[tuple[str, str, str]] = []
     try:
         opener = gzip.open(path, "rt", encoding="utf-8", errors="replace") if path.endswith(".gz") else open(path, "r", encoding="utf-8", errors="replace")
@@ -143,7 +161,8 @@ def _read_fastq(path: str, cap: int = FASTQ_RECORD_CAP_PER_FILE) -> tuple[list[t
                 reads.append((name[1:].split()[0], seq, qual))
             truncated = bool(fh.readline())
     except Exception as exc:
-        raise HTTPException(status_code=400, detail=f"failed to read {path}: {exc}")
+        logger.warning("NGS FASTQ preview read failed: %s", type(exc).__name__)
+        raise HTTPException(status_code=400, detail="NGS FASTQ input could not be parsed") from None
     return reads, truncated
 
 
@@ -305,7 +324,14 @@ def production_submit(payload: NgsProductionPlanRequest, user_id: str = Depends(
         raise HTTPException(status_code=422, detail={"message": "production launch contract is blocked", "blockers": plan["blockers"]})
     executor = "awsbatch" if payload.execution_profile == "awsbatch" else "slurm" if payload.execution_profile == "slurm" else "local"
     try:
-        run = submit_run(executor, plan["command_argv"], payload.outdir, user_id)
+        run = submit_run(
+            executor,
+            plan["command_argv"],
+            payload.outdir,
+            user_id,
+            workflow=plan["workflow"]["name"],
+            revision=plan["workflow"]["revision"],
+        )
     except RuntimeError as exc:
         raise HTTPException(status_code=503, detail=str(exc)) from exc
     except Exception as exc:
@@ -332,7 +358,7 @@ def production_run_artifacts(run_id: str, user_id: str = Depends(require_user_id
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail="production run not found") from exc
     except Exception as exc:
-        logger.exception("Production Sarek artifact import failed")
+        logger.exception("Production artifact import failed")
         raise HTTPException(status_code=502, detail=f"artifact import failed: {type(exc).__name__}") from exc
 
 
@@ -342,19 +368,33 @@ def clinical_evidence(payload: NgsClinicalEvidenceRequest):
 
 
 @router.post("/detect")
-def detect(payload: DetectRequest):
-    return _detection(payload)
+async def detect(payload: DetectRequest, user_id: Optional[str] = Depends(get_user_id)):
+    files = list(payload.file_paths or [])
+    if files:
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required for server-local NGS inputs")
+        files = [_safe_local_fastq(path) for path in files]
+    return _detection(payload, files=files)
 
 
 @router.post("/analyze")
-def analyze(payload: AnalyzeRequest):
+async def analyze(payload: AnalyzeRequest, user_id: Optional[str] = Depends(get_user_id)):
     files = list(payload.file_paths or [])
     demo: Optional[dict] = None
     demo_runtime: dict = {}
     if payload.demo_profile:
         files, demo, demo_runtime = _write_demo_fastqs(payload.demo_profile)
-    if not files and not payload.fastq_url:
-        raise HTTPException(status_code=400, detail="provide file_paths, fastq_url, or demo_profile")
+    elif files:
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Authentication required for server-local NGS inputs")
+        files = [_safe_local_fastq(path) for path in files]
+    elif payload.fastq_url:
+        # URL ingestion was previously accepted by the request model but never
+        # actually read by this endpoint. Reject it rather than implying a
+        # remote FASTQ was analysed or introducing an SSRF-prone fetch path.
+        raise HTTPException(status_code=422, detail="Remote URL ingestion is not supported by the exploratory preview; stage the FASTQ in the configured import root or use a demo")
+    else:
+        raise HTTPException(status_code=400, detail="provide file_paths or demo_profile")
 
     reads_all: dict[str, list[tuple[str, str, str]]] = {}
     truncated_inputs: list[str] = []
@@ -364,13 +404,19 @@ def analyze(payload: AnalyzeRequest):
         if truncated:
             truncated_inputs.append(os.path.basename(f))
         if not got:
-            raise HTTPException(status_code=400, detail=f"no FASTQ records read from {f}")
+            raise HTTPException(status_code=400, detail="no FASTQ records were available for analysis")
 
     detection = _detection(payload, files=files)
     demo_assay = _DEMO_PROFILES[payload.demo_profile]["assay"] if payload.demo_profile else None
-    assay = (payload.assay or demo_assay or detection["assay"] or "WGS").upper()
+    assay = (payload.assay or demo_assay or detection["assay"] or "").upper()
+    if assay in ("RNA-SEQ", "RNASEQ", "RNA"):
+        assay = "RNA-SEQ"
     if assay in ("UNKNOWN", ""):
-        assay = "WGS"
+        raise HTTPException(status_code=422, detail="Assay could not be determined; explicitly choose WGS, WES, or RNA-seq")
+    if assay in ("AMPLICON", "PANEL", "TARGETED"):
+        raise HTTPException(status_code=422, detail="Targeted amplicon analysis is not implemented in the current evidence pipeline")
+    if assay not in {"WGS", "WES", "RNA-SEQ"}:
+        raise HTTPException(status_code=422, detail="Unsupported assay for the current evidence pipeline")
     if payload.demo_profile:
         detection["sample_type"] = "synthetic-positive-control"
 

@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, ngs_demo, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
 from app.services.cache import init_redis
 
 setup_logging()
@@ -29,16 +29,15 @@ _CONTINUOUS_PAPERS_STOP = threading.Event()
 
 @asynccontextmanager
 async def lifespan(app):
-    # FastAPI only executes the configured lifespan handler when one is
-    # supplied. Startup work therefore must live here instead of relying on
-    # legacy @app.on_event("startup") handlers, otherwise the durable worker
-    # can silently never start and queued BLAST jobs remain stuck forever.
+    """Initialize request-critical services and explicitly enabled daemons."""
     await _startup_services()
 
     from app.services.paper_artifacts import start_continuous_thread
-    if os.environ.get("BIONEXUS_CONTINUOUS_PAPERS", "1") != "0":
+    if os.environ.get("BIONEXUS_CONTINUOUS_PAPERS", "0").strip().lower() in ("1", "true", "yes"):
         app.state.continuous_thread = start_continuous_thread(_CONTINUOUS_PAPERS_STOP)
         logger.info("continuous paper generation daemon started")
+    else:
+        logger.info("continuous paper generation daemon disabled")
     try:
         yield
     finally:
@@ -50,10 +49,9 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 app.add_middleware(RequestIDMiddleware)
 
-PROD_ORIGIN = settings.CORS_ORIGIN
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001", PROD_ORIGIN, "https://bioai-platform.vercel.app"],
+    allow_origins=list(settings.CORS_ORIGINS),
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -85,6 +83,7 @@ app.include_router(docking_analytics.router)
 app.include_router(sequencing.router)
 app.include_router(ngs.router)
 app.include_router(ngs_v2.router)
+app.include_router(ngs_demo.router)
 app.include_router(rnaseq_production.router)
 app.include_router(audit.router)
 app.include_router(admet.router)
@@ -119,7 +118,6 @@ NON_TERMINAL_STATUSES = {"submitted_to_ncbi", "polling_ncbi", "parsing", "fetchi
 async def _fail_stuck_jobs():
     try:
         import httpx
-        from app.config import settings
         headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}", "Content-Type": "application/json", "Prefer": "return=minimal"}
         url = f"{settings.SUPABASE_URL}/rest/v1/jobs"
         quoted = ",".join(f'"{s}"' for s in NON_TERMINAL_STATUSES)
@@ -133,8 +131,8 @@ async def _fail_stuck_jobs():
                 await client.patch(f"{url}?id=eq.{job['id']}", headers=headers, json={"status": "failed", "error": "Worker lost on restart — please re-run"})
             if stuck:
                 logger.info("Startup resume: marked %d stuck job(s) as failed", len(stuck))
-    except Exception as e:
-        logger.warning("Startup resume: error: %s", e)
+    except Exception as exc:
+        logger.warning("Startup resume: error: %s", type(exc).__name__)
 
 
 async def _ensure_docking_columns():
@@ -146,9 +144,9 @@ async def _ensure_docking_columns():
             if resp.status_code == 200:
                 logger.info("docking_jobs table accessible")
             else:
-                logger.warning("docking_jobs table query returned %s — table may not exist", resp.status_code)
-    except Exception as e:
-        logger.warning("ensure_docking_columns check: %s", e)
+                logger.warning("docking_jobs table query returned %s", resp.status_code)
+    except Exception as exc:
+        logger.warning("docking schema check failed: %s", type(exc).__name__)
 
 
 async def _fail_stuck_dockseq_jobs():
@@ -168,25 +166,28 @@ async def _fail_stuck_dockseq_jobs():
                     await client.patch(f"{base}/{table}?id=eq.{job['id']}", headers=headers, json={"status": "failed", "error": "Worker lost on restart — please re-run", "done_at": datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S")})
                 if stuck:
                     logger.info("Startup resume: marked %d stuck %s job(s) as failed", len(stuck), table)
-    except Exception as e:
-        logger.warning("Startup resume: error for docking/sequencing: %s", e)
+    except Exception as exc:
+        logger.warning("Startup resume failed for docking/sequencing: %s", type(exc).__name__)
 
 
 def _sentry_filter(event, hint):
     if event.get("exception"):
         exc = event["exception"].get("values", [{}])[0]
-        if exc.get("type") == "HTTPException" and exc.get("value", {}).get("status_code") == 429:
+        if exc.get("type") == "HTTPException" and "429" in str(exc.get("value", "")):
             return None
     return event
 
 
 async def _startup_services():
-    """Initialize backend services that must be active before requests run.
-
-    This is invoked explicitly by ``lifespan`` so worker startup is guaranteed
-    on every FastAPI deployment that honors the application's lifespan.
-    """
-    sentry_sdk.init(dsn=settings.SENTRY_DSN, environment=os.getenv("ENVIRONMENT", "development"), traces_sample_rate=0.1, send_default_pii=False, enable_tracing=True, before_send=_sentry_filter)
+    """Initialize backend services that must be active before requests run."""
+    sentry_sdk.init(
+        dsn=settings.SENTRY_DSN,
+        environment=os.getenv("ENVIRONMENT", "development"),
+        traces_sample_rate=0.1,
+        send_default_pii=False,
+        enable_tracing=True,
+        before_send=_sentry_filter,
+    )
     init_redis()
     await _ensure_docking_columns()
     await _fail_stuck_jobs()
@@ -194,14 +195,14 @@ async def _startup_services():
     try:
         import openmm
         logger.info("OpenMM %s available — full MD simulation enabled", openmm.__version__)
-    except ImportError as e:
-        logger.warning("OpenMM not available (%s) — MD will use BioPython fallback", e)
+    except ImportError:
+        logger.warning("OpenMM not available — MD will use the configured fallback path")
     try:
         from app.tools.md_config import verify_ff_solvent_combos
         combos = verify_ff_solvent_combos()
         logger.info("MD force field verification: %d verified force fields", len(combos))
-    except Exception as e:
-        logger.warning("MD force field verification failed during startup: %s", e)
+    except Exception as exc:
+        logger.warning("MD force field verification failed during startup: %s", type(exc).__name__)
     run_worker_env = os.getenv("RUN_WORKER")
     run_worker = str(run_worker_env).strip().lower() in ("1", "true", "yes") if run_worker_env is not None else os.name != "nt"
     if run_worker:
@@ -209,30 +210,13 @@ async def _startup_services():
         await start_worker()
         logger.info("In-process durable worker started")
     else:
-        logger.info("In-process durable worker disabled (RUN_WORKER=%s, os=%s)", run_worker_env if run_worker_env is not None else "(unset)", os.name)
+        logger.info("In-process durable worker disabled")
 
 
 @app.get("/health")
 async def health():
-    from app.services.cache import get_cache_stats
-    import httpx
-    health_data = {"status": "ok", "version": "0.2.0", "cache": get_cache_stats(), "worker": "unknown", "queue_depth": {}, "openmm": None}
-    try:
-        import openmm
-        from openmm import Platform
-        health_data["openmm"] = {"version": openmm.__version__, "platforms": [Platform.getPlatform(i).getName() for i in range(Platform.getNumPlatforms())]}
-    except Exception as exc:
-        health_data["openmm"] = {"error": str(exc)}
-    try:
-        headers = {"apikey": settings.SUPABASE_SERVICE_ROLE_KEY, "Authorization": f"Bearer {settings.SUPABASE_SERVICE_ROLE_KEY}"}
-        async with httpx.AsyncClient(timeout=5) as client:
-            for table in ("docking_jobs", "sequencing_jobs", "ngs_jobs", "jobs"):
-                resp = await client.get(f"{settings.SUPABASE_URL}/rest/v1/{table}?status=eq.queued&select=id", headers=headers)
-                if resp.status_code == 200:
-                    health_data["queue_depth"][table] = len(resp.json())
-    except Exception:
-        pass
-    return health_data
+    """Minimal public liveness response."""
+    return {"status": "ok", "version": "0.2.0"}
 
 
 @app.exception_handler(Exception)

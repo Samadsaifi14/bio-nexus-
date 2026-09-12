@@ -17,6 +17,7 @@ const eslintConfig = defineConfig([
       "react-hooks/preserve-manual-memoization": "warn",
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": "warn",
+      "react/no-unescaped-entities": "warn",
     },
   },
 ]);

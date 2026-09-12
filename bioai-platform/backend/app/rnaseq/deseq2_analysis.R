@@ -189,15 +189,45 @@ volcano_plot <- ggplot(volcano_df, aes(x = log2FoldChange, y = minus_log10_padj,
 plot_svg_pdf_png("volcano", 8, 6, function() print(volcano_plot))
 
 heatmap_written <- FALSE
+heatmap_basis <- "none"
+heatmap_gene_count <- 0L
+vst_matrix <- assay(vsd)
+gene_variance <- apply(vst_matrix, 1, var)
+
 if (nrow(deg_df) >= 2) {
   ordered <- deg_df[order(deg_df$padj, -abs(deg_df$log2FoldChange), na.last = TRUE), , drop = FALSE]
   selected_genes <- head(ordered$gene, top_heatmap_genes)
-  hm <- assay(vsd)[selected_genes, , drop = FALSE]
+  heatmap_basis <- "significant_DE_genes"
+} else {
+  variance_order <- names(sort(gene_variance, decreasing = TRUE, na.last = NA))
+  selected_genes <- head(variance_order, min(top_heatmap_genes, length(variance_order)))
+  heatmap_basis <- "top_variable_genes_QC"
+}
+
+if (length(selected_genes) >= 2) {
+  hm <- vst_matrix[selected_genes, , drop = FALSE]
   hm_z <- t(scale(t(hm)))
   hm_z[!is.finite(hm_z)] <- 0
+  heatmap_gene_count <- nrow(hm_z)
   write.table(data.frame(gene = rownames(hm_z), hm_z, check.names = FALSE), file.path(outdir, "heatmap_matrix_zscore.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+  result_index <- match(selected_genes, res_df$gene)
+  selection_df <- data.frame(
+    gene = selected_genes,
+    selection_basis = rep(heatmap_basis, length(selected_genes)),
+    rank = seq_along(selected_genes),
+    vst_variance = as.numeric(gene_variance[selected_genes]),
+    padj = res_df$padj[result_index],
+    log2FoldChange = res_df$log2FoldChange[result_index],
+    row.names = NULL
+  )
+  write.table(selection_df, file.path(outdir, "heatmap_gene_selection.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
   expr_col <- colorRamp2(c(-2, 0, 2), c("#1E3A5F", "#F8FAFC", "#9A3412"))
-  plot_svg_pdf_png("expression_heatmap", 9, max(6, min(12, 4 + nrow(hm_z) * 0.12)), function() draw(Heatmap(hm_z, name = "row z-score", col = expr_col, top_annotation = ha, cluster_rows = TRUE, cluster_columns = TRUE, column_title = paste0("Top ", nrow(hm_z), " DE genes by adjusted p-value"), row_names_gp = gpar(fontsize = 7), column_names_gp = gpar(fontsize = 7))))
+  heatmap_title <- if (heatmap_basis == "significant_DE_genes") {
+    paste0("Top ", nrow(hm_z), " significant DE genes by adjusted p-value")
+  } else {
+    paste0("Top ", nrow(hm_z), " variable genes (VST QC; not DEG calls)")
+  }
+  plot_svg_pdf_png("expression_heatmap", 9, max(6, min(12, 4 + nrow(hm_z) * 0.12)), function() draw(Heatmap(hm_z, name = "row z-score", col = expr_col, top_annotation = ha, cluster_rows = TRUE, cluster_columns = TRUE, column_title = heatmap_title, row_names_gp = gpar(fontsize = 7), column_names_gp = gpar(fontsize = 7))))
   heatmap_written <- TRUE
 }
 
@@ -223,11 +253,14 @@ summary <- list(
   size_factor_max = max(size_factors),
   lfc_shrinkage = shrink_status,
   expression_heatmap_generated = heatmap_written,
+  expression_heatmap_basis = heatmap_basis,
+  expression_heatmap_genes = heatmap_gene_count,
   package_versions = list(
     R = R.version.string,
     DESeq2 = as.character(packageVersion("DESeq2")),
     ComplexHeatmap = as.character(packageVersion("ComplexHeatmap")),
-    ggplot2 = as.character(packageVersion("ggplot2"))
+    ggplot2 = as.character(packageVersion("ggplot2")),
+    circlize = as.character(packageVersion("circlize"))
   )
 )
 write(toJSON(summary, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "analysis_summary.json"))

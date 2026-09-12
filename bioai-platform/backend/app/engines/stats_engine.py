@@ -201,7 +201,7 @@ class StatsEngine(BaseEngine):
     name="stats"; version="2.0.0"; tool="BioNexus central statistical framework"; tool_version="2.0.0"; databases=["recorded experiment data"]
     parameters={"operations":["bootstrap","welch_t","mann_whitney","permutation","multiple_testing","roc","pr","calibration","anova","regression","power","diagnostics","survival"],"reporting":"sample size + method + CI/significance metadata where applicable"}
     citations=["Welch BL. Biometrika 34:28-35, 1947.","Benjamini Y, Hochberg Y. JRSS B 57:289-300, 1995.","Kaplan EL, Meier P. JASA 53:457-481, 1958."]
-    benchmarks=["STATS_P_VALUE_IN_UNIT_INTERVAL","BBS-2 statistical regression suite"]; export_formats=["json","csv"]
+    benchmarks=["STATS_P_VALUE_IN_UNIT_INTERVAL"]; export_formats=["json","csv"]
 
     def parse(self,raw:Any)->EngineResult:
         raw=raw if isinstance(raw,dict) else {}; alpha=float(raw.get("alpha",.05)); tests=[]

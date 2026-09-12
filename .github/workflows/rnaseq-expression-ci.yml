@@ -1,0 +1,94 @@
+name: rnaseq-expression-ci
+
+on:
+  push:
+    branches:
+      - feature/rnaseq-deseq2-execution-2026-09-12
+  pull_request:
+    paths:
+      - 'bioai-platform/backend/app/rnaseq/**'
+      - 'bioai-platform/backend/app/routers/rnaseq_expression.py'
+      - 'bioai-platform/backend/app/data/rnaseq/**'
+      - 'bioai-platform/backend/tests/test_rnaseq_expression_contract.py'
+      - 'bioai-platform/backend/Dockerfile'
+      - 'bioai-platform/backend/requirements.txt'
+      - 'bioai-platform/frontend/src/lib/rnaseqExpressionApi.ts'
+      - 'bioai-platform/frontend/src/components/results/RnaSeqExpressionWorkspace.tsx'
+      - 'bioai-platform/frontend/src/components/ngs/GuidedNgsWorkspace.tsx'
+      - '.github/workflows/rnaseq-expression-ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  deseq2-regression:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - name: Install R/Bioconductor execution stack
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite
+          Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite)}); sessionInfo()'
+      - name: Run deterministic SALS expression regression
+        working-directory: bioai-platform/backend
+        run: |
+          rm -rf /tmp/bionexus-rnaseq-regression
+          mkdir -p /tmp/bionexus-rnaseq-regression
+          Rscript app/rnaseq/deseq2_analysis.R \
+            app/data/rnaseq/Cer_SALS_every100_validation_subset.tsv \
+            app/data/rnaseq/Cer_SALS_metadata.tsv \
+            /tmp/bionexus-rnaseq-regression \
+            condition healthy SALS '' 0.05 1 10 8:40
+          cat /tmp/bionexus-rnaseq-regression/analysis_summary.json
+      - name: Validate emitted scientific artifacts
+        run: |
+          python - <<'PY'
+          import csv, json, math
+          from pathlib import Path
+
+          out = Path('/tmp/bionexus-rnaseq-regression')
+          summary = json.loads((out / 'analysis_summary.json').read_text())
+          assert summary['genes_input'] == 221, summary
+          assert summary['samples'] == 18, summary
+          assert 2 <= summary['genes_kept'] <= 221, summary
+          assert summary['up'] + summary['down'] == summary['significant'], summary
+          assert summary['reference_level'] == 'healthy'
+          assert summary['test_level'] == 'SALS'
+          assert summary['min_count'] == 10
+          assert summary['min_samples'] == 8
+          assert math.isfinite(summary['pca_percent_variance']['PC1'])
+          assert math.isfinite(summary['pca_percent_variance']['PC2'])
+          assert 0 < summary['size_factor_min'] <= summary['size_factor_max']
+
+          required = [
+              'size_factors.tsv', 'normalized_counts.tsv', 'pca_coordinates.tsv',
+              'sample_distance_matrix.tsv', 'deseq2_all_results.tsv',
+              'deseq2_significant.tsv', 'pca.svg', 'pca.pdf', 'pca.png',
+              'sample_distance_heatmap.svg', 'sample_distance_heatmap.pdf',
+              'sample_distance_heatmap.png', 'ma_plot.svg', 'ma_plot.pdf',
+              'ma_plot.png', 'volcano.svg', 'volcano.pdf', 'volcano.png',
+          ]
+          for name in required:
+              path = out / name
+              assert path.exists() and path.stat().st_size > 0, name
+
+          with (out / 'size_factors.tsv').open() as handle:
+              assert len(list(csv.DictReader(handle, delimiter='\t'))) == 18
+          with (out / 'pca_coordinates.tsv').open() as handle:
+              assert len(list(csv.DictReader(handle, delimiter='\t'))) == 18
+
+          if summary['expression_heatmap_generated']:
+              for name in ('heatmap_matrix_zscore.tsv', 'expression_heatmap.svg', 'expression_heatmap.pdf', 'expression_heatmap.png'):
+                  path = out / name
+                  assert path.exists() and path.stat().st_size > 0, name
+          print(json.dumps(summary, indent=2))
+          PY
+      - name: Upload deterministic R artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rnaseq-sals-deseq2-regression
+          path: /tmp/bionexus-rnaseq-regression
+          if-no-files-found: error

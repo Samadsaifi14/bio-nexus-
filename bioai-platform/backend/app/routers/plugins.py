@@ -1,51 +1,38 @@
-"""Plugin System routes (Component 20).
+"""Read-only plugin inventory.
 
-- GET  /api/plugins                — discovered plugins + enabled state.
-- POST /api/plugins/reload         — re-discover the plugin directory.
-- POST /api/plugins/{name}/enable  — activate a plugin.
-- POST /api/plugins/{name}/disable — deactivate a plugin.
-- POST /api/plugins/event          — dispatch a platform event to plugins.
+Plugin discovery/enabling/event dispatch alter global server behavior and therefore belong to
+deployment administration, not the public application API. The HTTP surface only exposes a
+sanitized inventory to authenticated users.
 """
-
 from __future__ import annotations
-
-import logging
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
-from app.services.auth import get_user_id
+from app.services.auth import require_user_id
 from app.services.plugin_system import plugin_manager
 
-logger = logging.getLogger(__name__)
 router = APIRouter(tags=["plugins"])
 
 
 @router.get("/api/plugins")
-async def plugins_list(user_id: str | None = Depends(get_user_id)):
-    return {"plugins": plugin_manager.list_plugins(),
-            "plugin_dir": plugin_manager.dir,
-            "trace_entries": len(plugin_manager.trace)}
+async def plugins_list(user_id: str = Depends(require_user_id)):
+    return {"plugins": plugin_manager.list_plugins()}
 
 
 @router.post("/api/plugins/reload")
-async def plugins_reload(user_id: str | None = Depends(get_user_id)):
-    loaded = plugin_manager.reload()
-    return {"reloaded": loaded, "plugins": plugin_manager.list_plugins()}
+async def plugins_reload(user_id: str = Depends(require_user_id)):
+    raise HTTPException(status_code=403, detail="Plugin reload is deployment-admin controlled")
 
 
 @router.post("/api/plugins/{name}/enable")
-async def plugins_enable(name: str, user_id: str | None = Depends(get_user_id)):
-    if not plugin_manager.set_enabled(name, True):
-        raise HTTPException(status_code=404, detail=f"unknown plugin '{name}'")
-    return {"name": name, "enabled": True}
+async def plugins_enable(name: str, user_id: str = Depends(require_user_id)):
+    raise HTTPException(status_code=403, detail="Plugin enablement is deployment-admin controlled")
 
 
 @router.post("/api/plugins/{name}/disable")
-async def plugins_disable(name: str, user_id: str | None = Depends(get_user_id)):
-    if not plugin_manager.set_enabled(name, False):
-        raise HTTPException(status_code=404, detail=f"unknown plugin '{name}'")
-    return {"name": name, "enabled": False}
+async def plugins_disable(name: str, user_id: str = Depends(require_user_id)):
+    raise HTTPException(status_code=403, detail="Plugin enablement is deployment-admin controlled")
 
 
 class PluginEventRequest(BaseModel):
@@ -54,5 +41,5 @@ class PluginEventRequest(BaseModel):
 
 
 @router.post("/api/plugins/event")
-async def plugins_event(body: PluginEventRequest, user_id: str | None = Depends(get_user_id)):
-    return {"event": body.event, "records": plugin_manager.run_event(body.event, body.payload)}
+async def plugins_event(body: PluginEventRequest, user_id: str = Depends(require_user_id)):
+    raise HTTPException(status_code=403, detail="Plugin event dispatch is not exposed through the public API")

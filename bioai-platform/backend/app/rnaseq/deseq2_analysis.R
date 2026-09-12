@@ -160,9 +160,17 @@ pca_plot <- ggplot(pca, aes(x = PC1, y = PC2, label = name, shape = .condition))
 plot_svg_pdf_png("pca", 8, 6, function() print(pca_plot))
 
 sample_ann <- data.frame(condition = as.character(meta[[condition_col]]), row.names = rownames(meta))
-ha <- HeatmapAnnotation(condition = sample_ann$condition)
+condition_levels <- levels(meta[[condition_col]])
+condition_palette <- c("#2F6B75", "#B35C44", "#75644C", "#5B6573", "#7B627A", "#486B5A")
+if (length(condition_levels) > length(condition_palette)) {
+  condition_palette <- grDevices::hcl.colors(length(condition_levels), palette = "Dark 3")
+}
+condition_colors <- setNames(condition_palette[seq_along(condition_levels)], condition_levels)
+condition_colormap <- list(condition = condition_colors)
+ha <- HeatmapAnnotation(condition = sample_ann$condition, col = condition_colormap)
+ra <- rowAnnotation(condition = sample_ann$condition, col = condition_colormap, show_legend = FALSE)
 sd_col <- colorRamp2(c(min(sample_dists), median(sample_dists), max(sample_dists)), c("#F8FAFC", "#94A3B8", "#0F172A"))
-plot_svg_pdf_png("sample_distance_heatmap", 8, 7, function() draw(Heatmap(sample_dists, name = "distance", col = sd_col, top_annotation = ha, left_annotation = rowAnnotation(condition = sample_ann$condition), cluster_rows = TRUE, cluster_columns = TRUE, column_title = "Sample-to-sample distance (VST)", row_names_gp = gpar(fontsize = 7), column_names_gp = gpar(fontsize = 7))))
+plot_svg_pdf_png("sample_distance_heatmap", 8, 7, function() draw(Heatmap(sample_dists, name = "distance", col = sd_col, top_annotation = ha, left_annotation = ra, cluster_rows = TRUE, cluster_columns = TRUE, column_title = "Sample-to-sample distance (VST)", row_names_gp = gpar(fontsize = 7), column_names_gp = gpar(fontsize = 7))))
 
 plot_svg_pdf_png("ma_plot", 8, 6, function() {
   plotMA(res, alpha = alpha, main = paste0(test_level, " vs ", reference_level, " · DESeq2 MA"))

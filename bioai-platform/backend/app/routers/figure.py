@@ -1,11 +1,8 @@
 """Figure Engine routes (Component 8).
 
-- GET /api/figure/formats                 — supported publication formats.
-- GET /api/figures/{job_id}               — canonical SVG figure.
-- GET /api/figures/{job_id}/export        — SVG/PNG/PDF/TIFF publication export.
-- GET /api/figures/{job_id}/export/meta   — deterministic export metadata.
+Private job-derived figures require an authenticated owner. Public sharing uses the
+explicit share-token surface; a job UUID alone is never an authorization credential.
 """
-
 from __future__ import annotations
 
 import logging
@@ -13,8 +10,8 @@ from typing import Literal
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 
-from app.services.auth import get_user_id
-from app.services.benchmarks import _fetch_job_context
+from app.services.auth import require_user_id
+from app.services.job_access import fetch_owned_job_context
 from app.services.experiment_figures import build_experiment_figure
 from app.services.figure_export import export_figure
 
@@ -33,17 +30,17 @@ async def figure_formats():
     }
 
 
-def _figure_svg(job_id: str) -> str:
-    context = _fetch_job_context(job_id)
+def _figure_svg(job_id: str, user_id: str) -> str:
+    context = fetch_owned_job_context(job_id, user_id)
     if not context:
         raise HTTPException(status_code=404, detail="Job context not found or empty")
     return build_experiment_figure(context, job_id)
 
 
 @router.get("/api/figures/{job_id}")
-async def experiment_figure(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """Canonical multi-panel publication figure as SVG."""
-    return Response(content=_figure_svg(job_id), media_type="image/svg+xml")
+async def experiment_figure(job_id: str, user_id: str = Depends(require_user_id)):
+    """Canonical multi-panel publication figure as SVG for the owning user."""
+    return Response(content=_figure_svg(job_id, user_id), media_type="image/svg+xml")
 
 
 @router.get("/api/figures/{job_id}/export")
@@ -51,20 +48,16 @@ async def experiment_figure_export(
     job_id: str,
     format: Literal["svg", "png", "pdf", "tiff"] = Query("svg"),
     dpi: int = Query(300, ge=300, le=600),
-    user_id: str | None = Depends(get_user_id),
+    user_id: str = Depends(require_user_id),
 ):
-    """Return a publication artifact derived from the canonical SVG.
-
-    Raster exports are restricted to 300-600 DPI. The SHA-256 checksum is
-    returned as a response header for archive/provenance capture.
-    """
+    """Return a publication artifact derived from the owner's canonical SVG."""
     try:
-        artifact = export_figure(_figure_svg(job_id), format, dpi)
+        artifact = export_figure(_figure_svg(job_id, user_id), format, dpi)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
         logger.exception("Figure conversion unavailable")
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="Figure conversion is unavailable") from exc
 
     headers = {
         "X-BioNexus-SHA256": artifact.sha256,
@@ -80,15 +73,15 @@ async def experiment_figure_export_metadata(
     job_id: str,
     format: Literal["svg", "png", "pdf", "tiff"] = Query("svg"),
     dpi: int = Query(300, ge=300, le=600),
-    user_id: str | None = Depends(get_user_id),
+    user_id: str = Depends(require_user_id),
 ):
     """Metadata/checksum for the exact bytes returned by the export endpoint."""
     try:
-        artifact = export_figure(_figure_svg(job_id), format, dpi)
+        artifact = export_figure(_figure_svg(job_id, user_id), format, dpi)
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     except RuntimeError as exc:
-        raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="Figure conversion is unavailable") from exc
     return {
         "job_id": job_id,
         "canonical_source": "svg",

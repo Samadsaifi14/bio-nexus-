@@ -507,7 +507,7 @@ export default function GuidedNgsWorkspace() {
     const raw = findStage(stages, 'raw_read_qc');
     const data = asRecord(raw?.data);
     const perFile = asRecord(data.per_file);
-    const rows = Object.entries(perFile).map(([file, value]) => ({ file: file.split('/').pop() ?? file, ...asRecord(value) }));
+    const rows: Array<UnknownRecord & { file: string }> = Object.entries(perFile).map(([file, value]) => ({ file: file.split('/').pop() ?? file, ...asRecord(value) }));
     return (
       <div className="space-y-4">
         <div className="grid gap-2 sm:grid-cols-4">
@@ -536,7 +536,7 @@ export default function GuidedNgsWorkspace() {
 
   const renderTrim = () => {
     const perFile = asRecord(preprocessingData.per_file);
-    const examples = Object.entries(perFile).flatMap(([file, value]) => {
+    const examples: Array<UnknownRecord & { file: string }> = Object.entries(perFile).flatMap(([file, value]) => {
       const rows = Array.isArray(asRecord(value).trim_examples) ? asRecord(value).trim_examples as unknown[] : [];
       return rows.map(row => ({ file: file.split('/').pop() ?? file, ...asRecord(row) }));
     });

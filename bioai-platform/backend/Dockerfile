@@ -5,8 +5,12 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates git libnetcdf-dev \
     openbabel libgl1 libgomp1 libopenblas-dev \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
-    libxml2 libxslt1.1 samtools && \
+    libxml2 libxslt1.1 samtools \
+    r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite && \
     rm -rf /var/lib/apt/lists/*
+
+# Verify the deterministic RNA-seq statistical runtime at image-build time.
+RUN Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite)}); cat("DESeq2", as.character(packageVersion("DESeq2")), "ComplexHeatmap", as.character(packageVersion("ComplexHeatmap")), "\n")'
 
 # Gnina (CNN-based rescoring) — pre-built binary; --no_gpu for CPU-only environments
 RUN wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina" -O /usr/local/bin/gnina && \

@@ -136,7 +136,7 @@ class Pipeline:
         surrogate_stages = [r.step for r in self.results if r.evidence_level == "SURROGATE"]
         is_rna = self.name == "rna-seq"
         summary = (
-            "This FASTQ preview evaluates read-level quality only. Splice-aware alignment and expression quantification require the pinned production nf-core/rnaseq workflow."
+            "This FASTQ preview evaluates read-level quality and measured trimming evidence. Splice-aware alignment and expression quantification require the pinned production nf-core/rnaseq workflow."
             if is_rna else
             "This internal sampled/surrogate workflow has not been validated against a public truth set."
         )
@@ -217,8 +217,16 @@ def rna_seq_preview_stages() -> list[StageContract]:
     from app.ngs.stages.stage0_input import stage0_contract
     from app.ngs.stages.stage1_raw_qc_pair import raw_qc_pair_contract
     from app.ngs.stages.stage2_multiqc import stage2_contract
+    from app.ngs.stages.stage3_preproc_pair import stage3_pair_contract
     from app.ngs.stages.rna_preview import rna_read_summary_contract, rna_production_boundary_contract
-    return [stage0_contract(), raw_qc_pair_contract(), stage2_contract(), rna_read_summary_contract(), rna_production_boundary_contract()]
+    return [
+        stage0_contract(),
+        raw_qc_pair_contract(),
+        stage2_contract(),
+        stage3_pair_contract(),
+        rna_read_summary_contract(),
+        rna_production_boundary_contract(),
+    ]
 
 
 def build_dag(assay: str) -> Pipeline:
@@ -228,7 +236,7 @@ def build_dag(assay: str) -> Pipeline:
         pipe.add_many(wgs_wes_germline_stages())
         return pipe
     if assay_l in ("rna-seq", "rnaseq"):
-        pipe = Pipeline(name="rna-seq", version="0.3.0")
+        pipe = Pipeline(name="rna-seq", version="0.4.0")
         pipe.add_many(rna_seq_preview_stages())
         return pipe
     if assay_l in ("amplicon", "panel", "targeted"):

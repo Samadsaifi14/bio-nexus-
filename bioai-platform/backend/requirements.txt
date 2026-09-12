@@ -9,6 +9,7 @@ litellm
 sentry-sdk
 python-dotenv
 supabase
+python-multipart>=0.0.20
 reportlab
 cairosvg>=2.7
 Pillow>=10

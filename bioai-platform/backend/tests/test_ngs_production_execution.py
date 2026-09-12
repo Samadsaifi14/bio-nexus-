@@ -12,6 +12,7 @@ def test_capabilities_never_offer_preview_fallback(monkeypatch):
     assert result["fallback"] is None
     assert all(not item["available"] for item in result["executors"].values())
     assert "never fall back" in result["note"]
+    assert {item["name"] for item in result["workflows"]} == {"nf-core/sarek", "nf-core/rnaseq"}
 
 
 def test_disabled_executor_fails_closed(monkeypatch):
@@ -32,7 +33,7 @@ def test_owned_run_record_round_trip(tmp_path, monkeypatch):
         "state": "SUBMITTED", "executor": "local", "executor_job_id": "123",
         "workflow": "nf-core/sarek", "revision": "3.10.0", "outdir": "/results",
         "submitted_at": "2026-09-02T00:00:00+00:00", "updated_at": "2026-09-02T00:00:00+00:00",
-        "exit_code": None, "message": None, "user_id": "user-1",
+        "exit_code": None, "message": None, "user_id": "user-1", "command_sha256": "a" * 64,
     }
     execution._persist_record(record)
     assert Path(tmp_path, f"{record['run_id']}.json").is_file()
@@ -43,3 +44,25 @@ def test_owned_run_record_round_trip(tmp_path, monkeypatch):
         pass
     else:
         raise AssertionError("run record was visible to another user")
+
+
+def test_rnaseq_artifact_contract_does_not_require_variant_files():
+    files = [
+        "/results/pipeline_info/execution_trace.txt",
+        "/results/fastqc/sample_fastqc.html",
+        "/results/multiqc/multiqc_report.html",
+        "/results/star_salmon/sample.bam",
+        "/results/salmon/sample/quant.sf",
+        "/results/deseq2/pca.pdf",
+        "/results/checksums.sha256",
+    ]
+    groups = execution._artifact_groups("nf-core/rnaseq", files)
+    assert "small_variants" not in groups
+    assert "quantification" in groups and groups["quantification"]
+    assert "expression_qc" in groups and groups["expression_qc"]
+
+
+def test_sarek_artifact_contract_requires_variant_and_identity_evidence():
+    groups = execution._artifact_groups("nf-core/sarek", ["/results/pipeline_info/execution_trace.txt"])
+    assert "small_variants" in groups
+    assert "identity_qc" in groups

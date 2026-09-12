@@ -70,6 +70,8 @@ jobs:
               'sample_distance_heatmap.svg', 'sample_distance_heatmap.pdf',
               'sample_distance_heatmap.png', 'ma_plot.svg', 'ma_plot.pdf',
               'ma_plot.png', 'volcano.svg', 'volcano.pdf', 'volcano.png',
+              'heatmap_matrix_zscore.tsv', 'heatmap_gene_selection.tsv',
+              'expression_heatmap.svg', 'expression_heatmap.pdf', 'expression_heatmap.png',
           ]
           for name in required:
               path = out / name
@@ -79,11 +81,17 @@ jobs:
               assert len(list(csv.DictReader(handle, delimiter='\t'))) == 18
           with (out / 'pca_coordinates.tsv').open() as handle:
               assert len(list(csv.DictReader(handle, delimiter='\t'))) == 18
+          with (out / 'heatmap_gene_selection.tsv').open() as handle:
+              selected = list(csv.DictReader(handle, delimiter='\t'))
+              assert len(selected) == summary['expression_heatmap_genes']
 
-          if summary['expression_heatmap_generated']:
-              for name in ('heatmap_matrix_zscore.tsv', 'expression_heatmap.svg', 'expression_heatmap.pdf', 'expression_heatmap.png'):
-                  path = out / name
-                  assert path.exists() and path.stat().st_size > 0, name
+          assert summary['expression_heatmap_generated'] is True, summary
+          assert summary['expression_heatmap_genes'] >= 2, summary
+          # This deterministic fixture currently has no genes passing the declared
+          # DEG cut-offs, so the heatmap must remain explicitly QC/exploratory.
+          assert summary['significant'] == 0, summary
+          assert summary['expression_heatmap_basis'] == 'top_variable_genes_QC', summary
+          assert all(row['selection_basis'] == 'top_variable_genes_QC' for row in selected)
           print(json.dumps(summary, indent=2))
           PY
       - name: Upload deterministic R artifacts

@@ -26,6 +26,7 @@ import { ProvenancePanel } from '@/components/results/ProvenancePanel';
 import { NgsProductionSupportCard } from '@/components/results/NgsProductionSupportCard';
 import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';
 import { RnaSeqExpressionWorkspace } from '@/components/results/RnaSeqExpressionWorkspace';
+import NgsVisualizationHub from '@/components/results/NgsVisualizationHub';
 import { runNgs2Analyze, type Ngs2AnalyzeResult, type Ngs2Stage } from '@/lib/api';
 import { downloadNgsDemoFile, getNgsDemoCatalog, type NgsDemoCatalogItem } from '@/lib/ngsDemoApi';
 
@@ -680,6 +681,8 @@ export default function GuidedNgsWorkspace() {
           <ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" />
           Figures and tables in this workspace are rendered only from data present in the run. Missing production evidence stays missing; BioNexus does not replace it with a decorative plot.
         </div>
+
+        <NgsVisualizationHub stages={stages} />
 
         <div className="grid gap-5 lg:grid-cols-[270px_minmax(0,1fr)]">
           <aside className="h-fit overflow-hidden rounded-xl border border-glass-border bg-surface-0 lg:sticky lg:top-4">

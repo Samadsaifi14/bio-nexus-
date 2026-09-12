@@ -102,12 +102,13 @@ class Pipeline:
         metadata = sample.get("metadata") or {}
         input_stage = next((r for r in self.results if r.step == "input_validation"), None)
         checksums = input_stage.data.get("checksums", {}) if input_stage else {}
+        checksum_algorithm = input_stage.data.get("checksum_algorithm", "sha256") if input_stage else "sha256"
         files = []
         for path in sample.get("files") or []:
             item = {"name": os.path.basename(path)}
             checksum = checksums.get(path) or checksums.get(os.path.basename(path))
             if checksum:
-                item["checksum"] = {"algorithm": "md5", "value": checksum}
+                item["checksum"] = {"algorithm": checksum_algorithm, "value": checksum}
             files.append(item)
         reference = self.state.get("reference", {}).get("declared") or {"id": sample.get("reference")}
         return {

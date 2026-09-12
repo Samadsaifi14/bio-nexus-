@@ -48,6 +48,7 @@ jobs:
             tests/test_lifespan_worker.py \
             tests/test_ngs_production_execution.py \
             tests/test_ngs_security_boundaries.py \
+            tests/test_ngs_paired_preview.py \
             -q
 
       - name: Benchmark + engine registry integrity

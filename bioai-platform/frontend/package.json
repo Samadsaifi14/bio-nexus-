@@ -24,7 +24,7 @@
     "react-hot-toast": "^2.5.2",
     "recharts": "^2.15.4",
     "sharp": "0.35.4",
-    "three": "^0.184.0"
+    "three": "^0.185.1"
   },
   "devDependencies": {
     "@types/node": "^22.13.4",

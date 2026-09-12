@@ -1,17 +1,25 @@
-"""Job history DAG — lets users trace provenance across branched runs."""
+"""Owner-scoped job history DAG and branching."""
+from __future__ import annotations
 
-from fastapi import APIRouter, HTTPException, Depends
+import threading
+import uuid
+
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from app.services.auth import get_user_id
+
+from app.services.auth import require_user_id
+from app.services.job_access import fetch_owned_job, fetch_owned_job_context
 from app.services.supabase import get_supabase
 
 router = APIRouter()
+
+_HISTORY_FIELDS = "id, tool, query_preview, status, parent_job_id, created_at, completed_at, error"
 
 
 class JobNode(BaseModel):
     id: str
     tool: str
-    query_preview: str
+    query_preview: str | None = None
     status: str
     parent_job_id: str | None = None
     created_at: str
@@ -20,66 +28,59 @@ class JobNode(BaseModel):
 
 
 @router.get("/graph/{job_id}")
-async def get_job_graph(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """Return the full ancestry + descendants of a job as a DAG."""
-    supabase = get_supabase()
-
-    # Fetch the root job
-    result = supabase.table("jobs").select(
-        "id, tool, query_preview, status, parent_job_id, created_at, completed_at, error"
-    ).eq("id", job_id).execute()
-    if not result.data:
+async def get_job_graph(job_id: str, user_id: str = Depends(require_user_id)):
+    """Return owned ancestry plus direct descendants without cross-tenant reads."""
+    job = fetch_owned_job(job_id, user_id, _HISTORY_FIELDS)
+    if not job:
         raise HTTPException(status_code=404, detail="Job not found")
-    job = result.data[0]
-    if user_id and job.get("user_id") and job["user_id"] != user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
 
-    # Walk ancestors
+    supabase = get_supabase()
     ancestors: list[dict] = []
     current = job
     seen = {job_id}
     while current.get("parent_job_id"):
         pid = current["parent_job_id"]
         if pid in seen:
-            break  # safety against cycles
-        seen.add(pid)
-        parent_res = supabase.table("jobs").select(
-            "id, tool, query_preview, status, parent_job_id, created_at, completed_at, error"
-        ).eq("id", pid).execute()
-        if not parent_res.data:
             break
-        parent = parent_res.data[0]
+        seen.add(pid)
+        parent = fetch_owned_job(pid, user_id, _HISTORY_FIELDS)
+        if not parent:
+            break
         ancestors.append(parent)
         current = parent
     ancestors.reverse()
 
-    # Find descendants (jobs whose parent_job_id == job_id)
-    desc_res = supabase.table("jobs").select(
-        "id, tool, query_preview, status, parent_job_id, created_at, completed_at, error"
-    ).eq("parent_job_id", job_id).execute()
+    desc_res = (
+        supabase.table("jobs")
+        .select(_HISTORY_FIELDS)
+        .eq("parent_job_id", job_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
     descendants = desc_res.data or []
 
-    # Build nodes list
     nodes = ancestors + [job] + descendants
-    edges = []
-    for n in nodes:
-        if n.get("parent_job_id"):
-            edges.append({"from": n["parent_job_id"], "to": n["id"]})
-
-    return {
-        "nodes": [JobNode(**n) for n in nodes],
-        "edges": edges,
-        "focus": job_id,
-    }
+    edges = [
+        {"from": node["parent_job_id"], "to": node["id"]}
+        for node in nodes
+        if node.get("parent_job_id")
+    ]
+    return {"nodes": [JobNode(**node) for node in nodes], "edges": edges, "focus": job_id}
 
 
 @router.get("/children/{job_id}")
-async def get_job_children(job_id: str, user_id: str | None = Depends(get_user_id)):
-    """Return direct children of a job (for the 'branch from here' list)."""
-    supabase = get_supabase()
-    result = supabase.table("jobs").select(
-        "id, tool, query_preview, status, created_at, completed_at"
-    ).eq("parent_job_id", job_id).order("created_at", desc=True).execute()
+async def get_job_children(job_id: str, user_id: str = Depends(require_user_id)):
+    """Return direct children only after confirming ownership of the parent."""
+    if not fetch_owned_job(job_id, user_id, "id"):
+        raise HTTPException(status_code=404, detail="Job not found")
+    result = (
+        get_supabase().table("jobs")
+        .select("id, tool, query_preview, status, created_at, completed_at")
+        .eq("parent_job_id", job_id)
+        .eq("user_id", user_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
     return {"children": result.data or []}
 
 
@@ -90,28 +91,17 @@ class BranchRequest(BaseModel):
 
 
 @router.post("/branch")
-async def branch_from_job(
-    req: BranchRequest,
-    user_id: str | None = Depends(get_user_id),
-):
-    """Create a new pipeline job branched from an existing job's results.
+async def branch_from_job(req: BranchRequest, user_id: str = Depends(require_user_id)):
+    """Create a new private pipeline job from an owned experiment context."""
+    from app.routers.pipeline_v2 import _execute, _jobs, _jobs_lock, _persist_v2_job
 
-    The source job's context_json is passed as input to the new pipeline.
-    """
-    from app.routers.pipeline_v2 import _persist_v2_job, _jobs, _jobs_lock
-    import uuid
-
-    supabase = get_supabase()
-    src = supabase.table("jobs").select("*").eq("id", req.source_job_id).execute()
-    if not src.data:
+    context = fetch_owned_job_context(req.source_job_id, user_id)
+    if not context:
         raise HTTPException(status_code=404, detail="Source job not found")
-    source = src.data[0]
-    if user_id and source.get("user_id") and source["user_id"] != user_id:
-        raise HTTPException(status_code=403, detail="Access denied")
 
-    # Build payload from source results
-    context = source.get("context_json") or {}
     sequence = (context.get("query") or {}).get("sequence") or context.get("sequence") or ""
+    if not sequence:
+        raise HTTPException(status_code=422, detail="Source experiment has no reusable sequence input")
 
     new_job_id = str(uuid.uuid4())
     payload = {
@@ -119,28 +109,23 @@ async def branch_from_job(
         "user_id": user_id,
         "tool": "pipeline_v2",
         "pipeline_type": "protein_analysis",
-        "query_preview": (sequence[:60] + "...") if len(sequence) > 60 else sequence,
+        "query_preview": f"sequence_length:{len(sequence)}",
         "status": "queued",
-        "context_json": {"sequence": sequence, "parent_context": context},
+        "context_json": {"sequence": sequence, "length": len(sequence), "parent_context": context},
         "steps_completed": [],
         "progress_pct": 0,
         "parent_job_id": req.source_job_id,
     }
     _persist_v2_job(new_job_id, payload)
 
-    # Initialize in-memory state
     with _jobs_lock:
         _jobs[new_job_id] = {
             "status": "queued",
-            "steps": {s: {"status": "pending", "progress": 0, "data": None, "error": None} for s in req.steps},
+            "steps": {step: {"status": "pending", "progress": 0, "data": None, "error": None} for step in req.steps},
             "context": {"sequence": sequence, "parent_context": context},
             "current_step": None,
             "progress": 0,
         }
-
-    # Spawn pipeline thread
-    import threading
-    from app.routers.pipeline_v2 import _execute
 
     thread = threading.Thread(
         target=_execute,
@@ -148,5 +133,4 @@ async def branch_from_job(
         daemon=True,
     )
     thread.start()
-
     return {"job_id": new_job_id, "parent_job_id": req.source_job_id}

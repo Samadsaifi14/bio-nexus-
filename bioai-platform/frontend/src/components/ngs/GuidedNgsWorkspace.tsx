@@ -25,6 +25,7 @@ import NgsArtifactPanel from '@/components/results/NgsArtifactPanel';
 import { ProvenancePanel } from '@/components/results/ProvenancePanel';
 import { NgsProductionSupportCard } from '@/components/results/NgsProductionSupportCard';
 import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';
+import { RnaSeqExpressionWorkspace } from '@/components/results/RnaSeqExpressionWorkspace';
 import { runNgs2Analyze, type Ngs2AnalyzeResult, type Ngs2Stage } from '@/lib/api';
 import { downloadNgsDemoFile, getNgsDemoCatalog, type NgsDemoCatalogItem } from '@/lib/ngsDemoApi';
 
@@ -758,8 +759,9 @@ export default function GuidedNgsWorkspace() {
         </>
       ) : (
         <>
-          <div className="rounded-xl border border-warn/20 bg-warn/5 p-4 text-xs leading-5 text-text-secondary"><Warning className="mr-2 inline h-4 w-4 text-warn" /><strong className="text-text-primary">No fake RNA heatmap is shown here.</strong> PCA, sample-distance heatmap, volcano plot and expression heatmap must be generated from actual production count/DESeq2 artifacts. Until those artifacts exist, the UI shows the required stage rather than manufacturing a chart.</div>
-          <div><p className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-primary"><Flask /> Production RNA-seq execution</p><RnaSeqProductionSupportCard /></div>
+          <div className="rounded-xl border border-accent-cyan/20 bg-accent-cyan/5 p-4 text-xs leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" /><strong className="text-text-primary">Expression statistics are now executed, not mocked.</strong> The workspace below accepts raw integer counts plus explicit sample metadata and emits R/DESeq2 tables and R-generated figures. The upstream FASTQ production lane remains separate and continues through nf-core/rnaseq.</div>
+          <RnaSeqExpressionWorkspace />
+          <div><p className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-primary"><Flask /> Upstream production RNA-seq execution</p><RnaSeqProductionSupportCard /></div>
         </>
       )}
 

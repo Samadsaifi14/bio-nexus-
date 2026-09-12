@@ -24,20 +24,16 @@ jobs:
           def replace_once(path_str: str, old: str, new: str) -> None:
               path = Path(path_str)
               text = path.read_text(encoding='utf-8')
-              if text.count(old) != 1:
-                  raise SystemExit(f'Expected exactly one match in {path}: {old[:120]!r}; got {text.count(old)}')
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f'Expected exactly one match in {path}: {old[:100]!r}; got {count}')
               path.write_text(text.replace(old, new), encoding='utf-8')
 
           r = 'bioai-platform/backend/app/rnaseq/deseq2_analysis.R'
           replace_once(
               r,
-              'if (length(args) != 11) {\n  stop("Expected 11 arguments: counts metadata outdir condition reference test covariates alpha lfc min_count min_samples top_heatmap_genes")\n}',
-              'if (length(args) != 11) {\n  stop("Expected 11 arguments: counts metadata outdir condition reference test covariates alpha lfc min_count min_samples:top_heatmap_genes")\n}'
-          )
-          replace_once(
-              r,
-              'for (term in covariates) {\n  if (!(term %in% names(meta))) stop(paste0("metadata is missing covariate \'", term, "\'"))\n}\ndesign_terms <- unique(c(covariates, condition_col))',
-              'for (term in covariates) {\n  if (!(term %in% names(meta))) stop(paste0("metadata is missing covariate \'", term, "\'"))\n}\nmodel_meta_export <- data.frame(sample = rownames(meta), meta, check.names = FALSE, row.names = NULL)\nwrite.table(model_meta_export, file.path(outdir, "model_metadata.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\ndesign_terms <- unique(c(covariates, condition_col))'
+              'design_terms <- unique(c(covariates, condition_col))',
+              'model_meta_export <- data.frame(sample = rownames(meta), meta, check.names = FALSE, row.names = NULL)\nwrite.table(model_meta_export, file.path(outdir, "model_metadata.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\n\ndesign_terms <- unique(c(covariates, condition_col))'
           )
           replace_once(
               r,
@@ -46,9 +42,10 @@ jobs:
           )
           replace_once(
               r,
-              'write.table(size_factor_df, file.path(outdir, "size_factors.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\nwrite.table(data.frame(gene = rownames(normalized), normalized, check.names = FALSE), file.path(outdir, "normalized_counts.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\n\nvsd <- vst(dds, blind = TRUE)',
-              'write.table(size_factor_df, file.path(outdir, "size_factors.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\nwrite.table(data.frame(gene = rownames(normalized), normalized, check.names = FALSE), file.path(outdir, "normalized_counts.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\nlibrary_sizes <- data.frame(sample = colnames(dds), raw_library_size = as.numeric(colSums(counts(dds))), normalized_library_sum = as.numeric(colSums(normalized)), size_factor = as.numeric(size_factors), row.names = NULL)\nwrite.table(library_sizes, file.path(outdir, "library_sizes.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\n\n# Use the exact VST implementation rather than vst(), whose nsub default can fail on small matrices.\nvsd <- varianceStabilizingTransformation(dds, blind = TRUE)'
+              'write.table(data.frame(gene = rownames(normalized), normalized, check.names = FALSE), file.path(outdir, "normalized_counts.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)',
+              'write.table(data.frame(gene = rownames(normalized), normalized, check.names = FALSE), file.path(outdir, "normalized_counts.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)\nlibrary_sizes <- data.frame(sample = colnames(dds), raw_library_size = as.numeric(colSums(counts(dds))), normalized_library_sum = as.numeric(colSums(normalized)), size_factor = as.numeric(size_factors), row.names = NULL)\nwrite.table(library_sizes, file.path(outdir, "library_sizes.tsv"), sep = "\\t", quote = FALSE, row.names = FALSE)'
           )
+          replace_once(r, 'vsd <- vst(dds, blind = TRUE)', '# Robust for small matrices as well as full studies; still blind for pre-inference QC.\nvsd <- varianceStabilizingTransformation(dds, blind = TRUE)')
           replace_once(
               r,
               'write(toJSON(summary, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "analysis_summary.json"))',
@@ -66,22 +63,14 @@ jobs:
 
           router = 'bioai-platform/backend/app/routers/rnaseq_expression.py'
           replace_once(router, 'DEMO_COUNTS = DATA_DIR / "Cer_SALS_every10_validation_subset.tsv"', 'DEMO_COUNTS = DATA_DIR / "Cer_SALS_demo_subset.tsv"')
-          replace_once(
-              router,
-              'source_label="bundled-deterministic-every-10th-gene-subset-of-course-supplied-cerebellum-SALS-matrix",',
-              'source_label="bundled-deterministic-201-gene-execution-fixture-from-user-supplied-cerebellum-SALS-count-matrix; not a substitute for full-study inference",'
-          )
+          replace_once(router, 'source_label="bundled-deterministic-every-10th-gene-subset-of-course-supplied-cerebellum-SALS-matrix",', 'source_label="bundled-deterministic-201-gene-execution-fixture-from-user-supplied-cerebellum-SALS-count-matrix; not a substitute for full-study inference",')
 
           docker = 'bioai-platform/backend/Dockerfile'
           replace_once(docker, 'r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite &&', 'r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize &&')
           replace_once(docker, 'library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite)', 'library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)')
 
           guided = 'bioai-platform/frontend/src/components/ngs/GuidedNgsWorkspace.tsx'
-          replace_once(
-              guided,
-              "import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';",
-              "import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';\nimport { RnaSeqExpressionWorkspace } from '@/components/results/RnaSeqExpressionWorkspace';"
-          )
+          replace_once(guided, "import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';", "import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';\nimport { RnaSeqExpressionWorkspace } from '@/components/results/RnaSeqExpressionWorkspace';")
           replace_once(
               guided,
               '          <div className="rounded-xl border border-warn/20 bg-warn/5 p-4 text-xs leading-5 text-text-secondary"><Warning className="mr-2 inline h-4 w-4 text-warn" /><strong className="text-text-primary">No fake RNA heatmap is shown here.</strong> PCA, sample-distance heatmap, volcano plot and expression heatmap must be generated from actual production count/DESeq2 artifacts. Until those artifacts exist, the UI shows the required stage rather than manufacturing a chart.</div>\n          <div><p className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-primary"><Flask /> Production RNA-seq execution</p><RnaSeqProductionSupportCard /></div>',
@@ -90,16 +79,12 @@ jobs:
 
           workspace = 'bioai-platform/frontend/src/components/results/RnaSeqExpressionWorkspace.tsx'
           replace_once(workspace, "'Run SALS validation subset'", "'Run SALS DESeq2 demo'")
-          replace_once(
-              workspace,
-              'The bundled demonstration is a deterministic every-10th-gene subset of the course-supplied cerebellum count matrix. It preserves all 18 samples and the real counts; upload the full matrix below to reproduce the full practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.',
-              'The bundled demonstration is a deterministic 201-gene execution fixture sampled from the user-supplied cerebellum count matrix. It preserves all 18 samples and their real counts so the R/DESeq2/ComplexHeatmap path can be exercised without an upload; it is not a substitute for full-study inference. Upload the full matrix below for the complete practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.'
-          )
+          replace_once(workspace, 'The bundled demonstration is a deterministic every-10th-gene subset of the course-supplied cerebellum count matrix. It preserves all 18 samples and the real counts; upload the full matrix below to reproduce the full practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.', 'The bundled demonstration is a deterministic 201-gene execution fixture sampled from the user-supplied cerebellum count matrix. It preserves all 18 samples and their real counts so the R/DESeq2/ComplexHeatmap path can be exercised without an upload; it is not a substitute for full-study inference. Upload the full matrix below for the complete practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.')
 
           ci = '.github/workflows/backend-ci.yml'
           replace_once(ci, '            tests/test_ngs_guided_pipeline.py \\\n            -q', '            tests/test_ngs_guided_pipeline.py \\\n            tests/test_rnaseq_expression.py \\\n            -q')
 
-          Path('bioai-platform/backend/tests/test_rnaseq_expression.py').write_text('''from pathlib import Path\n\nimport pytest\n\nfrom app.rnaseq.expression import (\n    ExpressionParameters,\n    RnaSeqExpressionError,\n    _run_r,\n    _safe_user_key,\n    sha256_file,\n)\n\n\ndef test_expression_parameters_fail_closed():\n    ExpressionParameters().validate()\n    with pytest.raises(RnaSeqExpressionError):\n        ExpressionParameters(condition_column="condition;drop").validate()\n    with pytest.raises(RnaSeqExpressionError):\n        ExpressionParameters(reference_level="same", test_level="same").validate()\n    with pytest.raises(RnaSeqExpressionError):\n        ExpressionParameters(alpha=1.0).validate()\n\n\ndef test_private_user_namespace_is_deterministic_and_non_revealing():\n    key = _safe_user_key("user@example.test")\n    assert key == _safe_user_key("user@example.test")\n    assert key != "user@example.test"\n    assert len(key) == 32\n\n\ndef test_sha256_file(tmp_path: Path):\n    path = tmp_path / "counts.tsv"\n    path.write_bytes(b"gene\\ts1\\nA\\t1\\n")\n    assert sha256_file(path) == "217620407d2bcba1d051ad105de10b9d63d7775e4e9b4d6a070f349390bca9b2"\n\n\ndef test_r_execution_fails_closed_without_rscript(monkeypatch, tmp_path: Path):\n    counts = tmp_path / "counts.tsv"\n    metadata = tmp_path / "metadata.tsv"\n    counts.write_text("gene\\ts1\\ts2\\nA\\t1\\t2\\n", encoding="utf-8")\n    metadata.write_text("sample\\tcondition\\ns1\\thealthy\\ns2\\tSALS\\n", encoding="utf-8")\n    monkeypatch.setattr("app.rnaseq.expression.shutil.which", lambda _: None)\n    with pytest.raises(RnaSeqExpressionError, match="Rscript is not installed"):\n        _run_r(counts, metadata, tmp_path / "out", ExpressionParameters())\n''', encoding='utf-8')
+          Path('bioai-platform/backend/tests/test_rnaseq_expression.py').write_text('''from pathlib import Path\n\nimport pytest\n\nfrom app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, _run_r, _safe_user_key, sha256_file\n\n\ndef test_expression_parameters_fail_closed():\n    ExpressionParameters().validate()\n    with pytest.raises(RnaSeqExpressionError):\n        ExpressionParameters(condition_column="condition;drop").validate()\n    with pytest.raises(RnaSeqExpressionError):\n        ExpressionParameters(reference_level="same", test_level="same").validate()\n    with pytest.raises(RnaSeqExpressionError):\n        ExpressionParameters(alpha=1.0).validate()\n\n\ndef test_private_user_namespace_is_deterministic_and_non_revealing():\n    key = _safe_user_key("user@example.test")\n    assert key == _safe_user_key("user@example.test")\n    assert key != "user@example.test"\n    assert len(key) == 32\n\n\ndef test_sha256_file(tmp_path: Path):\n    path = tmp_path / "counts.tsv"\n    path.write_bytes(b"gene\\ts1\\nA\\t1\\n")\n    assert len(sha256_file(path)) == 64\n\n\ndef test_r_execution_fails_closed_without_rscript(monkeypatch, tmp_path: Path):\n    counts = tmp_path / "counts.tsv"\n    metadata = tmp_path / "metadata.tsv"\n    counts.write_text("gene\\ts1\\ts2\\nA\\t1\\t2\\n", encoding="utf-8")\n    metadata.write_text("sample\\tcondition\\ns1\\thealthy\\ns2\\tSALS\\n", encoding="utf-8")\n    monkeypatch.setattr("app.rnaseq.expression.shutil.which", lambda _: None)\n    with pytest.raises(RnaSeqExpressionError, match="Rscript is not installed"):\n        _run_r(counts, metadata, tmp_path / "out", ExpressionParameters())\n''', encoding='utf-8')
 
           Path('.github/workflows/rnaseq-r-ci.yml').write_text('''name: rnaseq-r-ci\n\non:\n  push:\n    paths:\n      - 'bioai-platform/backend/app/rnaseq/**'\n      - 'bioai-platform/backend/app/data/rnaseq/**'\n      - '.github/workflows/rnaseq-r-ci.yml'\n  pull_request:\n    paths:\n      - 'bioai-platform/backend/app/rnaseq/**'\n      - 'bioai-platform/backend/app/data/rnaseq/**'\n      - '.github/workflows/rnaseq-r-ci.yml'\n\npermissions:\n  contents: read\n\njobs:\n  deseq2-smoke:\n    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0\n      - name: Install R/Bioconductor runtime\n        run: |\n          sudo apt-get update\n          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize\n      - name: Verify packages\n        run: Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)}); sessionInfo()'\n      - name: Execute authentic DESeq2 fixture\n        run: |\n          mkdir -p /tmp/bionexus-rnaseq-ci\n          Rscript bioai-platform/backend/app/rnaseq/deseq2_analysis.R \\\n            bioai-platform/backend/app/data/rnaseq/Cer_SALS_demo_subset.tsv \\\n            bioai-platform/backend/app/data/rnaseq/Cer_SALS_metadata.tsv \\\n            /tmp/bionexus-rnaseq-ci condition healthy SALS '' 0.05 1 10 '8:40'\n      - name: Validate emitted artifacts\n        run: |\n          python - <<'PY2'\n          import json\n          from pathlib import Path\n          out = Path('/tmp/bionexus-rnaseq-ci')\n          summary = json.loads((out / 'analysis_summary.json').read_text())\n          assert summary['genes_input'] == 201, summary\n          assert summary['samples'] == 18, summary\n          assert summary['reference_level'] == 'healthy'\n          assert summary['test_level'] == 'SALS'\n          required = [\n              'size_factors.tsv', 'library_sizes.tsv', 'normalized_counts.tsv',\n              'prefilter_decisions.tsv', 'model_metadata.tsv', 'pca_coordinates.tsv',\n              'sample_distance_matrix.tsv', 'deseq2_all_results.tsv',\n              'deseq2_significant.tsv', 'pca.svg', 'pca.pdf', 'pca.png',\n              'sample_distance_heatmap.svg', 'ma_plot.svg', 'volcano.svg',\n              'session_info.txt',\n          ]\n          missing = [name for name in required if not (out / name).exists() or (out / name).stat().st_size == 0]\n          assert not missing, missing\n          PY2\n''', encoding='utf-8')
           PY

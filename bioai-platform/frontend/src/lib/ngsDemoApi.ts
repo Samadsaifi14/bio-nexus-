@@ -1,4 +1,4 @@
-import { api } from './api';
+import { longApi } from './api';
 
 export type NgsDemoCatalogItem = {
   id: string;
@@ -14,12 +14,12 @@ export type NgsDemoCatalogItem = {
 };
 
 export async function getNgsDemoCatalog(): Promise<NgsDemoCatalogItem[]> {
-  const response = await api.get('/api/ngs/v2/demos/catalog');
+  const response = await longApi.get('/api/ngs/v2/demos/catalog');
   return Array.isArray(response.data?.demos) ? response.data.demos : [];
 }
 
 export async function downloadNgsDemoFile(profile: string, kind: 'r1' | 'r2' | 'reference'): Promise<void> {
-  const response = await api.get(`/api/ngs/v2/demos/${encodeURIComponent(profile)}/download/${kind}`, {
+  const response = await longApi.get(`/api/ngs/v2/demos/${encodeURIComponent(profile)}/download/${kind}`, {
     responseType: 'blob',
   });
   const disposition = String(response.headers?.['content-disposition'] ?? '');

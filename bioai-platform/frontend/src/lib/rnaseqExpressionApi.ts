@@ -5,6 +5,7 @@ export type RnaSeqArtifact = {
   kind: string;
   content_type: string;
   bytes: number;
+  sha256: string;
   url: string;
 };
 
@@ -30,6 +31,8 @@ export type RnaSeqExpressionSummary = {
   size_factor_max: number;
   lfc_shrinkage: string;
   expression_heatmap_generated: boolean;
+  expression_heatmap_basis: 'significant_DE_genes' | 'top_variable_genes_QC' | 'none';
+  expression_heatmap_genes: number;
   package_versions: Record<string, string>;
 };
 

@@ -152,6 +152,13 @@ export function RnaSeqExpressionWorkspace() {
   const degTable = artifact(result, 'deseq2_significant.tsv');
   const heatmap = artifact(result, 'expression_heatmap.svg');
   const heatmapData = artifact(result, 'heatmap_matrix_zscore.tsv');
+  const heatmapSelection = artifact(result, 'heatmap_gene_selection.tsv');
+  const heatmapTitle = summary?.expression_heatmap_basis === 'significant_DE_genes'
+    ? 'Top differential genes'
+    : 'Top variable genes (QC)';
+  const heatmapSubtitle = summary?.expression_heatmap_basis === 'significant_DE_genes'
+    ? 'ComplexHeatmap generated from row-z-scored VST values for significant genes ranked by adjusted p-value. The exact plotted matrix and selection evidence are downloadable.'
+    : 'ComplexHeatmap generated from the highest-variance VST genes because fewer than two genes met the declared DEG thresholds. This is a QC/exploratory view, not a list of differential-expression calls.';
 
   return (
     <section className="space-y-5">
@@ -163,9 +170,9 @@ export function RnaSeqExpressionWorkspace() {
               <h3 className="mt-1 text-base font-semibold text-text-primary">Count matrix → DESeq2 → publication figures</h3>
               <p className="mt-1 text-xs leading-5 text-text-muted">Raw counts and sample metadata are processed by R/DESeq2. PCA and heatmaps are generated in R from the exact transformed matrices, then stored with the tables that produced them.</p>
             </div>
-            <CriticalButton onClick={runDemo} disabled={Boolean(running)} className="px-4 py-2 text-xs disabled:opacity-50">{running === 'demo' ? <CircleNotch className="animate-spin" /> : <Flask />} {running === 'demo' ? 'Running DESeq2…' : 'Run SALS validation subset'}</CriticalButton>
+            <CriticalButton onClick={runDemo} disabled={Boolean(running)} className="px-4 py-2 text-xs disabled:opacity-50">{running === 'demo' ? <CircleNotch className="animate-spin" /> : <Flask />} {running === 'demo' ? 'Running DESeq2…' : 'Run SALS DESeq2 demo'}</CriticalButton>
           </div>
-          <div className="mt-4 rounded-lg border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-[11px] leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" />The bundled demonstration is a deterministic every-100th-gene subset of the course-supplied cerebellum count matrix. It preserves all 18 samples and the real counts; upload the full matrix below to reproduce the full practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.</div>
+          <div className="mt-4 rounded-lg border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-[11px] leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" />The bundled demonstration is a deterministic every-100th-gene execution fixture from the user-supplied cerebellum count matrix. It preserves all 18 samples and their real counts, but it is not a substitute for full-study inference; upload the full matrix below to reproduce the complete practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.</div>
         </div>
 
         <div className="grid gap-px bg-glass-border lg:grid-cols-2">
@@ -241,11 +248,11 @@ export function RnaSeqExpressionWorkspace() {
 
           <div className="space-y-4">
             <div className="flex items-center gap-2"><GridFour className="text-accent-cyan" /><h3 className="text-sm font-semibold text-text-primary">Expression heatmap</h3></div>
-            <FigureCard title="Top differential genes" subtitle="ComplexHeatmap generated from row-z-scored VST values for the top significant genes ranked by adjusted p-value. The exact plotted matrix is downloadable." image={heatmap} data={heatmapData} onExpand={setExpanded} />
+            <FigureCard title={heatmapTitle} subtitle={heatmapSubtitle} image={heatmap} data={heatmapData ?? heatmapSelection} onExpand={setExpanded} />
           </div>
 
           <div className="rounded-xl border border-glass-border bg-surface-0 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Complete reproducibility bundle</h3><p className="mt-1 text-[11px] leading-5 text-text-muted">Normalized counts, size factors, PCA coordinates, distance matrix, all-gene results, significant-gene table, plotted heatmap matrix, SVG/PDF/300-dpi PNG figures and provenance.</p></div>{result.manifest_url && <a href={result.manifest_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Manifest</a>}</div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Complete reproducibility bundle</h3><p className="mt-1 text-[11px] leading-5 text-text-muted">Normalized counts, size factors, PCA coordinates, distance matrix, all-gene results, significant-gene table, plotted heatmap matrix, gene-selection evidence, SVG/PDF/300-dpi PNG figures and provenance.</p></div>{result.manifest_url && <a href={result.manifest_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Manifest</a>}</div>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{result.artifacts.map(item => <button type="button" key={item.name} onClick={() => downloadRemote(item)} className="flex items-center justify-between gap-3 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-left text-[10px] text-text-secondary"><span className="truncate font-mono">{item.name}</span><span className="shrink-0 text-text-muted">{number(item.bytes / 1024)} KB</span></button>)}</div>
           </div>
         </>

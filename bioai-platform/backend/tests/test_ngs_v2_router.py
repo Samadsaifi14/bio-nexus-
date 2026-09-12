@@ -255,6 +255,7 @@ def test_analyze_runs_full_dag_through_final_gate(client, tmp_path):
     payload = {
         "file_paths": [r1, r2],
         "reference": "grch38",
+        "assay": "WGS",
         "metadata": {"platform": "illumina"},
         "synthetic_reference": True,
     }
@@ -324,6 +325,7 @@ def test_analyze_emits_igv_tracks(client, tmp_path):
     payload = {
         "file_paths": [r1, r2],
         "reference": "grch38",
+        "assay": "WGS",
         "metadata": {"platform": "illumina"},
         "synthetic_reference": True,
     }

@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1100" viewBox="0 0 1800 1100" role="img" aria-labelledby="title desc">
+<title id="title">Figure I. BioNexus evidence-aware architecture</title>
+<desc id="desc">Architecture diagram separating user interface, API and scientific routing, deterministic or reference engines, durable execution, evidence and provenance, and AI interpretation.</desc>
+<style>
+  text{font-family:Arial,Helvetica,sans-serif;fill:#17202a} .h{font-size:34px;font-weight:700}.s{font-size:22px;font-weight:700}.b{font-size:18px}.m{font-size:16px;fill:#4b5563}.box{fill:#fff;stroke:#263238;stroke-width:2}.soft{fill:#f5f7f8;stroke:#607d8b;stroke-width:2}.ext{fill:#fff;stroke:#607d8b;stroke-width:2;stroke-dasharray:10 8}.ai{fill:#fff9e8;stroke:#8a6d1d;stroke-width:2}.evidence{fill:#eef7f4;stroke:#26695c;stroke-width:2}.arrow{stroke:#263238;stroke-width:3;fill:none;marker-end:url(#a)}.dash{stroke:#607d8b;stroke-width:2;fill:none;stroke-dasharray:8 7;marker-end:url(#a)}
+</style>
+<defs><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 z" fill="#263238"/></marker></defs>
+<text x="90" y="70" class="h">BioNexus: evidence-aware analysis architecture</text>
+<text x="90" y="105" class="m">Deterministic/reference evidence remains authoritative; interpretation is a downstream layer.</text>
+
+<rect x="90" y="160" width="330" height="150" rx="18" class="box"/><text x="120" y="205" class="s">Scientific workspace</text><text x="120" y="245" class="b">Next.js interface</text><text x="120" y="275" class="m">Inputs · results · QC · figures</text>
+<rect x="535" y="160" width="330" height="150" rx="18" class="box"/><text x="565" y="205" class="s">API + validation</text><text x="565" y="245" class="b">FastAPI contracts</text><text x="565" y="275" class="m">Auth · schema · preflight · routing</text>
+<rect x="980" y="160" width="330" height="150" rx="18" class="box"/><text x="1010" y="205" class="s">Scientific routers</text><text x="1010" y="245" class="b">Assay / tool selection</text><text x="1010" y="275" class="m">Fail-closed unsupported states</text>
+<path d="M420 235 H535" class="arrow"/><path d="M865 235 H980" class="arrow"/>
+
+<rect x="90" y="400" width="360" height="210" rx="18" class="ext"/><text x="120" y="445" class="s">Reference services</text><text x="120" y="485" class="b">BLAST · UniProt · InterPro</text><text x="120" y="520" class="b">RCSB PDB · AlphaFold DB</text><text x="120" y="555" class="b">Reactome · other providers</text><text x="120" y="588" class="m">Remote evidence; source/version recorded</text>
+<rect x="535" y="400" width="360" height="210" rx="18" class="soft"/><text x="565" y="445" class="s">Deterministic engines</text><text x="565" y="485" class="b">Primer3 · RDKit · alignment</text><text x="565" y="520" class="b">Vina · OpenMM · statistics</text><text x="565" y="555" class="b">Local QC / transformations</text><text x="565" y="588" class="m">Measured/computed outputs</text>
+<rect x="980" y="400" width="360" height="210" rx="18" class="soft"/><text x="1010" y="445" class="s">Durable NGS execution</text><text x="1010" y="485" class="b">nf-core/sarek 3.10.0</text><text x="1010" y="520" class="b">nf-core/rnaseq 3.26.0</text><text x="1010" y="555" class="b">Local · SLURM · AWS Batch</text><text x="1010" y="588" class="m">No preview fallback for production</text>
+<path d="M1145 310 V400" class="arrow"/><path d="M1145 310 C1145 350 715 350 715 400" class="arrow"/><path d="M1145 310 C1145 350 270 350 270 400" class="arrow"/>
+
+<rect x="315" y="710" width="880" height="160" rx="18" class="evidence"/><text x="350" y="755" class="s">Evidence + provenance layer</text><text x="350" y="795" class="b">Input/output checksums · software/database versions · parameters · timestamps · execution state</text><text x="350" y="830" class="b">Evidence class · benchmark status · missing/unsupported evidence · experiment linkage</text>
+<path d="M270 610 C270 670 520 660 520 710" class="arrow"/><path d="M715 610 V710" class="arrow"/><path d="M1160 610 C1160 670 990 660 990 710" class="arrow"/>
+
+<rect x="1290" y="710" width="410" height="160" rx="18" class="ai"/><text x="1320" y="755" class="s">AI interpretation</text><text x="1320" y="795" class="b">Grounded explanation only</text><text x="1320" y="830" class="m">Unsupported numeric/source claims rejected</text><path d="M1195 790 H1290" class="arrow"/>
+
+<rect x="315" y="950" width="880" height="90" rx="18" class="box"/><text x="350" y="993" class="s">Unified result workspace</text><text x="350" y="1023" class="m">Observed result · QC · methods · raw artifacts · provenance · interpretation · export</text><path d="M755 870 V950" class="arrow"/><path d="M1495 870 C1495 915 1195 915 1195 975" class="dash"/>
+<text x="1290" y="925" class="m">Interpretation supplements, never replaces, evidence</text>
+</svg>

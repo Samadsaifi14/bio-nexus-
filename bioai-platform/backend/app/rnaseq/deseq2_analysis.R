@@ -9,7 +9,7 @@ suppressPackageStartupMessages({
 
 args <- commandArgs(trailingOnly = TRUE)
 if (length(args) != 11) {
-  stop("Expected 11 arguments: counts metadata outdir condition reference test covariates alpha lfc min_count min_samples top_heatmap_genes")
+  stop("Expected 11 arguments: counts metadata outdir condition reference test covariates alpha lfc min_count min_samples:top_heatmap_genes")
 }
 
 counts_path <- args[[1]]
@@ -26,6 +26,7 @@ min_samples_top <- strsplit(args[[11]], ":", fixed = TRUE)[[1]]
 min_samples <- as.integer(min_samples_top[[1]])
 top_heatmap_genes <- as.integer(min_samples_top[[2]])
 
+if (length(min_samples_top) != 2) stop("min_samples:top_heatmap_genes must contain two integers")
 if (is.na(alpha) || alpha <= 0 || alpha >= 1) stop("alpha must be between 0 and 1")
 if (is.na(lfc_threshold) || lfc_threshold < 0) stop("lfc threshold must be >= 0")
 if (is.na(min_count) || min_count < 0) stop("min_count must be >= 0")
@@ -93,7 +94,14 @@ size_factor_df <- data.frame(sample = names(size_factors), size_factor = as.nume
 write.table(size_factor_df, file.path(outdir, "size_factors.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 write.table(data.frame(gene = rownames(normalized), normalized, check.names = FALSE), file.path(outdir, "normalized_counts.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 
-vsd <- vst(dds, blind = TRUE)
+# vst() is fast for ordinary whole-transcriptome matrices but requires enough rows
+# for its trend subsampling. varianceStabilizingTransformation() is the exact
+# DESeq2 transform and is robust for small deterministic validation subsets.
+vsd <- if (nrow(dds) >= 1000) {
+  vst(dds, blind = TRUE)
+} else {
+  varianceStabilizingTransformation(dds, blind = TRUE)
+}
 pca <- plotPCA(vsd, intgroup = condition_col, returnData = TRUE)
 percent_var <- round(100 * attr(pca, "percentVar"), 3)
 pca_out <- data.frame(sample = rownames(pca), pca, row.names = NULL, check.names = FALSE)
@@ -143,8 +151,8 @@ plot_svg_pdf_png <- function(name, width, height, draw_fun) {
   draw_fun(); dev.off()
 }
 
-condition_values <- pca[[condition_col]]
-pca_plot <- ggplot(pca, aes(x = PC1, y = PC2, label = name, shape = condition_values)) +
+pca$.condition <- pca[[condition_col]]
+pca_plot <- ggplot(pca, aes(x = PC1, y = PC2, label = name, shape = .condition)) +
   geom_point(size = 3.2) +
   geom_text(nudge_y = 0.35, check_overlap = TRUE, size = 2.7) +
   labs(title = "RNA-seq PCA on variance-stabilized counts", subtitle = paste0("PC1: ", percent_var[[1]], "% · PC2: ", percent_var[[2]], "%"), shape = condition_col) +
@@ -161,7 +169,7 @@ plot_svg_pdf_png("ma_plot", 8, 6, function() {
   abline(h = c(-lfc_threshold, lfc_threshold), lty = 3)
 })
 
-volcano_df <- res_df[!is.na(res_df$pvalue) & is.finite(res_df$log2FoldChange), , drop = FALSE]
+volcano_df <- res_df[!is.na(res_df$padj) & !is.na(res_df$pvalue) & is.finite(res_df$log2FoldChange), , drop = FALSE]
 volcano_df$minus_log10_padj <- -log10(pmax(volcano_df$padj, .Machine$double.xmin))
 volcano_df$category <- factor(volcano_df$direction, levels = c("DOWN", "NS", "UP"))
 volcano_plot <- ggplot(volcano_df, aes(x = log2FoldChange, y = minus_log10_padj, shape = category)) +

@@ -58,6 +58,50 @@ def _post_trim_summary(path: str) -> dict:
     }
 
 
+def _read_preview(path: str, max_reads: int = 3) -> list[dict]:
+    """Return a tiny, authentic sequence preview for the interactive trimming map."""
+    rows: list[dict] = []
+    opener = gzip.open if path.endswith(".gz") else open
+    with opener(path, "rt", encoding="ascii", errors="replace") as handle:
+        while len(rows) < max_reads:
+            header = handle.readline()
+            if not header:
+                break
+            seq = handle.readline().strip()
+            plus = handle.readline()
+            qual = handle.readline().strip()
+            if not header.startswith("@") or not plus.startswith("+"):
+                continue
+            rows.append({
+                "name": header[1:].strip().split()[0],
+                "sequence": seq,
+                "length": len(seq),
+                "mean_quality": round(sum(ord(ch) - 33 for ch in qual) / len(qual), 2) if qual else 0.0,
+            })
+    return rows
+
+
+def _trim_examples(raw_path: str, clean_path: str) -> list[dict]:
+    before = _read_preview(raw_path)
+    after = _read_preview(clean_path)
+    rows: list[dict] = []
+    for index, raw in enumerate(before):
+        clean = after[index] if index < len(after) else None
+        clean_sequence = str(clean.get("sequence") or "") if clean else ""
+        raw_sequence = str(raw.get("sequence") or "")
+        rows.append({
+            "name": raw.get("name"),
+            "before": raw_sequence,
+            "after": clean_sequence,
+            "before_length": len(raw_sequence),
+            "after_length": len(clean_sequence),
+            "removed_bases": max(0, len(raw_sequence) - len(clean_sequence)),
+            "mean_quality_before": raw.get("mean_quality"),
+            "mean_quality_after": clean.get("mean_quality") if clean else None,
+        })
+    return rows
+
+
 def aggregate_preprocessing(per_file: dict[str, dict]) -> dict:
     raw_reads = sum(int(item.get("raw_reads") or 0) for item in per_file.values())
     retained_reads = sum(int(item.get("retained_reads_measured") or 0) for item in per_file.values())
@@ -111,7 +155,12 @@ def _stage_run(sample: dict, state: dict) -> tuple[dict, dict]:
         if "error" in stats:
             return {"error": "preprocessing could not evaluate every supplied FASTQ"}, {}
         measured = _post_trim_summary(stats["out_path"])
-        entry = {**stats, **measured, "plan": plan}
+        entry = {
+            **stats,
+            **measured,
+            "plan": plan,
+            "trim_examples": _trim_examples(path, stats["out_path"]),
+        }
         per_file[path] = entry
         state.setdefault("clean_fastq", {})[path] = stats["out_path"]
 
@@ -127,9 +176,9 @@ def stage3_pair_contract() -> StageContract:
     return StageContract(
         step="preprocessing",
         tool="platform-preprocess",
-        version="0.2.0",
+        version="0.3.0",
         inputs=["raw_fastq (all supplied files)", "per_file_raw_qc"],
-        outputs=["clean_fastq_per_file", "aggregate_preprocess_stats"],
+        outputs=["clean_fastq_per_file", "aggregate_preprocess_stats", "trim_examples"],
         rules=[
             ThresholdRule(name="read_retention", metric="read_retention", evaluate=_retention_rule),
             ThresholdRule(name="quality_after", metric="quality_after", evaluate=_quality_rule),

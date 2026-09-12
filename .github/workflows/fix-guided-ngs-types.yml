@@ -1,0 +1,45 @@
+name: fix guided NGS evidence row types
+
+on:
+  push:
+    branches:
+      - audit/research-hardening-2026-09-12
+
+permissions:
+  contents: write
+
+jobs:
+  fix-types:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: audit/research-hardening-2026-09-12
+      - name: Type dynamic evidence rows explicitly
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('bioai-platform/frontend/src/components/ngs/GuidedNgsWorkspace.tsx')
+          text = path.read_text(encoding='utf-8')
+          replacements = {
+              "    const rows = Object.entries(perFile).map(([file, value]) => ({ file: file.split('/').pop() ?? file, ...asRecord(value) }));":
+              "    const rows: Array<UnknownRecord & { file: string }> = Object.entries(perFile).map(([file, value]) => ({ file: file.split('/').pop() ?? file, ...asRecord(value) }));",
+              "    const examples = Object.entries(perFile).flatMap(([file, value]) => {":
+              "    const examples: Array<UnknownRecord & { file: string }> = Object.entries(perFile).flatMap(([file, value]) => {",
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f'expected exactly one match for: {old}')
+              text = text.replace(old, new)
+          path.write_text(text, encoding='utf-8')
+          PY
+      - name: Commit type fix
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bioai-platform/frontend/src/components/ngs/GuidedNgsWorkspace.tsx
+          git diff --cached --exit-code && exit 0
+          git commit -m "fix(ngs): type dynamic evidence rows"
+          git push origin HEAD:audit/research-hardening-2026-09-12

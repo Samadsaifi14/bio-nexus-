@@ -1,0 +1,61 @@
+name: hardening branch relock
+
+on:
+  push:
+    branches:
+      - audit/research-hardening-2026-09-12
+
+permissions:
+  contents: write
+
+jobs:
+  relock:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: audit/research-hardening-2026-09-12
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bioai-platform/frontend/package-lock.json
+      - name: Regenerate package lock from patched runtime manifest
+        working-directory: bioai-platform/frontend
+        run: |
+          npm install --package-lock-only --ignore-scripts
+          npm audit --omit=dev --audit-level=critical
+      - name: Make ambiguous NGS fixtures declare their assay
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('bioai-platform/backend/tests/test_ngs_v2_router.py')
+          text = path.read_text(encoding='utf-8')
+          old = '''    payload = {
+                  "file_paths": [r1, r2],
+                  "reference": "grch38",
+                  "metadata": {"platform": "illumina"},
+                  "synthetic_reference": True,
+              }'''
+          new = '''    payload = {
+                  "file_paths": [r1, r2],
+                  "reference": "grch38",
+                  "assay": "WGS",
+                  "metadata": {"platform": "illumina"},
+                  "synthetic_reference": True,
+              }'''
+          count = text.count(old)
+          if count != 2:
+              raise SystemExit(f'expected 2 ambiguous WGS fixtures, found {count}')
+          path.write_text(text.replace(old, new), encoding='utf-8')
+          PY
+      - name: Commit generated lockfile and fixture correction
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bioai-platform/frontend/package-lock.json bioai-platform/backend/tests/test_ngs_v2_router.py
+          git diff --cached --exit-code && exit 0
+          git commit -m "chore: relock patched frontend runtime and explicit NGS fixtures"
+          git push origin HEAD:audit/research-hardening-2026-09-12

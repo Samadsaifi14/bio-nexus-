@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise, ShieldWarning, ShieldCheck, CaretRight } from '@phosphor-icons/react';
+import { Dna, CircleNotch, TestTube, MapTrifold, Warning, Database, FileText, ArrowCounterClockwise, ShieldWarning, ShieldCheck, CaretRight, Flask } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { getNgsPortableBenchmark, runNgs2Analyze } from '@/lib/api';
 import type { Ngs2AnalyzeResult, NgsPortableBenchmark } from '@/lib/api';
@@ -16,14 +16,14 @@ import NgsEvidenceInterpretation from '@/components/results/NgsEvidenceInterpret
 import { NgsBenchmarkPanel } from '@/components/results/NgsBenchmarkPanel';
 import { NgsPortableBenchmarkCard } from '@/components/results/NgsPortableBenchmarkCard';
 import { NgsProductionSupportCard } from '@/components/results/NgsProductionSupportCard';
+import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';
 import GenomeViewer from '@/components/GenomeViewer';
 
 const ASSAY_OPTIONS = [
   { value: '', label: 'Auto-detect assay' },
   { value: 'WGS', label: 'Whole Genome Sequencing (WGS)' },
   { value: 'WES', label: 'Whole Exome Sequencing (WES)' },
-  { value: 'RNA-seq', label: 'RNA-seq' },
-  { value: 'Amplicon', label: 'Targeted Amplicon' },
+  { value: 'RNA-seq', label: 'RNA-seq read-level preview' },
 ];
 
 const DEMOS = [
@@ -34,7 +34,7 @@ const DEMOS = [
 
 type DemoMeta = { profile: string; label: string; description: string; synthetic: boolean; read_pairs: number; truth_set?: Array<Record<string, unknown>>; truth_scope?: string; functional_benchmark?: { classification: string; status: string; tp: number; fp: number; fn: number; precision: number | null; recall: number | null; claim: string } };
 type ExtendedResult = Ngs2AnalyzeResult & { demo?: DemoMeta | null; requested: Ngs2AnalyzeResult['requested'] & { demo_profile?: string | null; reads_analyzed?: number } };
-type AnalysisMode = 'production' | 'preview';
+type AnalysisMode = 'production-dna' | 'production-rna' | 'preview';
 
 function readinessStatus(verdict: string, integrityBlocked: boolean, researchReady: boolean): { status: ScientificStatus; label: string } {
   if (integrityBlocked) return { status: 'FAIL', label: 'INTEGRITY REVIEW REQUIRED' };
@@ -50,7 +50,7 @@ export default function NgsV2Page() {
   const [filePaths, setFilePaths] = useState('');
   const [assay, setAssay] = useState('');
   const [reference, setReference] = useState('grch38');
-  const [synthetic, setSynthetic] = useState(true);
+  const [synthetic, setSynthetic] = useState(false);
   const [loading, setLoading] = useState(false);
   const [runningDemo, setRunningDemo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -112,39 +112,45 @@ export default function NgsV2Page() {
 
   return <div className="scientific-page max-w-6xl space-y-6 pb-12">
     <BackButton />
-    <PageHeader title="NGS Analysis" subtitle="Raw FASTQ to auditable QC, alignment, variant evidence, genome inspection and an evidence-backed analysis-readiness decision." />
+    <PageHeader title="NGS Evidence Workspace" subtitle="Choose a scientific execution lane first: production genomics, production transcriptomics, or a deliberately limited exploratory evidence preview." />
 
     {!result && <section className="data-card overflow-hidden">
       <div className="border-b border-glass-border p-5">
-        <h2 className="text-sm font-semibold text-text-primary">Choose the execution engine</h2>
-        <p className="mt-1 text-xs leading-5 text-text-muted">Both engines live in the same BioNexus NGS workspace. Production submits real Sarek runs to configured compute; preview remains a lightweight, separately identified test engine.</p>
+        <p className="font-mono text-[10px] uppercase tracking-[0.16em] text-text-muted">Execution lanes</p>
+        <h2 className="mt-1 text-sm font-semibold text-text-primary">Start from the question, not from a generic pipeline button</h2>
+        <p className="mt-1 max-w-3xl text-xs leading-5 text-text-muted">Each lane exposes a different evidence boundary. Production lanes can submit real pinned Nextflow workflows only when durable compute is configured. Preview is visibly separated so sampled or surrogate evidence cannot be mistaken for a production result.</p>
       </div>
-      <div className="grid gap-px bg-glass-border md:grid-cols-2">
-        <button type="button" onClick={() => changeMode('production')} aria-pressed={analysisMode === 'production'} className={`group p-5 text-left transition ${analysisMode === 'production' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>
-          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">Production WGS/WES</span><span className="rounded border border-info/20 bg-info/5 px-2 py-0.5 font-mono text-[9px] text-info">PLAN ONLY</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Validate a pinned nf-core/sarek launch contract for external durable compute. BioNexus does not execute this run yet.</p></div><CaretRight className="mt-0.5 shrink-0 text-text-muted transition group-hover:translate-x-0.5"/></div>
+      <div className="grid gap-px bg-glass-border lg:grid-cols-3">
+        <button type="button" onClick={() => changeMode('production-dna')} aria-pressed={analysisMode === 'production-dna'} className={`group p-5 text-left transition ${analysisMode === 'production-dna' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>
+          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">WGS / WES production</span><span className="rounded border border-good/20 bg-good/5 px-2 py-0.5 font-mono text-[9px] text-good">SAREK 3.10.0</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Validate, submit and track real nf-core/sarek jobs on configured local, SLURM or AWS Batch compute.</p></div><CaretRight className="mt-0.5 shrink-0 text-text-muted transition group-hover:translate-x-0.5"/></div>
+        </button>
+        <button type="button" onClick={() => changeMode('production-rna')} aria-pressed={analysisMode === 'production-rna'} className={`group p-5 text-left transition ${analysisMode === 'production-rna' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>
+          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">RNA-seq production</span><span className="rounded border border-info/20 bg-info/5 px-2 py-0.5 font-mono text-[9px] text-info">RNASEQ 3.26.0</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Real transcriptomics execution with explicit strandedness, QC, alignment and quantification boundaries.</p></div><Flask className="mt-0.5 shrink-0 text-text-muted"/></div>
         </button>
         <button type="button" onClick={() => changeMode('preview')} aria-pressed={analysisMode === 'preview'} className={`group p-5 text-left transition ${analysisMode === 'preview' ? 'bg-accent-cyan/10' : 'bg-surface-0 hover:bg-surface-1'}`}>
-          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">Exploratory preview</span><span className="rounded border border-warn/20 bg-warn/5 px-2 py-0.5 font-mono text-[9px] text-warn">RUNS HERE</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Run deterministic demonstrations or server-local FASTQ through the internal evidence preview. This is not Sarek or a clinical workflow.</p></div><CaretRight className="mt-0.5 shrink-0 text-text-muted transition group-hover:translate-x-0.5"/></div>
+          <div className="flex items-start justify-between gap-4"><div><div className="flex flex-wrap items-center gap-2"><span className="text-sm font-semibold text-text-primary">Exploratory evidence preview</span><span className="rounded border border-warn/20 bg-warn/5 px-2 py-0.5 font-mono text-[9px] text-warn">SAMPLED / SURROGATE</span></div><p className="mt-2 text-xs leading-5 text-text-muted">Fast deterministic demonstrations or authenticated server-local FASTQ inspection. Never relabelled as production.</p></div><TestTube className="mt-0.5 shrink-0 text-text-muted"/></div>
         </button>
       </div>
     </section>}
 
-    {!result && analysisMode === 'production' && <>
+    {!result && analysisMode === 'production-dna' && <>
       <NgsProductionSupportCard defaultReference="GRCh38" />
       {portableBenchmark && <NgsPortableBenchmarkCard report={portableBenchmark} />}
     </>}
 
+    {!result && analysisMode === 'production-rna' && <RnaSeqProductionSupportCard />}
+
     {!result && analysisMode === 'preview' && <>
       <motion.section variants={fadeUp} initial={{ y: 18 }} animate="show" className="data-card overflow-hidden">
-        <div className="border-b border-glass-border p-5"><div className="flex items-center gap-2"><TestTube className="h-4 w-4 text-accent-cyan"/><h2 className="text-sm font-semibold text-text-primary">Try a complete analysis</h2></div><p className="mt-1 text-xs leading-5 text-text-muted">These deterministic synthetic FASTQ pairs run through the same validation and staged NGS analysis as supplied files.</p></div>
+        <div className="border-b border-glass-border p-5"><div className="flex items-center gap-2"><TestTube className="h-4 w-4 text-accent-cyan"/><h2 className="text-sm font-semibold text-text-primary">Run a deterministic demonstration</h2></div><p className="mt-1 text-xs leading-5 text-text-muted">Synthetic FASTQ pairs exercise the preview contracts and figures. They are functional tests, not biological validation.</p></div>
         <div className="grid gap-px bg-glass-border md:grid-cols-3">{DEMOS.map(demo => <button key={demo.id} disabled={loading} onClick={() => run(demo.id)} className="bg-surface-0 p-4 text-left transition hover:bg-surface-1 disabled:opacity-50"><div className="flex items-center justify-between"><span className="text-sm font-semibold text-text-primary">{demo.title}</span><span className="rounded border border-accent-cyan/20 bg-accent-cyan/5 px-1.5 py-0.5 font-mono text-[9px] text-accent-cyan">DEMO</span></div><p className="mt-1 text-xs text-text-muted">{demo.subtitle}</p><p className="mt-3 text-[11px] font-medium text-accent-cyan">{runningDemo === demo.id ? 'Running…' : 'Run demo →'}</p></button>)}</div>
       </motion.section>
 
       <section className="data-card p-5 space-y-4">
-        <div><label className="mb-1.5 block text-sm font-medium text-text-primary">Or analyze server-local FASTQ files</label><FlatInput type="text" value={filePaths} onChange={(e) => { setFilePaths(e.target.value); setError(null); }} onKeyDown={(e) => e.key === 'Enter' && run()} placeholder="/data/SAMPLE_001_R1.fastq.gz, /data/SAMPLE_001_R2.fastq.gz" className="w-full px-4 py-3 text-sm font-mono"/></div>
+        <div><label className="mb-1.5 block text-sm font-medium text-text-primary">Authenticated server-local FASTQ preview</label><FlatInput type="text" value={filePaths} onChange={(e) => { setFilePaths(e.target.value); setError(null); }} onKeyDown={(e) => e.key === 'Enter' && run()} placeholder="/data/SAMPLE_001_R1.fastq.gz, /data/SAMPLE_001_R2.fastq.gz" className="w-full px-4 py-3 text-sm font-mono"/><p className="mt-1.5 text-[11px] leading-4 text-text-muted">Paths must resolve inside the backend's configured NGS import root. Arbitrary filesystem paths and remote URLs are rejected.</p></div>
         <div className="grid gap-4 md:grid-cols-2"><div><label className="mb-1.5 block text-xs text-text-muted">Assay</label><select value={assay} onChange={e => setAssay(e.target.value)} className="scientific-select">{ASSAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}</select></div><div><label className="mb-1.5 block text-xs text-text-muted">Reference build</label><select value={reference} onChange={e => setReference(e.target.value)} className="scientific-select"><option value="grch38">GRCh38</option><option value="grch37">GRCh37</option></select></div></div>
-        <label className="flex items-start gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><input type="checkbox" checked={synthetic} onChange={e => setSynthetic(e.target.checked)} className="mt-0.5 accent-cyan-500"/><span><span className="block text-xs font-medium text-text-primary">Synthetic demonstration reference</span><span className="mt-0.5 block text-[11px] leading-4 text-text-muted">Useful for local testing only. Do not use synthetic-reference runs for biological interpretation.</span></span></label>
-        <CriticalButton onClick={() => run()} disabled={loading || !filePaths.trim()} className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">{loading && !runningDemo ? <CircleNotch className="h-4 w-4 animate-spin"/> : <Dna className="h-4 w-4"/>}{loading && !runningDemo ? 'Running NGS pipeline…' : 'Run FASTQ analysis'}</CriticalButton>
+        <label className="flex items-start gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><input type="checkbox" checked={synthetic} onChange={e => setSynthetic(e.target.checked)} className="mt-0.5 accent-cyan-500"/><span><span className="block text-xs font-medium text-text-primary">Replace the reference with a synthetic demonstration reference</span><span className="mt-0.5 block text-[11px] leading-4 text-text-muted">Off by default for supplied FASTQ. Enable only for controlled UI/pipeline testing; never use the resulting variant evidence for biological interpretation.</span></span></label>
+        <CriticalButton onClick={() => run()} disabled={loading || !filePaths.trim()} className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">{loading && !runningDemo ? <CircleNotch className="h-4 w-4 animate-spin"/> : <Dna className="h-4 w-4"/>}{loading && !runningDemo ? 'Running evidence preview…' : 'Run FASTQ evidence preview'}</CriticalButton>
       </section>
     </>}
 
@@ -161,7 +167,7 @@ export default function NgsV2Page() {
         metadata={[{ label: 'Assay', value: result.detection?.assay ?? '—' }, { label: 'Library', value: result.detection?.library_type ?? '—' }, { label: 'Sample type', value: displayedSampleType }, { label: 'Reference', value: displayedReference }, { label: 'Pipeline', value: result.pipeline?.pipeline ?? '—' }, { label: 'Final gate', value: gate?.qc?.status ?? '—' }]}
         metrics={[{ label: 'Reads loaded', value: totalReads.toLocaleString() }, { label: 'Reads analyzed', value: result.requested?.reads_analyzed?.toLocaleString?.() ?? totalReads.toLocaleString() }, { label: 'Stages', value: stages.length }, { label: 'PASS', value: passed, status: 'PASS' }, { label: 'WARN', value: warned, status: warned ? 'WARN' : 'PASS' }, { label: 'FAIL', value: failed, status: failed ? 'FAIL' : 'PASS' }, { label: 'Mapped reads', value: Number(visualization.n_mapped || 0).toLocaleString() }, { label: 'Variants', value: Number(visualization.n_variants || 0).toLocaleString() }]}
         overview={<div className="space-y-5">{result.demo && <div className="rounded-lg border border-info/20 bg-info/5 p-4 text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Demonstration dataset:</strong> {result.demo.description} This is synthetic test data, not a biological sample and cannot establish pipeline accuracy.</div>}{result.demo?.functional_benchmark && <div className={`rounded-lg border p-4 text-xs ${result.demo.functional_benchmark.status === 'PASS' ? 'border-good/20 bg-good/5' : 'border-error/20 bg-error/5'}`}><div className="flex flex-wrap items-center justify-between gap-2"><strong className="text-text-primary">Synthetic truth functional control</strong><span className={`font-mono text-[10px] ${result.demo.functional_benchmark.status === 'PASS' ? 'text-good' : 'text-error'}`}>{result.demo.functional_benchmark.status}</span></div><div className="mt-2 grid grid-cols-3 gap-3 text-text-secondary"><span>TP {result.demo.functional_benchmark.tp}</span><span>FP {result.demo.functional_benchmark.fp}</span><span>FN {result.demo.functional_benchmark.fn}</span></div><p className="mt-2 leading-5 text-text-muted">{result.demo.functional_benchmark.claim}</p></div>}<div className="grid gap-3 md:grid-cols-3"><div className="result-callout"><Database/><div><b>Assay routing</b><p>{result.detection?.assay ?? 'Unknown'} · {result.detection?.library_type ?? 'Unknown'}.</p></div></div><div className="result-callout"><FileText/><div><b>Evidence chain</b><p>{stages.length} unique stages returned with QC and decision records.</p></div></div><div className="result-callout"><MapTrifold/><div><b>Genome evidence</b><p>{visualization.n_mapped || 0} mapped reads and {visualization.n_variants || 0} variants.</p></div></div></div>{warnings.length > 0 && <div className="rounded-lg border border-warn/20 bg-warn/5 p-4"><div className="flex items-center gap-2 text-xs font-semibold text-warn"><Warning/>Warnings ({warnings.length})</div><ul className="mt-2 space-y-1 text-[11px] text-text-muted">{warnings.map((w)=><li key={w}>• {w}</li>)}</ul></div>}<NgsBenchmarkPanel claim={validation?.claim} summary={validation?.summary} sameOrBetterSupported={validation?.same_or_better_supported} comparisons={validation?.comparisons} analysisGrade={validation?.analysis_grade} researchReady={validation?.research_ready} requirements={validation?.production_requirements} inputSampling={validation?.input_sampling} demonstration={Boolean(result.demo)}/></div>}
-        qc={<div className="space-y-4"><div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">QC contains observed values only. WARN and FAIL states are derived from the stage contracts; missing/partial fields are labelled rather than guessed.</div><StageEvidenceTable stages={stages}/></div>}
+        qc={<div className="space-y-4"><div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">QC figures and tables contain returned evidence only. WARN and FAIL states are derived from stage contracts; missing or unevaluated fields stay visible instead of being converted to zero.</div><StageEvidenceTable stages={stages}/></div>}
         results={<div className="space-y-5">{(visualization.sam || visualization.vcf) ? <div><div className="mb-3 flex items-center justify-between"><h3 className="text-sm font-semibold text-text-primary">Genome evidence viewer</h3><span className="font-mono text-[10px] text-text-muted">{visualization.n_mapped || 0} mapped · {visualization.n_variants || 0} variants</span></div><GenomeViewer samText={visualization.sam || ''} vcfText={visualization.vcf || ''} locus={visualization.locus ?? undefined}/></div> : <div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-sm text-text-muted">No SAM/VCF visualization was emitted. Review QC to identify the stopping or warning stage.</div>}<StageEvidenceTable stages={stages}/></div>}
         raw={<NgsArtifactPanel vcf={visualization.vcf || ''} sam={visualization.sam || ''} pipeline={result.pipeline}/>} 
         methods={<ProvenancePanel provenance={result.pipeline?.provenance ?? {}}/>}

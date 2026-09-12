@@ -1,17 +1,14 @@
 """
 Stage 21 — final analysis-readiness gate.
 
-The gate aggregates measured stage evidence without converting absent optional
-preview evidence into a QC failure or warning.  A stage explicitly marked
-``NOT_EVALUATED`` remains visible in ``not_evaluated_stages`` and in the full
-stage ledger, but it does not pretend that a biological measurement was made.
+The gate separates measured warnings/failures from explicit ``NOT_EVALUATED``
+evidence. Missing optional evidence is never represented as zero, PASS, FAIL, or
+a biological negative finding. The software readiness gate nevertheless remains
+conservative: a run with missing checks is ``ANALYSIS_READY_WITH_WARNINGS`` until
+those checks are supplied.
 
-Verdicts:
-    ANALYSIS_READY               all evaluated stages pass
-    ANALYSIS_READY_WITH_WARNINGS one or more evaluated stages warn
-    NOT_ANALYSIS_READY           a blocking evaluated stage fails
-
-This is a software analysis-readiness decision, not clinical validation.
+The user-facing NGS summary can therefore present measured QC independently while
+Methods/provenance retains the conservative software gate.
 """
 from __future__ import annotations
 
@@ -31,7 +28,6 @@ def _is_not_evaluated(stage: dict) -> bool:
 
 
 def evaluate_gate(pipeline_report: dict) -> dict:
-    """Aggregate measured stage outcomes while preserving missing evidence."""
     stages = pipeline_report.get("stages", [])
     blocked: list[dict] = []
     warners: list[dict] = []
@@ -45,12 +41,11 @@ def evaluate_gate(pipeline_report: dict) -> dict:
         status = qc.get("status")
 
         if _is_not_evaluated(stage):
+            data = stage.get("data") or {}
             not_evaluated.append({
                 "stage": step,
                 "tool": stage.get("tool"),
-                "reason": (stage.get("data") or {}).get("unevaluated")
-                or (stage.get("data") or {}).get("reason")
-                or "No measurement was produced by this preview.",
+                "reason": data.get("unevaluated") or data.get("reason") or "No measurement was produced by this preview.",
             })
             continue
 
@@ -63,15 +58,13 @@ def evaluate_gate(pipeline_report: dict) -> dict:
                 "metrics": metrics,
             })
         elif status in {"WARN", "FAIL"}:
-            # Non-blocking FAIL is still a measured concern and therefore appears as
-            # a warning-level readiness issue.  Only explicit NOT_EVALUATED is neutral.
             warners.append({"stage": step, "status": status, "metrics": metrics})
         else:
             passed += 1
 
     if blocked:
         verdict = "NOT_ANALYSIS_READY"
-    elif warners:
+    elif warners or not_evaluated:
         verdict = "ANALYSIS_READY_WITH_WARNINGS"
     else:
         verdict = "ANALYSIS_READY"
@@ -80,7 +73,9 @@ def evaluate_gate(pipeline_report: dict) -> dict:
     if blocked:
         summary = f"{verdict}: {len(blocked)} blocking evaluated stage(s) failed"
     elif warners:
-        summary = f"{verdict}: {len(warners)} evaluated stage(s) require review"
+        summary = f"{verdict}: {len(warners)} evaluated stage(s) require review; {len(not_evaluated)} stage(s) not evaluated"
+    elif not_evaluated:
+        summary = f"{verdict}: measured stages passed; {len(not_evaluated)} stage(s) remain not evaluated"
     else:
         summary = f"{verdict}: all {evaluated_total} evaluated stage(s) passed"
 
@@ -94,8 +89,8 @@ def evaluate_gate(pipeline_report: dict) -> dict:
         "stages_total": len(stages),
         "summary": summary,
         "interpretation": (
-            "NOT_EVALUATED means no measurement was produced and is not equivalent "
-            "to PASS, WARN, FAIL, zero, or a negative biological finding."
+            "NOT_EVALUATED means no measurement was produced. It is kept separate "
+            "from measured WARN/FAIL evidence and is not a negative biological finding."
         ),
     }
 

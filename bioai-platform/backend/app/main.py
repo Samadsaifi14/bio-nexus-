@@ -16,7 +16,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, ngs_demo, rnaseq_production, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
 from app.services.cache import init_redis
 
 setup_logging()
@@ -32,10 +32,6 @@ async def lifespan(app):
     """Initialize request-critical services and explicitly enabled daemons."""
     await _startup_services()
 
-    # Continuous paper generation performs autonomous work and must never be
-    # surprising in a scientific service. It is opt-in rather than enabled by
-    # default so a deployment cannot silently consume compute or mutate paper
-    # artifacts merely because the API process started.
     from app.services.paper_artifacts import start_continuous_thread
     if os.environ.get("BIONEXUS_CONTINUOUS_PAPERS", "0").strip().lower() in ("1", "true", "yes"):
         app.state.continuous_thread = start_continuous_thread(_CONTINUOUS_PAPERS_STOP)
@@ -87,6 +83,7 @@ app.include_router(docking_analytics.router)
 app.include_router(sequencing.router)
 app.include_router(ngs.router)
 app.include_router(ngs_v2.router)
+app.include_router(ngs_demo.router)
 app.include_router(rnaseq_production.router)
 app.include_router(audit.router)
 app.include_router(admet.router)
@@ -218,12 +215,7 @@ async def _startup_services():
 
 @app.get("/health")
 async def health():
-    """Minimal public liveness response.
-
-    Detailed queue, runtime, platform and dependency diagnostics are intentionally
-    omitted from this unauthenticated route so deployment internals are not
-    exposed as a reconnaissance surface.
-    """
+    """Minimal public liveness response."""
     return {"status": "ok", "version": "0.2.0"}
 
 

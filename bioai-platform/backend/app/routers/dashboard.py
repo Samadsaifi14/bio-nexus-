@@ -1,21 +1,10 @@
-"""Scientific Dashboard routes (Component 15).
-
-Live admin surface for scientists:
-- GET /api/dashboard/summary          — headline counts.
-- GET /api/dashboard/engines          — registered engines + contracts.
-- GET /api/dashboard/datasets         — catalog + user-uploaded datasets.
-- GET /api/dashboard/runs             — recent benchmark runs (live).
-- POST /api/dashboard/upload_data     — ingest a user's own dataset (BYO data).
-"""
-
+"""Authenticated scientific dashboard routes."""
 from __future__ import annotations
 
-import logging
-
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
-from app.services.auth import get_user_id
+from app.services.auth import require_user_id
 from app.services.dashboard import (
     datasets_list,
     engine_status,
@@ -24,45 +13,47 @@ from app.services.dashboard import (
     upload_custom_dataset,
 )
 
-logger = logging.getLogger(__name__)
 router = APIRouter(tags=["dashboard"])
 
 
 @router.get("/api/dashboard/summary")
-async def dashboard_summary(user_id: str | None = Depends(get_user_id)):
-    return summary()
+async def dashboard_summary(user_id: str = Depends(require_user_id)):
+    return summary(user_id)
 
 
 @router.get("/api/dashboard/engines")
-async def dashboard_engines(user_id: str | None = Depends(get_user_id)):
+async def dashboard_engines(user_id: str = Depends(require_user_id)):
     return {"engines": engine_status()}
 
 
 @router.get("/api/dashboard/datasets")
-async def dashboard_datasets(user_id: str | None = Depends(get_user_id)):
-    return datasets_list()
+async def dashboard_datasets(user_id: str = Depends(require_user_id)):
+    return datasets_list(user_id)
 
 
 @router.get("/api/dashboard/runs")
-async def dashboard_runs(user_id: str | None = Depends(get_user_id)):
-    return recent_runs()
+async def dashboard_runs(user_id: str = Depends(require_user_id)):
+    return recent_runs(user_id)
 
 
 class UploadDataRequest(BaseModel):
-    name: str
-    category: str = "custom"
-    description: str = ""
-    records: list[dict] = []
+    name: str = Field(min_length=1, max_length=120)
+    category: str = Field(default="custom", max_length=80)
+    description: str = Field(default="", max_length=2000)
+    records: list[dict] = Field(min_length=1, max_length=10_000)
 
 
 @router.post("/api/dashboard/upload_data")
-async def dashboard_upload(body: UploadDataRequest, user_id: str | None = Depends(get_user_id)):
-    """Ingest a scientist's own dataset file into the dashboard library."""
+async def dashboard_upload(body: UploadDataRequest, user_id: str = Depends(require_user_id)):
+    """Store a caller-owned custom dashboard dataset in tenant-scoped storage."""
     try:
-        entry = upload_custom_dataset(body.name, body.category, body.records, body.description)
-    except ValueError as e:
-        raise HTTPException(status_code=422, detail=str(e))
-    except OSError as e:
-        raise HTTPException(status_code=500, detail=f"storage failure: {e}")
-    return {"status": "stored", "dataset": entry,
-            "note": "user uploads are session-scoped on ephemeral deployments; snapshot them for durable copies."}
+        entry = upload_custom_dataset(user_id, body.name, body.category, body.records, body.description)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail="Dataset storage is unavailable") from exc
+    return {
+        "status": "stored",
+        "dataset": entry,
+        "note": "Custom dashboard data is private to the authenticated account. Use a controlled export workflow for durable publication artifacts.",
+    }

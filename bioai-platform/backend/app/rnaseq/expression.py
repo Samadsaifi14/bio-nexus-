@@ -102,14 +102,24 @@ def _signed_url(path: str, expires_in: int = 3600) -> str:
     return str(getattr(response, "signed_url", "") or getattr(response, "signedURL", ""))
 
 
-def _artifact_entry(storage_path: str, filename: str, size: int) -> dict[str, Any]:
+def _artifact_entry(filename: str, data: bytes) -> dict[str, Any]:
+    """Return durable artifact metadata only; access URLs are issued on read."""
     return {
         "name": filename,
         "kind": Path(filename).stem,
         "content_type": ARTIFACT_CONTENT_TYPES.get(Path(filename).suffix.lower(), mimetypes.guess_type(filename)[0] or "application/octet-stream"),
-        "bytes": size,
-        "url": _signed_url(storage_path),
+        "bytes": len(data),
+        "sha256": hashlib.sha256(data).hexdigest(),
     }
+
+
+def _hydrate_manifest(manifest: dict[str, Any], prefix: str) -> dict[str, Any]:
+    """Attach short-lived owner access URLs without mutating stored provenance."""
+    hydrated = json.loads(json.dumps(manifest))
+    for artifact in hydrated.get("artifacts", []):
+        artifact["url"] = _signed_url(f"{prefix}/{artifact['name']}")
+    hydrated["manifest_url"] = _signed_url(f"{prefix}/manifest.json")
+    return hydrated
 
 
 def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600) -> dict[str, Any]:
@@ -209,14 +219,13 @@ def execute_expression_analysis(
             data = file_path.read_bytes()
             storage_path = f"{prefix}/{file_path.name}"
             _upload_bytes(storage_path, data, ARTIFACT_CONTENT_TYPES.get(file_path.suffix.lower(), "application/octet-stream"))
-            artifacts.append(_artifact_entry(storage_path, file_path.name, len(data)))
+            artifacts.append(_artifact_entry(file_path.name, data))
 
         manifest["artifacts"] = artifacts
         manifest_bytes = json.dumps(manifest, indent=2).encode("utf-8")
         manifest_path = f"{prefix}/manifest.json"
         _upload_bytes(manifest_path, manifest_bytes, "application/json")
-        manifest["manifest_url"] = _signed_url(manifest_path)
-        return manifest
+        return _hydrate_manifest(manifest, prefix)
 
 
 def load_manifest(user_id: str, run_id: str) -> dict[str, Any]:
@@ -231,7 +240,4 @@ def load_manifest(user_id: str, run_id: str) -> dict[str, Any]:
     if not isinstance(raw, (bytes, bytearray)):
         raise RnaSeqExpressionError("RNA-seq manifest could not be read.")
     manifest = json.loads(bytes(raw).decode("utf-8"))
-    for artifact in manifest.get("artifacts", []):
-        artifact["url"] = _signed_url(f"{prefix}/{artifact['name']}")
-    manifest["manifest_url"] = _signed_url(f"{prefix}/manifest.json")
-    return manifest
+    return _hydrate_manifest(manifest, prefix)

@@ -20,7 +20,7 @@ from app.services.auth import require_user_id
 router = APIRouter(prefix="/api/ngs/v2/rnaseq/expression", tags=["ngs-v2-rnaseq-expression"])
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "data" / "rnaseq"
-DEMO_COUNTS = DATA_DIR / "Cer_SALS_every10_validation_subset.tsv"
+DEMO_COUNTS = DATA_DIR / "Cer_SALS_every100_validation_subset.tsv"
 DEMO_METADATA = DATA_DIR / "Cer_SALS_metadata.tsv"
 
 
@@ -124,7 +124,7 @@ async def run_expression_analysis(
 @router.post("/demo")
 def run_cer_sals_demo(user_id: str = Depends(require_user_id)):
     if not DEMO_COUNTS.exists() or not DEMO_METADATA.exists():
-        raise HTTPException(status_code=503, detail="The bundled cerebellum SALS demonstration dataset is not installed.")
+        raise HTTPException(status_code=503, detail="The bundled cerebellum SALS validation subset is not installed.")
     params = ExpressionParameters(
         condition_column="condition",
         reference_level="healthy",
@@ -141,7 +141,7 @@ def run_cer_sals_demo(user_id: str = Depends(require_user_id)):
             counts_path=DEMO_COUNTS,
             metadata_path=DEMO_METADATA,
             params=params,
-            source_label="bundled-deterministic-every-10th-gene-subset-of-course-supplied-cerebellum-SALS-matrix",
+            source_label="bundled-deterministic-every-100th-gene-subset-of-course-supplied-cerebellum-SALS-matrix",
         )
     except RnaSeqExpressionError as exc:
         raise _http_error(exc) from exc

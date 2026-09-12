@@ -85,19 +85,19 @@ function QualityBandChart({ rows }: { rows: Obj[] }) {
   </div>;
 }
 
-function BarChart({ title, subtitle, rows, xLabel, yLabel }: { title: string; subtitle: string; rows: BarRow[]; xLabel: string; yLabel: string }) {
+function BarChart({ title, subtitle, rows, xLabel, yLabel, percent = false }: { title: string; subtitle: string; rows: BarRow[]; xLabel: string; yLabel: string; percent?: boolean }) {
   if (!rows.length) return null;
   const valid = rows.filter(r => Number.isFinite(r.value));
   if (!valid.length) return null;
   const W=720,H=260,L=64,R=18,T=22,B=70;
-  const max=Math.max(...valid.map(r=>r.value),0);
+  const max=percent ? 100 : Math.max(...valid.map(r=>r.value),0);
   if(max<=0)return null;
   const step=(W-L-R)/valid.length, bw=Math.max(5,step*0.62), sy=(v:number)=>H-B-(v/max)*(H-T-B);
   return <div className="rounded-xl border border-glass-border bg-surface-1 p-4">
-    <div className="mb-3 flex items-start gap-2"><ChartBar className="mt-0.5 h-4 w-4 shrink-0 text-accent-purple"/><div><p className="text-sm font-semibold text-text-primary">{title}</p><p className="text-[11px] leading-4 text-text-muted">{subtitle}</p></div></div>
+    <div className="mb-3 flex items-start gap-2"><ChartBar className="mt-0.5 h-4 w-4 shrink-0 text-accent-cyan"/><div><p className="text-sm font-semibold text-text-primary">{title}</p><p className="text-[11px] leading-4 text-text-muted">{subtitle}</p></div></div>
     <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label={title}>
-      {[0,.25,.5,.75,1].map(t=>{const y=T+t*(H-T-B);const value=max*(1-t);return <g key={t}><line x1={L} x2={W-R} y1={y} y2={y} stroke="currentColor" className="text-white/5"/><text x={L-7} y={y+3} textAnchor="end" fontSize="9" fill="currentColor" className="text-text-muted">{formatNumber(value)}</text></g>})}
-      {valid.map((r,i)=>{const x=L+i*step+(step-bw)/2;const y=sy(r.value);return <g key={`${r.label}-${i}`}><rect x={x} y={y} width={bw} height={H-B-y} rx="2" fill="currentColor" className="text-accent-purple"/><text x={x+bw/2} y={H-B+14} textAnchor="middle" fontSize="8" fill="currentColor" className="text-text-muted">{r.label.length>14?`${r.label.slice(0,12)}…`:r.label}</text></g>})}
+      {[0,.25,.5,.75,1].map(t=>{const y=T+t*(H-T-B);const value=max*(1-t);return <g key={t}><line x1={L} x2={W-R} y1={y} y2={y} stroke="currentColor" className="text-white/5"/><text x={L-7} y={y+3} textAnchor="end" fontSize="9" fill="currentColor" className="text-text-muted">{percent ? `${formatNumber(value)}%` : formatNumber(value)}</text></g>})}
+      {valid.map((r,i)=>{const x=L+i*step+(step-bw)/2;const y=sy(Math.min(r.value,max));return <g key={`${r.label}-${i}`}><rect x={x} y={y} width={bw} height={H-B-y} rx="2" fill="currentColor" className="text-accent-cyan"/><text x={x+bw/2} y={H-B+14} textAnchor="middle" fontSize="8" fill="currentColor" className="text-text-muted">{r.label.length>14?`${r.label.slice(0,12)}…`:r.label}</text></g>})}
       <text x={(L+W-R)/2} y={H-4} textAnchor="middle" fontSize="10" fill="currentColor" className="text-text-secondary">{xLabel}</text>
       <text x="12" y={H/2} textAnchor="middle" fontSize="10" fill="currentColor" className="text-text-secondary" transform={`rotate(-90 12 ${H/2})`}>{yLabel}</text>
     </svg>
@@ -117,7 +117,7 @@ function MetricBars({ data }: { data: Obj }) {
     return parsed === null ? [] : [{ label, value: parsed }];
   });
   if (!rows.length) return null;
-  return <BarChart title="Alignment QC rates" subtitle="Percentages computed from returned SAM alignment records. Metrics with different units are kept out of this chart." rows={rows} xLabel="Alignment metric" yLabel="Percent (%)"/>;
+  return <BarChart title="Alignment QC rates" subtitle="Percentages computed from returned SAM alignment records. Metrics with different units are kept out of this chart." rows={rows} xLabel="Alignment metric" yLabel="Percent (%)" percent/>;
 }
 
 export default function NgsScientificPlots({ stages = [] }: { stages?: Ngs2Stage[] }) {
@@ -125,12 +125,14 @@ export default function NgsScientificPlots({ stages = [] }: { stages?: Ngs2Stage
   const raw = stageData(stages, 'raw_read_qc');
   const pre = stageData(stages, 'preprocessing');
   const aln = stageData(stages, 'alignment_qc');
+  const coverage = stageData(stages, 'coverage');
+  const variantQc = stageData(stages, 'variant_qc');
 
   const qualityRows = raw && Array.isArray(raw.quality_by_position) ? raw.quality_by_position.filter(isObj) : [];
   const gcValues: number[] = raw && Array.isArray(raw.gc_by_window) ? raw.gc_by_window.flatMap(value => { const parsed = num(value); return parsed === null ? [] : [parsed]; }) : [];
   const gcPoints = gcValues.map((y, i) => ({ x: i + 1, y }));
   const lengthRows: BarRow[] = raw && Array.isArray(raw.read_length_distribution) ? raw.read_length_distribution.filter(isObj).flatMap(r => { const value = num(r.count); const label = String(r.length ?? ''); return value === null || !label ? [] : [{ label, value }]; }) : [];
-  const coverageRows: BarRow[] = aln && isObj(aln.coverage_by_contig) ? Object.entries(aln.coverage_by_contig).flatMap(([label, value]) => { const parsed = num(value); return parsed === null ? [] : [{ label, value: parsed }]; }) : [];
+  const alignedBasesByContig: BarRow[] = aln && isObj(aln.coverage_by_contig) ? Object.entries(aln.coverage_by_contig).flatMap(([label, value]) => { const parsed = num(value); return parsed === null ? [] : [{ label, value: parsed }]; }) : [];
   const readFlow: BarRow[] = pre ? [
     ['Raw', pre.raw_reads],
     ['Retained', pre.retained_reads],
@@ -138,7 +140,17 @@ export default function NgsScientificPlots({ stages = [] }: { stages?: Ngs2Stage
     ['Adapter-trimmed', pre.adapter_removed_reads],
   ].flatMap(([label, value]) => { const parsed = num(value); return parsed === null ? [] : [{ label: String(label), value: parsed }]; }) : [];
 
-  const hasAny = qualityRows.length > 1 || gcPoints.length > 1 || lengthRows.length > 0 || readFlow.length > 0 || !!aln || coverageRows.length > 0;
+  const genomeCoverage = coverage && isObj(coverage.genome) ? coverage.genome : null;
+  const coverageThresholds: BarRow[] = genomeCoverage ? [1,10,20,30,50].flatMap(threshold => {
+    const parsed = num(genomeCoverage[`coverage_${threshold}x`]);
+    return parsed === null ? [] : [{ label: `≥${threshold}×`, value: parsed }];
+  }) : [];
+
+  const variantDisposition: BarRow[] = variantQc ? [
+    ['PASS', variantQc.pass], ['WARN', variantQc.warn], ['FAIL', variantQc.fail],
+  ].flatMap(([label, value]) => { const parsed = num(value); return parsed === null ? [] : [{ label: String(label), value: parsed }]; }) : [];
+
+  const hasAny = qualityRows.length > 1 || gcPoints.length > 1 || lengthRows.length > 0 || readFlow.length > 0 || !!aln || alignedBasesByContig.length > 0 || coverageThresholds.length > 0 || variantDisposition.length > 0;
   if (!hasAny) return null;
 
   return <section className="space-y-4 rounded-xl border border-glass-border bg-surface-0 p-4" aria-label="NGS scientific plots">
@@ -149,7 +161,9 @@ export default function NgsScientificPlots({ stages = [] }: { stages?: Ngs2Stage
       <BarChart title="Read length distribution" subtitle="Observed read counts grouped into the backend's 10 bp length buckets." rows={lengthRows} xLabel="Read length bucket (bp)" yLabel="Read count"/>
       <BarChart title="Read retention through preprocessing" subtitle="Observed read counts before and after trimming/filtering. Adapter-trimmed reads are a subset, not an additive total." rows={readFlow} xLabel="Preprocessing outcome" yLabel="Read count"/>
       {aln && <MetricBars data={aln}/>} 
-      <BarChart title="Aligned reference bases by contig" subtitle="Sum of reference-consuming aligned bases per contig after duplicate exclusion. This is not normalized depth or breadth of coverage." rows={coverageRows.slice(0, 20)} xLabel="Contig" yLabel="Aligned reference bases"/>
+      <BarChart title="Aligned reference bases by contig" subtitle="Sum of reference-consuming aligned bases per contig after duplicate exclusion. This is not normalized depth or breadth of coverage." rows={alignedBasesByContig.slice(0, 20)} xLabel="Contig" yLabel="Aligned reference bases"/>
+      <BarChart title="Coverage threshold profile" subtitle="Percentage of reference positions reaching each depth threshold, calculated by the coverage engine from aligned non-duplicate reads." rows={coverageThresholds} xLabel="Depth threshold" yLabel="Reference positions (%)" percent/>
+      <BarChart title="Variant QC disposition" subtitle="Counts of candidate variants classified PASS, WARN or FAIL by the returned variant-QC stage. This is QC disposition, not biological pathogenicity." rows={variantDisposition} xLabel="Variant QC status" yLabel="Variant count"/>
     </div>
   </section>;
 }

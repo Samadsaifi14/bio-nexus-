@@ -9,7 +9,7 @@ from app.rnaseq.expression import ExpressionParameters, R_SCRIPT, RnaSeqExpressi
 
 
 DATA_DIR = Path(__file__).resolve().parents[1] / "app" / "data" / "rnaseq"
-COUNTS = DATA_DIR / "Cer_SALS_every10_validation_subset.tsv"
+COUNTS = DATA_DIR / "Cer_SALS_every100_validation_subset.tsv"
 METADATA = DATA_DIR / "Cer_SALS_metadata.tsv"
 
 
@@ -20,7 +20,7 @@ def test_bundled_validation_subset_preserves_all_samples_and_raw_integers():
         rows = list(reader)
     assert header[0] == "gene"
     assert len(header) == 19
-    assert len(rows) == 2209
+    assert len(rows) == 221
     assert len(set(header[1:])) == 18
     assert all(len(row) == 19 for row in rows)
     assert all(cell.isdigit() for row in rows for cell in row[1:])
@@ -49,6 +49,7 @@ def test_r_script_contains_required_statistical_and_figure_stages():
         "DESeqDataSetFromMatrix",
         "estimateSizeFactors",
         "vst(dds, blind = TRUE)",
+        "varianceStabilizingTransformation(dds, blind = TRUE)",
         "plotPCA",
         "DESeq(dds)",
         "results(dds",

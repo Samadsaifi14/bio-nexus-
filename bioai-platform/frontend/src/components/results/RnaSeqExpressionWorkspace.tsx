@@ -165,7 +165,7 @@ export function RnaSeqExpressionWorkspace() {
             </div>
             <CriticalButton onClick={runDemo} disabled={Boolean(running)} className="px-4 py-2 text-xs disabled:opacity-50">{running === 'demo' ? <CircleNotch className="animate-spin" /> : <Flask />} {running === 'demo' ? 'Running DESeq2…' : 'Run SALS validation subset'}</CriticalButton>
           </div>
-          <div className="mt-4 rounded-lg border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-[11px] leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" />The bundled demonstration is a deterministic every-10th-gene subset of the course-supplied cerebellum count matrix. It preserves all 18 samples and the real counts; upload the full matrix below to reproduce the full practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.</div>
+          <div className="mt-4 rounded-lg border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-[11px] leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" />The bundled demonstration is a deterministic every-100th-gene subset of the course-supplied cerebellum count matrix. It preserves all 18 samples and the real counts; upload the full matrix below to reproduce the full practical. Healthy is the reference, SALS is the test level, and the practical pre-filter is ≥10 counts in ≥8 samples.</div>
         </div>
 
         <div className="grid gap-px bg-glass-border lg:grid-cols-2">
@@ -179,7 +179,7 @@ export function RnaSeqExpressionWorkspace() {
             <div className="flex items-center gap-2"><Table className="text-accent-cyan" /><h4 className="text-sm font-semibold text-text-primary">Sample metadata</h4></div>
             <p className="mt-1 text-[11px] leading-5 text-text-muted">TSV must contain <code>sample</code> and the condition column. Extra recorded covariates can be included in the model.</p>
             <div className="mt-3 flex flex-wrap gap-2">
-              <input type="file" accept=".tsv,.txt,text/tab-separated-values,text/plain" onChange={event => setMetadata(event.target.files?.[0] ?? null)} className="block min-w-0 flex-1 text-xs text-text-secondary file:mr-3 file:rounded-lg file:border file:border-glass-border file:bg-surface-1 file:px-3 file:py-2 file:text-xs file:text-primary" />
+              <input type="file" accept=".tsv,.txt,text/tab-separated-values,text/plain" onChange={event => setMetadata(event.target.files?.[0] ?? null)} className="block min-w-0 flex-1 text-xs text-text-secondary file:mr-3 file:rounded-lg file:border file:border-glass-border file:bg-surface-1 file:px-3 file:py-2 file:text-xs file:text-text-primary" />
               <button type="button" onClick={() => downloadText('rnaseq_metadata_template.tsv', 'sample\tcondition\nSample_1\thealthy\nSample_2\tSALS\n')} className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Template</button>
             </div>
             {metadata && <p className="mt-2 font-mono text-[10px] text-text-muted">{metadata.name}</p>}

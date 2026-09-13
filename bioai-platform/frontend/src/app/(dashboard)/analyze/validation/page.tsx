@@ -32,11 +32,11 @@ export default function ValidationPage() {
       <BackButton />
       <PageHeader
         title="Scientific Reference Comparison"
-        subtitle="Compare BioNexus outputs against independent accepted tools or truth sets using domain-specific concordance metrics."
+        subtitle="Compare BioNexus outputs against independent accepted tools or truth sets using domain-specific concordance metrics. Every domain also includes a clearly labelled demo fixture for learning and UI regression testing."
       />
 
       <div className="mb-5 data-card p-4">
-        <p className="mb-3 text-xs text-text-muted">Choose the analysis domain. A reference source is suggested for each domain; use the same input and scientific settings whenever exact concordance is the goal.</p>
+        <p className="mb-3 text-xs text-text-muted">Choose the analysis domain. A reference source is suggested for each domain; use the same input and scientific settings whenever exact concordance is the goal. Demo samples exercise the comparison workflow only and are not external validation evidence.</p>
         <ClaySegmented
           options={DOMAINS.map(([value, label]) => ({ value, label }))}
           value={analysisType}

@@ -15,6 +15,12 @@ from app.rnaseq.expression import (
     execute_expression_analysis,
     load_manifest,
 )
+from app.rnaseq.study_scope import (
+    CI_SALS_GENES,
+    FULL_SALS_GENES,
+    FULL_SALS_SAMPLES,
+    classify_rnaseq_study_scope,
+)
 from app.services.auth import require_user_id
 
 router = APIRouter(prefix="/api/ngs/v2/rnaseq/expression", tags=["ngs-v2-rnaseq-expression"])
@@ -31,6 +37,11 @@ def _parse_covariates(raw: str) -> tuple[str, ...]:
 def _http_error(exc: RnaSeqExpressionError) -> HTTPException:
     status = 503 if "Rscript is not installed" in str(exc) or "storage is unavailable" in str(exc) else 422
     return HTTPException(status_code=status, detail=str(exc))
+
+
+def _with_study_scope(result: dict) -> dict:
+    result["study_scope"] = classify_rnaseq_study_scope(result)
+    return result
 
 
 async def _save_upload(upload: UploadFile, target: Path, max_bytes: int) -> None:
@@ -68,6 +79,19 @@ def expression_capabilities():
             "volcano_plot",
             "complexheatmap",
         ],
+        "study_scope": {
+            "bundled_fixture": {
+                "genes": CI_SALS_GENES,
+                "samples": FULL_SALS_SAMPLES,
+                "classification": "CI_REGRESSION_ONLY",
+                "supports_biological_claims": False,
+            },
+            "full_sals_expected_shape": {"genes": FULL_SALS_GENES, "samples": FULL_SALS_SAMPLES},
+            "full_study_note": (
+                "A matching full SALS upload is retained as a full-study statistical execution with checksums and derived artifacts, "
+                "but independent biological interpretation remains required before manuscript-level ALS claims."
+            ),
+        },
         "privacy": "Uploaded count matrices are processed in a temporary directory. Derived artifacts are stored in a private per-user bucket; raw uploads are not persisted by this route.",
     }
 
@@ -110,13 +134,13 @@ async def run_expression_analysis(
         await _save_upload(counts, counts_path, MAX_COUNTS_BYTES)
         await _save_upload(metadata, metadata_path, MAX_METADATA_BYTES)
         try:
-            return execute_expression_analysis(
+            return _with_study_scope(execute_expression_analysis(
                 user_id=user_id,
                 counts_path=counts_path,
                 metadata_path=metadata_path,
                 params=params,
                 source_label="user-upload",
-            )
+            ))
         except RnaSeqExpressionError as exc:
             raise _http_error(exc) from exc
 
@@ -136,13 +160,13 @@ def run_cer_sals_demo(user_id: str = Depends(require_user_id)):
         top_heatmap_genes=40,
     )
     try:
-        return execute_expression_analysis(
+        return _with_study_scope(execute_expression_analysis(
             user_id=user_id,
             counts_path=DEMO_COUNTS,
             metadata_path=DEMO_METADATA,
             params=params,
             source_label="bundled-deterministic-every-100th-gene-subset-of-course-supplied-cerebellum-SALS-matrix",
-        )
+        ))
     except RnaSeqExpressionError as exc:
         raise _http_error(exc) from exc
 
@@ -150,6 +174,6 @@ def run_cer_sals_demo(user_id: str = Depends(require_user_id)):
 @router.get("/runs/{run_id}")
 def get_expression_run(run_id: str, user_id: str = Depends(require_user_id)):
     try:
-        return load_manifest(user_id, run_id)
+        return _with_study_scope(load_manifest(user_id, run_id))
     except RnaSeqExpressionError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc

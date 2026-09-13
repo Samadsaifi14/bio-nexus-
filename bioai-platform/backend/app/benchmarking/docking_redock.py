@@ -8,8 +8,39 @@ separate quantities and must not be conflated.
 
 from __future__ import annotations
 
+from copy import deepcopy
 from dataclasses import asdict, dataclass
 from typing import Any
+
+
+_CANONICAL_REDOCKING_FIXTURE: dict[str, Any] = {
+    "fixture_id": "BBS1-DOCK-1STP-BTN",
+    "pdb_id": "1STP",
+    "ligand_resname": "BTN",
+    "system": "streptavidin-biotin redocking",
+    "reference_pose": "crystallographic BTN coordinates from the RCSB PDB entry",
+    "preparation_path": "extract crystal ligand HETATM records -> Open Babel PDBQT -> AutoDock Vina",
+    "sdf_dependency": False,
+    "seed": 42,
+    "exhaustiveness": 32,
+    "pose_rmsd_threshold_angstrom": 2.0,
+    "status": "FIXTURE_READY_EXECUTION_EVIDENCE_REQUIRED",
+    "accuracy_claim_allowed": False,
+    "retired_blocked_fixture": {
+        "pdb_id": "1IEP",
+        "reason": "recorded ligand-SDF sanitization failed before RMSD evaluation",
+        "used_for_accuracy_claims": False,
+    },
+    "claim_boundary": (
+        "A configured fixture is not a validation result. Pose-recovery accuracy may be claimed only "
+        "after a retained execution artifact records the predicted pose and symmetry-aware RMSD."
+    ),
+}
+
+
+def canonical_redocking_fixture() -> dict[str, Any]:
+    """Return the current predeclared redocking fixture without claiming it passed."""
+    return deepcopy(_CANONICAL_REDOCKING_FIXTURE)
 
 
 @dataclass(frozen=True)

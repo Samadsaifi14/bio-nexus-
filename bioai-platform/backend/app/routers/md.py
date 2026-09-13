@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import asyncio
 import uuid
 from datetime import datetime, timezone, timedelta
 
@@ -14,6 +13,20 @@ from app.services.auth import require_user_id
 
 router = APIRouter(prefix="/api/md", tags=["MD Simulation"])
 _TABLE = "docking_jobs"  # reuse docking_jobs table with md_jobs for now
+
+
+def _md_scientific_scope() -> dict:
+    return {
+        "engine": "OpenMM",
+        "solvent_model": "implicit",
+        "supported_implicit_models": ["OBC1", "OBC2", "GBn2"],
+        "explicit_solvent_supported": False,
+        "equivalent_to_validated_explicit_solvent_production": False,
+        "claim_boundary": (
+            "Hosted results describe the recorded implicit-solvent OpenMM workflow only. "
+            "They must not be presented as equivalent to a validated explicit-solvent production protocol."
+        ),
+    }
 
 
 class MDRunRequest(BaseModel):
@@ -30,6 +43,13 @@ class MDJobResponse(BaseModel):
     status: str
     result: dict | None = None
     error: str | None = None
+    scientific_scope: dict = Field(default_factory=_md_scientific_scope)
+
+
+@router.get("/scope")
+async def get_md_scope():
+    """Machine-readable scientific boundary for the hosted MD implementation."""
+    return _md_scientific_scope()
 
 
 @router.get("/forcefields")
@@ -37,17 +57,17 @@ async def get_md_forcefields():
     """Return the force field / solvent menu (verified combos only)."""
     from app.tools.md_config import get_forcefields_menu
 
-    return get_forcefields_menu()
+    menu = get_forcefields_menu()
+    if isinstance(menu, dict):
+        return {**menu, "scientific_scope": _md_scientific_scope()}
+    return menu
 
 
 @router.post("/run", response_model=MDJobResponse)
 async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(require_user_id)):
-    """Submit an MD simulation job (queued through the durable worker)."""
-    from app.services.ssrf import validate_url
+    """Submit an implicit-solvent MD simulation job through the durable worker."""
     from app.tools.md_config import resolve_combo
 
-    # Reject invalid force field / solvent combinations immediately with an
-    # explicit error (no silent AMBER14/OBC2 fallback).
     try:
         resolve_combo(body.forcefield, body.solvent)
     except ValueError as exc:
@@ -69,6 +89,7 @@ async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(re
             "solvent": body.solvent,
             "run_length_ps": body.run_length_ps,
             "tool_type": "md",
+            "scientific_scope": _md_scientific_scope(),
         },
     }
     try:
@@ -118,6 +139,9 @@ async def get_md_status(job_id: str, user_id: str = Depends(require_user_id)):
             result = json.loads(data["result_sdf"])
         except Exception:
             pass
+
+    if isinstance(result, dict):
+        result.setdefault("scientific_scope", _md_scientific_scope())
 
     return MDJobResponse(
         job_id=data["id"],

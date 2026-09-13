@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from app.benchmarking.ai_grounding import evaluate_grounding
 from app.benchmarking.bbs2 import registry as bbs2_registry
@@ -11,6 +13,7 @@ from app.benchmarking.giab import (
     GermlineBenchmarkRequest,
     build_germline_truth_benchmark_plan,
 )
+from app.benchmarking.reference_comparison import comparator_registry, compare_results
 from app.benchmarking.validation_claims import validation_claims
 from app.services.auth import require_user_id
 from app.services.job_access import owns_job
@@ -49,6 +52,21 @@ class GermlineTruthBenchmarkRequest(BaseModel):
     evaluator: str = "hap.py"
 
 
+class ReferenceComparisonRequest(BaseModel):
+    """Compare an emitted BioNexus result with a declared independent reference.
+
+    The API intentionally accepts normalized JSON rather than fetching the
+    comparator itself. That keeps input/reference/version matching explicit and
+    prevents a background request from silently changing databases or defaults.
+    """
+
+    analysis_type: str = Field(min_length=1, max_length=64)
+    bionexus: dict[str, Any]
+    reference: dict[str, Any]
+    top_n: int = Field(default=10, ge=1, le=100)
+    reference_metadata: dict[str, Any] = Field(default_factory=dict)
+
+
 @router.get("")
 async def get_benchmarks(category: str | None = None, limit: int = 100):
     """Persisted benchmark catalog, optionally filtered by category."""
@@ -69,6 +87,32 @@ async def get_validation_claims():
         "claims": validation_claims(),
         "semantics": "execution != reference concordance != independent scientific validation",
     }
+
+
+@router.get("/reference-comparators")
+async def get_reference_comparators():
+    """Return the declared reference source, metrics and plots for each domain."""
+    return comparator_registry()
+
+
+@router.post("/reference-comparators/compare")
+async def compare_reference_results(req: ReferenceComparisonRequest):
+    """Compute domain-appropriate concordance without inventing missing data.
+
+    A high concordance score means that matched outputs agree under this
+    comparison contract. It is deliberately not translated into a superiority
+    claim.
+    """
+    try:
+        return compare_results(
+            req.analysis_type,
+            req.bionexus,
+            req.reference,
+            top_n=req.top_n,
+            reference_metadata=req.reference_metadata,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
 
 
 @router.get("/docking/redock-fixture")

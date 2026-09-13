@@ -10,8 +10,10 @@ import type { AlignmentResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
+import { MsaScientificPlots } from '@/components/alignment/MsaScientificPlots';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 import { AlignmentBlock } from '@/components/alignment/AlignmentBlock';
+import { ReferenceComparisonWorkbench } from '@/components/results/ReferenceComparisonWorkbench';
 import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
@@ -77,12 +79,12 @@ export default function AlignmentPage() {
   };
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <BackButton />
 
       <PageHeader
         title="Multiple Sequence Alignment"
-        subtitle="Align two or more protein or DNA sequences with a choice of EBI methods."
+        subtitle="Align two or more protein or DNA sequences with a choice of EBI methods, inspect conservation/entropy/gaps, and compare against an independent reference alignment."
       />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
@@ -137,15 +139,16 @@ export default function AlignmentPage() {
       )}
 
       {result && (() => {
-        const alignedSeqs = parseAlignedFasta(result.aln_fasta).seqs;
+        const parsed = parseAlignedFasta(result.aln_fasta);
+        const alignedSeqs = parsed.seqs;
         return (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-          <AIResultSummary toolName="alignment" result={result as unknown as Record<string, unknown>} />
-          <div className="data-card p-5">
-            <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA) — {METHOD_LABELS[result.method as AlignmentMethod] ?? result.method ?? 'Clustal Omega'}</h3>
-          <AlignmentStatsBar stats={computeAlignmentStats(alignedSeqs)} className="mb-3" />
-          <AlignmentBlock alnFasta={result.aln_fasta} className="max-h-80" />
-        </div>
+            <AIResultSummary toolName="alignment" result={result as unknown as Record<string, unknown>} />
+            <div className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA) — {METHOD_LABELS[result.method as AlignmentMethod] ?? result.method ?? 'Clustal Omega'}</h3>
+              <AlignmentStatsBar stats={computeAlignmentStats(alignedSeqs)} className="mb-3" />
+              <AlignmentBlock alnFasta={result.aln_fasta} className="max-h-80" />
+            </div>
 
             {result.phylotree && (
               <div className="data-card p-5">
@@ -154,10 +157,20 @@ export default function AlignmentPage() {
             )}
 
             {alignedSeqs.length >= 2 && (
-              <div className="data-card p-5">
-                <ConservationTrack alignedSeqs={alignedSeqs} />
-              </div>
+              <>
+                <div className="data-card p-5">
+                  <ConservationTrack alignedSeqs={alignedSeqs} />
+                </div>
+                <MsaScientificPlots headers={parsed.headers} alignedSeqs={alignedSeqs} />
+              </>
             )}
+
+            <ReferenceComparisonWorkbench
+              analysisType="msa"
+              bionexusResult={{ aln_fasta: result.aln_fasta, method: result.method ?? method, sequence_count: alignedSeqs.length }}
+              title="Compare this MSA with an independent reference alignment"
+              defaultTopN={Math.min(100, alignedSeqs.length)}
+            />
           </motion.div>
         );
       })()}

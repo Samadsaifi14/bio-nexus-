@@ -1,9 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { UploadSimple as Upload, Scales, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
+import { UploadSimple as Upload, Scales, CircleNotch as LoaderCircle, Flask } from '@phosphor-icons/react';
 import { compareWithReference, getReferenceComparators, type ComparatorDefinition, type ScientificComparison } from '@/lib/scientificComparisonApi';
 import { parseReferenceInput } from '@/lib/referenceInput';
+import { getScientificComparisonSample } from '@/lib/scientificComparisonSamples';
 import { ScientificComparisonResult } from './ScientificComparisonResult';
 import { FlatInput, FlatTextarea, CriticalButton } from '@/components/ui';
 
@@ -34,7 +35,9 @@ export function ReferenceComparisonWorkbench({ analysisType, bionexusResult, tit
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<ScientificComparison | null>(null);
+  const [demoLoaded, setDemoLoaded] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
+  const demoSample = useMemo(() => getScientificComparisonSample(analysisType), [analysisType]);
 
   useEffect(() => {
     if (bionexusResult) setBioText(JSON.stringify(bionexusResult, null, 2));
@@ -66,6 +69,7 @@ export function ReferenceComparisonWorkbench({ analysisType, bionexusResult, tit
           database_or_reference: referenceDatabase || null,
           input_match_asserted: true,
           parameter_match_asserted: true,
+          demo_fixture: demoLoaded,
         },
       });
       setResult(compared);
@@ -76,10 +80,24 @@ export function ReferenceComparisonWorkbench({ analysisType, bionexusResult, tit
     }
   }
 
+  function loadDemoSample() {
+    if (!demoSample || bionexusResult) return;
+    setBioText(JSON.stringify(demoSample.bionexus, null, 2));
+    setReferenceText(JSON.stringify(demoSample.reference, null, 2));
+    setReferenceTool(demoSample.referenceTool);
+    setReferenceVersion(demoSample.referenceVersion);
+    setReferenceDatabase(demoSample.referenceDatabase);
+    setTopN(demoSample.topN ?? defaultTopN);
+    setDemoLoaded(true);
+    setResult(null);
+    setError('');
+  }
+
   async function loadFile(file: File | undefined) {
     if (!file) return;
     const text = await file.text();
     setReferenceText(text);
+    setDemoLoaded(false);
     setResult(null);
     setError('');
   }
@@ -99,28 +117,52 @@ export function ReferenceComparisonWorkbench({ analysisType, bionexusResult, tit
           Required for a defensible comparison: same biological input, same database/reference build, same relevant parameters, and a recorded tool/version. If these differ, treat the output as a methodological comparison rather than exact concordance.
         </div>
 
+        {!bionexusResult && demoSample && (
+          <div className="mt-4 rounded-xl border border-accent-cyan/25 bg-accent-cyan/5 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div className="max-w-3xl">
+                <div className="flex items-center gap-2">
+                  <Flask className="h-4 w-4 text-accent-cyan" />
+                  <p className="text-sm font-semibold text-text-primary">Demo sample · {demoSample.label}</p>
+                </div>
+                <p className="mt-1 text-xs leading-5 text-text-secondary">{demoSample.description}</p>
+                <p className="mt-2 text-[11px] leading-4 text-accent-amber">Regression/demo fixture only. It demonstrates the comparison engine and plots; it is not independent validation evidence and must not be cited as a BioNexus-vs-reference benchmark result.</p>
+              </div>
+              <button type="button" onClick={loadDemoSample} className="btn-ghost inline-flex items-center gap-1.5 border border-accent-cyan/25 px-3 py-2 text-xs text-accent-cyan hover:bg-accent-cyan/10">
+                <Flask className="h-3.5 w-3.5" /> Load demo sample
+              </button>
+            </div>
+          </div>
+        )}
+
+        {demoLoaded && (
+          <div className="mt-3 rounded-lg border border-accent-amber/30 bg-accent-amber/5 px-3 py-2 text-xs text-accent-amber">
+            DEMO FIXTURE LOADED — replace both inputs with independently generated results before using this workspace for a paper or benchmark claim.
+          </div>
+        )}
+
         {!bionexusResult && (
           <div className="mt-4">
             <label className="mb-1 block text-xs font-medium text-text-secondary">BioNexus result JSON / TSV / supported scientific text</label>
-            <FlatTextarea value={bioText} onChange={e => setBioText(e.target.value)} rows={7} className="w-full font-mono text-xs" placeholder="Paste the BioNexus result to compare..." />
+            <FlatTextarea value={bioText} onChange={e => { setBioText(e.target.value); setDemoLoaded(false); }} rows={7} className="w-full font-mono text-xs" placeholder="Paste the BioNexus result to compare..." />
           </div>
         )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div><label className="mb-1 block text-xs text-text-muted">Reference tool</label><FlatInput value={referenceTool} onChange={e => setReferenceTool(e.target.value)} placeholder={definition?.reference ?? 'e.g. NCBI BLAST'} /></div>
-          <div><label className="mb-1 block text-xs text-text-muted">Tool version / release</label><FlatInput value={referenceVersion} onChange={e => setReferenceVersion(e.target.value)} placeholder="Record exactly if available" /></div>
-          <div><label className="mb-1 block text-xs text-text-muted">Database / reference build</label><FlatInput value={referenceDatabase} onChange={e => setReferenceDatabase(e.target.value)} placeholder="e.g. Swiss-Prot release / GRCh38" /></div>
+          <div><label className="mb-1 block text-xs text-text-muted">Reference tool</label><FlatInput value={referenceTool} onChange={e => { setReferenceTool(e.target.value); setDemoLoaded(false); }} placeholder={definition?.reference ?? 'e.g. NCBI BLAST'} /></div>
+          <div><label className="mb-1 block text-xs text-text-muted">Tool version / release</label><FlatInput value={referenceVersion} onChange={e => { setReferenceVersion(e.target.value); setDemoLoaded(false); }} placeholder="Record exactly if available" /></div>
+          <div><label className="mb-1 block text-xs text-text-muted">Database / reference build</label><FlatInput value={referenceDatabase} onChange={e => { setReferenceDatabase(e.target.value); setDemoLoaded(false); }} placeholder="e.g. Swiss-Prot release / GRCh38" /></div>
         </div>
 
         <div className="mt-4">
           <div className="mb-1 flex items-center justify-between gap-2"><label className="text-xs font-medium text-text-secondary">Independent reference result</label><button type="button" onClick={() => fileRef.current?.click()} className="btn-ghost inline-flex items-center gap-1 px-2 py-1 text-xs"><Upload className="h-3.5 w-3.5" /> Upload result file</button></div>
           <input ref={fileRef} type="file" className="hidden" accept=".json,.txt,.tsv,.csv,.fa,.fasta,.aln,.nwk,.newick" onChange={e => void loadFile(e.target.files?.[0])} />
-          <FlatTextarea value={referenceText} onChange={e => { setReferenceText(e.target.value); setResult(null); }} rows={9} className="w-full font-mono text-xs" placeholder={SAMPLE_HINTS[analysisType] ?? 'Paste normalized JSON, TSV/CSV, or a supported reference format...'} />
+          <FlatTextarea value={referenceText} onChange={e => { setReferenceText(e.target.value); setDemoLoaded(false); setResult(null); }} rows={9} className="w-full font-mono text-xs" placeholder={SAMPLE_HINTS[analysisType] ?? 'Paste normalized JSON, TSV/CSV, or a supported reference format...'} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">
           <div><label className="mb-1 block text-xs text-text-muted">Top-N / comparison depth</label><FlatInput type="number" min={1} max={100} value={topN} onChange={e => setTopN(Math.max(1, Math.min(100, Number(e.target.value) || 10)))} className="w-24" /></div>
-          <CriticalButton onClick={() => void runComparison()} disabled={!canRun || loading}>{loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Scales className="h-4 w-4" />}{loading ? 'Comparing...' : 'Compare scientifically'}</CriticalButton>
+          <CriticalButton onClick={() => void runComparison()} disabled={!canRun || loading}>{loading ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Scales className="h-4 w-4" />}{loading ? 'Comparing...' : demoLoaded ? 'Run demo comparison' : 'Compare scientifically'}</CriticalButton>
         </div>
         {error && <p className="mt-3 text-sm text-error">{error}</p>}
       </div>

@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, Funnel, Rocket, HouseLine, Wrench } from '@phosphor-icons/react';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, Funnel, Rocket, HouseLine, Wrench, Scales } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, press } from '@/lib/animations';
 import { CriticalButton } from '@/components/ui';
@@ -10,6 +10,9 @@ type Operation = { id: string; name: string; description: string; icon: typeof D
 type Group = { title: string; description: string; items: Operation[] };
 
 const groups: Group[] = [
+  { title: 'Validation & Reproducibility', description: 'Compare emitted BioNexus results with independent accepted tools or truth sets before making scientific claims.', items: [
+    { id: 'validation', name: 'Scientific Reference Comparison', description: 'Domain-specific concordance, deltas, overlap and correlation for BLAST, MSA, RNA-seq, NGS, docking, MD, pathways, structures and more.', icon: Scales, badge: 'Publication evidence' },
+  ]},
   { title: 'Genomics', description: 'Raw sequencing data to quality-controlled, traceable evidence.', items: [
     { id: 'ngs-v2', name: 'NGS Analysis', description: 'Multi-assay FASTQ workflow with 21-stage QC contracts, coverage, contamination, identity, variant evidence and an analysis-readiness gate.', icon: Dna, badge: 'Flagship' },
     { id: 'sequencing', name: 'Consensus Sequencing', description: 'Focused reference/consensus workflow for compact sequencing analyses and teaching datasets.', icon: Layers },

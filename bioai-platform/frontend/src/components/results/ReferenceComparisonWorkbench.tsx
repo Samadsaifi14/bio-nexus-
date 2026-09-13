@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { UploadSimple as Upload, Scales, CircleNotch as LoaderCircle, Flask } from '@phosphor-icons/react';
+import { UploadSimple as Upload, Scales, CircleNotch as LoaderCircle, Flask, X } from '@phosphor-icons/react';
 import { compareWithReference, getReferenceComparators, type ComparatorDefinition, type ScientificComparison } from '@/lib/scientificComparisonApi';
 import { parseReferenceInput } from '@/lib/referenceInput';
 import { getScientificComparisonSample } from '@/lib/scientificComparisonSamples';
@@ -93,11 +93,23 @@ export function ReferenceComparisonWorkbench({ analysisType, bionexusResult, tit
     setError('');
   }
 
+  function clearDemoSample() {
+    if (!demoLoaded || bionexusResult) return;
+    setBioText('');
+    setReferenceText('');
+    setReferenceTool('');
+    setReferenceVersion('');
+    setReferenceDatabase('');
+    setTopN(defaultTopN);
+    setDemoLoaded(false);
+    setResult(null);
+    setError('');
+  }
+
   async function loadFile(file: File | undefined) {
     if (!file) return;
     const text = await file.text();
     setReferenceText(text);
-    setDemoLoaded(false);
     setResult(null);
     setError('');
   }
@@ -128,36 +140,41 @@ export function ReferenceComparisonWorkbench({ analysisType, bionexusResult, tit
                 <p className="mt-1 text-xs leading-5 text-text-secondary">{demoSample.description}</p>
                 <p className="mt-2 text-[11px] leading-4 text-accent-amber">Regression/demo fixture only. It demonstrates the comparison engine and plots; it is not independent validation evidence and must not be cited as a BioNexus-vs-reference benchmark result.</p>
               </div>
-              <button type="button" onClick={loadDemoSample} className="btn-ghost inline-flex items-center gap-1.5 border border-accent-cyan/25 px-3 py-2 text-xs text-accent-cyan hover:bg-accent-cyan/10">
-                <Flask className="h-3.5 w-3.5" /> Load demo sample
-              </button>
+              {!demoLoaded && (
+                <button type="button" onClick={loadDemoSample} className="btn-ghost inline-flex items-center gap-1.5 border border-accent-cyan/25 px-3 py-2 text-xs text-accent-cyan hover:bg-accent-cyan/10">
+                  <Flask className="h-3.5 w-3.5" /> Load demo sample
+                </button>
+              )}
             </div>
           </div>
         )}
 
         {demoLoaded && (
-          <div className="mt-3 rounded-lg border border-accent-amber/30 bg-accent-amber/5 px-3 py-2 text-xs text-accent-amber">
-            DEMO FIXTURE LOADED — replace both inputs with independently generated results before using this workspace for a paper or benchmark claim.
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-accent-amber/30 bg-accent-amber/5 px-3 py-2 text-xs text-accent-amber">
+            <span>DEMO FIXTURE LOADED — this workspace remains in demo mode until you explicitly clear the fixture. Do not use this result as publication validation evidence.</span>
+            <button type="button" onClick={clearDemoSample} className="inline-flex items-center gap-1 rounded border border-accent-amber/30 px-2 py-1 text-[11px] hover:bg-accent-amber/10">
+              <X className="h-3 w-3" /> Clear demo
+            </button>
           </div>
         )}
 
         {!bionexusResult && (
           <div className="mt-4">
             <label className="mb-1 block text-xs font-medium text-text-secondary">BioNexus result JSON / TSV / supported scientific text</label>
-            <FlatTextarea value={bioText} onChange={e => { setBioText(e.target.value); setDemoLoaded(false); }} rows={7} className="w-full font-mono text-xs" placeholder="Paste the BioNexus result to compare..." />
+            <FlatTextarea value={bioText} onChange={e => setBioText(e.target.value)} rows={7} className="w-full font-mono text-xs" placeholder="Paste the BioNexus result to compare..." />
           </div>
         )}
 
         <div className="mt-4 grid gap-3 sm:grid-cols-3">
-          <div><label className="mb-1 block text-xs text-text-muted">Reference tool</label><FlatInput value={referenceTool} onChange={e => { setReferenceTool(e.target.value); setDemoLoaded(false); }} placeholder={definition?.reference ?? 'e.g. NCBI BLAST'} /></div>
-          <div><label className="mb-1 block text-xs text-text-muted">Tool version / release</label><FlatInput value={referenceVersion} onChange={e => { setReferenceVersion(e.target.value); setDemoLoaded(false); }} placeholder="Record exactly if available" /></div>
-          <div><label className="mb-1 block text-xs text-text-muted">Database / reference build</label><FlatInput value={referenceDatabase} onChange={e => { setReferenceDatabase(e.target.value); setDemoLoaded(false); }} placeholder="e.g. Swiss-Prot release / GRCh38" /></div>
+          <div><label className="mb-1 block text-xs text-text-muted">Reference tool</label><FlatInput value={referenceTool} onChange={e => setReferenceTool(e.target.value)} placeholder={definition?.reference ?? 'e.g. NCBI BLAST'} /></div>
+          <div><label className="mb-1 block text-xs text-text-muted">Tool version / release</label><FlatInput value={referenceVersion} onChange={e => setReferenceVersion(e.target.value)} placeholder="Record exactly if available" /></div>
+          <div><label className="mb-1 block text-xs text-text-muted">Database / reference build</label><FlatInput value={referenceDatabase} onChange={e => setReferenceDatabase(e.target.value)} placeholder="e.g. Swiss-Prot release / GRCh38" /></div>
         </div>
 
         <div className="mt-4">
           <div className="mb-1 flex items-center justify-between gap-2"><label className="text-xs font-medium text-text-secondary">Independent reference result</label><button type="button" onClick={() => fileRef.current?.click()} className="btn-ghost inline-flex items-center gap-1 px-2 py-1 text-xs"><Upload className="h-3.5 w-3.5" /> Upload result file</button></div>
           <input ref={fileRef} type="file" className="hidden" accept=".json,.txt,.tsv,.csv,.fa,.fasta,.aln,.nwk,.newick" onChange={e => void loadFile(e.target.files?.[0])} />
-          <FlatTextarea value={referenceText} onChange={e => { setReferenceText(e.target.value); setDemoLoaded(false); setResult(null); }} rows={9} className="w-full font-mono text-xs" placeholder={SAMPLE_HINTS[analysisType] ?? 'Paste normalized JSON, TSV/CSV, or a supported reference format...'} />
+          <FlatTextarea value={referenceText} onChange={e => { setReferenceText(e.target.value); setResult(null); }} rows={9} className="w-full font-mono text-xs" placeholder={SAMPLE_HINTS[analysisType] ?? 'Paste normalized JSON, TSV/CSV, or a supported reference format...'} />
         </div>
 
         <div className="mt-4 flex flex-wrap items-end gap-3">

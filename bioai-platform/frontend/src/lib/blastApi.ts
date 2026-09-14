@@ -1,6 +1,6 @@
 import { longApi } from './api';
 
-export type BlastProgram = 'blastp' | 'blastn' | 'blastx';
+export type BlastProgram = 'blastp' | 'blastn' | 'blastx' | 'tblastn' | 'tblastx';
 
 export async function runBlastPipeline(payload: {
   sequence: string;

@@ -37,6 +37,7 @@ jobs:
           python -m pytest tests/test_benchmarks_compare.py \
             tests/test_experiment_provenance.py \
             tests/test_blast_engine.py \
+            tests/test_blast_program_matrix.py \
             tests/test_uniprot_engine.py \
             tests/test_msa_engine.py \
             tests/test_phylo_engine.py \

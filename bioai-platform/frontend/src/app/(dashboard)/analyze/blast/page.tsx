@@ -28,6 +28,9 @@ const SAMPLES = [
 
 const PROTEIN_DATABASES = new Set(['nr', 'swissprot', 'pdbaa', 'refseq_protein']);
 const NUCLEOTIDE_DATABASES = new Set(['nt', 'refseq_rna', 'refseq_genomic']);
+const PROTEIN_QUERY_PROGRAMS = new Set<BlastProgram>(['blastp', 'tblastn']);
+const NUCLEOTIDE_QUERY_PROGRAMS = new Set<BlastProgram>(['blastn', 'blastx', 'tblastx']);
+const PROTEIN_TARGET_PROGRAMS = new Set<BlastProgram>(['blastp', 'blastx']);
 
 export default function BlastWizardPage() {
   const router = useRouter();
@@ -46,8 +49,10 @@ export default function BlastWizardPage() {
   const [fastMode, setFastMode] = useState(false);
 
   const defaultProgram: BlastProgram = detectedType === 'protein' ? 'blastp' : 'blastn';
-  const effectiveProgram: BlastProgram = advancedProgram || defaultProgram;
-  const proteinTargetSearch = effectiveProgram === 'blastp' || effectiveProgram === 'blastx';
+  const allowedPrograms = detectedType === 'protein' ? PROTEIN_QUERY_PROGRAMS : NUCLEOTIDE_QUERY_PROGRAMS;
+  const requestedProgram: BlastProgram = advancedProgram || defaultProgram;
+  const effectiveProgram: BlastProgram = allowedPrograms.has(requestedProgram) ? requestedProgram : defaultProgram;
+  const proteinTargetSearch = PROTEIN_TARGET_PROGRAMS.has(effectiveProgram);
   const effectiveDatabase = fastMode && proteinTargetSearch
     ? 'swissprot'
     : proteinTargetSearch
@@ -77,16 +82,19 @@ export default function BlastWizardPage() {
   }, []);
 
   useEffect(() => {
-    // Reset incompatible defaults whenever sequence type changes. A protein query can
-    // only use blastp here; nucleotide/RNA input can choose blastn or blastx.
+    // Query molecule type determines which BLAST programs are scientifically valid.
+    // Reset manual overrides when that molecule type changes so a stale program/db
+    // pair cannot leak across protein and nucleotide inputs.
     if (detectedType === 'protein') {
       setAdvancedProgram('');
-      if (!PROTEIN_DATABASES.has(advancedDb)) setAdvancedDb('nr');
+      setAdvancedDb('nr');
+      setFastMode(false);
     } else if (detectedType === 'dna' || detectedType === 'rna') {
-      if (advancedProgram === 'blastp') setAdvancedProgram('');
-      if (!NUCLEOTIDE_DATABASES.has(advancedDb) && advancedProgram !== 'blastx') setAdvancedDb('nt');
+      setAdvancedProgram('');
+      setAdvancedDb('nt');
+      setFastMode(false);
     }
-  }, [detectedType, advancedDb, advancedProgram]);
+  }, [detectedType]);
 
   useEffect(() => {
     // Swiss-Prot fast mode is valid only when the target database is protein.
@@ -116,7 +124,7 @@ export default function BlastWizardPage() {
   const handleProgramChange = (program: BlastProgram) => {
     setAdvancedProgram(program);
     setFastMode(false);
-    setAdvancedDb(program === 'blastn' ? 'nt' : 'nr');
+    setAdvancedDb(PROTEIN_TARGET_PROGRAMS.has(program) ? 'nr' : 'nt');
   };
 
   const handleSubmit = async () => {
@@ -210,7 +218,7 @@ export default function BlastWizardPage() {
           <div>
             <h2 className="text-lg font-semibold text-text-primary mb-1">Enter your sequence</h2>
             <p className="text-sm text-text-secondary">
-              Paste a protein or DNA sequence, or fetch it by accession number.
+              Paste a protein, DNA, or RNA sequence, or fetch it by accession number.
             </p>
           </div>
 
@@ -303,7 +311,7 @@ export default function BlastWizardPage() {
             </div>
           ) : (
             <div className="glass p-4 border border-glass-border text-xs leading-5 text-text-muted">
-              Fast mode is not applied to blastn because Swiss-Prot is a protein database. Choose blastx if you want a translated nucleotide query against a protein database.
+              Fast mode is available only for protein-target searches (blastp and blastx). Nucleotide-target programs use nucleotide databases.
             </div>
           )}
 
@@ -348,14 +356,21 @@ export default function BlastWizardPage() {
                     className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
                   >
                     {detectedType === 'protein' ? (
-                      <option value="blastp">blastp — protein → protein</option>
+                      <>
+                        <option value="blastp">blastp — protein → protein</option>
+                        <option value="tblastn">tblastn — protein → translated nucleotide</option>
+                      </>
                     ) : (
                       <>
                         <option value="blastn">blastn — nucleotide → nucleotide</option>
                         <option value="blastx">blastx — translated nucleotide → protein</option>
+                        <option value="tblastx">tblastx — translated nucleotide → translated nucleotide</option>
                       </>
                     )}
                   </select>
+                  <p className="text-[11px] text-text-muted mt-2">
+                    Only programs compatible with the detected query molecule are shown.
+                  </p>
                 </div>
               </div>
             )}

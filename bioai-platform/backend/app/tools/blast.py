@@ -79,7 +79,21 @@ class BlastTool(BaseTool):
         return re.sub(r"[^A-Za-z*]", "", joined).upper().rstrip("*")
 
     async def _submit(self, sequence: str, program: str, database: str) -> str:
-        stype = "protein" if program in ("blastp", "blastx") else "dna"
+        # EMBL-EBI ``stype`` describes the QUERY molecule type. Translated
+        # programs do not change the submitted query molecule: blastx/tblastx
+        # still receive nucleotide queries, while tblastn receives protein.
+        stype_by_program = {
+            "blastp": "protein",
+            "blastn": "dna",
+            "blastx": "dna",
+            "tblastn": "protein",
+            "tblastx": "dna",
+        }
+        program = str(program).lower().strip()
+        if program not in stype_by_program:
+            raise ValueError(f"Unsupported BLAST program for EBI submission: {program}")
+        stype = stype_by_program[program]
+
         async with httpx.AsyncClient(timeout=45) as client:
             resp = await client.post(
                 f"{settings.EBI_BASE_URL}/run",

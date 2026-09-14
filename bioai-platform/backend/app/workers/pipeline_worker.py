@@ -1,5 +1,5 @@
 """
-Background pipeline worker: picks up queued jobs and runs the v2 pipeline
+Background pipeline worker: picks up queued jobs and runs scientific analyses
 using asyncio.create_task (in-process). Status is PATCHed to Supabase via
 raw HTTP so we never import app.db.
 """
@@ -14,6 +14,7 @@ import httpx
 
 from app.config import settings
 from app.routers.pipeline_v2 import run_pipeline
+from app.services.blast_runner import run_blast_only
 
 logger = logging.getLogger(__name__)
 
@@ -122,11 +123,17 @@ async def process_job(job_id: str) -> None:
 
         organism = job.get("organism", "Homo sapiens")
         analysis_type = job.get("analysis_type", "comprehensive")
+        pipeline_type = (job.get("pipeline_type") or "protein_analysis").strip().lower()
         fast_mode = False
         blast_params: dict = {}
         if isinstance(ctx, dict):
             fast_mode = ctx.get("fast_mode", False)
-            blast_params = {"database": ctx.get("database", ""), "program": ctx.get("program", ""), "max_hits": ctx.get("max_hits", 100), "query_accession": ctx.get("query_accession", "")}
+            blast_params = {
+                "database": ctx.get("database", ""),
+                "program": ctx.get("program", ""),
+                "max_hits": ctx.get("max_hits", 100),
+                "query_accession": ctx.get("query_accession", ""),
+            }
 
         async def _status_cb(new_status: str):
             try:
@@ -134,7 +141,27 @@ async def process_job(job_id: str) -> None:
             except Exception:
                 logger.debug("Status callback PATCH failed for job %s", job_id)
 
-        result = await run_pipeline(query, organism=organism, analysis_type=analysis_type, status_callback=_status_cb, fast_mode=fast_mode, blast_params=blast_params, job_id=job_id)
+        if pipeline_type == "blast":
+            # A dedicated BLAST job ends after the similarity search. Do not
+            # force blastn/blastx/tblastx results through protein-only UniProt,
+            # MSA, pathway, or structure stages.
+            result = await run_blast_only(
+                query,
+                status_callback=_status_cb,
+                fast_mode=fast_mode,
+                blast_params=blast_params,
+            )
+        else:
+            result = await run_pipeline(
+                query,
+                organism=organism,
+                analysis_type=analysis_type,
+                status_callback=_status_cb,
+                fast_mode=fast_mode,
+                blast_params=blast_params,
+                job_id=job_id,
+            )
+
         done_at = datetime.datetime.utcnow().isoformat()
         from app.services.artifact_storage import upload_json
         storage_url = upload_json(job_id, "context", result)

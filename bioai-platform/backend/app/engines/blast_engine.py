@@ -23,9 +23,12 @@ class BLASTEngine(BaseEngine):
     version = "1.0.0"
     tool = "BLAST"
     tool_version = None
-    databases = ["nr", "swissprot", "pdb", "pdb_nr", "refseq_protein", "env_nr", "nt", "refseq_rna"]
+    databases = [
+        "nr", "swissprot", "pdb", "pdb_nr", "refseq_protein", "env_nr",
+        "nt", "refseq_rna", "refseq_genomic", "est", "gss",
+    ]
     parameters = {
-        "program": ["blastp", "blastn", "blastx", "tblastn"],
+        "program": ["blastp", "blastn", "blastx", "tblastn", "tblastx"],
         "max_hits": "5-100",
         "fallback_rule": "EBI first, then NCBI",
     }

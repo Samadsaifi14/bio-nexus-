@@ -2,13 +2,33 @@ import axios from 'axios';
 import type { JobStatus, UniprotSummary, SequenceResult, SequenceValidation, SequenceSearchResponse, PairwiseAlignResult, SequenceUtilitiesResult, MotifPatternScanResult, MotifLibraryResult, MotifLibraryPattern, DotPlotResult } from '@/types/pipeline';
 import { getSupabase } from './supabase';
 
+/**
+ * Resolve the backend base URL.
+ * Deployed builds bypass Vercel's /api/backend rewrite (Vercel blocks proxying
+ * to the hf.space hostname with a DNS-hostname-resolved-private edge error) and
+ * call the Space directly cross-origin — the CORS middleware allows it. Local
+ * dev keeps the same-origin proxy so requests stay cookie/header friendly.
+ */
+function resolveApiBase(): string {
+  const explicit = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '');
+  if (explicit) return explicit;
+  if (typeof window !== 'undefined' && window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+    return 'https://samad14-bio-nexus-api.hf.space';
+  }
+  return '/api/backend';
+}
+
+export function apiUrl(path: string): string {
+  return `${resolveApiBase()}${path}`;
+}
+
 const api = axios.create({
-  baseURL: '/api/backend',
+  baseURL: resolveApiBase(),
   timeout: 30_000,
 });
 
 export const longApi = axios.create({
-  baseURL: '/api/backend',
+  baseURL: resolveApiBase(),
   timeout: 660_000,
 });
 
@@ -92,7 +112,7 @@ export async function interpretStream(payload: {
   if (session?.access_token) {
     headers['Authorization'] = `Bearer ${session.access_token}`;
   }
-  const res = await fetch('/api/backend/api/ai/interpret/stream', {
+  const res = await fetch(apiUrl('/api/ai/interpret/stream'), {
     method: 'POST',
     headers,
     body: JSON.stringify(payload),
@@ -117,7 +137,7 @@ export async function interpretToolResult(
   if (session?.access_token) {
     headers['Authorization'] = `Bearer ${session.access_token}`;
   }
-  const res = await fetch('/api/backend/api/ai/tool-interpret', {
+  const res = await fetch(apiUrl('/api/ai/tool-interpret'), {
     method: 'POST',
     headers,
     body: JSON.stringify({ tool_name: toolName, result }),
@@ -499,7 +519,7 @@ export async function deleteApiKey(id: string): Promise<void> {
 }
 
 export function getExportUrl(jobId: string, format: 'pdf' | 'json' | 'ro-crate'): string {
-  return `/api/backend/api/export/job/${jobId}?format=${format}`;
+  return apiUrl(`/api/export/job/${jobId}?format=${format}`);
 }
 
 export async function runEnrichment(identifiers: string[]): Promise<EnrichmentResult> {
@@ -639,7 +659,7 @@ export async function getDockingStatus(jobId: string): Promise<DockingResult> {
 }
 
 export function getDockingPdbUrl(jobId: string): string {
-  return `/api/backend/docking/result/${jobId}/pdb`;
+  return apiUrl(`/api/docking/result/${jobId}/pdb`);
 }
 
 export type SequencingQC = {
@@ -1692,14 +1712,30 @@ export interface StructurePrepResult {
   error: string | null;
 }
 
+// The hosted backend (HF Space) recycles/restarts under load; its router then
+// answers 502 to the browser for a moment. The run POST is fast and arrives at
+// the app or the router's restart window — retry once on 502 before failing.
+async function postWithGatewayRetry<T>(fn: () => Promise<{ data: T }>): Promise<T> {
+  const isGatewayFailure = (err: unknown) =>
+    !!err && typeof err === 'object' && 'response' in err &&
+    (err as { response?: { status?: number } }).response?.status === 502;
+  try {
+    const res = await fn();
+    return res.data;
+  } catch (err) {
+    if (!isGatewayFailure(err)) throw err;
+    await new Promise((resolve) => setTimeout(resolve, 1500));
+    const res = await fn();
+    return res.data;
+  }
+}
+
 export async function runStructurePrep(pdbId: string, probeRadius = 1.4): Promise<StructurePrepJob> {
-  const res = await longApi.post('/api/structure-prep/run', { pdb_id: pdbId, probe_radius: probeRadius });
-  return res.data;
+  return postWithGatewayRetry(() => longApi.post('/api/structure-prep/run', { pdb_id: pdbId, probe_radius: probeRadius }));
 }
 
 export async function runStructurePrepSequence(sequence: string, probeRadius = 1.4): Promise<StructurePrepJob> {
-  const res = await longApi.post('/api/structure-prep/run', { sequence, probe_radius: probeRadius });
-  return res.data;
+  return postWithGatewayRetry(() => longApi.post('/api/structure-prep/run', { sequence, probe_radius: probeRadius }));
 }
 
 export async function getStructurePrepStatus(jobId: string): Promise<StructurePrepResult> {

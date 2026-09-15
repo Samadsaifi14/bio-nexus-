@@ -4,6 +4,8 @@ This benchmark is a **real-data, region-limited validation of the BioNexus germl
 
 It does **not** claim that BioNexus production WGS/WES has been biologically validated end-to-end. The query VCF is an independently generated public DeepVariant callset for GIAB HG002; the truth is the NIST GIAB HG002 benchmark. The purpose is to verify the formal truth-set evaluation contract, metric extraction, provenance, checksums and claim boundaries on real human data before the larger production Sarek benchmark is run on HPC/cloud infrastructure.
 
+The executable contract lives in `.github/workflows/giab-hg002-real-callset-benchmark.yml`; successful runs retain the complete evaluation bundle as a GitHub Actions artifact rather than treating CI status alone as scientific evidence.
+
 ## Declared source data
 
 - Sample: **GIAB HG002 / NA24385**

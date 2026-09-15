@@ -1,0 +1,266 @@
+name: publication-validation
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - publication/final-hardening
+    paths:
+      - '.github/workflows/publication-validation.yml'
+      - 'tmp_redock/**'
+      - 'bioai-platform/backend/app/tools/blast.py'
+      - 'bioai-platform/backend/app/tools/docking.py'
+      - 'bioai-platform/backend/app/tools/md_sim.py'
+      - 'bioai-platform/backend/app/benchmarking/**'
+      - 'bioai-platform/backend/Dockerfile'
+      - 'bioai-platform/backend/requirements.txt'
+
+permissions:
+  contents: read
+
+jobs:
+  retained-publication-evidence:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 75
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Create evidence workspace
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/bionexus-publication-evidence
+          {
+            echo "github_sha=${GITHUB_SHA}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            uname -a
+            docker --version
+            python --version
+          } > /tmp/bionexus-publication-evidence/execution_environment.txt
+
+      - name: Build the BioNexus scientific backend image
+        run: |
+          set -euo pipefail
+          docker build \
+            --label org.bionexus.publication.sha="${GITHUB_SHA}" \
+            -t bionexus-publication:${GITHUB_SHA} \
+            bioai-platform/backend
+          docker image inspect bionexus-publication:${GITHUB_SHA} \
+            --format '{{json .RepoDigests}} {{.Id}}' \
+            > /tmp/bionexus-publication-evidence/backend_image_identity.txt
+
+      - name: Live HBB BLAST fidelity benchmark
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e NCBI_EMAIL='bioflow@example.com' \
+            -v /tmp/bionexus-publication-evidence:/evidence \
+            bionexus-publication:${GITHUB_SHA} \
+            python - <<'PY'
+          import asyncio, hashlib, json
+          from pathlib import Path
+          import httpx
+          from app.config import settings
+          from app.integrations.ncbi.parser import parse_blast_xml
+          from app.tools.blast import BlastTool
+
+          OUT = Path('/evidence')
+          FASTA_URL = 'https://rest.uniprot.org/uniprotkb/P68871.fasta'
+
+          async def main():
+              async with httpx.AsyncClient(timeout=60, follow_redirects=True) as client:
+                  fasta_response = await client.get(FASTA_URL)
+                  fasta_response.raise_for_status()
+                  fasta = fasta_response.text
+              sequence = BlastTool._clean_sequence(fasta)
+              if not sequence:
+                  raise SystemExit('UniProt P68871 FASTA produced an empty sequence')
+
+              tool = BlastTool()
+              job_id = await tool._submit(sequence, 'blastp', 'uniprotkb_swissprot')
+              status = await tool._poll(job_id, tool.BASE_MAX_POLL_TIME)
+              if status != 'FINISHED':
+                  raise SystemExit(f'EBI BLAST did not finish: {status}')
+
+              async with httpx.AsyncClient(timeout=60) as client:
+                  json_response = await client.get(f'{settings.EBI_BASE_URL}/result/{job_id}/json')
+                  json_response.raise_for_status()
+                  xml_response = await client.get(f'{settings.EBI_BASE_URL}/result/{job_id}/xml')
+                  xml_response.raise_for_status()
+
+              raw_json = json_response.content
+              raw_xml = xml_response.content
+              (OUT/'blast_hbb_provider.json').write_bytes(raw_json)
+              (OUT/'blast_hbb_provider.xml').write_bytes(raw_xml)
+
+              payload = json_response.json()
+              parsed = tool._parse_hits(tool._extract_hits(payload), 10)
+              if not parsed:
+                  xml_parsed = parse_blast_xml(xml_response.text)
+                  parsed = list(xml_parsed.get('hits') or [])[:10]
+              if not parsed:
+                  raise SystemExit('No usable HBB BLAST hits were returned')
+
+              top5 = parsed[:5]
+              accessions = [str(h.get('accession') or h.get('id') or '') for h in top5]
+              hbb_present = any('P68871' in acc for acc in accessions)
+              if not hbb_present:
+                  raise SystemExit(f'P68871 was not present in the first five real Swiss-Prot hits: {accessions}')
+
+              identities = []
+              for hit in top5:
+                  value = hit.get('identity_pct')
+                  if value is not None:
+                      try:
+                          identities.append(float(value))
+                      except (TypeError, ValueError):
+                          pass
+              if not identities or max(identities) < 99.0:
+                  raise SystemExit(f'Expected a near-identical HBB hit; observed identities={identities}')
+
+              report = {
+                  'benchmark': 'LIVE_HBB_P68871_EBI_SWISSPROT',
+                  'input_source': FASTA_URL,
+                  'input_accession': 'P68871',
+                  'input_sequence_sha256': hashlib.sha256(sequence.encode()).hexdigest(),
+                  'provider': 'EMBL-EBI NCBI BLAST REST',
+                  'provider_base_url': settings.EBI_BASE_URL,
+                  'provider_job_id': job_id,
+                  'provider_status': status,
+                  'program': 'blastp',
+                  'database': 'uniprotkb_swissprot',
+                  'raw_json_sha256': hashlib.sha256(raw_json).hexdigest(),
+                  'raw_xml_sha256': hashlib.sha256(raw_xml).hexdigest(),
+                  'top5': top5,
+                  'p68871_in_top5': hbb_present,
+                  'near_identical_hit_observed': max(identities) >= 99.0,
+                  'claim_boundary': 'This retained live query validates this declared HBB retrieval case and parser path only; it does not establish BLAST-wide superiority or database-wide recall.'
+              }
+              (OUT/'blast_hbb_p68871_report.json').write_text(json.dumps(report, indent=2, default=str) + '\n')
+              print(json.dumps(report, indent=2, default=str))
+
+          asyncio.run(main())
+          PY
+
+      - name: Canonical 1STP-biotin redocking benchmark
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e BIONEXUS_REDOCK_REPORT=/evidence/bbs1_redock_1stp_report.json \
+            -v "${GITHUB_WORKSPACE}/tmp_redock:/benchmark:ro" \
+            -v /tmp/bionexus-publication-evidence:/evidence \
+            bionexus-publication:${GITHUB_SHA} \
+            python /benchmark/redock_benchmark.py
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          p = Path('/tmp/bionexus-publication-evidence/bbs1_redock_1stp_report.json')
+          report = json.loads(p.read_text())
+          if report.get('status') != 'EXECUTED_PASSED' or report.get('top_pose_passed') is not True:
+              raise SystemExit(f'Redocking benchmark did not pass: {report}')
+          top = next((x for x in report.get('poses', []) if x.get('model') == 1), None)
+          if not top or top.get('rmsd_angstrom') is None or float(top['rmsd_angstrom']) > 2.0:
+              raise SystemExit(f'Top-pose RMSD acceptance failed: {top}')
+          print(json.dumps({'top_pose': top, 'status': report['status']}, indent=2))
+          PY
+
+      - name: Real OpenMM implicit-solvent sanity benchmark
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -e OPENMM_CPU_THREADS=2 \
+            -v /tmp/bionexus-publication-evidence:/evidence \
+            bionexus-publication:${GITHUB_SHA} \
+            python - <<'PY'
+          import json, math
+          from pathlib import Path
+          from app.tools.md_sim import run_simulation
+
+          result = run_simulation(
+              '1CRN',
+              mode='production',
+              platform='CPU',
+              forcefield='amber14',
+              solvent='obc2',
+              run_length_ps=2.0,
+          )
+          checks = {
+              'engine_is_openmm': result.get('engine') == 'openmm',
+              'status_complete': result.get('status') == 'complete',
+              'production_positive': float(result.get('production_ps') or 0) > 0,
+              'finite_final_energy': math.isfinite(float(result.get('final_energy_kj_mol'))),
+              'rmsd_series_present': len(result.get('rmsd') or []) >= 2,
+              'finite_nonnegative_rmsd': all(math.isfinite(float(x['rmsd'])) and float(x['rmsd']) >= 0 for x in (result.get('rmsd') or [])),
+              'positive_rg': float(result.get('radius_of_gyration_angstrom') or 0) > 0,
+              'positive_sasa': float(result.get('sasa_avg_angstrom2') or 0) > 0,
+          }
+          if not all(checks.values()):
+              raise SystemExit(f'OpenMM benchmark failed sanity checks: {checks}; result={result}')
+          report = {
+              'benchmark': 'OPENMM_1CRN_IMPLICIT_SOLVENT_SANITY',
+              'checks': checks,
+              'result': result,
+              'claim_boundary': 'This benchmark establishes executable implicit-solvent OpenMM configuration and physical-output sanity for the declared short 1CRN run only. It is not an explicit-solvent equivalence, convergence, long-timescale, or biological-dynamics validation.'
+          }
+          Path('/evidence/md_openmm_1crn_report.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps({'checks': checks, 'summary': {k: result.get(k) for k in ['engine','production_ps','final_energy_kj_mol','rmsd_avg_angstrom','radius_of_gyration_angstrom','sasa_avg_angstrom2','atom_count','residue_count']}}, indent=2))
+          PY
+
+      - name: Deterministic AI grounding control benchmark
+        run: |
+          set -euo pipefail
+          docker run --rm \
+            -v /tmp/bionexus-publication-evidence:/evidence \
+            bionexus-publication:${GITHUB_SHA} \
+            python - <<'PY'
+          import json
+          from pathlib import Path
+          from app.benchmarking.ai_grounding import evaluate_grounding
+
+          supported = {
+              'generated_text': 'PC1 explained 35.227% of variance and six genes passed the declared threshold.',
+              'evidence_text': 'PC1 explained 35.227% of variance; significant genes = 6.',
+              'generated_citations': ['GSE67196'],
+              'allowed_citations': ['GSE67196'],
+              'claims': [{'id': 'supported-1', 'evidence_refs': ['analysis_summary.json'], 'evidence_class': 'deterministic computation'}],
+          }
+          unsupported = {
+              'generated_text': 'The pipeline achieved 99.9% clinical accuracy.',
+              'evidence_text': 'SNP precision was 0.999353 in a region-limited external-callset benchmark.',
+              'generated_citations': ['FAKE-CITATION'],
+              'allowed_citations': ['GIAB-HG002'],
+              'claims': [{'id': 'unsupported-1', 'evidence_refs': [], 'evidence_class': 'unsupported/insufficient evidence'}],
+          }
+          pass_result = evaluate_grounding(supported)
+          reject_result = evaluate_grounding(unsupported)
+          if not pass_result.get('grounding_passed'):
+              raise SystemExit(f'Grounded positive control was rejected: {pass_result}')
+          if reject_result.get('grounding_passed'):
+              raise SystemExit(f'Unsupported negative control was admitted: {reject_result}')
+          if pass_result.get('scientifically_validated') or pass_result.get('biological_truth_established'):
+              raise SystemExit('Grounding control incorrectly escalated to scientific/biological validation')
+          report = {
+              'benchmark': 'BBS2_AI_GROUNDING_DETERMINISTIC_CONTROLS',
+              'supported_control': pass_result,
+              'unsupported_control': reject_result,
+              'claim_boundary': 'These controls test correspondence of generated claims to supplied evidence. They do not establish independent scientific or biological correctness.'
+          }
+          Path('/evidence/ai_grounding_controls_report.json').write_text(json.dumps(report, indent=2) + '\n')
+          print(json.dumps(report, indent=2))
+          PY
+
+      - name: Assemble checksum manifest
+        run: |
+          set -euo pipefail
+          sha256sum /tmp/bionexus-publication-evidence/* \
+            > /tmp/bionexus-publication-evidence/SHA256SUMS.txt
+          ls -lah /tmp/bionexus-publication-evidence
+          cat /tmp/bionexus-publication-evidence/SHA256SUMS.txt
+
+      - name: Upload retained publication-validation evidence
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: bionexus-publication-validation-evidence
+          path: /tmp/bionexus-publication-evidence
+          if-no-files-found: error
+          retention-days: 90

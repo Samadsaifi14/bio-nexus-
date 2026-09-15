@@ -1,0 +1,144 @@
+name: rnaseq-real-data-benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmark/real_data/GSE67196/**'
+      - 'bioai-platform/backend/app/rnaseq/deseq2_analysis.R'
+      - '.github/workflows/rnaseq-real-data-benchmark.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  gse67196-sals-cerebellum:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Download official GEO source data
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/gse67196-source /tmp/gse67196-prepared /tmp/gse67196-results
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://ftp.ncbi.nlm.nih.gov/geo/series/GSE67nnn/GSE67196/suppl/GSE67196_Petrucelli2015_ALS_genes.rawcount.txt.gz' \
+            -o /tmp/gse67196-source/GSE67196_Petrucelli2015_ALS_genes.rawcount.txt.gz
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://ftp.ncbi.nlm.nih.gov/geo/series/GSE67nnn/GSE67196/soft/GSE67196_family.soft.gz' \
+            -o /tmp/gse67196-source/GSE67196_family.soft.gz
+          sha256sum /tmp/gse67196-source/* | tee /tmp/gse67196-source/SOURCE_SHA256SUMS.txt
+          grep -q '^585af2a3cf28bc43dd6785199922e5e928841029353837a0fdfd9516cad0a61a  /tmp/gse67196-source/GSE67196_Petrucelli2015_ALS_genes.rawcount.txt.gz$' /tmp/gse67196-source/SOURCE_SHA256SUMS.txt
+          grep -q '^d2343cffcae301b1064ca1cbc4226b4c0ac02acde6eed4d86840c8d5e4cf0f38  /tmp/gse67196-source/GSE67196_family.soft.gz$' /tmp/gse67196-source/SOURCE_SHA256SUMS.txt
+
+      - name: Build the declared 8-control / 10-sALS gene-count matrix
+        run: |
+          set -euo pipefail
+          python benchmark/real_data/GSE67196/prepare_gse67196_sals.py \
+            --counts /tmp/gse67196-source/GSE67196_Petrucelli2015_ALS_genes.rawcount.txt.gz \
+            --soft /tmp/gse67196-source/GSE67196_family.soft.gz \
+            --outdir /tmp/gse67196-prepared
+          cat /tmp/gse67196-prepared/source_provenance.json
+          cat /tmp/gse67196-prepared/source_sample_mapping.tsv
+
+      - name: Install R/Bioconductor analysis stack
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize
+          {
+            echo "github_sha=${GITHUB_SHA}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            uname -a
+            python --version
+          } > /tmp/gse67196-results/execution_environment.txt
+          Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)}); sessionInfo()' \
+            > /tmp/gse67196-results/R_SESSION_INFO.txt
+          cat /tmp/gse67196-results/R_SESSION_INFO.txt
+
+      - name: Run full real-data DESeq2 analysis
+        working-directory: bioai-platform/backend
+        run: |
+          set -euo pipefail
+          Rscript app/rnaseq/deseq2_analysis.R \
+            /tmp/gse67196-prepared/Cer_SALS_GSE67196_counts.tsv \
+            /tmp/gse67196-prepared/Cer_SALS_GSE67196_metadata.tsv \
+            /tmp/gse67196-results \
+            condition healthy SALS '' 0.05 1 10 8:40
+          cat /tmp/gse67196-results/analysis_summary.json
+
+      - name: Validate source, statistical and artifact contracts
+        run: |
+          python - <<'PY'
+          import csv, json, math
+          from pathlib import Path
+
+          prepared = Path('/tmp/gse67196-prepared')
+          out = Path('/tmp/gse67196-results')
+          prov = json.loads((prepared / 'source_provenance.json').read_text())
+          summary = json.loads((out / 'analysis_summary.json').read_text())
+
+          assert prov['dataset'] == 'GSE67196', prov
+          assert prov['deposited_source_rows'] == 23398, prov
+          assert prov['unique_deposited_gene_ids'] == 23344, prov
+          assert prov['all_zero_unique_genes_in_selected_cohort'] == 2294, prov
+          assert prov['statistical_input_gene_ids'] == 23344, prov
+          assert prov['healthy_samples'] == 8 and prov['sals_samples'] == 10, prov
+
+          assert summary['genes_input'] == 23344, summary
+          assert 2 <= summary['genes_kept'] <= 23344, summary
+          assert summary['samples'] == 18, summary
+          assert summary['reference_level'] == 'healthy', summary
+          assert summary['test_level'] == 'SALS', summary
+          assert summary['min_count'] == 10 and summary['min_samples'] == 8, summary
+          assert summary['up'] + summary['down'] == summary['significant'], summary
+          assert math.isfinite(summary['pca_percent_variance']['PC1'])
+          assert math.isfinite(summary['pca_percent_variance']['PC2'])
+          assert 0 < summary['size_factor_min'] <= summary['size_factor_max']
+
+          with (prepared / 'source_sample_mapping.tsv').open() as handle:
+              rows = list(csv.DictReader(handle, delimiter='\t'))
+          assert len(rows) == 18
+          assert sum(x['condition'] == 'healthy' for x in rows) == 8
+          assert sum(x['condition'] == 'SALS' for x in rows) == 10
+          assert len({x['source_gsm'] for x in rows}) == 18
+          assert len({x['source_column'] for x in rows}) == 18
+
+          required = [
+              'size_factors.tsv','normalized_counts.tsv','pca_coordinates.tsv',
+              'sample_distance_matrix.tsv','deseq2_all_results.tsv','deseq2_significant.tsv',
+              'pca.svg','pca.pdf','pca.png','sample_distance_heatmap.svg',
+              'sample_distance_heatmap.pdf','sample_distance_heatmap.png','ma_plot.svg',
+              'ma_plot.pdf','ma_plot.png','volcano.svg','volcano.pdf','volcano.png',
+              'heatmap_matrix_zscore.tsv','heatmap_gene_selection.tsv',
+              'expression_heatmap.svg','expression_heatmap.pdf','expression_heatmap.png',
+              'analysis_summary.json','R_SESSION_INFO.txt','execution_environment.txt'
+          ]
+          for name in required:
+              path = out / name
+              assert path.exists() and path.stat().st_size > 0, name
+
+          print(json.dumps({'source': prov, 'analysis': summary}, indent=2))
+          PY
+
+      - name: Assemble publication evidence bundle
+        run: |
+          set -euo pipefail
+          cp /tmp/gse67196-source/SOURCE_SHA256SUMS.txt /tmp/gse67196-results/
+          cp /tmp/gse67196-prepared/source_provenance.json /tmp/gse67196-results/
+          cp /tmp/gse67196-prepared/source_sample_mapping.tsv /tmp/gse67196-results/
+          cp /tmp/gse67196-prepared/source_gene_id_mapping.tsv /tmp/gse67196-results/
+          cp /tmp/gse67196-prepared/Cer_SALS_GSE67196_metadata.tsv /tmp/gse67196-results/
+          sha256sum /tmp/gse67196-results/* > /tmp/gse67196-results/SHA256SUMS.txt
+
+      - name: Upload retained real-data benchmark artifacts
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: rnaseq-gse67196-sals-full-study
+          path: /tmp/gse67196-results
+          if-no-files-found: error
+          retention-days: 90

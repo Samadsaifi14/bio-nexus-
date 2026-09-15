@@ -1,0 +1,167 @@
+name: giab-hg002-real-callset-benchmark
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - publication/giab-hg002-real-callset
+    paths:
+      - 'benchmark/real_data/GIAB_HG002_chr20/**'
+      - '.github/workflows/giab-hg002-real-callset-benchmark.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  hg002-grch38-chr20:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+
+      - name: Install VCF/reference utilities
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends bcftools samtools tabix
+          bcftools --version | head -n 1
+          samtools --version | head -n 1
+          docker --version
+
+      - name: Download declared real HG002 sources
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/hg002/source /tmp/hg002/chr20 /tmp/hg002/happy
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz' \
+            -o /tmp/hg002/source/truth.vcf.gz
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark.vcf.gz.tbi' \
+            -o /tmp/hg002/source/truth.vcf.gz.tbi
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://ftp-trace.ncbi.nlm.nih.gov/ReferenceSamples/giab/release/AshkenazimTrio/HG002_NA24385_son/NISTv4.2.1/GRCh38/HG002_GRCh38_1_22_v4.2.1_benchmark_noinconsistent.bed' \
+            -o /tmp/hg002/source/confident.bed
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/vcf/hiseqx/wgs_pcr_free/40x/HG002.hiseqx.pcr-free.40x.deepvariant-v1.0.grch38.vcf.gz' \
+            -o /tmp/hg002/source/query.vcf.gz
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://storage.googleapis.com/brain-genomics-public/research/sequencing/grch38/vcf/hiseqx/wgs_pcr_free/40x/HG002.hiseqx.pcr-free.40x.deepvariant-v1.0.grch38.vcf.gz.tbi' \
+            -o /tmp/hg002/source/query.vcf.gz.tbi
+          curl --fail --location --retry 4 --retry-delay 5 \
+            'https://hgdownload.soe.ucsc.edu/goldenPath/hg38/chromosomes/chr20.fa.gz' \
+            -o /tmp/hg002/source/chr20.fa.gz
+          sha256sum /tmp/hg002/source/* | tee /tmp/hg002/source/SOURCE_SHA256SUMS.txt
+
+      - name: Restrict source VCFs and confident regions to chr20
+        run: |
+          set -euo pipefail
+          bcftools view -r chr20 -Oz -o /tmp/hg002/chr20/truth.chr20.vcf.gz /tmp/hg002/source/truth.vcf.gz
+          bcftools view -r chr20 -Oz -o /tmp/hg002/chr20/query.chr20.vcf.gz /tmp/hg002/source/query.vcf.gz
+          tabix -f -p vcf /tmp/hg002/chr20/truth.chr20.vcf.gz
+          tabix -f -p vcf /tmp/hg002/chr20/query.chr20.vcf.gz
+          awk '$1=="chr20" {print}' /tmp/hg002/source/confident.bed > /tmp/hg002/chr20/confident.chr20.bed
+          gzip -dc /tmp/hg002/source/chr20.fa.gz > /tmp/hg002/chr20/chr20.fa
+          samtools faidx /tmp/hg002/chr20/chr20.fa
+          test -s /tmp/hg002/chr20/confident.chr20.bed
+          bcftools index -n /tmp/hg002/chr20/truth.chr20.vcf.gz
+          bcftools index -n /tmp/hg002/chr20/query.chr20.vcf.gz
+          sha256sum /tmp/hg002/chr20/* | tee /tmp/hg002/chr20/CHR20_SHA256SUMS.txt
+
+      - name: Run hap.py on the real chr20 query/truth pair
+        run: |
+          set -euo pipefail
+          docker pull mgibio/hap.py:v0.3.15
+          docker image inspect mgibio/hap.py:v0.3.15 --format '{{json .RepoDigests}}' | tee /tmp/hg002/happy/HAPPY_IMAGE_DIGESTS.json
+          docker run --rm \
+            -v /tmp/hg002/chr20:/data:ro \
+            -v /tmp/hg002/happy:/output \
+            mgibio/hap.py:v0.3.15 \
+            /opt/hap.py/bin/hap.py \
+            /data/truth.chr20.vcf.gz \
+            /data/query.chr20.vcf.gz \
+            -f /data/confident.chr20.bed \
+            -r /data/chr20.fa \
+            -o /output/HG002_GRCh38_chr20 \
+            --threads 2
+          ls -lah /tmp/hg002/happy
+
+      - name: Extract publication metrics and provenance
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import csv, json, math, os, pathlib, subprocess
+          root = pathlib.Path('/tmp/hg002')
+          summary_csv = root/'happy/HG002_GRCh38_chr20.summary.csv'
+          if not summary_csv.exists():
+              raise SystemExit('hap.py summary CSV was not emitted')
+          rows = list(csv.DictReader(summary_csv.open()))
+          metrics = {}
+          for variant_type in ('SNP','INDEL'):
+              candidates = [r for r in rows if r.get('Type') == variant_type and r.get('Filter') == 'ALL']
+              if len(candidates) != 1:
+                  raise SystemExit(f'Expected one ALL row for {variant_type}; found {len(candidates)}')
+              row = candidates[0]
+              def num(name):
+                  value = row.get(name, '')
+                  return None if value in ('', 'NA', 'N/A') else float(value)
+              metrics[variant_type] = {
+                  'truth_total': num('TRUTH.TOTAL'),
+                  'truth_tp': num('TRUTH.TP'),
+                  'truth_fn': num('TRUTH.FN'),
+                  'query_total': num('QUERY.TOTAL'),
+                  'query_tp': num('QUERY.TP'),
+                  'query_fp': num('QUERY.FP'),
+                  'query_unk': num('QUERY.UNK'),
+                  'recall': num('METRIC.Recall'),
+                  'precision': num('METRIC.Precision'),
+                  'f1': num('METRIC.F1_Score'),
+                  'frac_na': num('METRIC.Frac_NA'),
+              }
+              for key in ('recall','precision','f1'):
+                  value = metrics[variant_type][key]
+                  if value is None or not math.isfinite(value) or not 0 <= value <= 1:
+                      raise SystemExit(f'Invalid {variant_type} {key}: {value!r}')
+
+          provenance = {
+              'benchmark': 'GIAB_HG002_GRCh38_chr20_real_callset',
+              'sample': 'HG002/NA24385',
+              'region': 'chr20 only',
+              'truth_set': 'NIST GIAB HG002 v4.2.1 GRCh38 small variants',
+              'query_callset': '40x PCR-free HiSeq X DeepVariant v1.0 HG002 GRCh38 public callset',
+              'evaluator': 'hap.py 0.3.15 (mgibio/hap.py:v0.3.15)',
+              'claim_boundary': 'Real-callset truth-evaluation harness only; query calls were not produced by BioNexus production Sarek. No whole-genome or BioNexus-accuracy claim.',
+              'github_sha': os.environ.get('GITHUB_SHA'),
+              'metrics': metrics,
+          }
+          (root/'happy/metrics.json').write_text(json.dumps(provenance, indent=2) + '\n')
+          print(json.dumps(provenance, indent=2))
+          PY
+          {
+            echo "github_sha=${GITHUB_SHA}"
+            echo "runner_os=${RUNNER_OS}"
+            echo "runner_arch=${RUNNER_ARCH}"
+            uname -a
+            docker --version
+            bcftools --version | head -n 1
+            samtools --version | head -n 1
+          } > /tmp/hg002/happy/execution_environment.txt
+
+      - name: Assemble retained benchmark bundle
+        run: |
+          set -euo pipefail
+          cp /tmp/hg002/source/SOURCE_SHA256SUMS.txt /tmp/hg002/happy/
+          cp /tmp/hg002/chr20/CHR20_SHA256SUMS.txt /tmp/hg002/happy/
+          cp /tmp/hg002/chr20/confident.chr20.bed /tmp/hg002/happy/
+          cp /tmp/hg002/chr20/truth.chr20.vcf.gz /tmp/hg002/happy/
+          cp /tmp/hg002/chr20/truth.chr20.vcf.gz.tbi /tmp/hg002/happy/
+          cp /tmp/hg002/chr20/query.chr20.vcf.gz /tmp/hg002/happy/
+          cp /tmp/hg002/chr20/query.chr20.vcf.gz.tbi /tmp/hg002/happy/
+          sha256sum /tmp/hg002/happy/* > /tmp/hg002/happy/SHA256SUMS.txt
+
+      - name: Upload retained HG002 real-callset benchmark
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: giab-hg002-grch38-chr20-real-callset
+          path: /tmp/hg002/happy
+          if-no-files-found: error
+          retention-days: 90

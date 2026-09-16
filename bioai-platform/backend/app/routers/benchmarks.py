@@ -12,6 +12,7 @@ from app.benchmarking.giab import (
     build_germline_truth_benchmark_plan,
 )
 from app.benchmarking.validation_claims import validation_claims
+from app.science.validation_registry import get_validation_registry
 from app.services.auth import require_user_id
 from app.services.job_access import owns_job
 from app.services.benchmarks import (
@@ -60,6 +61,12 @@ async def get_benchmarks(category: str | None = None, limit: int = 100):
 async def get_bbs2_registry():
     """Versioned BBS-2 benchmark specification and coverage semantics."""
     return bbs2_registry()
+
+
+@router.get("/scientific-validation")
+async def get_scientific_validation_registry():
+    """Read-only validation state; VALIDATED can only come from benchmark evidence."""
+    return get_validation_registry()
 
 
 @router.get("/validation-claims")

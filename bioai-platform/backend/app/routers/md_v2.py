@@ -160,11 +160,36 @@ def _plots_from_report(report: dict[str, Any]) -> list[dict[str, Any]]:
 
 
 def _stage_errors(report: dict[str, Any]) -> list[dict[str, str]]:
+    """Return explicit engine exceptions and blocking QC failures.
+
+    A stage can stop scientifically without raising a Python exception.  Those
+    QC failures must still be visible to the researcher; otherwise a failed
+    run appears to contain no result and no reason.
+    """
     errors: list[dict[str, str]] = []
     for item in report.get("stages", []) or []:
-        data = item.get("data") if isinstance(item, dict) else None
+        if not isinstance(item, dict):
+            continue
+        stage_name = str(item.get("step") or "unknown")
+        data = item.get("data")
+        qc = item.get("qc")
+
         if isinstance(data, dict) and data.get("error"):
-            errors.append({"stage": str(item.get("step") or "unknown"), "error": str(data["error"])})
+            errors.append({"stage": stage_name, "error": str(data["error"])})
+            continue
+
+        if isinstance(qc, dict) and str(qc.get("status") or "").upper() == "FAIL":
+            reasons: list[str] = []
+            for metric in qc.get("metrics", []) or []:
+                if not isinstance(metric, dict) or str(metric.get("status") or "").upper() != "FAIL":
+                    continue
+                name = str(metric.get("name") or "QC metric")
+                detail = metric.get("detail") or metric.get("expected")
+                reasons.append(f"{name}: {detail}" if detail else name)
+            errors.append({
+                "stage": stage_name,
+                "error": "; ".join(reasons) if reasons else "Blocking QC failure",
+            })
     return errors
 
 

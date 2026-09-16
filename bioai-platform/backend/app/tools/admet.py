@@ -1,11 +1,8 @@
-"""ADMET descriptor computation using RDKit — industrial-grade panel.
+"""RDKit molecular descriptors plus explicitly labelled screening heuristics.
 
-Computes 50+ molecular descriptors including:
-  - Core physicochemical properties (MW, LogP, TPSA, HBD, HBA, etc.)
-  - Extended topological descriptors (Fsp3, aromatic rings, MR, volume, complexity)
-  - Drug-likeness filters (Lipinski, Veber, Ghose, Egan, MDDR, PAINS, Brenk)
-  - ADMET predictions (absorption, distribution, metabolism, toxicity, clearance)
-  - Structural alerts and functional group analysis
+Deterministic physicochemical descriptors and established rule filters are kept
+separate from heuristic ADMET flags.  Heuristic outputs are not presented as
+validated QSAR predictions, experimental observations, or clinical evidence.
 """
 
 from __future__ import annotations
@@ -221,10 +218,9 @@ def compute_descriptors(smiles: str) -> dict:
     # SwissADME TPSA uses the Ertl fragmental method including S and P.
     tpsa = round(Descriptors.TPSA(mol, includeSandP=True), 2)
     hbd = Lipinski.NumHDonors(mol)
-    # SwissADME "H-bond acceptors" = all N + O atoms (OpenBabel count).
-    # CalcNumLipinskiHBA is a pure N+O count; the plain NumHAcceptors /
-    # CalcNumHBA exclude e.g. ester carbonyl oxygens and would show 3 for
-    # aspirin instead of SwissADME's 4.
+    # Method-specific HBA count.  RDKit exposes multiple accepted HBA
+    # conventions; this API retains CalcNumLipinskiHBA for backward compatibility
+    # and reports that convention explicitly in _descriptor_conventions.
     hba = rdMolDescriptors.CalcNumLipinskiHBA(mol)
     rotatable = Lipinski.NumRotatableBonds(mol)
     heavy_atoms = n_heavy
@@ -521,16 +517,23 @@ def compute_descriptors(smiles: str) -> dict:
     if _fg(mol, "fr_halogen") > 2: skin_risk_factors.append("Multiple halogens")
     skin_sensitization = "Likely" if skin_risk_factors else "Unlikely"
 
-    # Acute toxicity (LD50 rough estimate based on LogP and functional groups)
-    # Crum-Brown and Wood LD50 estimate
-    ld50_estimate = round(1.37 + 0.87 * logp - 0.01 * mw + 0.06 * num_halogen, 2)
-    ld50_class = "Toxic" if ld50_estimate < 2.5 else ("Moderate" if ld50_estimate < 4 else "Low toxicity")
+    # Acute toxicity requires a validated endpoint-specific model or measured
+    # data.  A previous ad-hoc LogP/MW formula produced an unsupported numeric LD50
+    # claim, so BioNexus now withholds this quantity.  ProTox is exposed separately.
+    ld50_estimate = None
+    ld50_class = "Not predicted"
+    acute_toxicity_note = (
+        "No validated local LD50 model is implemented; use the separately labelled "
+        "ProTox integration or experimental data for toxicity prediction."
+    )
 
     # ---- Clearance ----
     clearance_class = "High" if logp < 1 and tpsa > 100 else ("Low" if logp > 3 and tpsa < 60 else "Moderate")
 
-    # Lipophilic efficiency (LipE = pIC50 - LogP; we estimate pIC50 from QED)
-    lipe = round(qed_score * 10 - logp, 2) if qed_score > 0 else 0
+    # Lipophilic efficiency (LipE/LLE) requires an experimental or otherwise
+    # justified potency term (e.g. pIC50). QED is not a potency surrogate.
+    lipe = None
+    lipe_note = "LipE requires potency (for example pIC50); it is not derivable from QED and LogP alone."
 
     # ===================================================================
     # COMPOSITE SCORES
@@ -555,10 +558,10 @@ def compute_descriptors(smiles: str) -> dict:
     admet_risk = min(admet_risk, 10)
 
     # ===================================================================
-    # SWISSADME-PARITY PANEL
+    # SWISSADME-STYLE COMPATIBILITY PANEL
     # ===================================================================
-    # Reproduces the SwissADME output layout for the properties that are
-    # computable with RDKit (WLOGP, ESOL, BOILED-Egg, Martin score, SA…).
+    # Uses a SwissADME-like layout only for locally reproducible properties.
+    # It is not a SwissADME execution and must not be presented as parity.
     # XLOGP3 / MLOGP / SILICOS-IT / iLOGP are proprietary closed models and
     # are reported as unavailable; the ESOL and radar lipophilicity axis use
     # WLOGP as a documented proxy (Delaney's model originally uses CLOGP).
@@ -628,7 +631,7 @@ def compute_descriptors(smiles: str) -> dict:
             "esol_class": _solubility_class(esol_log_s),
             "esol_mol_per_l": esol_mol_l,
             "esol_mg_per_ml": esol_mg_ml,
-            "note": "ESOL (Delaney) using WLOGP in place of XLOGP3 — values are within ~0.1 log unit of SwissADME for most drug-like molecules.",
+            "note": "ESOL-style estimate using WLOGP as the lipophilicity input; this is a local approximation and is not claimed to reproduce SwissADME output.",
         },
         "pharmacokinetics": {
             "gi_absorption": gi_absorption,
@@ -676,11 +679,20 @@ def compute_descriptors(smiles: str) -> dict:
         "_methodology": {
             "core_descriptors": {"tier": "3a", "confidence": "high", "method": "RDKit descriptors", "note": "Computed directly from molecular graph — production-ready"},
             "drug_likeness": {"tier": "3a", "confidence": "high", "method": "RDKit + Lipinski/Veber/Ghose/Egan rules", "note": "Validated pharma filters — production-ready"},
-            "structural_alerts": {"tier": "3a", "confidence": "high", "method": "PAINS/Brenk SMARTS patterns", "note": "Well-established substructure filters — production-ready"},
+            "structural_alerts": {"tier": "3b", "confidence": "limited", "method": "Local SMARTS screening subset", "note": "Heuristic screening subset; not a complete PAINS/Brenk catalogue and not a toxicity prediction."},
             "functional_groups": {"tier": "3a", "confidence": "high", "method": "RDKit Fragments module", "note": "Deterministic fragment counts — production-ready"},
             "absorption_distribution_metabolism": {"tier": "3b", "confidence": "approximate", "method": "Rule-based heuristics on top of RDKit descriptors", "note": "Educational estimates — for research use, not clinical decisions. Replace with validated QSAR models for production."},
             "toxicity": {"tier": "3b", "confidence": "approximate", "method": "Rule-based heuristics (LogP/MW/TPSA thresholds, structural alerts)", "note": "No ML classifiers — these are simplified heuristics. Real toxicity prediction requires trained models (e.g. ProTox, Tox21). For research use only."},
-            "clearance": {"tier": "3b", "confidence": "approximate", "method": "LogP/TPSA heuristic", "note": "Very rough estimate — real clearance depends on CYP metabolism kinetics"},
+            "clearance": {"tier": "3b", "confidence": "approximate", "method": "LogP/TPSA heuristic", "note": "Very rough screening flag — real clearance depends on measured/validated pharmacokinetic evidence."},
+        },
+        "_descriptor_conventions": {
+            "molecular_weight": "RDKit Descriptors.MolWt",
+            "logp": "RDKit Wildman-Crippen MolLogP",
+            "tpsa": "RDKit Descriptors.TPSA(includeSandP=True)",
+            "hbd": "RDKit Lipinski.NumHDonors",
+            "hba": "RDKit CalcNumLipinskiHBA",
+            "rotatable_bonds": "RDKit Lipinski.NumRotatableBonds",
+            "qed": "RDKit QED.qed",
         },
         "heavy_atoms": heavy_atoms,
         "molecular_weight": mw,
@@ -749,6 +761,7 @@ def compute_descriptors(smiles: str) -> dict:
             "cyp_substrate_risk": cyp_substrate,
             "half_life_class": half_life_class,
             "lipophilic_efficiency": lipe,
+            "lipophilic_efficiency_note": lipe_note,
         },
         "toxicity": {
             "_disclaimer": "Rule-based heuristics only — no ML classifiers. For research screening, not clinical/ regulatory use.",
@@ -760,6 +773,7 @@ def compute_descriptors(smiles: str) -> dict:
             "skin_sensitization_factors": skin_risk_factors,
             "acute_toxicity_ld50": ld50_class,
             "ld50_estimate_log": ld50_estimate,
+            "acute_toxicity_note": acute_toxicity_note,
             "risk_score": admet_risk,
         },
         "clearance": {

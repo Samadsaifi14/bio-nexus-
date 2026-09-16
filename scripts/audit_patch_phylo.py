@@ -356,3 +356,5 @@ replace_once(
 
 path.write_text(text, encoding="utf-8")
 print(f"patched {path}")
+
+# trigger audit patch workflow after the workflow file itself was installed.

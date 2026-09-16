@@ -29,7 +29,7 @@ from app.benchmarking.docking_redock import (
     evaluate_redocking,
     mol_from_sdf_block,
 )
-from app.tools.docking import compute_pocket_grid, run_vina
+from app.tools.docking import compute_pocket_grid, pdb_to_pdbqt_receptor, run_vina
 
 _FIXTURE = canonical_redocking_fixture()
 PDB_ID = _FIXTURE["pdb_id"]
@@ -132,6 +132,7 @@ def main() -> int:
 
     assert prot_lines and ref_lines, "failed to split receptor/ligand"
     receptor_pdb = "\n".join(prot_lines)
+    receptor_pdbqt = pdb_to_pdbqt_receptor(receptor_pdb)
     print(f"[0] fixture={_FIXTURE['fixture_id']} status={_FIXTURE['status']}")
     print(f"[1] {PDB_ID}: {len(prot_lines)} receptor lines, {len(ref_lines)} ligand atom records")
 
@@ -167,7 +168,7 @@ def main() -> int:
         print("[3] crystal ligand prepared; chemistry-aware reference molecule parsed")
 
         result = run_vina(
-            protein_pdbqt=receptor_pdb,
+            protein_pdbqt=receptor_pdbqt,
             ligand_pdbqt=ligand_pdbqt,
             grid_center=grid["center"],
             grid_size=grid["size"],

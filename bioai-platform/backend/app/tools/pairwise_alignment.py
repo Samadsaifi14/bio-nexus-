@@ -1,8 +1,8 @@
 """
 In-process pairwise sequence alignment (Smith-Waterman / Needleman-Wunsch).
 
-Zero external dependencies: sequences are aligned locally with Biopython's
-PairwiseAligner plus a BLOSUM62 / PAM250 substitution matrix. No network I/O.
+Sequences are aligned locally with Biopython's PairwiseAligner plus a BLOSUM62
+or PAM250 substitution matrix. No network I/O occurs in this module.
 
 Requires Biopython >= 1.80 (Bio.Align.substitution_matrices).
 """
@@ -30,15 +30,15 @@ def _normalize_sequence(seq: str, label: str) -> str:
     return seq
 
 
-def _gap_runs(aligned: str, seq_label: str) -> list[dict]:
+def _gap_runs(aligned: str, seq_label: str, residue_offset: int = 0) -> list[dict]:
     """Gap runs in a single aligned row.
 
     ``inserted_after`` is the number of residues before the gap in the ORIGINAL
-    (ungapped) sequence: 0 means leading gaps, N means trailing gaps after N
-    residues.
+    (ungapped) sequence. ``residue_offset`` accounts for residues omitted from
+    the left side of a local alignment.
     """
     runs: list[dict] = []
-    residues_seen = 0
+    residues_seen = residue_offset
     i = 0
     n = len(aligned)
     while i < n:
@@ -54,19 +54,6 @@ def _gap_runs(aligned: str, seq_label: str) -> list[dict]:
     return runs
 
 
-def _covered_region(aligned: str) -> tuple[int, int]:
-    """1-based residue coordinates covered by the alignment in the original sequence."""
-    count = 0
-    start = end = 0
-    for ch in aligned:
-        if ch != "-":
-            count += 1
-            if start == 0:
-                start = count
-            end = count
-    return start, end
-
-
 def pairwise_align(
     seq_a: str,
     seq_b: str,
@@ -79,6 +66,9 @@ def pairwise_align(
 
     mode: ``global`` (Needleman-Wunsch, default) or ``local`` (Smith-Waterman).
     matrix: ``blosum62`` (default) or ``pam250``.
+
+    For local alignments, reported start/end coordinates refer to the original
+    unaligned input sequences rather than to the cropped local-alignment rows.
     """
     mode = (mode or "global").lower()
     if mode not in VALID_MODES:
@@ -86,13 +76,24 @@ def pairwise_align(
     matrix = (matrix or "blosum62").lower()
     if matrix not in MATRICES:
         raise PairwiseAlignError(f"matrix must be one of {list(MATRICES)}, got {matrix!r}")
+    if open_gap_score > 0 or extend_gap_score > 0:
+        raise PairwiseAlignError("Gap scores must be penalties (zero or negative), not positive rewards")
 
     seq_a = _normalize_sequence(seq_a, "query")
     seq_b = _normalize_sequence(seq_b, "subject")
 
+    substitution_matrix = substitution_matrices.load(MATRICES[matrix])
+    allowed = set(str(substitution_matrix.alphabet)) - {"*"}
+    for label, sequence in (("query", seq_a), ("subject", seq_b)):
+        invalid = sorted(set(sequence) - allowed)
+        if invalid:
+            raise PairwiseAlignError(
+                f"{label} contains residues unsupported by {matrix.upper()}: {', '.join(invalid)}"
+            )
+
     aligner = PairwiseAligner()
     aligner.mode = mode
-    aligner.substitution_matrix = substitution_matrices.load(MATRICES[matrix])
+    aligner.substitution_matrix = substitution_matrix
     aligner.open_gap_score = open_gap_score
     aligner.extend_gap_score = extend_gap_score
 
@@ -126,12 +127,26 @@ def pairwise_align(
     identity = sum(1 for x, y in zip(aligned_a, aligned_b) if x == y and x != "-")
     align_len = len(aligned_a)
 
-    gap_runs = _gap_runs(aligned_a, "query") + _gap_runs(aligned_b, "subject")
+    # Biopython exposes the original input coordinates for each aligned block.
+    # This is essential for local alignments because best[0]/best[1] contain
+    # only the cropped local rows and therefore cannot recover left offsets.
+    query_blocks, hit_blocks = best.aligned
+    if len(query_blocks):
+        q_start = int(query_blocks[0][0]) + 1
+        q_end = int(query_blocks[-1][1])
+        q_offset = int(query_blocks[0][0])
+    else:
+        q_start = q_end = q_offset = 0
+    if len(hit_blocks):
+        h_start = int(hit_blocks[0][0]) + 1
+        h_end = int(hit_blocks[-1][1])
+        h_offset = int(hit_blocks[0][0])
+    else:
+        h_start = h_end = h_offset = 0
+
+    gap_runs = _gap_runs(aligned_a, "query", q_offset) + _gap_runs(aligned_b, "subject", h_offset)
     gap_positions = [r for r in gap_runs if r["length"] > 0]
     gaps_total = sum(r["length"] for r in gap_positions)
-
-    q_start, q_end = _covered_region(aligned_a)
-    h_start, h_end = _covered_region(aligned_b)
 
     return {
         "mode": mode,

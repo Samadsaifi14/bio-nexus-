@@ -41,6 +41,7 @@ jobs:
             tests/test_uniprot_engine.py \
             tests/test_msa_engine.py \
             tests/test_phylo_engine.py \
+            tests/test_audit_phylo_randomized.py \
             tests/test_domains_engine.py \
             tests/test_alphafold_pathway_engines.py \
             tests/test_interpret_engine.py \

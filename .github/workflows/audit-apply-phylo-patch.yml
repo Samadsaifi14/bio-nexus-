@@ -1,0 +1,37 @@
+name: audit-apply-phylo-patch
+
+on:
+  push:
+    branches:
+      - audit/phylo-fix-runner2
+    paths:
+      - scripts/audit_patch_phylo.py
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apply:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: audit/phylo-fix-runner2
+          fetch-depth: 0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Apply phylogeny audit patch
+        run: python scripts/audit_patch_phylo.py
+      - name: Commit patched source
+        run: |
+          if git diff --quiet; then
+            echo "No patch changes required."
+            exit 0
+          fi
+          git config user.name "BioNexus Audit Bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add bioai-platform/backend/app/routers/phylo.py
+          git commit -m "fix(audit): harden phylogeny validation and provenance"
+          git push origin HEAD:audit/phylo-fix-runner2

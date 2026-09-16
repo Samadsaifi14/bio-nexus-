@@ -115,7 +115,7 @@ async def _ensure_minimap2() -> str:
                 raise RuntimeError("Could not extract minimap2 executable")
             with open(dest, "wb") as handle:
                 handle.write(extracted.read())
-    os.chmod(dest, 0o755)  # nosemgrep: scientific worker binary must be executable
+    os.chmod(dest, 0o700)
     return dest
 
 
@@ -253,7 +253,6 @@ def _parse_sam_evidence(
                 mapq = int(parts[4])
             except ValueError:
                 continue
-            # Count primary records only; secondary/supplementary records are not reads.
             if flag & 0x100 or flag & 0x800:
                 continue
             stats["total_alignments"] += 1
@@ -371,7 +370,6 @@ def _parse_sam_evidence(
             represented = frozenset(base for base, count in ordered if count / canonical_total >= ambiguity_min_freq)
             consensus_chars.append(_IUPAC_FROM_BASES.get(represented, "N"))
 
-    # Indels are retained only when their support meets the same declared depth/AF gate.
     for (anchor, inserted), support in insertions.items():
         denominator = max(int(depth.get(anchor, 0)), support["count"])
         freq = support["count"] / denominator if denominator else 0.0
@@ -394,7 +392,6 @@ def _parse_sam_evidence(
 
     variants.sort(key=lambda item: (item["pos"], item["type"], item["alt"]))
 
-    # Apply called indels from right to left so reference coordinates remain stable.
     consensus = "".join(consensus_chars)
     for variant in sorted((v for v in variants if v["type"] in {"INS", "DEL"}), key=lambda item: item["pos"], reverse=True):
         pos = int(variant["pos"])
@@ -428,7 +425,6 @@ def _parse_sam_for_variants(
     min_base_quality: int = DEFAULT_MIN_BASE_QUALITY,
     min_mapping_quality: int = DEFAULT_MIN_MAPPING_QUALITY,
 ) -> list[dict]:
-    """Compatibility helper used by tests; now applies declared quality gates."""
     parsed = _parse_sam_evidence(
         sam_path,
         reference_seq,
@@ -442,11 +438,6 @@ def _parse_sam_for_variants(
 
 
 def _build_consensus(reference_seq: str, variants: list[dict]) -> str:
-    """Compatibility helper for pre-called variants; does not imply coverage QC.
-
-    The production pipeline uses `_parse_sam_evidence`, which masks low coverage
-    and applies quality/strand evidence before consensus construction.
-    """
     ref = list(_reference_sequence(reference_seq))
     for variant in sorted(variants, key=lambda item: item.get("pos", 0), reverse=True):
         pos = int(variant.get("pos", 0))
@@ -557,7 +548,6 @@ def _persist_artifacts(
     consensus_fasta: str,
     provenance: dict,
 ) -> list[dict[str, Any]]:
-    """Persist exact emitted artifacts when a durable job id is available."""
     payloads: list[tuple[str, str, str]] = [
         ("fastq_qc.json", json.dumps(fastq_qc, sort_keys=True, indent=2), "application/json"),
         ("alignment.sam", Path(sam_path).read_text(encoding="utf-8", errors="replace"), "text/plain"),
@@ -597,7 +587,6 @@ def _persist_artifacts(
         except Exception as exc:
             logger.warning("SAM->BAM/index export unavailable: %s", type(exc).__name__)
 
-    # Reference is an input artifact and is retained separately for reproducibility.
     try:
         ref_bytes = Path(ref_path).read_bytes()
         url = upload_bytes_artifact(job_id, f"{reference}.fa", ref_bytes, "text/x-fasta")

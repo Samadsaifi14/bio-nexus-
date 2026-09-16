@@ -18,6 +18,16 @@ export type ScientificPlot = {
   [key: string]: unknown;
 };
 
+/** Common validation fields shared by scientific modules.
+ * Additional module-specific evidence remains deliberately unknown until a
+ * component explicitly narrows it, but a human-readable failure reason is a
+ * stable cross-module field and can be rendered safely.
+ */
+export type ScientificValidation = {
+  reason?: string;
+  [key: string]: unknown;
+};
+
 export type ScientificResult<TResults extends Record<string, unknown> = Record<string, unknown>> = {
   status: ScientificStatus;
   method: string;
@@ -34,7 +44,7 @@ export type ScientificResult<TResults extends Record<string, unknown> = Record<s
   plots: ScientificPlot[];
   artifacts: ScientificArtifact[];
   evidence_class: string;
-  validation: Record<string, unknown>;
+  validation: ScientificValidation;
   citations: unknown[];
 };
 

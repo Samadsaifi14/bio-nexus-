@@ -115,7 +115,8 @@ async def _ensure_minimap2() -> str:
                 raise RuntimeError("Could not extract minimap2 executable")
             with open(dest, "wb") as handle:
                 handle.write(extracted.read())
-    os.chmod(dest, 0o700)
+    # The pinned minimap2 worker binary must be executable; 0700 grants no group/other access.
+    os.chmod(dest, 0o700)  # nosemgrep: python.lang.security.audit.insecure-file-permissions.insecure-file-permissions
     return dest
 
 

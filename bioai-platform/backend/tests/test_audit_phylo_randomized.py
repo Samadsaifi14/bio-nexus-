@@ -8,20 +8,20 @@ requested-versus-effective ML bootstrap contract.
 from __future__ import annotations
 
 import random
+from io import StringIO
 
 import pytest
 from Bio import Phylo
-from io import StringIO
 
 from app.routers.phylo import (
     PhyloRequest,
+    _effective_iqtree_bootstrap,
     _p_distance,
     _parse_aligned_fasta,
-    _upgma_newick,
-    fasta_to_phylip,
-    _validate_sequence_records,
     _resolve_ml_model,
-    _effective_iqtree_bootstrap,
+    _upgma_newick,
+    _validate_sequence_records,
+    fasta_to_phylip,
 )
 
 
@@ -72,8 +72,10 @@ def test_sequence_record_validation_rejects_missing_duplicate_and_wrong_alphabet
         _validate_sequence_records([{"id": "a", "sequence": ""}, {"id": "b", "sequence": "AAAA"}], "dna")
     with pytest.raises(ValueError):
         _validate_sequence_records([{"id": "a", "sequence": "MKWV"}, {"id": "b", "sequence": "MKWV"}], "dna")
+    # A/T/G/C are also valid amino-acid symbols, so do not reject an explicitly
+    # protein-labelled peptide merely because its alphabet resembles DNA.
     with pytest.raises(ValueError):
-        _validate_sequence_records([{"id": "a", "sequence": "ATGC"}, {"id": "b", "sequence": "ATGC"}], "protein")
+        _validate_sequence_records([{"id": "a", "sequence": "MKWV1"}, {"id": "b", "sequence": "MKWV"}], "protein")
 
 
 def test_sequence_record_validation_accepts_iupac_dna_and_standard_protein():
@@ -87,6 +89,14 @@ def test_sequence_record_validation_accepts_iupac_dna_and_standard_protein():
         "protein",
     )
     assert len(protein) == 2
+
+
+def test_sequence_record_validation_rejects_newick_unsafe_ids():
+    with pytest.raises(ValueError, match="identifier"):
+        _validate_sequence_records(
+            [{"id": "sample,1", "sequence": "ATGC"}, {"id": "sample2", "sequence": "ATGT"}],
+            "dna",
+        )
 
 
 def test_ml_default_model_depends_on_sequence_type():

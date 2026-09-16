@@ -40,7 +40,7 @@ def test_stages_lists_contracts(client):
     assert steps[-1] == "md_convergence"
     assert len(steps) == 10
     for s in body["stages"]:
-        assert s["expectation"]  # human explanation present for every stage
+        assert s["expectation"]
 
 
 def test_analyze_runs_full_dag(client):
@@ -51,6 +51,11 @@ def test_analyze_runs_full_dag(client):
 
     assert body["requested"]["pdb_id"] == "TEST"
     assert body["requested"]["source"] == "provided-pdb-text"
+    assert body["method"] == "Short implicit-solvent OpenMM MD"
+    assert body["engine"] == "OpenMM"
+    assert body["status"] in ("VALID", "DEGRADED")
+    assert len(body["input_sha256"]) == 64
+    assert len(body["output_sha256"]) == 64
 
     stages = body["pipeline"]["stages"]
     steps = [s["step"] for s in stages]
@@ -66,21 +71,32 @@ def test_analyze_runs_full_dag(client):
     # Trajectory QC produced the four structural observables.
     traj = [s for s in stages if s["step"] == "md_traj"][0]
     assert all(m["status"] == "PASS" for m in traj["qc"]["metrics"])
+    assert traj["data"]["rmsd"]
+    assert traj["data"]["rmsf"]
+    assert traj["data"]["sasa"]
 
-    # Final convergence stage has a readiness verdict.
+    # Plot descriptors must point to retained scientific arrays; no placeholder
+    # zero-valued plot is manufactured when a series is absent.
+    plot_ids = {plot["id"] for plot in body["plots"]}
+    assert "temperature-vs-step" in plot_ids
+    assert "rmsd-vs-frame" in plot_ids
+    assert "rmsf-vs-residue" in plot_ids
+    assert "sasa-vs-step" in plot_ids
+    for plot in body["plots"]:
+        assert plot["data"]
+        assert all(plot["y_key"] in row and row[plot["y_key"]] is not None for row in plot["data"])
+
+    assert body["validation"]["real_trajectory_emitted"] is True
+    assert body["validation"]["trajectory_qc_emitted"] is True
+    assert body["validation"]["stage_errors"] == []
+
     conv = [s for s in stages if s["step"] == "md_convergence"][0]
     assert "readiness" in conv["data"]
 
 
 def test_analyze_default_nvt_with_production_ps(client):
-    """Regression: 'production_ps' without 'nvt_ps' must not crash the engine.
-
-    A short stochastic NVT run can legitimately cross the configured
-    temperature-CV warning threshold on different CPU/OpenMM builds. WARN is a
-    scientifically valid QC state here and must not be converted into a false
-    PASS merely to make CI deterministic.
-    """
-    payload = _payload(production_ps=20)  # no nvt_ps -> engine default NVT
+    """Regression: 'production_ps' without 'nvt_ps' must not crash the engine."""
+    payload = _payload(production_ps=20)
     r = client.post("/api/md/v2/analyze", json=payload)
     assert r.status_code == 200
     body = r.json()
@@ -93,8 +109,6 @@ def test_analyze_default_nvt_with_production_ps(client):
 
 
 def test_analyze_garbage_structure_stops_at_input(client):
-    # Contains "ATOM" so the router's cheap pre-check passes; still unparseable,
-    # so it must be caught by the md_input stage's own structure-QC gate.
     payload = _payload(
         pdb_text="HEADER    BROKEN\nTITLE     not a real structure\n"
                  "ATOM      1  N   MET A   1    1.0   1.0   1.0  1.0 99.99\n"
@@ -105,8 +119,11 @@ def test_analyze_garbage_structure_stops_at_input(client):
     assert r.status_code == 200
     body = r.json()
     assert body["pipeline"]["pipeline_status"] == "FAIL"
+    assert body["status"] == "FAILED"
     assert body["pipeline"]["stopped_at"] == "md_input"
     assert body["pipeline"]["stages"][0]["decision"] == "STOP"
+    assert body["validation"]["stage_errors"]
+    assert body["plots"] == []
 
 
 def test_analyze_invalid_combo_stops_at_ff(client):
@@ -114,7 +131,8 @@ def test_analyze_invalid_combo_stops_at_ff(client):
     r = client.post("/api/md/v2/analyze", json=payload)
     assert r.status_code == 200
     body = r.json()
-    # FF resolution fails on the unknown key -> blocking FAIL at md_ff.
     assert body["pipeline"]["pipeline_status"] == "FAIL"
+    assert body["status"] == "FAILED"
     assert body["pipeline"]["stopped_at"] == "md_ff"
     assert body["pipeline"]["stages"][1]["decision"] == "STOP"
+    assert any(item["stage"] == "md_ff" for item in body["validation"]["stage_errors"])

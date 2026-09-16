@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# One-shot, idempotent scientific patch used only on the isolated audit branch.
 path = Path("bioai-platform/backend/app/tools/admet.py")
 text = path.read_text(encoding="utf-8")
 

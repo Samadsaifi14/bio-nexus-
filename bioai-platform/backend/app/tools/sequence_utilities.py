@@ -1,24 +1,24 @@
 """Sequence utilities toolkit.
 
-Computes the everyday metrics a biologist needs on a single sequence:
+Computes common single-sequence metrics with explicit claim boundaries:
 
   * GC content (nucleotides)
   * Reverse complement (nucleotides, IUPAC-aware)
-  * Molecular weight (ssDNA / ssRNA / protein average-residue)
-  * Six-frame-free translation of the forward three frames with the longest
-    open reading frame (ORF) flagged
+  * Molecular weight (ssDNA / ssRNA / protein)
+  * Forward-strand translation in three reading frames with the longest
+    methionine-initiated ORF flagged
   * Amino-acid composition (proteins / translated CDS)
   * Restriction-enzyme site scan against a curated set of common, unambiguous
-    (palindromic) recognition sequences
+    palindromic recognition sequences
 
-Pure local computation — no network calls. Mirrors the "Sequence Stats"
-workflow every bench tool (ExPASy, BioPython scripts) implements.
+Pure local computation — no network calls.
 """
 
 from __future__ import annotations
 
 import re
 
+from Bio.SeqUtils import molecular_weight
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
 from app.services.sequence_utils import detect_sequence_type
@@ -48,10 +48,6 @@ _CODON_TABLE = {
     "GGT": "G", "GGC": "G", "GGA": "G", "GGG": "G",
 }
 
-# Monoisotopic-ish single-strand base weights (g/mol).
-_SSDNA_MW = {"A": 313.21, "C": 289.18, "G": 329.21, "T": 304.20}
-_SSRNA_MW = {"A": 329.21, "C": 305.18, "G": 345.21, "U": 306.17}
-
 # Curated common restriction enzymes — all palindromic so a forward-strand
 # scan finds every cut site. Recognition site is given 5' -> 3'.
 _RESTRICTION_ENZYMES = [
@@ -70,6 +66,12 @@ _RESTRICTION_ENZYMES = [
 
 _RNA_TO_DNA = str.maketrans("Uu", "Tt")
 _AA_ALPHABET = "ACDEFGHIKLMNPQRSTVWY"
+_DNA_IUPAC = set("ACGTRYSWKMBDHVN")
+_RNA_IUPAC = set("ACGURYSWKMBDHVN")
+_DNA_CANONICAL = set("ACGT")
+_RNA_CANONICAL = set("ACGU")
+_DNA_COMPLEMENT = str.maketrans("ACGTRYSWKMBDHVN", "TGCAYRSWMKVHDBN")
+_RNA_COMPLEMENT = str.maketrans("ACGURYSWKMBDHVN", "UGCAYRSWMKVHDBN")
 
 
 def _strip_fasta(seq: str) -> str:
@@ -80,23 +82,34 @@ def _strip_fasta(seq: str) -> str:
 
 
 def clean_sequence(seq: str, seq_type: str) -> str:
-    """Normalize to uppercase alpha-only. For nucleotides, drop ambiguous IUPAC
-    codes so downstream math (GC%, MW) only counts real bases."""
+    """Normalize to uppercase sequence symbols while retaining IUPAC ambiguity.
+
+    Whitespace/FASTA headers and non-alphabetic formatting characters are
+    ignored. Alphabetic symbols outside the selected alphabet are rejected
+    rather than silently deleted, because silent deletion changes coordinates
+    and can fabricate downstream measurements.
+    """
     body = _strip_fasta(seq)
     letters = "".join(re.findall(r"[A-Za-z]", body)).upper()
     if not letters:
         raise SequenceUtilitiesError("Sequence is empty")
+
     if seq_type in ("dna", "rna"):
-        allowed = set("ACGTRYSWKMBDHVN") if seq_type == "dna" else set("ACGURSYKMWBDHVN")
-        kept = "".join(c for c in letters if c in allowed)
-        if not kept:
-            raise SequenceUtilitiesError(f"Sequence contains no valid {seq_type.upper()} bases")
-        return kept.translate(_RNA_TO_DNA) if seq_type == "rna" else kept
-    valid = set("ACDEFGHIKLMNPQRSTVWY")
-    kept = "".join(c for c in letters if c in valid)
-    if not kept:
-        raise SequenceUtilitiesError("Sequence contains no valid amino acids")
-    return kept
+        allowed = _DNA_IUPAC if seq_type == "dna" else _RNA_IUPAC
+        invalid = sorted(set(letters) - allowed)
+        if invalid:
+            raise SequenceUtilitiesError(
+                f"Sequence contains invalid {seq_type.upper()} symbols: {', '.join(invalid)}"
+            )
+        return letters
+
+    valid = set(_AA_ALPHABET)
+    invalid = sorted(set(letters) - valid)
+    if invalid:
+        raise SequenceUtilitiesError(
+            f"Sequence contains non-standard amino-acid symbols: {', '.join(invalid)}"
+        )
+    return letters
 
 
 def _translate_frame(seq: str, frame: int) -> str:
@@ -130,13 +143,26 @@ def _protein_mw(seq: str) -> float:
         return round(sum(avg for _ in seq), 2)
 
 
-def _nucleotide_mw(seq: str, seq_type: str) -> float:
-    table = _SSDNA_MW if seq_type == "dna" else _SSRNA_MW
-    n = len(seq)
-    if n == 0:
-        return 0.0
-    total = sum(table.get(c, table["A"]) for c in seq)
-    return round(total - 61.96 * (n - 1) + 18.02, 2)
+def _nucleotide_mw(seq: str, seq_type: str) -> float | None:
+    """Return exact linear ssDNA/ssRNA molecular weight for unambiguous input.
+
+    Ambiguous IUPAC bases do not have a unique mass; returning an arbitrary
+    base mass would create a false numerical claim, so such inputs return None
+    and the caller records the limitation in ``issues``.
+    """
+    canonical = _DNA_CANONICAL if seq_type == "dna" else _RNA_CANONICAL
+    if set(seq) - canonical:
+        return None
+    bio_type = "DNA" if seq_type == "dna" else "RNA"
+    return round(
+        float(molecular_weight(seq, seq_type=bio_type, double_stranded=False, circular=False)),
+        2,
+    )
+
+
+def _reverse_complement(seq: str, seq_type: str) -> str:
+    table = _DNA_COMPLEMENT if seq_type == "dna" else _RNA_COMPLEMENT
+    return seq.translate(table)[::-1]
 
 
 def _aa_composition(seq: str) -> list[dict]:
@@ -164,8 +190,10 @@ def _restriction_scan(seq: str) -> list[dict]:
 def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
     """Analyze a single sequence and return a flat report dict.
 
-    ``seq_type`` may be 'auto', 'dna', 'rna' or 'protein'. Auto-detection uses
-    the shared alphabet classifier (a pure ACGTN/U string is treated as DNA).
+    ``seq_type`` may be 'auto', 'dna', 'rna' or 'protein'. For nucleotide
+    inputs, ambiguity symbols are preserved. GC% is reported over unambiguous
+    A/C/G/T(U) positions only when ambiguity is present, and exact molecular
+    weight is withheld because ambiguous symbols do not specify a unique mass.
     """
     seq_type = (seq_type or "auto").lower()
     if seq_type not in ("auto", "dna", "rna", "protein"):
@@ -195,13 +223,21 @@ def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
     }
 
     if effective in ("dna", "rna"):
-        report["gc_content"] = round((seq.count("G") + seq.count("C")) / len(seq) * 100.0, 1)
+        canonical = _DNA_CANONICAL if effective == "dna" else _RNA_CANONICAL
+        concrete = "".join(base for base in seq if base in canonical)
+        if concrete:
+            report["gc_content"] = round(
+                (concrete.count("G") + concrete.count("C")) / len(concrete) * 100.0,
+                1,
+            )
+        if len(concrete) != len(seq):
+            issues.append("Ambiguous IUPAC bases were excluded from the GC-content denominator")
+
         report["molecular_weight"] = _nucleotide_mw(seq, effective)
-        if effective == "dna":
-            comp = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
-        else:
-            comp = {"A": "U", "U": "A", "G": "C", "C": "G", "N": "N"}
-        report["reverse_complement"] = "".join(comp.get(c, "N") for c in reversed(seq))
+        if report["molecular_weight"] is None:
+            issues.append("Exact molecular weight is unavailable for ambiguous IUPAC bases")
+
+        report["reverse_complement"] = _reverse_complement(seq, effective)
 
         dna_seq = seq.translate(_RNA_TO_DNA)
         if len(dna_seq) < 3:
@@ -217,7 +253,7 @@ def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
                     best = orf
             report["translation"] = {"frames": frames, "best": best}
             if best is None:
-                issues.append("No in-frame methionine (ATG) found — no ORF to report")
+                issues.append("No in-frame methionine (ATG/AUG) found — no ORF to report")
             else:
                 report["aa_composition"] = _aa_composition(best["protein"])
 

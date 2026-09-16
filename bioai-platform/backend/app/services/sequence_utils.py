@@ -9,18 +9,38 @@ UNIPROT_BASE = "https://rest.uniprot.org/uniprotkb"
 
 def detect_sequence_type(seq: str) -> str:
     clean = seq.upper().replace("-", "").replace(".", "").replace(" ", "")
+    clean = "".join(clean.split())
     if not clean:
         return "unknown"
+
     protein_chars = set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")
-    dna_chars = set("ACGTN")
-    rna_chars = set("ACGUN")
+    dna_canonical = set("ACGTN")
+    rna_canonical = set("ACGUN")
+    dna_iupac = set("ACGTRYSWKMBDHVN")
+    rna_iupac = set("ACGURYSWKMBDHVN")
     seq_set = set(clean)
-    # Nucleotide check first: an ACGT(U)N-only string is nucleotide even
-    # though it is also a subset of the protein alphabet.
-    if seq_set.issubset(rna_chars) or seq_set.issubset(dna_chars):
-        if "U" in seq_set and "T" not in seq_set:
-            return "rna"
+
+    # Mixed thymine and uracil is not a valid unambiguous DNA/RNA alphabet.
+    # Do this before the protein test because both T and U are valid amino-acid
+    # one-letter codes and would otherwise be silently misclassified as protein.
+    if "T" in seq_set and "U" in seq_set and seq_set.issubset(dna_iupac | rna_iupac):
+        return "unknown"
+
+    # Canonical nucleotide check first: an ACGT(U)N-only string is nucleotide
+    # even though most of those letters are also valid protein codes.
+    if seq_set.issubset(dna_canonical):
         return "dna"
+    if seq_set.issubset(rna_canonical):
+        return "rna" if "U" in seq_set else "dna"
+
+    # IUPAC ambiguity can still be classified safely when T or U makes the
+    # polymer type explicit. For ambiguity-only alphabets without T/U, retain
+    # the conservative protein/unknown behaviour rather than guessing.
+    if "T" in seq_set and seq_set.issubset(dna_iupac):
+        return "dna"
+    if "U" in seq_set and seq_set.issubset(rna_iupac):
+        return "rna"
+
     if not (seq_set - protein_chars):
         return "protein"
     return "unknown"
@@ -160,6 +180,9 @@ def validate_sequence(sequence: str) -> dict:
             if len(concat_seq) < 6:
                 result["issues"] = [f"Sequence too short: {len(concat_seq)} residues"]
                 return result
+            if result["sequence_type"] == "unknown":
+                result["issues"] = ["Sequence alphabet could not be classified as DNA, RNA, or protein"]
+                return result
             result["valid"] = True
         except Exception as e:
             result["issues"] = [f"FASTA parse error: {str(e)}"]
@@ -172,6 +195,9 @@ def validate_sequence(sequence: str) -> dict:
     result["sequence_type"] = detect_sequence_type(clean)
     if result["length"] < 6:
         result["issues"] = [f"Sequence too short: {result['length']} residues"]
+        return result
+    if result["sequence_type"] == "unknown":
+        result["issues"] = ["Sequence alphabet could not be classified as DNA, RNA, or protein"]
         return result
     valid_protein = set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")
     extra = set(clean) - valid_protein

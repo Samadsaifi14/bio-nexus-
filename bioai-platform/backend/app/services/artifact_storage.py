@@ -1,18 +1,17 @@
 """
-Supabase Storage wrapper for large job artifacts.
+Supabase Storage wrapper for job and scientific artifacts.
 
-Uploads large payloads (docking PDBQT, pipeline context, sequencing consensus)
-to a Supabase Storage bucket and returns a public URL reference. The DB row
-stores only the URL, not the payload itself.
-
-Buckets must be created manually in the Supabase dashboard or via migration:
-  - 'job-artifacts' (private, with public read for authenticated users)
+Text and binary artifacts are stored without changing their scientific content.
+Existing callers that use kinds such as ``result`` continue to receive a
+``result.json`` object path; callers that provide a filename (for example
+``consensus.fasta`` or ``alignment.bam``) keep that extension.
 """
 
 from __future__ import annotations
 
 import json
 import logging
+from pathlib import PurePosixPath
 from typing import Optional
 
 from app.services.supabase import get_client
@@ -23,7 +22,7 @@ BUCKET = "job-artifacts"
 
 
 def _ensure_bucket() -> None:
-    """Create the bucket if it doesn't exist (idempotent)."""
+    """Create the bucket if it does not exist (idempotent)."""
     try:
         sb = get_client()
         buckets = sb.storage.list_buckets()
@@ -35,50 +34,50 @@ def _ensure_bucket() -> None:
         logger.warning("Could not ensure bucket %s — uploads may fail", BUCKET)
 
 
-def upload_artifact(job_id: str, kind: str, data: str, content_type: str = "application/json") -> str:
-    """Upload a string payload to Storage and return its public URL.
+def _artifact_path(job_id: str, kind: str) -> str:
+    safe = PurePosixPath(str(kind).replace("\\", "/")).name
+    if not safe:
+        safe = "artifact"
+    if "." not in safe:
+        safe = f"{safe}.json"
+    return f"{job_id}/{safe}"
 
-    Args:
-        job_id: The job UUID.
-        kind: Artifact type (e.g. 'result', 'context', 'consensus').
-        data: The string content to upload.
-        content_type: MIME type.
 
-    Returns:
-        Public URL of the uploaded artifact.
-    """
+def upload_bytes_artifact(job_id: str, kind: str, data: bytes, content_type: str = "application/octet-stream") -> str:
+    """Upload exact bytes and return the Storage public URL."""
     _ensure_bucket()
-    path = f"{job_id}/{kind}.json"
+    path = _artifact_path(job_id, kind)
     sb = get_client()
-    # Upsert (overwrite if exists)
     sb.storage.from_(BUCKET).upload(
         path,
-        data.encode("utf-8"),
+        data,
         {"content-type": content_type, "upsert": "true"},
     )
-    url = sb.storage.from_(BUCKET).get_public_url(path)
-    return url
+    return sb.storage.from_(BUCKET).get_public_url(path)
+
+
+def upload_artifact(job_id: str, kind: str, data: str, content_type: str = "application/json") -> str:
+    """Upload a UTF-8 text artifact without modifying its content."""
+    return upload_bytes_artifact(job_id, kind, data.encode("utf-8"), content_type)
 
 
 def upload_json(job_id: str, kind: str, payload: dict) -> str:
-    """Upload a dict as JSON to Storage and return its public URL."""
-    return upload_artifact(job_id, kind, json.dumps(payload), "application/json")
+    """Upload a dict as canonical JSON and return its public URL."""
+    return upload_artifact(
+        job_id,
+        kind,
+        json.dumps(payload, sort_keys=True, separators=(",", ":"), ensure_ascii=False),
+        "application/json",
+    )
 
 
 def download_artifact(url_or_path: str) -> Optional[str]:
-    """Download artifact content from a Storage URL or path.
-
-    If the input is a full URL, extracts the path and downloads from Storage.
-    If it's a relative path, downloads directly.
-    Returns the content as a string, or None on failure.
-    """
+    """Download a UTF-8 artifact from a Storage URL or relative path."""
     if not url_or_path:
         return None
 
-    # Extract path from full URL: https://xxx.supabase.co/storage/v1/object/public/bucket/path
     path = url_or_path
     if "storage/v1" in url_or_path:
-        # Extract everything after '/object/public/bucket-name/'
         parts = url_or_path.split(f"{BUCKET}/", 1)
         if len(parts) > 1:
             path = parts[1]
@@ -95,7 +94,6 @@ def download_artifact(url_or_path: str) -> Optional[str]:
 
 
 def download_json(url_or_path: str) -> Optional[dict]:
-    """Download and parse a JSON artifact."""
     raw = download_artifact(url_or_path)
     if raw is None:
         return None

@@ -136,7 +136,7 @@ def test_local_mafft_command_and_output_integrity(monkeypatch):
     assert "--thread" in execution and "2" in execution
 
 
-def test_local_mafft_rejects_malformed_or_residue-changing_output(monkeypatch):
+def test_local_mafft_rejects_malformed_or_residue_changing_output(monkeypatch):
     fasta = ">a\nACGT\n>b\nACGTT\n"
     monkeypatch.setattr(mafft_local, "_ensure_mafft", lambda: "/fake/mafft")
 

@@ -39,9 +39,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
-      - name: Run every backend test
+          pip install pytest-timeout
+      - name: Collect complete backend suite
         run: |
-          python -m pytest -q --disable-warnings
+          python -m pytest --collect-only -q > /tmp/bionexus-pytest-collection.txt
+          tail -n 5 /tmp/bionexus-pytest-collection.txt
+      - name: Run every backend test with per-test hang guard
+        run: |
+          python -m pytest -vv --disable-warnings --maxfail=20 --timeout=90 --timeout-method=thread
       - name: Validate benchmark and engine registry
         run: python scripts/ci_validate.py
 
@@ -82,7 +87,7 @@ jobs:
       - name: Reject non-finite or fabricated placeholders in retained benchmark summaries
         run: |
           python - <<'PY'
-          import json, math, pathlib, re, sys
+          import json, math, pathlib, sys
           roots = [pathlib.Path('benchmark'), pathlib.Path('bioai-platform/backend/benchmark')]
           problems = []
           for root in roots:

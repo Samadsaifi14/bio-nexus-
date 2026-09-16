@@ -22,6 +22,16 @@ _MAX_JOBS = 200
 _JOB_TTL = 7200
 
 
+def _request_parameters(req: "SequencingRequest") -> dict:
+    return {
+        "min_depth": req.min_depth,
+        "min_base_quality": req.min_base_quality,
+        "min_mapping_quality": req.min_mapping_quality,
+        "allele_frequency": req.allele_frequency,
+        "ambiguity_min_frequency": req.ambiguity_min_frequency,
+    }
+
+
 def _prune_jobs() -> None:
     sb = get_supabase()
     cutoff = (datetime.now(timezone.utc) - timedelta(seconds=_JOB_TTL)).strftime('%Y-%m-%dT%H:%M:%S')
@@ -68,13 +78,16 @@ def _init(job_id: str, req: SequencingRequest, user_id: str) -> None:
         _prune_jobs()
     except Exception:
         pass
+    # sequencing_jobs has no generic payload column.  Store only the declared
+    # request parameters in result while queued; the final ScientificResult
+    # replaces this object atomically when the worker completes.
     get_supabase().table(_TABLE).insert({
         "id": job_id,
         "fastq_url": req.fastq_url,
         "reference": req.reference,
         "status": "queued",
         "user_id": user_id,
-        "result": None,
+        "result": {"request_parameters": _request_parameters(req)},
         "error": None,
         "done_at": None,
     }).execute()
@@ -92,7 +105,7 @@ def _read(job_id: str, user_id: str | None = None) -> dict | None:
     if not rows:
         return None
     job = dict(rows[0])
-    if job.get("storage_url") and not job.get("result"):
+    if job.get("storage_url") and (not job.get("result") or "request_parameters" in (job.get("result") or {})):
         from app.services.artifact_storage import download_json
         result = download_json(job["storage_url"])
         if result:
@@ -104,6 +117,8 @@ async def _worker(job_id: str, parameters: dict | None = None) -> None:
     job = _read(job_id)
     if not job:
         return
+    queued_parameters = ((job.get("result") or {}).get("request_parameters") or {})
+    declared_parameters = parameters if parameters is not None else queued_parameters
     _patch(job_id, status="downloading")
 
     from app.tools.sequencing import SequencingPipeline, PIPELINE_TIMEOUT
@@ -113,7 +128,7 @@ async def _worker(job_id: str, parameters: dict | None = None) -> None:
         "fastq_url": job["fastq_url"],
         "reference": job["reference"],
         "job_id": job_id,
-        **(parameters or {}),
+        **declared_parameters,
     }
     try:
         result = await asyncio.wait_for(SequencingPipeline().run(payload), timeout=PIPELINE_TIMEOUT)
@@ -145,7 +160,8 @@ async def _worker(job_id: str, parameters: dict | None = None) -> None:
         )
         return
 
-    # DEGRADED is a completed job with an explicit degraded scientific state.
+    # DEGRADED is a completed transport/job state with an explicit degraded
+    # scientific status inside the authoritative ScientificResult.
     _patch(
         job_id,
         status="complete",
@@ -172,19 +188,7 @@ async def run_sequencing(request: Request, req: SequencingRequest, user_id: str 
 
     job_id = str(uuid.uuid4())
     _init(job_id, req, user_id)
-    # Durable worker dispatch reads the DB row; the in-process worker path can
-    # also use these declared parameters when invoked by worker.py.
-    return {
-        "job_id": job_id,
-        "status": "queued",
-        "parameters": {
-            "min_depth": req.min_depth,
-            "min_base_quality": req.min_base_quality,
-            "min_mapping_quality": req.min_mapping_quality,
-            "allele_frequency": req.allele_frequency,
-            "ambiguity_min_frequency": req.ambiguity_min_frequency,
-        },
-    }
+    return {"job_id": job_id, "status": "queued", "parameters": _request_parameters(req)}
 
 
 @router.get("/status/{job_id}")

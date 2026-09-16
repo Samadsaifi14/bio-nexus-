@@ -1,65 +1,214 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { CircleNotch as LoaderCircle, CheckCircle, XCircle, Warning as AlertTriangle, Dna, ChartBar as BarChart3, MapTrifold as Map, Bug, FileText, MagnifyingGlass as Search } from '@phosphor-icons/react';
-import { fadeUp } from '@/lib/animations';
-import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
-import type { SequencingResult, SequencingReference } from '@/lib/api';
-import { useAuditTrail } from '@/hooks/useAuditTrail';
-import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
-import { AIResultSummary } from '@/components/results/AIResultSummary';
+import {
+  Warning as AlertTriangle,
+  CheckCircle,
+  CircleNotch as LoaderCircle,
+  Dna,
+  DownloadSimple,
+  FileText,
+  Flask,
+  XCircle,
+} from '@phosphor-icons/react';
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Line,
+  LineChart,
+  ResponsiveContainer,
+  Scatter,
+  ScatterChart,
+  Tooltip,
+  XAxis,
+  YAxis,
+} from 'recharts';
 
-const DEFAULT_REFERENCES = [
+import { fadeUp } from '@/lib/animations';
+import { getSequencingStatus, listSequencingReferences, runSequencing } from '@/lib/api';
+import type { SequencingReference } from '@/lib/api';
+import { AIResultSummary } from '@/components/results/AIResultSummary';
+import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
+import {
+  isScientificResult,
+  type ScientificArtifact,
+  type ScientificPlot,
+  type ScientificResult,
+} from '@/types/scientific-result';
+
+const DEFAULT_REFERENCES: SequencingReference[] = [
   { id: 'sars-cov-2', name: 'Sars Cov 2' },
   { id: 'lambda', name: 'Lambda' },
 ];
 
-const EXAMPLE_FASTQ = [
-  { label: 'Demo (synthetic reads)', value: 'synthetic' },
-];
+const EXAMPLES = [{ label: 'Explicit synthetic demo', value: 'synthetic' }];
 
-const STEPS = [
-  { id: 'qc',       label: 'Quality Control',     icon: BarChart3 },
-  { id: 'align',    label: 'Read Alignment',       icon: Map },
-  { id: 'variants', label: 'Variant Calling',      icon: Bug },
-  { id: 'report',   label: 'Summary Report',        icon: FileText },
-];
+type ConsensusVariant = {
+  pos: number;
+  ref: string;
+  alt: string;
+  depth: number;
+  alt_count: number;
+  freq: number;
+  type: string;
+  forward_depth: number;
+  reverse_depth: number;
+};
+
+type ConsensusResults = Record<string, unknown> & {
+  reference: string;
+  reference_length: number;
+  fastq_source: string;
+  synthetic_demo: boolean;
+  qc: {
+    total_reads: number;
+    total_bases: number;
+    avg_read_length: number;
+    gc_percent: number;
+    mean_quality: number;
+    q20_percent: number;
+    q30_percent: number;
+  };
+  alignment: {
+    total_alignments: number;
+    mapped_reads: number;
+    unmapped_reads: number;
+    passing_mapq_reads: number;
+    forward_mapped_reads: number;
+    reverse_mapped_reads: number;
+    reference_positions: number;
+    callable_positions: number;
+    callable_fraction: number;
+  };
+  variants: ConsensusVariant[];
+  consensus_sequence: string;
+  consensus_callable_fraction: number;
+  variant_summary: {
+    total_variants: number;
+    snv_count: number;
+    insertion_count: number;
+    deletion_count: number;
+  };
+  warnings: string[];
+  steps_completed: string[];
+};
+
+type JobEnvelope = {
+  id?: string;
+  job_id?: string;
+  status: string;
+  result?: unknown;
+  error?: string | null;
+};
+
+function getPlot(result: ScientificResult<ConsensusResults>, id: string): ScientificPlot | undefined {
+  return result.plots.find((plot) => plot.id === id);
+}
+
+function DownloadList({ artifacts }: { artifacts: ScientificArtifact[] }) {
+  const available = artifacts.filter((artifact) => artifact.available !== false && artifact.url);
+  if (!available.length) {
+    return <p className="text-xs text-text-muted">No durable artifact URLs were emitted for this run.</p>;
+  }
+  return (
+    <div className="grid gap-2 md:grid-cols-2">
+      {available.map((artifact) => (
+        <a
+          key={artifact.name}
+          href={String(artifact.url)}
+          target="_blank"
+          rel="noreferrer"
+          className="flex items-center justify-between rounded-xl border border-glass-border bg-surface-1 px-3 py-2 text-xs text-text-primary hover:border-accent-cyan/40"
+        >
+          <span className="min-w-0 truncate font-mono">{artifact.name}</span>
+          <DownloadSimple className="h-4 w-4 flex-none text-accent-cyan" />
+        </a>
+      ))}
+    </div>
+  );
+}
+
+function ScientificStatusCard({ result }: { result: ScientificResult<ConsensusResults> }) {
+  const tone = result.status === 'VALID'
+    ? 'text-good border-good/25 bg-good/5'
+    : result.status === 'DEGRADED' || result.status === 'NOT_EVALUATED'
+      ? 'text-warn border-warn/25 bg-warn/5'
+      : 'text-error border-error/25 bg-error/5';
+  const Icon = result.status === 'VALID' ? CheckCircle : result.status === 'FAILED' ? XCircle : AlertTriangle;
+
+  return (
+    <div className={`data-card border p-5 ${tone}`}>
+      <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+        <div className="flex items-start gap-3">
+          <Icon className="mt-0.5 h-5 w-5 flex-none" />
+          <div>
+            <p className="text-sm font-semibold">Scientific status: {result.status}</p>
+            <p className="mt-1 text-xs text-text-secondary">{result.method}</p>
+          </div>
+        </div>
+        <span className="rounded-lg border border-glass-border bg-surface-1 px-2.5 py-1 font-mono text-xs text-text-secondary">
+          {result.engine} {result.engine_version}
+        </span>
+      </div>
+      <div className="grid gap-3 text-xs md:grid-cols-2">
+        <div>
+          <p className="text-text-muted">Input SHA-256</p>
+          <p className="break-all font-mono text-text-secondary">{result.input_sha256}</p>
+        </div>
+        <div>
+          <p className="text-text-muted">Output SHA-256</p>
+          <p className="break-all font-mono text-text-secondary">{result.output_sha256}</p>
+        </div>
+      </div>
+      {result.fallback_used && (
+        <p className="mt-3 text-xs">
+          Fallback executed: <span className="font-mono">{result.fallback_method || 'unspecified'}</span>
+        </p>
+      )}
+    </div>
+  );
+}
 
 export default function SequencingPage() {
-  const router = useRouter();
+  const audit = useAuditTrail();
   const [fastqUrl, setFastqUrl] = useState('');
   const [reference, setReference] = useState('sars-cov-2');
-  const audit = useAuditTrail();
   const [references, setReferences] = useState<SequencingReference[]>(DEFAULT_REFERENCES);
   const [jobId, setJobId] = useState<string | null>(null);
-  const [result, setResult] = useState<SequencingResult | null>(null);
+  const [job, setJob] = useState<JobEnvelope | null>(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    listSequencingReferences().then((r) => { if (r.length > 0) setReferences(r); }).catch(() => {});
+    listSequencingReferences().then((items) => items.length && setReferences(items)).catch(() => undefined);
   }, []);
+
+  const scientific = useMemo(() => {
+    if (!job?.result || !isScientificResult(job.result)) return null;
+    return job.result as ScientificResult<ConsensusResults>;
+  }, [job]);
 
   const startPipeline = async () => {
     if (!fastqUrl.trim()) return;
-    const inputSummary = `ref:${reference},fastq:${fastqUrl.trim().slice(0,60)}`;
-    audit.emitStarted('sequencing_run', 'SequencingPipeline', inputSummary);
+    const inputSummary = `ref:${reference},fastq:${fastqUrl.trim().slice(0, 60)}`;
     setLoading(true);
     setError(null);
-    setResult(null);
+    setJob(null);
     setJobId(null);
+    audit.emitStarted('sequencing_run', 'SequencingPipeline', inputSummary);
     try {
-      const { job_id } = await runSequencing(fastqUrl.trim(), reference);
-      setJobId(job_id);
+      const response = await runSequencing(fastqUrl.trim(), reference);
+      setJobId(response.job_id);
       setPolling(true);
-      audit.emitSuccess('sequencing_run', 'SequencingPipeline', inputSummary, `job_id:${job_id}`);
-    } catch (err: unknown) {
-      const errMsg = err instanceof Error ? err.message : 'Failed to start pipeline';
-      audit.emitFailed('sequencing_run', 'SequencingPipeline', inputSummary, errMsg);
-      setError(errMsg);
+      audit.emitSuccess('sequencing_run', 'SequencingPipeline', inputSummary, `job_id:${response.job_id}`);
+    } catch (cause) {
+      const message = cause instanceof Error ? cause.message : 'Failed to start pipeline';
+      setError(message);
+      audit.emitFailed('sequencing_run', 'SequencingPipeline', inputSummary, message);
     } finally {
       setLoading(false);
     }
@@ -68,11 +217,10 @@ export default function SequencingPage() {
   const poll = useCallback(async () => {
     if (!jobId) return;
     try {
-      const status = await getSequencingStatus(jobId);
-      setResult(status);
-      if (status.status === 'complete' || status.status === 'failed') {
-        setPolling(false);
-      }
+      const response = await getSequencingStatus(jobId);
+      const envelope = response as unknown as JobEnvelope;
+      setJob(envelope);
+      if (envelope.status === 'complete' || envelope.status === 'failed') setPolling(false);
     } catch {
       setPolling(false);
       setError('Failed to check pipeline status');
@@ -80,361 +228,272 @@ export default function SequencingPage() {
   }, [jobId]);
 
   useEffect(() => {
-    if (!polling) return;
-    const interval = setInterval(poll, 3000);
-    return () => clearInterval(interval);
-  }, [polling, poll]);
-
-  useEffect(() => {
-    if (jobId) poll();
+    if (jobId) void poll();
   }, [jobId, poll]);
 
-  const statusIcon = (status?: string) => {
-    if (!status || status === 'queued') return <LoaderCircle className="w-4 h-4 text-text-muted animate-pulse" />;
-    if (status === 'complete') return <CheckCircle className="w-5 h-5 text-good" />;
-    if (status === 'failed') return <XCircle className="w-5 h-5 text-error" />;
-    return <LoaderCircle className="w-5 h-5 text-accent-cyan animate-spin" />;
-  };
+  useEffect(() => {
+    if (!polling) return;
+    const timer = setInterval(() => void poll(), 3000);
+    return () => clearInterval(timer);
+  }, [polling, poll]);
 
-  const stepStatus = (stepId: string): 'pending' | 'running' | 'done' | 'failed' | 'skipped' => {
-    if (!result?.result) return 'pending';
-    if (result.status === 'failed') return 'failed';
-    const completed = result.result.steps_completed || [];
-    if (completed.includes(stepId)) return 'done';
-    if (result.status === 'running' || result.status === 'downloading') {
-      const idx = STEPS.findIndex(s => s.id === stepId);
-      const lastDone = completed.length;
-      if (idx === lastDone) return 'running';
-      if (idx < lastDone) return 'done';
-    }
-    return 'pending';
-  };
+  const results = scientific?.results;
+  const depthPlot = scientific ? getPlot(scientific, 'depth_vs_position') : undefined;
+  const qualityPlot = scientific ? getPlot(scientific, 'base_quality_distribution') : undefined;
+  const afPlot = scientific ? getPlot(scientific, 'allele_fraction_vs_position') : undefined;
+  const typePlot = scientific ? getPlot(scientific, 'variant_type_summary') : undefined;
 
   return (
-    <div className="max-w-3xl">
+    <div className="max-w-5xl">
       <BackButton />
-
       <PageHeader
-        title="Sequencing Pipeline"
-        subtitle="Raw FASTQ → QC → alignment → variant calling → report. Supports viral/bacterial genomes (cpu-basic tier)."
+        title="Consensus Sequencing"
+        subtitle="Reference-guided consensus with explicit depth, base-quality, MAPQ and allele-fraction evidence. Alignment failure stops the workflow."
       />
 
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card mb-6 space-y-4 p-5">
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">FASTQ URL</label>
+          <label className="mb-1.5 block text-sm font-medium text-text-primary">FASTQ URL</label>
           <FlatInput
-            type="text"
             value={fastqUrl}
-            onChange={(e) => { setFastqUrl(e.target.value); setResult(null); setError(null); }}
-            onKeyDown={(e) => e.key === 'Enter' && startPipeline()}
-            placeholder="https://example.com/sample.fastq"
-            className="w-full px-4 py-3 rounded-xl text-sm font-mono"
+            onChange={(event) => { setFastqUrl(event.target.value); setJob(null); setError(null); }}
+            onKeyDown={(event) => event.key === 'Enter' && void startPipeline()}
+            placeholder="https://example.org/sample.fastq"
+            className="w-full font-mono text-sm"
           />
-          <div className="flex gap-2 mt-2 flex-wrap">
-            <span className="text-xs text-text-muted">Example:</span>
-            {EXAMPLE_FASTQ.map((ex) => (
-              <button
-                key={ex.label}
-                onClick={() => setFastqUrl(ex.value)}
-                className="px-2 py-1 text-xs rounded bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 transition font-mono"
-              >
-                {ex.label}
+          <div className="mt-2 flex gap-2">
+            {EXAMPLES.map((example) => (
+              <button key={example.value} onClick={() => setFastqUrl(example.value)} className="text-xs text-accent-cyan hover:underline">
+                {example.label}
               </button>
             ))}
           </div>
         </div>
-
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">Reference Genome</label>
-          <select
-            value={reference}
-            onChange={(e) => setReference(e.target.value)}
-            className="w-full px-4 py-3 rounded-xl border border-glass-border focus:border-accent-cyan/40 focus:ring-2 focus:ring-accent-cyan/10 outline-none transition text-sm bg-surface-1 text-text-primary"
-          >
-            {references.map((ref) => (
-              <option key={ref.id} value={ref.id}>{ref.name}</option>
-            ))}
+          <label className="mb-1.5 block text-sm font-medium text-text-primary">Reference genome</label>
+          <select value={reference} onChange={(event) => setReference(event.target.value)} className="w-full rounded-xl border border-glass-border bg-surface-1 px-4 py-3 text-sm text-text-primary">
+            {references.map((item) => <option key={item.id} value={item.id}>{item.name}</option>)}
           </select>
         </div>
-
-        <CriticalButton onClick={startPipeline} disabled={loading || !fastqUrl.trim() || polling}
-          className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
-          {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Dna className="w-4 h-4" />}
-          {loading ? 'Starting...' : polling ? 'Running Pipeline...' : 'Run Pipeline'}
+        <p className="text-xs text-text-muted">
+          The exact consensus thresholds used by the backend are recorded in each result. Synthetic reads are generated only when explicitly selected above.
+        </p>
+        <CriticalButton onClick={startPipeline} disabled={loading || polling || !fastqUrl.trim()} className="w-full justify-center py-3">
+          {loading || polling ? <LoaderCircle className="h-4 w-4 animate-spin" /> : <Dna className="h-4 w-4" />}
+          {loading ? 'Submitting…' : polling ? 'Scientific pipeline running…' : 'Run consensus sequencing'}
         </CriticalButton>
       </motion.div>
 
       {error && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 mb-6 border border-error/20">
-          <div className="flex items-center gap-2">
-            <AlertTriangle className="w-5 h-5 text-error flex-shrink-0 mt-0.5" />
-            <p className="text-sm text-error">{error}</p>
-          </div>
-        </motion.div>
+        <div className="mb-6 rounded-xl border border-error/25 bg-error/5 p-4 text-sm text-error">
+          {error}
+        </div>
       )}
 
-      {result && (
-        <motion.div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
-          <AIResultSummary toolName="sequencing" result={result as unknown as Record<string, unknown>} />
-          {result.status === 'complete' && (
-            <ResultsReadyBanner
-              title="Pipeline complete"
-              subtitle={result.result?.consensus_sequence ? `Consensus sequence ready · ${result.result.reference ?? ''}` : 'All pipeline steps finished'}
-            />
-          )}
-            <div className="data-card p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-2">
-                {statusIcon(result.status)}
-                <span className="text-sm font-medium text-text-primary capitalize">{result.status}</span>
-              </div>
-              <span className="text-xs text-text-muted font-mono">{result.result?.reference}</span>
-            </div>
+      {job && !scientific && (
+        <div className="data-card mb-6 flex items-center gap-3 p-5">
+          {job.status === 'failed' ? <XCircle className="h-5 w-5 text-error" /> : <LoaderCircle className="h-5 w-5 animate-spin text-accent-cyan" />}
+          <div>
+            <p className="text-sm font-medium text-text-primary">Job state: {job.status}</p>
+            <p className="text-xs text-text-muted">A scientific result has not been emitted yet.</p>
+            {job.error && <p className="mt-1 text-xs text-error">{job.error}</p>}
+          </div>
+        </div>
+      )}
 
-            <div className="space-y-3">
-              {STEPS.map((step, i) => {
-                const Icon = step.icon;
-                const s = stepStatus(step.id);
-                return (
-                  <div key={step.id} className="flex items-center gap-3">
-                    <div className={`w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      s === 'done' ? 'bg-good/10 text-good' :
-                      s === 'running' ? 'bg-accent-cyan/10 text-accent-cyan' :
-                      s === 'failed' ? 'bg-error/10 text-error' :
-                      'bg-surface-1 text-text-muted'
-                    }`}>
-                      {s === 'done' ? <CheckCircle className="w-4 h-4" /> :
-                       s === 'running' ? <LoaderCircle className="w-4 h-4 animate-spin" /> :
-                       <Icon className="w-4 h-4" />}
+      {scientific && (
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          <ScientificStatusCard result={scientific} />
+
+          {scientific.status !== 'FAILED' && results && (
+            <>
+              {results.synthetic_demo && (
+                <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs text-warn">
+                  SYNTHETIC DEMONSTRATION DATA — implementation behavior only; this run does not establish biological accuracy.
+                </div>
+              )}
+
+              <div className="data-card p-5">
+                <h3 className="mb-4 flex items-center gap-2 text-sm font-semibold text-text-primary"><Flask className="h-4 w-4 text-accent-cyan" /> Declared method and parameters</h3>
+                <div className="grid gap-3 md:grid-cols-3">
+                  {Object.entries(scientific.parameters).map(([key, value]) => (
+                    <div key={key} className="rounded-xl bg-surface-1 p-3">
+                      <p className="text-xs text-text-muted">{key}</p>
+                      <p className="mt-1 font-mono text-sm text-text-primary">{String(value)}</p>
                     </div>
-                    <div className="flex-1">
-                      <p className={`text-sm font-medium ${
-                        s === 'done' ? 'text-good' :
-                        s === 'running' ? 'text-accent-cyan' :
-                        s === 'failed' ? 'text-error' :
-                        'text-text-muted'
-                      }`}>{step.label}</p>
+                  ))}
+                </div>
+              </div>
+
+              <div className="data-card p-5">
+                <h3 className="mb-4 text-sm font-semibold text-text-primary">FASTQ QC</h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[
+                    ['Total reads', results.qc.total_reads],
+                    ['Total bases', results.qc.total_bases],
+                    ['Mean quality', results.qc.mean_quality],
+                    ['Q30 %', results.qc.q30_percent],
+                    ['Q20 %', results.qc.q20_percent],
+                    ['GC %', results.qc.gc_percent],
+                    ['Mean read length', results.qc.avg_read_length],
+                    ['Source', results.fastq_source],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded-xl bg-surface-1 p-3">
+                      <p className="text-xs text-text-muted">{label}</p>
+                      <p className="mt-1 break-words font-mono text-sm text-text-primary">{String(value)}</p>
                     </div>
-                    {i < STEPS.length - 1 && (
-                      <div className={`w-px h-4 mx-2 ${
-                        s === 'done' ? 'bg-good/30' : 'bg-glass-border'
-                      }`} />
+                  ))}
+                </div>
+              </div>
+
+              <div className="data-card p-5">
+                <h3 className="mb-4 text-sm font-semibold text-text-primary">Alignment and consensus evidence</h3>
+                <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
+                  {[
+                    ['Mapped reads', results.alignment.mapped_reads],
+                    ['Unmapped reads', results.alignment.unmapped_reads],
+                    ['Passing MAPQ reads', results.alignment.passing_mapq_reads],
+                    ['Forward mapped', results.alignment.forward_mapped_reads],
+                    ['Reverse mapped', results.alignment.reverse_mapped_reads],
+                    ['Callable positions', results.alignment.callable_positions],
+                    ['Reference positions', results.alignment.reference_positions],
+                    ['Callable fraction', results.alignment.callable_fraction],
+                  ].map(([label, value]) => (
+                    <div key={String(label)} className="rounded-xl bg-surface-1 p-3">
+                      <p className="text-xs text-text-muted">{label}</p>
+                      <p className="mt-1 font-mono text-sm text-text-primary">{String(value)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid gap-4 xl:grid-cols-2">
+                {depthPlot && Array.isArray(depthPlot.data) && (
+                  <div className="data-card p-5">
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">{depthPlot.title}</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={depthPlot.data as Array<Record<string, number>>}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis dataKey="position" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Line dataKey="depth" type="linear" dot={false} isAnimationActive={false} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                    {'calculated_points' in depthPlot && 'displayed_points' in depthPlot && (
+                      <p className="mt-2 text-xs text-text-muted">Displaying {String(depthPlot.displayed_points)} of {String(depthPlot.calculated_points)} calculated points. Download depth.tsv for the complete result.</p>
                     )}
                   </div>
-                );
-              })}
-            </div>
+                )}
 
-            {result.status === 'failed' && result.error && (
-              <div className="p-3 rounded-lg bg-error/5 border border-error/20 mt-4">
-                <pre className="text-xs text-error whitespace-pre-wrap font-mono">{result.error}</pre>
-              </div>
-            )}
-          </div>
+                {qualityPlot && Array.isArray(qualityPlot.data) && (
+                  <div className="data-card p-5">
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">{qualityPlot.title}</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={qualityPlot.data as Array<Record<string, number>>}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis dataKey="quality" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Bar dataKey="count" isAnimationActive={false} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
 
-          {result.result?.qc && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <BarChart3 className="w-4 h-4 text-accent-cyan" /> Quality Control
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Reads</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.total_reads.toLocaleString()}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Bases</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.total_bases.toLocaleString()}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Avg Read Length</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.avg_read_length}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">GC Content</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.gc_percent}%</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Mean Quality</p>
-                  <p className={`text-lg font-bold font-mono ${
-                    result.result.qc.mean_quality >= 30 ? 'text-good' :
-                    result.result.qc.mean_quality >= 20 ? 'text-warn' : 'text-text-muted'
-                  }`}>{result.result.qc.mean_quality}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Q30</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.q30_percent}%</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Min Quality</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.min_quality}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Max Quality</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.qc.max_quality}</p>
-                </div>
+                {afPlot && Array.isArray(afPlot.data) && (
+                  <div className="data-card p-5">
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">{afPlot.title}</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <ScatterChart>
+                          <CartesianGrid opacity={0.15} />
+                          <XAxis dataKey="position" name="position" tick={{ fontSize: 10 }} />
+                          <YAxis dataKey="allele_fraction" name="allele fraction" domain={[0, 1]} tick={{ fontSize: 10 }} />
+                          <Tooltip />
+                          <Scatter data={afPlot.data as Array<Record<string, number>>} isAnimationActive={false} />
+                        </ScatterChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
+                {typePlot && Array.isArray(typePlot.data) && (
+                  <div className="data-card p-5">
+                    <h3 className="mb-3 text-sm font-semibold text-text-primary">{typePlot.title}</h3>
+                    <div className="h-64">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={typePlot.data as Array<Record<string, number | string>>}>
+                          <CartesianGrid strokeDasharray="3 3" opacity={0.15} />
+                          <XAxis dataKey="type" tick={{ fontSize: 10 }} />
+                          <YAxis tick={{ fontSize: 10 }} allowDecimals={false} />
+                          <Tooltip />
+                          <Bar dataKey="count" isAnimationActive={false} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
               </div>
-              {result.result.qc.overrepresented_sequences.length > 0 && (
-                <div className="mt-3">
-                  <p className="text-xs text-text-muted mb-2">Overrepresented Sequences (top 5)</p>
-                  <div className="space-y-1 max-h-32 overflow-y-auto">
-                    {result.result.qc.overrepresented_sequences.slice(0, 5).map((s, i) => (
-                      <div key={i} className="text-xs font-mono text-text-secondary flex gap-2">
-                        <span className="text-text-muted w-12 text-right">{s.percent.toFixed(1)}%</span>
-                        <span className="truncate">{s.sequence}</span>
-                        <span className="text-text-muted flex-shrink-0">x{s.count}</span>
-                      </div>
-                    ))}
+
+              <div className="data-card p-5">
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <h3 className="text-sm font-semibold text-text-primary">Called variants</h3>
+                  <div className="flex gap-3 text-xs text-text-muted">
+                    <span>Total {results.variant_summary.total_variants}</span>
+                    <span>SNV {results.variant_summary.snv_count}</span>
+                    <span>INS {results.variant_summary.insertion_count}</span>
+                    <span>DEL {results.variant_summary.deletion_count}</span>
                   </div>
                 </div>
-              )}
-            </div>
-          )}
-
-          {result.result?.alignment && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Map className="w-4 h-4 text-accent-cyan" /> Alignment Results
-              </h3>
-              <div className="grid grid-cols-3 gap-4">
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Alignments</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.alignment.total_alignments.toLocaleString()}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Mapped</p>
-                  <p className="text-lg font-bold text-good font-mono">{result.result.alignment.mapped_reads.toLocaleString()}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Unmapped</p>
-                  <p className="text-lg font-bold text-warn font-mono">{result.result.alignment.unmapped_reads.toLocaleString()}</p>
-                </div>
-              </div>
-              {result.result.alignment.total_alignments > 0 && (
-                <div className="mt-3">
-                  <div className="flex items-center gap-2 text-xs text-text-muted mb-1">
-                    <span>Mapping Rate:</span>
-                    <span className="font-mono text-text-primary">
-                      {(result.result.alignment.mapped_reads / result.result.alignment.total_alignments * 100).toFixed(1)}%
-                    </span>
+                {results.variants.length ? (
+                  <div className="max-h-96 overflow-auto">
+                    <table className="w-full text-xs">
+                      <thead className="sticky top-0 bg-surface-1 text-text-muted">
+                        <tr>
+                          {['Type', 'Pos', 'Ref', 'Alt', 'Depth', 'Alt count', 'AF', 'Forward', 'Reverse'].map((heading) => <th key={heading} className="px-2 py-2 text-left font-medium">{heading}</th>)}
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-glass-border">
+                        {results.variants.map((variant, index) => (
+                          <tr key={`${variant.pos}-${variant.ref}-${variant.alt}-${index}`}>
+                            <td className="px-2 py-2 font-mono">{variant.type}</td>
+                            <td className="px-2 py-2 font-mono">{variant.pos}</td>
+                            <td className="px-2 py-2 font-mono">{variant.ref}</td>
+                            <td className="px-2 py-2 font-mono">{variant.alt}</td>
+                            <td className="px-2 py-2 font-mono">{variant.depth}</td>
+                            <td className="px-2 py-2 font-mono">{variant.alt_count}</td>
+                            <td className="px-2 py-2 font-mono">{variant.freq}</td>
+                            <td className="px-2 py-2 font-mono">{variant.forward_depth}</td>
+                            <td className="px-2 py-2 font-mono">{variant.reverse_depth}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
                   </div>
-                  <div className="w-full h-2 rounded-full bg-surface-1 overflow-hidden">
-                    <div
-                      className="h-full rounded-full bg-accent-cyan transition-all"
-                      style={{ width: `${(result.result.alignment.mapped_reads / result.result.alignment.total_alignments * 100)}%` }}
-                    />
-                  </div>
+                ) : (
+                  <p className="text-sm text-text-secondary">{String(scientific.validation.no_variant_wording || 'No variant call was emitted.')}</p>
+                )}
+              </div>
+
+              {!!results.warnings?.length && (
+                <div className="rounded-xl border border-warn/25 bg-warn/5 p-4 text-xs text-warn">
+                  {results.warnings.map((warning) => <p key={warning}>{warning}</p>)}
                 </div>
               )}
-            </div>
+
+              <div className="data-card p-5">
+                <h3 className="mb-3 flex items-center gap-2 text-sm font-semibold text-text-primary"><FileText className="h-4 w-4 text-accent-cyan" /> Scientific artifacts</h3>
+                <DownloadList artifacts={scientific.artifacts} />
+              </div>
+            </>
           )}
 
-          {result.result?.variants && result.result.variants.length > 0 && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <Bug className="w-4 h-4 text-accent-cyan" /> Variants Detected ({result.result.variants.length})
-              </h3>
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
-                      <th className="text-left py-2 pr-4">Pos</th>
-                      <th className="text-left py-2 pr-4">Ref</th>
-                      <th className="text-left py-2 pr-4">Alt</th>
-                      <th className="text-left py-2 pr-4">Depth</th>
-                      <th className="text-left py-2 pr-4">Alt Count</th>
-                      <th className="text-left py-2">Frequency</th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-glass-border">
-                    {result.result.variants.map((v, i) => (
-                      <tr key={i} className="text-text-primary">
-                        <td className="py-2 pr-4 font-mono">{v.pos.toLocaleString()}</td>
-                        <td className="py-2 pr-4 font-mono text-good">{v.ref}</td>
-                        <td className="py-2 pr-4 font-mono text-accent-cyan">{v.alt}</td>
-                        <td className="py-2 pr-4 font-mono">{v.depth}</td>
-                        <td className="py-2 pr-4 font-mono">{v.alt_count}</td>
-                        <td className="py-2 font-mono text-warn">{(v.freq * 100).toFixed(1)}%</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          )}
-
-          {result.result?.report && (
-            <div className="data-card p-5">
-              <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
-                <FileText className="w-4 h-4 text-accent-cyan" /> Summary Report
-              </h3>
-              <div className="grid grid-cols-2 gap-4 mb-4">
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Reference</p>
-                  <p className="text-sm font-bold text-text-primary font-mono">{result.result.report.reference}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Total Variants</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.report.variant_summary.total_variants}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">SNVs</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.report.variant_summary.snv_count}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Avg Depth</p>
-                  <p className="text-lg font-bold text-text-primary font-mono">{result.result.report.variant_summary.avg_depth}</p>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {result.result?.variants && result.result.variants.length === 0 && (
-          <div className="data-card p-5">
-              <div className="flex items-center gap-2 text-text-muted">
-                <CheckCircle className="w-4 h-4 text-good" />
-                <p className="text-sm">No variants detected in the sample.</p>
-              </div>
-            </div>
-          )}
-
-          {result.status === 'complete' && (
-            <div className="data-card p-4 space-y-3">
-              {result.result?.consensus_sequence && (
-                <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Consensus Sequence (SNVs applied)</span>
-                  <button
-                    onClick={() => {
-                      const a = document.createElement('a');
-                      a.download = `${result.result?.reference}-consensus.fasta`;
-                      a.href = 'data:text/fasta;charset=utf-8,' + encodeURIComponent(result.result!.consensus_sequence!);
-                      a.click();
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
-                  >
-                    <Dna className="w-3.5 h-3.5" />
-                    Download consensus FASTA
-                  </button>
-                </div>
-              )}
-              <div className="flex items-center justify-between pt-2 border-t border-glass-border">
-                <span className="text-xs text-text-muted">Bridge: BLAST Analysis</span>
-                <button
-                  onClick={() => {
-                    if (result.result?.consensus_sequence) {
-                      const seq = result.result.consensus_sequence;
-                      sessionStorage.setItem('blast_sequence', seq);
-                    }
-                    router.push('/analyze/blast');
-                  }}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
-                >
-                  <Search className="w-3.5 h-3.5" />
-                  Identify assembled sequence with BLAST
-                </button>
-              </div>
-            </div>
-          )}
+          <AIResultSummary toolName="sequencing" result={scientific as unknown as Record<string, unknown>} />
         </motion.div>
       )}
     </div>

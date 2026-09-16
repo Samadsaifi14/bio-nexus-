@@ -70,8 +70,10 @@ def test_sequence_record_validation_rejects_missing_duplicate_and_wrong_alphabet
         _validate_sequence_records([{"id": "a", "sequence": "AAAA"}, {"id": "a", "sequence": "AAAT"}], "dna")
     with pytest.raises(ValueError):
         _validate_sequence_records([{"id": "a", "sequence": ""}, {"id": "b", "sequence": "AAAA"}], "dna")
+    # Several amino-acid letters are also legitimate IUPAC DNA ambiguity codes;
+    # use residues that are unambiguously outside the DNA alphabet for this check.
     with pytest.raises(ValueError):
-        _validate_sequence_records([{"id": "a", "sequence": "MKWV"}, {"id": "b", "sequence": "MKWV"}], "dna")
+        _validate_sequence_records([{"id": "a", "sequence": "EFILP"}, {"id": "b", "sequence": "EFILQ"}], "dna")
     # A/T/G/C are also valid amino-acid symbols, so do not reject an explicitly
     # protein-labelled peptide merely because its alphabet resembles DNA.
     with pytest.raises(ValueError):

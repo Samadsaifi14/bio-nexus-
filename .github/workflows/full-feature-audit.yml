@@ -41,9 +41,18 @@ jobs:
           pip install -r requirements.txt
           pip install pytest-timeout
       - name: Collect complete backend suite
+        shell: bash
         run: |
-          python -m pytest --collect-only -q > /tmp/bionexus-pytest-collection.txt
-          tail -n 5 /tmp/bionexus-pytest-collection.txt
+          set +e
+          set -o pipefail
+          python -m pytest --collect-only -q 2>&1 | tee /tmp/bionexus-pytest-collection.txt
+          status=${PIPESTATUS[0]}
+          echo "pytest collection exit status: ${status}"
+          if [ "${status}" -ne 0 ]; then
+            echo "--- collection failure tail ---"
+            tail -n 120 /tmp/bionexus-pytest-collection.txt
+          fi
+          exit "${status}"
       - name: Run every backend test with per-test hang guard
         run: |
           python -m pytest -vv --disable-warnings --maxfail=20 --timeout=90 --timeout-method=thread

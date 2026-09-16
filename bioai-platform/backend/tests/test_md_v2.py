@@ -68,6 +68,14 @@ def test_analyze_runs_full_dag(client):
     npt_data = npt["data"]
     assert npt_data["applicable"] is False
 
+    # Production retains exact engine-emitted per-frame arrays for rendering.
+    production = [s for s in stages if s["step"] == "md_production"][0]
+    assert production["data"]["potential_energy"]
+    assert production["data"]["temperature"]
+    assert production["data"]["radius_of_gyration"]
+    assert len(production["data"]["potential_energy"]) == production["data"]["n_frames"]
+    assert len(production["data"]["radius_of_gyration"]) == production["data"]["n_frames"]
+
     # Trajectory QC produced the four structural observables.
     traj = [s for s in stages if s["step"] == "md_traj"][0]
     assert all(m["status"] == "PASS" for m in traj["qc"]["metrics"])
@@ -79,8 +87,10 @@ def test_analyze_runs_full_dag(client):
     # zero-valued plot is manufactured when a series is absent.
     plot_ids = {plot["id"] for plot in body["plots"]}
     assert "temperature-vs-step" in plot_ids
+    assert "potential-energy-vs-step" in plot_ids
     assert "rmsd-vs-frame" in plot_ids
     assert "rmsf-vs-residue" in plot_ids
+    assert "radius-of-gyration-vs-step" in plot_ids
     assert "sasa-vs-step" in plot_ids
     for plot in body["plots"]:
         assert plot["data"]

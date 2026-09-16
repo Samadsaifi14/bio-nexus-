@@ -1,6 +1,6 @@
 """Authoritative result contract for BioNexus scientific backends.
 
-The scientific backend owns every reported value.  Frontends may format these
+The scientific backend owns every reported value. Frontends may format these
 values but must not recompute, rename, fill, or silently substitute them.
 """
 
@@ -30,17 +30,13 @@ class ScientificResult(BaseModel):
     database: str | None = None
     database_version: str | None = None
     parameters: dict[str, Any] = Field(default_factory=dict)
-
     input_sha256: str
     output_sha256: str
-
     fallback_used: bool = False
     fallback_method: str | None = None
-
     results: dict[str, Any] = Field(default_factory=dict)
     plots: list[dict[str, Any]] = Field(default_factory=list)
     artifacts: list[dict[str, Any]] = Field(default_factory=list)
-
     evidence_class: str
     validation: dict[str, Any] = Field(default_factory=dict)
     citations: list[Any] = Field(default_factory=list)
@@ -50,7 +46,7 @@ def _json_default(value: Any) -> str:
     return str(value)
 
 
-def _assert_finite(value: Any, path: str = "$" ) -> None:
+def _assert_finite(value: Any, path: str = "$") -> None:
     """Reject non-finite numbers before they can reach tables/plots/exports."""
     if isinstance(value, float):
         if not math.isfinite(value):
@@ -149,11 +145,14 @@ def failed_scientific_result(
     reason: str,
     parameters: dict[str, Any] | None = None,
     validation: dict[str, Any] | None = None,
+    results: dict[str, Any] | None = None,
+    plots: list[dict[str, Any]] | None = None,
+    artifacts: list[dict[str, Any]] | None = None,
     database: str | None = None,
     database_version: str | None = None,
     citations: list[Any] | None = None,
 ) -> dict[str, Any]:
-    """Return a terminal scientific failure.  No downstream result is implied."""
+    """Return a terminal scientific failure with any retained pre-failure evidence."""
     validation_payload = dict(validation or {})
     validation_payload.update({"scientific_processing_stopped": True, "reason": reason})
     return build_scientific_result(
@@ -165,9 +164,9 @@ def failed_scientific_result(
         database_version=database_version,
         input_payload=input_payload,
         parameters=parameters,
-        results={},
-        plots=[],
-        artifacts=[],
+        results=results or {},
+        plots=plots or [],
+        artifacts=artifacts or [],
         evidence_class="Unsupported/insufficient evidence",
         validation=validation_payload,
         citations=citations or [],

@@ -81,18 +81,15 @@ def md_ff_contract() -> StageContract:
             FF_LABELS, get_verified_combos_cached, resolve_combo,
         )
 
-        cached = get_verified_combos_cached()  # warm at startup; {} when boot verification pending
+        cached = get_verified_combos_cached()
         try:
-            # Fast static validation (never triggers the tens-of-seconds full
-            # combinatorial probe on the hot path). Real createSystem verification
-            # is enforced against the warm startup cache when available.
             ff_key, sol_key = resolve_combo(sample.get("forcefield"),
                                             sample.get("solvent"), verify=False)
             state["md_ff"] = (ff_key, sol_key)
             resolved = 1
             detail = f"{FF_LABELS.get(ff_key, ff_key)} x {sol_key.upper()}"
             if cached and sol_key not in cached.get(ff_key, ()):
-                verified = 0  # warm cache says this combo did not build
+                verified = 0
                 detail += f" — not in verified build set ({list(cached.get(ff_key, ()))})"
             else:
                 verified = 1
@@ -301,6 +298,22 @@ def md_production_contract() -> StageContract:
     def run(sample, state):
         eng = _engine(sample, state)
         data, metrics = eng.produce()
+
+        # These are the exact per-frame arrays retained by MdEngine during the
+        # production run. Packaging them here exposes scientific evidence to the
+        # result contract without recomputing any values in the router or UI.
+        frame_steps = list(getattr(eng, "frame_steps", []) or [])
+        energies = list(getattr(eng, "production_energy", []) or [])
+        data["potential_energy"] = [
+            {"step": int(step), "potential_energy_kj_mol": energy}
+            for step, energy in zip(frame_steps, energies)
+        ]
+        data["temperature"] = list(getattr(eng, "temperature_series", []) or [])
+        data["radius_of_gyration"] = (
+            list(getattr(eng, "rg_series", []) or [])
+            if getattr(eng, "_heavy_indices", None)
+            else []
+        )
         return data, metrics
 
     return StageContract(

@@ -31,7 +31,7 @@ class AlphaFoldEngine(BaseEngine):
     version = "1.0.0"
     tool = "AlphaFold"
     tool_version = None
-    databases = ["AlphaFold DB"]
+    databases = ["AlphaFold DB", "RCSB PDB"]
     parameters = {
         "lookup": "AlphaFold DB by UniProt accession",
         "de_novo": "ESMFold ab initio when resolution is unavailable",
@@ -41,6 +41,7 @@ class AlphaFoldEngine(BaseEngine):
         "Jumper J, et al. Highly accurate protein structure prediction with AlphaFold. Nature 596:583-589, 2021.",
         "Varadi M, et al. AlphaFold Protein Structure Database in 2024. Nucleic Acids Res 52:D368-D375, 2024.",
         "Lin Z, et al. Evolutionary-scale prediction of atomic-level protein structure with a language model. Science 379:1123-1130, 2023.",
+        "Berman HM, et al. The Protein Data Bank. Nucleic Acids Res 28:235-242, 2000.",
     ]
     benchmarks = [
         "PDB_TP53_STRUCTURE_AVAILABLE",
@@ -56,12 +57,17 @@ class AlphaFoldEngine(BaseEngine):
             raise ValueError("cannot parse: not a canonical alphafold result (missing structure_available)")
         source = raw.get("source") or ("esmfold" if raw.get("pdb_text") else "alphafold_db")
         confidence = raw.get("confidence")
+        is_experimental = source == "rcsb_pdb" or raw.get("structure_type") == "experimental"
+        database = "RCSB PDB" if is_experimental else "AlphaFold DB"
+        tool = "RCSB PDB" if is_experimental else self.tool
         stats: dict[str, Any] = {
             "structure_available": bool(raw.get("structure_available")),
             "confidence": confidence,
             "model_created_date": raw.get("model_created_date"),
             "latest_version": _int_or_none(raw.get("latest_version")),
             "source": source,
+            "structure_type": raw.get("structure_type") or ("experimental" if is_experimental else "predicted"),
+            "pdb_id": raw.get("pdb_id"),
         }
         evidence: dict[str, Any] = {
             "uniprot_accession": raw.get("uniprot_accession"),
@@ -74,12 +80,14 @@ class AlphaFoldEngine(BaseEngine):
             "message": raw.get("message"),
             "error": raw.get("error"),
             "source": source,
+            "structure_type": raw.get("structure_type") or ("experimental" if is_experimental else "predicted"),
+            "pdb_id": raw.get("pdb_id"),
         }
         return EngineResult(
             engine=self.name,
-            tool=self.tool,
-            database=self.databases[0],
-            input_ref=raw.get("uniprot_accession"),
+            tool=tool,
+            database=database,
+            input_ref=raw.get("pdb_id") if is_experimental else raw.get("uniprot_accession"),
             statistics=stats,
             evidence=evidence,
         )
@@ -103,9 +111,22 @@ class AlphaFoldEngine(BaseEngine):
         if available:
             pdb = evidence.get("pdb_url") or ""
             accession = evidence.get("uniprot_accession") or ""
+            source = evidence.get("source")
+            if source == "rcsb_pdb":
+                pdb_id = str(evidence.get("pdb_id") or "").upper()
+                consistent = (
+                    pdb.startswith("https://files.rcsb.org/")
+                    and bool(pdb_id)
+                    and pdb_id in pdb.upper()
+                )
+            else:
+                consistent = (
+                    pdb.startswith("https://")
+                    and (not accession or accession in pdb or f"AF-{accession}" in pdb)
+                )
             checks.append({
                 "name": "pdb_url_consistent",
-                "passed": pdb.startswith("https://") and (not accession or accession in pdb or f"AF-{accession}" in pdb),
+                "passed": consistent,
                 "detail": pdb,
             })
         return ValidationReport(checks, self.name)
@@ -140,7 +161,11 @@ class AlphaFoldEngine(BaseEngine):
         ]
         if available:
             badge_color = "#2f855a"
-            badge = f"Structure available · pLDDT {confidence if confidence is not None else 'n/a'}"
+            if source == "rcsb_pdb":
+                pdb_id = evidence.get("pdb_id") or "n/a"
+                badge = f"Experimental structure available · PDB {pdb_id}"
+            else:
+                badge = f"Predicted structure available · pLDDT {confidence if confidence is not None else 'n/a'}"
         else:
             badge_color = "#b7791f"
             badge = f"No structure available ({self._esc(source or 'n/a')})"

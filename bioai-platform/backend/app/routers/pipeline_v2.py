@@ -479,8 +479,18 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         if not newick:
             newick = context.get("phylo_data", {}).get("phylotree_newick")
         if newick:
-            _mark("phylo", "complete", progress=100, data={"phylotree_newick": newick})
-            context["phylo"] = {"phylotree_newick": newick}
+            tree_method = None
+            source_alignment_method = None
+            if isinstance(msa_data, dict):
+                tree_method = msa_data.get("phylotree_method")
+                source_alignment_method = msa_data.get("method")
+            phylo_payload = {
+                "phylotree_newick": newick,
+                "method": tree_method or "guide-tree",
+                "source_alignment_method": source_alignment_method,
+            }
+            _mark("phylo", "complete", progress=100, data=phylo_payload)
+            context["phylo"] = phylo_payload
         else:
             _mark("phylo", "failed", error="No phylotree available from MSA")
 
@@ -521,9 +531,15 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _mark("domains", s, progress=100, data=res)
                 context["domains"] = res
             elif name == "alphafold":
-                s = "complete" if res else "failed"
-                _mark("alphafold", s, progress=100, data=res or {})
-                context["alphafold"] = res
+                usable = bool(res and res.get("structure_available"))
+                s = "complete" if usable else "failed"
+                structure_error = None if usable else (
+                    (res or {}).get("message")
+                    or (res or {}).get("error")
+                    or "No usable structure was returned"
+                )
+                _mark("alphafold", s, progress=100, data=res or {}, error=structure_error)
+                context["alphafold"] = res or {}
 
     # ---- Step 5: Interpret (needs all context) ----
     if "interpret" in steps and not _failed_step:
@@ -597,8 +613,11 @@ def _capture_run_sources(job_id: str, context: dict, user_id: str | None):
             capture_bg(job_id, "interpro", f"https://www.ebi.ac.uk/interpro/entry/InterPro/{acc}", user_id)
 
     af = context.get("alphafold") or {}
-    if af.get("structure_available") and af.get("source") != "esmfold" and uniprot.get("accession"):
-        capture_bg(job_id, "alphafold", f"https://alphafold.ebi.ac.uk/uniprot/{uniprot['accession']}", user_id)
+    if af.get("structure_available"):
+        if af.get("source") == "rcsb_pdb" and af.get("pdb_id"):
+            capture_bg(job_id, "rcsb", f"https://www.rcsb.org/structure/{af['pdb_id']}", user_id)
+        elif af.get("source") == "alphafold_db" and uniprot.get("accession"):
+            capture_bg(job_id, "alphafold", f"https://alphafold.ebi.ac.uk/uniprot/{uniprot['accession']}", user_id)
 
     pathway = context.get("pathway_enrichment") or {}
     pw_list = (pathway.get("pathways") if isinstance(pathway, dict) else None) or []
@@ -630,6 +649,30 @@ EBI_BLAST_DATABASE_MAP = {
     "est": "est",
     "gss": "gss",
 }
+
+
+def _blast_query_coverage_pct(hit: dict, query_length: int) -> float:
+    """Calculate query coverage from the query-coordinate span when available.
+
+    Alignment length may include subject-side gaps and is therefore not a
+    reliable definition of how much of the query was covered. BLAST's
+    query_from/query_to coordinates directly encode the covered query span.
+    """
+    if query_length <= 0:
+        return 0.0
+    try:
+        q_from = int(hit.get("query_from") or 0)
+        q_to = int(hit.get("query_to") or 0)
+    except (TypeError, ValueError):
+        q_from = q_to = 0
+    if q_from > 0 and q_to > 0:
+        covered = abs(q_to - q_from) + 1
+    else:
+        try:
+            covered = int(hit.get("alignment_length") or 0)
+        except (TypeError, ValueError):
+            covered = 0
+    return round(min(100.0, max(0.0, covered / query_length * 100.0)), 1)
 
 
 def _build_blast_result(
@@ -674,7 +717,7 @@ def _build_blast_result(
                 "identity_pct": h["identity_pct"],
                 "bit_score": h["bit_score"],
                 "alignment_length": h.get("alignment_length", 0),
-                "query_coverage_pct": round(h.get("alignment_length", 0) / query_length * 100, 1) if query_length > 0 else 0,
+                "query_coverage_pct": _blast_query_coverage_pct(h, query_length),
                 "hit_alignment": h.get("hit_alignment", ""),
                 "query_alignment": h.get("query_alignment", ""),
                 "midline": h.get("midline", ""),
@@ -950,7 +993,13 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
             if local_result and local_result.get("aln_fasta"):
                 method = "mafft-local"
                 aln_fasta = local_result["aln_fasta"]
-                phylotree = ""
+                # MAFFT itself does not emit the Clustal-Omega-style guide tree
+                # consumed by this pipeline. Build a deterministic UPGMA
+                # p-distance tree from the *actual MAFFT alignment* rather than
+                # silently dropping phylogeny whenever the local aligner wins.
+                from app.routers.phylo import _upgma_newick
+                phylotree = _upgma_newick(aln_fasta)
+                phylotree_method = "upgma-pdistance"
             else:
                 raise ValueError("local MAFFT unavailable or returned empty")
         except Exception:
@@ -963,6 +1012,7 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
                 method = result["method"]
                 aln_fasta = result["aln_fasta"]
                 phylotree = result["phylotree"]
+                phylotree_method = "neighbor-joining" if phylotree else None
             except Exception as e:
                 logger.warning("EBI MSA unavailable (%s) — using in-process fallback", e)
                 from app.tools.msa_fallback import progressive_msa
@@ -971,6 +1021,7 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
                 )
                 aln_fasta, phylotree = fallback
                 method = "in-process fallback"
+                phylotree_method = "upgma-pdistance" if phylotree else None
 
         payload = {
             "aln_fasta": aln_fasta,
@@ -978,6 +1029,7 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
             "sequence_count": len(sequences),
             "alignment_mode": alignment_mode,
             "method": method,
+            "phylotree_method": phylotree_method,
             "_fallback": method != "clustalo",
         }
 
@@ -1095,16 +1147,90 @@ async def _run_domains_or_denovo(sequence: str, accession: str | None, resolved_
         return {"error": str(e), "domains": [], "sequence_length": 0}
 
 
+async def _fetch_experimental_pdb(uniprot_data: dict, accession: str) -> dict | None:
+    """Return the first UniProt-linked experimental PDB structure with inline coordinates.
+
+    This is a reference retrieval step, not a prediction. Inline PDB text avoids
+    browser-side CORS failures and lets the viewer render the exact retrieved
+    structure while retaining the authoritative RCSB URL.
+    """
+    pdb_ids = [
+        str(pdb_id).strip().upper()
+        for pdb_id in (uniprot_data.get("pdb_ids") or [])
+        if str(pdb_id).strip()
+    ]
+    for pdb_id in pdb_ids[:5]:
+        if len(pdb_id) != 4 or not pdb_id.isalnum():
+            continue
+        pdb_url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+        cif_url = f"https://files.rcsb.org/download/{pdb_id}.cif"
+        try:
+            async with httpx.AsyncClient(timeout=20) as client:
+                response = await client.get(pdb_url)
+            if response.status_code != 200:
+                continue
+            pdb_text = response.text
+            if "ATOM" not in pdb_text and "HETATM" not in pdb_text:
+                continue
+            return {
+                "uniprot_accession": accession,
+                "structure_available": True,
+                "source": "rcsb_pdb",
+                "structure_type": "experimental",
+                "evidence_class": "reference_retrieval",
+                "pdb_id": pdb_id,
+                "pdb_url": pdb_url,
+                "cif_url": cif_url,
+                "confidence": None,
+                "message": f"Experimental structure retrieved from RCSB PDB ({pdb_id})",
+            }
+        except Exception as exc:
+            logger.warning("RCSB PDB fallback failed for %s/%s: %s", accession, pdb_id, exc)
+    return None
+
+
 async def _run_alphafold_or_esmfold(
     context: dict, sequence: str, accession: str | None, resolved_uniprot: bool,
 ) -> dict:
-    """AlphaFold DB lookup when resolved; ESMFold ab initio otherwise."""
+    """Retrieve the strongest available structure evidence for the resolved result.
+
+    Order:
+      1. Experimental RCSB PDB cross-reference from the resolved UniProt record.
+      2. AlphaFold DB model for the same resolved UniProt accession.
+      3. ESMFold prediction from the submitted query sequence.
+
+    Each fallback remains explicitly labelled; a predicted model is never
+    presented as an experimental structure.
+    """
     if accession and resolved_uniprot:
-        result = await _run_alphafold(context)
-        return result or {}
+        uniprot_data = context.get("uniprot", {})
+        if isinstance(uniprot_data, dict):
+            pdb_result = await _fetch_experimental_pdb(uniprot_data, accession)
+            if pdb_result:
+                return pdb_result
+
+        alphafold = await _run_alphafold(context)
+        if alphafold and alphafold.get("structure_available"):
+            alphafold.setdefault("source", "alphafold_db")
+            alphafold.setdefault("structure_type", "predicted")
+            alphafold.setdefault("evidence_class", "reference_retrieval")
+            return alphafold
+
     from app.services.de_novo import esmfold_structure
     try:
-        return await esmfold_structure(sequence)
+        result = await esmfold_structure(sequence)
+        if result:
+            result.setdefault("source", "esmfold")
+            result.setdefault("structure_type", "predicted")
+            result.setdefault("evidence_class", "evidence-backed inference")
+            if accession:
+                result.setdefault("uniprot_accession", accession)
+            return result
+        return {
+            "structure_available": False,
+            "source": "esmfold",
+            "message": "No usable structure returned by AlphaFold, RCSB PDB or ESMFold",
+        }
     except Exception as e:
         return {"structure_available": False, "source": "esmfold", "message": str(e)}
 

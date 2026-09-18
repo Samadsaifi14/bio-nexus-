@@ -126,9 +126,19 @@ def build_findings(context: dict) -> tuple[list[dict], list[dict]]:
 
     af = context.get("alphafold") or {}
     if af.get("structure_available"):
-        source_label = "ESMFold prediction" if af.get("source") == "esmfold" else "AlphaFold DB model"
-        plddt = af.get("mean_plddt") or af.get("confidence")
-        detail = f", mean pLDDT {plddt}" if plddt else ""
+        structure_source = af.get("source")
+        if structure_source == "rcsb_pdb":
+            pdb_id = af.get("pdb_id")
+            source_label = f"experimental RCSB PDB structure {pdb_id}" if pdb_id else "experimental RCSB PDB structure"
+            detail = ""
+        elif structure_source == "esmfold":
+            source_label = "ESMFold prediction"
+            plddt = af.get("mean_plddt") or af.get("confidence")
+            detail = f", mean pLDDT {plddt}" if plddt else ""
+        else:
+            source_label = "AlphaFold DB model"
+            plddt = af.get("mean_plddt") or af.get("confidence")
+            detail = f", mean pLDDT {plddt}" if plddt else ""
         findings.append({
             "claim": f"3D structure available ({source_label}{detail}).",
             "confidence_tier": tier,

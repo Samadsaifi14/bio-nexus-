@@ -89,6 +89,9 @@ interface AlphaFoldViewerProps {
   pdbUrl?: string | null;
   pdbData?: string | null;
   uniprotId?: string;
+  source?: string;
+  structureType?: string;
+  pdbId?: string;
   height?: number | string;
   backgroundColor?: string;
 }
@@ -97,10 +100,14 @@ export function AlphaFoldViewer({
   pdbUrl,
   pdbData,
   uniprotId,
+  source,
+  structureType,
+  pdbId,
   height = 420,
   backgroundColor,
 }: AlphaFoldViewerProps) {
   const { theme } = useTheme();
+  const isExperimental = source === 'rcsb_pdb' || structureType === 'experimental';
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<MoleViewer | null>(null);
   const pdbTextRef = useRef<string | null>(null);
@@ -109,7 +116,7 @@ export function AlphaFoldViewer({
 
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
-  const [styleMode, setStyleMode] = useState<StyleMode>('confidence');
+  const [styleMode, setStyleMode] = useState<StyleMode>(isExperimental ? 'spectrum' : 'confidence');
   const [spinning, setSpinning] = useState(false);
 
   const exportPdb = () => {
@@ -136,25 +143,30 @@ export function AlphaFoldViewer({
 
     switch (mode) {
       case 'confidence':
-        viewer.setStyle({}, { cartoon: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
+        viewer.setStyle({}, isExperimental
+          ? { cartoon: { color: 'spectrum' } }
+          : { cartoon: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
         break;
       case 'spectrum':
         viewer.setStyle({}, { cartoon: { color: 'spectrum' } });
         break;
       case 'surface':
-        viewer.setStyle({}, { cartoon: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
-        viewer.addSurface($3Dmol.SurfaceType.VDW, {
-          opacity: 0.85,
-          colorfunc: (atom: MoleAtom) => plddtColor(atom.b),
-        });
+        viewer.setStyle({}, isExperimental
+          ? { cartoon: { color: 'spectrum' } }
+          : { cartoon: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
+        viewer.addSurface($3Dmol.SurfaceType.VDW, isExperimental
+          ? { opacity: 0.75 }
+          : { opacity: 0.85, colorfunc: (atom: MoleAtom) => plddtColor(atom.b) });
         break;
       case 'stick':
-        viewer.setStyle({}, { stick: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
+        viewer.setStyle({}, isExperimental
+          ? { stick: { color: 'spectrum' } }
+          : { stick: { colorfunc: (atom: MoleAtom) => plddtColor(atom.b) } });
         break;
     }
 
     viewer.render();
-  }, []);
+  }, [isExperimental]);
 
   useEffect(() => {
     if (!pdbUrl && !pdbData) {
@@ -235,25 +247,29 @@ export function AlphaFoldViewer({
       {/* HUD toolbar — floats in the viewer's space, near-opaque */}
       <HudPanel className="absolute left-3 right-3 top-3 z-10 flex flex-wrap items-center justify-between gap-2 px-3 py-2">
         <span className="font-mono text-xs text-text-muted">
-          {uniprotId
-            ? `AlphaFold model — ${uniprotId}`
-            : pdbData
+          {isExperimental
+            ? `Experimental PDB structure — ${pdbId ?? uniprotId ?? 'RCSB'}`
+            : source === 'esmfold'
               ? 'Predicted structure (ESMFold)'
-              : 'AlphaFold model'}
+              : uniprotId
+                ? `AlphaFold DB model — ${uniprotId}`
+                : pdbData
+                  ? 'Predicted structure'
+                  : 'AlphaFold DB model'}
         </span>
 
         <div className="flex items-center gap-2">
-          {uniprotId && <StructureExportMenu identifier={uniprotId} />}
+          {uniprotId && !isExperimental && <StructureExportMenu identifier={uniprotId} />}
           <select
             value={styleMode}
             onChange={(e) => setStyleMode(e.target.value as StyleMode)}
             disabled={status !== 'ready'}
             className="rounded-md border border-glass-border bg-hud/40 px-2 py-1 text-xs text-text-secondary outline-none disabled:opacity-40 focus:border-accent-cyan/40"
           >
-            <option value="confidence">Cartoon · pLDDT</option>
+            <option value="confidence">{isExperimental ? 'Cartoon · spectrum' : 'Cartoon · pLDDT'}</option>
             <option value="spectrum">Cartoon · spectrum</option>
-            <option value="surface">Surface · pLDDT</option>
-            <option value="stick">Stick · pLDDT</option>
+            <option value="surface">{isExperimental ? 'Surface' : 'Surface · pLDDT'}</option>
+            <option value="stick">{isExperimental ? 'Stick · spectrum' : 'Stick · pLDDT'}</option>
           </select>
           <button
             type="button"
@@ -300,7 +316,7 @@ export function AlphaFoldViewer({
         )}
 
         {/* Corner-anchored, near-opaque legend — never blurred over the model */}
-        {status === 'ready' && styleMode !== 'spectrum' && (
+        {status === 'ready' && !isExperimental && styleMode !== 'spectrum' && (
           <HudLegend title="pLDDT confidence" className="absolute bottom-3 left-3 z-10 max-w-[calc(100%-1.5rem)]">
             {CONFIDENCE_BANDS.map((band) => (
               <LegendItem key={band.label} color={band.color} label={band.label} />

@@ -432,6 +432,15 @@ export default function BlastWizardPage() {
 
             <div className="pt-2 text-xs leading-5 text-text-muted">
               <p>Provider searches may take seconds to minutes depending on database size and service load. The stored result records the program, database and provider evidence returned for this job.</p>
+              {effectiveProgram === 'blastp' ? (
+                <p className="mt-2 text-text-secondary">
+                  After BLASTP, BioNexus will continue with UniProt annotation, multiple-sequence alignment, a phylogenetic tree, domain/pathway evidence and the strongest available protein structure source (experimental PDB, AlphaFold DB or a labelled ESMFold prediction).
+                </p>
+              ) : (
+                <p className="mt-2">
+                  This BLAST program remains similarity-search only because its nucleotide/translated query-target semantics are not automatically interchangeable with a protein sequence for structure analysis.
+                </p>
+              )}
             </div>
           </motion.div>
 

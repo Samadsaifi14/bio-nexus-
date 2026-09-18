@@ -456,8 +456,8 @@ export default function JobPage() {
           {context.alphafold && context.alphafold.structure_available && (
             <motion.div variants={fadeUp} whileHover={cardHover}>
               <AlphaFoldViewer
-                pdbUrl={context.alphafold.pdb_url}
-                pdbData={context.alphafold.pdb_text}
+                pdbUrl={context.alphafold.pdb_url ?? undefined}
+                pdbData={context.alphafold.pdb_text ?? undefined}
                 uniprotId={context.alphafold.uniprot_accession ?? undefined}
                 source={context.alphafold.source}
                 structureType={context.alphafold.structure_type}

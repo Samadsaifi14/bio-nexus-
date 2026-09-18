@@ -40,6 +40,7 @@ from app.ngs.stages.stage3_preproc import (
 )
 from app.ngs.stages.stage4_reference import run_reference_validation
 from app.ngs.sam import map_reads
+from app.ngs.visualization import _cigar_len, variants_to_vcf
 from app.ngs.stages.stage5_alignment import run_alignment, choose_aligner
 from app.ngs.stages.stage6_bam import run_bam_processing, process_bam
 from app.ngs.stages.stage7_alignment_qc import run_alignment_qc, alignment_qc
@@ -648,6 +649,50 @@ def test_alignment_qc_computes_mapping_rate():
     assert 90 <= qc["mapping_rate"] <= 100
     assert qc["unmapped_reads"] == 1
     assert qc["median_mapq"] == 60
+
+
+def test_surrogate_mapping_marks_repeated_best_hits_ambiguous():
+    ref = "ACGT" * 60
+    read = ref[:30]
+    records = map_reads(ref, [("repeat-read", read, "I" * len(read))], seed_len=8, min_len=20)
+    assert len(records) == 1
+    rec = records[0]
+    assert rec["is_unmapped"] is False
+    assert rec["mapq"] == 0
+    assert rec["mapping_candidates"] > 1
+
+
+def test_surrogate_alignment_does_not_invent_pairing_evidence():
+    ref, reads = _make_ref_and_reads(n_reads=10)
+    records = map_reads(ref, reads[:10], ref_name="chr1", seed_len=8, min_len=20)
+    qc = alignment_qc(records)
+    assert qc["pairing_evaluated"] is False
+    assert qc["proper_pair_rate"] is None
+    assert qc["insert_size_evaluated"] is False
+    assert qc["median_insert_size"] is None
+
+
+def test_cigar_reference_span_ignores_insertions_and_clipping():
+    assert _cigar_len("5M2I12M1D7M") == 25
+    assert _cigar_len("4S10M3N5M2H") == 18
+
+
+def test_vcf_visualization_does_not_invent_qual_or_filter():
+    text = variants_to_vcf([{
+        "chrom": "chr1", "pos": 10, "ref": "A", "alt": "G",
+        "dp": 20, "af": 0.5, "type": "SNP",
+    }])
+    row = [line for line in text.splitlines() if not line.startswith("#")][0].split("\t")
+    assert row[5] == "."
+    assert row[6] == "."
+
+    explicit = variants_to_vcf([{
+        "chrom": "chr1", "pos": 11, "ref": "C", "alt": "T",
+        "genotype_quality": 99, "qc": {"status": "PASS"},
+    }])
+    row2 = [line for line in explicit.splitlines() if not line.startswith("#")][0].split("\t")
+    assert row2[5] == "99"
+    assert row2[6] == "PASS"
 
 
 def test_alignment_qc_run_decisions():

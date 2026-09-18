@@ -58,6 +58,7 @@ jobs:
             tests/test_ngs_guided_pipeline.py \
             tests/test_retained_realdata_manifests.py \
             tests/test_retained_docking_manifest.py \
+            tests/test_validation_registry_policy.py \
             -q
 
       - name: Benchmark + engine registry integrity

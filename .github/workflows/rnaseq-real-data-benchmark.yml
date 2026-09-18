@@ -95,6 +95,8 @@ jobs:
           assert summary['reference_level'] == 'healthy', summary
           assert summary['test_level'] == 'SALS', summary
           assert summary['min_count'] == 10 and summary['min_samples'] == 8, summary
+          assert summary['replicate_counts'] == {'healthy': 8, 'SALS': 10}, summary
+          assert summary['design_full_rank'] is True, summary
           assert summary['up'] + summary['down'] == summary['significant'], summary
           assert math.isfinite(summary['pca_percent_variance']['PC1'])
           assert math.isfinite(summary['pca_percent_variance']['PC2'])
@@ -109,7 +111,7 @@ jobs:
           assert len({x['source_column'] for x in rows}) == 18
 
           required = [
-              'size_factors.tsv','normalized_counts.tsv','pca_coordinates.tsv',
+              'design_audit.json','library_sizes.tsv','size_factors.tsv','normalized_counts.tsv','pca_coordinates.tsv',
               'sample_distance_matrix.tsv','deseq2_all_results.tsv','deseq2_significant.tsv',
               'pca.svg','pca.pdf','pca.png','sample_distance_heatmap.svg',
               'sample_distance_heatmap.pdf','sample_distance_heatmap.png','ma_plot.svg',

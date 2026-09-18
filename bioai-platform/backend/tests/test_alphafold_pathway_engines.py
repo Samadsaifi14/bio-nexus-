@@ -23,6 +23,17 @@ AF_AVAILABLE = {
     "latest_version": 4,
 }
 
+RCSB_AVAILABLE = {
+    "uniprot_accession": "P04637",
+    "structure_available": True,
+    "source": "rcsb_pdb",
+    "structure_type": "experimental",
+    "pdb_id": "1TUP",
+    "pdb_url": "https://files.rcsb.org/download/1TUP.pdb",
+    "cif_url": "https://files.rcsb.org/download/1TUP.cif",
+    "confidence": None,
+}
+
 AF_UNAVAILABLE = {
     "uniprot_accession": "P04637",
     "structure_available": False,
@@ -74,6 +85,21 @@ def test_alphafold_validate_unavailable_ok():
     assert eng.validate(eng.parse(AF_UNAVAILABLE)).valid
 
 
+def test_structure_engine_accepts_experimental_rcsb_without_plddt():
+    eng = get_engine("alphafold")
+    res = eng.parse(RCSB_AVAILABLE)
+    assert res.tool == "RCSB PDB"
+    assert res.database == "RCSB PDB"
+    assert res.input_ref == "1TUP"
+    assert res.statistics["structure_type"] == "experimental"
+    assert res.statistics["confidence"] is None
+    assert eng.validate(res).valid
+    svg = eng.figure(res)
+    assert "Experimental structure available" in svg
+    assert "PDB 1TUP" in svg
+    assert "pLDDT" not in svg
+
+
 def test_alphafold_validate_flags_bad_confidence_and_url():
     eng = get_engine("alphafold")
     bad_conf = dict(AF_AVAILABLE, confidence=150.0)
@@ -98,7 +124,7 @@ def test_alphafold_figure_svg():
     eng = get_engine("alphafold")
     svg = eng.figure(eng.parse(AF_AVAILABLE))
     assert svg.startswith("<?xml")
-    assert "Structure available" in svg
+    assert "Predicted structure available" in svg
     assert "pLDDT 87.4" in svg
 
 
@@ -106,7 +132,8 @@ def test_alphafold_describe_contract():
     eng = get_engine("alphafold")
     d = eng.describe()
     assert "Jumper" in d["citations"][0]
-    assert d["databases"] == ["AlphaFold DB"]
+    assert "AlphaFold DB" in d["databases"]
+    assert "RCSB PDB" in d["databases"]
 
 
 # --- Pathway engine ---------------------------------------------------------

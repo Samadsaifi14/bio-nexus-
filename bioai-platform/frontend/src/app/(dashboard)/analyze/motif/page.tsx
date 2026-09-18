@@ -19,7 +19,7 @@ import { downloadText, downloadTsv } from '@/lib/export-utils';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
-import { setPrefill } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff, setPrefill } from '@/lib/cross-link';
 import { MotifTrack, MatchTable, SequenceHighlight, TRACK_COLORS } from '@/components/motifs/MotifTrack';
 import type { MotifLibraryHit, MotifLibraryPattern, MotifLibraryResult, MotifPatternScanResult } from '@/types/pipeline';
 
@@ -126,9 +126,14 @@ export default function MotifScannerPage() {
   // Prefill the sequence / accession from a deep link
   // (e.g. "scan for motifs" on a BLAST hit carries ?sequence=...&uniprot=...).
   useEffect(() => {
+    const handoff = getAnalysisHandoff();
     const params = new URLSearchParams(globalThis.location?.search ?? '');
-    const seqParam = params.get('sequence');
-    const accParam = params.get('uniprot');
+    const seqParam = consumeParam('motif_sequence')
+      || params.get('sequence')
+      || handoff?.resolvedSequence
+      || handoff?.querySequence
+      || null;
+    const accParam = params.get('uniprot') || handoff?.resolvedAccession || null;
     if (seqParam) setSequence(seqParam);
     if (accParam) {
       const clean = accParam.trim().split('.')[0];

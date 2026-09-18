@@ -153,7 +153,7 @@ def test_findings_thread_confidence_tier():
 def test_denovo_report_is_explicit_about_predictions():
     context = {
         "query": {"confidence": "de_novo"},
-        "blast": {"count": 0, "top_hit": None},
+        "blast": {"count": 0, "top_hit": None, "search_complete": True},
         "uniprot": {"_de_novo": True, "composition": {"sequence_type": "protein", "length": 120}},
     }
     report = fs.synthesize_sync(context)
@@ -162,6 +162,26 @@ def test_denovo_report_is_explicit_about_predictions():
     assert "prediction" in joined
     findings_tools = [f["source_tool"] for f in report["findings"]]
     assert "blast" in findings_tools and "uniprot" in findings_tools
+
+
+def test_synthesis_labels_rcsb_structure_as_experimental():
+    context = {
+        "query": {"confidence": "identified"},
+        "blast": {"count": 1, "top_hit": {"accession": "P04637", "description": "p53"}},
+        "uniprot": {"accession": "P04637", "full_name": "p53", "pdb_ids": ["1TUP"]},
+        "alphafold": {
+            "structure_available": True,
+            "source": "rcsb_pdb",
+            "structure_type": "experimental",
+            "pdb_id": "1TUP",
+            "pdb_url": "https://files.rcsb.org/download/1TUP.pdb",
+            "confidence": None,
+        },
+    }
+    report = fs.synthesize_sync(context)
+    finding = next(f for f in report["findings"] if f["source_tool"] == "alphafold")
+    assert "experimental RCSB PDB structure 1TUP" in finding["claim"]
+    assert "pLDDT" not in finding["claim"]
 
 
 def test_findings_reference_real_pages():
@@ -183,7 +203,7 @@ async def test_synthesis_mode_is_deterministic_without_llm(monkeypatch):
         return None
 
     monkeypatch.setattr(fs, "_polish_with_llm", no_llm)
-    context = {"query": {"confidence": "identified"}, "blast": {"count": 0, "top_hit": None}}
+    context = {"query": {"confidence": "identified"}, "blast": {"count": 0, "top_hit": None, "search_complete": True}}
     report = await fs.synthesize(context)
     assert report["_mode"] == "deterministic"
     assert report["findings"][0]["claim"].startswith("No significant similarity")

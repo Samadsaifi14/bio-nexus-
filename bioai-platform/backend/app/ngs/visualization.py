@@ -14,6 +14,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from app.ngs.sam import cigar_length
+
 
 def records_to_sam(records: list[dict]) -> str:
     """Serialize pipeline ``aligned_records`` into SAM text consumable by the IGV read track.
@@ -27,7 +29,9 @@ def records_to_sam(records: list[dict]) -> str:
 
     contigs: dict[str, int] = {}
     for r in records:
-        name = r.get("rname") or "chr1"
+        if r.get("is_unmapped") or not r.get("rname") or r.get("rname") == "*":
+            continue
+        name = r["rname"]
         end = (r.get("pos", 1) - 1) + _cigar_len(r.get("cigar", ""))
         contigs[name] = max(contigs.get(name, 0), end)
 
@@ -57,10 +61,11 @@ def records_to_sam(records: list[dict]) -> str:
 def variants_to_vcf(variants: list[dict]) -> str:
     """Serialize the variant-call list into VCF text for the IGV variant track.
 
-    Field mapping is honest: ref/alt/pos come straight from the call, QUAL is derived from
-    the real depth/allele-fraction, FILTER is PASS only when an orthogonal caller agreed, and
-    INFO carries the real per-variant metrics (DP/AF/type) plus any annotation fields the
-    later stages attached (gene / consequence / gnomAD AF / ClinVar).
+    Field mapping is evidence preserving: ref/alt/pos come straight from the call. QUAL is
+    emitted only when the upstream evidence contains an explicit caller/genotype quality;
+    BioNexus does not synthesize a VCF QUAL value from depth or allele fraction. FILTER uses
+    explicit variant-QC evidence when present, then caller-concordance evidence when present,
+    otherwise remains "." (not evaluated). INFO carries observed DP/AF/type and annotations.
     """
     header = [
         "##fileformat=VCFv4.2",
@@ -84,9 +89,8 @@ def variants_to_vcf(variants: list[dict]) -> str:
         alt = v.get("alt") or "N"
         dp = v.get("dp")
         af = v.get("af")
-        qual = _vcf_qual(af, dp)
-        concordant = v.get("concordant", False)
-        filt = "PASS" if concordant else "LowQual"
+        qual = _vcf_qual(v)
+        filt = _vcf_filter(v)
         info = _vcf_info(v)
         rows.append(f"{chrom}\t{pos}\t.\t{ref}\t{alt}\t{qual}\t{filt}\t{info}")
     return "\n".join(header + rows) + "\n"
@@ -147,15 +151,41 @@ def _best_variants(state: dict) -> list[dict]:
 
 
 def _cigar_len(cigar: str) -> int:
-    import re
-    return sum(int(n) for n in re.findall(r"\d+", cigar)) if cigar else 0
+    """Reference span represented by a CIGAR string.
+
+    Only M/D/N/=/X consume reference coordinates. Insertions and clipping must not
+    extend the IGV locus, so reuse the SAM parser's reference-consuming definition.
+    """
+    return cigar_length(cigar)
 
 
-def _vcf_qual(af, dp) -> str:
-    af = af if isinstance(af, (int, float)) else 0.0
-    dp = dp if isinstance(dp, (int, float)) else 0
-    if dp > 0:
-        return f"{min(999, round(af * dp * 2, 1))}"
+def _vcf_qual(v: dict) -> str:
+    """Return an observed upstream quality value, never a BioNexus heuristic."""
+    for key in ("qual", "QUAL", "genotype_quality", "gq"):
+        value = v.get(key)
+        if isinstance(value, (int, float)) and value >= 0:
+            return _fmt(value)
+    qc = v.get("qc")
+    if isinstance(qc, dict):
+        for key in ("qual", "genotype_quality", "gq"):
+            value = qc.get(key)
+            if isinstance(value, (int, float)) and value >= 0:
+                return _fmt(value)
+    return "."
+
+
+def _vcf_filter(v: dict) -> str:
+    qc = v.get("qc")
+    if isinstance(qc, dict):
+        status = str(qc.get("status") or "").upper()
+        if status == "PASS":
+            return "PASS"
+        if status in {"WARN", "FAIL"}:
+            return "LowQual"
+    if v.get("concordant") is True:
+        return "PASS"
+    if v.get("concordant") is False:
+        return "LowQual"
     return "."
 
 

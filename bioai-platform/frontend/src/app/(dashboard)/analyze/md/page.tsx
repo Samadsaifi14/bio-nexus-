@@ -9,7 +9,7 @@ import { runMD, getMDStatus, getMDForceFields, type MDSimulationResult, type MDF
 import { downloadJson, downloadTsv } from "@/lib/export-utils";
 import { ClaySegmented, ClaySlider, CriticalButton, FlatInput, ResultsReadyBanner } from "@/components/ui";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
-import { consumeParam } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 const MODES = [
   { value: "minimize", label: "Minimization Only", short: "Minimize", desc: "500 steps, ~5 sec", detail: "Energy minimization using L-BFGS. Removes steric clashes and high-energy contacts." },
@@ -86,10 +86,9 @@ export default function MDPage() {
   }, [jobId, poll]);
 
   useEffect(() => {
-    const stored = consumeParam('md_pdb_id');
-    if (stored) {
-      setPdbId(stored);
-    }
+    const handoff = getAnalysisHandoff();
+    const stored = consumeParam('md_pdb_id') || handoff?.pdbId || null;
+    if (stored) setPdbId(stored);
   }, []);
 
   useEffect(() => {

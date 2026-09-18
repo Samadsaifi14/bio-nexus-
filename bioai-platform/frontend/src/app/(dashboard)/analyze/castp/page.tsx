@@ -322,7 +322,7 @@ export default function CastpPage() {
   const handleUseForDocking = (pocket: CastpPocket) => {
     setDocking(true);
     const handoff = getAnalysisHandoff();
-    const receptor = result?.resolved_pdb_id || handoff?.pdbId || identifier.trim().toUpperCase();
+    const receptor = result?.pdb_id || handoff?.pdbId || identifier.trim().toUpperCase();
     continueAnalysis(
       router,
       {

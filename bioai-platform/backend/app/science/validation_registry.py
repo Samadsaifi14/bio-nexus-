@@ -45,7 +45,7 @@ _BASE_REGISTRY: dict[str, dict[str, Any]] = {
     "md": {"status": "METHOD_VERIFIED", "scope": "short implicit-solvent OpenMM workflow only", "contract_migrated": False},
     "ngs_wgs_accuracy": {"status": "NOT_EVALUATED", "scope": "BioNexus-produced Sarek callset versus matching GIAB truth/confident regions", "contract_migrated": False},
     "giab_evaluator": {"status": "METHOD_VERIFIED", "scope": "retained HG002 chr20 truth-evaluation harness; does not establish BioNexus caller accuracy", "contract_migrated": False},
-    "rnaseq": {"status": "VALIDATION_PENDING", "scope": "retained real-data DESeq2 execution exists; complete source=matrix=plot=download parity still required", "contract_migrated": False},
+    "rnaseq": {"status": "METHOD_VERIFIED", "scope": "retained real-data GSE67196 DESeq2 execution with locked public-source, table, plot-source and figure hashes; experimental unit remains undeclared and biological/clinical interpretation is outside this software verification", "contract_migrated": False},
     "motif_scanner": {"status": "VALIDATION_PENDING", "scope": "PROSITE-derived/custom/local motif classes must remain distinct", "contract_migrated": False},
     "function_evidence": {"status": "VALIDATION_PENDING", "scope": "claim-to-InterPro/member-signature/source traceability", "contract_migrated": False},
     "dotplot": {"status": "METHOD_VERIFIED", "scope": "calculated dots and downsampling disclosure; pattern interpretation remains heuristic", "contract_migrated": False},

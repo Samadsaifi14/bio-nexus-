@@ -1,9 +1,9 @@
 """Staged Molecular Dynamics pipeline router (MD v2).
 
-Runs the auditable MD DAG and exposes topology-aware post-trajectory analytics.
-The advanced analysis endpoint is deterministic and refuses to fabricate SASA,
-hydrogen bonds or secondary structure when their required topology metadata is
-not supplied.
+Runs the auditable short implicit-solvent OpenMM DAG and exposes the exact
+backend-emitted stage data to the frontend.  Plot descriptors reference retained
+stage arrays directly; no plotting layer fabricates or recalculates scientific
+values.  Missing arrays simply mean that plot is unavailable.
 """
 from __future__ import annotations
 
@@ -17,6 +17,7 @@ from pydantic import BaseModel, Field
 from app.md.advanced_analysis import analyze_trajectory
 from app.md.engines import engine_status
 from app.md.orchestrator import STAGE_INTRO, build_md_pipeline
+from app.science.result import build_scientific_result
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/md/v2", tags=["md-v2"])
@@ -42,6 +43,154 @@ class TrajectoryAnalysisRequest(BaseModel):
     temperature_k: float = Field(default=300.0, gt=0, le=1000)
     pca_components: int = Field(default=3, ge=1, le=20)
     free_energy_bins: int = Field(default=30, ge=5, le=100)
+
+
+def _stage(report: dict[str, Any], step: str) -> dict[str, Any] | None:
+    for item in report.get("stages", []) or []:
+        if item.get("step") == step:
+            return item
+    return None
+
+
+def _data(report: dict[str, Any], step: str) -> dict[str, Any]:
+    found = _stage(report, step)
+    value = found.get("data") if found else None
+    return value if isinstance(value, dict) else {}
+
+
+def _series_plot(
+    *,
+    plot_id: str,
+    title: str,
+    x_label: str,
+    y_label: str,
+    data: Any,
+    x_key: str,
+    y_key: str,
+    source_stage: str,
+) -> dict[str, Any] | None:
+    """Describe one plot without changing any scientific values."""
+    if not isinstance(data, list) or not data:
+        return None
+    retained = [row for row in data if isinstance(row, dict) and x_key in row and y_key in row and row.get(y_key) is not None]
+    if not retained:
+        return None
+    return {
+        "id": plot_id,
+        "title": title,
+        "kind": "line",
+        "x_label": x_label,
+        "y_label": y_label,
+        "x_key": x_key,
+        "y_key": y_key,
+        "source_stage": source_stage,
+        "data": retained,
+    }
+
+
+def _plots_from_report(report: dict[str, Any]) -> list[dict[str, Any]]:
+    """Expose only retained MD arrays.  No data means no plot."""
+    nvt = _data(report, "md_nvt")
+    production = _data(report, "md_production")
+    traj = _data(report, "md_traj")
+
+    candidates = [
+        _series_plot(
+            plot_id="temperature-vs-step",
+            title="Temperature vs step",
+            x_label="Step",
+            y_label="Temperature (K)",
+            data=nvt.get("temperature"),
+            x_key="step",
+            y_key="temperature_k",
+            source_stage="md_nvt",
+        ),
+        _series_plot(
+            plot_id="potential-energy-vs-step",
+            title="Potential energy vs step",
+            x_label="Step",
+            y_label="Potential energy (kJ/mol)",
+            data=production.get("potential_energy") or production.get("energy"),
+            x_key="step",
+            y_key="potential_energy_kj_mol",
+            source_stage="md_production",
+        ),
+        _series_plot(
+            plot_id="rmsd-vs-frame",
+            title="RMSD vs frame",
+            x_label="Frame",
+            y_label="RMSD (Å)",
+            data=traj.get("rmsd"),
+            x_key="frame",
+            y_key="rmsd",
+            source_stage="md_traj",
+        ),
+        _series_plot(
+            plot_id="rmsf-vs-residue",
+            title="RMSF vs residue",
+            x_label="Residue",
+            y_label="RMSF (Å)",
+            data=traj.get("rmsf"),
+            x_key="residue",
+            y_key="rmsf_angstrom",
+            source_stage="md_traj",
+        ),
+        _series_plot(
+            plot_id="radius-of-gyration-vs-step",
+            title="Radius of gyration vs step",
+            x_label="Step",
+            y_label="Radius of gyration (Å)",
+            data=production.get("radius_of_gyration") or production.get("rg"),
+            x_key="step",
+            y_key="rg_angstrom",
+            source_stage="md_production",
+        ),
+        _series_plot(
+            plot_id="sasa-vs-step",
+            title="SASA vs step",
+            x_label="Step",
+            y_label="SASA (Å²)",
+            data=traj.get("sasa"),
+            x_key="step",
+            y_key="sasa_angstrom2",
+            source_stage="md_traj",
+        ),
+    ]
+    return [plot for plot in candidates if plot is not None]
+
+
+def _stage_errors(report: dict[str, Any]) -> list[dict[str, str]]:
+    """Return explicit engine exceptions and blocking QC failures.
+
+    A stage can stop scientifically without raising a Python exception.  Those
+    QC failures must still be visible to the researcher; otherwise a failed
+    run appears to contain no result and no reason.
+    """
+    errors: list[dict[str, str]] = []
+    for item in report.get("stages", []) or []:
+        if not isinstance(item, dict):
+            continue
+        stage_name = str(item.get("step") or "unknown")
+        data = item.get("data")
+        qc = item.get("qc")
+
+        if isinstance(data, dict) and data.get("error"):
+            errors.append({"stage": stage_name, "error": str(data["error"])})
+            continue
+
+        if isinstance(qc, dict) and str(qc.get("status") or "").upper() == "FAIL":
+            reasons: list[str] = []
+            for metric in qc.get("metrics", []) or []:
+                if not isinstance(metric, dict) or str(metric.get("status") or "").upper() != "FAIL":
+                    continue
+                name = str(metric.get("name") or "QC metric")
+                detail = metric.get("detail") or metric.get("expected")
+                reasons.append(f"{name}: {detail}" if detail else name)
+            errors.append({
+                "stage": stage_name,
+                "error": "; ".join(reasons) if reasons else "Blocking QC failure",
+            })
+    return errors
 
 
 @router.get("/stages")
@@ -120,7 +269,18 @@ async def analyze(payload: AnalyzeRequest):
 
     pipe = build_md_pipeline()
     try:
-        report = await asyncio.to_thread(pipe.run, sample)
+        # Keep the synchronous route inside typical proxy/gateway limits.
+        # Longer trajectories belong to the durable MD workflow.
+        report = await asyncio.wait_for(asyncio.to_thread(pipe.run, sample), timeout=55.0)
+    except asyncio.TimeoutError as exc:
+        logger.error("MD v2 synchronous pipeline timed out for %s", pdb_id)
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "Staged MD exceeded the synchronous execution budget before a complete scientific result was emitted. "
+                "Use a smaller structure/shorter diagnostic run or the durable MD workflow."
+            ),
+        ) from exc
     except Exception as exc:
         logger.exception("MD v2 pipeline failed for %s", pdb_id)
         raise HTTPException(status_code=503, detail=f"MD engine failed before producing a scientific result: {type(exc).__name__}: {exc}") from exc
@@ -131,7 +291,62 @@ async def analyze(payload: AnalyzeRequest):
             f"Requested production length {requested_production_ps:g} ps was capped to {effective_production_ps:g} ps for synchronous hosted execution. Use the durable MD workflow for longer trajectories."
         )
 
-    return {
-        "requested": {"pdb_id": pdb_id, "forcefield": payload.forcefield or "default (amber14)", "solvent": payload.solvent or "default (obc2)", "production_ps": requested_production_ps, "effective_production_ps": effective_production_ps, "production_capped": production_was_capped, "synchronous_limit_ps": SYNC_PRODUCTION_MAX_PS, "source": "provided-pdb-text" if payload.pdb_text else "rcsb"},
-        "pipeline": report,
+    requested = {
+        "pdb_id": pdb_id,
+        "forcefield": payload.forcefield or "default (amber14)",
+        "solvent": payload.solvent or "default (obc2)",
+        "production_ps": requested_production_ps,
+        "effective_production_ps": effective_production_ps,
+        "production_capped": production_was_capped,
+        "synchronous_limit_ps": SYNC_PRODUCTION_MAX_PS,
+        "source": "provided-pdb-text" if payload.pdb_text else "rcsb",
     }
+
+    pipeline_status = str(report.get("pipeline_status") or "FAIL").upper()
+    scientific_status = "VALID" if pipeline_status == "PASS" else "DEGRADED" if pipeline_status == "WARN" else "FAILED"
+    errors = _stage_errors(report)
+    plots = _plots_from_report(report)
+    engine = engine_status()
+    openmm = (engine.get("engines") or {}).get("openmm") or {}
+    engine_version = str(openmm.get("version") or "unavailable")
+    production = _data(report, "md_production")
+    trajectory = _data(report, "md_traj")
+    convergence = _data(report, "md_convergence")
+
+    validation = {
+        "scope": "Short implicit-solvent OpenMM MD; not an explicit-solvent production MD protocol",
+        "pipeline_status": pipeline_status,
+        "pipeline_decision": report.get("pipeline_decision"),
+        "stopped_at": report.get("stopped_at"),
+        "stage_errors": errors,
+        "real_trajectory_emitted": bool(production.get("n_frames")),
+        "trajectory_qc_emitted": bool(trajectory.get("rmsd")),
+        "convergence_assessment_emitted": bool(convergence.get("convergence")),
+        "independent_scientific_validation": False,
+    }
+
+    scientific = build_scientific_result(
+        status=scientific_status,
+        method="Short implicit-solvent OpenMM MD",
+        engine="OpenMM",
+        engine_version=engine_version,
+        input_payload={"pdb_text": pdb_text, "requested": requested},
+        parameters={
+            "forcefield": requested["forcefield"],
+            "solvent": requested["solvent"],
+            "requested_production_ps": requested_production_ps,
+            "effective_production_ps": effective_production_ps,
+            "nvt_ps": payload.nvt_ps,
+        },
+        results={"requested": requested, "pipeline": report},
+        plots=plots,
+        artifacts=[],
+        evidence_class="Deterministic computation",
+        validation=validation,
+        citations=[{"label": "OpenMM", "url": "https://openmm.org/"}],
+    )
+
+    # Compatibility keys remain top-level while clients migrate to ScientificResult.
+    scientific["requested"] = requested
+    scientific["pipeline"] = report
+    return scientific

@@ -107,7 +107,7 @@ async def run_expression_analysis(
     alpha: float = Form(0.05),
     lfc_threshold: float = Form(1.0),
     min_count: int = Form(10),
-    min_samples: int = Form(2),
+    min_samples: int = Form(0),
     top_heatmap_genes: int = Form(40),
     user_id: str = Depends(require_user_id),
 ):

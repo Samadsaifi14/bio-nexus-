@@ -2,7 +2,7 @@
 
 There is deliberately no mutation API.  A module can reach VALIDATED only from
 an integrity-checked benchmark evidence artifact committed under
-``benchmarks/validation-registry``.  UI state, user input, and AI text cannot
+``benchmark/validation-registry``.  UI state, user input, and AI text cannot
 promote scientific validation.
 """
 
@@ -15,8 +15,8 @@ from pathlib import Path
 from typing import Any
 
 
-ROOT = Path(__file__).resolve().parents[3]
-EVIDENCE_DIR = ROOT / "benchmarks" / "validation-registry"
+REPOSITORY_ROOT = Path(__file__).resolve().parents[4]
+EVIDENCE_DIR = REPOSITORY_ROOT / "benchmark" / "validation-registry"
 
 # Conservative software/method states.  None of these entries is allowed to
 # declare VALIDATED; that state is derived only from benchmark evidence below.
@@ -41,7 +41,7 @@ _BASE_REGISTRY: dict[str, dict[str, Any]] = {
     "structure_comparison": {"status": "METHOD_VERIFIED", "scope": "Foldseek TMalign-mode output with qTM semantics", "contract_migrated": False},
     "structure_prediction": {"status": "VALIDATION_PENDING", "scope": "ESMFold prediction provenance/confidence; not experimental validation", "contract_migrated": False},
     "swissmodel": {"status": "VALIDATION_PENDING", "scope": "quality-field/source parity and downstream gating", "contract_migrated": False},
-    "docking": {"status": "NOT_EVALUATED", "scope": "canonical redocking benchmark with predeclared RMSD acceptance threshold", "contract_migrated": False},
+    "docking": {"status": "METHOD_VERIFIED", "scope": "retained BBS1-DOCK-1STP-BTN redocking: 0.7252 Å symmetry-aware heavy-atom RMSD versus predeclared 2.0 Å threshold; single-fixture pose-recovery evidence only, not affinity/general docking validation", "contract_migrated": False},
     "md": {"status": "METHOD_VERIFIED", "scope": "short implicit-solvent OpenMM workflow only", "contract_migrated": False},
     "ngs_wgs_accuracy": {"status": "NOT_EVALUATED", "scope": "BioNexus-produced Sarek callset versus matching GIAB truth/confident regions", "contract_migrated": False},
     "giab_evaluator": {"status": "METHOD_VERIFIED", "scope": "retained HG002 chr20 truth-evaluation harness; does not establish BioNexus caller accuracy", "contract_migrated": False},

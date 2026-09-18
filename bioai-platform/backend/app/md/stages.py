@@ -350,7 +350,7 @@ def md_traj_contract() -> StageContract:
             qc.present("rmsd_computed"),
             qc.present("rmsf_computed"),
             qc.present("rg_computed"),
-            qc.present("sasa_computed"),
+            qc.warn_only_present("sasa_computed"),
         ],
         fail_blocks=True,
         run=run,

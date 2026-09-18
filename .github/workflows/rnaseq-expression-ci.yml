@@ -58,13 +58,19 @@ jobs:
           assert summary['reference_level'] == 'healthy'
           assert summary['test_level'] == 'SALS'
           assert summary['min_count'] == 10
+          assert summary['min_samples_requested'] == 8
           assert summary['min_samples'] == 8
+          assert summary['replicate_counts'] == {'healthy': 8, 'SALS': 10}, summary
+          assert summary['design_full_rank'] is True, summary
+          assert summary['design_rank'] == summary['design_columns'], summary
+          assert summary['library_size_fold_range'] > 1, summary
+          assert -1 <= summary['size_factor_library_correlation'] <= 1, summary
           assert math.isfinite(summary['pca_percent_variance']['PC1'])
           assert math.isfinite(summary['pca_percent_variance']['PC2'])
           assert 0 < summary['size_factor_min'] <= summary['size_factor_max']
 
           required = [
-              'size_factors.tsv', 'normalized_counts.tsv', 'pca_coordinates.tsv',
+              'design_audit.json', 'library_sizes.tsv', 'size_factors.tsv', 'normalized_counts.tsv', 'pca_coordinates.tsv',
               'sample_distance_matrix.tsv', 'deseq2_all_results.tsv',
               'deseq2_significant.tsv', 'pca.svg', 'pca.pdf', 'pca.png',
               'sample_distance_heatmap.svg', 'sample_distance_heatmap.pdf',
@@ -77,6 +83,13 @@ jobs:
               path = out / name
               assert path.exists() and path.stat().st_size > 0, name
 
+          design_audit = json.loads((out / 'design_audit.json').read_text())
+          assert design_audit['design_full_rank'] is True, design_audit
+          assert design_audit['replicate_counts'] == {'healthy': 8, 'SALS': 10}, design_audit
+          assert design_audit['confounded_columns'] == [], design_audit
+
+          with (out / 'library_sizes.tsv').open() as handle:
+              assert len(list(csv.DictReader(handle, delimiter='\t'))) == 18
           with (out / 'size_factors.tsv').open() as handle:
               assert len(list(csv.DictReader(handle, delimiter='\t'))) == 18
           with (out / 'pca_coordinates.tsv').open() as handle:

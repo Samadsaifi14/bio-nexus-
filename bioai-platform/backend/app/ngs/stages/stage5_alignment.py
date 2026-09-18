@@ -63,6 +63,16 @@ def align(
         "executor": "python-surrogate",
         "reference": ref_name,
         "read_length": read_length,
+        "algorithm_family": "exact seed-and-extend surrogate",
+        "production_algorithm_note": (
+            "Short-read production mappers use indexed candidate search (for example BWT/FM-index "
+            "or related seed/index strategies); long-read minimap2 uses minimizer seeding/chaining."
+        ),
+        "mapq_semantics": (
+            "Preview MAPQ is an uncalibrated uniqueness indicator from the surrogate mapper; "
+            "production MAPQ must come from the executed production aligner."
+        ),
+        "pairing_evaluated": False,
         "aligned_reads": len(records),
         "mapped": sum(1 for r in records if not r.get("is_unmapped")),
     }

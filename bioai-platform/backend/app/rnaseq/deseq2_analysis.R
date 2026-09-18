@@ -30,7 +30,7 @@ if (length(min_samples_top) != 2) stop("min_samples:top_heatmap_genes must conta
 if (is.na(alpha) || alpha <= 0 || alpha >= 1) stop("alpha must be between 0 and 1")
 if (is.na(lfc_threshold) || lfc_threshold < 0) stop("lfc threshold must be >= 0")
 if (is.na(min_count) || min_count < 0) stop("min_count must be >= 0")
-if (is.na(min_samples) || min_samples < 1) stop("min_samples must be >= 1")
+if (is.na(min_samples) || min_samples < 0) stop("min_samples must be >= 0 (use 0 for automatic smallest-group filtering)")
 if (is.na(top_heatmap_genes) || top_heatmap_genes < 2) stop("top_heatmap_genes must be >= 2")
 
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
@@ -75,9 +75,132 @@ meta[[condition_col]] <- factor(meta[[condition_col]], levels = unique(c(referen
 
 for (term in covariates) {
   if (!(term %in% names(meta))) stop(paste0("metadata is missing covariate '", term, "'"))
+  if (is.character(meta[[term]])) meta[[term]] <- factor(meta[[term]])
 }
+
+# -------------------------------------------------------------------------
+# Experimental-design audit: run BEFORE DESeq2 so invalid designs fail closed
+# rather than producing a plausible-looking table from unidentifiable effects.
+# -------------------------------------------------------------------------
+comparison_levels <- c(reference_level, test_level)
+comparison_rows <- meta[[condition_col]] %in% comparison_levels
+comparison_counts <- table(droplevels(meta[[condition_col]][comparison_rows]))
+if (any(comparison_counts < 2)) {
+  stop("each compared condition requires at least two sample rows; biological replication cannot be replaced by sequencing depth or technical repeats")
+}
+
+min_samples_requested <- min_samples
+if (min_samples == 0) {
+  min_samples <- as.integer(min(comparison_counts))
+}
+
+design_warnings <- character(0)
+if (any(comparison_counts < 6)) {
+  design_warnings <- c(
+    design_warnings,
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design."
+  )
+}
+
+experimental_unit_candidates <- c("experimental_unit", "biological_unit", "subject_id", "subject")
+experimental_unit_col <- experimental_unit_candidates[experimental_unit_candidates %in% names(meta)]
+experimental_unit_status <- "NOT_DECLARED"
+if (length(experimental_unit_col) > 0) {
+  experimental_unit_col <- experimental_unit_col[[1]]
+  units <- as.character(meta[[experimental_unit_col]])
+  repeated_units <- unique(units[duplicated(units) & !is.na(units) & nzchar(units)])
+  if (length(repeated_units) > 0 && !(experimental_unit_col %in% covariates)) {
+    stop(paste0(
+      "metadata column '", experimental_unit_col,
+      "' contains repeated experimental units but is absent from the model. ",
+      "Technical/repeated measurements must not be treated as independent biological replicates; ",
+      "declare the unit/block in the design when scientifically appropriate."
+    ))
+  }
+  experimental_unit_status <- if (length(repeated_units) > 0) "REPEATED_AND_MODELLED" else "UNIQUE"
+}
+
+technical_pattern <- "(^|_)(batch|run|lane|plate|operator|site|processing_day|extraction_batch|kit_lot|flowcell|flow_cell)($|_)"
+technical_covariates_detected <- names(meta)[grepl(technical_pattern, tolower(names(meta)), perl = TRUE)]
+technical_covariates_in_model <- intersect(technical_covariates_detected, covariates)
+
+is_nested_in_condition <- function(term) {
+  technical <- as.character(meta[[term]])
+  condition <- as.character(meta[[condition_col]])
+  keep_rows <- !is.na(technical) & nzchar(technical) & !is.na(condition) & nzchar(condition)
+  if (sum(keep_rows) < 2 || length(unique(technical[keep_rows])) < 2) return(FALSE)
+  conditions_per_technical_level <- tapply(condition[keep_rows], technical[keep_rows], function(x) length(unique(x)))
+  all(conditions_per_technical_level == 1)
+}
+
+confounded_columns <- technical_covariates_detected[vapply(technical_covariates_detected, is_nested_in_condition, logical(1))]
+if (length(confounded_columns) > 0) {
+  stop(paste0(
+    "condition is confounded with recorded technical variable(s): ",
+    paste(confounded_columns, collapse = ", "),
+    ". Every observed level of the technical variable occurs in only one condition, so the biological and technical effects cannot be separated."
+  ))
+}
+not_modelled <- setdiff(technical_covariates_detected, covariates)
+if (length(not_modelled) > 0) {
+  design_warnings <- c(
+    design_warnings,
+    paste0(
+      "Recorded technical variable(s) not included in the statistical model: ",
+      paste(not_modelled, collapse = ", "),
+      ". Review PCA and study design before deciding whether adjustment is required."
+    )
+  )
+}
+
 design_terms <- unique(c(covariates, condition_col))
 design_formula <- as.formula(paste("~", paste(design_terms, collapse = " + ")))
+design_matrix <- model.matrix(design_formula, data = meta)
+design_rank <- qr(design_matrix)$rank
+design_columns <- ncol(design_matrix)
+if (design_rank < design_columns) {
+  stop(paste0(
+    "design matrix is not full rank (rank ", design_rank, " of ", design_columns,
+    "). The requested condition/covariates are linearly dependent or confounded, so DESeq2 cannot identify the requested effect."
+  ))
+}
+
+library_sizes <- colSums(counts)
+if (any(library_sizes <= 0)) stop("one or more samples has zero total library size")
+library_size_fold_range <- max(library_sizes) / min(library_sizes)
+library_size_df <- data.frame(
+  sample = names(library_sizes),
+  total_counts = as.numeric(library_sizes),
+  condition = as.character(meta[names(library_sizes), condition_col]),
+  row.names = NULL
+)
+write.table(library_size_df, file.path(outdir, "library_sizes.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+
+replicate_counts <- setNames(as.list(as.integer(comparison_counts)), names(comparison_counts))
+design_audit <- list(
+  status = "PASS_WITH_WARNINGS",
+  comparison = paste0(test_level, " vs ", reference_level),
+  replicate_counts = replicate_counts,
+  biological_replication_note = "Sample-row counts are reported here; independence must follow the declared experimental unit. Technical repeats are not biological replicates.",
+  experimental_unit_column = if (length(experimental_unit_col) > 0) experimental_unit_col else NULL,
+  experimental_unit_status = experimental_unit_status,
+  covariates = covariates,
+  technical_covariates_detected = technical_covariates_detected,
+  technical_covariates_in_model = technical_covariates_in_model,
+  confounded_columns = confounded_columns,
+  design = paste(deparse(design_formula), collapse = ""),
+  design_rank = design_rank,
+  design_columns = design_columns,
+  design_full_rank = design_rank == design_columns,
+  min_samples_requested = min_samples_requested,
+  min_samples_effective = min_samples,
+  library_size_min = min(library_sizes),
+  library_size_max = max(library_sizes),
+  library_size_fold_range = library_size_fold_range,
+  warnings = design_warnings
+)
+if (length(design_warnings) == 0) design_audit$status <- "PASS"
+write(toJSON(design_audit, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "design_audit.json"))
 
 dds <- DESeqDataSetFromMatrix(countData = counts, colData = meta, design = design_formula)
 genes_input <- nrow(dds)
@@ -89,6 +212,14 @@ if (genes_kept < 2) stop("pre-filtering retained fewer than two genes")
 dds <- estimateSizeFactors(dds)
 normalized <- counts(dds, normalized = TRUE)
 size_factors <- sizeFactors(dds)
+size_factor_library_correlation <- suppressWarnings(cor(
+  as.numeric(size_factors),
+  as.numeric(library_sizes[names(size_factors)]),
+  method = "pearson"
+))
+if (!is.finite(size_factor_library_correlation)) size_factor_library_correlation <- NA_real_
+design_audit$size_factor_library_correlation <- size_factor_library_correlation
+write(toJSON(design_audit, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "design_audit.json"))
 
 size_factor_df <- data.frame(sample = names(size_factors), size_factor = as.numeric(size_factors), row.names = NULL)
 write.table(size_factor_df, file.path(outdir, "size_factors.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
@@ -242,7 +373,20 @@ summary <- list(
   covariates = covariates,
   design = paste(deparse(design_formula), collapse = ""),
   min_count = min_count,
+  min_samples_requested = min_samples_requested,
   min_samples = min_samples,
+  replicate_counts = replicate_counts,
+  design_full_rank = design_rank == design_columns,
+  design_rank = design_rank,
+  design_columns = design_columns,
+  design_warnings = design_warnings,
+  experimental_unit_status = experimental_unit_status,
+  technical_covariates_detected = technical_covariates_detected,
+  technical_covariates_in_model = technical_covariates_in_model,
+  library_size_min = min(library_sizes),
+  library_size_max = max(library_sizes),
+  library_size_fold_range = library_size_fold_range,
+  size_factor_library_correlation = size_factor_library_correlation,
   alpha = alpha,
   lfc_threshold = lfc_threshold,
   significant = nrow(deg_df),

@@ -60,8 +60,8 @@ class ExpressionParameters:
             raise RnaSeqExpressionError("lfc_threshold must be non-negative.")
         if self.min_count < 0:
             raise RnaSeqExpressionError("min_count must be non-negative.")
-        if self.min_samples < 1:
-            raise RnaSeqExpressionError("min_samples must be at least 1.")
+        if self.min_samples < 0:
+            raise RnaSeqExpressionError("min_samples must be non-negative; use 0 to select the smallest comparison group automatically.")
         if not 2 <= self.top_heatmap_genes <= 500:
             raise RnaSeqExpressionError("top_heatmap_genes must be between 2 and 500.")
 

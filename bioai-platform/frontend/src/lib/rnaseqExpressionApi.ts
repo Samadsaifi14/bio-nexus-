@@ -20,7 +20,20 @@ export type RnaSeqExpressionSummary = {
   covariates: string[];
   design: string;
   min_count: number;
+  min_samples_requested?: number;
   min_samples: number;
+  replicate_counts?: Record<string, number>;
+  design_full_rank?: boolean;
+  design_rank?: number;
+  design_columns?: number;
+  design_warnings?: string[];
+  experimental_unit_status?: string;
+  technical_covariates_detected?: string[];
+  technical_covariates_in_model?: string[];
+  library_size_min?: number;
+  library_size_max?: number;
+  library_size_fold_range?: number;
+  size_factor_library_correlation?: number | null;
   alpha: number;
   lfc_threshold: number;
   significant: number;
@@ -70,7 +83,7 @@ export async function runRnaSeqExpression(payload: RnaSeqExpressionUpload): Prom
   form.append('alpha', String(payload.alpha ?? 0.05));
   form.append('lfc_threshold', String(payload.lfcThreshold ?? 1));
   form.append('min_count', String(payload.minCount ?? 10));
-  form.append('min_samples', String(payload.minSamples ?? 2));
+  form.append('min_samples', String(payload.minSamples ?? 0));
   form.append('top_heatmap_genes', String(payload.topHeatmapGenes ?? 40));
   const response = await longApi.post('/api/ngs/v2/rnaseq/expression/run', form, {
     headers: { 'Content-Type': 'multipart/form-data' },

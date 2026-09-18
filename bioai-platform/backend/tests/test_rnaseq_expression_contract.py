@@ -43,6 +43,12 @@ def test_expression_parameters_fail_closed_on_unsafe_design_names():
         ExpressionParameters(reference_level="SALS", test_level="SALS").validate()
 
 
+def test_expression_parameters_allow_automatic_smallest_group_prefilter():
+    ExpressionParameters(min_samples=0).validate()
+    with pytest.raises(RnaSeqExpressionError):
+        ExpressionParameters(min_samples=-1).validate()
+
+
 def test_r_script_contains_required_statistical_and_figure_stages():
     text = R_SCRIPT.read_text(encoding="utf-8")
     for token in (
@@ -58,5 +64,9 @@ def test_r_script_contains_required_statistical_and_figure_stages():
         "sample_distance_matrix.tsv",
         "deseq2_all_results.tsv",
         "heatmap_matrix_zscore.tsv",
+        "model.matrix",
+        "design_audit.json",
+        "comparison_counts",
+        "confounded_columns",
     ):
         assert token in text

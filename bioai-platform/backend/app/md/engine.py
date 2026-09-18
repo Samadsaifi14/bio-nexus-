@@ -380,6 +380,12 @@ class MdEngine:
         final = sim.context.getState(getEnergy=True).getPotentialEnergy().value_in_unit(unit.kilojoule_per_mole)
         finite = all(math.isfinite(e) for e in self.production_energy) and math.isfinite(final)
 
+        # Emit the exact retained time series used by downstream plots/exports.
+        # The frontend must never reconstruct these scientific values.
+        potential_energy = [
+            {"step": step, "potential_energy_kj_mol": energy}
+            for step, energy in zip(self.frame_steps, self.production_energy)
+        ]
         data = {
             "engine": "openmm",
             "platform": getattr(self, "platform_used", None),
@@ -392,6 +398,9 @@ class MdEngine:
             "final_energy_kj_mol": round(final, 2),
             "elapsed_seconds": elapsed,
             "n_atoms": self.n_particles,
+            "potential_energy": potential_energy,
+            "temperature": list(self.temperature_series),
+            "radius_of_gyration": list(self.rg_series),
         }
         metrics = {
             "production_frames": len(self.frames),
@@ -425,23 +434,36 @@ class MdEngine:
         rg_avg = round(float(np.mean(rg_vals)), 2) if rg_vals else None
 
         sasa_data = []
-        if self._heavy_indices and self.frames:
+        sasa_reason = None
+        # Shrake-Rupley here is an O(N^2) CPU calculation. For large proteins,
+        # omitting SASA is scientifically preferable to timing out the whole
+        # synchronous trajectory result.
+        if self._heavy_indices and self.frames and len(self._heavy_indices) <= 2000:
             radii = self._heavy_radii
             n = min(len(self.frames), 4)
             idxs = np.linspace(0, len(self.frames) - 1, n).astype(int)
             for pi in idxs:
                 sasa_data.append({"step": self.frame_steps[pi], "sasa_angstrom2": round(_sasa_shrake_ruger(self.frames[pi][self._heavy_indices], radii), 1)})
-        sasa_avg = round(float(np.mean([p["sasa_angstrom2"] for p in sasa_data])) if sasa_data else None, 1)
+        elif self.frames and len(self._heavy_indices) > 2000:
+            sasa_reason = (
+                f"SASA not evaluated in the synchronous route for {len(self._heavy_indices)} heavy atoms; "
+                "use retained trajectory artifacts in the durable analysis workflow."
+            )
+        else:
+            sasa_reason = "SASA unavailable because no heavy-atom production frames were emitted."
+        sasa_avg = round(float(np.mean([p["sasa_angstrom2"] for p in sasa_data])), 1) if sasa_data else None
 
         data = {
             "rmsd_basis": "CA" if self._ca_indices else "all_heavy",
             "rmsd": rmsd,
             "rmsd_avg_angstrom": round(float(np.mean([r["rmsd"] for r in rmsd])) if rmsd else 0.0, 3),
             "rmsd_final_angstrom": round(rmsd[-1]["rmsd"], 3) if rmsd else None,
-            "rmsf": rmsf[:50],
+            "rmsf": rmsf,
             "rg_avg_angstrom": rg_avg,
             "sasa": sasa_data,
             "sasa_avg_angstrom2": sasa_avg,
+            "sasa_available": bool(sasa_data),
+            "sasa_unavailable_reason": sasa_reason,
             "protein_ligand": None,
             "note": "Trajectory QC computed over production frames (protein-only in v1; "
                     "protein-ligand H-bonds/contacts require a ligand parameterization step).",

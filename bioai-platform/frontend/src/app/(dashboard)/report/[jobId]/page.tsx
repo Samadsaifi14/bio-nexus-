@@ -8,6 +8,7 @@ import { BlastPanel } from "@/components/results/BlastPanel";
 import { ScoreBars } from "@/components/results/ScoreBars";
 import { UniprotPanel } from "@/components/results/UniprotPanel";
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
+import { AlphaFoldViewer } from "@/components/AlphaFoldViewer";
 import { AlignmentStatsBar } from "@/components/alignment/AlignmentStatsBar";
 import { AlignmentBlock } from "@/components/alignment/AlignmentBlock";
 import { computeAlignmentStats, parseAlignedFasta } from "@/lib/alignment-stats";
@@ -49,6 +50,7 @@ export default function ReportPage() {
   const msaData = steps.msa?.data;
   const phyloData = steps.phylo?.data;
   const domainsData = steps.domains?.data;
+  const structureData = steps.alphafold?.data;
   const interpretData = steps.interpret?.data;
 
   return (
@@ -104,7 +106,12 @@ export default function ReportPage() {
       {phyloData?.phylotree_newick && (
         <section className="data-card p-6 mb-8">
           <h2 className="font-semibold text-text-primary mb-3">Phylogenetic Tree</h2>
-          <PhyloTreeViewer newick={phyloData.phylotree_newick} />
+          <PhyloTreeViewer
+            newick={phyloData.phylotree_newick}
+            method={String(phyloData.method ?? '').startsWith('upgma') ? 'upgma' : undefined}
+            alignment={msaData?.aln_fasta ?? undefined}
+            sequenceType={blastData?.query_sequence_type === 'dna' ? 'dna' : 'protein'}
+          />
         </section>
       )}
 
@@ -122,6 +129,21 @@ export default function ReportPage() {
               </div>
             ))}
           </div>
+        </section>
+      )}
+
+      {/* Structure */}
+      {structureData?.structure_available && (
+        <section className="mb-8">
+          <h2 className="mb-3 font-semibold text-text-primary">Structure</h2>
+          <AlphaFoldViewer
+            pdbUrl={structureData.pdb_url}
+            pdbData={structureData.pdb_text}
+            uniprotId={structureData.uniprot_accession}
+            source={structureData.source}
+            structureType={structureData.structure_type}
+            pdbId={structureData.pdb_id}
+          />
         </section>
       )}
 

@@ -549,3 +549,59 @@ class TestBlastDownstreamFeatureRestoration:
         assert result["source"] == "esmfold"
         assert result["structure_type"] == "predicted"
         assert result["uniprot_accession"] == "P11111"
+
+
+class TestBlastStructureAnalysisRestoration:
+    """BLAST downstream structure panels must operate on carried evidence honestly."""
+
+    def test_secondary_structure_accepts_raw_sequence_and_is_labelled_heuristic(self):
+        from app.routers.structure_analysis import _predict_secondary_structure
+
+        result = _predict_secondary_structure(PROTEIN_SEQ, "BLAST query")
+        assert result["method"] == "Chou-Fasman propensity heuristic"
+        assert result["evidence_class"] == "heuristic"
+        assert result["source"] == "BLAST query"
+        assert len(result["residues"]) == len(PROTEIN_SEQ)
+        assert {row.ss for row in result["residues"]} <= {"H", "E", "C"}
+
+    def test_ramachandran_basin_labels_are_descriptive_not_quality_outliers(self):
+        from app.routers.structure_analysis import classify_rama
+
+        assert classify_rama(-63, -43) == "alpha"
+        assert classify_rama(-120, 125) == "beta"
+        assert classify_rama(60, 40) == "left_handed"
+        assert classify_rama(170, -170) == "other"
+        assert "outlier" not in {
+            classify_rama(-63, -43),
+            classify_rama(-120, 125),
+            classify_rama(60, 40),
+            classify_rama(170, -170),
+        }
+
+    def test_ramachandran_calculates_angles_from_inline_carried_structure(self):
+        from app.routers.structure_analysis import _ramachandran_points
+
+        pdb = """\
+ATOM      1  N   ALA A   1      17.047  14.099   3.625  1.00  0.00           N
+ATOM      2  CA  ALA A   1      16.967  12.784   4.338  1.00  0.00           C
+ATOM      3  C   ALA A   1      15.685  12.755   5.133  1.00  0.00           C
+ATOM      4  O   ALA A   1      15.268  13.825   5.594  1.00  0.00           O
+ATOM      5  CB  ALA A   1      18.170  12.703   5.337  1.00  0.00           C
+ATOM      6  N   ALA A   2      15.115  11.555   5.265  1.00  0.00           N
+ATOM      7  CA  ALA A   2      13.856  11.469   6.066  1.00  0.00           C
+ATOM      8  C   ALA A   2      14.164  10.785   7.379  1.00  0.00           C
+ATOM      9  O   ALA A   2      14.993   9.862   7.443  1.00  0.00           O
+ATOM     10  CB  ALA A   2      12.732  10.711   5.261  1.00  0.00           C
+ATOM     11  N   ALA A   3      13.550  10.300   8.450  1.00  0.00           N
+ATOM     12  CA  ALA A   3      13.700   9.600   9.700  1.00  0.00           C
+ATOM     13  C   ALA A   3      12.500   9.800  10.600  1.00  0.00           C
+ATOM     14  O   ALA A   3      11.400   9.350  10.300  1.00  0.00           O
+ATOM     15  CB  ALA A   3      15.000   9.900  10.400  1.00  0.00           C
+TER      16      ALA A   3
+END
+"""
+        points = _ramachandran_points(pdb, "A")
+        assert points
+        assert any(point.resnum == 2 for point in points)
+        assert all(-180.0 <= point.phi <= 180.0 for point in points)
+        assert all(-180.0 <= point.psi <= 180.0 for point in points)

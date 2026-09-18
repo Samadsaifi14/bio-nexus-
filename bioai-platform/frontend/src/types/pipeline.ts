@@ -70,7 +70,7 @@ export const STEP_LABELS: Record<JobStepStatus, string> = {
   running_msa: 'Running multiple sequence alignment',
   interpreting: 'Writing AI interpretation',
   pathway_enrichment: 'Running pathway enrichment',
-  fetching_alphafold: 'Fetching AlphaFold structure',
+  fetching_alphafold: 'Resolving protein structure',
   complete: 'Complete',
   failed: 'Failed',
 };

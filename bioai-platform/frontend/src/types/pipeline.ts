@@ -146,9 +146,11 @@ export interface AssembledContext {
   msa?: {
     aln_fasta?: string | null;
     phylotree?: string | null;
+    phylotree_method?: string | null;
+    method?: string | null;
     sequence_count?: number;
   };
-  phylo?: { phylotree_newick?: string };
+  phylo?: { phylotree_newick?: string; method?: string | null; source_alignment_method?: string | null };
   phylo_data?: { phylotree_newick?: string };
   final_report?: FinalSynthesisReport | null;
 }
@@ -227,6 +229,8 @@ export interface PairwiseAlignResult {
 export interface MsaStepResult {
   aln_fasta?: string | null;
   phylotree?: string | null;
+  phylotree_method?: string | null;
+  method?: string | null;
   sequence_count?: number;
   alignment_mode?: 'global' | 'local';
   pairwise?: PairwiseAlignResult | null;
@@ -282,6 +286,10 @@ export interface AlphaFoldResult {
   pdb_text?: string | null;
   mean_plddt?: number | null;
   source?: string;
+  structure_type?: 'experimental' | 'predicted' | string;
+  pdb_id?: string | null;
+  evidence_class?: string;
+  message?: string;
 }
 
 

@@ -24,7 +24,9 @@ import {
 } from '@/lib/rnaseqExpressionApi';
 
 function number(value: number | null | undefined, digits = 2) {
-  return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: digits }) : '—';
+  return value !== null && value !== undefined && Number.isFinite(value)
+    ? value.toLocaleString(undefined, { maximumFractionDigits: digits })
+    : '—';
 }
 
 function artifact(result: RnaSeqExpressionResult | null, name: string) {
@@ -237,8 +239,8 @@ export function RnaSeqExpressionWorkspace() {
                 <h3 className="mt-1 text-sm font-semibold text-text-primary">Replication, confounding and model identifiability</h3>
                 <p className="mt-1 text-[11px] leading-5 text-text-muted">This gate is evaluated before DESeq2 fitting. Technical repeats are not counted as biological replication merely because they occupy separate matrix columns.</p>
               </div>
-              <span className={`rounded border px-2.5 py-1 font-mono text-[10px] ${summary.design_full_rank === false ? 'border-error/25 bg-error/10 text-error' : 'border-good/25 bg-good/5 text-good'}`}>
-                {summary.design_full_rank === false ? 'NOT FULL RANK' : 'FULL RANK'}
+              <span className={`rounded border px-2.5 py-1 font-mono text-[10px] ${summary.design_full_rank === true ? 'border-good/25 bg-good/5 text-good' : summary.design_full_rank === false ? 'border-error/25 bg-error/10 text-error' : 'border-glass-border bg-surface-1 text-text-muted'}`}>
+                {summary.design_full_rank === true ? 'FULL RANK' : summary.design_full_rank === false ? 'NOT FULL RANK' : 'NOT EVALUATED'}
               </span>
             </div>
             <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">

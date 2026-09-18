@@ -21,7 +21,7 @@ from app.science.result import build_scientific_result
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/md/v2", tags=["md-v2"])
-SYNC_PRODUCTION_MAX_PS = 5.0
+SYNC_PRODUCTION_MAX_PS = 20.0
 
 
 class AnalyzeRequest(BaseModel):

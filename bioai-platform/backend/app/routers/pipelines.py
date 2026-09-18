@@ -23,6 +23,22 @@ class PipelineRunRequest(BaseModel):
     fast_mode: bool = False
 
 
+def _effective_pipeline_type(requested: str, program: str) -> str:
+    """Restore comprehensive downstream analysis for protein-protein BLAST.
+
+    A standalone BLASTP query produces protein hits that can legitimately feed
+    UniProt annotation, protein MSA/phylogeny, domains, pathways and structure.
+    Other BLAST program families are intentionally kept search-only because
+    their query/subject molecule semantics are not equivalent to a protein
+    sequence ready for those downstream stages.
+    """
+    requested_norm = (requested or "protein_analysis").strip().lower()
+    program_norm = (program or "").strip().lower()
+    if requested_norm == "blast" and program_norm == "blastp":
+        return "protein_analysis"
+    return requested_norm
+
+
 @router.post("/run", response_model=PipelineRunResponse)
 async def run_pipeline(
     request: Request,
@@ -45,6 +61,7 @@ async def run_pipeline(
 
     job_id = str(uuid.uuid4())
     supabase = get_supabase()
+    effective_pipeline_type = _effective_pipeline_type(req.pipeline_type, req.program)
 
     supabase.table("jobs").insert({
         "id": job_id,
@@ -52,7 +69,7 @@ async def run_pipeline(
         "tool": "pipeline",
         "query_preview": f"sequence_length:{len(clean)}",
         "status": "queued",
-        "pipeline_type": req.pipeline_type,
+        "pipeline_type": effective_pipeline_type,
         "steps_completed": [],
         "context_json": {
             "sequence": clean,
@@ -60,6 +77,8 @@ async def run_pipeline(
             "fast_mode": req.fast_mode,
             "database": req.database,
             "program": req.program,
+            "requested_pipeline_type": req.pipeline_type,
+            "effective_pipeline_type": effective_pipeline_type,
             "max_hits": req.max_hits,
             "query_accession": req.query_accession,
         },

@@ -276,12 +276,13 @@ export interface UniprotFeature {
 }
 
 export interface AlphaFoldResult {
-  uniprot_accession: string;
+  uniprot_accession?: string | null;
   structure_available: boolean;
-  pdb_url: string | null;
-  cif_url: string | null;
-  confidence: number | null;
-  model_created_date: string;
+  pdb_url?: string | null;
+  cif_url?: string | null;
+  confidence?: number | null;
+  model_created_date?: string | null;
+  latest_version?: number | null;
   /** Inline PDB text (tier-6 ESMFold predictions carry the model directly, no URL) */
   pdb_text?: string | null;
   mean_plddt?: number | null;

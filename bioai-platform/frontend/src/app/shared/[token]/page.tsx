@@ -114,7 +114,12 @@ export default function SharedResultPage() {
               return newick ? (
                 <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-5">
                   <h3 className="text-sm font-semibold text-text-primary mb-2">Phylogenetic Tree</h3>
-                  <PhyloTreeViewer newick={newick} />
+                  <PhyloTreeViewer
+                    newick={newick}
+                    method={context.phylo?.method?.startsWith('upgma') ? 'upgma' : undefined}
+                    alignment={context.msa?.aln_fasta ?? undefined}
+                    sequenceType={context.query?.sequence_type === 'dna' ? 'dna' : 'protein'}
+                  />
                 </motion.div>
               ) : null;
             })()}
@@ -122,9 +127,9 @@ export default function SharedResultPage() {
             {context.alphafold?.structure_available && (
               <motion.div variants={fadeUp}>
                 <AlphaFoldViewer
-                  pdbUrl={context.alphafold.pdb_url}
+                  pdbUrl={context.alphafold.pdb_url ?? undefined}
                   pdbData={context.alphafold.pdb_text}
-                  uniprotId={context.alphafold.uniprot_accession}
+                  uniprotId={context.alphafold.uniprot_accession ?? undefined}
                   source={context.alphafold.source}
                   structureType={context.alphafold.structure_type}
                   pdbId={context.alphafold.pdb_id ?? undefined}

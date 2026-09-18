@@ -613,8 +613,11 @@ def _capture_run_sources(job_id: str, context: dict, user_id: str | None):
             capture_bg(job_id, "interpro", f"https://www.ebi.ac.uk/interpro/entry/InterPro/{acc}", user_id)
 
     af = context.get("alphafold") or {}
-    if af.get("structure_available") and af.get("source") != "esmfold" and uniprot.get("accession"):
-        capture_bg(job_id, "alphafold", f"https://alphafold.ebi.ac.uk/uniprot/{uniprot['accession']}", user_id)
+    if af.get("structure_available"):
+        if af.get("source") == "rcsb_pdb" and af.get("pdb_id"):
+            capture_bg(job_id, "rcsb", f"https://www.rcsb.org/structure/{af['pdb_id']}", user_id)
+        elif af.get("source") == "alphafold_db" and uniprot.get("accession"):
+            capture_bg(job_id, "alphafold", f"https://alphafold.ebi.ac.uk/uniprot/{uniprot['accession']}", user_id)
 
     pathway = context.get("pathway_enrichment") or {}
     pw_list = (pathway.get("pathways") if isinstance(pathway, dict) else None) or []
@@ -1154,7 +1157,6 @@ async def _fetch_experimental_pdb(uniprot_data: dict, accession: str) -> dict | 
                 "pdb_id": pdb_id,
                 "pdb_url": pdb_url,
                 "cif_url": cif_url,
-                "pdb_text": pdb_text,
                 "confidence": None,
                 "message": f"Experimental structure retrieved from RCSB PDB ({pdb_id})",
             }
@@ -1169,26 +1171,26 @@ async def _run_alphafold_or_esmfold(
     """Retrieve the strongest available structure evidence for the resolved result.
 
     Order:
-      1. AlphaFold DB for an identified/resolved UniProt accession.
-      2. Experimental RCSB PDB cross-reference from the same UniProt record.
+      1. Experimental RCSB PDB cross-reference from the resolved UniProt record.
+      2. AlphaFold DB model for the same resolved UniProt accession.
       3. ESMFold prediction from the submitted query sequence.
 
     Each fallback remains explicitly labelled; a predicted model is never
     presented as an experimental structure.
     """
     if accession and resolved_uniprot:
+        uniprot_data = context.get("uniprot", {})
+        if isinstance(uniprot_data, dict):
+            pdb_result = await _fetch_experimental_pdb(uniprot_data, accession)
+            if pdb_result:
+                return pdb_result
+
         alphafold = await _run_alphafold(context)
         if alphafold and alphafold.get("structure_available"):
             alphafold.setdefault("source", "alphafold_db")
             alphafold.setdefault("structure_type", "predicted")
             alphafold.setdefault("evidence_class", "reference_retrieval")
             return alphafold
-
-        uniprot_data = context.get("uniprot", {})
-        if isinstance(uniprot_data, dict):
-            pdb_result = await _fetch_experimental_pdb(uniprot_data, accession)
-            if pdb_result:
-                return pdb_result
 
     from app.services.de_novo import esmfold_structure
     try:

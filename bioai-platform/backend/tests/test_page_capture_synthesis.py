@@ -153,7 +153,7 @@ def test_findings_thread_confidence_tier():
 def test_denovo_report_is_explicit_about_predictions():
     context = {
         "query": {"confidence": "de_novo"},
-        "blast": {"count": 0, "top_hit": None},
+        "blast": {"count": 0, "top_hit": None, "search_complete": True},
         "uniprot": {"_de_novo": True, "composition": {"sequence_type": "protein", "length": 120}},
     }
     report = fs.synthesize_sync(context)
@@ -203,7 +203,7 @@ async def test_synthesis_mode_is_deterministic_without_llm(monkeypatch):
         return None
 
     monkeypatch.setattr(fs, "_polish_with_llm", no_llm)
-    context = {"query": {"confidence": "identified"}, "blast": {"count": 0, "top_hit": None}}
+    context = {"query": {"confidence": "identified"}, "blast": {"count": 0, "top_hit": None, "search_complete": True}}
     report = await fs.synthesize(context)
     assert report["_mode"] == "deterministic"
     assert report["findings"][0]["claim"].startswith("No significant similarity")

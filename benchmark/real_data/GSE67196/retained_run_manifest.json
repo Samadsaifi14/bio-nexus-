@@ -1,0 +1,88 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "GSE67196-SALS-DESEQ2-FULL-REAL-DATA",
+  "dataset": {
+    "accession": "GSE67196",
+    "bioproject": "PRJNA279249",
+    "sra_study": "SRP056477",
+    "cohort": "10 sporadic ALS cerebellum samples versus 8 healthy/control cerebellum samples",
+    "source_files": {
+      "GSE67196_Petrucelli2015_ALS_genes.rawcount.txt.gz": "585af2a3cf28bc43dd6785199922e5e928841029353837a0fdfd9516cad0a61a",
+      "GSE67196_family.soft.gz": "d2343cffcae301b1064ca1cbc4226b4c0ac02acde6eed4d86840c8d5e4cf0f38"
+    }
+  },
+  "retained_execution": {
+    "workflow_run_id": 35328958705,
+    "workflow_head_sha": "eae16513b56044f11c39a60227cfe26ddbc13b64",
+    "artifact_id": 10539549875,
+    "artifact_name": "rnaseq-gse67196-sals-full-study",
+    "artifact_zip_sha256": "ce0fa52c75e0b5c40d7e5cc8c7d222fc03416d57f0a1ecf1db4405d9575a9cf0",
+    "artifact_expires_at": "2026-12-17T09:19:49Z",
+    "archival_status": "WORKFLOW_ARTIFACT_NOT_PERSISTENT_ARCHIVE"
+  },
+  "statistical_contract": {
+    "design": "~condition",
+    "reference_level": "healthy",
+    "test_level": "SALS",
+    "min_count": 10,
+    "min_samples": 8,
+    "alpha": 0.05,
+    "lfc_threshold": 1,
+    "lfc_shrinkage": "normal"
+  },
+  "result_summary": {
+    "genes_input": 23344,
+    "genes_kept": 16995,
+    "genes_removed": 6349,
+    "samples": 18,
+    "replicate_counts": {
+      "healthy": 8,
+      "SALS": 10
+    },
+    "design_full_rank": true,
+    "design_rank": 2,
+    "design_columns": 2,
+    "experimental_unit_status": "NOT_DECLARED",
+    "significant": 6,
+    "up": 5,
+    "down": 1,
+    "pca_percent_variance": {
+      "PC1": 35.227,
+      "PC2": 18.709
+    },
+    "size_factor_min": 0.70423108645,
+    "size_factor_max": 1.3013304436,
+    "expression_heatmap_basis": "significant_DE_genes",
+    "expression_heatmap_genes": 6,
+    "package_versions": {
+      "R": "R version 4.3.3 (2024-02-29)",
+      "DESeq2": "1.42.0",
+      "ComplexHeatmap": "2.18.0",
+      "ggplot2": "3.4.4",
+      "circlize": "0.4.15"
+    }
+  },
+  "core_output_sha256": {
+    "analysis_summary.json": "e4939f45f8543bc3540347ef3a955219e6c6383bcb8212df834374cd8f4dcfb5",
+    "design_audit.json": "69d9ddf8a1c04d4cecd07108e38e95084896fdb74b384bd6f7253466fff96d8b",
+    "deseq2_all_results.tsv": "5be25bab6a51c075c464b4281e3f08e3e0a8d21817ad21beb1a15fc85739f5a5",
+    "deseq2_significant.tsv": "95752b6259da32da78d8012a3b584745022b7c185d451f26a51cc13666c50df7",
+    "normalized_counts.tsv": "44e447fc713c2bc9cfeaef1e7a773c0fc6ee0b3fd8b0a1cd58565b4ec556d10f",
+    "size_factors.tsv": "481a140c873c0c87f564946b63410bafb443adc9c312e03f86d252a2bba31bc8",
+    "pca_coordinates.tsv": "22c023e26600720a619a906cacb41aa015593f5a5c4fffc742f7ff1665935217",
+    "sample_distance_matrix.tsv": "9fbf2609087ac256c40b7ebd6fb2db52b3250934b5a02ba22d9ed8fffea3e687",
+    "heatmap_gene_selection.tsv": "181d038e969c4668e0b063f8d7d87d5d7664454123c4e26c5fed70c0651eba8a",
+    "heatmap_matrix_zscore.tsv": "d233dc086d85f513073fb15acf77fcc2c905a0975c00bfb12ee50a19b9f562d7",
+    "pca.png": "bad5e34fd3bc97a9ae7abadd5bd5fc56a079dddfc8fe1ce67b855c86c0bf2c3a",
+    "pca.svg": "88b7f547f38900db31fc115d3e2b15b335177e621328cb3a2cfc08af58af6661",
+    "volcano.png": "94b60cfd37b9701c96d3d5427e19d9abb5669e420982c0720f78a5dffd94c514",
+    "volcano.svg": "a968c1996e4316caf0f130438a5bf482728a9b5d129a7fba1abb96c73c37c127",
+    "ma_plot.png": "7c385ac819ddd878b7c30fc82afc7434075930d5d9f9f244e907e3a09b86944c",
+    "ma_plot.svg": "f18121ef34211d0efc4e5e98db556c5450bad6ae804ef44de572fcbccb5b7f12",
+    "sample_distance_heatmap.png": "ff604b245bd2d43072586f575850cccbdf9576793f14a399a83120562fb47f31",
+    "sample_distance_heatmap.svg": "252f3e23203392bb50244bfdd62a3e921e2a91de57d43f940ae321fb75ebe575",
+    "expression_heatmap.png": "7a8a1968a3649d30b2b7ff1601e56292cd5e2f8a3282df0e074b80e07ac4730e",
+    "expression_heatmap.svg": "f2ab7dc4517f8d09ee87e25b38292cd3f0e69def1024212bccfbe8242a71afa4"
+  },
+  "claim_boundary": "This retained run supports reproducible execution and source/table/figure provenance for the declared condition-only DESeq2 analysis. The experimental unit was not declared in the retained metadata. The result does not establish an ALS biomarker, causal biology, clinical validity, or platform-wide superiority."
+}

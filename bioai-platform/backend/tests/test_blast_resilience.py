@@ -204,6 +204,20 @@ class TestPipelineBlastFallback:
         assert result is None
 
 
+class TestStandaloneBlastRouting:
+    def test_blastp_restores_comprehensive_protein_pipeline(self):
+        from app.routers.pipelines import _effective_pipeline_type
+
+        assert _effective_pipeline_type("blast", "blastp") == "protein_analysis"
+        assert _effective_pipeline_type("protein_analysis", "blastp") == "protein_analysis"
+
+    def test_non_blastp_programs_remain_search_only(self):
+        from app.routers.pipelines import _effective_pipeline_type
+
+        for program in ("blastn", "blastx", "tblastn", "tblastx"):
+            assert _effective_pipeline_type("blast", program) == "blast"
+
+
 class TestBlastCoverageSemantics:
     def test_query_coverage_uses_query_span_not_alignment_length(self):
         from app.routers.pipeline_v2 import _blast_query_coverage_pct

@@ -417,7 +417,7 @@ export default function JobPage() {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
-                  <p className="text-xs text-text-muted mt-0.5">{context.msa.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+                  <p className="text-xs text-text-muted mt-0.5">{context.msa.sequence_count ?? 0} sequences aligned via {context.msa.method ?? 'recorded MSA engine'}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -443,7 +443,12 @@ export default function JobPage() {
             return newick ? (
               <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-4">
                 <h3 className="text-sm font-semibold text-text-primary mb-2">Phylogenetic Tree</h3>
-                <PhyloTreeViewer newick={newick} />
+                <PhyloTreeViewer
+                  newick={newick}
+                  method={context.phylo?.method?.startsWith('upgma') ? 'upgma' : undefined}
+                  alignment={context.msa?.aln_fasta ?? undefined}
+                  sequenceType={context.query?.sequence_type === 'dna' ? 'dna' : 'protein'}
+                />
               </motion.div>
             ) : null;
           })()}
@@ -454,6 +459,9 @@ export default function JobPage() {
                 pdbUrl={context.alphafold.pdb_url}
                 pdbData={context.alphafold.pdb_text}
                 uniprotId={context.alphafold.uniprot_accession ?? undefined}
+                source={context.alphafold.source}
+                structureType={context.alphafold.structure_type}
+                pdbId={context.alphafold.pdb_id ?? undefined}
               />
               <div className="mt-2 flex items-center justify-end">
                 {context.alphafold.pdb_url ? (

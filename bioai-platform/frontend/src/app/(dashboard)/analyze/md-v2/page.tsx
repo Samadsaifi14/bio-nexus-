@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import type { ReactElement } from 'react';
 import { motion } from 'framer-motion';
 import {
@@ -32,6 +32,7 @@ import { fadeUp } from '@/lib/animations';
 import { runMd2Analyze } from '@/lib/api';
 import type { Md2Stage, Md2Metric } from '@/lib/api';
 import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 const FORCEFIELD_OPTIONS = [
   { value: '', label: 'Default (AMBER14)' },
@@ -147,6 +148,12 @@ export default function MdV2Page() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Awaited<ReturnType<typeof runMd2Analyze>> | null>(null);
+
+  useEffect(() => {
+    const handoff = getAnalysisHandoff();
+    const carried = consumeParam('md_pdb_id') || handoff?.pdbId || null;
+    if (carried) setPdbId(carried);
+  }, []);
 
   const run = async () => {
     if (!pdbId.trim()) return;

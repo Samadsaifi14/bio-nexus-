@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
   Atom,
@@ -18,6 +19,7 @@ import { BackButton, CriticalButton, FlatInput, FlatTextarea, PageHeader } from 
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { fadeUp } from '@/lib/animations';
 import { longApi } from '@/lib/api';
+import { consumeParam, continueAnalysis, getAnalysisHandoff } from '@/lib/cross-link';
 import { isScientificResult, type ScientificResult } from '@/types/scientific-result';
 
 type MethodChoice = 'castp' | 'fpocket' | 'sasa_heuristic';
@@ -124,6 +126,7 @@ function ResultViewer({ result }: { result: ScientificResult<PocketResults> }) {
 
 export default function PocketAnalysisPage() {
   const audit = useAuditTrail();
+  const router = useRouter();
   const [method, setMethod] = useState<MethodChoice>('fpocket');
   const [inputMode, setInputMode] = useState<InputMode>('identifier');
   const [input, setInput] = useState('');
@@ -133,6 +136,33 @@ export default function PocketAnalysisPage() {
   const [result, setResult] = useState<ScientificResult<PocketResults> | null>(null);
 
   const selectedMethod = useMemo(() => METHODS.find((item) => item.value === method)!, [method]);
+
+  useEffect(() => {
+    const handoff = getAnalysisHandoff();
+    const carried = consumeParam('castp_pdb_id') || handoff?.pdbId || handoff?.resolvedAccession || null;
+    if (carried) {
+      setInputMode('identifier');
+      setInput(carried);
+    }
+  }, []);
+
+  const continueToDocking = (pocket: Pocket) => {
+    const handoff = getAnalysisHandoff();
+    const emitted = result?.results.pdb_id;
+    const receptor = emitted && emitted !== 'predicted' && emitted !== 'custom'
+      ? emitted
+      : handoff?.pdbId || (inputMode === 'identifier' ? input.trim() : null);
+    if (!receptor) return;
+    continueAnalysis(
+      router,
+      { sourceTool: 'castp', pdbId: receptor },
+      '/analyze/docking',
+      {
+        docking_pdb_id: receptor,
+        docking_centroid: JSON.stringify(pocket.centroid),
+      },
+    );
+  };
 
   const run = async () => {
     if (!input.trim()) return;
@@ -292,7 +322,7 @@ export default function PocketAnalysisPage() {
                 <table className="w-full min-w-[900px] text-xs">
                   <thead className="bg-surface-1 text-text-muted">
                     <tr>
-                      {['Pocket', 'Area / estimate', 'Volume / estimate', 'fpocket score', 'Druggability', 'Alpha spheres', 'Residues', 'Centroid'].map((heading) => <th key={heading} className="px-3 py-2 text-left font-medium">{heading}</th>)}
+                      {['Pocket', 'Area / estimate', 'Volume / estimate', 'fpocket score', 'Druggability', 'Alpha spheres', 'Residues', 'Centroid', 'Continue'].map((heading) => <th key={heading} className="px-3 py-2 text-left font-medium">{heading}</th>)}
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-glass-border">
@@ -306,6 +336,15 @@ export default function PocketAnalysisPage() {
                         <td className="px-3 py-3 font-mono text-text-secondary">{pocket.alpha_spheres ?? '—'}</td>
                         <td className="px-3 py-3 text-text-secondary">{pocket.num_residues}</td>
                         <td className="px-3 py-3 font-mono text-text-secondary">{pocket.centroid?.join(', ') || '—'}</td>
+                        <td className="px-3 py-3">
+                          <button
+                            type="button"
+                            onClick={() => continueToDocking(pocket)}
+                            className="rounded-lg border border-glass-border px-2.5 py-1.5 text-[11px] font-medium text-accent-cyan hover:border-accent-cyan/40"
+                          >
+                            Use for docking
+                          </button>
+                        </td>
                       </tr>
                     ))}
                   </tbody>

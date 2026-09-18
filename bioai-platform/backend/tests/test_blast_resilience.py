@@ -247,7 +247,8 @@ class TestEbiToolSubmit:
         captured = {}
 
         class FakeResp:
-            text = "RID=abc\nRTOE=5"
+            # EMBL-EBI REST /run returns the job identifier as plain text.
+            text = "abc"
 
             def raise_for_status(self):
                 pass

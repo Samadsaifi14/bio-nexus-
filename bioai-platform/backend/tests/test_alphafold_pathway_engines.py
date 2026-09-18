@@ -124,7 +124,7 @@ def test_alphafold_figure_svg():
     eng = get_engine("alphafold")
     svg = eng.figure(eng.parse(AF_AVAILABLE))
     assert svg.startswith("<?xml")
-    assert "Structure available" in svg
+    assert "Predicted structure available" in svg
     assert "pLDDT 87.4" in svg
 
 

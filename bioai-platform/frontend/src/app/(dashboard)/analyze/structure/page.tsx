@@ -12,7 +12,7 @@ import type { StructureResult } from '@/lib/api';
 import { DockingViewer } from '@/components/DockingViewer';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
-import { consumeParam, setPrefill } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff, setPrefill } from '@/lib/cross-link';
 
 function parseHighlightParam(raw: string | null): { start: number; end: number } | undefined {
   if (!raw) return undefined;
@@ -61,7 +61,11 @@ export default function StructurePage() {
   const handleSearch = () => runSearch(query);
 
   useEffect(() => {
-    const stored = consumeParam('structure_query');
+    const handoff = getAnalysisHandoff();
+    const stored = consumeParam('structure_query')
+      || handoff?.resolvedAccession
+      || handoff?.pdbId
+      || null;
     if (stored) {
       setQuery(stored);
       void runSearch(stored);

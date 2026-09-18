@@ -160,7 +160,7 @@ class TestPipelineBlastFallback:
         assert result["database"] == "nr"  # reports the requested db, not EBI's
         assert result["hits"][0]["organism"] == "Homo sapiens"
         assert result["hits"][0]["hit_alignment"] == ""  # EBI lacks alignment text
-        assert result["hits"][0]["query_coverage_pct"] == pytest.approx(round(152 / len(PROTEIN_SEQ) * 100, 1))
+        assert result["hits"][0]["query_coverage_pct"] == 100.0  # coverage is bounded and derived from query coordinates
         assert called["ncbi"] is False, "NCBI must not be called when EBI succeeds"
 
     def test_ebi_empty_then_ncbi_success(self, monkeypatch):
@@ -202,6 +202,28 @@ class TestPipelineBlastFallback:
 
         result = asyncio_run(_run_ebi_blast_fallback(PROTEIN_SEQ, "blastp", "no_such_db", "protein", 10))
         assert result is None
+
+
+class TestBlastCoverageSemantics:
+    def test_query_coverage_uses_query_span_not_alignment_length(self):
+        from app.routers.pipeline_v2 import _blast_query_coverage_pct
+
+        hit = {
+            "query_from": 21,
+            "query_to": 70,
+            "alignment_length": 80,  # includes alignment columns not query span
+        }
+        assert _blast_query_coverage_pct(hit, 100) == 50.0
+
+    def test_query_coverage_is_bounded_to_100(self):
+        from app.routers.pipeline_v2 import _blast_query_coverage_pct
+
+        inconsistent_provider_payload = {
+            "query_from": 1,
+            "query_to": 152,
+            "alignment_length": 152,
+        }
+        assert _blast_query_coverage_pct(inconsistent_provider_payload, 70) == 100.0
 
 
 class TestEbiToolSubmit:

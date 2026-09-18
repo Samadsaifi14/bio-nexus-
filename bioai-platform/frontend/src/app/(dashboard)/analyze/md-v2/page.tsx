@@ -143,7 +143,7 @@ export default function MdV2Page() {
   const [pdbId, setPdbId] = useState('');
   const [forcefield, setForcefield] = useState('');
   const [solvent, setSolvent] = useState('');
-  const [productionPs, setProductionPs] = useState(20);
+  const [productionPs, setProductionPs] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<Awaited<ReturnType<typeof runMd2Analyze>> | null>(null);

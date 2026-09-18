@@ -33,7 +33,7 @@ import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
 import { BlastDomainEvidence } from '@/components/results/BlastDomainEvidence';
 import { BackButton, CriticalButton } from '@/components/ui';
-import { continueAnalysis } from '@/lib/cross-link';
+import { continueAnalysis, type AnalysisHandoff } from '@/lib/cross-link';
 import { downloadText } from '@/lib/export-utils';
 import { JobGraph } from '@/components/pipeline/JobGraph';
 import { branchFromJob } from '@/lib/api';
@@ -325,7 +325,7 @@ export default function JobPage() {
     phyloNewick: phyloNewick || undefined,
     pathwayIdentifiers: [geneName, uniprotAcc].filter((value): value is string => Boolean(value)),
     blastDatabase: context.blast?.database,
-  } as const;
+  } satisfies Partial<Omit<AnalysisHandoff, 'version' | 'updatedAt'>>;
 
   const continueTo = (
     target: string,

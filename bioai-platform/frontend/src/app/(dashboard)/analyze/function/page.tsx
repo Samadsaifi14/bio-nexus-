@@ -21,7 +21,7 @@ import {
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from "@/components/ui";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
 import { LearnPopover } from "@/components/LearnPopover";
-import { consumeParam } from "@/lib/cross-link";
+import { consumeParam, getAnalysisHandoff } from "@/lib/cross-link";
 
 const NS_LABELS: Record<string, string> = {
   MF: "Molecular Function",
@@ -56,7 +56,8 @@ export default function FunctionPage() {
   }, []);
 
   useEffect(() => {
-    const stored = consumeParam("function_pdb_id");
+    const handoff = getAnalysisHandoff();
+    const stored = consumeParam("function_pdb_id") || handoff?.pdbId || null;
     if (stored) setPdbId(stored);
   }, []);
 

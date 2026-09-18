@@ -531,9 +531,15 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _mark("domains", s, progress=100, data=res)
                 context["domains"] = res
             elif name == "alphafold":
-                s = "complete" if res else "failed"
-                _mark("alphafold", s, progress=100, data=res or {})
-                context["alphafold"] = res
+                usable = bool(res and res.get("structure_available"))
+                s = "complete" if usable else "failed"
+                structure_error = None if usable else (
+                    (res or {}).get("message")
+                    or (res or {}).get("error")
+                    or "No usable structure was returned"
+                )
+                _mark("alphafold", s, progress=100, data=res or {}, error=structure_error)
+                context["alphafold"] = res or {}
 
     # ---- Step 5: Interpret (needs all context) ----
     if "interpret" in steps and not _failed_step:

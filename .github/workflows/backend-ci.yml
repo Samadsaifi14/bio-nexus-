@@ -30,7 +30,7 @@ jobs:
           python -m pip install --upgrade pip
           # Keep CI deterministic with the lightweight runtime/test dependencies
           # exercised by these suites. Heavy providers are tested behind adapters.
-          pip install pytest fastapi 'httpx>=0.24' biopython numpy python-dotenv slowapi 'pydantic[email]' pillow supabase
+          pip install pytest pytest-asyncio fastapi 'httpx>=0.24' biopython numpy python-dotenv slowapi 'pydantic[email]' pillow supabase
 
       - name: Deterministic validation suite
         run: |
@@ -38,11 +38,14 @@ jobs:
             tests/test_experiment_provenance.py \
             tests/test_blast_engine.py \
             tests/test_blast_program_matrix.py \
+            tests/test_blast_resilience.py \
             tests/test_uniprot_engine.py \
             tests/test_msa_engine.py \
             tests/test_phylo_engine.py \
             tests/test_domains_engine.py \
             tests/test_alphafold_pathway_engines.py \
+            tests/test_page_capture_synthesis.py \
+            tests/test_publication_engine.py \
             tests/test_interpret_engine.py \
             tests/test_evidence_engine.py \
             tests/test_figure_engine.py \

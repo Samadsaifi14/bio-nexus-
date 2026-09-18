@@ -1,6 +1,6 @@
 # BioNexus publication-focused technical and scientific audit
 
-**Audit date:** 2026-09-12  
+**Audit date:** 2026-09-12; evidence status updated 2026-09-19  
 **Audited branch baseline:** `main` at `112bf4cfb8535823c5eee5b7a973f27aca377563`  
 **Hardening branch:** `audit/research-hardening-2026-09-12`  
 **Production UI:** `https://bio-nexus-ebon.vercel.app/`
@@ -122,13 +122,13 @@ These are design inputs, not claims that BioNexus is “better than Galaxy.” A
 | Domains/motifs | InterPro/PROSITE-related adapters/tests | Structured domain/motif evidence retrieval/scanning. | Live E2E status still needs a retained benchmark artifact. |
 | Primer design | Primer3 integration plus primer QC | Primer candidates with explicit thermodynamic/QC summaries. | Compare against a frozen Primer3 reference fixture and retain parameter snapshots. |
 | Structure retrieval | RCSB PDB / AlphaFold DB-oriented retrieval | Retrieval and visualization of recorded structural models. | Keep “retrieved model” separate from de-novo prediction claims. |
-| Docking | AutoDock Vina 1.2.7 path, run logs, docking analytics | Reproducible docking execution when the backend returns measured poses. | BBS-1 redocking fixture still has a ligand-SDF sanitization failure before RMSD; do not claim validated redocking accuracy yet. |
+| Docking | AutoDock Vina 1.2.7 path, run logs, docking analytics; retained canonical 1STP-biotin redocking run | Reproducible docking execution plus pose-recovery evidence for the declared 1STP-biotin fixture. | Retained symmetry-aware heavy-atom RMSD 0.7252 Å passed the predeclared 2.0 Å threshold. Scope is one fixture only; do not generalize to affinity accuracy, other systems or platform superiority. |
 | MD | OpenMM-backed hosted path; explicit current implicit-solvent scope | Short hosted OpenMM simulation workflow for exploratory structural dynamics. | Benchmark energy/trajectory invariants and keep fallback paths from being presented as equivalent production MD. |
 | ADMET | RDKit descriptor computation | Deterministic physicochemical/descriptive property calculation. | Do not call descriptors pharmacokinetic/clinical ADMET prediction without validated models. |
 | NGS WGS/WES | Pinned Sarek planner + durable executors + provenance/artifact import | Production workflow orchestration when executor is configured; exploratory preview separately labelled. | Full matched HG002/other GIAB benchmark still required. |
-| RNA-seq | Pinned nf-core/rnaseq planner + executors + workflow-specific artifacts | Production RNA-seq orchestration; downstream DEG remains a separate statistical analysis. | Add retained multi-sample benchmark with known design, DESeq2 output and QC figures. |
+| RNA-seq | Pinned nf-core/rnaseq planner/executors plus retained full GSE67196 DESeq2 benchmark | Production RNA-seq orchestration; downstream DESeq2 execution is separately evidenced with locked public-source, table, plot-source and figure hashes. | Experimental unit is not declared in the retained metadata; biological interpretation and covariate sensitivity remain outside the software-verification claim. |
 | AI interpretation | Grounding/claim-validation infrastructure | AI explanation is an interpretation layer over deterministic/reference evidence. | Report false-claim rejection performance on a fixed adversarial test set. |
-| Provenance/evidence | experiment/evidence/benchmark services, checksums, CI | BioNexus records machine-readable provenance and classifies evidence. | Export/round-trip validation and DOI/archive workflow should be tested before claiming archival reproducibility. |
+| Provenance/evidence | experiment/evidence/benchmark services, checksums, CI, retained GSE67196 and 1STP evidence manifests | BioNexus records machine-readable provenance and classifies evidence for documented benchmark runs. | GitHub workflow artifacts are retention-limited; DOI/persistent archival deposition remains required before claiming durable archival reproducibility. |
 
 ## Required benchmark program before strong manuscript claims
 

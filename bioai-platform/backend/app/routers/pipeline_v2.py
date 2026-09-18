@@ -651,6 +651,30 @@ EBI_BLAST_DATABASE_MAP = {
 }
 
 
+def _blast_query_coverage_pct(hit: dict, query_length: int) -> float:
+    """Calculate query coverage from the query-coordinate span when available.
+
+    Alignment length may include subject-side gaps and is therefore not a
+    reliable definition of how much of the query was covered. BLAST's
+    query_from/query_to coordinates directly encode the covered query span.
+    """
+    if query_length <= 0:
+        return 0.0
+    try:
+        q_from = int(hit.get("query_from") or 0)
+        q_to = int(hit.get("query_to") or 0)
+    except (TypeError, ValueError):
+        q_from = q_to = 0
+    if q_from > 0 and q_to > 0:
+        covered = abs(q_to - q_from) + 1
+    else:
+        try:
+            covered = int(hit.get("alignment_length") or 0)
+        except (TypeError, ValueError):
+            covered = 0
+    return round(min(100.0, max(0.0, covered / query_length * 100.0)), 1)
+
+
 def _build_blast_result(
     hits: list[dict],
     *,
@@ -693,7 +717,7 @@ def _build_blast_result(
                 "identity_pct": h["identity_pct"],
                 "bit_score": h["bit_score"],
                 "alignment_length": h.get("alignment_length", 0),
-                "query_coverage_pct": round(h.get("alignment_length", 0) / query_length * 100, 1) if query_length > 0 else 0,
+                "query_coverage_pct": _blast_query_coverage_pct(h, query_length),
                 "hit_alignment": h.get("hit_alignment", ""),
                 "query_alignment": h.get("query_alignment", ""),
                 "midline": h.get("midline", ""),

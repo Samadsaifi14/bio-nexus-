@@ -56,6 +56,26 @@ Thresholds are declared before inspecting the result and are not changed merely 
 - PCA, distance, MA, volcano and expression-heatmap figures as SVG, PDF and 300-DPI PNG; and
 - a final SHA-256 manifest over the retained evidence bundle.
 
+## Latest retained execution
+
+A successful full-study run was retained from GitHub Actions run
+`35328958705` at commit
+`eae16513b56044f11c39a60227cfe26ddbc13b64`. The workflow artifact is
+`rnaseq-gse67196-sals-full-study` (artifact ID `10539549875`; ZIP SHA-256
+`ce0fa52c75e0b5c40d7e5cc8c7d222fc03416d57f0a1ecf1db4405d9575a9cf0`).
+
+The compact, reviewable record is committed as
+`retained_run_manifest.json`. It locks source hashes, the statistical
+contract, key output hashes and the design-audit state. The retained design is
+full rank for the declared `~condition` model, but the experimental unit is
+recorded as `NOT_DECLARED`; that limitation must remain visible in biological
+interpretation.
+
+GitHub workflow artifacts are retention-limited rather than persistent
+archives. The manifest therefore records
+`WORKFLOW_ARTIFACT_NOT_PERSISTENT_ARCHIVE`; a DOI-bearing archival deposit is
+still required before final publication packaging.
+
 ## Claim boundary
 
 This benchmark can support claims about reproducible processing of this declared public dataset and the behaviour of the BioNexus DESeq2 path. Biological interpretation still requires study-design review and independent domain interpretation. This benchmark does not by itself establish an ALS biomarker, causal biology, clinical validity, or platform-wide superiority.

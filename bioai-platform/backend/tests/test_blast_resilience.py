@@ -381,3 +381,134 @@ class TestEbiParseHits:
         assert hits[0]["accession"] == "X1"
         assert hits[0]["bit_score"] == 0
         assert hits[0]["identity_pct"] == 0
+
+
+class TestBlastDownstreamFeatureRestoration:
+    """Regression coverage for BLAST -> MSA/tree -> structure feature chain."""
+
+    @pytest.mark.asyncio
+    async def test_local_mafft_alignment_also_emits_real_tree(self, monkeypatch):
+        from app.routers import pipeline_v2
+        from app.tools import mafft_local
+
+        query = "MKTAYIAKQRQISFVKSHFSRQDI"
+        seqs = {
+            "P11111": "MKTAYIAKQRQISFVKSHFSRQDV",
+            "P22222": "MKTAYIAKQRQISFVKSHFTRQDI",
+            "P33333": "MKTAYIAKQREISFVKSHFSRQDI",
+        }
+
+        class FakeUniprotTool:
+            async def run(self, input):
+                accession = input["accession"]
+                return {"accession": accession, "sequence": seqs[accession]}
+
+        def fake_mafft(fasta, strategy="auto", threads=1, timeout=300):
+            # The input records are equal length in this fixture, so returning
+            # them unchanged is a valid aligned FASTA for testing tree wiring.
+            return {
+                "aln_fasta": fasta,
+                "method": "mafft-local",
+                "strategy": strategy,
+                "threads": threads,
+                "tool_version": "test",
+            }
+
+        monkeypatch.setattr(pipeline_v2, "UniprotTool", FakeUniprotTool)
+        monkeypatch.setattr(mafft_local, "run_local_mafft", fake_mafft)
+
+        hits = [
+            {"accession": accession, "hit_alignment": sequence}
+            for accession, sequence in seqs.items()
+        ]
+        result = await pipeline_v2._run_msa(query, hits, "global")
+
+        assert result["aln_fasta"]
+        assert result["method"] == "mafft-local"
+        assert result["phylotree_method"] == "upgma-pdistance"
+        assert result["phylotree"].endswith(";")
+        assert "query" in result["phylotree"]
+        for accession in seqs:
+            assert accession in result["phylotree"]
+
+    @pytest.mark.asyncio
+    async def test_structure_falls_back_to_experimental_pdb(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        async def no_alphafold(context):
+            return {
+                "uniprot_accession": "P11111",
+                "structure_available": False,
+                "message": "No AlphaFold prediction",
+            }
+
+        async def experimental(uniprot_data, accession):
+            assert uniprot_data["pdb_ids"] == ["1ABC"]
+            assert accession == "P11111"
+            return {
+                "uniprot_accession": accession,
+                "structure_available": True,
+                "source": "rcsb_pdb",
+                "structure_type": "experimental",
+                "pdb_id": "1ABC",
+                "pdb_url": "https://files.rcsb.org/download/1ABC.pdb",
+                "pdb_text": "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 20.00           C",
+            }
+
+        monkeypatch.setattr(pipeline_v2, "_run_alphafold", no_alphafold)
+        monkeypatch.setattr(pipeline_v2, "_fetch_experimental_pdb", experimental)
+
+        context = {
+            "uniprot": {
+                "accession": "P11111",
+                "resolved_uniprot": True,
+                "pdb_ids": ["1ABC"],
+            }
+        }
+        result = await pipeline_v2._run_alphafold_or_esmfold(
+            context, PROTEIN_SEQ, "P11111", True
+        )
+
+        assert result["structure_available"] is True
+        assert result["source"] == "rcsb_pdb"
+        assert result["structure_type"] == "experimental"
+        assert result["pdb_id"] == "1ABC"
+
+    @pytest.mark.asyncio
+    async def test_structure_uses_esmfold_only_after_reference_sources_fail(self, monkeypatch):
+        from app.routers import pipeline_v2
+        from app.services import de_novo
+
+        async def no_alphafold(context):
+            return {"structure_available": False, "message": "missing"}
+
+        async def no_pdb(uniprot_data, accession):
+            return None
+
+        async def predicted(sequence):
+            assert sequence == PROTEIN_SEQ
+            return {
+                "structure_available": True,
+                "pdb_text": "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 88.00           C",
+                "mean_plddt": 88.0,
+            }
+
+        monkeypatch.setattr(pipeline_v2, "_run_alphafold", no_alphafold)
+        monkeypatch.setattr(pipeline_v2, "_fetch_experimental_pdb", no_pdb)
+        monkeypatch.setattr(de_novo, "esmfold_structure", predicted)
+
+        context = {
+            "uniprot": {
+                "accession": "P11111",
+                "resolved_uniprot": True,
+                "pdb_ids": [],
+            }
+        }
+        result = await pipeline_v2._run_alphafold_or_esmfold(
+            context, PROTEIN_SEQ, "P11111", True
+        )
+
+        assert result["structure_available"] is True
+        assert result["source"] == "esmfold"
+        assert result["structure_type"] == "predicted"
+        assert result["uniprot_accession"] == "P11111"

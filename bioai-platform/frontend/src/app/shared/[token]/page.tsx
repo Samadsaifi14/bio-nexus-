@@ -121,7 +121,14 @@ export default function SharedResultPage() {
 
             {context.alphafold?.structure_available && (
               <motion.div variants={fadeUp}>
-                <AlphaFoldViewer pdbUrl={context.alphafold.pdb_url} uniprotId={context.alphafold.uniprot_accession} />
+                <AlphaFoldViewer
+                  pdbUrl={context.alphafold.pdb_url}
+                  pdbData={context.alphafold.pdb_text}
+                  uniprotId={context.alphafold.uniprot_accession}
+                  source={context.alphafold.source}
+                  structureType={context.alphafold.structure_type}
+                  pdbId={context.alphafold.pdb_id ?? undefined}
+                />
               </motion.div>
             )}
 

@@ -29,7 +29,9 @@ def records_to_sam(records: list[dict]) -> str:
 
     contigs: dict[str, int] = {}
     for r in records:
-        name = r.get("rname") or "chr1"
+        if r.get("is_unmapped") or not r.get("rname") or r.get("rname") == "*":
+            continue
+        name = r["rname"]
         end = (r.get("pos", 1) - 1) + _cigar_len(r.get("cigar", ""))
         contigs[name] = max(contigs.get(name, 0), end)
 

@@ -269,10 +269,10 @@ class TestEbiToolSubmit:
 
         monkeypatch.setattr("app.tools.blast.httpx.AsyncClient", lambda **kw: FakeClient())
         tool = BlastTool()
-        await tool._submit("MKTAYIAKQRQISFVKSHFSRQDIL", "blastx", "nr")
-        assert captured["data"]["stype"] == "protein"  # blastx queries a protein
-        await tool._submit("ATGCATGC", "tblastn", "nt")
-        assert captured["data"]["stype"] == "dna"
+        await tool._submit("ATGCATGCATGC", "blastx", "nr")
+        assert captured["data"]["stype"] == "dna"  # blastx translates a nucleotide query
+        await tool._submit("MKTAYIAKQRQISFVKSHFSRQDIL", "tblastn", "nt")
+        assert captured["data"]["stype"] == "protein"  # tblastn translates the nucleotide target
 
 
 def asyncio_run(coro):

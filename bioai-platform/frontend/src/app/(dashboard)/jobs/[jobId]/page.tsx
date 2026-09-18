@@ -31,8 +31,9 @@ import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats'
 import { SecondaryStructureViewer } from '@/components/structure/SecondaryStructure';
 import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
+import { BlastDomainEvidence } from '@/components/results/BlastDomainEvidence';
 import { BackButton, CriticalButton } from '@/components/ui';
-import { setPrefill } from '@/lib/cross-link';
+import { continueAnalysis } from '@/lib/cross-link';
 import { downloadText } from '@/lib/export-utils';
 import { JobGraph } from '@/components/pipeline/JobGraph';
 import { branchFromJob } from '@/lib/api';
@@ -282,6 +283,55 @@ export default function JobPage() {
   const confidence = context.query?.confidence;
   const isDeNovo = context.uniprot?._de_novo === true || confidence === 'de_novo';
 
+  const uniprotAcc = context.uniprot?.accession ?? context.alphafold?.uniprot_accession ?? null;
+  const geneName = context.uniprot?.gene_names?.[0] ?? null;
+  const experimentalPdbId =
+    context.alphafold?.source === 'rcsb_pdb'
+      ? context.alphafold.pdb_id ?? null
+      : context.uniprot?.pdb_ids?.[0] ?? null;
+  const structurePdbUrl = context.alphafold?.pdb_url ?? null;
+  const structurePdbData = context.alphafold?.pdb_text ?? null;
+  const querySequence = context.query?.sequence ?? context.sequence ?? '';
+  const resolvedSequence = context.uniprot?.sequence ?? '';
+  const topBlastHit = context.blast?.hits?.[0] ?? null;
+  const topHitSequence = topBlastHit
+    ? fullHitSequences[topBlastHit.accession]
+      ?? fullHitSequences[topBlastHit.accession.replace(/\.\d+$/, '')]
+      ?? (topBlastHit.hit_alignment || '').replace(/-/g, '')
+    : '';
+  const phyloNewick =
+    context.phylo?.phylotree_newick
+    || context.phylo_data?.phylotree_newick
+    || context.msa?.phylotree
+    || '';
+
+  const handoff = {
+    sourceTool: 'blast',
+    sourceJobId: jobId,
+    querySequence,
+    sequenceType: context.query?.sequence_type ?? 'protein',
+    queryAccession: context.query?.accession,
+    resolvedAccession: uniprotAcc ?? undefined,
+    resolvedSequence: resolvedSequence || undefined,
+    topHitAccession: topBlastHit?.accession,
+    topHitSequence: topHitSequence || undefined,
+    geneName: geneName ?? undefined,
+    organism: context.uniprot?.organism || topBlastHit?.organism,
+    pdbId: experimentalPdbId ?? undefined,
+    pdbUrl: structurePdbUrl ?? undefined,
+    structureSource: context.alphafold?.source,
+    structureType: context.alphafold?.structure_type,
+    msaFasta: context.msa?.aln_fasta ?? undefined,
+    phyloNewick: phyloNewick || undefined,
+    pathwayIdentifiers: [geneName, uniprotAcc].filter((value): value is string => Boolean(value)),
+    blastDatabase: context.blast?.database,
+  } as const;
+
+  const continueTo = (
+    target: string,
+    legacyPrefills: Record<string, string | undefined | null> = {},
+  ) => continueAnalysis(router, handoff, target, legacyPrefills);
+
   return (
     <motion.div variants={stagger} initial={{ y: 24 }} animate="show" className="space-y-6">
       <BackButton href="/jobs" label="Back to Jobs" />
@@ -412,6 +462,12 @@ export default function JobPage() {
             </motion.div>
           )}
 
+          {context.domains && (
+            <motion.div variants={fadeUp} whileHover={cardHover}>
+              <BlastDomainEvidence data={context.domains} />
+            </motion.div>
+          )}
+
           {context.msa?.aln_fasta && (
             <motion.div variants={fadeUp} whileHover={cardHover} className="data-card p-4">
               <div className="flex items-center justify-between mb-2">
@@ -466,14 +522,15 @@ export default function JobPage() {
               <div className="mt-2 flex items-center justify-end">
                 {context.alphafold.pdb_url ? (
                   <button
-                    onClick={() => {
-                      const url = context.alphafold?.pdb_url;
-                      if (url) router.push(`/analyze/docking?pdb_url=${encodeURIComponent(url)}`);
-                    }}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20"
+                    onClick={() => continueTo('/analyze/docking', {
+                      docking_pdb_id: experimentalPdbId,
+                    })}
+                    disabled={!experimentalPdbId}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition border border-accent-cyan/20 disabled:opacity-50 disabled:cursor-not-allowed"
+                    title={experimentalPdbId ? 'Carry the experimental receptor into docking' : 'Docking is gated to an experimental PDB receptor'}
                   >
                     <FlaskConical className="w-3.5 h-3.5" />
-                    Dock with this structure
+                    {experimentalPdbId ? 'Dock with this experimental structure' : 'Prepare/validate structure before docking'}
                   </button>
                 ) : (
                   isDeNovo && (
@@ -499,125 +556,216 @@ export default function JobPage() {
             </motion.div>
           ) : null}
 
-          <div className="flex items-center gap-3 pt-2 flex-wrap">
-            {!isDeNovo && (
-              <button
-                onClick={() => {
-                  const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
-                    .concat((context.blast?.hits || []).map((h: import('@/types/pipeline').BlastHitSummary) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
-                    .join('\n');
-                  const blob = new Blob([csv], { type: 'text/csv' });
-                  const url = URL.createObjectURL(blob);
-                  const a = document.createElement('a');
-                  a.href = url;
-                  a.download = `blast-results-${jobId.slice(0, 8)}.csv`;
-                  a.click();
-                  URL.revokeObjectURL(url);
-                  toast.success('Downloaded as CSV');
-                }}
-                className="btn-critical text-sm flex items-center gap-2"
-              >
-                <Download className="w-4 h-4" />
-                Download CSV
-              </button>
-            )}
-            {(() => {
-              const uniprotAcc = context.uniprot?.accession;
-              const geneName = context.uniprot?.gene_names?.[0] ?? null;
-              const pdbId = context.uniprot?.pdb_ids?.[0] ?? null;
-              return (
-                <>
-                  {uniprotAcc && (
-                    <button onClick={() => setPrefill(router, 'domains_accession', uniprotAcc, '/analyze/domains')}
-                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
-                      Domains
-                    </button>
-                  )}
-                  {uniprotAcc && (
-                    <button onClick={() => setPrefill(router, 'structure_query', uniprotAcc, '/analyze/structure')}
-                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
-                      Structure
-                    </button>
-                  )}
-                  {geneName && (
-                    <button onClick={() => setPrefill(router, 'interaction_gene', geneName, '/analyze/interactions')}
-                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
-                      Interactions
-                    </button>
-                  )}
-                  {pdbId && (
-                    <button onClick={() => setPrefill(router, 'docking_pdb_id', pdbId, '/analyze/docking')}
-                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
-                      Docking
-                    </button>
-                  )}
-                  {pdbId && (
-                    <button onClick={() => setPrefill(router, 'md_pdb_id', pdbId, '/analyze/md')}
-                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
-                      MD
-                    </button>
-                  )}
-                  {pdbId && (
-                    <button onClick={() => setPrefill(router, 'function_pdb_id', pdbId, '/analyze/function')}
-                      className="glass-card px-4 py-2.5 text-xs text-text-secondary flex items-center gap-2 hover:bg-surface-2 hover:text-accent-cyan transition">
-                      Function
-                    </button>
-                  )}
-                </>
-              );
-            })()}
-          </div>
+          <motion.div variants={fadeUp} className="data-card p-5">
+            <div className="flex items-start justify-between gap-3 flex-wrap mb-4">
+              <div>
+                <h3 className="text-sm font-semibold text-text-primary">Continue this analysis</h3>
+                <p className="text-xs text-text-muted mt-1">
+                  BioNexus carries the current query sequence, resolved accession, top BLAST hit, gene, MSA/tree and structure evidence into the next compatible tool.
+                </p>
+              </div>
+              {!isDeNovo && (
+                <button
+                  onClick={() => {
+                    const csv = [['Accession', 'Description', 'E-value', '% Identity', 'Bit Score'].join(',')]
+                      .concat((context.blast?.hits || []).map((h: import('@/types/pipeline').BlastHitSummary) => [h.accession, `"${h.description}"`, h.evalue_raw ?? h.evalue, h.identity_pct, h.bit_score].join(',')))
+                      .join('\n');
+                    const blob = new Blob([csv], { type: 'text/csv' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `blast-results-${jobId.slice(0, 8)}.csv`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                    toast.success('Downloaded as CSV');
+                  }}
+                  className="btn-critical text-sm flex items-center gap-2"
+                >
+                  <Download className="w-4 h-4" />
+                  Download BLAST CSV
+                </button>
+              )}
+            </div>
 
-          {/* Advanced Analysis section */}
+            <div className="flex items-center gap-2 flex-wrap">
+              {uniprotAcc && (
+                <button onClick={() => continueTo('/analyze/domains', { domains_accession: uniprotAcc })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Domains · sites · PTMs · motifs
+                </button>
+              )}
+              {geneName && (
+                <button onClick={() => continueTo('/analyze/pathway', { pathway_query: geneName })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Pathways / enrichment
+                </button>
+              )}
+              {geneName && (
+                <button onClick={() => continueTo('/analyze/interactions', { interaction_gene: geneName })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Protein interactions
+                </button>
+              )}
+              {uniprotAcc && (
+                <button onClick={() => continueTo('/analyze/uniprot', { uniprot_accession: uniprotAcc })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  UniProt record
+                </button>
+              )}
+              {(uniprotAcc || experimentalPdbId) && (
+                <button onClick={() => continueTo('/analyze/structure', { structure_query: uniprotAcc || experimentalPdbId })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  3D structure
+                </button>
+              )}
+              {querySequence && (
+                <button onClick={() => continueTo('/analyze/motif', { motif_sequence: querySequence })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Motif scan
+                </button>
+              )}
+              {querySequence && topHitSequence && (
+                <button onClick={() => continueTo('/analyze/pairwise', {
+                  pairwise_sequence_a: querySequence,
+                  pairwise_sequence_b: topHitSequence,
+                })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Pairwise with top hit
+                </button>
+              )}
+              {context.msa?.aln_fasta && (
+                <button onClick={() => continueTo('/analyze/phylo', { phylo_fasta: context.msa?.aln_fasta })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Re-run phylogeny
+                </button>
+              )}
+              {experimentalPdbId && (
+                <button onClick={() => continueTo('/analyze/castp', { castp_pdb_id: experimentalPdbId })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Pockets / CASTp
+                </button>
+              )}
+              {(experimentalPdbId || querySequence) && (
+                <button onClick={() => continueTo('/analyze/structure-prep', {
+                  structure_prep_pdb_id: experimentalPdbId,
+                  structure_prep_sequence: experimentalPdbId ? undefined : querySequence,
+                })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Structure preparation
+                </button>
+              )}
+              {experimentalPdbId && (
+                <button onClick={() => continueTo('/analyze/docking', { docking_pdb_id: experimentalPdbId })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Docking
+                </button>
+              )}
+              {experimentalPdbId && (
+                <button onClick={() => continueTo('/analyze/md-v2', { md_pdb_id: experimentalPdbId })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Staged MD
+                </button>
+              )}
+              {experimentalPdbId && (
+                <button onClick={() => continueTo('/analyze/function', { function_pdb_id: experimentalPdbId })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Structure-based function
+                </button>
+              )}
+              {!context.alphafold?.structure_available && querySequence && (
+                <button onClick={() => continueTo('/analyze/predict-structure', { predict_structure_sequence: querySequence })}
+                  className="glass-card px-3 py-2 text-xs text-text-secondary hover:bg-surface-2 hover:text-accent-cyan transition">
+                  Predict structure
+                </button>
+              )}
+            </div>
+          </motion.div>
+
+          {/* On-demand downstream evidence suite */}
           {(() => {
-            const uniprotAcc = context.uniprot?.accession;
-            const geneName = context.uniprot?.gene_names?.[0] ?? null;
-            const pdbId = context.uniprot?.pdb_ids?.[0] ?? null;
-
+            const hasStructure = Boolean(experimentalPdbId || structurePdbUrl || structurePdbData);
+            const proteinSequence = resolvedSequence || querySequence;
             const analysisTabs: { id: string; label: string; available: boolean; component: React.ReactNode }[] = [
-              { id: "doms", label: "Domains",     available: !!uniprotAcc, component: uniprotAcc ? <>
-                <DomainArchitecture accession={uniprotAcc} />
-                {pdbId && <div className="mt-3 pt-3 border-t border-glass-border flex items-center justify-end">
-                  <button onClick={() => router.push(`/analyze/docking?pdb_id=${pdbId}`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition">
-                    <FlaskConical className="w-3.5 h-3.5" /> Dock at binding site (F5)
-                  </button>
-                </div>}
-              </> : null },
-              { id: "net",  label: "Interactions", available: !!geneName,   component: geneName ? <StringDBViewer geneName={geneName} initialData={context.interactions ?? null} /> : null },
-              { id: "ss",   label: "2° Structure", available: !!uniprotAcc, component: uniprotAcc ? <SecondaryStructureViewer identifier={uniprotAcc} /> : null },
-              { id: "rama", label: "Ramachandran", available: !!uniprotAcc, component: uniprotAcc ? <RamachandranPlot pdbId={pdbId} /> : null },
-              { id: "comp", label: "Comparison",   available: !!pdbId,     component: pdbId ? <>
-                <StructureComparison pdbId={pdbId} />
-                <div className="mt-3 pt-3 border-t border-glass-border flex items-center justify-end">
-                  <button onClick={() => router.push(`/analyze/docking?pdb_id=${pdbId}`)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-accent-cyan/10 text-accent-cyan text-xs font-medium hover:bg-accent-cyan/20 transition">
-                    <FlaskConical className="w-3.5 h-3.5" /> Use top match as docking receptor (F7)
-                  </button>
-                </div>
-              </> : null },
+              {
+                id: "doms",
+                label: "Domains / sites / PTMs / motifs",
+                available: Boolean(uniprotAcc),
+                component: uniprotAcc ? <DomainArchitecture accession={uniprotAcc} /> : null,
+              },
+              {
+                id: "pathways",
+                label: "Pathways",
+                available: Boolean(context.pathway_enrichment),
+                component: context.pathway_enrichment ? <PathwayEnrichment data={context.pathway_enrichment} /> : null,
+              },
+              {
+                id: "net",
+                label: "Interactions",
+                available: Boolean(geneName),
+                component: geneName ? <StringDBViewer geneName={geneName} initialData={context.interactions ?? null} /> : null,
+              },
+              {
+                id: "ss",
+                label: "Secondary structure",
+                available: Boolean(proteinSequence),
+                component: proteinSequence
+                  ? <SecondaryStructureViewer identifier={uniprotAcc} sequence={proteinSequence} />
+                  : null,
+              },
+              {
+                id: "rama",
+                label: "Ramachandran",
+                available: hasStructure,
+                component: hasStructure ? (
+                  <RamachandranPlot
+                    pdbId={experimentalPdbId}
+                    pdbUrl={structurePdbUrl}
+                    pdbData={structurePdbData}
+                    sourceLabel={
+                      context.alphafold?.source === 'rcsb_pdb'
+                        ? `experimental RCSB PDB ${experimentalPdbId || ''}`.trim()
+                        : context.alphafold?.source === 'alphafold_db'
+                          ? `AlphaFold DB model ${uniprotAcc || ''}`.trim()
+                          : context.alphafold?.source === 'esmfold'
+                            ? 'ESMFold prediction'
+                            : 'the displayed structure'
+                    }
+                  />
+                ) : null,
+              },
+              {
+                id: "comp",
+                label: "Structural homologs",
+                available: Boolean(experimentalPdbId),
+                component: experimentalPdbId ? <StructureComparison pdbId={experimentalPdbId} /> : null,
+              },
             ];
 
-            const available = analysisTabs.filter(t => t.available);
+            const available = analysisTabs.filter((tab) => tab.available);
             if (available.length === 0) return null;
 
             return (
               <motion.div variants={fadeUp} className="data-card p-5">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-text-primary">Advanced Analysis</h3>
-                  <div className="flex gap-2 flex-wrap">
-                    {available.map(tab => (
-                      <button key={tab.id}
-                        onClick={() => setActiveAnalysisTab(activeAnalysisTab === tab.id ? null : tab.id)}
-                        className={`px-3 py-1 rounded-full text-xs border transition ${
-                          activeAnalysisTab === tab.id
-                            ? "border-accent-cyan bg-accent-cyan/10 text-accent-cyan"
-                            : "border-glass-border text-text-muted hover:border-white/20"
-                        }`}>
-                        {tab.label}
-                      </button>
-                    ))}
-                  </div>
+                <div className="mb-4">
+                  <h3 className="text-lg font-semibold text-text-primary">BLAST downstream evidence suite</h3>
+                  <p className="text-xs text-text-muted mt-1">
+                    These analyses reuse the sequence, annotation and structure evidence already resolved by this BLAST run. Expensive external analyses load only when you open their tab.
+                  </p>
+                </div>
+                <div className="flex gap-2 flex-wrap mb-4">
+                  {available.map((tab) => (
+                    <button
+                      key={tab.id}
+                      onClick={() => setActiveAnalysisTab(activeAnalysisTab === tab.id ? null : tab.id)}
+                      className={`px-3 py-1.5 rounded-full text-xs border transition ${
+                        activeAnalysisTab === tab.id
+                          ? "border-accent-cyan bg-accent-cyan/10 text-accent-cyan"
+                          : "border-glass-border text-text-muted hover:border-white/20"
+                      }`}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
                 {activeAnalysisTab && (
                   <motion.div
@@ -627,7 +775,9 @@ export default function JobPage() {
                     transition={{ duration: 0.2 }}
                     className="border-t border-glass-border pt-4"
                   >
-                    {analysisTabs.find(t => t.id === activeAnalysisTab)?.component}
+                    {analysisTabs.find((tab) => tab.id === activeAnalysisTab && tab.available)?.component ?? (
+                      <p className="text-sm text-text-muted">This analysis is not available for the recorded evidence in this run.</p>
+                    )}
                   </motion.div>
                 )}
               </motion.div>

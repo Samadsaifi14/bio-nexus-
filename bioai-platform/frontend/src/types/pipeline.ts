@@ -100,16 +100,21 @@ export interface PathwayEnrichmentPathway {
   entitiesFound: number;
   entitiesTotal: number;
   geneRatio: number;
-  entitiesFDR: number;
-  entitiesPValue: number;
+  entitiesFDR: number | null;
+  entitiesPValue: number | null;
+  adjustedPValue?: number | null;
+  significance_source?: string;
+  provider?: string;
 }
 
 export interface PathwayEnrichment {
   token: string;
   pathways: PathwayEnrichmentPathway[];
   method?: string;
+  provider?: string;
   provider_label?: string;
   correction_method?: string;
+  significance_note?: string;
   projection?: {
     identifiers_found?: number | null;
     identifiers_not_found?: number | null;
@@ -156,6 +161,9 @@ export interface AssembledContext {
     aln_fasta?: string | null;
     phylotree?: string | null;
     sequence_count?: number;
+    method?: string | null;
+    engine?: string | null;
+    msa_stats?: MsaStats | null;
   };
   phylo?: { phylotree_newick?: string };
   phylo_data?: { phylotree_newick?: string };
@@ -238,12 +246,27 @@ export interface PairwiseAlignResult {
   hit_source?: string;
 }
 
+export interface MsaStats {
+  length: number;
+  matched: number;
+  mismatched: number;
+  gapped: number;
+  total_gaps: number;
+  identity_pct: number;
+}
+
 export interface MsaStepResult {
   aln_fasta?: string | null;
   phylotree?: string | null;
   sequence_count?: number;
   alignment_mode?: 'global' | 'local';
   method?: string | null;
+  engine?: string | null;
+  engine_version?: string | null;
+  input_sha256?: string;
+  output_sha256?: string;
+  msa_stats?: MsaStats | null;
+  fallback_used?: boolean;
   pairwise?: PairwiseAlignResult | null;
   pairwise_subject?: string | null;
   error?: string | null;

@@ -2,13 +2,13 @@
 
 import { useMemo } from 'react';
 import { Download } from '@phosphor-icons/react';
-import type { PairwiseAlignResult } from '@/types/pipeline';
+import type { MsaStats, PairwiseAlignResult } from '@/types/pipeline';
 import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisplay';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 import { AlignmentBlock } from '@/components/alignment/AlignmentBlock';
-import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
+import { parseAlignedFasta } from '@/lib/alignment-stats';
 import { downloadText } from '@/lib/export-utils';
 
 interface MSAResultPanelProps {
@@ -19,6 +19,9 @@ interface MSAResultPanelProps {
   pairwise?: PairwiseAlignResult | null;
   pairwiseSubject?: string | null;
   jobId?: string;
+  method?: string | null;
+  engine?: string | null;
+  msaStats?: MsaStats | null;
 }
 
 export function MSAResultPanel({
@@ -29,9 +32,11 @@ export function MSAResultPanel({
   pairwise,
   pairwiseSubject,
   jobId,
+  method,
+  engine,
+  msaStats,
 }: MSAResultPanelProps) {
   const { seqs } = useMemo(() => parseAlignedFasta(alnFasta), [alnFasta]);
-  const stats = useMemo(() => computeAlignmentStats(seqs), [seqs]);
 
   const download = () => {
     downloadText(alnFasta, `msa-${jobId?.slice(0, 8) ?? 'result'}.fasta`);
@@ -44,7 +49,7 @@ export function MSAResultPanel({
           <div>
             <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
             <p className="text-xs text-text-muted mt-0.5">
-              {sequenceCount ?? seqs.length} sequences aligned via Clustal Omega
+              {sequenceCount ?? seqs.length} sequences aligned via {engine ? `${engine} (${method || engine})` : (method || 'Clustal Omega')}
               {alignmentMode === 'local' && (
                 <span className="ml-2 px-2 py-0.5 rounded-full bg-accent-amber/10 border border-accent-amber/30 text-accent-amber font-medium">
                   local refinement
@@ -60,7 +65,7 @@ export function MSAResultPanel({
           </button>
         </div>
 
-        <AlignmentStatsBar stats={stats} className="mb-3" />
+        {msaStats ? <AlignmentStatsBar stats={msaStats} className="mb-3" /> : null}
 
         <AlignmentBlock alnFasta={alnFasta} />
       </div>

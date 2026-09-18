@@ -67,7 +67,7 @@ class UniProtEngine(BaseEngine):
             "resolved_uniprot": raw.get("resolved_uniprot"),
             "resolution": {"method": resolution.get("method"), "original_accession": resolution.get("original_accession")},
             "go_terms": go,
-            "features": features[:10],
+            "features": features,
             "subcellular_locations": raw.get(SUBCELLULAR_KEY) or [],
         }
         return EngineResult(

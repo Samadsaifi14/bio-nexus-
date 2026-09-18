@@ -314,6 +314,11 @@ export type AlignmentResult = {
   phylotree: string;
   stype: string;
   method?: string;
+  engine?: string;
+  engine_version?: string;
+  input_sha256?: string;
+  output_sha256?: string;
+  msa_stats?: import('@/types/pipeline').MsaStats | null;
 };
 
 export async function runPipelineV2(sequence: string, steps?: string[], alignmentMode?: 'global' | 'local'): Promise<{ job_id: string }> {
@@ -484,6 +489,12 @@ export async function searchKEGGPathways(query: string): Promise<{ results: KEGG
 
 export type EnrichmentResult = {
   token: string;
+  method?: string;
+  provider?: string;
+  provider_label?: string;
+  degraded?: boolean;
+  provider_attempts?: Array<{ provider: string; status: string }>;
+  significance_note?: string;
   pathways: Array<{
     stId: string;
     name: string;
@@ -491,8 +502,15 @@ export type EnrichmentResult = {
     entitiesFound: number;
     entitiesTotal: number;
     geneRatio: number;
-    entitiesFDR: number;
-    entitiesPValue: number;
+    entitiesFDR: number | null;
+    entitiesPValue: number | null;
+    reactomeFDR?: number | null;
+    reactomePValue?: number | null;
+    adjustedPValue?: number | null;
+    correction_method?: string;
+    significance_source?: string;
+    provider?: string;
+    diagram_provider?: string | null;
   }>;
 };
 
@@ -1776,6 +1794,7 @@ export interface StructurePrepResult {
   } | null;
   fpocket_pockets: { id: number; druggability_score: number; volume: number; area: number; score: number; num_residues: number }[];
   castp_pockets: { id: number; area_sa: number; volume_sa: number }[];
+  operations: { step: string; engine: string; status: string; duration_s: number; note: string }[];
   cleaned_pdb: string;
   error: string | null;
 }

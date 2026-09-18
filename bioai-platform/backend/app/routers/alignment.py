@@ -134,6 +134,8 @@ async def run_alignment(req: AlignRequest):
     except ValueError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
+    from app.tools.alignment_stats import alignment_stats, parse_aligned_fasta
+    from app.scientific.contract import sha256_hex
     response = {
         "job_id": result["job_id"],
         "aln_fasta": result["aln_fasta"],
@@ -141,6 +143,11 @@ async def run_alignment(req: AlignRequest):
         "phylotree": result["phylotree"],
         "stype": req.stype,
         "method": result["method"],
+        "engine": "EBI",
+        "engine_version": "remote (service-managed)",
+        "input_sha256": sha256_hex(req.sequence),
+        "output_sha256": sha256_hex(result["aln_fasta"] or ""),
+        "msa_stats": alignment_stats(parse_aligned_fasta(result["aln_fasta"] or "")),
     }
 
     # AI interpretation (best-effort, never blocks)

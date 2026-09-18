@@ -209,8 +209,20 @@ def test_design_primers_on_tp53_and_verify_pairs(primer_client):
         "opt_tm": 60,
         "num_return": 5,
     })
+    if resp.status_code == 503:  # primer3 not installed in this environment
+        pytest.skip("primer3 bindings not installed")
     assert resp.status_code == 200, resp.text
-    pairs = resp.json()
+    body = resp.json()
+    # Scientific contract wrapper
+    assert body["engine"] == "Primer3"
+    assert body["engine_version"]
+    assert len(body["input_sha256"]) == 64 and len(body["output_sha256"]) == 64
+    assert "nearest-neighbor" in body["thermodynamics"]
+    assert body["parameters"]["product_size_min"] == 100
+    # Template-vs-genome-wide specificity must be visibly separated.
+    assert body["specificity"]["template_scope"]["performed"] is False
+    assert body["specificity"]["genome_wide"]["status"] == "not_performed"
+    pairs = body["pairs"]
     assert len(pairs) >= 1
 
     template = TP53_CDS
@@ -258,11 +270,15 @@ def test_analyze_endpoint_reference_pair(primer_client):
     body = resp.json()
     assert body["qc"]["left"]["gc"] > 40.0 and body["qc"]["left"]["gc"] < 70.0
     assert 45 <= body["qc"]["left"]["tm_50mM"] <= 70
+    assert "tm_model" in body["qc"]["left"]
     assert "hairpin" in body["qc"]["left"]
     assert "self_dimer" in body["qc"]["left"]
     assert "hetero_dimer" in body["qc"]
     assert body["pcr"]["primer3_consistent"] is True
     assert body["pcr"]["matches_product_size"] is True
+    # Template-scope specificity computed; genome-wide explicitly not performed.
+    assert body["specificity"]["template_scope"]["performed"] is True
+    assert body["specificity"]["genome_wide"]["status"] == "not_performed"
 
 
 def test_analyze_endpoint_rejects_protein(primer_client):

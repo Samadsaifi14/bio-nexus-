@@ -39,7 +39,7 @@ def _reactome_pathway(item: dict) -> dict:
         "entitiesPValue": p_value,
         "adjustedPValue": fdr,
         "significance_source": "Reactome Analysis Service",
-        "correction_method": "Reactome-provided FDR",
+        "correction_method": "Benjamini-Hochberg FDR (Reactome-provided)",
         "provider": "reactome",
         "diagram_provider": "reactome",
     }
@@ -104,6 +104,17 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
                 logger.warning("No analysis token returned from Reactome")
                 return None
 
+            summary = data.get("summary", {}) or {}
+            projection = {
+                "identifiers_found": summary.get("identifiersFound"),
+                "identifiers_not_found": summary.get("identifiersNotFound"),
+                "identifiers_total": summary.get("total"),
+                "found_note": (
+                    "Counts reported by the Reactome projection step: how many submitted "
+                    "identifiers were mapped to Reactome entities."
+                ),
+            }
+
             pathways = [_reactome_pathway(item) for item in data.get("pathways", [])]
             pathways.sort(
                 key=lambda p: (
@@ -115,6 +126,7 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
             result = {
                 "token": token,
                 "pathways": pathways,
+                "projection": projection,
                 "method": "Reactome over-representation analysis",
                 "provider": "reactome",
                 "provider_label": "Reactome Analysis Service",

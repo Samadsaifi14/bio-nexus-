@@ -8,6 +8,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
 from app.tools.structure_prep import esmfold_predict
+from app.services.de_novo import _mean_plddt_from_pdb  # single CA-only mean pLDDT source (per-residue)
 
 logger = logging.getLogger(__name__)
 
@@ -72,6 +73,8 @@ async def _run_esmfold(job_id: str, sequence: str):
             return
 
         # pLDDT lives in the B-factor column of ESMFold PDB output.
+        # _mean_plddt_from_pdb (app.services.de_novo) reads CA atoms only, so the
+        # mean is per-residue and identical across endpoints for the same model.
         _jobs[job_id]["status"] = "complete"
         _jobs[job_id]["pdb"] = pdb_text
         _jobs[job_id]["mean_plddt"] = _mean_plddt_from_pdb(pdb_text)
@@ -91,20 +94,6 @@ async def _run_esmfold(job_id: str, sequence: str):
         logger.exception("ESMFold prediction failed for job %s", job_id)
         _jobs[job_id]["status"] = "failed"
         _jobs[job_id]["error"] = str(e)
-
-
-def _mean_plddt_from_pdb(pdb_text: str) -> float | None:
-    """Mean pLDDT across ATOM records (B-factor column, cols 61-66)."""
-    values: list[float] = []
-    for line in pdb_text.splitlines():
-        if line.startswith("ATOM"):
-            try:
-                values.append(float(line[60:66]))
-            except ValueError:
-                continue
-    if not values:
-        return None
-    return round(sum(values) / len(values), 2)
 
 
 @router.get("/status/{job_id}", response_model=PredictStatusResponse)

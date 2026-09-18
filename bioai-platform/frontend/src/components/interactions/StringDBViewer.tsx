@@ -14,8 +14,7 @@ type Interaction = {
   dscore: number;
   tscore: number;
   ascore: number;
-  physical_score?: number | null;
-  functional_score?: number | null;
+  physical_evidence_avg?: number | null;
 };
 
 type EvidenceFilter = "all" | "experimental" | "database" | "coexpression" | "textmining";
@@ -94,7 +93,13 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       gene: geneName,
       species,
       network_type: networkType,
-      source: "STRING-DB",
+      source: "STRING-DB interaction_partners API",
+      score_scale: "0-1 (normalized from STRING's 0-1000 confidence)",
+      score_derivations: [
+        "combined_score is STRING's combined confidence value, normalized from its native 0-1000 scale.",
+        "per-channel scores (experimental/database/coexpression/textmining) are STRING's, normalized from 0-1000.",
+        "physical_evidence_avg is a local heuristic (mean of experimental + database channels), NOT a STRING-provided score.",
+      ],
       interactions: data.interactions,
     }, `${geneName}_stringdb_interactions.json`);
   };
@@ -139,6 +144,11 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
             className="text-xs text-accent-cyan hover:underline">View on STRING-DB &nearr;</a>
         </div>
       </div>
+
+      <p className="text-[11px] leading-4 text-text-muted border border-glass-border rounded-lg bg-surface-0 px-3 py-2">
+        Scores are normalized from STRING&rsquo;s native 0&ndash;1000 confidence scale to 0&ndash;1. &ldquo;Combined&rdquo; is STRING&rsquo;s
+        combined confidence over all evidence channels; per-channel scores are STRING&rsquo;s as provided by STRING-DB.
+      </p>
 
       <div className="data-card p-2 flex items-center justify-center bg-viewer min-h-[300px]">
         {!imgError ? (

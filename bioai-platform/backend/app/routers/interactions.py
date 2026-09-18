@@ -29,9 +29,10 @@ class Interaction(BaseModel):
     escore: float
     dscore: float
     tscore: float
-    # Network-type specific scores
-    physical_score: float | None = None
-    functional_score: float | None = None
+    # LOCAL heuristic, NOT a STRING-provided score: simple mean of the
+    # experimental + database evidence channels. Never label it as STRING's
+    # "physical" confidence.
+    physical_evidence_avg: float | None = None
 
 
 @router.get("/{gene_name}")
@@ -70,31 +71,40 @@ async def get_interactions(
 
     interactions = []
     for item in data:
-        # Compute network-type specific confidence scores
-        escore = item.get("escore", 0)
-        dscore = item.get("dscore", 0)
-        pscore_combined = item.get("pscore", 0)
-        ascore = item.get("ascore", 0)
-        tscore = item.get("tscore", 0)
+        # STRING scores are 0-1000; normalize to 0-1 so thresholds and
+        # consumers treat them consistently across channels.
+        def norm(v):
+            try:
+                return min(1.0, max(0.0, float(v) / 1000.0))
+            except (TypeError, ValueError):
+                return 0.0
 
-        # Physical: experimental + database evidence only
-        physical_score = round(min(1.0, (escore + dscore) / 2), 4) if (escore or dscore) else None
-        # Functional: all channels weighted
-        functional_score = round(item.get("score", 0), 4)
+        nscore = norm(item.get("nscore"))
+        fscore = norm(item.get("fscore"))
+        pscore = norm(item.get("pscore"))
+        ascore = norm(item.get("ascore"))
+        escore = norm(item.get("escore"))
+        dscore = norm(item.get("dscore"))
+        tscore = norm(item.get("tscore"))
+        combined = norm(item.get("score"))
+
+        # Local heuristic: mean of the experimental + database evidence
+        # channels. Derived by Bio Nexus for display; not a STRING-provided
+        # score and not a substitute for STRING's combined confidence.
+        physical_evidence_avg = round((escore + dscore) / 2, 4) if (escore or dscore) else None
 
         interactions.append(Interaction(
             partner_gene=item.get("preferredName_B", ""),
             partner_protein=item.get("stringId_B", ""),
-            combined_score=item.get("score", 0),
-            nscore=item.get("nscore", 0),
-            fscore=item.get("fscore", 0),
-            pscore=item.get("pscore", 0),
-            ascore=item.get("ascore", 0),
-            escore=item.get("escore", 0),
-            dscore=item.get("dscore", 0),
-            tscore=item.get("tscore", 0),
-            physical_score=physical_score,
-            functional_score=functional_score,
+            combined_score=combined,
+            nscore=nscore,
+            fscore=fscore,
+            pscore=pscore,
+            ascore=ascore,
+            escore=escore,
+            dscore=dscore,
+            tscore=tscore,
+            physical_evidence_avg=physical_evidence_avg,
         ))
 
     interactions.sort(key=lambda x: x.combined_score, reverse=True)
@@ -102,6 +112,13 @@ async def get_interactions(
         "gene": gene_name,
         "species": species,
         "network_type": network_type,
+        "source": "STRING-DB interaction_partners API",
+        "score_scale": "0-1 (normalized from STRING's 0-1000 confidence)",
+        "score_derivations": [
+            "combined_score is STRING's combined confidence value, normalized from its native 0-1000 scale.",
+            "nscore/fscore/pscore/ascore/escore/dscore/tscore are STRING's per-channel evidence scores, normalized from 0-1000.",
+            "physical_evidence_avg is a LOCAL Bio Nexus heuristic (mean of experimental + database channels), not a STRING-provided score.",
+        ],
         "interactions": interactions,
     }
 

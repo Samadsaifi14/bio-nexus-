@@ -10,6 +10,7 @@ scoped to the owning user.
 import asyncio
 import logging
 import re
+import time
 import uuid
 from datetime import datetime, timedelta, timezone
 from typing import Any
@@ -68,6 +69,15 @@ class FpocketPocket(BaseModel):
     num_residues: int
 
 
+class PrepOperation(BaseModel):
+    """One pipeline step with its engine, outcome, and wall time — the operation ledger."""
+    step: str
+    engine: str
+    status: str
+    duration_s: float
+    note: str = ""
+
+
 class PipelineStatusResponse(BaseModel):
     job_id: str
     status: str
@@ -79,6 +89,7 @@ class PipelineStatusResponse(BaseModel):
     chain_integrity: str = "unknown"   # intact | repaired | broken_unrepaired | unknown
     castp_status: str = "pending"      # pending | skipped | running | complete | timed_out | error
     fpocket_status: str = "pending"    # pending | running | complete | unavailable | error
+    operations: list[PrepOperation] = []
     cleaned_pdb: str = ""
     error: str | None = None
 
@@ -189,6 +200,7 @@ def _row_to_response(job_id: str, row: dict) -> PipelineStatusResponse:
         chain_integrity=row.get("chain_integrity", "unknown"),
         castp_status=row.get("castp_status", "pending"),
         fpocket_status=row.get("fpocket_status", "pending"),
+        operations=result.get("operations", []),
         cleaned_pdb=result.get("cleaned_pdb", ""),
         error=row.get("error"),
     )
@@ -238,14 +250,32 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
     # Everything that lands in the result jsonb, written progressively.
     result_fields: dict[str, Any] = {}
 
+    # Operation ledger — every pipeline step records its engine, outcome, and
+    # wall time so the status response is an auditable provenance trail.
+    ops: list[dict[str, Any]] = []
+    result_fields["operations"] = ops
+
+    def op(step: str, engine: str, status: str, note: str = "", t0: float | None = None) -> None:
+        ops.append({
+            "step": step,
+            "engine": engine,
+            "status": status,
+            "duration_s": round(time.perf_counter() - t0, 2) if t0 is not None else 0.0,
+            "note": note,
+        })
+
     try:
         # ── Step 1: Fetch/predict structure ───────────────────────────
         _update_job(supabase, job_id, step="fetching")
         pdb_text = None
 
         if body.pdb_id:
+            t0 = time.perf_counter()
             pdb_text = await fetch_pdb_text(body.pdb_id)
+            op("fetch_structure", "RCSB PDB (files.rcsb.org)",
+               "ok" if pdb_text else "failed", t0=t0)
         elif body.uniprot_accession:
+            t0 = time.perf_counter()
             smr = await swissmodel_fetch_structures(body.uniprot_accession)
             for s in smr.get("experimental", []) + smr.get("models", []):
                 if s.get("coordinates_url"):
@@ -256,9 +286,18 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                 template = smr["experimental"][0].get("template", "")
                 if template:
                     pdb_text = await fetch_pdb_text(template)
+            op("fetch_structure", "SWISS-MODEL Repository",
+               "ok" if pdb_text else "failed",
+               "best SWISS-MODEL template" if pdb_text else "no usable coordinates in SMR",
+               t0=t0)
         elif body.sequence:
             _update_job(supabase, job_id, step="predicting_structure")
+            t0 = time.perf_counter()
             pdb_text = await esmfold_predict(body.sequence)
+            op("predict_structure", "ESMFold (api.esmatlas.com)",
+               "ok" if pdb_text else "failed",
+               f"{len(body.sequence)} residues" if pdb_text else "service returned no structure, retried twice",
+               t0=t0)
             if not pdb_text:
                 _fail(supabase, job_id, "ESMFold could not predict a structure for this sequence")
                 return
@@ -269,7 +308,13 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
 
         # ── Step 2: Detect broken chains ──────────────────────────────
         _update_job(supabase, job_id, step="analyzing")
+        t0 = time.perf_counter()
         health = await asyncio.to_thread(detect_chain_health, pdb_text)
+        op("chain_integrity", "BioPython PDBParser (CA distance + REMARK 465)",
+           "ok",
+           f"{health.chains} chains, {health.total_residues} residues, "
+           f"{health.missing_residue_count} missing, {health.chain_break_count} breaks",
+           t0=t0)
         result_fields["chain_health"] = _chain_health_dict(health)
         _update_job(supabase, job_id, result=result_fields)
 
@@ -281,8 +326,14 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         if health.is_broken:
             chain_integrity = "broken_unrepaired"
             _update_job(supabase, job_id, chain_integrity=chain_integrity)
-            if not body.skip_repair and body.uniprot_accession:
+            if body.skip_repair:
+                op("repair", "SWISS-MODEL Repository", "skipped", "skip_repair requested")
+            elif not body.uniprot_accession:
+                op("repair", "SWISS-MODEL Repository", "skipped",
+                   "repair requires a uniprot_accession input", t0=time.perf_counter())
+            else:
                 _update_job(supabase, job_id, step="repairing")
+                t0 = time.perf_counter()
                 try:
                     smr = await swissmodel_fetch_structures(body.uniprot_accession)
                     for s in smr.get("experimental", []) + smr.get("models", []):
@@ -290,6 +341,9 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                             repaired = await swissmodel_fetch_pdb(s["template"])
                             if repaired and len(repaired) > len(pdb_text) * 0.5:
                                 pdb_text = repaired
+                                op("repair", "SWISS-MODEL Repository", "repaired",
+                                   f"template {s['template']} (coverage {s.get('coverage', '?')})",
+                                   t0=t0)
                                 # Re-check after repair
                                 health = await asyncio.to_thread(detect_chain_health, pdb_text)
                                 result_fields["chain_health"] = _chain_health_dict(health)
@@ -298,25 +352,33 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                                     chain_integrity = "repaired"
                                     _update_job(supabase, job_id, chain_integrity=chain_integrity)
                                 break
+                    else:
+                        op("repair", "SWISS-MODEL Repository", "failed",
+                           "no >80%-coverage template to repair with", t0=t0)
                 except Exception as e:
                     logger.warning("SWISS-MODEL repair failed: %s", e)
+                    op("repair", "SWISS-MODEL Repository", "error", str(e), t0=t0)
 
         # ── Step 4: Cleanup ───────────────────────────────────────────
         # pymol2 has no internal timeout; bound it and fall back to
         # Biopython stripping rather than hanging the whole job.
         _update_job(supabase, job_id, step="cleaning")
+        t0 = time.perf_counter()
         try:
             cleaned = await asyncio.wait_for(
                 asyncio.to_thread(pymol_cleanup, pdb_text), timeout=120
             )
+            op("cleanup", "PyMOL (pymol2 wheel)", "ok", t0=t0)
         except asyncio.TimeoutError:
             logger.warning("pymol cleanup timed out for job %s; using Biopython fallback", job_id)
             cleaned = await asyncio.to_thread(_biopython_cleanup, pdb_text)
+            op("cleanup", "Biopython (fallback)", "ok", "pymol2 timed out after 120s; Biopython strip used instead", t0=t0)
 
         # ── Step 5: fpocket (local binary) ────────────────────────────
         # Offloaded to a thread: subprocess.run would otherwise block the
         # event loop for up to 60s and freeze every concurrent request.
         _update_job(supabase, job_id, step="running_fpocket", fpocket_status="running")
+        t0 = time.perf_counter()
         try:
             fpocket_result = await asyncio.wait_for(
                 asyncio.to_thread(run_fpocket, cleaned, body.probe_radius), timeout=90
@@ -324,14 +386,21 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         except asyncio.TimeoutError:
             fpocket_result = FpocketResult(raw_output="fpocket timed out", status="error")
         result_fields["fpocket_pockets"] = fpocket_result.pockets
+        op("pocket_detection", "fpocket 2.0", fpocket_result.status,
+           f"{fpocket_result.pocket_count} pockets, probe radius {body.probe_radius}",
+           t0=t0)
         # Honest no-false-zero guard: when the local fpocket binary is missing,
         # it errors, or it reports no pockets, fall back to a numpy-only concave-
         # packing detector so a real protein never shows "0 pockets" as truth.
         if not fpocket_result.pockets:
+            t0 = time.perf_counter()
             sasa_pockets = await asyncio.to_thread(
                 run_sasa_pockets, cleaned, body.probe_radius,
             )
             result_fields["fpocket_pockets"] = sasa_pockets
+            op("pocket_detection", "BioNexus SASA concave-packing (numpy)", "complete",
+               f"fpocket returned {fpocket_result.status} with no pockets; fallback found {len(sasa_pockets)}",
+               t0=t0)
         _update_job(
             supabase, job_id,
             fpocket_status=fpocket_result.status,
@@ -341,10 +410,13 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         # ── Step 6: CASTp (remote, async) ─────────────────────────────
         castp_pockets: list[dict] = []
         if body.skip_castp:
+            op("pocket_validation", "CASTp 3.0 (CASTpFold, remote)", "skipped",
+               "skip_castp requested, fpocket-only run")
             _update_job(supabase, job_id, castp_status="skipped")
         else:
             _update_job(supabase, job_id, step="running_castp", castp_status="running")
             castp_status = "timed_out"
+            t0 = time.perf_counter()
             try:
                 castp_sub = await castp_submit(cleaned, body.probe_radius)
                 if castp_sub.get("status") == "complete":
@@ -360,6 +432,9 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
             except Exception as e:
                 logger.warning("CASTp job failed: %s", e)
                 castp_status = "error"
+            op("pocket_validation", "CASTp 3.0 (CASTpFold, remote)", castp_status,
+               f"{len(castp_pockets)} pockets" if castp_status == "complete" else "failed or timed out after 90s",
+               t0=t0)
             result_fields["castp_pockets"] = castp_pockets
             _update_job(
                 supabase, job_id,

@@ -15,6 +15,9 @@ import { consumeParam } from '@/lib/cross-link';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
 
+const fmtExp = (v: number | null | undefined): string =>
+  v != null && isFinite(v) ? v.toExponential(2) : '—';
+
 export default function PathwayPage() {
   const [tab, setTab] = useState<Tab>('reactome');
   const [query, setQuery] = useState('');
@@ -240,11 +243,28 @@ export default function PathwayPage() {
       {tab === 'enrichment' && enrichmentResult && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <AIResultSummary toolName="pathway_enrichment" result={enrichmentResult as unknown as Record<string, unknown>} />
-          <p className="text-xs text-text-muted mb-2">{enrichmentResult.pathways.length} enriched pathway{enrichmentResult.pathways.length !== 1 ? 's' : ''} found</p>
+          <div className="rounded-xl border border-glass-border bg-surface-0 px-4 py-3 space-y-1.5">
+            <p className="text-xs text-text-secondary">
+              Provider: <span className="text-text-primary font-medium">{enrichmentResult.provider_label ?? enrichmentResult.provider ?? '—'}</span>
+              {enrichmentResult.method ? ` · ${enrichmentResult.method}` : ''}
+            </p>
+            {enrichmentResult.significance_note && (
+              <p className="text-[11px] leading-4 text-text-muted">{enrichmentResult.significance_note}</p>
+            )}
+            {enrichmentResult.degraded && (
+              <p className="text-[11px] leading-4 text-amber-300">
+                Degraded result — primary provider unavailable. Provider attempts:{' '}
+                {(enrichmentResult.provider_attempts ?? []).map(a => `${a.provider}:${a.status}`).join(', ')}
+              </p>
+            )}
+          </div>
+          <p className="text-xs text-text-muted mb-2">{enrichmentResult.pathways.length} enriched pathway{enrichmentResult.pathways.length !== 1 ? 's' : ''} returned</p>
           {enrichmentResult.pathways.length === 0 ? (
-            <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No significantly enriched pathways found</p></div>
+            <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No enriched pathways returned by the provider.</p></div>
           ) : (
-            enrichmentResult.pathways.map((pw) => (
+            enrichmentResult.pathways.map((pw) => {
+              const isReactome = pw.diagram_provider === 'reactome' || pw.provider === 'reactome' || pw.stId.startsWith('R-HSA-');
+              return (
               <div key={pw.stId} className="data-card overflow-hidden">
                 <button
                   onClick={() => setExpandedDiagram(expandedDiagram === pw.stId ? null : pw.stId)}
@@ -253,7 +273,10 @@ export default function PathwayPage() {
                   <div>
                     <p className="text-sm font-medium text-text-primary">{pw.name}</p>
                     <p className="text-xs text-text-muted mt-0.5">
-                      {pw.stId} · {pw.species} · {pw.entitiesFound}/{pw.entitiesTotal} genes · gene ratio {pw.geneRatio ? pw.geneRatio.toFixed(3) : '—'} · p {pw.entitiesPValue ? pw.entitiesPValue.toExponential(2) : '—'} · FDR {pw.entitiesFDR.toExponential(2)}
+                      {pw.stId} · {pw.species} · {pw.entitiesFound}/{pw.entitiesTotal} genes · gene ratio {pw.geneRatio ? pw.geneRatio.toFixed(3) : '—'}
+                      {isReactome
+                        ? <> · p {fmtExp(pw.entitiesPValue)} · FDR {fmtExp(pw.entitiesFDR)}</>
+                        : <> · adjusted p {fmtExp(pw.adjustedPValue)} ({pw.correction_method ?? pw.significance_source ?? 'provider-correction'})</>}
                     </p>
                   </div>
                   {expandedDiagram === pw.stId ? <ChevronDown className="w-4 h-4 text-text-muted" /> : <ChevronRight className="w-4 h-4 text-text-muted" />}
@@ -268,13 +291,16 @@ export default function PathwayPage() {
                       className="overflow-hidden border-t border-glass-border"
                     >
                       <div className="p-4">
-                        <PathwayDiagram stId={pw.stId} />
+                        {isReactome
+                          ? <PathwayDiagram stId={pw.stId} />
+                          : <p className="text-xs text-text-muted">No interactive diagram available for {pw.stId} ({pw.significance_source ?? pw.provider ?? 'provider'}).</p>}
                       </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
-            ))
+              );
+            })
           )}
         </motion.div>
       )}

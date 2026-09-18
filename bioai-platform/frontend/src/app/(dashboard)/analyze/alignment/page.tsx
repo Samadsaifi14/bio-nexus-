@@ -12,7 +12,7 @@ import PhyloTreeViewer from '@/components/phylo/PhyloTreeViewer';
 import { ConservationTrack } from '@/components/alignment/ConservationTrack';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 import { AlignmentBlock } from '@/components/alignment/AlignmentBlock';
-import { computeAlignmentStats, parseAlignedFasta } from '@/lib/alignment-stats';
+import { parseAlignedFasta } from '@/lib/alignment-stats';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { parseFasta, validateFasta } from '@/lib/sequence-utils';
@@ -143,7 +143,7 @@ export default function AlignmentPage() {
           <AIResultSummary toolName="alignment" result={result as unknown as Record<string, unknown>} />
           <div className="data-card p-5">
             <h3 className="text-sm font-semibold text-text-primary mb-3">Alignment (FASTA) — {METHOD_LABELS[result.method as AlignmentMethod] ?? result.method ?? 'Clustal Omega'}</h3>
-          <AlignmentStatsBar stats={computeAlignmentStats(alignedSeqs)} className="mb-3" />
+          {result.msa_stats ? <AlignmentStatsBar stats={result.msa_stats} className="mb-3" /> : null}
           <AlignmentBlock alnFasta={result.aln_fasta} className="max-h-80" />
         </div>
 

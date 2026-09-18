@@ -407,6 +407,8 @@ class MdEngine:
         data = {
             "engine": "openmm",
             "platform": getattr(self, "platform_used", None),
+            "energy_is_estimate": False,
+            "energy_source": "OpenMM potential energy (kJ/mol)",
             "production_steps": done,
             "requested_production_steps": steps,
             "production_ps": round(done / (1000.0 / TIMESTEP_FS), 1),

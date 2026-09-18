@@ -1,8 +1,10 @@
+import json
 import re
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
+from app.scientific.contract import sha256_hex
 from app.services.ncbi_service import NCBIService
 from app.tools.oligo_qc import clean, is_dna, oligo_report, dimer_analysis, in_silico_pcr
 from app.tools.primer_advanced import multiplex_compatibility, snp_overlap
@@ -13,8 +15,12 @@ ncbi_service = NCBIService()
 try:
     import primer3
     HAS_PRIMER3 = True
+    PRIMER3_VERSION = getattr(primer3, "__version__", "unknown")
+    if not isinstance(PRIMER3_VERSION, str):
+        PRIMER3_VERSION = "unknown"
 except ImportError:
     HAS_PRIMER3 = False
+    PRIMER3_VERSION = "unavailable"
 
 
 class PrimerRequest(BaseModel):
@@ -43,7 +49,27 @@ class PrimerPair(BaseModel):
     penalty: float
 
 
-@router.post("/design", response_model=list[PrimerPair])
+class PrimerDesignParameters(BaseModel):
+    product_size_min: int
+    product_size_max: int
+    opt_tm: float
+    num_return: int
+    gc_min: float
+    gc_max: float
+
+
+class PrimerDesignResult(BaseModel):
+    engine: str
+    engine_version: str
+    input_sha256: str
+    output_sha256: str
+    thermodynamics: str
+    parameters: PrimerDesignParameters
+    specificity: dict
+    pairs: list[PrimerPair]
+
+
+@router.post("/design", response_model=PrimerDesignResult)
 async def design_primers(req: PrimerRequest):
     if not HAS_PRIMER3:
         raise HTTPException(503, "Primer3 is not installed on this server")
@@ -94,7 +120,23 @@ async def design_primers(req: PrimerRequest):
         ))
     if not pairs:
         raise HTTPException(404, "No primer pairs found. Try relaxing GC%, Tm, or product size constraints.")
-    return pairs
+    canonical = json.dumps([p.model_dump() for p in pairs], sort_keys=True, separators=(",", ":"))
+    return PrimerDesignResult(
+        engine="Primer3",
+        engine_version=PRIMER3_VERSION,
+        input_sha256=sha256_hex(seq),
+        output_sha256=sha256_hex(canonical.encode("utf-8")),
+        thermodynamics="Primer3 nearest-neighbor melting-temperature model (Primer3 defaults; salt/dNTP conditions not overridden by this endpoint)",
+        parameters=PrimerDesignParameters(
+            product_size_min=req.product_size_min, product_size_max=req.product_size_max,
+            opt_tm=req.opt_tm, num_return=req.num_return, gc_min=req.gc_min, gc_max=req.gc_max,
+        ),
+        specificity={
+            "template_scope": {"performed": False, "note": "In-silico PCR against the submitted template is available in the per-pair QC step."},
+            "genome_wide": {"status": "not_performed", "reason": "Genome-wide off-target screening requires Primer-BLAST against a reference genome/transcriptome; not performed here. Use NCBI Primer-BLAST for genome-level specificity."},
+        },
+        pairs=pairs,
+    )
 
 
 def _record_type(accession: str) -> str:
@@ -203,11 +245,24 @@ async def analyze_primer(req: PrimerAnalyzeRequest):
         raise HTTPException(400, "Primers must be at least 5 bases.")
     qc = {"left": oligo_report(left), "right": oligo_report(right), "hetero_dimer": dimer_analysis(left, right)}
     response: dict[str, Any] = {"qc": qc}
+    template_scope = None
     if req.template:
         template = clean(req.template)
         if not template:
             raise HTTPException(400, "Template sequence is required for in-silico PCR.")
         response["pcr"] = in_silico_pcr(template, left, right, expected_product=req.expected_product, left_expected=req.left_pos, right_expected=req.right_pos)
+        pc = response["pcr"]
+        template_scope = {
+            "performed": True,
+            "specific": pc["specific"],
+            "forward_binding_sites": pc["forward_binding_sites"],
+            "reverse_binding_sites": pc["reverse_binding_sites"],
+            "note": pc.get("note"),
+        }
+    response["specificity"] = {
+        "template_scope": template_scope or {"performed": False, "note": "No template supplied — in-silico PCR was not run; only template-scope specificity can be checked locally."},
+        "genome_wide": {"status": "not_performed", "reason": "Genome-wide off-target screening requires Primer-BLAST against a reference genome/transcriptome; not performed here. Use NCBI Primer-BLAST for genome-level specificity."},
+    }
     if req.variants:
         if req.left_pos is None or req.right_pos is None:
             response["snp_overlap"] = {"status": "unavailable", "reason": "Primer3 left_pos and right_pos are required to map variants."}

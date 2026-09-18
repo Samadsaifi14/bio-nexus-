@@ -59,6 +59,7 @@ class AlphaFoldEngine(BaseEngine):
         stats: dict[str, Any] = {
             "structure_available": bool(raw.get("structure_available")),
             "confidence": confidence,
+            "mean_plddt": raw.get("mean_plddt"),
             "model_created_date": raw.get("model_created_date"),
             "latest_version": _int_or_none(raw.get("latest_version")),
             "source": source,
@@ -67,6 +68,7 @@ class AlphaFoldEngine(BaseEngine):
             "uniprot_accession": raw.get("uniprot_accession"),
             "structure_available": bool(raw.get("structure_available")),
             "confidence": confidence,
+            "mean_plddt": raw.get("mean_plddt"),
             "pdb_url": raw.get("pdb_url"),
             "cif_url": raw.get("cif_url"),
             "model_created_date": raw.get("model_created_date"),
@@ -140,7 +142,19 @@ class AlphaFoldEngine(BaseEngine):
         ]
         if available:
             badge_color = "#2f855a"
-            badge = f"Structure available · pLDDT {confidence if confidence is not None else 'n/a'}"
+            mean = evidence.get("mean_plddt")
+            # ESMFold reports mean_plddt on 0-100 and confidence on 0-1; AF DB
+            # reports confidence on 0-100. Prefer the 0-100 native mean_plddt,
+            # and always label the scale so values are never ambiguous.
+            if mean is not None:
+                badge = f"Structure available · pLDDT {mean}/100"
+            elif confidence is not None:
+                if source == "esmfold" and confidence <= 1:
+                    badge = f"Structure available · confidence {confidence}/1"
+                else:
+                    badge = f"Structure available · pLDDT {confidence}/100"
+            else:
+                badge = "Structure available"
         else:
             badge_color = "#b7791f"
             badge = f"No structure available ({self._esc(source or 'n/a')})"

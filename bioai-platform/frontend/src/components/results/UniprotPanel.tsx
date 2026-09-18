@@ -92,9 +92,18 @@ export function UniprotPanel({ data }: UniprotPanelProps) {
               <div key={fi} className="text-sm text-text-secondary">
                 <span className="font-medium">{f.type}:</span> {f.description}
                 {(f.begin || f.end) && <span className="text-text-muted"> ({f.begin}–{f.end})</span>}
+                {f.evidence && f.evidence.length > 0 && (
+                  <span className="text-text-muted"> · ECO: {f.evidence.join(', ')}</span>
+                )}
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {data.release && (
+        <div className="mt-4 pt-4 border-t border-glass-border flex items-center gap-2">
+          <span className="text-xs text-text-muted">UniProt release {data.release}</span>
         </div>
       )}
 

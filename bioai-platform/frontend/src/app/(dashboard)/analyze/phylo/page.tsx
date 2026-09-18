@@ -27,6 +27,15 @@ interface PhyloJobStatus {
   aln_fasta: string | null
   newick: string | null
   stats: string | null
+  meta: {
+    engine: string
+    engine_version: string | null
+    model: string
+    support: string
+    support_detail: string
+    likelihood: number | null
+    bootstrap_effective: number | null
+  } | null
   error: string | null
   created_at: number
   msa_done_at: number | null
@@ -159,15 +168,15 @@ export default function PhyloPage() {
     if (sequences.length > 50) return setSubmitError('Maximum 50 sequences per run.')
     if (sequences.some(s => s.sequence.length < 10)) return setSubmitError('Each sequence must be at least 10 residues/bases.')
     const inputSummary = `method:${method},seqType:${seqType},seqs:${sequences.length}`
-    audit.emitStarted('phylo_run', 'PhyML/QuickTree', inputSummary)
+    audit.emitStarted('phylo_run', 'PhyloEngine', inputSummary)
     setSubmitError(''); setLoading(true); setJob(null); setJobId(null)
     try {
       const res = await fetch(apiUrl('/phylo/run'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sequences, method, seq_type: seqType, model: method === 'ml' ? model : null, bootstrap: method === 'ml' ? bootstrap : 0 }) })
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(typeof d.detail === 'string' ? d.detail : `HTTP ${res.status}`) }
       const { job_id } = await res.json(); setJobId(job_id); await fetchStatus(job_id); intervalRef.current = setInterval(() => fetchStatus(job_id), 3000)
-      audit.emitSuccess('phylo_run', 'PhyML/QuickTree', inputSummary, `job_id:${job_id}`)
+      audit.emitSuccess('phylo_run', 'PhyloEngine', inputSummary, `job_id:${job_id}`)
     } catch (e: unknown) {
-      const message = e instanceof Error ? e.message : 'Failed to start job'; setSubmitError(message); audit.emitFailed('phylo_run', 'PhyML/QuickTree', inputSummary, message)
+      const message = e instanceof Error ? e.message : 'Failed to start job'; setSubmitError(message); audit.emitFailed('phylo_run', 'PhyloEngine', inputSummary, message)
     } finally { setLoading(false) }
   }
 
@@ -203,22 +212,23 @@ export default function PhyloPage() {
       subtitle={`${METHOD_INFO[job.method].label} · ${job.seq_type.toUpperCase()} · job ${job.job_id}`}
       status="PASS"
       statusLabel="INFERENCE COMPLETE"
-      metadata={[{ label: 'Method', value: METHOD_INFO[job.method].label }, { label: 'Model', value: job.model || 'distance method' }, { label: 'Bootstrap', value: job.bootstrap ? `${job.bootstrap} replicates` : 'not requested' }, { label: 'Runtime', value: job.done_at ? `${Math.round(job.done_at - job.created_at)}s` : '—' }]}
+      metadata={[{ label: 'Method', value: METHOD_INFO[job.method].label }, { label: 'Model', value: (job.meta?.model ?? job.model) || 'distance method' }, { label: 'Engine', value: job.meta?.engine || (job.method === 'ml' ? 'PhyML/IQ-TREE' : 'Clustal Omega / in-process') }, { label: 'Bootstrap', value: job.meta?.support || (job.bootstrap ? `${job.bootstrap} replicates` : 'not requested') }, { label: 'Runtime', value: job.done_at ? `${Math.round(job.done_at - job.created_at)}s` : '—' }]}
       metrics={[
         { label: 'Sequences', value: aln?.sequenceCount ?? seqCount }, { label: 'Alignment length', value: aln ? `${aln.alignedLength} ${job.seq_type === 'dna' ? 'bp' : 'aa'}` : '—' },
         { label: 'Variable sites', value: aln?.variableSites ?? '—' }, { label: 'Conserved sites', value: aln?.conservedSites ?? '—' },
         { label: 'Mean pairwise identity', value: aln ? `${aln.meanPairwiseIdentity.toFixed(1)}%` : '—' }, { label: 'Gap fraction', value: aln ? `${aln.gapFraction.toFixed(1)}%` : '—' },
-        { label: 'Bootstrap', value: job.bootstrap ? job.bootstrap : 'N/A', detail: job.method === 'ml' ? 'Replicates requested' : 'Not used for this run' }, { label: 'Tree format', value: job.newick ? 'Newick' : '—' },
+        { label: 'Bootstrap', value: job.meta?.support || job.bootstrap ? (job.meta?.support ?? `${job.bootstrap} requested`) : 'N/A', detail: job.meta?.support_detail || (job.method === 'ml' ? 'Replicates requested' : 'Not used for this run') }, { label: 'Tree format', value: job.newick ? 'Newick' : '—' },
+        ...(job.meta?.likelihood != null ? [{ label: 'Log-likelihood', value: job.meta.likelihood.toFixed(2) }] : [])
       ]}
       overview={<div className="space-y-5">
         <div className="flex flex-wrap gap-2"><button onClick={handleReset} className="scientific-chip">New analysis</button>{job.newick && <button onClick={() => downloadText(`phylogeny-${job.job_id}.nwk`, job.newick!)} className="scientific-chip"><DownloadSimple className="mr-1 inline"/>Newick</button>}{job.aln_fasta && <button onClick={() => downloadText(`alignment-${job.job_id}.fasta`, job.aln_fasta!)} className="scientific-chip"><DownloadSimple className="mr-1 inline"/>Alignment</button>}</div>
         {job.newick && <div className="rounded-xl border border-glass-border bg-surface-1 p-3"><PhyloTreeViewer newick={job.newick} method={job.method} alignment={job.aln_fasta ?? undefined} sequenceType={job.seq_type}/></div>}
-        <div className="grid gap-3 md:grid-cols-3"><div className="result-callout"><TreeStructure/><div><b>Inference</b><p>{METHOD_INFO[job.method].label} using {job.model || 'distance-based settings'}.</p></div></div><div className="result-callout"><ChartBar/><div><b>Support</b><p>{job.bootstrap ? `${job.bootstrap} bootstrap replicates requested.` : 'No bootstrap support requested.'}</p></div></div><div className="result-callout"><Dna/><div><b>Alignment</b><p>{aln ? `${aln.sequenceCount} sequences across ${aln.alignedLength} columns.` : 'Alignment metadata unavailable.'}</p></div></div></div>
+        <div className="grid gap-3 md:grid-cols-3"><div className="result-callout"><TreeStructure/><div><b>Inference</b><p>{METHOD_INFO[job.method].label} using {job.meta?.model || job.model || 'distance-based settings'}.</p></div></div><div className="result-callout"><ChartBar/><div><b>Support</b><p>{job.meta?.support ?? (job.bootstrap ? `${job.bootstrap} bootstrap replicates requested.` : 'No bootstrap support requested.')}</p>{job.meta?.support_detail && <p className="mt-1 text-xs text-text-muted">{job.meta.support_detail}</p>}</div></div><div className="result-callout"><Dna/><div><b>Alignment</b><p>{aln ? `${aln.sequenceCount} sequences across ${aln.alignedLength} columns.` : 'Alignment metadata unavailable.'}</p></div></div></div>
       </div>}
       qc={<div className="space-y-4"><MetricGrid metrics={[{ label: 'Gap fraction', value: aln ? `${aln.gapFraction.toFixed(2)}%` : '—', detail: 'Alignment gaps across all cells' }, { label: 'Variable sites', value: aln?.variableSites ?? '—' }, { label: 'Conserved sites', value: aln?.conservedSites ?? '—' }, { label: 'Pairwise identity', value: aln ? `${aln.meanPairwiseIdentity.toFixed(2)}%` : '—' }]}/><div className="rounded-lg border border-warn/20 bg-warn/5 p-4 text-xs leading-5 text-text-secondary"><strong className="text-text-primary">Scientific QC:</strong> inspect alignment quality, taxon sampling, rooting, model suitability and branch support before drawing evolutionary conclusions. Bio Nexus reports the evidence; it does not convert tree completion into a biological validation claim.</div></div>}
       results={<div className="space-y-4">{job.newick && <><h3 className="text-sm font-semibold text-text-primary">Interactive tree</h3><PhyloTreeViewer newick={job.newick} method={job.method} alignment={job.aln_fasta ?? undefined} sequenceType={job.seq_type}/></>}{job.stats && <div><h3 className="mb-2 text-sm font-semibold text-text-primary">Engine statistics</h3><pre className="max-h-80 overflow-auto rounded-xl border border-glass-border bg-surface-1 p-4 font-mono text-[11px] leading-5 text-text-secondary">{job.stats}</pre></div>}</div>}
       raw={<div className="space-y-5">{job.newick && <RawEvidence label="Newick tree" value={job.newick}/>} {job.aln_fasta && <RawEvidence label="Multiple sequence alignment · FASTA" value={job.aln_fasta}/>} {job.stats && <RawEvidence label="Phylogeny engine statistics" value={job.stats}/>}</div>}
-      methods={<div className="space-y-3"><div className="provenance-grid"><span>Job ID</span><code>{job.job_id}</code><span>Sequence type</span><code>{job.seq_type}</code><span>Inference method</span><code>{METHOD_INFO[job.method].label}</code><span>Substitution model</span><code>{job.model || 'N/A'}</code><span>Bootstrap</span><code>{job.bootstrap || 0}</code><span>Alignment engine</span><code>Clustal Omega pipeline stage</code><span>Tree engine</span><code>{job.method === 'ml' ? 'PhyML' : 'QuickTree/distance workflow'}</code><span>Created</span><code>{new Date(job.created_at * 1000).toISOString()}</code></div></div>}
+      methods={<div className="space-y-3"><div className="provenance-grid"><span>Job ID</span><code>{job.job_id}</code><span>Sequence type</span><code>{job.seq_type}</code><span>Inference method</span><code>{METHOD_INFO[job.method].label}</code><span>Substitution model</span><code>{job.meta?.model ?? job.model ?? 'N/A'}</code><span>Bootstrap</span><code>{job.meta?.bootstrap_effective ?? job.bootstrap ?? 0}</code><span>Support</span><code>{job.meta?.support ?? (job.bootstrap ? 'requested' : 'N/A')}</code><span>Log-likelihood</span><code>{job.meta?.likelihood != null ? job.meta.likelihood.toFixed(2) : '—'}</code><span>Alignment engine</span><code>Clustal Omega pipeline stage</code><span>Tree engine</span><code>{job.meta?.engine || (job.method === 'ml' ? 'PhyML/IQ-TREE' : 'Clustal Omega / in-process')}</code><span>Created</span><code>{new Date(job.created_at * 1000).toISOString()}</code></div></div>}
       ai={<AIResultSummary toolName="phylo" result={{ method: job.method, seq_type: job.seq_type, model: job.model, bootstrap: job.bootstrap, alignment_metrics: aln, newick: job.newick } as unknown as Record<string, unknown>}/>} />}
   </div>
 }

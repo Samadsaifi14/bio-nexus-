@@ -18,6 +18,19 @@ type PrimerPair = {
   product_size: number; penalty: number;
 };
 
+type PrimerDesignResult = {
+  engine: string;
+  engine_version: string;
+  input_sha256: string;
+  output_sha256: string;
+  thermodynamics: string;
+  specificity: {
+    template_scope: { performed: boolean; note: string };
+    genome_wide: { status: string; reason: string };
+  };
+  pairs: PrimerPair[];
+};
+
 const RISK_TONES: Record<string, string> = {
   high: "text-error bg-error/10 border-error/30",
   medium: "text-accent-amber bg-accent-amber/10 border-accent-amber/30",
@@ -66,6 +79,7 @@ export function PrimerDesigner() {
   const [productMax, setProductMax] = useState(500);
   const [optTm, setOptTm] = useState(60);
   const [pairs, setPairs] = useState<PrimerPair[]>([]);
+  const [designMeta, setDesignMeta] = useState<Pick<PrimerDesignResult, "engine" | "engine_version" | "thermodynamics" | "specificity"> | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedPair, setSelectedPair] = useState<number | null>(null);
@@ -159,10 +173,11 @@ export function PrimerDesigner() {
           : typeof d.detail === "string" ? d.detail : JSON.stringify(d.detail);
         throw new Error(msg || res.statusText);
       }
-      const result = await res.json();
-      setPairs(result);
+      const result = await res.json() as PrimerDesignResult;
+      setPairs(result.pairs ?? []);
+      setDesignMeta(result);
       setSelectedPair(0);
-      if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('primer_design', 'Primer3', `${sequence.length}bp`, `${result.length} pairs`); }
+      if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('primer_design', 'Primer3', `${sequence.length}bp`, `${result.pairs.length} pairs`); }
     } catch (e: any) { setError(e.message); audit.emitFailed('primer_design', 'Primer3', `${sequence.length}bp`, e.message); }
     finally { setLoading(false); }
   }
@@ -283,6 +298,19 @@ export function PrimerDesigner() {
 
       {pairs.length > 0 && (
         <div className="space-y-4">
+          {designMeta && (
+            <div className="bg-surface-0 rounded-xl border border-glass-border p-3 space-y-2">
+              <p className="text-[10px] font-mono text-text-muted">
+                {designMeta.engine} {designMeta.engine_version} &middot; {designMeta.thermodynamics}
+              </p>
+              <p className="text-[10px] leading-4 text-text-muted">
+                <span className="text-text-secondary font-medium">Tm values</span> are Primer3 nearest-neighbor calculated Tm (&deg;C), not IDT-style estimates from the QC step.
+              </p>
+              <p className="text-[10px] leading-4 text-text-muted">
+                <span className="text-text-secondary font-medium">Genome-wide specificity: {designMeta.specificity.genome_wide.status}</span> &mdash; {designMeta.specificity.genome_wide.reason}
+              </p>
+            </div>
+          )}
           <AIResultSummary toolName="primers" result={{ pairs, sequence_length: sequence.replace(/\s/g, "").length } as unknown as Record<string, unknown>} />
           <div className="flex items-center justify-between">
             <div className="flex gap-2 flex-wrap">
@@ -378,7 +406,7 @@ export function PrimerDesigner() {
                     <div className="flex items-center justify-between mb-2">
                       <span className="text-xs font-medium" style={{ color: primer.color }}>{primer.label}</span>
                       <div className="flex gap-4 text-xs text-text-muted">
-                        <span>Tm {primer.tm.toFixed(1)}&deg;C</span>
+                        <span>Tm (NN) {primer.tm.toFixed(1)}&deg;C</span>
                         <span>GC {primer.gc.toFixed(1)}%</span>
                         <span>Pos {primer.pos}</span>
                       </div>
@@ -409,7 +437,7 @@ export function PrimerDesigner() {
                 {/* QC panel */}
                 <div className="bg-surface-1 rounded-xl p-4 border border-glass-border">
                   <div className="flex items-center justify-between mb-3">
-                    <p className="text-xs text-text-muted">Oligo QC + in-silico PCR (reference-verified)</p>
+                    <p className="text-xs text-text-muted">Oligo QC + template-scope in-silico PCR</p>
                     {analyzing && <LoaderCircle className="w-4 h-4 animate-spin text-accent-cyan" />}
                   </div>
 
@@ -432,7 +460,7 @@ export function PrimerDesigner() {
                           <div className="flex flex-wrap gap-x-6 gap-y-1 text-xs">
                             <span className="flex items-center gap-1.5">
                               <Beaker className="w-3.5 h-3.5 text-accent-cyan" />
-                              Specificity:
+                              Template-scope specificity:
                               {analysis.pcr.specific
                                 ? <span className="text-molecule-protein font-medium">each primer binds once</span>
                                 : <span className="text-error font-medium">multiple sites ({analysis.pcr.forward_binding_sites} fwd / {analysis.pcr.reverse_binding_sites} rev)</span>}
@@ -458,6 +486,9 @@ export function PrimerDesigner() {
                           {analysis.pcr.note && (
                             <p className="text-[10px] text-text-muted mt-1">{analysis.pcr.note}</p>
                           )}
+                          <p className="text-[10px] text-text-muted mt-2 border-t border-glass-border pt-2">
+                            <span className="text-text-secondary font-medium">Genome-wide specificity: not performed.</span> {designMeta?.specificity.genome_wide.reason}
+                          </p>
                         </div>
                       )}
                     </div>

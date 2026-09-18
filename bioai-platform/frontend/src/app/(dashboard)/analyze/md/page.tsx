@@ -208,7 +208,7 @@ export default function MDPage() {
         <motion.div id="md-results" initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           <ResultsReadyBanner
             title={`Simulation complete · ${result.mode}`}
-            subtitle={`${result.engine === 'openmm' ? 'OpenMM' : 'BioPython'} · ${result.elapsed_seconds}s${result.final_energy_kj_mol ? ` · ${result.final_energy_kj_mol} kJ/mol` : ''}`}
+            subtitle={`${result.engine === 'openmm' ? 'OpenMM' : 'BioPython'} · ${result.elapsed_seconds}s${result.final_energy_kj_mol ? ` · ${result.final_energy_kj_mol} kJ/mol` : ''}${result.energy_is_estimate ? ' · energy is an estimate' : ''}`}
           />
           <div className="flex items-center gap-2">
             <button onClick={exportMdJson}
@@ -263,6 +263,21 @@ export default function MDPage() {
               ))}
             </div>
           </div>
+
+          {/* Energy honesty note — BioPython fallback estimate */}
+          {result.energy_is_estimate && (
+          <div className="data-card p-5 border border-accent-amber/30">
+            <h3 className="text-sm font-semibold text-text-primary mb-2 flex items-center gap-2">
+              <Zap className="w-4 h-4 text-accent-amber" /> Energy — Estimate Only
+            </h3>
+            <p className="text-xs text-text-muted">
+              OpenMM is unavailable, so no force-field potential energy is computed. The
+              value <strong className="text-text-primary">{result.estimated_energy_kj_mol} kJ/mol</strong> is a
+              simplified harmonic bond-geometry estimate ({result.energy_source}). It is not
+              comparable to an AMBER14SB potential energy.
+            </p>
+          </div>
+          )}
 
           {/* Step Counts — only for OpenMM */}
           {result.engine === "openmm" && (

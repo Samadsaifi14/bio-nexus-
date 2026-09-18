@@ -546,6 +546,32 @@ export default function DockingPage() {
             </div>
           )}
 
+          {(result.result?.vina_num_modes != null || result.result?.grid_source) && (
+            <div className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-3">Docking Configuration</h3>
+              <div className="grid grid-cols-3 gap-4 text-sm">
+                {result.result?.vina_num_modes != null && (
+                  <div>
+                    <p className="text-xs text-text-muted mb-1">Modes requested</p>
+                    <p className="text-text-primary font-mono">{result.result?.vina_num_modes}</p>
+                  </div>
+                )}
+                {result.result?.grid_source && (
+                  <div>
+                    <p className="text-xs text-text-muted mb-1">Grid source</p>
+                    <p className="text-text-primary font-mono capitalize">{result.result?.grid_source}</p>
+                  </div>
+                )}
+              </div>
+              {(result.result?.receptor_prep || result.result?.ligand_prep) && (
+                <div className="mt-3 pt-3 border-t border-glass-border text-xs text-text-muted space-y-1">
+                  {result.result?.receptor_prep && <p>Receptor: {result.result?.receptor_prep}</p>}
+                  {result.result?.ligand_prep && <p>Ligand: {result.result?.ligand_prep}</p>}
+                </div>
+              )}
+            </div>
+          )}
+
           {result.result?.pdb_id && bestLigandPdb && (
             <div className="data-card p-5 relative z-10">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">

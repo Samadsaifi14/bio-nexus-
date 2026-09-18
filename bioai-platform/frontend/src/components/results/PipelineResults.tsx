@@ -134,6 +134,9 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
             alignmentMode={data.steps.msa.data.alignment_mode}
             pairwise={data.steps.msa.data.pairwise}
             pairwiseSubject={data.steps.msa.data.pairwise_subject}
+            method={data.steps.msa.data.method}
+            engine={data.steps.msa.data.engine}
+            msaStats={data.steps.msa.data.msa_stats}
             jobId={jobId}
           />
         </motion.div>

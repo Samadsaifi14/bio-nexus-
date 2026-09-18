@@ -25,6 +25,18 @@ const STEP_LABELS: Record<string, string> = {
   complete: 'Complete',
 };
 
+const OP_STATUS_STYLE: Record<string, string> = {
+  ok: 'text-accent-green bg-accent-green/10',
+  complete: 'text-accent-green bg-accent-green/10',
+  repaired: 'text-accent-green bg-accent-green/10',
+  skipped: 'text-text-muted bg-surface-1',
+  unavailable: 'text-warn bg-warn/10',
+  running: 'text-accent-cyan bg-accent-cyan/10',
+  error: 'text-error bg-error/10',
+  failed: 'text-error bg-error/10',
+  timed_out: 'text-error bg-error/10',
+};
+
 function StatusBadge({ step, target }: { step: string; target: string }) {
   const steps = Object.keys(STEP_LABELS);
   const currentIdx = steps.indexOf(step);
@@ -226,6 +238,29 @@ export default function StructurePrepPage() {
       {result && result.status === 'complete' && (
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
           <AIResultSummary toolName="structure_prep" result={result as unknown as Record<string, unknown>} />
+
+          {(result.operations?.length ?? 0) > 0 && (
+            <motion.div variants={fadeUp} className="data-card p-5">
+              <h3 className="font-semibold text-text-primary mb-1">Operation Ledger</h3>
+              <p className="text-xs text-text-muted mb-4">Every step, its engine, outcome, and wall time.</p>
+              <div className="space-y-2">
+                {result.operations.map((op) => (
+                  <div key={`${op.step}-${op.engine}`} className="flex items-start gap-3 text-sm border-b border-glass-border/50 pb-2 last:border-0 last:pb-0">
+                    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-full uppercase tracking-wide flex-shrink-0 ${OP_STATUS_STYLE[op.status] ?? 'text-text-muted bg-surface-1'}`}>
+                      {op.status}
+                    </span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-text-primary font-medium text-xs capitalize">{op.step.replace(/_/g, ' ')}</p>
+                      <p className="text-text-muted text-xs font-mono">{op.engine}</p>
+                      {op.note && <p className="text-text-muted text-xs mt-0.5">{op.note}</p>}
+                    </div>
+                    <span className="text-xs text-text-muted font-mono flex-shrink-0">{op.duration_s.toFixed(2)}s</span>
+                  </div>
+                ))}
+              </div>
+            </motion.div>
+          )}
+
           {result.chain_health && (
             <motion.div variants={fadeUp} className="data-card p-5">
               <div className="flex items-center gap-3 mb-3">

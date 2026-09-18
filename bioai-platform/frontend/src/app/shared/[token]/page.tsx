@@ -98,11 +98,12 @@ export default function SharedResultPage() {
             {context.msa?.aln_fasta && (
               <motion.div variants={fadeUp} className="bg-surface-0 rounded-2xl border border-glass-border p-5">
                 <h3 className="text-sm font-semibold text-text-primary mb-1">Multiple Sequence Alignment</h3>
-                <p className="text-xs text-text-muted mb-2">{context.msa.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
-                <AlignmentStatsBar
-                  stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)}
-                  className="mb-2"
-                />
+                <p className="text-xs text-text-muted mb-2">{context.msa.sequence_count ?? 0} sequences aligned via {context.msa.engine || context.msa.method || 'Clustal Omega'}</p>
+                {context.msa.msa_stats ? (
+                  <AlignmentStatsBar stats={context.msa.msa_stats} className="mb-2" />
+                ) : (
+                  <AlignmentStatsBar stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)} className="mb-2" />
+                )}
                 <AlignmentBlock alnFasta={context.msa.aln_fasta} className="max-h-80" />
               </motion.div>
             )}

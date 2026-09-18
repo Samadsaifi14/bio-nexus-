@@ -122,7 +122,11 @@ export default function ReportPage() {
         <section className="data-card p-6 mb-8">
           <h2 className="font-semibold text-text-primary mb-2">Multiple Sequence Alignment</h2>
           <p className="text-xs text-text-muted mb-2">{msaData.sequence_count} sequences aligned</p>
-          <AlignmentStatsBar stats={computeAlignmentStats(parseAlignedFasta(msaData.aln_fasta).seqs)} className="mb-2" />
+          {msaData.msa_stats ? (
+            <AlignmentStatsBar stats={msaData.msa_stats} className="mb-2" />
+          ) : (
+            <AlignmentStatsBar stats={computeAlignmentStats(parseAlignedFasta(msaData.aln_fasta).seqs)} className="mb-2" />
+          )}
           <AlignmentBlock alnFasta={msaData.aln_fasta} className="max-h-96" />
         </section>
       )}

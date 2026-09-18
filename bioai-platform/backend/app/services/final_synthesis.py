@@ -127,10 +127,17 @@ def build_findings(context: dict) -> tuple[list[dict], list[dict]]:
     af = context.get("alphafold") or {}
     if af.get("structure_available"):
         source_label = "ESMFold prediction" if af.get("source") == "esmfold" else "AlphaFold DB model"
-        plddt = af.get("mean_plddt") or af.get("confidence")
-        detail = f", mean pLDDT {plddt}" if plddt else ""
+        # mean_plddt is on a 0-100 scale; confidence is on a 0-1 scale.
+        # Report the native scale, never mix them.
+        mean_plddt = af.get("mean_plddt")
+        if mean_plddt is not None:
+            plddt_detail = f", mean pLDDT {mean_plddt:.1f}/100"
+        elif af.get("confidence") is not None:
+            plddt_detail = f", confidence {af.get('confidence'):.2f}/1"
+        else:
+            plddt_detail = ""
         findings.append({
-            "claim": f"3D structure available ({source_label}{detail}).",
+            "claim": f"3D structure available ({source_label}{plddt_detail}).",
             "confidence_tier": tier,
             "source_tool": "alphafold",
             "page_url": af.get("pdb_url"),

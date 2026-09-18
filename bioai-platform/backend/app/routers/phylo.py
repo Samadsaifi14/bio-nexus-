@@ -62,6 +62,7 @@ class PhyloJob(BaseModel):
     aln_fasta:   Optional[str] = None
     newick:      Optional[str] = None
     stats:       Optional[str] = None
+    meta:        Optional[dict] = None
     error:       Optional[str] = None
     created_at:  float = 0.0
     msa_done_at: Optional[float] = None
@@ -91,6 +92,8 @@ def _init(job_id: str, req: PhyloRequest) -> None:
             "aln_fasta": None,
             "newick":    None,
             "stats":     None,
+            "meta":      None,
+            "engine":    None,
             "error":     None,
             "created_at": time.time(),
             "msa_done_at": None,
@@ -290,6 +293,7 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
     _patch(job_id, phase="tree_running")
 
     import os
+    import re
     import shutil
     import tempfile
 
@@ -383,6 +387,9 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
         # Read output tree
         newick = None
         stats = None
+        likelihood = None
+        engine_version = None
+        iqtree_support_type = None
         if use_iqtree:
             tree_file = aln_path.replace(".phy", ".treefile")
             iqtree_file = aln_path.replace(".phy", ".iqtree")
@@ -392,6 +399,20 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             if os.path.exists(iqtree_file):
                 with open(iqtree_file) as f:
                     stats = f.read().strip()
+                    m_ll = re.search(r"Log-likelihood of the tree:\s+(-?\d+\.\d+)", stats)
+                    if m_ll:
+                        likelihood = float(m_ll.group(1))
+                    # Actual replicate counts executed by IQ-TREE, not the
+                    # user's request (UFBoot requires >= 1000 samples).
+                    m_uf = re.search(r"Ultrafast bootstrap \(UFBoot\) with (\d+)", stats)
+                    m_alrt = re.search(r"SH-aLRT with (\d+)", stats)
+                    if m_uf and int(m_uf.group(1)) >= 1000:
+                        iqtree_support_type = f"ultrafast bootstrap {int(m_uf.group(1))}"
+                    elif m_alrt:
+                        iqtree_support_type = f"SH-aLRT {int(m_alrt.group(1))}"
+                    m_ver = re.search(r"IQ-TREE version:\s*([0-9a-zA-Z.+\-]+)", stats)
+                    if m_ver:
+                        engine_version = m_ver.group(1)
         else:
             tree_path = aln_path + "_phyml_tree.txt"
             stats_path = aln_path + "_phyml_stats.txt"
@@ -401,17 +422,36 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             if os.path.exists(stats_path):
                 with open(stats_path) as f:
                     stats = f.read().strip()
+                    m_ll = re.search(r"lnL(:|=)\s*([-+]?\d*\.?\d+)", stats)
+                    if m_ll:
+                        likelihood = float(m_ll.group(2))
 
         if not newick:
             _patch(job_id, phase="error", error=f"{engine} produced no output tree")
             return
 
-        _patch(job_id, phase="complete", newick=newick, stats=stats, done_at=time.time())
+        meta = {
+            "engine": engine,
+            "engine_version": engine_version,
+            "model": model,
+            "support": iqtree_support_type or (f"classic bootstrap {bs}" if bs > 0 else "none"),
+            "support_detail": (
+                "IQ-TREE ultrafast bootstrap (UFBoot >= 1000 replicates) with SH-aLRT."
+                if use_iqtree and bs > 0 else
+                "PhyML classic nonparametric bootstrap replicates."
+                if not use_iqtree and bs > 0 else
+                "No bootstrap requested."
+            ),
+            "likelihood": likelihood,
+            "bootstrap_effective": (max(1000, bs) if use_iqtree and bs > 0 else bs) if bs > 0 else None,
+            "bootstrap_requested": bs,
+        }
+        _patch(job_id, phase="complete", newick=newick, stats=stats, meta=meta, done_at=time.time())
 
         # AI interpretation (best-effort, never blocks)
         try:
             from app.ai.tool_interpreter import interpret_tool_result
-            result_data = {"newick": newick, "method": "ml", "engine": engine, "stats": stats}
+            result_data = {"newick": newick, "method": "ml", "engine": engine, "stats": stats, "meta": meta}
             ai_interp = await interpret_tool_result("phylo", result_data)
             if ai_interp:
                 _patch(job_id, ai_interpretation=ai_interp)
@@ -449,7 +489,16 @@ async def _worker(job_id: str) -> None:
     if req.method == "nj":
         result_data = {"newick": nj_newick.strip(), "method": "nj"}
         _patch(job_id, phase="complete",
-               newick=nj_newick.strip(), done_at=time.time())
+               newick=nj_newick.strip(), done_at=time.time(),
+               meta={
+                   "engine": "Clustal Omega guide tree (Neighbor-Joining)",
+                   "engine_version": "remote (service-managed)",
+                   "model": "guide-tree distances",
+                   "support": "none",
+                   "support_detail": "Guide tree used for alignment; no bootstrap or likelihood support computed.",
+                   "likelihood": None,
+                   "bootstrap_effective": None,
+               })
         # AI interpretation (best-effort, never blocks)
         try:
             from app.ai.tool_interpreter import interpret_tool_result
@@ -465,7 +514,16 @@ async def _worker(job_id: str) -> None:
             newick = _upgma_newick(aln_fasta)
             result_data = {"newick": newick, "method": "upgma"}
             _patch(job_id, phase="complete",
-                   newick=newick, done_at=time.time())
+                   newick=newick, done_at=time.time(),
+                   meta={
+                       "engine": "In-process UPGMA (p-distance)",
+                       "engine_version": "1.0",
+                       "model": "uncorrected p-distance",
+                       "support": "none",
+                       "support_detail": "UPGMA produces no bootstrap or likelihood support; clusters are ultrametric under a molecular-clock assumption.",
+                       "likelihood": None,
+                       "bootstrap_effective": None,
+                   })
             # AI interpretation (best-effort, never blocks)
             try:
                 from app.ai.tool_interpreter import interpret_tool_result

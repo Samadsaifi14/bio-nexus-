@@ -417,7 +417,7 @@ export default function JobPage() {
               <div className="flex items-center justify-between mb-2">
                 <div>
                   <h3 className="text-sm font-semibold text-text-primary">Multiple Sequence Alignment</h3>
-                  <p className="text-xs text-text-muted mt-0.5">{context.msa.sequence_count ?? 0} sequences aligned via Clustal Omega</p>
+                  <p className="text-xs text-text-muted mt-0.5">{context.msa.sequence_count ?? 0} sequences aligned via {context.msa.engine || context.msa.method || 'Clustal Omega'}</p>
                 </div>
                 <button
                   onClick={() => {
@@ -430,10 +430,11 @@ export default function JobPage() {
                   <Download className="w-3.5 h-3.5 inline mr-1" />FASTA
                 </button>
               </div>
-              <AlignmentStatsBar
-                stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)}
-                className="mb-2"
-              />
+              {context.msa.msa_stats ? (
+                <AlignmentStatsBar stats={context.msa.msa_stats} className="mb-2" />
+              ) : (
+                <AlignmentStatsBar stats={computeAlignmentStats(parseAlignedFasta(context.msa.aln_fasta).seqs)} className="mb-2" />
+              )}
               <AlignmentBlock alnFasta={context.msa.aln_fasta} className="max-h-80" />
             </motion.div>
           )}

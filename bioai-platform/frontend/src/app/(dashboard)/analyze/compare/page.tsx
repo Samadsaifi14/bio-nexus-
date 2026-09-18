@@ -17,7 +17,7 @@ export default function ComparePage() {
 
       <PageHeader
         title="Structure Comparison"
-        subtitle="Find structurally similar proteins using PDBeFold (TM-align)."
+        subtitle="Find structurally similar proteins — Foldseek TM-align search of PDB100."
       />
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">

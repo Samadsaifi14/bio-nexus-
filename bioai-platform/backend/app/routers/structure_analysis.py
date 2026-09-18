@@ -8,6 +8,7 @@ import httpx
 import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
+from typing import Optional
 from Bio.PDB import PDBParser, PPBuilder
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,15 @@ class RamachandranPoint(BaseModel):
     psi: float
     region: str
 
-def classify_rama(phi: float, psi: float) -> str:
+class RamachandranResponse(BaseModel):
+    pdb_id: str
+    chain: str
+    classifier: str
+    classifier_note: str
+    wwpdb_note: str
+    points: list[RamachandranPoint]
+
+def classify_rama(phi: float, psi: float, resname: str = "") -> str:
     def in_region(p, q, cp, cq, rp, rq):
         return abs(p - cp) < rp and abs(q - cq) < rq
     if in_region(phi, psi, -57, -47, 30, 30):
@@ -32,9 +41,14 @@ def classify_rama(phi: float, psi: float) -> str:
         return "core_beta"
     if phi < 0:
         return "allowed"
+    # Glycine has no sidechain and is routinely found with phi >= 0
+    # (e.g. in beta turns). Marking it "outlier" here would be an error,
+    # since wwPDB/MolProbity reports apply no such blanket rule.
+    if resname == "GLY":
+        return "allowed"
     return "outlier"
 
-@router.get("/ramachandran/{pdb_id}", response_model=list[RamachandranPoint])
+@router.get("/ramachandran/{pdb_id}", response_model=RamachandranResponse)
 async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
     pdb_id = pdb_id.upper()
 
@@ -71,11 +85,28 @@ async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
                         resnum=residue.get_id()[1],
                         phi=round(phi_deg, 2),
                         psi=round(psi_deg, 2),
-                        region=classify_rama(phi_deg, psi_deg),
+                        region=classify_rama(phi_deg, psi_deg, residue.get_resname()),
                     ))
     if not points:
         raise HTTPException(404, "No φ/ψ angles found — check chain ID")
-    return points
+    return RamachandranResponse(
+        pdb_id=pdb_id,
+        chain=chain,
+        classifier="Bio Nexus coarse phi/psi box regions",
+        classifier_note=(
+            "Regions are coarse (±30°) boxes around idealized alpha-helix and beta-sheet "
+            "coordinates plus a phi<0 'allowed' zone; glycine is always treated as allowed. "
+            "This is a LOCAL approximation for screening, not a wwPDB/MolProbity-generated "
+            "Ramachandran analysis."
+        ),
+        wwpdb_note=(
+            "Authoritative model quality comes from the official wwPDB validation report "
+            "for this entry (RCSB validation at https://validate.rcsb.org/z/{pdb_id} or the "
+            "RCSB/PDBe download pages). This endpoint does not reproduce wwPDB favoured/outlier "
+            "percentages."
+        ).format(pdb_id=pdb_id),
+        points=points,
+    )
 
 # ── Secondary Structure ───────────────────────────────────
 
@@ -141,9 +172,12 @@ class StructureMatch(BaseModel):
     chain: str
     description: str
     tm_score: float
+    qTM: Optional[float]
+    tTM: Optional[float]
     rmsd: float
     seq_identity: float
     aligned_length: int
+    method: str = "Foldseek TM-align"
 
 def _extract_chain(pdb_text: str, chain_id: str) -> str:
     """Extract a single chain from a PDB file as a valid minimal PDB."""
@@ -294,6 +328,31 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
                     seq_id_frac = 0.0
                 seq_id_frac = min(max(seq_id_frac, 0.0), 1.0)
 
+                # Foldseek TM-align mode returns qTM/tTM (0-1 query-/target-normalized
+                # TM-scores). `score` cannot be assumed to be TM-score*100, so prefer qTM.
+                qtm = entry.get("qTM")
+                ttm = entry.get("tTM")
+                try:
+                    qtm = min(max(float(qtm), 0.0), 1.0) if qtm is not None else None
+                except (TypeError, ValueError):
+                    qtm = None
+                try:
+                    ttm = min(max(float(ttm), 0.0), 1.0) if ttm is not None else None
+                except (TypeError, ValueError):
+                    ttm = None
+                if qtm is None and ttm is None:
+                    tm_score = 0.0
+                elif qtm is not None:
+                    tm_score = qtm
+                else:
+                    tm_score = ttm
+
+                aligned_length = entry.get("alnLen", entry.get("alnLength", 0))
+                try:
+                    aligned_length = int(aligned_length)
+                except (TypeError, ValueError):
+                    aligned_length = 0
+
                 rmsd = _alignment_rmsd(
                     pdb_bytes, chain, entry.get("qAln", ""), entry.get("dbAln", ""),
                     entry.get("qStartPos", 1), entry.get("tCa", ""),
@@ -303,10 +362,13 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
                     pdb_id=match_pdb,
                     chain=match_chain,
                     description=target,
-                    tm_score=round(entry.get("score", 0) / 100.0, 4),
+                    tm_score=round(1.0 * tm_score, 4),
+                    qTM=round(qtm, 4) if qtm is not None else None,
+                    tTM=round(ttm, 4) if ttm is not None else None,
                     rmsd=round(rmsd, 2),
                     seq_identity=round(seq_id_frac, 4),
-                    aligned_length=entry.get("alnLength", 0),
+                    aligned_length=aligned_length,
+                    method="Foldseek TM-align",
                 ))
                 if len(results) >= max_results:
                     break
@@ -317,7 +379,12 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     if not results:
         raise HTTPException(404, "No structurally similar proteins found")
     results.sort(key=lambda x: x.tm_score, reverse=True)
-    return {"query": f"{pdb_id}:{chain}", "matches": results}
+    return {
+        "query": f"{pdb_id}:{chain}",
+        "method": "Foldseek TM-align",
+        "database": "PDB100",
+        "matches": results,
+    }
 
 
 def _parse_pdb_id(raw: str) -> str:

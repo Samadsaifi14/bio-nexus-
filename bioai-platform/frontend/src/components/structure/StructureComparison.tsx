@@ -6,12 +6,15 @@ import { apiUrl } from "@/lib/api";
 
 type StructureMatch = {
   pdb_id: string; chain: string; description: string;
-  tm_score: number; rmsd: number; seq_identity: number; aligned_length: number;
+  tm_score: number; qTM?: number | null; tTM?: number | null;
+  rmsd: number; seq_identity: number; aligned_length: number;
+  method?: string;
 };
 
 export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; chain?: string }) {
   const audit = useAuditTrail();
   const [matches, setMatches] = useState<StructureMatch[]>([]);
+  const [meta, setMeta] = useState<{ method?: string; database?: string }>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -31,16 +34,17 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
       .then(d => {
         if (!controller.signal.aborted) {
           setMatches(d.matches);
+          setMeta({ method: d.method, database: d.database });
           if (!auditedRef.current) {
             auditedRef.current = true;
-            audit.emitSuccess('struct_compare', 'PDBeFold', pdbId, `${d.matches?.length || 0} matches`);
+            audit.emitSuccess('struct_compare', 'Foldseek TM-align', pdbId, `${d.matches?.length || 0} matches`);
           }
         }
       })
       .catch(e => {
         if (!controller.signal.aborted) {
           setError(e.message);
-          audit.emitFailed('struct_compare', 'PDBeFold', pdbId, e.message);
+          audit.emitFailed('struct_compare', 'Foldseek TM-align', pdbId, e.message);
         }
       })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });
@@ -48,7 +52,7 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
     return () => controller.abort();
   }, [pdbId, chain]);
 
-  if (loading) return <div className="text-text-muted text-sm animate-pulse">Searching structural homologs (PDBeFold)&hellip;</div>;
+  if (loading) return <div className="text-text-muted text-sm animate-pulse">Searching structural homologs (Foldseek TM-align)&hellip;</div>;
   if (error) return <div className="text-error text-sm">{error}</div>;
 
   return (
@@ -59,11 +63,11 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
           <button onClick={() => exportSvgPng(svgRef.current, `compare-${pdbId}.png`)}
             className="btn-ghost text-xs px-2 py-1">Export PNG</button>
           <button onClick={() => downloadTsv(
-            ["PDB", "Chain", "RMSD", "Seq ID%", "Aligned", "TM-score", "Description"],
-            matches.map(m => [m.pdb_id, m.chain, m.rmsd.toFixed(2), (m.seq_identity * 100).toFixed(1), String(m.aligned_length), m.tm_score.toFixed(3), m.description]),
+            ["PDB", "Chain", "RMSD", "Seq ID%", "Aligned", "TM-score", "Mean qTM", "Description"],
+            matches.map(m => [m.pdb_id, m.chain, m.rmsd.toFixed(2), (m.seq_identity * 100).toFixed(1), String(m.aligned_length), m.tm_score.toFixed(3), m.qTM != null ? m.qTM.toFixed(3) : "N/A", m.description]),
             `compare-${pdbId}.tsv`
           )} className="btn-ghost text-xs px-2 py-1">Export TSV</button>
-          <span className="text-text-muted text-xs">{matches.length} hits &middot; PDBeFold</span>
+          <span className="text-text-muted text-xs">{matches.length} hits &middot; {meta.method || "Foldseek TM-align"} &middot; {meta.database || "PDB100"}</span>
         </div>
       </div>
 
@@ -93,7 +97,7 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
         <table className="w-full text-xs">
           <thead className="bg-surface-1">
             <tr>
-              {["PDB", "Chain", "RMSD", "Seq ID%", "Aligned", "Description"].map(h => (
+              {["PDB", "Chain", "RMSD", "Seq ID%", "Aligned", "TM-score", "qTM", "Description"].map(h => (
                 <th key={h} className="px-3 py-2 text-left text-text-muted font-medium whitespace-nowrap">{h}</th>
               ))}
             </tr>
@@ -109,6 +113,8 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
                 <td className="px-3 py-2 text-text-muted">{m.rmsd.toFixed(2)}&Aring;</td>
                 <td className="px-3 py-2 text-text-muted">{(m.seq_identity * 100).toFixed(1)}%</td>
                 <td className="px-3 py-2 text-text-muted">{m.aligned_length} aa</td>
+                <td className="px-3 py-2 text-text-muted font-mono">{m.tm_score.toFixed(3)}</td>
+                <td className="px-3 py-2 text-text-muted font-mono">{m.qTM != null ? m.qTM.toFixed(3) : "&ndash;"}</td>
                 <td className="px-3 py-2 text-text-muted max-w-48 truncate">{m.description}</td>
               </tr>
             ))}

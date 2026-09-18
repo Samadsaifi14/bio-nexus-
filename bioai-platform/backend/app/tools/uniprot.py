@@ -21,6 +21,7 @@ class UniprotTool(BaseTool):
 
         return {
             "accession": data.get("primaryAccession", ""),
+            "release": data.get("_uniprot_release", ""),
             "reviewed": "reviewed" in (data.get("entryType", "") or "").lower() and "unreviewed" not in (data.get("entryType", "") or "").lower(),
             "full_name": self._extract_name(data),
             "ec_number": (data.get("proteinDescription", {}) or {}).get("ecNumbers", [{}])[0].get("ecNumber", "") if data.get("proteinDescription") else "",
@@ -46,7 +47,11 @@ class UniprotTool(BaseTool):
                 return {"error": f"Accession {accession} not found"}
             if resp.status_code >= 400:
                 return {"error": f"UniProt returned {resp.status_code} for {accession}"}
-            return resp.json()
+            data = resp.json()
+            release = resp.headers.get("X-UniProt-Release", "")
+            if release:
+                data["_uniprot_release"] = release
+            return data
 
     def _extract_name(self, data: dict) -> str:
         desc = data.get("proteinDescription", {}) or {}
@@ -108,11 +113,17 @@ class UniprotTool(BaseTool):
         features = data.get("features") or []
         result = []
         for f in features:
+            evidences = []
+            for ev in (f.get("evidences") or []):
+                code = (ev or {}).get("code", "")
+                if code:
+                    evidences.append(code)
             result.append({
                 "type": f.get("type", ""),
                 "description": f.get("description", ""),
                 "begin": (f.get("location", {}) or {}).get("start", {}).get("value"),
                 "end": (f.get("location", {}) or {}).get("end", {}).get("value"),
+                "evidence": evidences,
             })
         return result
 

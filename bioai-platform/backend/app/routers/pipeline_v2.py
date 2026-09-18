@@ -962,6 +962,9 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
         email = settings.NCBI_EMAIL or "bioflow@example.com"
         seq_type = detect_sequence_type(query_sequence) or "protein"
         stype = "protein" if seq_type == "protein" else "dna"
+        engine: str | None = None
+        engine_version: str | None = None
+        fallback_used = False
         try:
             # Try local MAFFT first (fast, no network dependency)
             from app.tools.mafft_local import run_local_mafft
@@ -970,6 +973,8 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
             )
             if local_result and local_result.get("aln_fasta"):
                 method = "mafft-local"
+                engine = "MAFFT (local)"
+                engine_version = local_result.get("version") or "unknown"
                 aln_fasta = local_result["aln_fasta"]
                 phylotree = ""
             else:
@@ -982,6 +987,9 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
                     email=email,
                 )
                 method = result["method"]
+                engine = "EBI"
+                engine_version = result.get("version") or "remote (service-managed)"
+                fallback_used = method not in ("clustalo", "muscle")
                 aln_fasta = result["aln_fasta"]
                 phylotree = result["phylotree"]
             except Exception as e:
@@ -992,6 +1000,13 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
                 )
                 aln_fasta, phylotree = fallback
                 method = "in-process fallback"
+                engine = "in-process fallback"
+                engine_version = "1.0"
+                fallback_used = True
+
+        from app.tools.alignment_stats import alignment_stats, parse_aligned_fasta
+        from app.scientific.contract import sha256_hex
+        msa_stats = alignment_stats(parse_aligned_fasta(aln_fasta))
 
         payload = {
             "aln_fasta": aln_fasta,
@@ -999,7 +1014,12 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
             "sequence_count": len(sequences),
             "alignment_mode": alignment_mode,
             "method": method,
-            "_fallback": method != "clustalo",
+            "engine": engine,
+            "engine_version": engine_version,
+            "input_sha256": sha256_hex(fasta_str),
+            "output_sha256": sha256_hex(aln_fasta),
+            "msa_stats": msa_stats,
+            "fallback_used": fallback_used,
         }
 
         # Local mode: refine query vs the best non-query sequence with an

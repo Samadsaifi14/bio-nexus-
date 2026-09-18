@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { apiUrl } from "@/lib/api";
 
 type RPoint = { residue: string; chain: string; resnum: number; phi: number; psi: number; region: string };
+type RamaResponse = { points: RPoint[]; classifier?: string; classifier_note?: string; wwpdb_note?: string };
 
 const REGION_COLOR: Record<string, string> = {
   core_alpha: "#4ADE80",
@@ -13,7 +14,7 @@ const REGION_COLOR: Record<string, string> = {
 };
 
 export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null; chain?: string }) {
-  const [points, setPoints] = useState<RPoint[]>([]);
+  const [resp, setResp] = useState<RamaResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [hovered, setHovered] = useState<RPoint | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,7 +25,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
     setError(null);
     fetch(apiUrl(`/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`))
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
-      .then(setPoints)
+      .then(setResp)
       .catch(e => setError(e.message))
       .finally(() => setLoading(false));
   }, [pdbId, chain]);
@@ -32,7 +33,9 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
   if (!pdbId) return <div className="text-text-muted text-sm">No PDB structure available for this protein. Ramachandran analysis requires a 3D structure.</div>;
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Calculating &phi;/&psi; angles&hellip;</div>;
   if (error) return <div className="text-error text-sm">{error}</div>;
+  if (!resp) return null;
 
+  const points = resp.points ?? [];
   const W = 400, H = 400, PAD = 40;
   const toX = (phi: number) => PAD + ((phi + 180) / 360) * (W - PAD * 2);
   const toY = (psi: number) => PAD + ((180 - psi) / 360) * (H - PAD * 2);
@@ -54,7 +57,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
             : +outlierPct < 5 ? "text-warn bg-warn/10"
             : "text-error bg-error/10"
         }`}>
-          {outlierPct}% outliers
+          {outlierPct}% coarse outliers
         </span>
       </div>
 
@@ -115,7 +118,9 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
               </div>
             </div>
           ))}
-          <p className="text-text-muted text-xs mt-4">&gt;98% in favoured regions = high quality model</p>
+          <p className="text-text-muted text-xs">&gt;98% in favoured regions (wwPDB/MolProbity) is a benchmark for official validation reports, not for this plot.</p>
+          {resp.classifier_note && <p className="text-[11px] leading-4 text-text-muted border-t border-glass-border pt-2">{resp.classifier_note}</p>}
+          {resp.wwpdb_note && <p className="text-[11px] leading-4 text-text-muted">{resp.wwpdb_note}</p>}
         </div>
       </div>
 

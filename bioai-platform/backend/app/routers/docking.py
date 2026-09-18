@@ -122,6 +122,81 @@ def _ligand_properties(smiles: str) -> dict:
         return {}
 
 
+def _obabel_version() -> str:
+    """Best-effort Open Babel `--version` probe; returns the first line or 'unknown'."""
+    import subprocess as _sp
+    try:
+        from app.tools.docking import _ensure_obabel
+        r = _sp.run([_ensure_obabel(), "--version"], capture_output=True, text=True, timeout=15)
+    except Exception:
+        return "unknown"
+    first = (r.stdout or r.stderr or "").splitlines()
+    return first[0][:80] if first else "unknown"
+
+
+def _rdkit_version() -> str:
+    try:
+        import rdkit
+        return rdkit.__version__
+    except Exception:
+        return "unknown"
+
+
+def _engines_manifest(obabel_version: str, rdkit_version: str, vina_version: str,
+                      grid_source: str, grid_source_labels: dict,
+                      exhaustiveness: int, num_modes: int, seed: int, gnina_version: str = "") -> list[dict]:
+    return [
+        {
+            "role": "receptor_prep",
+            "engine": "Open Babel",
+            "version": obabel_version,
+            "note": "Rigid receptor — crystal protonation kept, Gasteiger charges (prepare_receptor4-style)",
+        },
+        {
+            "role": "ligand_3d",
+            "engine": "NCI CACTUS",
+            "version": "",
+            "note": "3D SDF from SMILES (get3d=true, retried over rate limits)",
+        },
+        {
+            "role": "ligand_prep",
+            "engine": "Open Babel",
+            "version": obabel_version,
+            "note": "PDBQT conversion with MMFF94s minimization when available",
+        },
+        {
+            "role": "ligand_properties",
+            "engine": "RDKit",
+            "version": rdkit_version,
+            "note": "SMILES descriptors (formula, MW, logP, TPSA, HBD/HBA)",
+        },
+        {
+            "role": "docking_box",
+            "engine": "fpocket 2.0" if grid_source == "pocket" else "Bio Nexus grid logic",
+            "version": "",
+            "note": grid_source_labels.get(grid_source, grid_source),
+        },
+        {
+            "role": "docking",
+            "engine": "AutoDock Vina",
+            "version": vina_version,
+            "note": f"exhaustiveness={exhaustiveness}, num_modes={num_modes}, seed={seed} (fixed for reproducibility)",
+        },
+        {
+            "role": "cnn_rescoring",
+            "engine": "Gnina",
+            "version": gnina_version or "not detected",
+            "note": "CNN rescoring of Vina poses (skipped when gnina binary unavailable)",
+        },
+        {
+            "role": "interactions",
+            "engine": "Bio Nexus geometric detector",
+            "version": "",
+            "note": "H-bonds/hydrophobic/pi-stacking/salt bridges from local distance+angle heuristics",
+        },
+    ]
+
+
 # ---------------------------------------------------------------------------
 # Background worker
 # ---------------------------------------------------------------------------
@@ -234,17 +309,39 @@ def _run_docking_sync(job_id: str, payload: dict):
 
         # 8. CNN rescoring with Gnina (optional, graceful fallback)
         cnn_rescoring = None
+        gnina_available = False
         try:
             from app.tools.gnina_rescore import rescore_with_gnina
             cnn_rescoring = rescore_with_gnina(
                 receptor_pdb=protein_pdb,
                 vina_output_pdbqt=vina_result.get("result_sdf", ""),
             )
+            gnina_available = cnn_rescoring is not None
         except Exception as e:
             logger.info("Gnina rescoring skipped: %s", e)
 
         # 9. Ligand essential data (from SMILES, RDKit)
         ligand_properties = _ligand_properties(smiles)
+
+        # 10. Engine manifest — every tool that touched this result, with its
+        #     version and role, so the frontend never has to guess provenance.
+        grid_source_labels = {
+            "user": "User-specified docking box",
+            "pocket": "fpocket top pocket (computed locally)",
+            "centroid": "Protein centroid (blind docking) — low-confidence box choice",
+        }
+        obabel_version = _obabel_version()
+        engines = _engines_manifest(
+            obabel_version=obabel_version,
+            rdkit_version=_rdkit_version(),
+            vina_version=vina_result.get("vina_version", ""),
+            grid_source=grid_source,
+            grid_source_labels=grid_source_labels,
+            exhaustiveness=int(payload.get("exhaustiveness", 32) or 32),
+            num_modes=int(payload.get("num_modes", 9) or 9),
+            seed=seed,
+            gnina_version="gnina 1.3.2 (CNN)" if gnina_available else "",
+        )
 
         result_obj = {
             "pdb_id": pdb_id,
@@ -266,7 +363,12 @@ def _run_docking_sync(job_id: str, payload: dict):
             "vina_version": vina_result.get("vina_version", ""),
             "vina_seed": seed,
             "vina_exhaustiveness": (vina_result.get("vina_meta") or {}).get("exhaustiveness"),
+            "vina_num_modes": int(payload.get("num_modes", 9) or 9),
             "grid_source": grid_source,
+            "grid_source_label": grid_source_labels.get(grid_source, grid_source),
+            "engines": engines,
+            "receptor_prep": "rigid receptor — crystal protonation kept, Gasteiger charges (Open Babel, prepare_receptor4-style)",
+            "ligand_prep": "3D structure via NCI CACTUS; PDBQT via Open Babel with MMFF94s minimization when available",
             "interactions": interactions,
             "pose_interactions": pose_interactions,
             "cnn_rescoring": cnn_rescoring,

@@ -129,6 +129,8 @@ export default function SwissModelPage() {
               </button>
             </div>
 
+            <p className="text-xs text-text-muted mb-3">GMQE and QMEANDisCo are on a 0&ndash;1 scale (higher = closer to experimental); QMEAN z-score is relative to a native-structure reference set (values closer to 0 are better). Values are reported directly from the SWISS-MODEL repository.</p>
+
             {!templates || templates.length === 0 ? (
               <p className="text-sm text-text-muted">No {activeTab === 'models' ? 'homology models' : 'experimental structures'} found.</p>
             ) : (
@@ -139,6 +141,9 @@ export default function SwissModelPage() {
                       <th className="pb-2 font-medium">Template</th>
                       <th className="pb-2 font-medium">Method</th>
                       <th className="pb-2 font-medium">Coverage</th>
+                      <th className="pb-2 font-medium">GMQE</th>
+                      <th className="pb-2 font-medium">QMEANDisCo</th>
+                      <th className="pb-2 font-medium">QMEAN z</th>
                       <th className="pb-2 font-medium">State</th>
                       <th className="pb-2 font-medium">Date</th>
                       <th className="pb-2 font-medium"></th>
@@ -150,6 +155,9 @@ export default function SwissModelPage() {
                         <td className="py-2 font-mono text-xs text-accent-cyan">{t.template || '—'}</td>
                         <td className="py-2 text-xs">{t.method || '—'}</td>
                         <td className="py-2 text-xs">{t.coverage != null ? `${(t.coverage * 100).toFixed(0)}%` : '—'}</td>
+                        <td className="py-2 text-xs font-mono">{t.gmqe_score != null ? t.gmqe_score.toFixed(3) : '—'}</td>
+                        <td className="py-2 text-xs font-mono">{t.qmean_discovery_score != null ? t.qmean_discovery_score.toFixed(3) : '—'}</td>
+                        <td className="py-2 text-xs font-mono">{t.qmean_score != null ? t.qmean_score.toFixed(2) : '—'}</td>
                         <td className="py-2 text-xs">{t.oligo_state || '—'}</td>
                         <td className="py-2 text-xs">{t.created_date || '—'}</td>
                         <td className="py-2">

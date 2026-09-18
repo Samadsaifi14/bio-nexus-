@@ -272,6 +272,7 @@ def oligo_report(seq: str) -> Dict:
         "length": len(s),
         "gc": gc_content(s),
         "tm_50mM": salt_adjusted_tm(s),
+        "tm_model": "IDT-style nearest-neighbor approximation (64.9 + 41*(nGC-16.4)/N) with SantaLucia salt correction at 50 mM; not a fully calibrated NN melt calculation",
         "hairpin": hp,
         "self_dimer": sd,
     }

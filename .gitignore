@@ -45,6 +45,7 @@ runtime/
 resource_readiness/
 .nextflow/
 .nextflow.log*
+bioai-platform/backend/worker_*.log
 benchmark/ngs-portability/work/
 dag-*.html
 report-*.html

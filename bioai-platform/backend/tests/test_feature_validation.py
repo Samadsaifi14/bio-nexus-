@@ -351,15 +351,14 @@ class TestRamachandran:
     @pytest.mark.asyncio
     async def test_ramachandran_points(self):
         from app.routers.structure_analysis import ramachandran
-        from fastapi import Query
         resp = await ramachandran("1CRN", chain="A")
-        assert len(resp) > 30, f"Expected >30 points, got {len(resp)}"
+        assert len(resp.points) > 30, f"Expected >30 points, got {len(resp.points)}"
 
     @pytest.mark.asyncio
     async def test_ramachandran_regions_present(self):
         from app.routers.structure_analysis import ramachandran
         resp = await ramachandran("1CRN", chain="A")
-        regions = set(p.region for p in resp)
+        regions = set(p.region for p in resp.points)
         assert "core_alpha" in regions or "core_beta" in regions, \
             f"Expected core regions, got {regions}"
 
@@ -367,7 +366,7 @@ class TestRamachandran:
     async def test_ramachandran_phi_psi_range(self):
         from app.routers.structure_analysis import ramachandran
         resp = await ramachandran("1CRN", chain="A")
-        for p in resp:
+        for p in resp.points:
             assert -180 <= p.phi <= 180, f"Phi out of range: {p.phi}"
             assert -180 <= p.psi <= 180, f"Psi out of range: {p.psi}"
 
@@ -376,8 +375,8 @@ class TestRamachandran:
         """Crambin is well-structured: >70% of residues should be in core regions."""
         from app.routers.structure_analysis import ramachandran
         resp = await ramachandran("1CRN", chain="A")
-        core_count = sum(1 for p in resp if p.region.startswith("core_"))
-        fraction = core_count / len(resp)
+        core_count = sum(1 for p in resp.points if p.region.startswith("core_"))
+        fraction = core_count / len(resp.points)
         assert fraction > 0.5, f"Expected >50% core, got {fraction:.1%}"
 
 

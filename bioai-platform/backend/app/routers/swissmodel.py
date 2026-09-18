@@ -8,6 +8,15 @@ import httpx
 
 logger = logging.getLogger(__name__)
 
+
+def _as_float(v: Any) -> float | None:
+    try:
+        if v is None:
+            return None
+        return round(float(v), 4)
+    except (TypeError, ValueError):
+        return None
+
 router = APIRouter(prefix="/api/swissmodel", tags=["swissmodel"])
 
 SMR_BASE = "https://swissmodel.expasy.org/repository"
@@ -28,6 +37,8 @@ class ModelInfo(BaseModel):
     created_date: str | None = None
     coordinates_url: str | None = None
     qmean_score: float | None = None
+    qmean_discovery_score: float | None = None
+    gmqe_score: float | None = None
     ligands: list[dict[str, Any]] = []
     complex_with: list[dict[str, Any]] = []
 
@@ -78,6 +89,16 @@ async def query_repository(body: SwissModelRequest):
             created_date=s.get("created_date"),
             coordinates_url=s.get("coordinates"),
         )
+        # SMR structure entries carry the model quality estimates; expose the
+        # raw values with the exact metric name in a parallel field so the
+        # frontend can label them (QMEAN z-score vs QMEANDisCo vs GMQE).
+        qmean = s.get("qmean")
+        if isinstance(qmean, dict):
+            info.qmean_score = _as_float(qmean.get("global"))
+        else:
+            info.qmean_score = _as_float(qmean)
+        info.qmean_discovery_score = _as_float(s.get("qmeanDisCo"))
+        info.gmqe_score = _as_float(s.get("gmqe"))
         if s.get("ligand_chains"):
             for lc in s["ligand_chains"]:
                 for lig in lc.get("ligands", []):

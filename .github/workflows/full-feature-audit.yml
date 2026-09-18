@@ -10,6 +10,10 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: full-feature-audit-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   backend-full-suite:
     name: Backend full pytest suite

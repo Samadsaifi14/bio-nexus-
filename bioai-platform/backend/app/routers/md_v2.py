@@ -21,7 +21,7 @@ from app.science.result import build_scientific_result
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/md/v2", tags=["md-v2"])
-SYNC_PRODUCTION_MAX_PS = 20.0
+SYNC_PRODUCTION_MAX_PS = 5.0
 
 
 class AnalyzeRequest(BaseModel):
@@ -269,7 +269,18 @@ async def analyze(payload: AnalyzeRequest):
 
     pipe = build_md_pipeline()
     try:
-        report = await asyncio.to_thread(pipe.run, sample)
+        # Keep the synchronous route inside typical proxy/gateway limits.
+        # Longer trajectories belong to the durable MD workflow.
+        report = await asyncio.wait_for(asyncio.to_thread(pipe.run, sample), timeout=55.0)
+    except asyncio.TimeoutError as exc:
+        logger.error("MD v2 synchronous pipeline timed out for %s", pdb_id)
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "Staged MD exceeded the synchronous execution budget before a complete scientific result was emitted. "
+                "Use a smaller structure/shorter diagnostic run or the durable MD workflow."
+            ),
+        ) from exc
     except Exception as exc:
         logger.exception("MD v2 pipeline failed for %s", pdb_id)
         raise HTTPException(status_code=503, detail=f"MD engine failed before producing a scientific result: {type(exc).__name__}: {exc}") from exc

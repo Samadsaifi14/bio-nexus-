@@ -128,6 +128,24 @@ export interface InteractionsResult {
   interactions: InteractionPartner[];
 }
 
+export interface PipelineDomainHit {
+  accession?: string;
+  name?: string;
+  source_db?: string;
+  start?: number;
+  end?: number;
+  score?: number | null;
+  description?: string;
+}
+
+export interface PipelineDomainEvidence {
+  uniprot_accession?: string;
+  sequence_length?: number;
+  confidence?: string;
+  domains: PipelineDomainHit[];
+  error?: string;
+}
+
 export interface AssembledContext {
   sequence?: string;
   length?: number;
@@ -143,6 +161,7 @@ export interface AssembledContext {
   alphafold: AlphaFoldResult | null;
   pathway_enrichment?: PathwayEnrichment | null;
   interactions?: InteractionsResult | null;
+  domains?: PipelineDomainEvidence | null;
   msa?: {
     aln_fasta?: string | null;
     phylotree?: string | null;

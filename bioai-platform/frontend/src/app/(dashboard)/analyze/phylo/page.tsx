@@ -9,6 +9,7 @@ import { AIResultSummary } from '@/components/results/AIResultSummary'
 import ScientificResultsWorkspace, { MetricGrid } from '@/components/results/ScientificResultsWorkspace'
 import { RawEvidence } from '@/components/results/ProvenancePanel'
 import { parseFasta } from '@/lib/sequence-utils'
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link'
 
 const PhyloTreeViewer = dynamic(() => import('@/components/phylo/PhyloTreeViewer'), { ssr: false })
 
@@ -140,6 +141,16 @@ export default function PhyloPage() {
   const audit = useAuditTrail()
 
   useEffect(() => setModel(seqType === 'protein' ? 'LG' : 'GTR'), [seqType])
+  useEffect(() => {
+    const handoff = getAnalysisHandoff()
+    const carried = consumeParam('phylo_fasta') || handoff?.msaFasta || null
+    if (carried) setFasta(carried)
+    if (handoff?.sequenceType === 'dna' || handoff?.sequenceType === 'rna') {
+      setSeqType('dna')
+    } else if (handoff?.sequenceType === 'protein') {
+      setSeqType('protein')
+    }
+  }, [])
   const stopPoll = useCallback(() => { if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null } }, [])
   useEffect(() => () => stopPoll(), [stopPoll])
 

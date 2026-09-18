@@ -12,7 +12,7 @@ import type { UniprotSummary } from '@/types/pipeline';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
 import { BackButton, PageHeader, CriticalButton, FlatInput, ClaySegmented } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
-import { consumeParam, setPrefill } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff, setPrefill } from '@/lib/cross-link';
 import { downloadFasta } from '@/lib/export-utils';
 
 type SearchResult = {
@@ -43,10 +43,9 @@ export default function UniprotLookupPage() {
   const searchSeq = useRef(0);
 
   useEffect(() => {
-    const stored = consumeParam('uniprot_accession');
-    if (stored) {
-      setQuery(stored);
-    }
+    const handoff = getAnalysisHandoff();
+    const stored = consumeParam('uniprot_accession') || handoff?.resolvedAccession || null;
+    if (stored) setQuery(stored);
   }, []);
 
   const runSearch = useCallback(async (rawQuery: string, reviewOnly: boolean, org: string) => {

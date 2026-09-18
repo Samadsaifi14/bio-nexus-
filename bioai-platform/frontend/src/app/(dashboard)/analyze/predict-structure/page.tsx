@@ -10,6 +10,7 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 function PredictResultDisplay({ pdb, result, seqLen }: { pdb: string; result: PredictionResult; seqLen: number }) {
   const pdbUrl = useMemo(() => {
@@ -73,6 +74,15 @@ export default function PredictStructurePage() {
 
   const cleanSeq = sequence.replace(/[^A-Za-z]/g, '').toUpperCase();
   const seqLen = cleanSeq.length;
+
+  useEffect(() => {
+    const handoff = getAnalysisHandoff();
+    const carried = consumeParam('predict_structure_sequence')
+      || handoff?.resolvedSequence
+      || handoff?.querySequence
+      || null;
+    if (carried) setSequence(carried);
+  }, []);
 
   const handleSubmit = async () => {
     if (!cleanSeq || seqLen < 10) return;

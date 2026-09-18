@@ -12,7 +12,7 @@ import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { PairwiseResultDisplay } from '@/components/alignment/PairwiseResultDisplay';
 import type { PairwiseAlignResult } from '@/types/pipeline';
 import { stripFastaHeader, cleanSequence } from '@/lib/sequence-utils';
-import { consumeParam } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 type AlignMode = 'global' | 'local';
 type Matrix = 'blosum62' | 'pam250';
@@ -44,10 +44,11 @@ export default function PairwiseAlignPage() {
   const audit = useAuditTrail();
 
   useEffect(() => {
-    const stored = consumeParam('pairwise_sequence_a');
-    if (stored) {
-      setSeqA(stored);
-    }
+    const handoff = getAnalysisHandoff();
+    const storedA = consumeParam('pairwise_sequence_a') || handoff?.querySequence || null;
+    const storedB = consumeParam('pairwise_sequence_b') || handoff?.topHitSequence || null;
+    if (storedA) setSeqA(storedA);
+    if (storedB) setSeqB(storedB);
   }, []);
 
   const lenA = cleanLength(seqA);

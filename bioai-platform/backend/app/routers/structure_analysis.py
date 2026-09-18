@@ -23,43 +23,52 @@ class RamachandranPoint(BaseModel):
     psi: float
     region: str
 
+
+class RamachandranRequest(BaseModel):
+    pdb_text: str | None = None
+    pdb_url: str | None = None
+    chain: str = ""
+
+
 def classify_rama(phi: float, psi: float) -> str:
-    def in_region(p, q, cp, cq, rp, rq):
+    """Assign a descriptive canonical torsion basin, not a quality verdict.
+
+    Proper Ramachandran validation uses residue-specific empirical density
+    contours (e.g. MolProbity-style favored/allowed regions). BioNexus therefore
+    does not call points outside these broad canonical basins "outliers".
+    """
+    def in_region(p: float, q: float, cp: float, cq: float, rp: float, rq: float) -> bool:
         return abs(p - cp) < rp and abs(q - cq) < rq
-    if in_region(phi, psi, -57, -47, 30, 30):
-        return "core_alpha"
-    if in_region(phi, psi, -119, 113, 30, 30):
-        return "core_beta"
-    if phi < 0:
-        return "allowed"
-    return "outlier"
 
-@router.get("/ramachandran/{pdb_id}", response_model=list[RamachandranPoint])
-async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
-    pdb_id = pdb_id.upper()
+    if in_region(phi, psi, -63, -43, 38, 38):
+        return "alpha"
+    if in_region(phi, psi, -120, 125, 55, 55):
+        return "beta"
+    if in_region(phi, psi, 60, 40, 35, 45):
+        return "left_handed"
+    return "other"
 
-    async with httpx.AsyncClient(timeout=20) as client:
-        r = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
-        if r.status_code != 200:
-            r = await client.get(
-                f"https://alphafold.ebi.ac.uk/files/AF-{pdb_id}-F1-model_v4.pdb"
-            )
-        if r.status_code != 200:
-            raise HTTPException(404, f"PDB not found: {pdb_id}")
-        pdb_data = r.text
+
+def _ramachandran_points(pdb_data: str, chain: str = "") -> list[RamachandranPoint]:
+    if not pdb_data or len(pdb_data) > 6_000_000:
+        raise HTTPException(400, "PDB payload is empty or exceeds the 6 MB analysis limit")
 
     parser = PDBParser(QUIET=True)
-    structure = parser.get_structure("protein", io.StringIO(pdb_data))
-    builder = PPBuilder()
+    try:
+        structure = parser.get_structure("protein", io.StringIO(pdb_data))
+    except Exception as exc:
+        raise HTTPException(400, f"Could not parse PDB coordinates: {type(exc).__name__}") from exc
 
+    builder = PPBuilder()
     points: list[RamachandranPoint] = []
+    requested_chain = (chain or "").strip()
+
     for model in structure:
         for ch in model:
-            if chain and ch.id != chain:
+            if requested_chain and ch.id != requested_chain:
                 continue
             for pp in builder.build_peptides(ch):
-                phi_psi = pp.get_phi_psi_list()
-                for residue, angles in zip(pp, phi_psi):
+                for residue, angles in zip(pp, pp.get_phi_psi_list()):
                     phi, psi = angles
                     if phi is None or psi is None:
                         continue
@@ -73,9 +82,57 @@ async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
                         psi=round(psi_deg, 2),
                         region=classify_rama(phi_deg, psi_deg),
                     ))
+
     if not points:
-        raise HTTPException(404, "No φ/ψ angles found — check chain ID")
+        detail = "No φ/ψ angles found"
+        if requested_chain:
+            detail += f" for chain {requested_chain}"
+        raise HTTPException(404, detail)
     return points
+
+
+@router.get("/ramachandran/{pdb_id}", response_model=list[RamachandranPoint])
+async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
+    pdb_id = pdb_id.upper().strip()
+    if not re.fullmatch(r"[A-Z0-9]{4}", pdb_id):
+        raise HTTPException(400, "pdb_id must be a four-character PDB identifier")
+
+    async with httpx.AsyncClient(timeout=20) as client:
+        r = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
+        if r.status_code != 200:
+            raise HTTPException(404, f"PDB not found: {pdb_id}")
+        pdb_data = r.text
+
+    return _ramachandran_points(pdb_data, chain)
+
+
+@router.post("/ramachandran", response_model=list[RamachandranPoint])
+async def ramachandran_from_structure(req: RamachandranRequest):
+    """Calculate φ/ψ torsions from the exact structure shown in BioNexus.
+
+    Supports inline ESMFold coordinates and allow-listed RCSB/AlphaFold URLs so
+    BLAST downstream analysis is not restricted to proteins with an experimental
+    PDB cross-reference.
+    """
+    if bool(req.pdb_text) == bool(req.pdb_url):
+        raise HTTPException(400, "Provide exactly one of pdb_text or pdb_url")
+
+    if req.pdb_text:
+        pdb_data = req.pdb_text
+    else:
+        from app.services.ssrf import validate_url
+
+        pdb_url = str(req.pdb_url or "").strip()
+        validate_url(pdb_url, "pdb_url")
+        async with httpx.AsyncClient(timeout=25, follow_redirects=True) as client:
+            response = await client.get(pdb_url)
+        if response.status_code != 200:
+            raise HTTPException(502, f"Structure retrieval failed with HTTP {response.status_code}")
+        if len(response.content) > 6_000_000:
+            raise HTTPException(413, "Structure exceeds the 6 MB Ramachandran analysis limit")
+        pdb_data = response.text
+
+    return _ramachandran_points(pdb_data, req.chain)
 
 # ── Secondary Structure ───────────────────────────────────
 
@@ -96,15 +153,56 @@ AA1_TO_AA3 = {
     "S": "SER", "T": "THR", "W": "TRP", "Y": "TYR", "V": "VAL",
 }
 
+
 class SSResidue(BaseModel):
     position: int
     residue: str
     ss: str
     source: str
 
+
+class SecondaryStructureRequest(BaseModel):
+    sequence: str
+
+
+def _predict_secondary_structure(seq: str, source: str) -> dict:
+    seq = re.sub(r"[^A-Za-z]", "", seq or "").upper()
+    if len(seq) < 5:
+        raise HTTPException(400, "Protein sequence must contain at least 5 residues")
+    if len(seq) > 10_000:
+        raise HTTPException(413, "Protein sequence exceeds the 10,000-residue analysis limit")
+
+    window = 6
+    ss_list: list[SSResidue] = []
+    for i, aa in enumerate(seq):
+        window_aas = seq[max(0, i - window):min(len(seq), i + window + 1)]
+        h_avg = sum(
+            CF_PROPENSITY.get(AA1_TO_AA3.get(a, "GLY"), (1.0, 1.0))[0]
+            for a in window_aas
+        ) / len(window_aas)
+        e_avg = sum(
+            CF_PROPENSITY.get(AA1_TO_AA3.get(a, "GLY"), (1.0, 1.0))[1]
+            for a in window_aas
+        ) / len(window_aas)
+        if h_avg > 1.03 and h_avg >= e_avg:
+            ss = "H"
+        elif e_avg > 1.05 and e_avg > h_avg:
+            ss = "E"
+        else:
+            ss = "C"
+        ss_list.append(SSResidue(position=i + 1, residue=aa, ss=ss, source="heuristic"))
+
+    return {
+        "method": "Chou-Fasman propensity heuristic",
+        "evidence_class": "heuristic",
+        "source": source,
+        "residues": ss_list,
+    }
+
+
 @router.get("/secondary_structure/{identifier}")
 async def secondary_structure(identifier: str):
-    identifier = identifier.upper()
+    identifier = identifier.upper().strip()
 
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get(
@@ -115,22 +213,14 @@ async def secondary_structure(identifier: str):
         fasta = r.text
         seq = "".join(fasta.split("\n")[1:])
 
-    WINDOW = 6
-    ss_list: list[SSResidue] = []
-    for i, aa in enumerate(seq):
-        aa3 = AA1_TO_AA3.get(aa, "GLY")
-        window_aas = seq[max(0, i - WINDOW):min(len(seq), i + WINDOW + 1)]
-        h_avg = sum(CF_PROPENSITY.get(AA1_TO_AA3.get(a, "GLY"), (1.0, 1.0))[0] for a in window_aas) / len(window_aas)
-        e_avg = sum(CF_PROPENSITY.get(AA1_TO_AA3.get(a, "GLY"), (1.0, 1.0))[1] for a in window_aas) / len(window_aas)
-        if h_avg > 1.03 and h_avg >= e_avg:
-            ss = "H"
-        elif e_avg > 1.05 and e_avg > h_avg:
-            ss = "E"
-        else:
-            ss = "C"
-        ss_list.append(SSResidue(position=i + 1, residue=aa, ss=ss, source="predicted"))
+    result = _predict_secondary_structure(seq, f"UniProt {identifier}")
+    result["identifier"] = identifier
+    return result
 
-    return {"identifier": identifier, "method": "Chou-Fasman (predicted)", "residues": ss_list}
+
+@router.post("/secondary_structure")
+async def secondary_structure_from_sequence(req: SecondaryStructureRequest):
+    return _predict_secondary_structure(req.sequence, "submitted protein sequence")
 
 # ── Structure Comparison (Foldseek) ────────────────────────
 

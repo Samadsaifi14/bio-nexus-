@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
@@ -33,7 +33,7 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
-import { setPrefill } from '@/lib/cross-link';
+import { consumeParam, continueAnalysis, getAnalysisHandoff } from '@/lib/cross-link';
 
 /* ------------------------------------------------------------------ */
 /* Workflow stepper — mirrors the CASTp site's guided flow.            */
@@ -287,6 +287,12 @@ export default function CastpPage() {
   const [docking, setDocking] = useState(false);
   const audit = useAuditTrail();
 
+  useEffect(() => {
+    const handoff = getAnalysisHandoff();
+    const carried = consumeParam('castp_pdb_id') || handoff?.pdbId || handoff?.resolvedAccession || null;
+    if (carried) setIdentifier(carried);
+  }, []);
+
   const handleAnalyze = async () => {
     if (!identifier.trim()) return;
     const label = identifier.trim().toUpperCase();
@@ -315,10 +321,20 @@ export default function CastpPage() {
 
   const handleUseForDocking = (pocket: CastpPocket) => {
     setDocking(true);
-    // Pass the PDB and the selected pocket centroid as the Vina box center.
-    setPrefill(router, 'docking_pdb_id', identifier.trim().toUpperCase(), '/analyze/docking');
-    setPrefill(router, 'docking_centroid', JSON.stringify(pocket.centroid), '/analyze/docking');
-    // router.push already happens inside setPrefill; reset busy state before nav.
+    const handoff = getAnalysisHandoff();
+    const receptor = result?.pdb_id || handoff?.pdbId || identifier.trim().toUpperCase();
+    continueAnalysis(
+      router,
+      {
+        sourceTool: 'castp',
+        pdbId: receptor,
+      },
+      '/analyze/docking',
+      {
+        docking_pdb_id: receptor,
+        docking_centroid: JSON.stringify(pocket.centroid),
+      },
+    );
     setDocking(false);
   };
 

@@ -164,6 +164,26 @@ def test_denovo_report_is_explicit_about_predictions():
     assert "blast" in findings_tools and "uniprot" in findings_tools
 
 
+def test_synthesis_labels_rcsb_structure_as_experimental():
+    context = {
+        "query": {"confidence": "identified"},
+        "blast": {"count": 1, "top_hit": {"accession": "P04637", "description": "p53"}},
+        "uniprot": {"accession": "P04637", "full_name": "p53", "pdb_ids": ["1TUP"]},
+        "alphafold": {
+            "structure_available": True,
+            "source": "rcsb_pdb",
+            "structure_type": "experimental",
+            "pdb_id": "1TUP",
+            "pdb_url": "https://files.rcsb.org/download/1TUP.pdb",
+            "confidence": None,
+        },
+    }
+    report = fs.synthesize_sync(context)
+    finding = next(f for f in report["findings"] if f["source_tool"] == "alphafold")
+    assert "experimental RCSB PDB structure 1TUP" in finding["claim"]
+    assert "pLDDT" not in finding["claim"]
+
+
 def test_findings_reference_real_pages():
     context = {
         "query": {"confidence": "identified"},

@@ -12,12 +12,22 @@ def detect_sequence_type(seq: str) -> str:
     if not clean:
         return "unknown"
     protein_chars = set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")
-    dna_chars = set("ACGTN")
-    rna_chars = set("ACGUN")
+    # Unambiguous nucleotide letters (incl. N for unknown-base runs).
+    unambiguous_nt = set("ACGTUN")
+    iupac_nt_chars = set("ACGTURYSWKMBDHVN")
     seq_set = set(clean)
-    # Nucleotide check first: an ACGT(U)N-only string is nucleotide even
-    # though it is also a subset of the protein alphabet.
-    if seq_set.issubset(rna_chars) or seq_set.issubset(dna_chars):
+    canonical = seq_set & unambiguous_nt
+    # Nucleotide check: the string qualifies when
+    #   * it contains at least two distinct unambiguous bases (A/C/G/T/U/N),
+    #     with any remainder drawn from the IUPAC codes — catches ambiguous
+    #     strings ("ACGTRYSW") and mixed T/U that used to be mislabelled
+    #     "protein"; or
+    #   * it is a homopolymer of a single unambiguous base ("TTTT", "NNNN").
+    # Pure ambiguity-code strings ("WWWW" = poly-W, "MAAAA" = poly-M) stay
+    # protein, matching the classic single-letter heuristic.
+    if bool(canonical) and (
+        len(canonical) >= 2 or seq_set == canonical
+    ) and seq_set.issubset(iupac_nt_chars):
         if "U" in seq_set and "T" not in seq_set:
             return "rna"
         return "dna"

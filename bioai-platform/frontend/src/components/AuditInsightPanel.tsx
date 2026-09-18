@@ -3,6 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Warning as AlertTriangle, Info, WarningCircle as AlertCircle, X, CaretUp as ChevronUp } from '@phosphor-icons/react';
+import { apiUrl } from '@/lib/api';
 import type { AuditInsight } from '@/types/audit';
 
 const SEVERITY_CONFIG = {
@@ -20,7 +21,7 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
     if (!sessionId) return;
     const poll = async () => {
       try {
-        const r = await fetch(`/api/backend/api/audit/insights?session=${sessionId}`);
+        const r = await fetch(`${apiUrl('/api/audit/insights')}?session=${sessionId}`);
         if (!r.ok) return;
         const data = await r.json();
         if (data.latest) {

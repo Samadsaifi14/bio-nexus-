@@ -157,11 +157,42 @@ class TestPipelineBlastFallback:
         assert result["source"] == "ebi"
         assert result["count"] == 1
         assert result["top_hit"]["accession"] == "Q9H2H9"
-        assert result["database"] == "nr"  # reports the requested db, not EBI's
+        assert result["database"] == "swissprot"  # reports the requested db, not EBI's
         assert result["hits"][0]["organism"] == "Homo sapiens"
         assert result["hits"][0]["hit_alignment"] == ""  # EBI lacks alignment text
         assert result["hits"][0]["query_coverage_pct"] == pytest.approx(round(152 / len(PROTEIN_SEQ) * 100, 1))
         assert called["ncbi"] is False, "NCBI must not be called when EBI succeeds"
+
+    def test_ebi_comprehensive_timeout_degrades_to_swissprot(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        # Regression: EBI's uniprotkb (mapped from "nr") regularly times out
+        # within the 180s poll budget and NCBI is unreachable. The BLAST must
+        # degrade to the curated Swiss-Prot DB instead of failing the run.
+        hit = {
+            "accession": "Q8LP17", "description": "Carotenoid cleavage dioxygenase 1",
+            "organism": "Pisum sativum", "evalue": 0.0, "bit_score": 910.0,
+            "identity_pct": 88.3, "alignment_length": 600,
+        }
+        calls = []
+
+        class _FakeBlastTool:
+            async def run_uncached(self, input):
+                calls.append(input["database"])
+                if input["database"] == "uniprotkb":
+                    return {"error": "BLAST job ncbiblast-abc ended with status TIMEOUT", "hits": []}
+                return {"hits": [hit], "count": 1, "source": "EBI BLAST", "database": input["database"]}
+
+        monkeypatch.setattr(pipeline_v2, "BlastTool", _FakeBlastTool)
+        result = asyncio_run(pipeline_v2._run_ebi_blast_fallback(
+            PROTEIN_SEQ, "blastp", "nr", "protein", 10,
+        ))
+        assert result is not None
+        assert calls == ["uniprotkb", "uniprotkb_swissprot"]
+        assert result["count"] == 1
+        assert result["database"] == "nr"  # reports the requested db, not EBI's
+        assert result["_degraded_from"] == "uniprotkb"
+        assert result["top_hit"]["accession"] == "Q8LP17"
 
     def test_ebi_empty_then_ncbi_success(self, monkeypatch):
         from app.routers import pipeline_v2
@@ -176,7 +207,7 @@ class TestPipelineBlastFallback:
         assert result["source"] == "ncbi"
         assert result["count"] == 1
         assert result["query_sequence_type"] == "protein"
-        assert result["database"] == "nr"
+        assert result["database"] == "swissprot"
         assert result["top_hit"]["accession"] == "P12345"
         assert result["top_hit"]["evalue"] == 1e-5
         assert result["hits"][0]["hit_alignment"] == "AAAAA--"

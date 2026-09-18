@@ -188,6 +188,51 @@ class TestExperimentManager:
         assert len(exp["provenance"]) == 1
         assert exp["provenance"][0]["node_id"] == "blast"
 
+    def test_finalize_pubmode_blocks_on_incomplete_provenance(self, fake_sb):
+        # Complete experiment + a provenance node that is missing mandatory
+        # fields (no database_version, no completed_at) => the MATRIX 26 gate
+        # must mark the experiment release_blocked.
+        exp_svc.begin_experiment("job-pub-block", "MKWVTFISLL", "protein_analysis",
+                                 parameters={"db": "swissprot"})
+        exp = fake_sb._rows["experiments"][0]
+        # give the record an identity so only the node deficiency triggers block
+        exp["git_commit"] = "deadbeef"
+        prov_svc.record_step(exp["experiment_id"], "blast", tool="BLAST", deps=[])
+
+        report = exp_svc.finalize_experiment("job-pub-block", "complete", publication_mode=True)
+        assert report is not None
+        assert report["ready"] is False
+        assert any("database_version" in e["detail"] for e in report["errors"])
+        finalized = fake_sb._rows["experiments"][0]
+        assert finalized["release_blocked"] is True
+
+    def test_finalize_pubmode_passes_on_complete_provenance(self, fake_sb):
+        exp_svc.begin_experiment("job-pub-ok", "MKWVTFISLL", "protein_analysis",
+                                 parameters={"db": "swissprot"})
+        exp = fake_sb._rows["experiments"][0]
+        exp["git_commit"] = "deadbeef"
+        prov_svc.record_step(exp["experiment_id"], "blast", tool="BLAST",
+                             database="swissprot", tool_version="2.14.0",
+                             database_version="2024_01", evidence={"count": 1})
+
+        report = exp_svc.finalize_experiment("job-pub-ok", "complete", publication_mode=True)
+        assert report is not None
+        assert report["ready"] is True, report
+        finalized = fake_sb._rows["experiments"][0]
+        assert finalized["release_blocked"] is False
+
+    def test_publication_readiness_ignores_failed_nodes(self):
+        report = exp_svc.publication_readiness(
+            {"git_commit": "abc", "input_hash": "x"},
+            [
+                {"node_id": "blast", "status": "complete", "tool": "BLAST",
+                 "database_version": "2024_01", "completed_at": "now"},
+                {"node_id": "uniprot", "status": "failed", "tool": "UniProt"},  # missing fields but failed
+            ],
+        )
+        assert report["ready"] is True
+        assert report["examined_nodes"] == 2
+
 
 # ---------------------------------------------------------------------------
 # Provenance Graph

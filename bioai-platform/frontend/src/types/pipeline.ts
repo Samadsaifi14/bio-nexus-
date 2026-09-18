@@ -107,6 +107,15 @@ export interface PathwayEnrichmentPathway {
 export interface PathwayEnrichment {
   token: string;
   pathways: PathwayEnrichmentPathway[];
+  method?: string;
+  provider_label?: string;
+  correction_method?: string;
+  projection?: {
+    identifiers_found?: number | null;
+    identifiers_not_found?: number | null;
+    identifiers_total?: number | null;
+    found_note?: string;
+  };
 }
 
 export interface InteractionPartner {
@@ -207,12 +216,17 @@ export interface BlastHitSummary {
 export interface PairwiseAlignResult {
   mode: 'global' | 'local';
   matrix: string;
+  gap_open: number;
+  gap_extend: number;
   score: number;
   aligned_query: string;
   aligned_hit: string;
   alignment_length: number;
   identity: number;
   pct_identity: number;
+  mismatches: number;
+  similarity: number;
+  pct_similarity: number;
   gaps_total: number;
   gap_positions: Array<{ seq: 'query' | 'subject'; inserted_after: number; length: number }>;
   query_start: number;
@@ -229,6 +243,7 @@ export interface MsaStepResult {
   phylotree?: string | null;
   sequence_count?: number;
   alignment_mode?: 'global' | 'local';
+  method?: string | null;
   pairwise?: PairwiseAlignResult | null;
   pairwise_subject?: string | null;
   error?: string | null;
@@ -237,6 +252,7 @@ export interface MsaStepResult {
 export interface UniprotSummary {
   accession: string;
   reviewed?: boolean;
+  release?: string;
   full_name: string;
   organism: string;
   gene_names: string[];
@@ -269,6 +285,7 @@ export interface UniprotFeature {
   description: string;
   begin: number | null;
   end: number | null;
+  evidence?: string[];
 }
 
 export interface AlphaFoldResult {
@@ -291,6 +308,7 @@ export interface SeqTranslationFrames {
   frames: Record<string, string>;
   best: {
     frame: number;
+    strand: 'forward' | 'reverse';
     protein: string;
     start: number;
     length: number;
@@ -319,6 +337,7 @@ export interface SequenceUtilitiesResult {
   gc_content: number | null;
   molecular_weight: number | null;
   reverse_complement: string | null;
+  transcription: string | null;
   translation: SeqTranslationFrames | null;
   aa_composition: SeqAaComposition[] | null;
   restriction_sites: SeqRestrictionSite[] | null;

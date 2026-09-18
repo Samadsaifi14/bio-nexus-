@@ -9,6 +9,7 @@ import { MSAResultPanel } from "@/components/alignment/MSAResultPanel";
 import { SmoothLoader } from "@/components/ui/SmoothLoader";
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
 import { AIInterpretation } from "./AIInterpretation";
+import { apiUrl } from "@/lib/api";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
 
 const STEP_META: Record<string, { label: string; icon: string }> = {
@@ -36,7 +37,7 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
     let consecutiveFailures = 0;
     const iv = setInterval(async () => {
       try {
-        const res = await fetch(`/api/backend/api/pipeline/v2/status/${jobId}`);
+        const res = await fetch(apiUrl(`/api/pipeline/v2/status/${jobId}`));
         if (!res.ok) {
           clearInterval(iv);
           setError("Pipeline job not found");

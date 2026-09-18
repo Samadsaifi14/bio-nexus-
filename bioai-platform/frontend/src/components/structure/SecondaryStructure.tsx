@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import { apiUrl } from "@/lib/api";
+
 type SSResidue = { position: number; residue: string; ss: string; source: string };
 
 const SS_COLOR: Record<string, string> = { H: "#4ADE80", E: "#7C3AED", C: "rgba(255,255,255,0.15)" };
@@ -14,7 +16,7 @@ export function SecondaryStructureViewer({ identifier }: { identifier: string })
   useEffect(() => {
     setLoading(true);
     setError(null);
-    fetch(`/api/backend/api/structure_analysis/secondary_structure/${identifier}`)
+    fetch(apiUrl(`/api/structure_analysis/secondary_structure/${identifier}`))
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(setData)
       .catch(e => setError(e.message))

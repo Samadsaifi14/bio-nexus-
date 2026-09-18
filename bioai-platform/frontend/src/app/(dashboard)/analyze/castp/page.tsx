@@ -329,7 +329,7 @@ export default function CastpPage() {
       <BackButton />
       <PageHeader
         title="CASTp Pocket & Cavity Analysis"
-        subtitle="Resolves any identifier — PDB ID, UniProt accession, gene name, or raw sequence — through PDB search, UniProt mapping, and ESMFold modeling, then runs the CASTp pocket workflow."
+        subtitle="Resolves any identifier — PDB ID, UniProt accession, gene name, or raw sequence — through PDB search, UniProt mapping, and ESMFold modeling, then runs fpocket pocket detection (BioNexus SASA heuristic when fpocket is unavailable)."
       />
 
       {/* Workflow stepper */}
@@ -400,6 +400,27 @@ export default function CastpPage() {
         <motion.div variants={stagger} initial="hidden" animate="show" className="space-y-4">
           <AIResultSummary toolName="castp" result={result as unknown as Record<string, unknown>} />
 
+          {result.status === 'FAILED' ? (
+            <motion.div variants={fadeUp} className="glass-card p-4 border border-error/20">
+              <p className="text-sm text-error font-medium">Pocket detection failed</p>
+              <p className="text-sm text-text-secondary mt-1">{result.error}</p>
+              <p className="text-xs text-text-muted mt-2">
+                Engines tried:{' '}
+                {(result.methods_tried ?? []).map((t) => `${t.method} (${t.status})`).join(', ') || 'none'}
+              </p>
+            </motion.div>
+          ) : (
+            result.fallback_used && (
+              <motion.div variants={fadeUp} className="glass-card p-4 border border-accent-amber/25">
+                <p className="text-sm text-accent-amber font-medium">DEGRADED analysis — heuristic fallback used</p>
+                <p className="text-xs text-text-muted mt-1">{result.note}</p>
+                <p className="text-xs text-text-muted mt-1">
+                  Engines tried: {(result.methods_tried ?? []).map((t) => `${t.method} (${t.status})`).join(', ')}
+                </p>
+              </motion.div>
+            )
+          )}
+
           {/* Structure resolution pipeline (steps 2–5) */}
           {result.pipeline && result.pipeline.length > 0 && (
             <motion.div variants={fadeUp} className="data-card p-4">
@@ -432,6 +453,15 @@ export default function CastpPage() {
                     : result.structure_source === 'pdb'
                     ? 'RCSB PDB'
                     : 'Uploaded structure'}
+                </span>
+              )}
+              {(result.method === 'fpocket' || result.method === 'sasa_heuristic') && (
+                <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${
+                  result.method === 'fpocket'
+                    ? 'bg-good/10 text-good'
+                    : 'bg-accent-amber/10 text-accent-amber'
+                }`} title={result.method === 'sasa_heuristic' ? 'fpocket unavailable — computed via Shrake-Rupley SASA + clustering (approximate)' : 'fpocket pocket detection'}>
+                  {result.method === 'fpocket' ? 'fpocket' : 'SASA heuristic'}
                 </span>
               )}
             </p>

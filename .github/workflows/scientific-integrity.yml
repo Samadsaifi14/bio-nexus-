@@ -24,6 +24,34 @@ jobs:
       - run: npm ci
       - run: npm run build
 
+  bbs2-evals:
+    name: BBS-2 fixture benchmarks (descriptor parity + manifests)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install BBS-2 dependencies
+        run: python -m pip install --upgrade pip pytest rdkit==2022.09.5
+      - name: Verify fixture manifests (no checksum drift)
+        run: python ../../benchmark/verify_fixtures.py
+      - name: Run descriptor-parity benchmark (pinned RDKit reference)
+        run: |
+          python ../../benchmark/fixtures/cheminformatics/descriptor_parity/run_descriptor_parity.py
+          python ../../benchmark/fixtures/cheminformatics/drug_likeness/run_drug_likeness.py
+          pytest -q tests/test_bbs2_fixtures.py
+      - name: Publish BBS-2 cheminformatics run records
+        uses: actions/upload-artifact@65c4c4a1ddee5b7f6983f2dd7d0f882267dd81e8f # v4.6.0
+        with:
+          name: bbs2-cheminformatics
+          path: ../../benchmark/results/cheminformatics/**/*.json
+          if-no-files-found: error
+
   bbs1-core:
     name: BBS-1 deterministic scientific tests
     runs-on: ubuntu-latest

@@ -328,13 +328,25 @@ export default function ADMETPage() {
             </div>
           </div>
 
-          {/* Methodology banner */}
+          {/* Methodology / evidence-class banner (rendered from backend-emitted metadata) */}
           <div className="glass-card p-3 border-l-2 border-accent-cyan/50">
-            <p className="text-xs text-text-muted">
-              <span className="text-accent-cyan font-semibold">3a</span> Core descriptors & drug-likeness — RDKit, production-ready.
-              <span className="mx-2 text-surface-3">|</span>
-              <span className="text-warn font-semibold">3b</span> ADMET & toxicity — rule-based heuristics, research screening only (no ML classifiers).
-            </p>
+            {result._methodology ? (
+              <div className="space-y-1.5">
+                {Object.entries(result._methodology).map(([key, m]) => (
+                  <div key={key} className="flex flex-wrap items-center gap-x-2 text-xs text-text-muted">
+                    <span className={`font-semibold ${m.evidence_class === "heuristic" ? "text-warn" : "text-accent-cyan"}`}>{m.evidence_class}</span>
+                    <span className="capitalize">{key.replace(/_/g, " ")}</span>
+                    <span className="text-[10px] text-text-muted/70">— {m.method}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p className="text-xs text-text-muted">
+                <span className="text-accent-cyan font-semibold">deterministic computation</span> Core descriptors & drug-likeness — RDKit.
+                <span className="mx-2 text-surface-3">|</span>
+                <span className="text-warn font-semibold">heuristic</span> ADMET & toxicity — rule-based estimates, research screening only (no ML classifiers).
+              </p>
+            )}
           </div>
 
           <AIResultSummary toolName="admet" result={result as unknown as Record<string, unknown>} />
@@ -605,7 +617,7 @@ export default function ADMETPage() {
                     <div className="flex items-center gap-2 py-1.5 border-b border-surface-3">
                       <RiskBadge level={result.metabolism.half_life_class} />
                     </div>
-                    <PropRow label="Lipophilic Efficiency (LipE)" value={result.metabolism.lipophilic_efficiency} note="pIC50-LogP estimate" />
+                    <PropRow label="Lipophilic Efficiency (LipE)" value={result.metabolism.lipophilic_efficiency ?? 'Not estimated'} note="Requires experimental potency (pIC50) — not derivable from QED" />
                   </div>
                   <div className="mt-3">
                     <p className="text-xs text-text-secondary mb-2">CYP Inhibition Panel</p>
@@ -649,7 +661,9 @@ export default function ADMETPage() {
                     <PropRow label="Acute Toxicity (LD50)" value="" />
                     <div className="flex items-center gap-2 py-1.5 border-b border-surface-3">
                       <RiskBadge level={result.toxicity.acute_toxicity_ld50} />
-                      <span className="text-xs text-text-muted">(log LD50 ~{result.toxicity.ld50_estimate_log})</span>
+                      {result.toxicity.ld50_estimate_log != null && (
+                        <span className="text-xs text-text-muted">(log LD50 ~{result.toxicity.ld50_estimate_log})</span>
+                      )}
                     </div>
                     <PropRow label="Toxicity Risk Score" value={`${result.toxicity.risk_score}/10`} note={result.toxicity.risk_score <= 2 ? "Low risk" : result.toxicity.risk_score <= 5 ? "Moderate risk" : "High risk"} />
                   </div>

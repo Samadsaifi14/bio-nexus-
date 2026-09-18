@@ -630,6 +630,10 @@ export type DockingResult = {
     vina_version?: string;
     vina_seed?: number | null;
     vina_exhaustiveness?: number | null;
+    vina_num_modes?: number | null;
+    grid_source?: string;
+    receptor_prep?: string;
+    ligand_prep?: string;
     from_cache?: boolean;
     interactions?: DockingInteraction;
     pose_interactions?: DockingPoseInteractions[];
@@ -687,20 +691,72 @@ export type SequencingVariant = {
   pos: number;
   ref: string;
   alt: string;
+  type?: string;
   depth: number;
   alt_count: number;
   freq: number;
+  mean_base_quality?: number;
+  mean_mapq?: number;
+  strand_forward?: number;
+  strand_reverse?: number;
+};
+
+export type ScientificStatus = 'VALID' | 'DEGRADED' | 'NOT_EVALUATED' | 'FAILED';
+
+export type ScientificPlot = {
+  name: string;
+  kind: string;
+  title?: string;
+  labels?: string[];
+  values?: number[];
+  xlabel?: string;
+  ylabel?: string;
+  data?: { type?: string; count?: number; depth?: number; pos?: number; freq?: number; alt_freq?: number; quality?: number; base_quality?: number; bin?: string }[];
+  bins?: { bin: string; count: number }[];
+};
+
+export type ScientificArtifact = {
+  name: string;
+  kind: string;
+  format: string;
+  content?: string | null;
+};
+
+export type ScientificResultModel = {
+  status: ScientificStatus;
+  method?: string;
+  engine?: string;
+  engine_version?: string | null;
+  database?: string;
+  parameters?: Record<string, unknown>;
+  input_sha256?: string;
+  output_sha256?: string;
+  fallback_used?: boolean;
+  fallback_method?: string;
+  evidence_class?: string;
+  citations?: string[];
+  plots?: ScientificPlot[];
+  artifacts?: ScientificArtifact[];
+  validation?: Record<string, unknown>;
+  results: Record<string, unknown>;
 };
 
 export type SequencingResult = {
   job_id: string;
   status: string;
   result?: {
+    status?: ScientificStatus;
+    method?: string;
+    engine?: string;
+    validation?: Record<string, unknown>;
+    plots?: ScientificPlot[];
+    artifacts?: ScientificArtifact[];
     reference: string;
     qc: SequencingQC;
     alignment: SequencingAlignment;
     variants: SequencingVariant[];
     consensus_sequence?: string;
+    consensus_length?: number;
     report: {
       reference: string;
       qc_summary: { total_reads: number; total_bases: number; mean_quality: number; q30_percent: number; gc_percent: number };
@@ -1330,7 +1386,7 @@ export type ADMETResult = {
   num_atom_stereocenters: number;
   num_unspecified_stereocenters: number;
   functional_groups: Record<string, number>;
-  _methodology?: Record<string, { tier: string; confidence: string; method: string; note: string }>;
+  _methodology?: Record<string, { tier: string; confidence: string; evidence_class: string; method: string; note: string }>;
   drug_likeness: {
     overall_score: number;
     qed_score: number;
@@ -1362,7 +1418,7 @@ export type ADMETResult = {
     cyp_inhibition: Record<string, string>;
     cyp_substrate_risk: string;
     half_life_class: string;
-    lipophilic_efficiency: number;
+    lipophilic_efficiency: number | null;
   };
   toxicity: {
     _disclaimer?: string;
@@ -1373,7 +1429,7 @@ export type ADMETResult = {
     skin_sensitization: string;
     skin_sensitization_factors: string[];
     acute_toxicity_ld50: string;
-    ld50_estimate_log: number;
+    ld50_estimate_log: number | null;
     risk_score: number;
   };
   clearance: {
@@ -1441,6 +1497,9 @@ export type MDSimulationResult = {
   production_steps: number;
   production_ps?: number;
   final_energy_kj_mol: number;
+  energy_is_estimate?: boolean;
+  energy_source?: string;
+  estimated_energy_kj_mol?: number;
   energy: { minimization: { step: number; energy: number }[]; production: { step: number; energy: number }[] };
   temperature?: { step: number; temperature_k: number; kinetic_kj_mol: number }[];
   radius_of_gyration?: { step: number; rg_angstrom: number }[];
@@ -1605,6 +1664,12 @@ export interface CastpResult {
   probe_radius: number;
   total_residues: number;
   pockets: CastpPocket[];
+  method?: string;
+  methods_tried?: Array<{ method: string; status: string }>;
+  fallback_used?: boolean;
+  status?: string;
+  error?: string;
+  note?: string;
   sequence_source?: string;
   structure_source?: string;
   structure_pdb?: string;
@@ -1636,6 +1701,9 @@ export interface SwissModelTemplate {
   to_res: number | null;
   created_date: string | null;
   coordinates_url: string | null;
+  qmean_score: number | null;
+  qmean_discovery_score: number | null;
+  gmqe_score: number | null;
   ligands: { hetid: string; description: string }[];
   complex_with: { chain: string; uniprot_ac: string; description: string }[];
 }

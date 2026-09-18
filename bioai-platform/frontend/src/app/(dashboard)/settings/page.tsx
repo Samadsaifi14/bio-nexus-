@@ -9,7 +9,7 @@ import { User, ChartBar as BarChart3, Key, Shield, CircleNotch as LoaderCircle, 
 import { useAuth } from '@/contexts/auth';
 import { getSupabase } from '@/lib/supabase';
 import { useRouter } from 'next/navigation';
-import { getApiKeys, createApiKey, deleteApiKey } from '@/lib/api';
+import { getApiKeys, createApiKey, deleteApiKey, apiUrl } from '@/lib/api';
 import type { ApiKey } from '@/lib/api';
 import { CriticalButton, FlatInput, PageHeader } from '@/components/ui';
 
@@ -40,7 +40,7 @@ export default function SettingsPage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const api = axios.create({ baseURL: '/api/backend' });
+        const api = axios.create({ baseURL: apiUrl('') });
         const supabase = getSupabase();
         const { data: { session } } = await supabase.auth.getSession();
         if (session?.access_token) api.defaults.headers.Authorization = `Bearer ${session.access_token}`;
@@ -70,7 +70,7 @@ export default function SettingsPage() {
   const handleSave = async () => {
     setSaving(true);
     try {
-      const api = axios.create({ baseURL: '/api/backend' });
+      const api = axios.create({ baseURL: apiUrl('') });
       const supabase = getSupabase();
       const { data: { session } } = await supabase.auth.getSession();
       if (session?.access_token) api.defaults.headers.Authorization = `Bearer ${session.access_token}`;

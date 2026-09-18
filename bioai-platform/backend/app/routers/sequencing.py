@@ -120,7 +120,12 @@ async def _worker(job_id: str) -> None:
         _patch(job_id, status="failed", error="Pipeline timed out", done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
         return
 
-    if "error" in result and not result.get("steps_completed"):
+    if result.get("status") == "FAILED":
+        _patch(job_id, status="failed", error=result.get("error") or "Pipeline failed", done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+    elif result.get("status") == "DEGRADED":
+        _patch(job_id, status="complete", result=result, done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
+    elif "error" in result and not result.get("steps_completed"):
+        # Legacy (pre-contract) tool output without a status field
         _patch(job_id, status="failed", error=result["error"], done_at=datetime.now(timezone.utc).strftime('%Y-%m-%dT%H:%M:%S'))
     else:
         # Offload large result to Storage

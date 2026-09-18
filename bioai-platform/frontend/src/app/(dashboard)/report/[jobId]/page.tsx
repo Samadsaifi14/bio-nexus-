@@ -3,7 +3,9 @@ import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
 import { Printer, Download, CircleNotch as LoaderCircle, XCircle } from '@phosphor-icons/react';
 import Link from "next/link";
-import { getExportUrl } from "@/lib/api";
+import toast from 'react-hot-toast';
+import { apiUrl } from "@/lib/api";
+import { getSupabase } from "@/lib/supabase";
 import { BlastPanel } from "@/components/results/BlastPanel";
 import { ScoreBars } from "@/components/results/ScoreBars";
 import { UniprotPanel } from "@/components/results/UniprotPanel";
@@ -20,14 +22,39 @@ export default function ReportPage() {
   const [data, setData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<'pdf' | 'json' | null>(null);
 
   useEffect(() => {
     if (!jobId) return;
-    fetch(`/api/backend/api/pipeline/v2/status/${jobId}`)
+    fetch(apiUrl(`/api/pipeline/v2/status/${jobId}`))
       .then(r => { if (!r.ok) throw new Error("Report not found"); return r.json(); })
       .then(d => { setData(d); setLoading(false); })
       .catch(e => { setError(e.message); setLoading(false); });
   }, [jobId]);
+
+  async function downloadExport(format: 'pdf' | 'json') {
+    if (!jobId || downloading) return;
+    setDownloading(format);
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers["Authorization"] = `Bearer ${session.access_token}`;
+      const res = await fetch(apiUrl(`/api/export/job/${jobId}?format=${format}`), { headers });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || `Export failed (HTTP ${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = format === 'pdf' ? `bio-nexus-${jobId.slice(0, 8)}.pdf` : `bio-nexus-${jobId.slice(0, 8)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e.message || 'Export failed');
+    } finally {
+      setDownloading(null);
+    }
+  }
 
   if (loading) return (
     <div className="flex items-center justify-center min-h-[60vh]">
@@ -57,14 +84,14 @@ export default function ReportPage() {
       <div className="flex items-center justify-between mb-6 print:hidden">
         <BackButton href="/wizard" label="Back to Wizard" />
         <div className="flex gap-2">
-          <a href={getExportUrl(jobId, 'pdf')}
-            className="px-4 py-2 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center gap-1.5">
-            <Printer className="w-4 h-4" /> PDF
-          </a>
-          <a href={getExportUrl(jobId, 'json')}
-            className="px-4 py-2 rounded-xl border border-glass-border text-text-secondary text-sm hover:bg-surface-1 transition flex items-center gap-1.5">
-            <Download className="w-4 h-4" /> JSON
-          </a>
+          <button onClick={() => downloadExport('pdf')} disabled={downloading !== null}
+            className="px-4 py-2 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center gap-1.5 disabled:opacity-50">
+            {downloading === 'pdf' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />} PDF
+          </button>
+          <button onClick={() => downloadExport('json')} disabled={downloading !== null}
+            className="px-4 py-2 rounded-xl border border-glass-border text-text-secondary text-sm hover:bg-surface-1 transition flex items-center gap-1.5 disabled:opacity-50">
+            {downloading === 'json' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} JSON
+          </button>
         </div>
       </div>
 

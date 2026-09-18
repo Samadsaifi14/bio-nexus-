@@ -47,23 +47,74 @@ async def _fetch_pdb(pdb_id: str) -> str:
 
 
 async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float) -> dict:
-    # 1. Try fpocket (real tool)
+    """Run pocket detection through an explicit method chain with provenance.
+
+    Engines (in priority order — only the ones actually executed are recorded):
+      1. ``fpocket``  — real pharmacophoric/druggability pocket detection.
+      2. ``sasa_heuristic`` — BioNexus Biopython Shrake-Rupley SASA + clustering
+         (an approximation; it is *not* a CASTp or fpocket druggability result).
+
+    The CASTp webserver itself is never called, so results are never labelled
+    as coming from CASTp. If every engine fails, a ``status=FAILED`` dict is
+    returned instead of a fabricated pocket list.
+    """
     import shutil
     fpocket = FPOCKET_BIN if Path(FPOCKET_BIN).exists() else (shutil.which("fpocket") or "")
+    methods_tried: list[dict] = []
+    fallback_used = False
+
     if fpocket and Path(fpocket).exists():
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(
             None, _run_fpocket_analysis, fpocket, pdb_text, pdb_id, probe_radius,
         )
+        methods_tried.append({
+            "method": "fpocket",
+            "status": "ok" if result["pockets"] else "ran_no_pockets",
+        })
         if result["pockets"]:
+            result["method"] = "fpocket"
+            result["methods_tried"] = methods_tried
+            result["fallback_used"] = False
             _attach_structure_summary(pdb_text, result)
             return result
         logger.info("fpocket found no pockets for %s, falling back to SASA heuristic", pdb_id)
+        fallback_used = True
+    else:
+        methods_tried.append({"method": "fpocket", "status": "unavailable"})
+        fallback_used = True
 
-    # 2. Fallback: Biopython SASA + KDTree clustering
-    loop = asyncio.get_running_loop()
-    result = await loop.run_in_executor(
-        None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius,
+    # 2. Fallback: Biopython SASA + KDTree clustering (approximate).
+    try:
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(
+            None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius,
+        )
+        methods_tried.append({
+            "method": "sasa_heuristic",
+            "status": "ok" if result["pockets"] else "ran_no_pockets",
+        })
+    except Exception as exc:
+        logger.exception("SASA pocket analysis failed for %s", pdb_id)
+        return {
+            "pdb_id": pdb_id,
+            "probe_radius": probe_radius,
+            "total_residues": 0,
+            "method": "none",
+            "pockets": [],
+            "methods_tried": methods_tried,
+            "fallback_used": True,
+            "status": "FAILED",
+            "error": f"Pocket detection failed: {exc}",
+            "note": "Neither fpocket nor the SASA heuristic produced a result.",
+        }
+
+    result["method"] = "sasa_heuristic"
+    result["methods_tried"] = methods_tried
+    result["fallback_used"] = fallback_used
+    result["note"] = (
+        "fpocket unavailable; pockets are a BioNexus SASA heuristic — not a "
+        "CASTp or fpocket druggability analysis."
     )
     _attach_structure_summary(pdb_text, result)
     return result
@@ -175,6 +226,7 @@ def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float) -> dict:
         "pdb_id": pdb_id,
         "probe_radius": probe_radius,
         "total_residues": total_residues,
+        "method": "fpocket",
         "pockets": [
             {
                 "id": p["id"],
@@ -240,6 +292,7 @@ def _empty_result(pdb_id: str, probe_radius: float, total_residues: int) -> dict
         "pdb_id": pdb_id,
         "probe_radius": probe_radius,
         "total_residues": total_residues,
+        "method": "fpocket",
         "pockets": [],
     }
 
@@ -289,6 +342,7 @@ def _analyze_pockets_sasa_sync(pdb_text: str, pdb_id: str, probe_radius: float) 
         "pdb_id": pdb_id,
         "probe_radius": probe_radius,
         "total_residues": len(residues_sasa),
+        "method": "sasa_heuristic",
         "pockets": pockets,
     }
 

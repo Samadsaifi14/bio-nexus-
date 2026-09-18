@@ -60,6 +60,30 @@ _EST_STEPS_PER_SEC = 1_400_000.0
 CUTOFF_NM = 2.0
 
 
+def md_convergence_status(overall: str, table: list[dict]) -> dict:
+    """Explicit sampling/convergence status semantics (MATRIX 15).
+
+    Returns machine-auditable status literals consumed by the convergence stage
+    and the verification matrix. ``convergence`` is either
+    ``convergence_supported_under_metric`` (at least one metric passed) or
+    ``convergence_not_established`` (no metric passed) — a trajectory finishing
+    is never conflated with convergence. ``simulation``/``analysis`` are
+    ``*_completed`` because this helper runs post-production, post-analysis.
+    """
+    supported = sorted(t["metric"] for t in table if t["status"] == "PASS")
+    return {
+        "simulation": "simulation_completed",
+        "analysis": "analysis_completed",
+        "sampling_assessment": "cv_stability_of_energy_temperature_rmsd_rg",
+        "overall": overall,
+        "convergence": (
+            "convergence_supported_under_metric" if supported
+            else "convergence_not_established"
+        ),
+        "supported_under_metric": supported,
+    }
+
+
 class MdEngine:
     """One OpenMM system, advanced stage-by-stage for the MD pipeline."""
 
@@ -513,6 +537,10 @@ class MdEngine:
                 "metadynamics) are separate advanced workflows and are not auto-run.",
             ),
         }
+        # Explicit sampling/convergence status semantics (MATRIX 15): the machine-
+        # auditable verdict must state whether convergence was established under at
+        # least one metric or honestly label it as NOT established.
+        data["status"] = md_convergence_status(overall, table)
         metrics = {f"converge_{t['metric']}": (1 if t["status"] == "PASS" else 0) for t in table}
         return _to_native(data), metrics
 

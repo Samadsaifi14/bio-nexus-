@@ -61,7 +61,7 @@ class TestResolveBlastParams:
 
         program, database, seq_type = resolve_blast_params("TTCCPSIVARSNFNVCRLPG")
         assert program == "blastp"
-        assert database == "nr"
+        assert database == "swissprot"
         assert seq_type == "protein"
 
     def test_dna_defaults(self):

@@ -6,7 +6,7 @@ import { downloadTsv, downloadText } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { CriticalButton, FlatInput, FlatTextarea } from "@/components/ui";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
-import { searchPrimerTargets, analyzePrimer, fetchSequence } from "@/lib/api";
+import { searchPrimerTargets, analyzePrimer, fetchSequence, apiUrl } from "@/lib/api";
 import { extractErrorMessage } from "@/lib/errors";
 import type { PrimerSearchHit, PrimerAnalyzeResponse, PrimerStructure } from "@/lib/api";
 import { consumeParam } from '@/lib/cross-link';
@@ -147,7 +147,7 @@ export function PrimerDesigner() {
     setError(null); setPairs([]); setSelectedPair(null); setAnalysis(null); setLoading(true);
     auditedRef.current = false;
     try {
-      const res = await fetch("/api/backend/api/primers/design", {
+      const res = await fetch(apiUrl("/api/primers/design"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ sequence, product_size_min: productMin, product_size_max: productMax, opt_tm: optTm }),

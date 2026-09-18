@@ -7,7 +7,7 @@ import { ClayToggle } from "@/components/ui/ClayToggle";
 import { ClaySegmented } from "@/components/ui/ClaySegmented";
 import { CriticalButton } from "@/components/ui/CriticalButton";
 import { PipelineResults } from "@/components/results/PipelineResults";
-import { createShareLink, getPipelineStatusV2 } from "@/lib/api";
+import { createShareLink, getPipelineStatusV2, apiUrl } from "@/lib/api";
 import { getSupabase } from "@/lib/supabase";
 import { extractErrorMessage } from "@/lib/errors";
 import { buildShareUrl, buildShareMessage, buildShareDetails, type ShareDetails } from "@/lib/share";
@@ -62,7 +62,7 @@ export function AnalysisWizard() {
       if (session?.access_token) {
         headers["Authorization"] = `Bearer ${session.access_token}`;
       }
-      const res = await fetch("/api/backend/api/pipeline/v2/run", {
+      const res = await fetch(apiUrl('/api/pipeline/v2/run'), {
         method: "POST",
         headers,
         body: JSON.stringify({ sequence: sequence.trim(), steps: enabledSteps, alignment_mode: alignMode }),

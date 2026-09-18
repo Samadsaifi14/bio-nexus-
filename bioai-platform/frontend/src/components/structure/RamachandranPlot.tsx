@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useState } from "react";
 
+import { apiUrl } from "@/lib/api";
+
 type RPoint = { residue: string; chain: string; resnum: number; phi: number; psi: number; region: string };
 
 const REGION_COLOR: Record<string, string> = {
@@ -20,7 +22,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
     if (!pdbId) { setLoading(false); return; }
     setLoading(true);
     setError(null);
-    fetch(`/api/backend/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`)
+    fetch(apiUrl(`/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`))
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(setPoints)
       .catch(e => setError(e.message))

@@ -13,13 +13,17 @@ from __future__ import annotations
 import logging
 import os
 
+from app.services.evidence_policy import EvidenceClass
+
 logger = logging.getLogger(__name__)
 
 
 def _fg(mol, name: str) -> int:
     """Safely call a Fragments.fr_* function, returning 0 if unavailable."""
     from rdkit.Chem import Fragments
-    fn = getattr(Fragments, name, None)
+    # RDKit names differ from the aliases used here (sulfonamide, quaternary N).
+    _ALIASES = {"fr_sulfonamide": "fr_sulfonamd", "fr_QuatN": "fr_quatN"}
+    fn = getattr(Fragments, _ALIASES.get(name, name), None)
     if fn is None:
         return 0
     try:
@@ -521,16 +525,22 @@ def compute_descriptors(smiles: str) -> dict:
     if _fg(mol, "fr_halogen") > 2: skin_risk_factors.append("Multiple halogens")
     skin_sensitization = "Likely" if skin_risk_factors else "Unlikely"
 
-    # Acute toxicity (LD50 rough estimate based on LogP and functional groups)
-    # Crum-Brown and Wood LD50 estimate
-    ld50_estimate = round(1.37 + 0.87 * logp - 0.01 * mw + 0.06 * num_halogen, 2)
-    ld50_class = "Toxic" if ld50_estimate < 2.5 else ("Moderate" if ld50_estimate < 4 else "Low toxicity")
+    # Acute toxicity (LD50).
+    # No validated model is available locally, so no numeric LD50 is reported;
+    # a rule-of-thumb class is all the current heuristic supports (structural
+    # alerts only, not a QSAR). A fabricated "1.37 + 0.87*logp - ..." estimate
+    # is NOT produced — it has no published basis and would mislead.
+    ld50_estimate = None
+    ld50_class = "Not predicted"
 
     # ---- Clearance ----
     clearance_class = "High" if logp < 1 and tpsa > 100 else ("Low" if logp > 3 and tpsa < 60 else "Moderate")
 
-    # Lipophilic efficiency (LipE = pIC50 - LogP; we estimate pIC50 from QED)
-    lipe = round(qed_score * 10 - logp, 2) if qed_score > 0 else 0
+    # Lipophilic efficiency (LipE = pIC50 - LogP).
+    # LipE requires an experimental pIC50/pEC50 potency value. It cannot be
+    # derived from QED, so it is reported as Not estimated rather than making
+    # up a number that looks like a real measurement.
+    lipe = None
 
     # ===================================================================
     # COMPOSITE SCORES
@@ -674,13 +684,13 @@ def compute_descriptors(smiles: str) -> dict:
         "formula": formula,
         "swissadme": swissadme,
         "_methodology": {
-            "core_descriptors": {"tier": "3a", "confidence": "high", "method": "RDKit descriptors", "note": "Computed directly from molecular graph — production-ready"},
-            "drug_likeness": {"tier": "3a", "confidence": "high", "method": "RDKit + Lipinski/Veber/Ghose/Egan rules", "note": "Validated pharma filters — production-ready"},
-            "structural_alerts": {"tier": "3a", "confidence": "high", "method": "PAINS/Brenk SMARTS patterns", "note": "Well-established substructure filters — production-ready"},
-            "functional_groups": {"tier": "3a", "confidence": "high", "method": "RDKit Fragments module", "note": "Deterministic fragment counts — production-ready"},
-            "absorption_distribution_metabolism": {"tier": "3b", "confidence": "approximate", "method": "Rule-based heuristics on top of RDKit descriptors", "note": "Educational estimates — for research use, not clinical decisions. Replace with validated QSAR models for production."},
-            "toxicity": {"tier": "3b", "confidence": "approximate", "method": "Rule-based heuristics (LogP/MW/TPSA thresholds, structural alerts)", "note": "No ML classifiers — these are simplified heuristics. Real toxicity prediction requires trained models (e.g. ProTox, Tox21). For research use only."},
-            "clearance": {"tier": "3b", "confidence": "approximate", "method": "LogP/TPSA heuristic", "note": "Very rough estimate — real clearance depends on CYP metabolism kinetics"},
+            "core_descriptors": {"tier": "3a", "confidence": "high", "evidence_class": EvidenceClass.DETERMINISTIC.value, "method": "RDKit descriptors", "note": "Computed directly from molecular graph — production-ready"},
+            "drug_likeness": {"tier": "3a", "confidence": "high", "evidence_class": EvidenceClass.DETERMINISTIC.value, "method": "RDKit + Lipinski/Veber/Ghose/Egan rules", "note": "Validated pharma filters — production-ready"},
+            "structural_alerts": {"tier": "3a", "confidence": "high", "evidence_class": EvidenceClass.DETERMINISTIC.value, "method": "PAINS/Brenk SMARTS patterns", "note": "Well-established substructure filters — production-ready"},
+            "functional_groups": {"tier": "3a", "confidence": "high", "evidence_class": EvidenceClass.DETERMINISTIC.value, "method": "RDKit Fragments module", "note": "Deterministic fragment counts — production-ready"},
+            "absorption_distribution_metabolism": {"tier": "3b", "confidence": "approximate", "evidence_class": EvidenceClass.HEURISTIC.value, "method": "Rule-based heuristics on top of RDKit descriptors", "note": "Educational estimates — for research use, not clinical decisions. Replace with validated QSAR models for production. LipE is not estimated (requires experimental potency)."},
+            "toxicity": {"tier": "3b", "confidence": "approximate", "evidence_class": EvidenceClass.HEURISTIC.value, "method": "Rule-based structural-alert heuristics (LogP/MW/TPSA thresholds, SMARTS patterns)", "note": "No ML classifiers — these are simplified heuristics. No numeric LD50 is reported (no validated model locally); use ProTox or Tox21 for real toxicity prediction. For research use only."},
+            "clearance": {"tier": "3b", "confidence": "approximate", "evidence_class": EvidenceClass.HEURISTIC.value, "method": "LogP/TPSA heuristic", "note": "Very rough estimate — real clearance depends on CYP metabolism kinetics"},
         },
         "heavy_atoms": heavy_atoms,
         "molecular_weight": mw,
@@ -751,7 +761,7 @@ def compute_descriptors(smiles: str) -> dict:
             "lipophilic_efficiency": lipe,
         },
         "toxicity": {
-            "_disclaimer": "Rule-based heuristics only — no ML classifiers. For research screening, not clinical/ regulatory use.",
+            "_disclaimer": "Rule-based heuristics only — no ML classifiers and no numeric LD50 (requires a validated model, e.g. ProTox). For research screening, not clinical/ regulatory use.",
             "ames_mutagenicity": ames_prediction,
             "ames_alerts": ames_alerts,
             "herg_liability": herg_risk,
@@ -759,7 +769,7 @@ def compute_descriptors(smiles: str) -> dict:
             "skin_sensitization": skin_sensitization,
             "skin_sensitization_factors": skin_risk_factors,
             "acute_toxicity_ld50": ld50_class,
-            "ld50_estimate_log": ld50_estimate,
+            "ld50_estimate_log": None,
             "risk_score": admet_risk,
         },
         "clearance": {

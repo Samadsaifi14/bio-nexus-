@@ -72,6 +72,25 @@ class TestADMETMethodology:
         meth = client.post(BASE, json={"smiles": valid_smiles}).json()["result"]["_methodology"]
         assert meth["drug_likeness"]["tier"] == "3a"
 
+    def test_every_group_has_evidence_class(self, client, valid_smiles):
+        meth = client.post(BASE, json={"smiles": valid_smiles}).json()["result"]["_methodology"]
+        assert meth
+        for key, group in meth.items():
+            assert "evidence_class" in group, f"{key} missing evidence_class"
+            assert group["evidence_class"] in {
+                "deterministic computation", "heuristic",
+            }, f"{key} has unknown evidence_class: {group['evidence_class']}"
+
+    def test_heuristic_groups_marked_heuristic(self, client, valid_smiles):
+        meth = client.post(BASE, json={"smiles": valid_smiles}).json()["result"]["_methodology"]
+        for key in ["absorption_distribution_metabolism", "toxicity", "clearance"]:
+            assert meth[key]["evidence_class"] == "heuristic"
+
+    def test_deterministic_groups_marked_deterministic(self, client, valid_smiles):
+        meth = client.post(BASE, json={"smiles": valid_smiles}).json()["result"]["_methodology"]
+        for key in ["core_descriptors", "drug_likeness", "structural_alerts", "functional_groups"]:
+            assert meth[key]["evidence_class"] == "deterministic computation"
+
 
 @requires_rdkit
 class TestADMETToxicity:

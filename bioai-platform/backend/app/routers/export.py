@@ -1,10 +1,11 @@
 import json
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse, JSONResponse
 from app.services.auth import require_user_id
 from app.services.supabase import get_supabase
 from app.services.export import export_blast_pdf, export_uniprot_pdf
+from app.services.version import APP_VERSION, export_stamp, platform_commit
 from app.tools.tool_cards import get_tool_cards
 
 router = APIRouter()
@@ -57,7 +58,8 @@ def _build_ro_crate(job: dict, context: dict) -> dict:
                 "@type": "SoftwareApplication",
                 "@id": "#bio-nexus-platform",
                 "name": "Bio Nexus Platform",
-                "version": "0.2.0",
+                "version": APP_VERSION,
+                "commit": platform_commit() or "unknown",
                 "url": "https://bio-nexus.app",
                 "description": "Integrated bioinformatics analysis platform",
             },
@@ -68,6 +70,7 @@ def _build_ro_crate(job: dict, context: dict) -> dict:
             "sequence_length": len(sequence) if sequence else 0,
             "steps_completed": [s for s, d in steps.items() if d and d.get("status") == "complete"],
             "tool_versions": {c["id"]: c["version"] for c in get_tool_cards() if c["id"] in steps},
+            "export_stamp": export_stamp(),
             "parameters": {
                 "blast_params": context.get("blast_params", {}),
                 "alignment_mode": context.get("alignment_mode", "global"),
@@ -80,7 +83,7 @@ def _build_ro_crate(job: dict, context: dict) -> dict:
 async def export_job(
     job_id: str,
     format: str = Query("pdf", regex="^(pdf|json|ro-crate)$"),
-    user_id: str = require_user_id,
+    user_id: str = Depends(require_user_id),
 ):
     supabase = get_supabase()
     job = supabase.table("jobs").select("*").eq("id", job_id).execute()

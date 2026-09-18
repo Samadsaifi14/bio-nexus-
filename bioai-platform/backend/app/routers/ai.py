@@ -49,7 +49,10 @@ async def tool_interpret_endpoint(req: ToolInterpretRequest):
 
     interpretation = await interpret_tool_result(req.tool_name, req.result or {})
     if interpretation is None:
-        message = "AI interpretation unavailable. Check that an LLM API key is configured, or try again later."
+        if not llm_client.has_api_key():
+            message = "AI interpretation unavailable: no LLM API key is configured."
+        else:
+            message = "AI interpretation is temporarily unavailable. The provider is failing or was rate-limited — please try again in a moment."
         logger.warning("tool-interpret returned no interpretation for '%s'", req.tool_name)
-        raise HTTPException(status_code=422, detail=message)
+        raise HTTPException(status_code=502, detail=message)
     return interpretation

@@ -746,23 +746,27 @@ class TestSequencingPipeline:
         assert qc["gc_percent"] > 0
 
     def test_variant_detection(self):
-        from app.tools.sequencing import _parse_sam_for_variants, _build_consensus
-        ref = ">ref\n" + "A" * 100
-        # Create a simple SAM with one variant at position 50
-        sam = (
-            "@HD\tVN:1.6\n"
-            f"@SQ\tSN:ref\tLN:100\n"
-            f"read1\t0\tref\t1\t60\t100M\t*\t0\t0\t"
+        from app.tools.sequencing import _pileup_reads
+        ref = "A" * 100
+        # Four identical high-quality reads carrying a G at 1-based pos 50.
+        qual = "".join(chr(33 + 30) for _ in range(100))
+        reads = [
+            f"read{i}\t0\tref\t1\t60\t100M\t*\t0\t0\t"
             + "A" * 49 + "G" + "A" * 50
-            + "\t*\n"
-        )
+            + f"\t{qual}"
+            for i in range(4)
+        ]
+        sam = "@HD\tVN:1.6\n@SQ\tSN:ref\tLN:100\n" + "\n".join(reads) + "\n"
         with tempfile.NamedTemporaryFile(mode="w", suffix=".sam", delete=False) as f:
             f.write(sam)
             f.flush()
-            variants = _parse_sam_for_variants(f.name, ref)
+            pileup = _pileup_reads(f.name, ref)
         os.unlink(f.name)
-        # The variant detection may or may not find the variant depending on depth
-        assert isinstance(variants, list)
+        by_pos = {v["pos"]: v for v in pileup["variants"]}
+        assert 50 in by_pos
+        assert by_pos[50]["ref"] == "A" and by_pos[50]["alt"] == "G"
+        assert by_pos[50]["type"] == "SNV"
+        assert by_pos[50]["freq"] == 1.0
 
 
 # ============================================================================

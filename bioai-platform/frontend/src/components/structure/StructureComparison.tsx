@@ -2,6 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
+import { apiUrl } from "@/lib/api";
 
 type StructureMatch = {
   pdb_id: string; chain: string; description: string;
@@ -25,7 +26,7 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
 
     const controller = new AbortController();
 
-    fetch(`/api/backend/api/structure_analysis/compare/${pdbId}?chain=${chain}`, { signal: controller.signal })
+    fetch(apiUrl(`/api/structure_analysis/compare/${pdbId}?chain=${chain}`), { signal: controller.signal })
       .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.detail); }))
       .then(d => {
         if (!controller.signal.aborted) {

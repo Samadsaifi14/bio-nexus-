@@ -3,6 +3,7 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
+import { apiUrl } from "@/lib/api";
 
 const DB_COLORS: Record<string, string> = {
   PFAM:    "#4ADE80",
@@ -106,8 +107,8 @@ export function DomainArchitecture({ accession }: { accession: string }) {
     auditedRef.current = false;
     try {
       const [fullResp, domainsResp] = await Promise.allSettled([
-        fetch(`/api/backend/api/domains/${accession}/all`),
-        fetch(`/api/backend/api/domains/${accession}`),
+        fetch(apiUrl(`/api/domains/${accession}/all`)),
+        fetch(apiUrl(`/api/domains/${accession}`)),
       ]);
 
       if (fullResp.status === "fulfilled" && fullResp.value.ok) {

@@ -25,10 +25,10 @@ def main() -> None:
 
     reference = "ACGT" * 50
     reference_path = args.outdir / "reference.fa"
-    reference_path.write_text(f">chrTiny\n{reference}\n", encoding="utf-8")
+    reference_path.write_text(f">chrTiny\n{reference}\n", encoding="utf-8", newline="")
 
     sam_path = args.outdir / "reads.sam"
-    with sam_path.open("w", encoding="utf-8") as sam:
+    with sam_path.open("w", encoding="utf-8", newline="") as sam:
         sam.write("@HD\tVN:1.6\tSO:coordinate\n@SQ\tSN:chrTiny\tLN:200\n@RG\tID:rg1\tSM:TINY001\n")
         for index in range(20):
             sequence = list(reference[:100])
@@ -40,7 +40,7 @@ def main() -> None:
             )
 
     truth_path = args.outdir / "truth.tsv"
-    truth_path.write_text("CHROM\tPOS\tREF\tALT\tGT\nchrTiny\t50\tC\tG\t0/1\n", encoding="utf-8")
+    truth_path.write_text("CHROM\tPOS\tREF\tALT\tGT\nchrTiny\t50\tC\tG\t0/1\n", encoding="utf-8", newline="")
     manifest = {
         "benchmark": "bionexus-tiny-target-v1",
         "truth_design": "deterministic synthetic positive control",
@@ -52,7 +52,7 @@ def main() -> None:
         "expected_snp": "chrTiny:50:C>G:0/1",
         "checksums": {path.name: sha256(path) for path in (reference_path, sam_path, truth_path)},
     }
-    (args.outdir / "fixture_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (args.outdir / "fixture_manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8", newline="")
 
 
 if __name__ == "__main__":

@@ -68,14 +68,18 @@ class TestAnalyzeSequence:
         assert names["BamHI"]["positions"] == [11]
 
     def test_translation_frames_and_best_orf(self):
-        # ATG CAT TAA CGT GCA TGA -> frame 1 = "MH*RA*"; best ORF = MH (stops)
+        # ATG CAT TAA CGT GCA TGA -> frame 1 = "MH*RA*".
         res = analyze_sequence("ATGCATTAACGTGCATGAA", seq_type="dna")
         tr = res["translation"]
         assert tr is not None
         assert tr["frames"]["1"] == "MH*RA*"
-        assert tr["best"]["frame"] == 1
-        assert tr["best"]["protein"] == "MH"
-        assert tr["best"]["has_stop"] is True
+        assert set(tr["frames"].keys()) == {"1", "2", "3", "4", "5", "6"}
+        # Best ORF is now genome-wide (six frames): the reverse strand's frame 4
+        # carries MHVNA (5 aa), longer than the forward MH (which stops early).
+        assert tr["best"]["frame"] == 4
+        assert tr["best"]["strand"] == "reverse"
+        assert tr["best"]["protein"] == "MHVNA"
+        assert tr["best"]["start"] == 16
 
     def test_protein_mw_and_composition(self):
         res = analyze_sequence("MEEPQSDPSVEP", seq_type="protein")

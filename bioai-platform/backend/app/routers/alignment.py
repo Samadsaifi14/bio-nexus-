@@ -44,12 +44,17 @@ def _strip_fasta_header(seq: str) -> str:
 class PairwiseAlignResponse(BaseModel):
     mode: str
     matrix: str
+    gap_open: float = Field(default=0.0, description="Gap-open penalty used")
+    gap_extend: float = Field(default=0.0, description="Gap-extension penalty used")
     score: float
     aligned_query: str
     aligned_hit: str
     alignment_length: int
     identity: int
     pct_identity: float
+    mismatches: int = 0
+    similarity: int = 0
+    pct_similarity: float = 0.0
     gaps_total: int
     gap_positions: list[dict[str, Any]]
     query_start: int

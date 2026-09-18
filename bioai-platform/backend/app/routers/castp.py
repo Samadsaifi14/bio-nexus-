@@ -110,11 +110,22 @@ class UniProtSummary(BaseModel):
     sequence_length: int = 0
 
 
+class MethodTried(BaseModel):
+    method: str = ""
+    status: str = ""
+
+
 class CastpResponse(BaseModel):
     pdb_id: str
     probe_radius: float
     total_residues: int
     pockets: list[PocketInfo]
+    method: str = Field(default="", description="Pocket detection engine used: 'fpocket' or 'sasa_heuristic'")
+    methods_tried: list[MethodTried] = []
+    fallback_used: bool = False
+    status: str = Field(default="ok", description="'ok', 'DEGRADED' (heuristic fallback) or 'FAILED' (no method produced pockets)")
+    error: str = Field(default="", description="Failure detail when status is FAILED")
+    note: str = Field(default="", description="Provenance note (e.g. which engines were excluded)")
     sequence_source: str = ""
     structure_source: str = ""
     structure_pdb: str = Field(default="", description="Resolved structure PDB text (modeled/uploaded only; RCSB PDBs load by id)")
@@ -464,6 +475,32 @@ async def analyze_castp(body: CastpRequest):
 
     result = await analyze_pockets_pdb_text(pdb_text, pdb_id, probe)
 
+    # Only embed the PDB text for structures that can't be loaded from RCSB by
+    # id (modeled / uploaded). For a real RCSB entry the viewer fetches it via
+    # pdb_id, keeping the response lean.
+    embed_pdb = structure_source in ("model_esmfold", "pdb_text")
+
+    if result.get("status") == "FAILED":
+        return CastpResponse(
+            pdb_id=result.get("pdb_id", pdb_id),
+            probe_radius=probe,
+            total_residues=0,
+            pockets=[],
+            method=result.get("method", "none"),
+            methods_tried=[MethodTried(**m) for m in result.get("methods_tried", [])],
+            fallback_used=result.get("fallback_used", True),
+            status="FAILED",
+            error=result.get("error", "Pocket detection failed"),
+            note=result.get("note", ""),
+            sequence_source=structure_source,
+            structure_source=structure_source,
+            structure_pdb=pdb_text if embed_pdb else "",
+            pipeline=provenance,
+            uniprot=uniprot,
+            chains=[],
+            active_sites=[],
+        )
+
     # M-CSA active-site comparison (best-effort — never blocks the result).
     active_sites: list[dict] = []
     try:
@@ -519,6 +556,11 @@ async def analyze_castp(body: CastpRequest):
         probe_radius=result["probe_radius"],
         total_residues=result["total_residues"],
         pockets=pockets,
+        method=result.get("method", ""),
+        methods_tried=[MethodTried(**m) for m in result.get("methods_tried", [])],
+        fallback_used=result.get("fallback_used", False),
+        status="DEGRADED" if result.get("fallback_used") else "ok",
+        note=result.get("note", ""),
         sequence_source=structure_source,
         structure_source=structure_source,
         structure_pdb=pdb_text if embed_pdb else "",

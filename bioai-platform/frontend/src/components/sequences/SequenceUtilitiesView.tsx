@@ -92,12 +92,32 @@ export function SequenceUtilitiesView({ result }: { result: SequenceUtilitiesRes
         </div>
       )}
 
+      {isNuc && result.transcription && (
+        <div className="data-card p-5">
+          <div className="flex items-center justify-between mb-2">
+            <h3 className="text-sm font-semibold text-text-primary">
+              Transcription{result.sequence_type === 'rna' ? '' : ' (RNA copy)'}
+            </h3>
+            <CopyButton text={result.transcription} />
+          </div>
+          <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-3 overflow-x-auto whitespace-pre-wrap break-all max-h-40 overflow-y-auto">
+            {result.transcription}
+          </pre>
+          <p className="text-[11px] text-text-muted mt-2">
+            {result.sequence_type === 'dna'
+              ? 'Same-strand RNA transcript (T substituted with U).'
+              : 'RNA input is already a transcript.'}
+          </p>
+        </div>
+      )}
+
       {result.translation && (
         <div className="data-card p-5">
-          <h3 className="text-sm font-semibold text-text-primary mb-2">Translation (forward frames)</h3>
+          <h3 className="text-sm font-semibold text-text-primary mb-2">Translation (six reading frames)</h3>
           {result.translation.best && (
             <div className="mb-3 rounded-lg bg-accent-cyan/10 border border-accent-cyan/30 px-3 py-2 text-xs text-text-secondary">
-              Best ORF — frame <strong className="text-accent-cyan">{result.translation.best.frame}</strong>, starts at residue{' '}
+              Best ORF — frame <strong className="text-accent-cyan">{result.translation.best.frame}</strong>
+              {result.translation.best.strand === 'reverse' && <span> (reverse strand)</span>}, starts at residue{' '}
               <strong className="text-accent-cyan">{result.translation.best.start}</strong>, {result.translation.best.length} aa
               {result.translation.best.has_stop ? ' (ends at a stop codon)' : ' (runs to the sequence end)'}.
             </div>
@@ -110,7 +130,9 @@ export function SequenceUtilitiesView({ result }: { result: SequenceUtilitiesRes
             {Object.entries(translation.frames).map(([frame, protein]) => (
               <div key={frame}>
                 <div className="flex items-center justify-between mb-1">
-                  <span className="text-[10px] uppercase tracking-wider text-text-muted">Frame {frame}</span>
+                  <span className="text-[10px] uppercase tracking-wider text-text-muted">
+                    Frame {frame}{Number(frame) > 3 ? ' (reverse)' : ' (forward)'}
+                  </span>
                   {translation.best?.frame === Number(frame) && (
                     <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-cyan/10 border border-accent-cyan/30 text-accent-cyan font-medium">
                       longest ORF

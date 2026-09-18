@@ -3,6 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { LearnPopover } from "@/components/LearnPopover";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
+import { apiUrl } from "@/lib/api";
 import { viewerBg } from "@/lib/theme-canvas";
 import { downloadTsv, downloadJson, downloadCanvasPng } from "@/lib/export-utils";
 
@@ -39,7 +40,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
     if (initialData) return;
     setError(null);
     auditedRef.current = false;
-    fetch(`/api/backend/api/interactions/${encodeURIComponent(geneName)}?limit=12&network_type=${networkType}`)
+    fetch(apiUrl(`/api/interactions/${encodeURIComponent(geneName)}?limit=12&network_type=${networkType}`))
       .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
       .then(d => { setData(d); if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('interactions_view', 'STRING-DB', geneName, `${d.interactions?.length || 0} partners`); } })
       .catch(e => { setError(e.message); audit.emitFailed('interactions_view', 'STRING-DB', geneName, e.message); })

@@ -42,7 +42,10 @@ PROGRAM_FAST_DATABASE = {
 
 # Kept for compatibility with callers/tests that inspect sequence defaults.
 DEFAULT_PROGRAM = {"protein": "blastp", "dna": "blastn", "rna": "blastn"}
-DEFAULT_DATABASE = {"protein": "nr", "dna": "nt", "rna": "nt"}
+# Protein defaults to the curated Swiss-Prot DB: EBI's nr equivalent
+# (uniprotkb) exceeds the 180s poll budget and NCBI queue estimates run to
+# hours, so nr as a default is a guaranteed timeout. nr stays selectable.
+DEFAULT_DATABASE = {"protein": "swissprot", "dna": "nt", "rna": "nt"}
 FAST_DATABASE = {"protein": "swissprot", "dna": "refseq_rna", "rna": "refseq_rna"}
 
 

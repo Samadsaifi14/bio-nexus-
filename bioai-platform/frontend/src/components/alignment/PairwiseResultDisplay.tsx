@@ -4,7 +4,6 @@ import { useMemo } from 'react';
 import { DownloadSimple as Download, ChartScatter as Scatter } from '@phosphor-icons/react';
 import type { PairwiseAlignResult } from '@/types/pipeline';
 import { downloadText, downloadTsv } from '@/lib/export-utils';
-import { computeAlignmentStats } from '@/lib/alignment-stats';
 import { AlignmentStatsBar } from '@/components/alignment/AlignmentStatsBar';
 
 const DOTPLOT_MATRICES = ['blosum62', 'blosum50', 'blosum45', 'pam30', 'pam70', 'pam250'];
@@ -189,10 +188,17 @@ export function PairwiseResultDisplay({
   queryLabel?: string;
   subjectLabel?: string;
 }) {
-  const stats = useMemo(
-    () => computeAlignmentStats([result.aligned_query, result.aligned_hit]),
-    [result],
-  );
+  const stats = useMemo(() => {
+    const gappedCols = result.alignment_length - result.identity - result.mismatches;
+    return {
+      length: result.alignment_length,
+      matched: result.identity,
+      mismatched: result.mismatches,
+      gapped: Math.max(0, gappedCols),
+      total_gaps: result.gaps_total,
+      identity_pct: result.pct_identity,
+    };
+  }, [result]);
 
   if (result.alignment_length === 0) {
     return <CoverageNote result={result} />;
@@ -209,14 +215,16 @@ export function PairwiseResultDisplay({
       [
         ['Mode', result.mode],
         ['Matrix', result.matrix],
+        ['Gap open penalty', String(result.gap_open)],
+        ['Gap extend penalty', String(result.gap_extend)],
         ['Score', String(result.score)],
-        ['Matched', String(stats.matched)],
-        ['Mismatched', String(stats.mismatched)],
-        ['Gapped columns', String(stats.gapped)],
-        ['Gap characters', String(result.gaps_total)],
-        ['Alignment length', String(stats.length)],
-        ['Identity (%)', String(result.pct_identity)],
+        ['Alignment length', String(result.alignment_length)],
         ['Identical residues', String(result.identity)],
+        ['Identity (%)', String(result.pct_identity)],
+        ['Mismatches', String(result.mismatches)],
+        ['Similar (positive-score) matches', String(result.similarity)],
+        ['Similarity (%)', String(result.pct_similarity)],
+        ['Gap characters', String(result.gaps_total)],
         ['Query start', String(result.query_start)],
         ['Query end', String(result.query_end)],
         ['Query length', String(result.query_length)],
@@ -236,6 +244,12 @@ export function PairwiseResultDisplay({
         </span>
         <span>
           Identity: <strong className="text-accent-cyan">{result.pct_identity}%</strong> ({result.identity}/{result.alignment_length})
+        </span>
+        <span>
+          Similarity: <strong className="text-accent-cyan">{result.pct_similarity}%</strong> ({result.similarity})
+        </span>
+        <span>
+          Mismatches: <strong className="text-text-primary">{result.mismatches}</strong>
         </span>
         <span>
           Matrix: <strong className="text-text-primary">{result.matrix.toUpperCase()}</strong>

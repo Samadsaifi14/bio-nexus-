@@ -46,6 +46,39 @@ class TestPairwiseAlign:
         assert res["gaps_total"] == 2
         assert res["query_start"] == 1 and res["query_end"] == 4
         assert res["hit_start"] == 1 and res["hit_end"] == 6
+        # Exposed full-field contract
+        assert res["gap_open"] == -10.0 and res["gap_extend"] == -1.0
+        assert res["mismatches"] + res["identity"] == res["alignment_length"] - res["gaps_total"]
+        assert res["similarity"] >= res["identity"]
+
+    def test_conservative_substitution_counts_similar_not_identical(self):
+        # L->I and V->I are positive-scoring BLOSUM62 conservative changes:
+        # they add to similarity but not identity.
+        res = pairwise_align("ALV", "AII")
+        assert res["identity"] == 1            # only the leading A
+        assert res["mismatches"] == 2
+        assert res["pct_identity"] == pytest.approx(100 / 3, abs=0.1)
+        assert res["similarity"] >= res["identity"]
+        assert res["pct_similarity"] >= res["pct_identity"]
+
+    def test_far_inside_local_region_reports_true_coords(self):
+        # A shared block buried deep inside both sequences: local alignment must
+        # report 1-based coordinates in each ORIGINAL sequence, not fragment
+        # coordinates — query_start/hit_start prove the flanks were skipped.
+        motif = "ACDEFGHIKLMNPQRS"
+        query = "W" * 23 + motif + "V" * 27
+        subject = "S" * 15 + motif + "Q" * 19
+        res = pairwise_align(query, subject, mode="local")
+        assert res["alignment_length"] == len(motif)
+        assert res["identity"] == len(motif)
+        assert res["pct_identity"] == 100.0
+        assert res["mismatches"] == 0
+        assert res["similarity"] == len(motif)
+        assert res["gaps_total"] == 0
+        assert res["query_start"] == 24 and res["query_end"] == 24 + len(motif) - 1
+        assert res["hit_start"] == 16 and res["hit_end"] == 16 + len(motif) - 1
+        assert res["aligned_query"] == motif == res["aligned_hit"]
+        assert res["query_length"] == len(query) and res["hit_length"] == len(subject)
 
     def test_local_vs_global_divergence(self):
         query = "ACGTACGTACGT"
@@ -63,10 +96,13 @@ class TestPairwiseAlign:
         res = pairwise_align("AAAA", "CCCC", mode="local")
         assert res["pct_identity"] == 0.0
         assert res["identity"] == 0
+        assert res["similarity"] == 0
+        assert res["mismatches"] == 0
         assert res["alignment_length"] == 0
         assert res["aligned_query"] == ""
         assert res["aligned_hit"] == ""
         assert res["query_start"] == 0 and res["hit_start"] == 0
+        assert res["gap_open"] == -10.0 and res["gap_extend"] == -1.0
 
     def test_pam250_matrix_accepted(self):
         res = pairwise_align("ACDEFGHIK", "ACDEFGHIK", matrix="pam250")

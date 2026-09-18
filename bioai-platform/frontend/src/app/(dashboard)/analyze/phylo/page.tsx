@@ -9,6 +9,7 @@ import { AIResultSummary } from '@/components/results/AIResultSummary'
 import ScientificResultsWorkspace, { MetricGrid } from '@/components/results/ScientificResultsWorkspace'
 import { RawEvidence } from '@/components/results/ProvenancePanel'
 import { parseFasta } from '@/lib/sequence-utils'
+import { apiUrl } from '@/lib/api'
 
 const PhyloTreeViewer = dynamic(() => import('@/components/phylo/PhyloTreeViewer'), { ssr: false })
 
@@ -145,7 +146,7 @@ export default function PhyloPage() {
 
   const fetchStatus = useCallback(async (id: string) => {
     try {
-      const res = await fetch(`/api/backend/phylo/status/${id}`)
+      const res = await fetch(apiUrl(`/phylo/status/${id}`))
       if (!res.ok) return
       const data: PhyloJobStatus = await res.json(); setJob(data)
       if (data.phase === 'complete' || data.phase === 'error') stopPoll()
@@ -161,7 +162,7 @@ export default function PhyloPage() {
     audit.emitStarted('phylo_run', 'PhyML/QuickTree', inputSummary)
     setSubmitError(''); setLoading(true); setJob(null); setJobId(null)
     try {
-      const res = await fetch('/api/backend/phylo/run', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sequences, method, seq_type: seqType, model: method === 'ml' ? model : null, bootstrap: method === 'ml' ? bootstrap : 0 }) })
+      const res = await fetch(apiUrl('/phylo/run'), { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ sequences, method, seq_type: seqType, model: method === 'ml' ? model : null, bootstrap: method === 'ml' ? bootstrap : 0 }) })
       if (!res.ok) { const d = await res.json().catch(() => ({})); throw new Error(typeof d.detail === 'string' ? d.detail : `HTTP ${res.status}`) }
       const { job_id } = await res.json(); setJobId(job_id); await fetchStatus(job_id); intervalRef.current = setInterval(() => fetchStatus(job_id), 3000)
       audit.emitSuccess('phylo_run', 'PhyML/QuickTree', inputSummary, `job_id:${job_id}`)

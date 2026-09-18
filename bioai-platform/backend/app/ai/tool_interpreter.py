@@ -256,7 +256,11 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
                     )
                     response_text = response.choices[0].message.content or ""
                     if not response_text:
-                        return None
+                        # Empty reply is a failed attempt, not "unavailable" —
+                        # a flaky provider may succeed on retry/with a backup.
+                        last_error = "empty model response"
+                        logger.debug("AI interpretation empty response for tool %s (%s)", tool_name, candidate["model"])
+                        continue
 
                     text = response_text.strip()
                     if text.startswith("```"):
@@ -270,8 +274,11 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
                         "caveats": [str(c) for c in (parsed.get("caveats") or [])],
                     }
                 except json.JSONDecodeError:
+                    # Model returned prose/markdown instead of JSON — treat as a
+                    # failed attempt and let retry/backup providers take over.
+                    last_error = "non-JSON model response"
                     logger.debug("AI interpretation response was not valid JSON for tool %s", tool_name)
-                    return None
+                    continue
                 except Exception as e:
                     last_error = e
                     if attempt < 1:

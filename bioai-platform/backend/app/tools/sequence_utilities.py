@@ -4,9 +4,10 @@ Computes the everyday metrics a biologist needs on a single sequence:
 
   * GC content (nucleotides)
   * Reverse complement (nucleotides, IUPAC-aware)
+  * Transcription (DNA -> U-containing RNA copy, same strand polarity)
   * Molecular weight (ssDNA / ssRNA / protein average-residue)
-  * Six-frame-free translation of the forward three frames with the longest
-    open reading frame (ORF) flagged
+  * Six-frame translation (forward frames 1-3, reverse frames 4-6) with the
+    longest open reading frame (ORF) flagged
   * Amino-acid composition (proteins / translated CDS)
   * Restriction-enzyme site scan against a curated set of common, unambiguous
     (palindromic) recognition sequences
@@ -49,8 +50,27 @@ _CODON_TABLE = {
 }
 
 # Monoisotopic-ish single-strand base weights (g/mol).
-_SSDNA_MW = {"A": 313.21, "C": 289.18, "G": 329.21, "T": 304.20}
-_SSRNA_MW = {"A": 329.21, "C": 305.18, "G": 345.21, "U": 306.17}
+# U has a DNA-context entry so mixed T/U strings still weigh correctly.
+_SSDNA_MW = {"A": 313.21, "C": 289.18, "G": 329.21, "T": 304.20, "U": 304.20}
+_SSRNA_MW = {"A": 329.21, "C": 305.18, "G": 345.21, "U": 306.17, "T": 306.17}
+
+# IUPAC ambiguity codes mapped to their constituent bases.
+_IUPAC_AMBIG = {
+    "R": "AG", "Y": "CT", "S": "GC", "W": "AT", "K": "GT", "M": "AC",
+    "B": "CGT", "D": "AGT", "H": "ACT", "V": "ACG", "N": "ACGT",
+}
+
+# IUPAC-aware complement maps (DNA and RNA variants).
+_IUPAC_COMP_DNA = {
+    "A": "T", "T": "A", "U": "A", "G": "C", "C": "G",
+    "R": "Y", "Y": "R", "S": "S", "W": "W", "K": "M", "M": "K",
+    "B": "V", "D": "H", "H": "D", "V": "B", "N": "N",
+}
+_IUPAC_COMP_RNA = {
+    "A": "U", "U": "A", "T": "A", "G": "C", "C": "G",
+    "R": "Y", "Y": "R", "S": "S", "W": "W", "K": "M", "M": "K",
+    "B": "V", "D": "H", "H": "D", "V": "B", "N": "N",
+}
 
 # Curated common restriction enzymes — all palindromic so a forward-strand
 # scan finds every cut site. Recognition site is given 5' -> 3'.
@@ -79,23 +99,50 @@ def _strip_fasta(seq: str) -> str:
     return "".join(lines)
 
 
-def clean_sequence(seq: str, seq_type: str) -> str:
-    """Normalize to uppercase alpha-only. For nucleotides, drop ambiguous IUPAC
-    codes so downstream math (GC%, MW) only counts real bases."""
+def _clean_sequence(seq: str, seq_type: str) -> tuple[str, dict[str, list[int]]]:
+    """Normalize to uppercase alpha-only and drop unrecognised letters.
+
+    Returns ``(kept, dropped)`` where ``dropped`` maps each discarded letter to
+    the 1-based positions (within the alpha-only, FASTA-header-free body) where
+    it occurred, so callers can surface strict position-level warnings. Unlike
+    the old behaviour, RNA bases (U) are preserved, not silently converted to T.
+    """
     body = _strip_fasta(seq)
     letters = "".join(re.findall(r"[A-Za-z]", body)).upper()
     if not letters:
         raise SequenceUtilitiesError("Sequence is empty")
     if seq_type in ("dna", "rna"):
-        allowed = set("ACGTRYSWKMBDHVN") if seq_type == "dna" else set("ACGURSYKMWBDHVN")
-        kept = "".join(c for c in letters if c in allowed)
+        allowed = set("ACGTRYSWKMBDHVNU")
+        if seq_type == "rna":
+            allowed = set("ACGURSYKMWBDHVN")
+        kept_letters: list[str] = []
+        dropped: dict[str, list[int]] = {}
+        for i, c in enumerate(letters, start=1):
+            if c in allowed:
+                kept_letters.append(c)
+            else:
+                dropped.setdefault(c, []).append(i)
+        kept = "".join(kept_letters)
         if not kept:
             raise SequenceUtilitiesError(f"Sequence contains no valid {seq_type.upper()} bases")
-        return kept.translate(_RNA_TO_DNA) if seq_type == "rna" else kept
+        return kept, dropped
     valid = set("ACDEFGHIKLMNPQRSTVWY")
-    kept = "".join(c for c in letters if c in valid)
+    kept_letters = []
+    dropped = {}
+    for i, c in enumerate(letters, start=1):
+        if c in valid:
+            kept_letters.append(c)
+        else:
+            dropped.setdefault(c, []).append(i)
+    kept = "".join(kept_letters)
     if not kept:
         raise SequenceUtilitiesError("Sequence contains no valid amino acids")
+    return kept, dropped
+
+
+def clean_sequence(seq: str, seq_type: str) -> str:
+    """Normalize to uppercase alpha-only, dropping ambiguous/invalid letters."""
+    kept, _ = _clean_sequence(seq, seq_type)
     return kept
 
 
@@ -104,15 +151,26 @@ def _translate_frame(seq: str, frame: int) -> str:
     return "".join(_CODON_TABLE.get(c, "X") for c in codons)
 
 
-def _best_orf(seq: str, frame: int, translated: str) -> dict | None:
-    """Longest ORF (M -> stop/end) in a translated frame, with 1-based start."""
+def _best_orf(seq: str, frame: int, translated: str, strand: str) -> dict | None:
+    """Longest ORF (M -> stop/end) in a translated frame.
+
+    ``seq`` is the strand actually translated (forward sequence or its reverse
+    complement); ``strand`` records which. For reverse-strand ORFs the start is
+    converted back to 1-based coordinates on the original forward-strand input.
+    """
     best = None
+    n = len(seq)
     for m in re.finditer("M[^*]*", translated):
         length = len(m.group(0))
-        start = frame + m.start() * 3 + 1
+        offset_rc = frame + m.start() * 3
+        if strand == "reverse":
+            start = n - offset_rc  # 1-based position on the original input
+        else:
+            start = offset_rc + 1
         if best is None or length > best["length"]:
             best = {
-                "frame": frame + 1,
+                "frame": (frame + 1) if strand == "forward" else frame + 4,
+                "strand": strand,
                 "protein": m.group(0),
                 "start": start,
                 "length": length,
@@ -131,12 +189,35 @@ def _protein_mw(seq: str) -> float:
 
 
 def _nucleotide_mw(seq: str, seq_type: str) -> float:
+    """Single-strand oligo molecular weight (g/mol), Biopython convention.
+
+    ssDNA/ssRNA weight = sum of the nucleotide monophosphate residue masses
+    plus one terminal H2O (18.02) — no per-bond loss term. This matches
+    ``Bio.SeqUtils.molecular_weight(..., seq_type='DNA')`` and the conventions
+    used by mainstream oligo calculators (IDT, NEB), where a single residue
+    reports its free 5'-monophosphate mass.
+    """
     table = _SSDNA_MW if seq_type == "dna" else _SSRNA_MW
-    n = len(seq)
-    if n == 0:
+    if len(seq) == 0:
         return 0.0
-    total = sum(table.get(c, table["A"]) for c in seq)
-    return round(total - 61.96 * (n - 1) + 18.02, 2)
+    # IUPAC ambiguity codes are weighted by the mean of their constituent
+    # bases; unknown letters (should have been dropped) contribute 0 and are
+    # counted in the terminal-water term only if the caller kept them.
+    weights: list[float] = []
+    for c in seq:
+        if c in table:
+            weights.append(table[c])
+        elif c in _IUPAC_AMBIG:
+            const = _IUPAC_AMBIG[c]
+            weights.append(sum(table.get(b, 0.0) for b in const) / len(const))
+        else:
+            weights.append(0.0)
+    return round(sum(weights) + 18.02, 2)
+
+
+def _reverse_complement(seq: str, seq_type: str) -> str:
+    comp = _IUPAC_COMP_RNA if seq_type == "rna" else _IUPAC_COMP_DNA
+    return "".join(comp.get(c, "N") for c in reversed(seq))
 
 
 def _aa_composition(seq: str) -> list[dict]:
@@ -175,12 +256,25 @@ def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
     detected = detect_sequence_type(raw) if raw else "unknown"
     effective = seq_type if seq_type != "auto" else detected
     if effective == "unknown":
-        raise SequenceUtilitiesError(
-            "Could not detect sequence type — expected nucleotide or protein characters"
-        )
+        letters = "".join(re.findall(r"[A-Za-z]", raw)).upper()
+        if letters and set(letters) <= set("ACGTRYSWKMBDHVNU"):
+            effective = "dna"
+        else:
+            raise SequenceUtilitiesError(
+                "Could not detect sequence type — expected nucleotide or protein characters"
+            )
 
-    seq = clean_sequence(raw, effective)
+    seq, dropped = _clean_sequence(raw, effective)
     issues: list[str] = []
+    if dropped:
+        pieces = []
+        for char, positions in sorted(dropped.items()):
+            pos_txt = ", ".join(str(p) for p in positions)
+            pieces.append(f"{char}@position {pos_txt}")
+        issues.append(f"Ignored invalid characters: {'; '.join(pieces)}")
+    if "T" in set(seq) and "U" in set(seq):
+        issues.append(f"Sequence mixes T and U — analysed as {effective.upper()}")
+
     report: dict = {
         "sequence_type": effective,
         "detected_type": detected,
@@ -188,6 +282,7 @@ def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
         "gc_content": None,
         "molecular_weight": None,
         "reverse_complement": None,
+        "transcription": None,
         "translation": None,
         "aa_composition": None,
         "restriction_sites": None,
@@ -197,22 +292,29 @@ def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
     if effective in ("dna", "rna"):
         report["gc_content"] = round((seq.count("G") + seq.count("C")) / len(seq) * 100.0, 1)
         report["molecular_weight"] = _nucleotide_mw(seq, effective)
+        report["reverse_complement"] = _reverse_complement(seq, effective)
         if effective == "dna":
-            comp = {"A": "T", "T": "A", "G": "C", "C": "G", "N": "N"}
+            report["transcription"] = seq.replace("T", "U")
         else:
-            comp = {"A": "U", "U": "A", "G": "C", "C": "G", "N": "N"}
-        report["reverse_complement"] = "".join(comp.get(c, "N") for c in reversed(seq))
+            report["transcription"] = seq  # RNA input is already the transcript
 
         dna_seq = seq.translate(_RNA_TO_DNA)
         if len(dna_seq) < 3:
             issues.append("Sequence too short for translation (<3 nt)")
         else:
-            frames = {}
+            reverse = _reverse_complement(dna_seq, "dna")
+            # Six reading frames: 1–3 on the forward strand, 4–6 on the reverse.
+            strand_frames = [
+                *[(frame, dna_seq, "forward") for frame in (0, 1, 2)],
+                *[(frame, reverse, "reverse") for frame in (0, 1, 2)],
+            ]
+            frames: dict[str, str] = {}
             best = None
-            for frame in (0, 1, 2):
-                translated = _translate_frame(dna_seq, frame)
-                frames[str(frame + 1)] = translated
-                orf = _best_orf(dna_seq, frame, translated)
+            for frame, strand_seq, strand in strand_frames:
+                translated = _translate_frame(strand_seq, frame)
+                key = str(frame + 1) if strand == "forward" else str(frame + 4)
+                frames[key] = translated
+                orf = _best_orf(strand_seq, frame, translated, strand)
                 if orf and (best is None or orf["length"] > best["length"]):
                     best = orf
             report["translation"] = {"frames": frames, "best": best}

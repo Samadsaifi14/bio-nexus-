@@ -6,10 +6,98 @@ import { motion } from 'framer-motion';
 import { CircleNotch as LoaderCircle, CheckCircle, XCircle, Warning as AlertTriangle, Dna, ChartBar as BarChart3, MapTrifold as Map, Bug, FileText, MagnifyingGlass as Search } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
 import { runSequencing, getSequencingStatus, listSequencingReferences } from '@/lib/api';
-import type { SequencingResult, SequencingReference } from '@/lib/api';
+import type { SequencingResult, SequencingReference, ScientificPlot, ScientificArtifact } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
+
+const barPalette = ['bg-accent-cyan', 'bg-accent-violet', 'bg-accent-amber', 'bg-accent-jade'];
+
+function PlotView({ plot }: { plot: ScientificPlot }) {
+  const items = (plot.data ?? []).map((d, i) => ({
+    label: String(d.type ?? d.quality ?? d.pos ?? d.bin ?? `#${i + 1}`),
+    value: Number(d.count ?? d.depth ?? d.alt_freq ?? 0) ?? 0,
+  }));
+  const max = Math.max(1, ...items.map((d) => d.value));
+
+  if (plot.kind === 'line') {
+    const w = 560, h = 160, pad = 6;
+    const pts = items
+      .map((d, i) => [pad + (i / Math.max(items.length - 1, 1)) * (w - 2 * pad), h - pad - (d.value / max) * (h - 2 * pad)])
+      .map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`)
+      .join(' ');
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-40" preserveAspectRatio="none">
+        <polyline points={pts} fill="none" stroke="currentColor" strokeWidth="2" className="text-accent-cyan" />
+      </svg>
+    );
+  }
+
+  if (plot.kind === 'scatter') {
+    const w = 560, h = 160, pad = 8;
+    const pts = items.filter((d) => d.value > 0).map((d, i) => {
+      const x = pad + (i / Math.max(items.length - 1, 1)) * (w - 2 * pad);
+      const y = h - pad - (d.value / max) * (h - 2 * pad);
+      return `${x.toFixed(1)},${y.toFixed(1)}`;
+    });
+    return (
+      <svg viewBox={`0 0 ${w} ${h}`} className="w-full h-40" preserveAspectRatio="none">
+        {pts.map((p) => {
+          const [x, y] = p.split(',').map(Number);
+          return <circle key={p} cx={x} cy={y} r="3" fill="currentColor" className="text-accent-cyan" />;
+        })}
+      </svg>
+    );
+  }
+
+  return (
+    <div className="space-y-1.5">
+      {items.map((d, i) => (
+        <div key={i} className="flex items-center gap-2">
+          <span className="text-xs text-text-muted w-28 truncate text-right font-mono">{d.label}</span>
+          <div className="flex-1 h-4 rounded bg-surface-1 overflow-hidden">
+            <div
+              className={`h-full rounded ${barPalette[i % barPalette.length]}`}
+              style={{ width: `${Math.min(100, (d.value / max) * 100)}%` }}
+            />
+          </div>
+          <span className="text-xs text-text-secondary w-12 font-mono">{d.value}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function ArtifactDownloads({ artifacts }: { artifacts: ScientificArtifact[] }) {
+  const download = (a: ScientificArtifact) => {
+    if (a.content == null) return;
+    const mime = a.format === 'fasta' ? 'text/fasta' : a.format === 'vcf' ? 'text/vcf+x-vcf' : a.format === 'json' ? 'application/json' : a.format === 'tsv' ? 'text/tab-separated-values' : 'text/plain';
+    const el = document.createElement('a');
+    el.download = a.name;
+    el.href = `data:${mime};charset=utf-8,` + encodeURIComponent(a.content);
+    el.click();
+  };
+  return (
+    <div className="flex flex-wrap gap-2">
+      {artifacts.map((a) => (
+        <button
+          key={a.name}
+          onClick={() => download(a)}
+          disabled={a.content == null}
+          title={a.content == null ? 'Artifact too large to inline; see server job workspace' : `Download ${a.name}`}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+            a.content == null
+              ? 'bg-surface-1 text-text-muted opacity-60 cursor-not-allowed'
+              : 'bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 border-accent-cyan/20'
+          }`}
+        >
+          <FileText className="w-3.5 h-3.5" />
+          {a.name}
+        </button>
+      ))}
+    </div>
+  );
+}
 
 const DEFAULT_REFERENCES = [
   { id: 'sars-cov-2', name: 'Sars Cov 2' },
@@ -182,6 +270,17 @@ export default function SequencingPage() {
               subtitle={result.result?.consensus_sequence ? `Consensus sequence ready · ${result.result.reference ?? ''}` : 'All pipeline steps finished'}
             />
           )}
+          {result.result?.status === 'DEGRADED' && (
+            <div className="glass-card p-4 border border-warn/30">
+              <div className="flex items-start gap-2">
+                <AlertTriangle className="w-5 h-5 text-warn flex-shrink-0 mt-0.5" />
+                <div>
+                  <p className="text-sm font-medium text-warn">Degraded Result — no consensus was produced</p>
+                  <p className="text-xs text-text-secondary mt-1">{String(result.result.validation?.reason ?? result.result.validation?.no_consensus ?? 'Alignment engine unavailable.')}</p>
+                </div>
+              </div>
+            </div>
+          )}
             <div className="data-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div className="flex items-center gap-2">
@@ -329,6 +428,29 @@ export default function SequencingPage() {
             </div>
           )}
 
+          {result.result?.plots && result.result.plots.length > 0 && (
+            <div className="data-card p-5 space-y-4">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                <BarChart3 className="w-4 h-4 text-accent-cyan" /> Pipeline Plots
+              </h3>
+              {result.result.plots.map((plot) => (
+                <div key={plot.name} className="p-3 rounded-xl bg-surface-1">
+                  <p className="text-xs font-medium text-text-secondary mb-2">{plot.title ?? plot.name}</p>
+                  <PlotView plot={plot} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {result.result?.artifacts && result.result.artifacts.length > 0 && (
+            <div className="data-card p-5 space-y-3">
+              <h3 className="text-sm font-semibold text-text-primary flex items-center gap-2">
+                <FileText className="w-4 h-4 text-accent-cyan" /> Artifacts &amp; Downloads
+              </h3>
+              <ArtifactDownloads artifacts={result.result.artifacts} />
+            </div>
+          )}
+
           {result.result?.variants && result.result.variants.length > 0 && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3 flex items-center gap-2">
@@ -339,22 +461,30 @@ export default function SequencingPage() {
                   <thead>
                     <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
                       <th className="text-left py-2 pr-4">Pos</th>
+                      <th className="text-left py-2 pr-4">Type</th>
                       <th className="text-left py-2 pr-4">Ref</th>
                       <th className="text-left py-2 pr-4">Alt</th>
                       <th className="text-left py-2 pr-4">Depth</th>
                       <th className="text-left py-2 pr-4">Alt Count</th>
-                      <th className="text-left py-2">Frequency</th>
+                      <th className="text-left py-2 pr-4">Freq</th>
+                      <th className="text-left py-2">BaseQ / MapQ</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-glass-border">
                     {result.result.variants.map((v, i) => (
                       <tr key={i} className="text-text-primary">
                         <td className="py-2 pr-4 font-mono">{v.pos.toLocaleString()}</td>
+                        <td className="py-2 pr-4">
+                          <span className={`px-1.5 py-0.5 rounded text-[10px] font-medium ${
+                            v.type === 'DEL' ? 'bg-warn/10 text-warn' : 'bg-accent-violet/10 text-accent-violet'
+                          }`}>{v.type ?? 'SNV'}</span>
+                        </td>
                         <td className="py-2 pr-4 font-mono text-good">{v.ref}</td>
                         <td className="py-2 pr-4 font-mono text-accent-cyan">{v.alt}</td>
                         <td className="py-2 pr-4 font-mono">{v.depth}</td>
                         <td className="py-2 pr-4 font-mono">{v.alt_count}</td>
-                        <td className="py-2 font-mono text-warn">{(v.freq * 100).toFixed(1)}%</td>
+                        <td className="py-2 pr-4 font-mono text-warn">{(v.freq * 100).toFixed(1)}%</td>
+                        <td className="py-2 font-mono text-text-muted">{v.mean_base_quality ?? '—'} / {v.mean_mapq ?? '—'}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -389,7 +519,7 @@ export default function SequencingPage() {
             </div>
           )}
 
-          {result.result?.variants && result.result.variants.length === 0 && (
+          {result.result?.status !== 'DEGRADED' && result.result?.variants && result.result.variants.length === 0 && (
           <div className="data-card p-5">
               <div className="flex items-center gap-2 text-text-muted">
                 <CheckCircle className="w-4 h-4 text-good" />
@@ -402,7 +532,7 @@ export default function SequencingPage() {
             <div className="data-card p-4 space-y-3">
               {result.result?.consensus_sequence && (
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-text-muted">Consensus Sequence (SNVs applied)</span>
+                  <span className="text-xs text-text-muted">Consensus Sequence (IUPAC, deletions, N-masked low-coverage)</span>
                   <button
                     onClick={() => {
                       const a = document.createElement('a');

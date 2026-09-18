@@ -699,26 +699,31 @@ async def _run_ebi_blast_fallback(
     max_hits: int,
 ) -> dict | None:
     """Run BLAST against EBI (uncached) and return a canonical result, or None
-    if the database has no EBI equivalent or EBI itself fails."""
+    if the database has no EBI equivalent or EBI itself fails.
+
+    Comprehensive EBI databases (e.g. uniprotkb, mapped from NCBI "nr") often
+    exceed the 180s poll budget and NCBI's own queue is hours deep, so a failed
+    search against anything but the curated Swiss-Prot DB is retried once there
+    instead of failing the whole run. The requested database name is still
+    reported; the degradation is recorded on the result as `_degraded_from`.
+    """
     ebi_database = EBI_BLAST_DATABASE_MAP.get(database)
     if not ebi_database:
         logger.warning("No EBI database equivalent for '%s' — skipping fallback", database)
         return None
-    try:
-        result = await BlastTool().run_uncached({
-            "sequence": sequence,
-            "program": program,
-            "database": ebi_database,
-            "max_hits": max_hits,
-        })
-    except Exception as e:
-        logger.warning("EBI BLAST fallback failed: %s", e)
-        return None
+    result = await _run_ebi_once(sequence, program, ebi_database, max_hits)
+    degraded_from = None
+    if result.get("error") and ebi_database != "uniprotkb_swissprot":
+        logger.warning("EBI %s failed (%s) — retrying with uniprotkb_swissprot", ebi_database, result["error"])
+        retry = await _run_ebi_once(sequence, program, "uniprotkb_swissprot", max_hits)
+        if not retry.get("error") and retry.get("hits"):
+            result = retry
+            degraded_from = ebi_database
     if result.get("error") or not result.get("hits"):
         logger.warning("EBI BLAST fallback returned no hits: %s", result.get("error", "empty"))
         return None
     query_length = len("".join(sequence.replace("\n", "").replace(" ", "").split("-")))
-    return _build_blast_result(
+    payload = _build_blast_result(
         result["hits"],
         source="ebi",
         database=database,
@@ -727,6 +732,22 @@ async def _run_ebi_blast_fallback(
         query_accession="",
         query_length=query_length,
     )
+    if degraded_from:
+        payload["_degraded_from"] = degraded_from
+    return payload
+
+
+async def _run_ebi_once(sequence: str, program: str, database: str, max_hits: int) -> dict:
+    try:
+        return await BlastTool().run_uncached({
+            "sequence": sequence,
+            "program": program,
+            "database": database,
+            "max_hits": max_hits,
+        })
+    except Exception as e:
+        logger.warning("EBI BLAST failed (%s): %s", database, e)
+        return {"error": str(e)}
 
 
 async def _run_blast(

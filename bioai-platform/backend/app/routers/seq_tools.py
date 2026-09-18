@@ -53,6 +53,7 @@ class AnalyzeResponse(BaseModel):
     gc_content: float | None = None
     molecular_weight: float | None = None
     reverse_complement: str | None = None
+    transcription: str | None = None
     translation: TranslationFrames | None = None
     aa_composition: list[AaComposition] | None = None
     restriction_sites: list[RestrictionSite] | None = None

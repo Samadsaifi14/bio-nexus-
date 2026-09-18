@@ -31,6 +31,19 @@ SMALL_REFERENCE = "sars-cov-2"
 MAX_FASTQ_SIZE = 50 * 1024 * 1024
 REF_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "references")
 
+MIN_DEPTH = 3
+MIN_BASE_QUALITY = 20
+MIN_MAPPING_QUALITY = 20
+MIN_ALT_FREQUENCY = 0.5
+
+# IUPAC ambiguity codes for mixed-base consensus
+_IUPAC: dict[str, str] = {
+    frozenset("A"): "A", frozenset("C"): "C", frozenset("G"): "G", frozenset("T"): "T",
+    frozenset("AG"): "R", frozenset("CT"): "Y", frozenset("AC"): "M", frozenset("GT"): "K",
+    frozenset("CG"): "S", frozenset("AT"): "W", frozenset("CGT"): "B", frozenset("AGT"): "D",
+    frozenset("ACT"): "H", frozenset("ACG"): "V", frozenset("ACGT"): "N",
+}
+
 
 def _is_executable(path: str) -> bool:
     if not os.path.exists(path):
@@ -187,104 +200,312 @@ def _parse_fastq_quality(fastq_path: str) -> dict:
     }
 
 
-def _parse_sam_for_variants(sam_path: str, reference_seq: str) -> list[dict]:
+def _pileup_reads(sam_path: str, reference_seq: str) -> dict[str, Any]:
+    """Parse SAM into per-position pileup with depth, quality, MAPQ and strand counts.
+
+    Returns
+    -------
+    ref : str  — cleaned reference sequence
+    positions : dict[int, dict] — per-position pileup keyed by 0-based genome pos.
+      Each entry contains:
+        depth, ref_base, A/C/G/T/del/ins counts,
+        mean_base_quality, mean_mapq, forward_count, reverse_count,
+        base_qualities: dict[str, list[float]] (per-base qual distribution)
+    variants : list[dict] — candidates above MIN_ALT_FREQUENCY and MIN_DEPTH
+    """
     ref_lines = reference_seq.splitlines()
     ref = "".join(line.strip().upper() for line in ref_lines if not line.startswith(">"))
 
-    pileup: dict[int, dict[str, int]] = {}
-    depth_by_pos: dict[int, int] = {}
+    pileup: dict[int, dict[str, Any]] = {}
+
+    def _ensure(pos: int) -> dict[str, Any]:
+        if pos not in pileup:
+            pileup[pos] = {
+                "A": 0, "C": 0, "G": 0, "T": 0, "N": 0, "del": 0, "ins": 0,
+                "depth": 0,
+                "base_quals": {"A": [], "C": [], "G": [], "T": [], "N": []},
+                "mapqs": [],
+                "strand": {"+": 0, "-": 0},
+            }
+        return pileup[pos]
 
     with open(sam_path) as f:
         for line in f:
             if line.startswith("@"):
                 continue
             parts = line.strip().split("\t")
-            if len(parts) < 6:
+            if len(parts) < 11:
                 continue
             flag = int(parts[1])
             if flag & 4:
                 continue
-            pos = int(parts[3])
+            pos = int(parts[3]) - 1          # 0-based
+            mapq = int(parts[4])
             cigar = parts[5]
             seq = parts[9]
+            qual_str = parts[10]
+            reverse_strand = bool(flag & 16)
 
-            genome_pos = pos - 1
             ops = re.findall(r"(\d+)([MIDNSHPX=])", cigar)
-            offset = 0
-            for length, op in ops:
-                l = int(length)
+            ref_off = 0
+            seq_off = 0
+            for length_str, op in ops:
+                length = int(length_str)
                 if op == "M":
-                    for i in range(l):
-                        p = genome_pos + i
-                        if p < len(ref):
-                            base = seq[offset + i].upper() if offset + i < len(seq) else "N"
-                            if p not in pileup:
-                                pileup[p] = {"A": 0, "C": 0, "G": 0, "T": 0, "N": 0, "del": 0, "ins": 0}
-                            depth_by_pos[p] = depth_by_pos.get(p, 0) + 1
-                            if base in pileup[p]:
-                                pileup[p][base] += 1
-                            else:
-                                pileup[p]["N"] += 1
-                    offset += l
+                    for i in range(length):
+                        gpos = pos + ref_off + i
+                        soff = seq_off + i
+                        base = seq[soff].upper() if soff < len(seq) else "N"
+                        bq = ord(qual_str[soff]) - 33 if soff < len(qual_str) else 0
+                        rec = _ensure(gpos)
+                        rec["depth"] += 1
+                        rec["mapqs"].append(mapq)
+                        rec["strand"]["+" if not reverse_strand else "-"] += 1
+                        if base in ("A", "C", "G", "T"):
+                            rec[base] += 1
+                            rec["base_quals"][base].append(bq)
+                        else:
+                            rec["N"] += 1
+                            rec["base_quals"]["N"].append(bq)
+                    ref_off += length
+                    seq_off += length
                 elif op == "I":
-                    offset += l
+                    gpos = pos + ref_off
+                    _ensure(gpos)["ins"] += length
+                    seq_off += length
                 elif op == "D":
-                    for i in range(l):
-                        p = genome_pos + i
-                        if p not in pileup:
-                            pileup[p] = {"A": 0, "C": 0, "G": 0, "T": 0, "N": 0, "del": 0, "ins": 0}
-                        pileup[p]["del"] += 1
+                    for i in range(length):
+                        gpos = pos + ref_off + i
+                        rec = _ensure(gpos)
+                        rec["del"] += 1
+                        rec["depth"] += 1
+                    ref_off += length
                 elif op in ("S", "H"):
-                    if op == "S":
-                        offset += l
+                    seq_off += length
 
-    min_depth = 10
-    min_alt_freq = 0.5
     variants: list[dict] = []
-    for pos in sorted(pileup.keys()):
-        counts = pileup[pos]
-        depth = depth_by_pos.get(pos, sum(counts.values()) - counts.get("del", 0) - counts.get("ins", 0))
-        if depth < min_depth:
+    for gpos in sorted(pileup.keys()):
+        rec = pileup[gpos]
+        depth = rec["depth"]
+        if depth < MIN_DEPTH:
             continue
-        ref_base = ref[pos].upper() if pos < len(ref) else "N"
-        total = sum(counts.get(b, 0) for b in "ACGTN")
-        if total == 0:
+        ref_base = ref[gpos].upper() if gpos < len(ref) else "N"
+
+        del_freq = rec.get("del", 0) / max(depth, 1)
+        if del_freq >= MIN_ALT_FREQUENCY:
+            variants.append({
+                "pos": gpos + 1,
+                "ref": ref_base,
+                "alt": "*",
+                "type": "DEL",
+                "depth": depth,
+                "alt_count": rec.get("del", 0),
+                "freq": round(del_freq, 4),
+                "mean_base_quality": 0.0,
+                "mean_mapq": 0.0,
+                "strand_forward": rec["strand"]["+"],
+                "strand_reverse": rec["strand"]["-"],
+            })
             continue
+
+        total_alleles = sum(rec.get(b, 0) for b in "ACGTN")
+        if total_alleles == 0:
+            continue
+        mean_bq = round(
+            sum(sum(rec["base_quals"][b]) for b in "ACGTN") / max(total_alleles, 1), 1
+        )
+        mean_mapq = round(sum(rec["mapqs"]) / max(len(rec["mapqs"]), 1), 1)
+
         for base in "ACGT":
             if base == ref_base:
                 continue
-            alt_count = counts.get(base, 0)
-            freq = alt_count / total
-            if freq >= min_alt_freq:
+            alt_count = rec.get(base, 0)
+            if alt_count == 0:
+                continue
+            freq = alt_count / total_alleles
+            if freq >= MIN_ALT_FREQUENCY and mean_bq >= MIN_BASE_QUALITY and mean_mapq >= MIN_MAPPING_QUALITY:
                 variants.append({
-                    "pos": pos + 1, "ref": ref_base, "alt": base,
-                    "depth": depth, "alt_count": alt_count, "freq": round(freq, 4),
+                    "pos": gpos + 1,
+                    "ref": ref_base,
+                    "alt": base,
+                    "type": "SNV",
+                    "depth": depth,
+                    "alt_count": alt_count,
+                    "freq": round(freq, 4),
+                    "mean_base_quality": mean_bq,
+                    "mean_mapq": mean_mapq,
+                    "strand_forward": rec["strand"]["+"],
+                    "strand_reverse": rec["strand"]["-"],
                 })
 
     variants.sort(key=lambda v: -v["freq"])
-    return variants[:50]
+    return {"ref": ref, "positions": pileup, "variants": variants[:50]}
 
 
-def _build_consensus(reference_seq: str, variants: list[dict]) -> str:
-    """Build consensus from variants with depth >= 10 and freq >= 0.5."""
-    ref_lines = reference_seq.splitlines()
-    ref = "".join(line.strip().upper() for line in ref_lines if not line.startswith(">"))
-    seq = list(ref)
-    for v in variants:
-        pos = v.get("pos", 0) - 1
-        alt = v.get("alt", "")
-        depth = v.get("depth", 0)
-        freq = v.get("freq", 0)
-        if depth < 10 or freq < 0.5:
+def _iupac_base(ref_base: str, rec: dict[str, Any]) -> str:
+    """Return the consensus base using IUPAC ambiguity for mixed piles."""
+    present = {b for b in "ACGT" if rec.get(b, 0) > 0}
+    if not present:
+        return "N"
+    dominant = max(present, key=lambda b: rec.get(b, 0))
+    dominant_freq = rec[dominant] / max(rec["depth"], 1)
+    if dominant_freq >= MIN_ALT_FREQUENCY and rec["depth"] >= MIN_DEPTH:
+        return dominant
+    key = frozenset(present)
+    return _IUPAC.get(key, "N")
+
+
+def _build_consensus(reference_seq: str, pileup_data: dict[str, Any]) -> str:
+    """Build consensus with IUPAC ambiguous codes and N-masking.
+
+    Bases with no support or depth below ``MIN_DEPTH`` are masked ``N``.
+    Deletions above ``MIN_ALT_FREQUENCY`` remove the base from the consensus
+    (reference-relative).  Insertions are reported as variants/tallies but are
+    not inserted into the reference-relative consensus sequence.
+    """
+    ref = pileup_data["ref"]
+    positions = pileup_data["positions"]
+    seq = []
+    for i in range(len(ref)):
+        rec = positions.get(i)
+        if rec is None or rec["depth"] < MIN_DEPTH:
+            seq.append("N")
             continue
-        if 0 <= pos < len(seq) and len(alt) == 1:
-            seq[pos] = alt
+        del_freq = rec.get("del", 0) / max(rec["depth"], 1)
+        if del_freq >= MIN_ALT_FREQUENCY:
+            continue
+        seq.append(_iupac_base(ref[i], rec))
     return "".join(seq)
+
+
+# ---------------------------------------------------------------------------
+# Plot generators for the ScientificResult contract
+# ---------------------------------------------------------------------------
+
+def _plot_depth_vs_position(pileup_data: dict[str, Any]) -> dict[str, Any]:
+    positions = pileup_data["positions"]
+    data = [
+        {"pos": p + 1, "depth": rec["depth"]}
+        for p, rec in sorted(positions.items())
+    ]
+    return {
+        "name": "depth_vs_position",
+        "kind": "line",
+        "title": "Per-Position Depth",
+        "xlabel": "Reference Position",
+        "ylabel": "Read Depth",
+        "data": data,
+    }
+
+
+def _plot_base_quality_distribution(pileup_data: dict[str, Any]) -> dict[str, Any]:
+    all_quals: list[int] = []
+    for rec in pileup_data["positions"].values():
+        for quals in rec.get("base_quals", {}).values():
+            all_quals.extend(quals)
+    buckets: dict[int, int] = {}
+    for q in all_quals:
+        bucket = min(q, 40)
+        buckets[bucket] = buckets.get(bucket, 0) + 1
+    data = [{"quality": q, "count": buckets.get(q, 0)} for q in range(0, 41)]
+    return {
+        "name": "base_quality_distribution",
+        "kind": "histogram",
+        "title": "Base Quality Distribution",
+        "xlabel": "Phred Quality",
+        "ylabel": "Count",
+        "data": data,
+    }
+
+
+def _plot_allele_fraction(pileup_data: dict[str, Any]) -> dict[str, Any]:
+    data = []
+    for rec in pileup_data["variants"]:
+        data.append({
+            "pos": rec["pos"],
+            "ref": rec["ref"],
+            "alt": rec["alt"],
+            "alt_freq": rec["freq"],
+            "depth": rec["depth"],
+            "mean_base_quality": rec["mean_base_quality"],
+        })
+    return {
+        "name": "allele_fraction_vs_position",
+        "kind": "scatter",
+        "title": "Variant Allele Fraction vs Position",
+        "xlabel": "Position",
+        "ylabel": "Alternate Allele Frequency",
+        "data": data,
+    }
+
+
+def _plot_variant_summary(variants: list[dict]) -> dict[str, Any]:
+    transitions = {("A", "G"), ("G", "A"), ("C", "T"), ("T", "C")}
+    transversions = {("A", "C"), ("C", "A"), ("A", "T"), ("T", "A"),
+                     ("G", "C"), ("C", "G"), ("G", "T"), ("T", "G")}
+    snv_transitions = sum(
+        1 for v in variants
+        if v.get("type") == "SNV" and (v["ref"], v["alt"]) in transitions
+    )
+    snv_transversions = sum(
+        1 for v in variants
+        if v.get("type") == "SNV" and (v["ref"], v["alt"]) in transversions
+    )
+    del_count = sum(1 for v in variants if v.get("type") == "DEL")
+    ins_count = sum(1 for v in variants if v.get("type") == "INS")
+    return {
+        "name": "variant_type_summary",
+        "kind": "bar",
+        "title": "Variant Type Summary",
+        "data": [
+            {"type": "SNV Transition", "count": snv_transitions},
+            {"type": "SNV Transversion", "count": snv_transversions},
+            {"type": "Deletion", "count": del_count},
+            {"type": "Insertion", "count": ins_count},
+        ],
+    }
+
+
+# ---------------------------------------------------------------------------
+# Download artifact generators
+# ---------------------------------------------------------------------------
+
+def _generate_vcf(variants: list[dict], ref_name: str) -> str:
+    header = (
+        "##fileformat=VCFv4.2\n"
+        f"##source=bionexus-consensus\n"
+        f"##reference={ref_name}\n"
+        "##INFO=<ID=DP,Number=1,Type=Integer,Description=\"Total Depth\">\n"
+        "##INFO=<ID=AF,Number=A,Type=Float,Description=\"Allele Frequency\">\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
+    )
+    lines = [header.rstrip("\n")]
+    for v in variants:
+        info = f"DP={v['depth']};AF={v['freq']}"
+        lines.append(f"{ref_name}\t{v['pos']}\t.\t{v['ref']}\t{v['alt']}\t.\tPASS\t{info}")
+    return "\n".join(lines) + "\n"
+
+
+def _generate_depth_table(pileup_data: dict[str, Any], ref_name: str) -> str:
+    header = "reference\tposition\tdepth\tref_base\tA\tC\tG\tT\tN\tdel\tins\tmean_base_quality\tmean_mapq\tstrand_fwd\tstrand_rev"
+    lines = [header]
+    for p, rec in sorted(pileup_data["positions"].items()):
+        mean_bq = round(
+            sum(sum(rec["base_quals"][b]) for b in "ACGTN") / max(rec["depth"], 1), 1
+        ) if rec["depth"] > 0 else 0.0
+        mean_mapq = round(sum(rec["mapqs"]) / max(len(rec["mapqs"]), 1), 1) if rec["mapqs"] else 0.0
+        ref_base = pileup_data["ref"][p] if p < len(pileup_data["ref"]) else "N"
+        lines.append(
+            f"{ref_name}\t{p + 1}\t{rec['depth']}\t{ref_base}\t"
+            f"{rec['A']}\t{rec['C']}\t{rec['G']}\t{rec['T']}\t{rec['N']}\t{rec['del']}\t{rec['ins']}\t"
+            f"{mean_bq}\t{mean_mapq}\t{rec['strand']['+']}\t{rec['strand']['-']}"
+        )
+    return "\n".join(lines) + "\n"
 
 
 def _generate_report(qc: dict, variants: list[dict], ref_name: str) -> dict:
     total_variants = len(variants)
-    snv_count = sum(1 for v in variants if len(v["ref"]) == 1 and len(v["alt"]) == 1)
+    snv_count = sum(1 for v in variants if v.get("type") == "SNV")
     avg_depth = round(sum(v["depth"] for v in variants) / total_variants, 1) if total_variants else 0
     return {
         "reference": ref_name,
@@ -339,15 +560,42 @@ async def _download_reference(ref_name: str, dest_dir: str | None = None) -> str
     return fa_path
 
 
+def _contract_failure(error: str, step: str) -> dict:
+    """Contract-shaped FAILED result for error paths outside the happy flow."""
+    from app.scientific.contract import ScientificStatus, build_result
+
+    return {**build_result(
+        status=ScientificStatus.FAILED,
+        method="consensus-sequencing",
+        engine="none",
+        results={"error": error},
+        validation={"failed_step": step},
+    ).to_dict(), "error": error, "step": step}
+
+
 class SequencingPipeline(BaseTool):
     name = "sequencing"
 
     async def run(self, input: dict) -> dict:
+        from app.scientific.contract import (
+            EvidenceClass,
+            ScientificStatus,
+            build_result,
+            canonical_json,
+            sha256_hex,
+        )
+
         fastq_url = input.get("fastq_url", "").strip()
         reference = input.get("reference", SMALL_REFERENCE).strip().lower()
 
         if not fastq_url:
-            return {"error": "fastq_url is required"}
+            return {**build_result(
+                status=ScientificStatus.FAILED,
+                method="consensus-sequencing",
+                engine="input-validation",
+                results={"error": "fastq_url is required"},
+                validation={"failed_step": "input"},
+            ).to_dict(), "error": "fastq_url is required"}
 
         tmpdir = tempfile.mkdtemp(prefix="seqpipe_")
         try:
@@ -375,11 +623,24 @@ class SequencingPipeline(BaseTool):
                     with open(fastq_path, "w") as f:
                         f.write(fastq_data)
 
+            with open(fastq_path, "rb") as f:
+                fastq_bytes = f.read()
+            input_sha256 = sha256_hex(ref_content.encode("utf-8") + fastq_bytes)
+
             qc = _parse_fastq_quality(fastq_path)
             if "error" in qc:
-                return {"error": qc["error"], "step": "qc"}
+                return {**build_result(
+                    status=ScientificStatus.FAILED,
+                    method="consensus-sequencing",
+                    engine="fastq-qc",
+                    input_sha256=input_sha256,
+                    results={"error": qc["error"]},
+                    validation={"failed_step": "qc"},
+                ).to_dict(), "error": qc["error"], "step": "qc"}
 
             sam_path = os.path.join(tmpdir, "aln.sam")
+            aln_stats = None
+            mm2_version = None
             try:
                 mm2_path = await asyncio.wait_for(_ensure_minimap2(), timeout=120)
                 minimap2_proc = await asyncio.create_subprocess_exec(
@@ -393,11 +654,36 @@ class SequencingPipeline(BaseTool):
                 except asyncio.TimeoutError:
                     minimap2_proc.kill()
                     await minimap2_proc.communicate()
-                    return {"error": "Alignment timed out after 5 minutes", "step": "align"}
+                    return {**build_result(
+                        status=ScientificStatus.FAILED,
+                        method="minimap2-alignment",
+                        engine="minimap2",
+                        input_sha256=input_sha256,
+                        results={"error": "Alignment timed out after 5 minutes"},
+                        validation={"failed_step": "align"},
+                    ).to_dict(), "error": "Alignment timed out after 5 minutes", "step": "align"}
 
                 if minimap2_proc.returncode != 0 or not os.path.exists(sam_path):
                     err = mm_stderr.decode("utf-8", errors="replace")[:500] if mm_stderr else ""
-                    return {"error": f"minimap2 failed (exit {minimap2_proc.returncode}): {err}", "step": "align"}
+                    return {**build_result(
+                        status=ScientificStatus.FAILED,
+                        method="minimap2-alignment",
+                        engine="minimap2",
+                        engine_version=mm2_version,
+                        input_sha256=input_sha256,
+                        results={"error": f"minimap2 failed (exit {minimap2_proc.returncode}): {err}"},
+                        validation={"failed_step": "align"},
+                    ).to_dict(), "error": f"minimap2 failed (exit {minimap2_proc.returncode}): {err}", "step": "align"}
+
+                try:
+                    import subprocess
+                    r = subprocess.run(
+                        [mm2_path, "-V"], capture_output=True, timeout=30, text=True
+                    )
+                    candidate = (r.stdout or r.stderr or "").strip().splitlines()
+                    mm2_version = candidate[0].strip() if candidate else mm2_version
+                except Exception:
+                    pass
 
                 aln_stats = {"mapped_reads": 0, "unmapped_reads": 0, "total_alignments": 0}
                 with open(sam_path) as f:
@@ -413,43 +699,138 @@ class SequencingPipeline(BaseTool):
                             else:
                                 aln_stats["mapped_reads"] += 1
             except (FileNotFoundError, OSError) as e:
-                logger.warning(f"minimap2 unavailable ({e}), using Python fallback")
+                logger.warning(f"minimap2 unavailable ({e}), pipeline degrades")
                 aln_stats = _fallback_alignment(fastq_path, ref_path, sam_path)
 
-            variants = _parse_sam_for_variants(sam_path, ref_content)
-            report = _generate_report(qc, variants, reference)
-            consensus = _build_consensus(ref_content, variants)
+            if aln_stats.get("degraded_mode"):
+                warning = aln_stats.get(
+                    "degradation_warning",
+                    "Alignment engine unavailable — pipeline cannot produce a real consensus.",
+                )
+                return {**build_result(
+                    status=ScientificStatus.DEGRADED,
+                    method="consensus-sequencing",
+                    engine="none",
+                    input_sha256=input_sha256,
+                    fallback_used=True,
+                    fallback_method="unmapped read-count fallback (not an aligner)",
+                    results={"qc": qc, "alignment": aln_stats},
+                    evidence_class=EvidenceClass.HEURISTIC.value,
+                    validation={
+                        "no_consensus": True,
+                        "reason": warning,
+                        "hard_stop_before_consensus": True,
+                    },
+                    citations=[],
+                ).to_dict(), "error": warning, "step": "align", "degraded_mode": True, "qc": qc}
 
-            result = {
+            pileup_data = _pileup_reads(sam_path, ref_content)
+            variants = pileup_data["variants"]
+            consensus = _build_consensus(ref_content, pileup_data)
+            report = _generate_report(qc, variants, reference)
+
+            consensus_fasta = f">{reference} consensus\n{consensus}\n"
+            vcf_text = _generate_vcf(variants, reference)
+            depth_table = _generate_depth_table(pileup_data, reference)
+            provenance = {
+                "tool": "consensus-sequencing",
                 "reference": reference,
                 "fastq_source": fastq_source,
-                "qc": qc,
+                "input_sha256": input_sha256,
+                "engine": "minimap2",
+                "engine_version": mm2_version,
+                "minimap2_path": MINIMAP2_PATH,
+                "consensus_settings": {
+                    "min_depth": MIN_DEPTH,
+                    "min_base_quality": MIN_BASE_QUALITY,
+                    "min_mapping_quality": MIN_MAPPING_QUALITY,
+                    "min_alt_frequency": MIN_ALT_FREQUENCY,
+                    "iupac_ambiguity_codes": True,
+                    "low_coverage_n_mask": True,
+                },
                 "alignment": aln_stats,
-                "variants": variants[:20],
-                "report": report,
-                "consensus_sequence": f">{reference} consensus (SNVs applied)\n{consensus}",
-                "steps_completed": ["qc", "align", "variants", "report"],
             }
 
-            # AI interpretation (best-effort, never blocks)
+            sam_content = None
+            if os.path.exists(sam_path) and os.path.getsize(sam_path) <= 4 * 1024 * 1024:
+                with open(sam_path, "r") as f:
+                    sam_content = f.read()
+
+            plots = [
+                _plot_depth_vs_position(pileup_data),
+                _plot_base_quality_distribution(pileup_data),
+                _plot_allele_fraction(pileup_data),
+                _plot_variant_summary(variants),
+            ]
+
+            artifacts = [
+                {"name": "qc.json", "kind": "fastq_qc", "format": "json", "content": canonical_json(qc)},
+                {"name": "consensus.fa", "kind": "consensus_fasta", "format": "fasta", "content": consensus_fasta},
+                {"name": "variants.vcf", "kind": "vcf", "format": "vcf", "content": vcf_text},
+                {"name": "depth.tsv", "kind": "depth_table", "format": "tsv", "content": depth_table},
+                {"name": "provenance.json", "kind": "provenance", "format": "json", "content": canonical_json(provenance)},
+            ]
+            if sam_content is not None:
+                artifacts.append({"name": "aln.sam", "kind": "sam", "format": "sam", "content": sam_content})
+            else:
+                artifacts.append({"name": "aln.sam", "kind": "sam", "format": "sam", "content": None})
+
+            result = build_result(
+                status=ScientificStatus.VALID,
+                method="minimap2 alignment → variant calling → consensus building",
+                engine="minimap2",
+                engine_version=mm2_version,
+                database=reference,
+                parameters={
+                    "reference": reference,
+                    "fastq_source": fastq_source,
+                    "min_depth": MIN_DEPTH,
+                    "min_base_quality": MIN_BASE_QUALITY,
+                    "min_mapping_quality": MIN_MAPPING_QUALITY,
+                    "min_alt_frequency": MIN_ALT_FREQUENCY,
+                },
+                input_sha256=input_sha256,
+                results={
+                    "reference": reference,
+                    "fastq_source": fastq_source,
+                    "qc": qc,
+                    "alignment": aln_stats,
+                    "variants": variants[:20],
+                    "report": report,
+                    "consensus_sequence": consensus_fasta,
+                    "consensus_length": len(consensus),
+                    "steps_completed": ["qc", "align", "pileup", "variants", "consensus", "report"],
+                },
+                plots=plots,
+                artifacts=artifacts,
+                evidence_class=EvidenceClass.DETERMINISTIC.value,
+                validation={
+                    "output_sha256_note": "output_sha256 covers the emitted payload; per-artifact digests available in provenance",
+                    "input_is_synthetic": synthetic or fastq_source == "synthetic",
+                },
+            )
+
+            # AI interpretation (best-effort, never blocks) — only after the
+            # scientific result is finalized, never between computation and payload.
             try:
                 from app.ai.tool_interpreter import interpret_tool_result
-                ai_interp = await interpret_tool_result("sequencing", result)
+                ai_interp = await interpret_tool_result("sequencing", result.to_dict())
                 if ai_interp:
-                    result["ai_interpretation"] = ai_interp
+                    result.results["ai_interpretation"] = ai_interp
+                    result.output_sha256 = result.compute_output_sha256()
             except Exception:
                 pass
 
-            return result
+            return result.to_dict()
 
         except ValueError as e:
-            return {"error": str(e)}
+            return _contract_failure(str(e), "input")
         except httpx.HTTPStatusError as e:
-            return {"error": f"Download failed (HTTP {e.response.status_code})"}
+            return _contract_failure(f"Download failed (HTTP {e.response.status_code})", "download")
         except asyncio.TimeoutError:
-            return {"error": "Pipeline timed out"}
+            return _contract_failure("Pipeline timed out", "timeout")
         except Exception as e:
             logger.exception("Sequencing pipeline failed")
-            return {"error": f"Pipeline failed: {e}"}
+            return _contract_failure(f"Pipeline failed: {e}", "pipeline")
         finally:
             shutil.rmtree(tmpdir, ignore_errors=True)

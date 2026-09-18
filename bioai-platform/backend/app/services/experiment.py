@@ -240,30 +240,102 @@ def audit_event(experiment_id: str, event_type: str, payload: dict | None = None
         logger.warning("Experiment audit event degraded (%s/%s): %s", experiment_id, event_type, exc)
 
 
-def finalize_experiment(job_id: str, status: str, error: str | None = None, output: Any | None = None) -> None:
+#: Fields every provenance node must populate before an experiment may be
+#: treated as publication-ready. Absence of any of these blocks the gate.
+_MANDATORY_PROVENANCE_FIELDS = ("tool", "database_version", "completed_at")
+
+
+#: Steps that are always expected to carry full provenance in a publication-mode
+#: experiment. A step may legitimately be skipped/failed at runtime, but if it
+#: reports success it must be complete.
+def publication_readiness(experiment: dict, provenance: list[dict]) -> dict:
+    """Validate that a completed experiment is publication-ready.
+
+    Returns a report with ``ready`` and per-node findings. ``ready`` is False
+    when any successful provenance node is missing a mandatory field, when the
+    experiment lacks a git/container identity, or when the input checksum or a
+    terminal timestamp is absent. This is the MATRIX 26 publication-mode gate.
+    """
+    findings: list[dict] = []
+    mandatory = _MANDATORY_PROVENANCE_FIELDS
+
+    def _degrade(node_id: str, missing: list[str]) -> None:
+        findings.append({"node": node_id, "level": "error",
+                         "detail": f"mandatory provenance field(s) missing: {', '.join(missing)}"})
+
+    if not isinstance(provenance, list):
+        findings.append({"node": "*", "level": "error",
+                         "detail": "no provenance graph recorded"})
+    else:
+        for node in provenance:
+            if node.get("status") not in (None, "complete"):
+                continue  # failed/skipped steps are not held to the same bar
+            missing = [field for field in mandatory if not node.get(field)]
+            if missing:
+                _degrade(node.get("node_id") or node.get("id") or "?", missing)
+
+    if not experiment:
+        findings.append({"node": "*", "level": "error", "detail": "experiment record missing"})
+    else:
+        if not experiment.get("git_commit") and not experiment.get("container_hash"):
+            findings.append({"node": "*", "level": "error",
+                             "detail": "no git_commit or container_hash identity recorded"})
+        if not experiment.get("input_hash"):
+            findings.append({"node": "*", "level": "warn",
+                             "detail": "input checksum not recorded"})
+        if not experiment.get("finished_at"):
+            findings.append({"node": "*", "level": "warn",
+                             "detail": "no finished_at timestamp; finalize first"})
+
+    errors = [f for f in findings if f["level"] == "error"]
+    return {
+        "ready": not errors,
+        "errors": errors,
+        "warnings": [f for f in findings if f["level"] == "warn"],
+        "examined_nodes": len(provenance) if isinstance(provenance, list) else 0,
+        "schema": "bionexus-publication-readiness/v1",
+    }
+
+
+def finalize_experiment(job_id: str, status: str, error: str | None = None, output: Any | None = None,
+                        *, publication_mode: bool = False) -> dict | None:
     """Finalize without mutating the original fingerprint.
 
     The canonical SHA-256 of the final structured output is recorded whenever
     an output is supplied.  This lets users prove that two exported results are
     byte-semantically identical even when formatting differs.
+
+    When ``publication_mode`` is True, the MATRIX 26 gate runs against the
+    provenance graph; a blocking report is returned (and the experiment is still
+    finalized, but marked ``release_blocked`` so downstream publication cannot
+    claim readiness silently).
     """
     exp = _find_experiment(job_id)
     if not exp:
-        return
+        return None
+    report = None
     try:
         payload: dict[str, Any] = {"status": status, "finished_at": utc_now()}
         if error:
             payload["error"] = error
         if output is not None:
             payload["output_hash"] = sha256_json(output)
+        if publication_mode:
+            provenance = provenance_for_experiment(exp["experiment_id"])
+            report = publication_readiness(exp, provenance)
+            payload["publication_readiness"] = report
+            payload["release_blocked"] = not report["ready"]
         get_supabase().table("experiments").update(payload).eq("id", exp["id"]).execute()
         audit_event(exp["experiment_id"], "experiment.finalized", {
             "status": status,
             "output_hash": payload.get("output_hash"),
             "has_error": bool(error),
+            "publication_mode": publication_mode,
+            "ready_to_publish": None if report is None else report["ready"],
         })
     except Exception as exc:
         logger.warning("Experiment finalize failed (job %s): %s", job_id, exc)
+    return report
 
 
 def provenance_for_experiment(experiment_id: str) -> list[dict]:

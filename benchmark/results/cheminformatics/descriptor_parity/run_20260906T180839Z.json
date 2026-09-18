@@ -1,0 +1,26 @@
+{
+  "schema": "bionexus-benchmark-run/v1",
+  "domain": "cheminformatics",
+  "benchmark": "descriptor_parity",
+  "fixture": "diverse_rdkit_parity_v1",
+  "timestamp": "2026-09-06T18:08:39+00:00",
+  "live_environments": {
+    "python": "3.11.15",
+    "rdkit": "2022.09.5"
+  },
+  "reference_pin": {
+    "rdkit": "2022.09.5"
+  },
+  "version_drift_detected": false,
+  "n_molecules": 157,
+  "n_compared": 149,
+  "n_matched": 149,
+  "state_permille_exact_match": 1000,
+  "parse_permille": 1000,
+  "acceptance": {
+    "state_permille_exact_match": 1000,
+    "parse_permille": 1000
+  },
+  "passed": true,
+  "failures": []
+}

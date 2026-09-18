@@ -1,0 +1,137 @@
+{
+  "schema": "bionexus-benchmark-run/v1",
+  "domain": "ai",
+  "benchmark": "adversarial_evidence_integrity",
+  "fixture": "evidence_adversarial_v1",
+  "timestamp": "2026-09-06T18:02:20+00:00",
+  "live_environments": {
+    "python": "3.11.15"
+  },
+  "cases_total": 11,
+  "reject_cases_passed": 8,
+  "gap_cases_tracked": 3,
+  "passed": true,
+  "failures": [],
+  "cases": [
+    {
+      "id": "EV-GAP-001",
+      "name": "Numeric fabrication",
+      "category": "fabricated_number",
+      "expectation": "reject",
+      "validation_valid": true,
+      "validation_failed_checks": [],
+      "rejected_claim_count": 2,
+      "rejected_with_expected_reason": true
+    },
+    {
+      "id": "EV-GAP-002",
+      "name": "Fabricated accession",
+      "category": "unverifiable_reference",
+      "expectation": "reject",
+      "validation_valid": true,
+      "validation_failed_checks": [],
+      "rejected_claim_count": 1,
+      "rejected_with_expected_reason": true
+    },
+    {
+      "id": "EV-GAP-003",
+      "name": "Reversed quantitative interpretation",
+      "category": "reversal",
+      "expectation": "reject",
+      "validation_valid": true,
+      "validation_failed_checks": [],
+      "rejected_claim_count": 1,
+      "rejected_with_expected_reason": true
+    },
+    {
+      "id": "EV-STRUCT-001",
+      "name": "Dangling evidence reference",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "validation_valid": false,
+      "validation_failed_checks": [
+        "graph_reference"
+      ],
+      "rejected_claim_count": 0,
+      "rejected_by_expected_check": true
+    },
+    {
+      "id": "EV-STRUCT-002",
+      "name": "Invalid confidence tier",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "validation_valid": false,
+      "validation_failed_checks": [
+        "claim_fields"
+      ],
+      "rejected_claim_count": 0,
+      "rejected_by_expected_check": true
+    },
+    {
+      "id": "EV-STRUCT-003",
+      "name": "Missing evidence and missing rejection flag",
+      "category": "unsupported",
+      "expectation": "reject",
+      "validation_valid": false,
+      "validation_failed_checks": [
+        "honest_claims"
+      ],
+      "rejected_claim_count": 0,
+      "rejected_by_expected_check": true
+    },
+    {
+      "id": "EV-STRUCT-004",
+      "name": "Source without identity fields",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "validation_valid": false,
+      "validation_failed_checks": [
+        "source_fields"
+      ],
+      "rejected_claim_count": 0,
+      "rejected_by_expected_check": true
+    },
+    {
+      "id": "EV-STRUCT-005",
+      "name": "Empty graph",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "validation_valid": false,
+      "validation_failed_checks": [
+        "graph_nonempty"
+      ],
+      "rejected_claim_count": 0,
+      "rejected_by_expected_check": true
+    },
+    {
+      "id": "EV-SEM-001",
+      "name": "Qualitative overclaim (structured engine limitation)",
+      "category": "semantic_entailment",
+      "expectation": "gap",
+      "validation_valid": true,
+      "validation_failed_checks": [],
+      "rejected_claim_count": 1,
+      "gap": "recorded \u2014 semantic liability; requires external entailment audit"
+    },
+    {
+      "id": "EV-SEM-002",
+      "name": "Keyword coincidence mislink",
+      "category": "semantic_entailment",
+      "expectation": "gap",
+      "validation_valid": true,
+      "validation_failed_checks": [],
+      "rejected_claim_count": 1,
+      "gap": "recorded \u2014 semantic liability; requires external entailment audit"
+    },
+    {
+      "id": "EV-SEM-003",
+      "name": "Sources fabricated but structurally consistent",
+      "category": "semantic_entailment",
+      "expectation": "gap",
+      "validation_valid": true,
+      "validation_failed_checks": [],
+      "rejected_claim_count": 0,
+      "gap": "recorded \u2014 semantic liability; requires external entailment audit"
+    }
+  ]
+}

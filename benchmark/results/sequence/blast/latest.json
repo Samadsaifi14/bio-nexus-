@@ -1,0 +1,17 @@
+{
+  "benchmark": "bionexus-blast-accession-recovery/v1",
+  "status": "not_executed",
+  "reason": "requires_external",
+  "missing": [
+    "uniprot_network",
+    "ebi_blast"
+  ],
+  "queries_planned": 8,
+  "success_criteria": {
+    "min_queries": 6,
+    "recovery_threshold_frac": 0.8,
+    "max_recovery_rank": 5,
+    "essential_required": true
+  },
+  "recorded": "2026-09-19"
+}

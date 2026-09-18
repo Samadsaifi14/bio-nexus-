@@ -1,0 +1,42 @@
+{
+  "schema": "bionexus-structure-prep-e2e/v1",
+  "description": "Raw-input -> cleaned structure -> chain-health report -> pocket detection, run end to end through the production code path (app.tools.structure_prep) on real PDB entries with predeclared assertions.",
+  "fetch": {
+    "origin": "https://files.rcsb.org/download (SSRF-safe RCSB_DOWNLOAD in app.tools.structure_prep)",
+    "network_required": true,
+    "timeout_seconds": 30
+  },
+  "entries": [
+    {
+      "id": 1,
+      "pdb": "1STP",
+      "note": "Streptavidin co-crystal (biotin); pocket-bearing control.",
+      "expect_pocket": true
+    },
+    {
+      "id": 2,
+      "pdb": "4HHB",
+      "note": "Hemoglobin (large oligomer); non-pocket control.",
+      "expect_pocket": false
+    },
+    {
+      "id": 3,
+      "pdb": "1CRN",
+      "note": "Crambin (tiny, 46 residues); fast minimal case.",
+      "expect_pocket": false
+    }
+  ],
+  "predeclared_assertions": {
+    "chain_health_total_residues_gt_zero": "every entry reports total_residues > 0",
+    "cleanup_keeps_protein": "cleaned output is non-empty and contains ATOM records",
+    "cleanup_removes_hetatm_waters": "cleaned output contains no HETATM or water lines",
+    "pocket_detection_runs_complete": "fpocket returns status 'complete' for every entry",
+    "pocket_expected_found": "entries flagged expect_pocket=true report >=1 pocket; others only require complete status"
+  },
+  "limitations": [
+    "Requires outbound network (RCSB fetch) and the fpocket binary installed in the runtime image.",
+    "Pocket 'found' means fpocket reported at least one pocket for the cleaned structure; the number of pockets is not asserted as a distribution (no overfitting to fpocket internals).",
+    "PyMOL cleanup uses pymol2 wheel when importable, else the Biopython stripping fallback; the fallback path is logged loudly and recorded per entry.",
+    "Live run blocked while Docker daemon is down locally (fpocket binary unavailable); the runner records requires_external and never fabricates a pass."
+  ]
+}

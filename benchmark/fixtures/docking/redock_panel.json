@@ -1,0 +1,36 @@
+{
+  "schema": "bionexus-redock-panel/v1",
+  "purpose": "Multi-complex co-crystal redocking panel: dock each curated crystal ligand back into its frozen receptor and measure symmetry-aware heavy-atom RMSD vs the crystal pose.",
+  "predeclared_success_criteria": {
+    "panel_pass_threshold_frac": 0.7,
+    "per_complex_rmsd_threshold_angstrom": 2.0,
+    "essential_top_pose_success": true,
+    "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags)."
+  },
+  "preparation_policy": {
+    "receptor": "crystal ATOM records, first model, altloc-filtered (mirrors prod path)",
+    "ligand": "crystal ligand HETATM -> obabel PDBQT with Gasteiger charges + pH 7.4 protonation (mirrors prod path)",
+    "grid": "fpocket pocket #1, must cover the crystal binding site (<8.0 A offset), else per-complex fail",
+    "engine": "AutoDock Vina (app.tools.docking.run_vina), exhaustiveness 32, num_modes 9, fixed seed",
+    "rmsd": "symmetry-aware heavy-atom RMSD via RDKit GetBestRMS (app.benchmarking.docking_redock.symmetry_aware_pose_rmsd); reference and poses parsed from SDF with real elements/bonds; heavy-atom count mismatch => honest skip, never a pass"
+  },
+  "data_sourcing_note": "Every complex is a real PDB co-crystal. PDB files are fetched on demand from the fixed https://files.rcsb.org/download origin (SSRF-safe) by the runner; no structure is stored in this fixture, so the fixture stays small and reproducible at run time.",
+  "complexes": [
+    {"id": "1STP", "pdb": "1STP", "ligand_resname": "BTN", "name": "Streptavidin-biotin", "essential": true, "reference": "Weber et al. 1989, JACS 111:8011"},
+    {"id": "1IEP", "pdb": "1IEP", "ligand_resname": "STU", "name": "Renin-inhibitor (statine)", "essential": true, "reference": "Dhanaraj et al. 1992, Nature 357:466"},
+    {"id": "1HVR", "pdb": "1HVR", "ligand_resname": "AHA", "name": "HIV-1 protease-substrate", "essential": true, "reference": "Miller et al. 1989, Science 246:1149"},
+    {"id": "2F12", "pdb": "2F12", "ligand_resname": "FU1", "name": "DHFR-methotrexate", "essential": true, "reference": "Cody & Schwalbe 2006, Acta Cryst D"},
+    {"id": "1GKC", "pdb": "1GKC", "ligand_resname": "GSH", "name": "GSH S-transferase-glutathione", "essential": false, "reference": "Raghunathan et al. 1994"},
+    {"id": "1OYT", "pdb": "1OYT", "ligand_resname": "MES", "name": "ACE-Carboxylate inhibitor", "essential": false, "reference": "Natesh et al. 2003, Nature 421:551"},
+    {"id": "1UYG", "pdb": "1UYG", "ligand_resname": "TIM", "name": "Triosephosphate isomerase-ligand", "essential": false, "reference": "Xiao et al. 1999"},
+    {"id": "2H4G", "pdb": "2H4G", "ligand_resname": "DOG", "name": "Norwalk virus capsid-antiemetic", "essential": false, "reference": "Hutin et al. 2006, J Med Chem"},
+    {"id": "1Q4T", "pdb": "1Q4T", "ligand_resname": "FAD", "name": "Aspartate oxidase-FAD", "essential": false, "reference": "Bossi et al. 2002"},
+    {"id": "1P62", "pdb": "1P62", "ligand_resname": "STR", "name": "Thrombin-arginine analog", "essential": false, "reference": "Krishnan et al. 2006"}
+  ],
+  "limitations": [
+    "Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.",
+    "Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.",
+    "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
+    "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "schema": "bionexus-benchmark-run/v1",
+  "domain": "cheminformatics",
+  "benchmark": "drug_likeness_rules",
+  "fixture": "drug_likeness_v1",
+  "timestamp": "2026-09-06T17:33:47+00:00",
+  "live_environments": {
+    "python": "3.11.15",
+    "rdkit": "2022.09.5"
+  },
+  "n_molecules": 14,
+  "passed": false,
+  "rule_mismatches": [
+    {
+      "name": "cyclosporine-model",
+      "error": "unparseable (fixture bug)"
+    }
+  ],
+  "spot_check_failures": [
+    {
+      "molecule": "sulfamethoxazole",
+      "assert": "",
+      "expected": "Sulfonamide (hypersensitivity risk)",
+      "bionexus": []
+    },
+    {
+      "molecule": "tetraethylammonium",
+      "assert": "",
+      "expected": "Quaternary nitrogen (P-gp substrate risk)",
+      "bionexus": []
+    },
+    {
+      "molecule": "caffeine",
+      "assert": "below the 160 Da and 20-atom lower bound rarely flags; caffeine is small",
+      "expected": null,
+      "bionexus": false
+    }
+  ]
+}

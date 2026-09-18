@@ -1,0 +1,81 @@
+{
+  "schema": "bionexus-blast-accession-recovery/v1",
+  "description": "Multi-query protein accession-recovery benchmark: canonical Swiss-Prot sequences are fetched from UniProt (sequence recorded tamper-evidently), then each is BLASTed through the production BlastTool against uniprotkb_swissprot with identical settings; the benchmark passes when a predeclared fraction of queries recover one of their curated expected accessions within the top hits.",
+  "program_settings": {
+    "program": "blastp",
+    "database": "uniprotkb_swissprot",
+    "max_hits_requested": 50,
+    "source": "EBI BLAST (BlastTool production code path, app.tools.blast)"
+  },
+  "predeclared_success_criteria": {
+    "min_queries": 6,
+    "recovery_threshold_frac": 0.8,
+    "max_recovery_rank": 5,
+    "essential_required": true
+  },
+  "queries": [
+    {
+      "id": "HUMAN_ALBUMIN",
+      "protein": "Human serum albumin",
+      "expected_accessions": ["P02768"],
+      "note": "high-copy serum protein; Swiss-Prot canonical entry",
+      "essential": true
+    },
+    {
+      "id": "HUMAN_HBA1",
+      "protein": "Human hemoglobin subunit alpha",
+      "expected_accessions": ["P69905"],
+      "note": "conserved globin; unambiguous Swiss-Prot top hit",
+      "essential": false
+    },
+    {
+      "id": "HUMAN_HBB",
+      "protein": "Human hemoglobin subunit beta",
+      "expected_accessions": ["P68871"],
+      "note": "conserved globin; unambiguous Swiss-Prot top hit",
+      "essential": false
+    },
+    {
+      "id": "HUMAN_LYSOZYME_C",
+      "protein": "Human lysozyme C",
+      "expected_accessions": ["P61626"],
+      "note": "small single-domain antimicrobial enzyme",
+      "essential": false
+    },
+    {
+      "id": "HUMAN_ACTB",
+      "protein": "Human cytoplasmic actin-1 (beta-actin)",
+      "expected_accessions": ["P60709"],
+      "note": "highly conserved across species; top hit expected",
+      "essential": false
+    },
+    {
+      "id": "HUMAN_TP53",
+      "protein": "Human cellular tumor antigen p53",
+      "expected_accessions": ["P04637"],
+      "note": "canonical Swiss-Prot entry P04637 (primary, not the P0DTP2 isoform)",
+      "essential": true
+    },
+    {
+      "id": "HUMAN_INSULIN",
+      "protein": "Human proinsulin",
+      "expected_accessions": ["P01308"],
+      "note": "small secreted prohormone",
+      "essential": false
+    },
+    {
+      "id": "ECOLI_OMPF",
+      "protein": "Escherichia coli outer membrane porin F",
+      "expected_accessions": ["P02931"],
+      "note": "bacterial outer-membrane beta-barrel",
+      "essential": false
+    }
+  ],
+  "limitations": [
+    "Live EBI/UniProt access required; results vary with EBI Swiss-Prot release, so exact FBP per-query ranks are not pinned (release is not frozen).",
+    "Recovery means one of the curated expected accessions appears among the top max_recovery_rank hits; close orthologs may occupy rank 1 (e.g. same protein from another species).",
+    "p53 Human (TP53) is Swiss-Prot entry P04637; isoform variants map to P0DTP2/P04637-2 and would not be the primary entry, hence the essential control uses the canonical form.",
+    "Runner records query sequences + sha256 in the run record so the exact inputs of a published run are tamper-evident.",
+    "When EBI or UniProt is unreachable the runner records requires_external and never fabricates a pass."
+  ]
+}

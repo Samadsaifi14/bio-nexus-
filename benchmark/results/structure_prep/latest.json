@@ -1,0 +1,17 @@
+{
+  "benchmark": "bionexus-structure-prep-e2e/v1",
+  "status": "not_executed",
+  "reason": "requires_external",
+  "missing": [
+    "rcsb_network"
+  ],
+  "entries_planned": 3,
+  "success_criteria": {
+    "chain_health_total_residues_gt_zero": "every entry reports total_residues > 0",
+    "cleanup_keeps_protein": "cleaned output is non-empty and contains ATOM records",
+    "cleanup_removes_hetatm_waters": "cleaned output contains no HETATM or water lines",
+    "pocket_detection_runs_complete": "fpocket returns status 'complete' for every entry",
+    "pocket_expected_found": "entries flagged expect_pocket=true report >=1 pocket; others only require complete status"
+  },
+  "recorded": "2026-09-19"
+}

@@ -1,0 +1,18 @@
+{
+  "benchmark": "bionexus-redock-panel/v1",
+  "status": "not_executed",
+  "reason": "requires_external",
+  "missing_tools": [
+    "vina",
+    "obabel",
+    "fpocket"
+  ],
+  "panels_planned": 10,
+  "success_criteria": {
+    "panel_pass_threshold_frac": 0.7,
+    "per_complex_rmsd_threshold_angstrom": 2.0,
+    "essential_top_pose_success": true,
+    "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags)."
+  },
+  "recorded": "2026-09-19"
+}

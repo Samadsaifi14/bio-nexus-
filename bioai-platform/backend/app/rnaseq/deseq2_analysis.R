@@ -218,6 +218,8 @@ size_factor_library_correlation <- suppressWarnings(cor(
   method = "pearson"
 ))
 if (!is.finite(size_factor_library_correlation)) size_factor_library_correlation <- NA_real_
+design_audit$size_factor_library_correlation <- size_factor_library_correlation
+write(toJSON(design_audit, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "design_audit.json"))
 
 size_factor_df <- data.frame(sample = names(size_factors), size_factor = as.numeric(size_factors), row.names = NULL)
 write.table(size_factor_df, file.path(outdir, "size_factors.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)

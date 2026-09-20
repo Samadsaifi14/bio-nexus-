@@ -1,5 +1,5 @@
 """
-Parse NCBI BLAST XML output into structured hit list.
+Parse NCBI BLAST XML output into a structured hit list.
 
 Raw XML is always stored to R2 first; parsing happens from
 the stored copy, never inline with the API request.
@@ -7,26 +7,11 @@ the stored copy, never inline with the API request.
 
 import re
 import xml.etree.ElementTree as ET
-from typing import List, Optional
+from typing import Optional
 
 
 def _strip_ncbi_preamble(raw_xml: str) -> str:
-    """
-    NCBI's URL API prepends a non-XML info block (and sometimes blank
-    lines / whitespace) before the real <?xml ...?> declaration, e.g.:
-
-        <!--QBlastInfoBegin
-            Status=READY
-        QBlastInfoEnd
-        -->
-
-        <?xml version="1.0"?>
-        <BlastOutput>...
-
-    The XML declaration must be the first thing in the document, so we
-    trim everything before the first '<?xml' or, failing that, the
-    first '<BlastOutput' tag.
-    """
+    """Strip QBLAST status text that may precede the XML document."""
     match = re.search(r"<\?xml|<BlastOutput", raw_xml)
     if match:
         return raw_xml[match.start():]
@@ -40,16 +25,21 @@ def parse_blast_xml(raw_xml: str) -> dict:
     except ET.ParseError as e:
         return {"error": f"XML parse error: {e}", "hits": []}
 
-    ns = {"": "http://www.ncbi.nlm.nih.gov"}
     query_len_el = root.find(".//BlastOutput_query-len")
-    query_len = int(query_len_el.text) if query_len_el is not None else 0
+    try:
+        query_len = int(query_len_el.text) if query_len_el is not None and query_len_el.text else 0
+    except (TypeError, ValueError):
+        query_len = 0
 
     hits = []
-    for iteration in root.findall(".//Iteration"):
-        for hit_el in iteration.findall(".//Hit"):
-            hit = _parse_hit(hit_el)
-            if hit is not None:
-                hits.append(hit)
+    try:
+        for iteration in root.findall(".//Iteration"):
+            for hit_el in iteration.findall(".//Hit"):
+                hit = _parse_hit(hit_el)
+                if hit is not None:
+                    hits.append(hit)
+    except (TypeError, ValueError) as e:
+        return {"error": f"BLAST XML contained an invalid numeric field: {e}", "hits": []}
 
     return {
         "query_length": query_len,
@@ -73,11 +63,18 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
 
     organism = ""
     if "[" in description and "]" in description:
-        organism = description.split("[")[-1].rstrip("]")
-        description = description.split("[")[0].strip()
+        organism = description.rsplit("[", 1)[-1].rstrip("]")
+        description = description.rsplit("[", 1)[0].strip()
 
-    hsps = hit_el.findall(".//Hsp")
-    top_hsp = _parse_hsp(hsps[0]) if hsps else None
+    # NCBI normally emits HSPs in score order, but the parser should not depend
+    # on that transport ordering.  Select the best HSP explicitly so the values
+    # shown for a hit are the strongest recorded local alignment.
+    parsed_hsps = [_parse_hsp(hsp) for hsp in hit_el.findall(".//Hsp")]
+    top_hsp = max(
+        parsed_hsps,
+        key=lambda h: (h["bit_score"], h["score"], -h["evalue"]),
+        default=None,
+    )
 
     return {
         "accession": accession,
@@ -101,6 +98,7 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
         "query_alignment": top_hsp.get("query_alignment", "") if top_hsp else "",
         "hit_alignment": top_hsp.get("hit_alignment", "") if top_hsp else "",
         "midline": top_hsp.get("midline", "") if top_hsp else "",
+        "hsp_count": len(parsed_hsps),
     }
 
 

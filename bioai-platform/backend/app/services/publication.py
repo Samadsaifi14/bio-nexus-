@@ -90,6 +90,9 @@ def section_snapshot(context: dict) -> dict:
             "structure_available": bool(alphafold.get("structure_available")),
             "confidence": alphafold.get("confidence"),
             "pdb_url": _pretty(alphafold.get("pdb_url")),
+            "source": alphafold.get("source"),
+            "structure_type": alphafold.get("structure_type"),
+            "pdb_id": alphafold.get("pdb_id"),
         },
     }
     return snap
@@ -102,10 +105,14 @@ def render_paper(context: dict | None, job_id: str = "unknown") -> dict:
 
     seen: set[str] = set()
     references: list[str] = []
-    for key in ("blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment", "alphafold"):
+    for key in ("blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment"):
         cite = _cite(key, seen)
         if cite:
             references.append(cite)
+    structure_key = "pdb" if snap["alphafold"].get("source") == "rcsb_pdb" else "alphafold"
+    cite = _cite(structure_key, seen)
+    if cite:
+        references.append(cite)
 
     title = snap["toplevel"]["title"] or f"BioNexus experiment {job_id}"
     snap["toplevel"]["title"] = title
@@ -195,8 +202,18 @@ def _render_results(snap: dict) -> list[str]:
     if p.get("top"):
         rows.append(f"Reactome enrichment returned {p['count']} pathways (lead: {p['top']}).")
     a = snap["alphafold"]
-    rows.append(f"Structural coverage: AlphaFold {'available' if a['structure_available'] else 'unavailable'} "
-                f"(confidence {a['confidence'] or 'n/a'}).")
+    if a["structure_available"]:
+        if a.get("source") == "rcsb_pdb":
+            label = f"experimental RCSB PDB structure {a.get('pdb_id') or ''}".strip()
+            rows.append(f"Structural coverage: {label} available.")
+        elif a.get("source") == "esmfold":
+            rows.append(f"Structural coverage: ESMFold prediction available "
+                        f"(mean pLDDT/confidence {a['confidence'] or 'n/a'}).")
+        else:
+            rows.append(f"Structural coverage: AlphaFold DB model available "
+                        f"(confidence {a['confidence'] or 'n/a'}).")
+    else:
+        rows.append("Structural coverage: no usable structure was returned.")
     return rows
 
 

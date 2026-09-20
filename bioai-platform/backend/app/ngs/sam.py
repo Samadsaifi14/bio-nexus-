@@ -58,6 +58,7 @@ def parse_sam(path: str) -> Iterator[dict]:
                 "tlen": int(parts[8]),
                 "seq": parts[9],
                 "qual": parts[10],
+                "is_paired": is_flag(flag, FLAG_READ_PAIRED),
                 "is_secondary": is_flag(flag, FLAG_SECONDARY),
                 "is_supplementary": is_flag(flag, FLAG_SUPPLEMENTARY),
                 "is_unmapped": is_flag(flag, FLAG_READ_UNMAPPED),
@@ -97,22 +98,27 @@ def align_read_exact(
     seed_len: int = 12,
     min_len: int = 20,
 ) -> Optional[dict]:
-    """Map a read to a reference by exact k-mer seeding + full match extension.
+    """Map a read by exact seed-and-extend for preview/testing only.
 
-    Returns a raw alignment dict (without SAM flag attributes) or None.
-    Only returns alignments that consume >= min_len reference bases (rough, demo/validation).
+    The surrogate mapper is deliberately conservative about mapping confidence:
+    if two or more reference positions achieve the same best exact extension,
+    MAPQ is reported as 0 rather than pretending the placement is unique.  A
+    unique best placement is assigned MAPQ 60 as a *surrogate uniqueness
+    indicator*, not as a calibrated probability from BWA/STAR/minimap2.
     """
     read = read.upper()
     ref_seq = ref_seq.upper()
     if len(read) < seed_len:
         return None
+
     seed = read[:seed_len]
-    best = None
+    best_score = 0
+    best_positions: list[int] = []
     idx = ref_seq.find(seed, start)
     while idx != -1:
         consumed = 0
         rpos = idx
-        for i, base in enumerate(read):
+        for base in read:
             if rpos >= len(ref_seq):
                 break
             if ref_seq[rpos] == base or ref_seq[rpos] == "N":
@@ -120,10 +126,27 @@ def align_read_exact(
                 rpos += 1
             else:
                 break
-        if consumed >= min_len and (best is None or consumed > best["match_bases"]):
-            best = {"pos": idx + 1, "match_bases": consumed, "mapq": 60}
+
+        if consumed >= min_len:
+            if consumed > best_score:
+                best_score = consumed
+                best_positions = [idx + 1]
+            elif consumed == best_score:
+                best_positions.append(idx + 1)
         idx = ref_seq.find(seed, idx + 1)
-    return best
+
+    if not best_positions:
+        return None
+
+    candidate_count = len(best_positions)
+    return {
+        "pos": best_positions[0],
+        "match_bases": best_score,
+        "mapq": 60 if candidate_count == 1 else 0,
+        "candidate_count": candidate_count,
+        "ambiguous": candidate_count > 1,
+        "mapq_semantics": "surrogate exact-match uniqueness indicator; not calibrated production MAPQ",
+    }
 
 
 def map_reads(
@@ -141,16 +164,18 @@ def map_reads(
             records.append({
                 "qname": qname, "flag": 4, "rname": "*", "pos": 0, "mapq": 0,
                 "cigar": "*", "rnext": "*", "pnext": 0, "tlen": 0, "seq": seq, "qual": qual,
-                "is_unmapped": True, "is_proper_pair": False, "is_secondary": False,
+                "is_paired": False, "is_unmapped": True, "is_proper_pair": False, "is_secondary": False,
                 "is_supplementary": False, "is_duplicate": False,
                 "is_first_in_pair": False, "is_second_in_pair": False, "mate_unmapped": False,
+                "mapping_candidates": 0,
             })
         else:
             records.append({
                 "qname": qname, "flag": 0, "rname": ref_name, "pos": hit["pos"], "mapq": hit["mapq"],
                 "cigar": f"{hit['match_bases']}M", "rnext": "*", "pnext": 0, "tlen": 0,
-                "seq": seq, "qual": qual, "is_unmapped": False, "is_proper_pair": True,
-                "is_secondary": False, "is_supplementary": False, "is_duplicate": False,
-                "is_first_in_pair": False, "is_second_in_pair": False, "mate_unmapped": False,
+                "seq": seq, "qual": qual, "is_paired": False, "is_unmapped": False,
+                "is_proper_pair": False, "is_secondary": False, "is_supplementary": False,
+                "is_duplicate": False, "is_first_in_pair": False, "is_second_in_pair": False,
+                "mate_unmapped": False, "mapping_candidates": hit["candidate_count"],
             })
     return records

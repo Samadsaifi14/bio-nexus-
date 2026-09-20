@@ -16,10 +16,7 @@ router = APIRouter()
 class AlignRequest(BaseModel):
     sequence: str = Field(..., min_length=1, description="Two or more sequences in FASTA format")
     stype: str = Field("protein", description="Sequence type: protein or dna")
-    method: str = Field(
-        "clustalo",
-        description="MSA method: clustalo, muscle, kalign, mafft, or tcoffee",
-    )
+    method: str = Field("clustalo", description="MSA method: clustalo, muscle, kalign, mafft, or tcoffee")
 
 
 class PairwiseAlignRequest(BaseModel):
@@ -27,34 +24,33 @@ class PairwiseAlignRequest(BaseModel):
     subject_sequence: str = Field("", description="Full subject sequence (overrides hit_accession)")
     query_sequence: str = Field("", description="Full query sequence (overrides query_accession)")
     query_accession: str = Field("", description="Query accession; used when query_sequence is empty")
-    mode: str = Field("global", description="global (Needleman-Wunsch, default) or local (Smith-Waterman)")
-    matrix: str = Field("blosum62", description="blosum62 (default) or pam250")
+    mode: str = Field("global", description="global (Needleman-Wunsch) or local (Smith-Waterman)")
+    matrix: str = Field("blosum62", description="blosum62 or pam250")
     open_gap_score: float = Field(-10, description="Gap-open penalty")
     extend_gap_score: float = Field(-1, description="Gap-extension penalty")
-    source: str = Field("auto", description="auto|ncbi|uniprot — where to fetch sequences")
+    source: str = Field("auto", description="auto|ncbi|uniprot")
 
 
 def _strip_fasta_header(seq: str) -> str:
-    """Return the sequence body of a raw or FASTA-formatted sequence (no header letters)."""
     lines = (seq or "").strip().splitlines()
-    lines = [ln for ln in lines if not ln.strip().startswith(">")]
+    lines = [line for line in lines if not line.strip().startswith(">")]
     return "\n".join(lines)
 
 
 class PairwiseAlignResponse(BaseModel):
     mode: str
     matrix: str
-    gap_open: float = Field(default=0.0, description="Gap-open penalty used")
-    gap_extend: float = Field(default=0.0, description="Gap-extension penalty used")
+    open_gap_score: float
+    extend_gap_score: float
     score: float
     aligned_query: str
     aligned_hit: str
     alignment_length: int
     identity: int
     pct_identity: float
-    mismatches: int = 0
-    similarity: int = 0
-    pct_similarity: float = 0.0
+    similarity: int
+    pct_similarity: float
+    mismatches: int
     gaps_total: int
     gap_positions: list[dict[str, Any]]
     query_start: int
@@ -86,16 +82,10 @@ async def run_pairwise(req: PairwiseAlignRequest):
     hit_source = ""
     if not hit_seq:
         if not req.hit_accession:
-            raise HTTPException(
-                status_code=400,
-                detail="Provide a subject_sequence or hit_accession",
-            )
+            raise HTTPException(status_code=400, detail="Provide a subject_sequence or hit_accession")
         hit = await fetch_sequence_by_accession(req.hit_accession, req.source)
         if "error" in hit:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Could not fetch subject sequence for {req.hit_accession}: {hit['error']}",
-            )
+            raise HTTPException(status_code=400, detail=f"Could not fetch subject sequence for {req.hit_accession}: {hit['error']}")
         hit_seq = hit["sequence"]
         hit_source = hit.get("source", "")
 
@@ -108,8 +98,8 @@ async def run_pairwise(req: PairwiseAlignRequest):
             open_gap_score=req.open_gap_score,
             extend_gap_score=req.extend_gap_score,
         )
-    except PairwiseAlignError as e:
-        raise HTTPException(status_code=400, detail=str(e))
+    except PairwiseAlignError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
 
     result["hit_source"] = hit_source
     return result
@@ -118,10 +108,7 @@ async def run_pairwise(req: PairwiseAlignRequest):
 @router.post("/run")
 async def run_alignment(req: AlignRequest):
     if req.method not in EBI_TOOLS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"method must be one of: {', '.join(sorted(EBI_TOOLS))}",
-        )
+        raise HTTPException(status_code=400, detail=f"method must be one of: {', '.join(sorted(EBI_TOOLS))}")
     email = settings.NCBI_EMAIL or "bioflow@example.com"
 
     try:
@@ -131,11 +118,9 @@ async def run_alignment(req: AlignRequest):
             stype=req.stype,
             email=email,
         )
-    except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
+    except ValueError as exc:
+        raise HTTPException(status_code=502, detail=str(exc))
 
-    from app.tools.alignment_stats import alignment_stats, parse_aligned_fasta
-    from app.scientific.contract import sha256_hex
     response = {
         "job_id": result["job_id"],
         "aln_fasta": result["aln_fasta"],
@@ -143,14 +128,8 @@ async def run_alignment(req: AlignRequest):
         "phylotree": result["phylotree"],
         "stype": req.stype,
         "method": result["method"],
-        "engine": "EBI",
-        "engine_version": "remote (service-managed)",
-        "input_sha256": sha256_hex(req.sequence),
-        "output_sha256": sha256_hex(result["aln_fasta"] or ""),
-        "msa_stats": alignment_stats(parse_aligned_fasta(result["aln_fasta"] or "")),
     }
 
-    # AI interpretation (best-effort, never blocks)
     try:
         from app.ai.tool_interpreter import interpret_tool_result
         ai_interp = await interpret_tool_result("alignment", response)
@@ -158,5 +137,4 @@ async def run_alignment(req: AlignRequest):
             response["ai_interpretation"] = ai_interp
     except Exception:
         pass
-
     return response

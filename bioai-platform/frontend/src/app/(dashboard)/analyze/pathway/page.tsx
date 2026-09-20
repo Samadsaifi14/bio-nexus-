@@ -11,7 +11,7 @@ import { useAuditTrail } from '@/hooks/useAuditTrail';
 import PathwayDiagram from '@/components/results/PathwayDiagram';
 import { BackButton, PageHeader, ClaySegmented, CriticalButton, FlatInput, FlatTextarea } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
-import { consumeParam } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
 
@@ -32,10 +32,15 @@ export default function PathwayPage() {
   const audit = useAuditTrail();
 
   useEffect(() => {
-    const stored = consumeParam('pathway_query');
-    if (stored) {
-      setQuery(stored);
-    }
+    const handoff = getAnalysisHandoff();
+    const stored = consumeParam('pathway_query') || handoff?.geneName || handoff?.resolvedAccession || null;
+    if (stored) setQuery(stored);
+
+    const identifiers = (handoff?.pathwayIdentifiers || [
+      handoff?.geneName,
+      handoff?.resolvedAccession,
+    ]).filter((value): value is string => Boolean(value));
+    if (identifiers.length > 0) setGeneInput(Array.from(new Set(identifiers)).join('\n'));
   }, []);
 
   const handleSearch = useCallback(async () => {

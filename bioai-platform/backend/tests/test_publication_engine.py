@@ -56,6 +56,24 @@ def test_render_paper_figures_from_experiment():
     assert "exp-x" in paper["figures"][0]["source"]
 
 
+def test_publication_uses_pdb_citation_for_experimental_structure():
+    context = dict(P53)
+    context["alphafold"] = {
+        "structure_available": True,
+        "source": "rcsb_pdb",
+        "structure_type": "experimental",
+        "pdb_id": "1TUP",
+        "pdb_url": "https://files.rcsb.org/download/1TUP.pdb",
+        "confidence": None,
+    }
+    paper = render_paper(context, "exp-pdb")
+    joined_refs = " ".join(paper["references"])
+    joined_results = " ".join(paper["results"])
+    assert "Protein Data Bank" in joined_refs
+    assert "experimental RCSB PDB structure 1TUP available" in joined_results
+    assert "AlphaFold" not in joined_results
+
+
 def test_render_paper_empty_context_degrades():
     paper = render_paper(None, "empty")
     assert paper["title"]

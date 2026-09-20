@@ -8,6 +8,7 @@ import { UniprotPanel } from "./UniprotPanel";
 import { MSAResultPanel } from "@/components/alignment/MSAResultPanel";
 import { SmoothLoader } from "@/components/ui/SmoothLoader";
 import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
+import { AlphaFoldViewer } from "@/components/AlphaFoldViewer";
 import { AIInterpretation } from "./AIInterpretation";
 import { apiUrl } from "@/lib/api";
 import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
@@ -18,6 +19,8 @@ const STEP_META: Record<string, { label: string; icon: string }> = {
   msa:      { label: "Multiple Alignment", icon: "🧬" },
   phylo:    { label: "Phylogenetic Tree",   icon: "🌳" },
   domains:  { label: "Domain Architecture", icon: "🔗" },
+  pathway_enrichment: { label: "Pathway Enrichment", icon: "🧭" },
+  alphafold: { label: "Structure", icon: "🧊" },
   interpret:{ label: "AI Interpretation",   icon: "🤖" },
 };
 
@@ -155,7 +158,12 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
       {steps.includes("phylo") && data.steps?.phylo?.status === "complete" && data.steps.phylo.data?.phylotree_newick && (
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-2">Phylogenetic Tree</h3>
-          <PhyloTreeViewer newick={data.steps.phylo.data.phylotree_newick} />
+          <PhyloTreeViewer
+            newick={data.steps.phylo.data.phylotree_newick}
+            method={String(data.steps.phylo.data.method ?? '').startsWith('upgma') ? 'upgma' : undefined}
+            alignment={data.steps.msa?.data?.aln_fasta ?? undefined}
+            sequenceType={data.steps.blast?.data?.query_sequence_type === 'dna' ? 'dna' : 'protein'}
+          />
         </motion.div>
       )}
 
@@ -163,6 +171,28 @@ export function PipelineResults({ jobId, steps: enabledSteps, onComplete }: Pipe
         <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4">
           <h3 className="text-sm font-semibold text-text-primary mb-2">Domain Architecture</h3>
           <DomainSummary data={data.steps.domains.data} />
+        </motion.div>
+      )}
+
+      {steps.includes("alphafold") && data.steps?.alphafold?.status === "complete" && data.steps.alphafold.data?.structure_available && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }}>
+          <AlphaFoldViewer
+            pdbUrl={data.steps.alphafold.data.pdb_url}
+            pdbData={data.steps.alphafold.data.pdb_text}
+            uniprotId={data.steps.alphafold.data.uniprot_accession}
+            source={data.steps.alphafold.data.source}
+            structureType={data.steps.alphafold.data.structure_type}
+            pdbId={data.steps.alphafold.data.pdb_id}
+          />
+        </motion.div>
+      )}
+
+      {steps.includes("alphafold") && data.steps?.alphafold?.status === "failed" && (
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="data-card p-4 border border-warn/30 bg-warn/5">
+          <h3 className="text-sm font-semibold text-text-primary">Structure unavailable</h3>
+          <p className="mt-1 text-xs text-text-muted">
+            {data.steps.alphafold.data?.message || data.steps.alphafold.error || 'No AlphaFold, experimental PDB, or query-sequence prediction was available.'}
+          </p>
         </motion.div>
       )}
 

@@ -23,8 +23,10 @@ import {
   type RnaSeqExpressionResult,
 } from '@/lib/rnaseqExpressionApi';
 
-function number(value: number, digits = 2) {
-  return Number.isFinite(value) ? value.toLocaleString(undefined, { maximumFractionDigits: digits }) : '—';
+function number(value: number | null | undefined, digits = 2) {
+  return value !== null && value !== undefined && Number.isFinite(value)
+    ? value.toLocaleString(undefined, { maximumFractionDigits: digits })
+    : '—';
 }
 
 function artifact(result: RnaSeqExpressionResult | null, name: string) {
@@ -105,7 +107,7 @@ export function RnaSeqExpressionWorkspace() {
   const [referenceLevel, setReferenceLevel] = useState('healthy');
   const [testLevel, setTestLevel] = useState('SALS');
   const [covariates, setCovariates] = useState('');
-  const [minSamples, setMinSamples] = useState(2);
+  const [minSamples, setMinSamples] = useState(0);
   const [lfcThreshold, setLfcThreshold] = useState(1);
   const [running, setRunning] = useState<'demo' | 'upload' | null>(null);
   const [result, setResult] = useState<RnaSeqExpressionResult | null>(null);
@@ -199,10 +201,10 @@ export function RnaSeqExpressionWorkspace() {
             <label className="text-[10px] text-text-muted">Reference<input value={referenceLevel} onChange={e => setReferenceLevel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
             <label className="text-[10px] text-text-muted">Test level<input value={testLevel} onChange={e => setTestLevel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
             <label className="text-[10px] text-text-muted">Covariates<input placeholder="batch,sex" value={covariates} onChange={e => setCovariates(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
-            <label className="text-[10px] text-text-muted">Min samples<input type="number" min={1} value={minSamples} onChange={e => setMinSamples(Math.max(1, Number(e.target.value)))} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
+            <label className="text-[10px] text-text-muted">Min samples (0 = auto)<input type="number" min={0} value={minSamples} onChange={e => setMinSamples(Math.max(0, Number(e.target.value)))} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
             <label className="text-[10px] text-text-muted">|log2FC|<input type="number" min={0} step={0.1} value={lfcThreshold} onChange={e => setLfcThreshold(Math.max(0, Number(e.target.value)))} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
           </div>
-          <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-[10px] leading-4 text-text-muted">DESeq2 input is always raw counts. PCA/sample distances use blind VST for QC before inference. The condition term is placed last after any declared covariates.</p><CriticalButton disabled={!counts || !metadata || Boolean(running)} onClick={runUpload} className="px-4 py-2 text-xs disabled:opacity-40">{running === 'upload' ? <CircleNotch className="animate-spin" /> : <ChartScatter />} {running === 'upload' ? 'Running R…' : 'Run uploaded matrix'}</CriticalButton></div>
+          <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-[10px] leading-4 text-text-muted">DESeq2 input is always raw counts. A min-samples value of 0 uses the smaller comparison group for pre-filtering. Before fitting, BioNexus checks replication, explicit experimental units, recorded technical confounders and model-matrix rank. PCA/sample distances then use blind VST for QC before inference.</p><CriticalButton disabled={!counts || !metadata || Boolean(running)} onClick={runUpload} className="px-4 py-2 text-xs disabled:opacity-40">{running === 'upload' ? <CircleNotch className="animate-spin" /> : <ChartScatter />} {running === 'upload' ? 'Running R…' : 'Run uploaded matrix'}</CriticalButton></div>
         </div>
       </div>
 
@@ -228,6 +230,35 @@ export function RnaSeqExpressionWorkspace() {
             <Metric label="Contrast" value={`${summary.test_level} vs ${summary.reference_level}`} />
             <Metric label="Size factors" value={`${number(summary.size_factor_min, 3)}–${number(summary.size_factor_max, 3)}`} />
             <Metric label="Threshold" value={`padj<${summary.alpha}, |LFC|>${summary.lfc_threshold}`} note={`LFC shrinkage: ${summary.lfc_shrinkage}`} />
+          </div>
+
+          <div className="rounded-xl border border-glass-border bg-surface-0 p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-mono text-[10px] uppercase tracking-[0.12em] text-accent-cyan">Experimental-design gate</p>
+                <h3 className="mt-1 text-sm font-semibold text-text-primary">Replication, confounding and model identifiability</h3>
+                <p className="mt-1 text-[11px] leading-5 text-text-muted">This gate is evaluated before DESeq2 fitting. Technical repeats are not counted as biological replication merely because they occupy separate matrix columns.</p>
+              </div>
+              <span className={`rounded border px-2.5 py-1 font-mono text-[10px] ${summary.design_full_rank === true ? 'border-good/25 bg-good/5 text-good' : summary.design_full_rank === false ? 'border-error/25 bg-error/10 text-error' : 'border-glass-border bg-surface-1 text-text-muted'}`}>
+                {summary.design_full_rank === true ? 'FULL RANK' : summary.design_full_rank === false ? 'NOT FULL RANK' : 'NOT EVALUATED'}
+              </span>
+            </div>
+            <div className="mt-4 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
+              <Metric label="Compared samples" value={Object.entries(summary.replicate_counts ?? {}).map(([group, n]) => `${group}: ${n}`).join(' · ') || '—'} />
+              <Metric label="Design rank" value={summary.design_rank === undefined ? '—' : `${summary.design_rank}/${summary.design_columns}`} />
+              <Metric label="Library-size spread" value={summary.library_size_fold_range === undefined ? '—' : `${number(summary.library_size_fold_range, 2)}×`} />
+              <Metric label="Size-factor vs library r" value={number(summary.size_factor_library_correlation, 3)} note="A value below 1 can reflect composition correction." />
+              <Metric label="Experimental units" value={summary.experimental_unit_status ?? 'NOT_DECLARED'} />
+            </div>
+            <div className="mt-3 rounded-lg border border-glass-border bg-surface-1 p-3 text-[10px] leading-5 text-text-muted">
+              Recorded technical variables: {(summary.technical_covariates_detected ?? []).join(', ') || 'none declared'}.
+              {(summary.technical_covariates_in_model ?? []).length > 0 && <> Modelled: {(summary.technical_covariates_in_model ?? []).join(', ')}.</>}
+            </div>
+            {(summary.design_warnings ?? []).length > 0 && (
+              <div className="mt-3 rounded-lg border border-warn/25 bg-warn/5 p-3 text-[10px] leading-5 text-warn">
+                {(summary.design_warnings ?? []).join(' ')}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4">

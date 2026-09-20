@@ -10,7 +10,7 @@ import { extractErrorMessage } from "@/lib/errors";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { BackButton, CriticalButton, FlatInput, FlatTextarea, PageHeader } from "@/components/ui";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
-import { consumeParam, setPrefill } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff, setPrefill } from '@/lib/cross-link';
 
 const EXAMPLE_ACCESSIONS = [
   { id: "P04637", label: "TP53", desc: "Tumor suppressor p53" },
@@ -31,10 +31,15 @@ export default function DomainsPage() {
   const audit = useAuditTrail();
 
   useEffect(() => {
-    const stored = consumeParam("domains_accession");
+    const handoff = getAnalysisHandoff();
+    const stored = consumeParam("domains_accession") || handoff?.resolvedAccession || null;
     if (stored) {
-      setAccession(stored.toUpperCase());
+      const normalized = stored.toUpperCase();
+      setAccession(normalized);
+      setSubmitted(normalized);
     }
+    const carriedSequence = handoff?.resolvedSequence || handoff?.querySequence || "";
+    if (carriedSequence) setScanSeq(carriedSequence);
   }, []);
 
   const handleSubmit = () => {

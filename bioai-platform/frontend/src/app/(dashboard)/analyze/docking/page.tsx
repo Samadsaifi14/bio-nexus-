@@ -12,7 +12,7 @@ import { StructureExportMenu } from '@/components/StructureExportMenu';
 import { InteractionPanel } from '@/components/InteractionPanel';
 import { BackButton, CriticalButton, FlatInput, PageHeader, ResultsReadyBanner } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
-import { consumeParam } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 import { downloadText } from '@/lib/export-utils';
 
 const PDB_EXAMPLES = ['1TIM', '4HHB', '1A42', '2XAB'];
@@ -192,7 +192,8 @@ export default function DockingPage() {
   const [gridCenter, setGridCenter] = useState<number[] | null>(null);
 
   useEffect(() => {
-    const storedPdb = consumeParam('docking_pdb_id');
+    const handoff = getAnalysisHandoff();
+    const storedPdb = consumeParam('docking_pdb_id') || handoff?.pdbId || null;
     const storedSmiles = consumeParam('docking_smiles');
     const storedCentroid = consumeParam('docking_centroid');
     if (storedPdb && !pdbId) setPdbId(storedPdb);

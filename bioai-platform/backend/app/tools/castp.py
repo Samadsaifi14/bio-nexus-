@@ -1,18 +1,18 @@
-"""Pocket/cavity analysis — uses fpocket (real tool) with Biopython SASA fallback.
+"""Pocket/cavity analysis with method-specific provenance.
 
-Priority chain:
-1. fpocket local binary (installed in Docker) — produces druggability scores,
-   volumes, areas, and residue lists per pocket.
-2. Biopython ShrakeRupley SASA + KDTree clustering — lightweight fallback
-   when fpocket is unavailable.
-
-Both produce the same output contract so callers don't need to change.
+CASTp, fpocket and the BioNexus SASA/geometric heuristic are deliberately
+separate methods. No method silently substitutes values into another method's
+label or fields.
 """
 
+from __future__ import annotations
+
 import asyncio
+import io
 import logging
 import math
 import re
+import shutil
 import subprocess
 import tempfile
 from pathlib import Path
@@ -21,596 +21,496 @@ from typing import Any
 import httpx
 
 logger = logging.getLogger(__name__)
-
-CASTPFOLD_BASE = "https://cfold.bme.uic.edu/castpfold"
-FPOCKET_BIN: str = "/usr/local/bin/fpocket"
+FPOCKET_BIN = "/usr/local/bin/fpocket"
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+class PocketAnalysisError(RuntimeError):
+    pass
 
-async def analyze_pockets_pdb_id(pdb_id: str, probe_radius: float = 1.4) -> dict:
+
+async def analyze_pockets_pdb_id(pdb_id: str, probe_radius: float = 1.4, method: str = "fpocket") -> dict:
     pdb_text = await _fetch_pdb(pdb_id)
-    return await _analyze_pockets(pdb_text, pdb_id, probe_radius)
+    return await analyze_pockets_pdb_text(pdb_text, pdb_id, probe_radius, method=method)
 
 
-async def analyze_pockets_pdb_text(pdb_text: str, pdb_id: str = "custom", probe_radius: float = 1.4) -> dict:
-    return await _analyze_pockets(pdb_text, pdb_id, probe_radius)
+async def analyze_pockets_pdb_text(
+    pdb_text: str,
+    pdb_id: str = "custom",
+    probe_radius: float = 1.4,
+    method: str = "fpocket",
+) -> dict:
+    return await _analyze_pockets(pdb_text, pdb_id, probe_radius, method=method)
 
 
 async def _fetch_pdb(pdb_id: str) -> str:
     async with httpx.AsyncClient(timeout=30) as client:
-        resp = await client.get(f"https://files.rcsb.org/download/{pdb_id.upper()}.pdb")
-        resp.raise_for_status()
-        return resp.text
+        response = await client.get(f"https://files.rcsb.org/download/{pdb_id.upper()}.pdb")
+        response.raise_for_status()
+        return response.text
 
 
-async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float) -> dict:
-    """Run pocket detection through an explicit method chain with provenance.
+async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float, method: str = "fpocket") -> dict:
+    method_key = (method or "fpocket").strip().lower().replace("-", "_")
 
-    Engines (in priority order — only the ones actually executed are recorded):
-      1. ``fpocket``  — real pharmacophoric/druggability pocket detection.
-      2. ``sasa_heuristic`` — BioNexus Biopython Shrake-Rupley SASA + clustering
-         (an approximation; it is *not* a CASTp or fpocket druggability result).
-
-    The CASTp webserver itself is never called, so results are never labelled
-    as coming from CASTp. If every engine fails, a ``status=FAILED`` dict is
-    returned instead of a fabricated pocket list.
-    """
-    import shutil
-    fpocket = FPOCKET_BIN if Path(FPOCKET_BIN).exists() else (shutil.which("fpocket") or "")
-    methods_tried: list[dict] = []
-    fallback_used = False
-
-    if fpocket and Path(fpocket).exists():
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None, _run_fpocket_analysis, fpocket, pdb_text, pdb_id, probe_radius,
+    if method_key in {"castp", "castp3"}:
+        result = _empty_result(
+            pdb_id,
+            probe_radius,
+            method="CASTp",
+            status="FAILED",
+            engine_version="not-integrated",
+            evidence_class="Unsupported/insufficient evidence",
+            reason=(
+                "Genuine CASTp result retrieval/execution is not integrated in this deployment. "
+                "fpocket or the BioNexus heuristic must be selected explicitly; their values are never returned as CASTp output."
+            ),
         )
-        methods_tried.append({
-            "method": "fpocket",
-            "status": "ok" if result["pockets"] else "ran_no_pockets",
-        })
-        if result["pockets"]:
-            result["method"] = "fpocket"
-            result["methods_tried"] = methods_tried
-            result["fallback_used"] = False
+        _attach_structure_summary(pdb_text, result)
+        return result
+
+    if method_key in {"fpocket", "f_pocket"}:
+        fpocket = FPOCKET_BIN if Path(FPOCKET_BIN).exists() else (shutil.which("fpocket") or "")
+        if not fpocket or not Path(fpocket).exists():
+            result = _empty_result(
+                pdb_id,
+                probe_radius,
+                method="fpocket",
+                status="FAILED",
+                engine_version="unavailable",
+                evidence_class="Unsupported/insufficient evidence",
+                reason="fpocket executable is unavailable; no heuristic was substituted",
+            )
             _attach_structure_summary(pdb_text, result)
             return result
-        logger.info("fpocket found no pockets for %s, falling back to SASA heuristic", pdb_id)
-        fallback_used = True
-    else:
-        methods_tried.append({"method": "fpocket", "status": "unavailable"})
-        fallback_used = True
-
-    # 2. Fallback: Biopython SASA + KDTree clustering (approximate).
-    try:
         loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius,
-        )
-        methods_tried.append({
-            "method": "sasa_heuristic",
-            "status": "ok" if result["pockets"] else "ran_no_pockets",
-        })
-    except Exception as exc:
-        logger.exception("SASA pocket analysis failed for %s", pdb_id)
-        return {
-            "pdb_id": pdb_id,
-            "probe_radius": probe_radius,
-            "total_residues": 0,
-            "method": "none",
-            "pockets": [],
-            "methods_tried": methods_tried,
-            "fallback_used": True,
-            "status": "FAILED",
-            "error": f"Pocket detection failed: {exc}",
-            "note": "Neither fpocket nor the SASA heuristic produced a result.",
-        }
+        result = await loop.run_in_executor(None, _run_fpocket_analysis, fpocket, pdb_text, pdb_id, probe_radius)
+        _attach_structure_summary(pdb_text, result)
+        return result
 
-    result["method"] = "sasa_heuristic"
-    result["methods_tried"] = methods_tried
-    result["fallback_used"] = fallback_used
-    result["note"] = (
-        "fpocket unavailable; pockets are a BioNexus SASA heuristic — not a "
-        "CASTp or fpocket druggability analysis."
-    )
-    _attach_structure_summary(pdb_text, result)
-    return result
+    if method_key in {"heuristic", "sasa", "sasa_heuristic", "bionexus_heuristic"}:
+        loop = asyncio.get_running_loop()
+        result = await loop.run_in_executor(None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius)
+        _attach_structure_summary(pdb_text, result)
+        return result
+
+    raise PocketAnalysisError("method must be one of: CASTp, fpocket, sasa_heuristic")
 
 
-# ---------------------------------------------------------------------------
-# fpocket analysis
-# ---------------------------------------------------------------------------
-
-def _run_fpocket_analysis(
-    fpocket_bin: str,
-    pdb_text: str,
-    pdb_id: str,
-    probe_radius: float,
-) -> dict:
-    """Run fpocket and parse results into the standard output contract."""
-    with tempfile.TemporaryDirectory() as tmpdir:
-        in_path = Path(tmpdir) / "input.pdb"
-        in_path.write_text(pdb_text)
-
+def _fpocket_version(fpocket_bin: str) -> str:
+    for args in ([fpocket_bin, "-v"], [fpocket_bin, "--version"]):
         try:
-            subprocess.run(
-                [fpocket_bin, "-f", str(in_path), "-r", str(probe_radius)],
-                capture_output=True, text=True, timeout=60,
+            completed = subprocess.run(args, capture_output=True, text=True, timeout=10)
+            text = (completed.stdout or completed.stderr or "").strip()
+            if text:
+                return text.splitlines()[0][:120]
+        except Exception:
+            continue
+    return "unknown"
+
+
+def _run_fpocket_analysis(fpocket_bin: str, pdb_text: str, pdb_id: str, probe_radius: float) -> dict:
+    version = _fpocket_version(fpocket_bin)
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = Path(tmpdir) / "input.pdb"
+        input_path.write_text(pdb_text, encoding="utf-8")
+        try:
+            completed = subprocess.run(
+                [fpocket_bin, "-f", str(input_path), "-r", str(probe_radius)],
+                capture_output=True,
+                text=True,
+                timeout=60,
             )
         except subprocess.TimeoutExpired:
-            logger.warning("fpocket timed out for %s", pdb_id)
-            return _empty_result(pdb_id, probe_radius, 0)
-        except Exception as e:
-            logger.warning("fpocket failed for %s: %s", pdb_id, e)
-            return _empty_result(pdb_id, probe_radius, 0)
+            return _empty_result(
+                pdb_id, probe_radius, method="fpocket", status="FAILED", engine_version=version,
+                evidence_class="Unsupported/insufficient evidence", reason="fpocket timed out",
+            )
+        except Exception as exc:
+            return _empty_result(
+                pdb_id, probe_radius, method="fpocket", status="FAILED", engine_version=version,
+                evidence_class="Unsupported/insufficient evidence", reason=f"fpocket execution failed: {type(exc).__name__}",
+            )
+        if completed.returncode != 0:
+            return _empty_result(
+                pdb_id, probe_radius, method="fpocket", status="FAILED", engine_version=version,
+                evidence_class="Unsupported/insufficient evidence",
+                reason=f"fpocket exited with code {completed.returncode}",
+            )
+        result = _parse_fpocket(Path(tmpdir) / "input_out", pdb_id, probe_radius, version)
+        if not result["pockets"]:
+            result["status"] = "FAILED"
+            result["validation"] = {
+                "reason": "fpocket emitted no parseable pockets",
+                "scientific_processing_stopped": True,
+                "castp_values_substituted": False,
+            }
+            result["evidence_class"] = "Unsupported/insufficient evidence"
+        return result
 
-        fpocket_out = Path(tmpdir) / "input_out"
-        return _parse_fpocket(fpocket_out, pdb_id, probe_radius)
+
+def _extract_number(line: str) -> float | None:
+    match = re.search(r":\s*(-?[\d.]+(?:[eE][+-]?\d+)?)", line)
+    return float(match.group(1)) if match else None
 
 
-def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float) -> dict:
-    """Parse fpocket output into standard pocket list."""
-    info_file = out_dir / "info" / "infos.txt"
-    if not info_file.exists():
-        return _empty_result(pdb_id, probe_radius, 0)
+def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float, version: str = "unknown") -> dict:
+    info_candidates = [out_dir / "input_info.txt", out_dir / "info" / "infos.txt", out_dir / "infos.txt"]
+    info_file = next((path for path in info_candidates if path.exists()), None)
+    if info_file is None:
+        return _empty_result(
+            pdb_id, probe_radius, method="fpocket", status="FAILED", engine_version=version,
+            evidence_class="Unsupported/insufficient evidence", reason="fpocket info file was not produced",
+        )
 
-    pockets: list[dict] = []
-    current: dict[str, Any] = {}
+    pockets: list[dict[str, Any]] = []
+    current: dict[str, Any] | None = None
+    for raw in info_file.read_text(encoding="utf-8", errors="replace").splitlines():
+        line = raw.strip()
+        pocket_match = re.match(r"Pocket\s+(\d+)\s*:?")
+        if pocket_match:
+            if current:
+                pockets.append(current)
+            current = {
+                "id": int(pocket_match.group(1)),
+                "score": None,
+                "druggability_score": None,
+                "volume": None,
+                "area": None,
+                "alpha_spheres": None,
+                "num_residues": 0,
+                "residues": [],
+                "centroid": [0.0, 0.0, 0.0],
+            }
+            continue
+        if current is None:
+            continue
+        lower = line.lower()
+        value = _extract_number(line)
+        if value is None:
+            continue
+        if "druggability score" in lower:
+            current["druggability_score"] = value
+        elif "pocket score" in lower or ("score" in lower and "druggability" not in lower):
+            current["score"] = value
+        elif "volume" in lower:
+            current["volume"] = value
+        elif "surface area" in lower or "area" in lower:
+            current["area"] = value
+        elif "alpha sphere" in lower:
+            current["alpha_spheres"] = int(round(value))
+    if current:
+        pockets.append(current)
 
-    try:
-        text = info_file.read_text()
-        for line in text.splitlines():
-            line = line.strip()
-            if line.startswith("Pocket"):
-                if current:
-                    pockets.append(current)
-                m = re.search(r"Pocket\s+(\d+)", line)
-                current = {
-                    "id": int(m.group(1)) if m else len(pockets) + 1,
-                    "druggability_score": 0.0,
-                    "volume": 0.0,
-                    "area_sa": 0.0,
-                    "score": 0.0,
-                    "num_residues": 0,
-                    "centroid": [0.0, 0.0, 0.0],
-                    "radius": 0.0,
-                }
-            elif "Druggability Score" in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current["druggability_score"] = float(m.group(1))
-            elif "Volume" in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current["volume"] = float(m.group(1))
-            elif "Area" in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current["area_sa"] = float(m.group(1))
-            elif "Score" in line and "Drug" not in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current["score"] = float(m.group(1))
-            elif "Number of residues" in line:
-                m = re.search(r":\s*(\d+)", line)
-                if m:
-                    current["num_residues"] = int(m.group(1))
-
-        if current:
-            pockets.append(current)
-    except Exception as e:
-        logger.warning("Failed to parse fpocket infos.txt: %s", e)
-
-    # Parse pocket PDB files for centroid and residue list
     pockets_dir = out_dir / "pockets"
     for pocket in pockets:
         pocket_id = pocket["id"]
-        pocket_pdb = pockets_dir / f"pocket{pocket_id}_atm.pdb"
-        if pocket_pdb.exists():
-            _enrich_pocket_from_pdb(pocket, pocket_pdb)
+        atom_candidates = [pockets_dir / f"pocket{pocket_id}_atm.pdb", pockets_dir / f"pocket{pocket_id}_atm.pqr"]
+        atom_file = next((path for path in atom_candidates if path.exists()), None)
+        if atom_file:
+            _enrich_pocket_from_pdb(pocket, atom_file)
+        sphere_candidates = [pockets_dir / f"pocket{pocket_id}_vert.pqr", pockets_dir / f"pocket{pocket_id}_vert.pdb"]
+        sphere_file = next((path for path in sphere_candidates if path.exists()), None)
+        if sphere_file:
+            pocket["alpha_spheres"] = sum(
+                line.startswith(("ATOM", "HETATM"))
+                for line in sphere_file.read_text(encoding="utf-8", errors="replace").splitlines()
+            )
 
-    # Compute radii from centroid + farthest residue
+    public_pockets: list[dict[str, Any]] = []
     for pocket in pockets:
-        if pocket["centroid"] != [0.0, 0.0, 0.0] and pocket.get("residues"):
-            # Radius approximated from volume: V = (4/3)πr³ → r = (3V/4π)^(1/3)
-            vol = pocket["volume"]
-            if vol > 0:
-                pocket["radius"] = round((3 * vol / (4 * math.pi)) ** (1/3), 2)
-
-    total_residues = sum(p["num_residues"] for p in pockets) if pockets else 0
+        volume = pocket.get("volume")
+        radius = round((3 * volume / (4 * math.pi)) ** (1 / 3), 2) if isinstance(volume, (int, float)) and volume > 0 else 0.0
+        public_pockets.append({
+            "id": pocket["id"],
+            "area_sa": round(float(pocket["area"]), 3) if pocket.get("area") is not None else 0.0,
+            "volume_sa": round(float(volume), 3) if volume is not None else 0.0,
+            "score": pocket.get("score"),
+            "druggability_score": pocket.get("druggability_score"),
+            "alpha_spheres": pocket.get("alpha_spheres"),
+            "num_residues": int(pocket.get("num_residues") or 0),
+            "residues": pocket.get("residues", []),
+            "centroid": [round(float(value), 3) for value in pocket.get("centroid", [0.0, 0.0, 0.0])],
+            "radius": radius,
+            "method_metrics": {
+                "fpocket_score": pocket.get("score"),
+                "fpocket_druggability_score": pocket.get("druggability_score"),
+                "fpocket_alpha_spheres": pocket.get("alpha_spheres"),
+            },
+        })
 
     return {
+        "status": "VALID",
+        "method": "fpocket",
+        "engine_version": version,
+        "fallback_used": False,
+        "fallback_method": None,
+        "evidence_class": "Deterministic computation",
+        "validation": {"source": "fpocket native output", "castp_values_substituted": False},
         "pdb_id": pdb_id,
         "probe_radius": probe_radius,
-        "total_residues": total_residues,
-        "method": "fpocket",
-        "pockets": [
-            {
-                "id": p["id"],
-                "area_sa": round(p["area_sa"], 1),
-                "volume_sa": round(p["volume"], 1),
-                "num_residues": p["num_residues"],
-                "residues": p.get("residues", []),
-                "centroid": [round(c, 2) for c in p["centroid"]],
-                "radius": round(p["radius"], 2),
-            }
-            for p in pockets
-        ],
+        "total_residues": 0,
+        "pockets": public_pockets,
     }
 
 
-def _enrich_pocket_from_pdb(pocket: dict, pdb_path: Path) -> None:
-    """Extract centroid and residue list from fpocket's pocket PDB file."""
-    xs, ys, zs = [], [], []
+def _enrich_pocket_from_pdb(pocket: dict[str, Any], pdb_path: Path) -> None:
+    xs: list[float] = []
+    ys: list[float] = []
+    zs: list[float] = []
     residues: list[str] = []
-    seen_res: set[str] = set()
-
-    try:
-        for line in pdb_path.read_text().splitlines():
-            if not (line.startswith("ATOM") or line.startswith("HETATM")):
-                continue
-            try:
-                x = float(line[30:38])
-                y = float(line[38:46])
-                z = float(line[46:54])
-                xs.append(x)
-                ys.append(y)
-                zs.append(z)
-            except (ValueError, IndexError):
-                continue
-
-            # Extract residue identifier
-            try:
-                chain = line[21].strip() or "A"
-                resname = line[17:20].strip()
-                resseq = line[22:26].strip()
-                res_key = f"{chain}{resseq}{resname}"
-                if res_key not in seen_res:
-                    seen_res.add(res_key)
-                    residues.append(res_key)
-            except IndexError:
-                pass
-    except Exception:
-        pass
-
+    seen: set[str] = set()
+    for line in pdb_path.read_text(encoding="utf-8", errors="replace").splitlines():
+        if not line.startswith(("ATOM", "HETATM")):
+            continue
+        try:
+            xs.append(float(line[30:38])); ys.append(float(line[38:46])); zs.append(float(line[46:54]))
+        except ValueError:
+            pass
+        chain = line[21:22].strip() or "A"
+        resname = line[17:20].strip()
+        resseq = line[22:26].strip()
+        label = f"{chain}{resseq}{resname}"
+        if label not in seen:
+            seen.add(label)
+            residues.append(label)
     if xs:
-        pocket["centroid"] = [
-            sum(xs) / len(xs),
-            sum(ys) / len(ys),
-            sum(zs) / len(zs),
-        ]
-    if residues:
-        pocket["residues"] = residues
-        pocket["num_residues"] = len(residues)
+        pocket["centroid"] = [sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)]
+    pocket["residues"] = residues
+    pocket["num_residues"] = len(residues)
 
 
-def _empty_result(pdb_id: str, probe_radius: float, total_residues: int) -> dict:
+def _empty_result(
+    pdb_id: str,
+    probe_radius: float,
+    total_residues: int = 0,
+    *,
+    method: str = "fpocket",
+    status: str = "FAILED",
+    engine_version: str = "unknown",
+    evidence_class: str = "Unsupported/insufficient evidence",
+    reason: str = "No result",
+) -> dict:
     return {
+        "status": status,
+        "method": method,
+        "engine_version": engine_version,
+        "fallback_used": False,
+        "fallback_method": None,
+        "evidence_class": evidence_class,
+        "validation": {
+            "reason": reason,
+            "scientific_processing_stopped": status == "FAILED",
+            "castp_values_substituted": False,
+        },
         "pdb_id": pdb_id,
         "probe_radius": probe_radius,
         "total_residues": total_residues,
-        "method": "fpocket",
         "pockets": [],
     }
 
 
-# ---------------------------------------------------------------------------
-# SASA fallback (Biopython ShrakeRupley + KDTree clustering)
-# ---------------------------------------------------------------------------
-
 def _analyze_pockets_sasa_sync(pdb_text: str, pdb_id: str, probe_radius: float) -> dict:
-    """Compute per-residue SASA and detect pockets via clustering."""
-    import io
     from Bio.PDB import PDBParser, SASA
 
     parser = PDBParser(QUIET=True)
     structure = parser.get_structure(pdb_id, io.StringIO(pdb_text))
-
-    sr = SASA.ShrakeRupley()
+    sr = SASA.ShrakeRupley(probe_radius=probe_radius)
     sr.compute(structure[0], level="R")
 
-    residues_sasa: list[dict] = []
+    residues_sasa: list[dict[str, Any]] = []
     coords: list[tuple[float, float, float]] = []
-
     for chain in structure[0]:
         for residue in chain:
             if residue.id[0] != " ":
                 continue
-            sasa_val = residue.sasa
-            ca = None
-            for atom in residue:
-                if atom.name == "CA":
-                    ca = atom.coord
-                    break
+            ca = residue["CA"] if "CA" in residue else None
             if ca is None:
                 continue
             residues_sasa.append({
                 "chain": chain.id,
                 "residue": residue.resname,
-                "resnum": residue.id[1],
-                "sasa": round(float(sasa_val), 2),
-                "coords": [round(float(c), 3) for c in ca],
+                "resnum": int(residue.id[1]),
+                "sasa": round(float(getattr(residue, "sasa", 0.0)), 3),
+                "coords": [round(float(value), 3) for value in ca.coord],
             })
-            coords.append((float(ca[0]), float(ca[1]), float(ca[2])))
+            coords.append(tuple(float(value) for value in ca.coord))
 
     pockets = _detect_pockets_sasa(residues_sasa, coords, probe_radius)
-
     return {
+        "status": "VALID",
+        "method": "BioNexus exploratory SASA heuristic",
+        "engine_version": "Biopython ShrakeRupley + BioNexus concave-packing heuristic v1",
+        "fallback_used": False,
+        "fallback_method": None,
+        "evidence_class": "Heuristic",
+        "validation": {
+            "exploratory_geometric_estimate": True,
+            "not_castp": True,
+            "not_fpocket": True,
+            "castp_values_substituted": False,
+        },
         "pdb_id": pdb_id,
         "probe_radius": probe_radius,
         "total_residues": len(residues_sasa),
-        "method": "sasa_heuristic",
         "pockets": pockets,
     }
 
 
 def _detect_pockets_sasa(residues: list[dict], coords: list[tuple], probe_radius: float) -> list[dict]:
-    """Detect surface pockets via concave-packing (occlusion) analysis.
-
-    A residue is treated as *pocket-lining* when three conditions hold at once
-    (computed from the real coordinates, numpy-only — no fpocket/scipy needed):
-
-      1. it is on the molecular surface (SASA > a small threshold),
-      2. it is *partially* buried (its exposure is below the 60th percentile of
-         surface residues) — a concave cleft, not a flat/fully exposed wall,
-      3. it is densely packed (its C-alpha has many protein neighbours within
-         12 Å) — the concavity of an actual cavity rather than an open face.
-
-    Lining residues are then clustered by spatial proximity (10 Å) into distinct
-    pockets. This recovers genuine binding clefts (e.g. the carbonic-anhydrase II
-    active site of 1CA2, centred on the catalytic zinc) instead of collapsing the
-    whole exposed surface into one meaningless 100k A^3 blob.
-    """
+    """Exploratory concave-packing detector; not CASTp or fpocket output."""
     if not residues:
         return []
-
     import numpy as np
 
-    n = len(residues)
-    pts = np.array([np.asarray(c, dtype=float) for c in coords], dtype=float)
-    if len(pts) != n or n == 0:
+    points = np.array(coords, dtype=float)
+    if len(points) != len(residues):
         return []
-
-    # Pairwise C-alpha distance matrix (vectorised — no scipy import needed).
-    d = np.linalg.norm(pts[:, None] - pts[None], axis=2)
-    neighbor = (d < 12.0 + probe_radius * 0).sum(axis=1) - 1
-
-    sasas = np.array([r["sasa"] for r in residues], dtype=float)
+    distances = np.linalg.norm(points[:, None] - points[None], axis=2)
+    neighbors = (distances < 12.0).sum(axis=1) - 1
+    sasas = np.array([float(residue["sasa"]) for residue in residues], dtype=float)
     surface = sasas > 8.0
-    if int(surface.sum()) == 0:
+    if not int(surface.sum()):
         return []
+    exposure_cutoff = np.percentile(sasas[surface], 60)
+    density_cutoff = np.percentile(neighbors, 60)
+    lining = surface & (sasas < exposure_cutoff) & (neighbors >= density_cutoff)
 
-    half = np.percentile(sasas[surface], 60)
-    dense = neighbor >= np.percentile(neighbor, 60)
-    lining = surface & (sasas < half) & dense
-
-    cut = 10.0 + probe_radius * 0
-    visited = np.zeros(n, dtype=bool)
+    visited = np.zeros(len(residues), dtype=bool)
     clusters: list[list[int]] = []
     for start in np.where(lining)[0]:
         if visited[start]:
             continue
-        stack = [start]
+        stack = [int(start)]
         visited[start] = True
-        cl: list[int] = []
+        cluster: list[int] = []
         while stack:
-            c = stack.pop()
-            cl.append(c)
-            for j in np.where(lining & (d[c] < cut))[0]:
-                if not visited[j]:
-                    visited[j] = True
-                    stack.append(j)
-        if len(cl) >= 4:
-            clusters.append(cl)
-
+            current = stack.pop()
+            cluster.append(current)
+            for neighbor in np.where(lining & (distances[current] < 10.0))[0]:
+                neighbor = int(neighbor)
+                if not visited[neighbor]:
+                    visited[neighbor] = True
+                    stack.append(neighbor)
+        if len(cluster) >= 4:
+            clusters.append(cluster)
     clusters.sort(key=len, reverse=True)
 
-    pockets = []
-    for idx, cluster_indices in enumerate(clusters):
-        cluster_residues = [residues[i] for i in cluster_indices]
-        cl_pts = pts[cluster_indices]
-        centroid = cl_pts.mean(axis=0)
-
-        max_dist = 0.0
-        for rp in cl_pts:
-            dist = float(np.linalg.norm(rp - centroid))
-            if dist > max_dist:
-                max_dist = dist
-
-        volume = (4.0 / 3.0) * math.pi * (max_dist + probe_radius) ** 3
-        avg_sasa = sum(r["sasa"] for r in cluster_residues) / len(cluster_residues)
-
-        residues_list = [
-            f"{r['chain']}{r['resnum']}{r['residue']}" for r in cluster_residues
-        ]
-
-        pockets.append({
-            "id": idx + 1,
-            "area_sa": round(avg_sasa * len(cluster_residues), 1),
-            "volume_sa": round(volume, 1),
+    output: list[dict[str, Any]] = []
+    for index, cluster in enumerate(clusters, start=1):
+        cluster_residues = [residues[i] for i in cluster]
+        cluster_points = points[cluster]
+        centroid = cluster_points.mean(axis=0)
+        max_distance = max(float(np.linalg.norm(point - centroid)) for point in cluster_points)
+        radius = max_distance + probe_radius
+        volume = (4.0 / 3.0) * math.pi * radius**3
+        area_estimate = sum(float(residue["sasa"]) for residue in cluster_residues)
+        output.append({
+            "id": index,
+            "area_sa": round(area_estimate, 3),
+            "volume_sa": round(volume, 3),
+            "score": None,
+            "druggability_score": None,
+            "alpha_spheres": None,
             "num_residues": len(cluster_residues),
-            "residues": residues_list,
-            "centroid": [round(float(c), 2) for c in centroid],
-            "radius": round(max_dist + probe_radius, 2),
+            "residues": [f"{r['chain']}{r['resnum']}{r['residue']}" for r in cluster_residues],
+            "centroid": [round(float(value), 3) for value in centroid],
+            "radius": round(radius, 3),
+            "method_metrics": {
+                "heuristic_surface_area_estimate": round(area_estimate, 3),
+                "heuristic_bounding_sphere_volume": round(volume, 3),
+            },
         })
+    return output
 
-    return pockets
-
-
-# ---------------------------------------------------------------------------
-# Structure summary (chains + residue details + gap ranges)
-# ---------------------------------------------------------------------------
 
 _PDB_AA = {
-    "ALA": "A", "CYS": "C", "ASP": "D", "GLU": "E", "PHE": "F", "GLY": "G",
-    "HIS": "H", "ILE": "I", "LYS": "K", "LEU": "L", "MET": "M", "ASN": "N",
-    "PRO": "P", "GLN": "Q", "ARG": "R", "SER": "S", "THR": "T", "VAL": "V",
-    "TRP": "W", "TYR": "Y",
+    "ALA": "A", "CYS": "C", "ASP": "D", "GLU": "E", "PHE": "F", "GLY": "G", "HIS": "H", "ILE": "I",
+    "LYS": "K", "LEU": "L", "MET": "M", "ASN": "N", "PRO": "P", "GLN": "Q", "ARG": "R", "SER": "S",
+    "THR": "T", "VAL": "V", "TRP": "W", "TYR": "Y", "MSE": "M",
 }
 
 
-def _parse_pdb_chains(pdb_text: str) -> dict:
-    """Parse PDB into per-chain ordered residue records (only those with coords).
-
-    Returns {chains: [{id, residues: [{num, name, one}...]}], by_key: {chain: {num: name}}}
-    """
-    order: dict[str, list[dict]] = {}
-    seen: dict[tuple, bool] = {}
+def _parse_pdb_chains(pdb_text: str) -> dict[str, Any]:
+    chain_residues: dict[str, list[dict[str, Any]]] = {}
+    seen: set[tuple[str, int, str]] = set()
     for line in pdb_text.splitlines():
         if not line.startswith("ATOM"):
             continue
-        chain = line[21].strip() or "A"
-        resname = line[17:20].strip()
+        chain = line[21:22].strip() or "A"
+        resname = line[17:20].strip().upper()
         try:
-            resseq = int(line[22:26].strip())
-        except (ValueError, IndexError):
+            resnum = int(line[22:26].strip())
+        except ValueError:
             continue
-        key = (chain, resseq)
+        insertion_code = line[26:27].strip()
+        key = (chain, resnum, insertion_code)
         if key in seen:
             continue
-        seen[key] = True
-        order.setdefault(chain, []).append({
-            "num": resseq,
+        seen.add(key)
+        chain_residues.setdefault(chain, []).append({
+            "num": resnum,
             "name": resname,
-            "one": _PDB_AA.get(resname, resname),
+            "one": _PDB_AA.get(resname, "X"),
+            "label": f"{chain}{resnum}{resname}",
         })
-    chains = [
-        {"id": cid, "residues": res}
-        for cid, res in sorted(order.items())
-    ]
-    for chain in chains:
-        chain["residues"].sort(key=lambda r: r["num"])
-    return {"chains": chains}
 
-
-def _chain_sequence(residues: list[dict]) -> str:
-    return "".join(r["one"] for r in residues)
-
-
-def _residue_key(chain: str, num: int) -> str:
-    return f"{chain}{num}"
-
-
-def _coverage_gaps(residues: list[dict]) -> list[dict]:
-    """Missing-residue (coordinate) gaps within a modelled/observed chain."""
-    gaps = []
-    nums = [r["num"] for r in residues]
-    if len(nums) < 2:
-        return gaps
-    prev = nums[0]
-    for n in nums[1:]:
-        if n > prev + 1:
-            gaps.append({"start": prev + 1, "end": n - 1, "count": n - prev - 1})
-        prev = n
-    return gaps
-
-
-def _pocket_gap_ranges(chain: dict, pocket_nums: set[int]) -> list[dict]:
-    """Calculate lining-residue gaps: for each gap between pocket residues in a
-    chain, report the residues present in the chain but not lining the pocket."""
-    residues = chain["residues"]
-    nums = [r["num"] for r in residues]
-    if len(nums) < 2:
-        return []
-    gaps = []
-    prev_pocket = None
-    for n in nums:
-        in_pocket = n in pocket_nums
-        if in_pocket:
-            if prev_pocket is not None and n > prev_pocket + 1:
-                in_between = [r for r in residues if prev_pocket < r["num"] < n]
-                non_lining = [r for r in in_between if r["num"] not in pocket_nums]
-                if non_lining:
-                    gaps.append({
-                        "start": non_lining[0]["num"],
-                        "end": non_lining[-1]["num"],
-                        "count": len(non_lining),
-                        "coordinate_present": True,
-                    })
-            prev_pocket = n
-    return gaps
-
-
-def _attach_structure_summary(pdb_text: str, result: dict) -> None:
-    """Enrich a pocket-analysis result with chain info, structured pocket
-    residues, and gap ranges for the structure and each pocket."""
-    try:
-        parsed = _parse_pdb_chains(pdb_text)
-    except Exception as exc:
-        logger.warning("Structure summary parse failed: %s", exc)
-        return
-
-    chains_out = []
-    chains = parsed["chains"]
-    for chain in chains:
-        one = _chain_sequence(chain["residues"])
-        chains_out.append({
-            "id": chain["id"],
-            "residue_count": len(chain["residues"]),
-            "sequence": one,
-            "gaps": _coverage_gaps(chain["residues"]),
+    chains: list[dict[str, Any]] = []
+    residue_lookup: dict[tuple[str, int], dict[str, Any]] = {}
+    for chain, residues in chain_residues.items():
+        residues.sort(key=lambda item: item["num"])
+        numbers = [item["num"] for item in residues]
+        gaps: list[dict[str, int]] = []
+        for left, right in zip(numbers, numbers[1:]):
+            if right > left + 1:
+                gaps.append({"start": left + 1, "end": right - 1, "count": right - left - 1})
+        for residue in residues:
+            residue_lookup[(chain, residue["num"])] = residue
+        chains.append({
+            "id": chain,
+            "residue_count": len(residues),
+            "sequence": "".join(item["one"] for item in residues),
+            "gaps": gaps,
+            "residues": residues,
         })
-    result["chains"] = chains_out
+    return {"chains": chains, "residue_lookup": residue_lookup}
 
-    # Build lookup: chain -> {num: residue}
-    by_num = {
-        chain["id"]: {r["num"]: r for r in chain["residues"]}
-        for chain in chains
-    }
 
+def _parse_pocket_label(label: str) -> tuple[str, int, str] | None:
+    match = re.match(r"(.)(-?\d+)([A-Za-z]{3})$", label)
+    if not match:
+        return None
+    return match.group(1), int(match.group(2)), match.group(3).upper()
+
+
+def _attach_structure_summary(pdb_text: str, result: dict[str, Any]) -> None:
+    parsed = _parse_pdb_chains(pdb_text)
+    result["chains"] = parsed["chains"]
+    result["total_residues"] = sum(chain["residue_count"] for chain in parsed["chains"])
+    lookup = parsed["residue_lookup"]
     for pocket in result.get("pockets", []):
-        raw = pocket.get("residues", [])
-        parsed_res = []
-        for entry in raw:
-            # entries look like "A10GLY" or "A10CYS"
-            m = re.match(r"([A-Za-z0-9])(\d+)([A-Za-z]+)", entry)
-            chain = ""
-            num = 0
-            name = entry
-            if m:
-                chain = m.group(1)
-                num = int(m.group(2))
-                name = m.group(3)
-            # cross-check against coordinates
-            coord_present = False
-            if chain in by_num and num in by_num[chain] and by_num[chain][num]["name"] == name:
-                coord_present = True
-            parsed_res.append({
+        details: list[dict[str, Any]] = []
+        spans: dict[str, list[int]] = {}
+        for label in pocket.get("residues", []):
+            parsed_label = _parse_pocket_label(label)
+            if parsed_label is None:
+                continue
+            chain, number, name = parsed_label
+            residue = lookup.get((chain, number))
+            details.append({
                 "chain": chain,
-                "residue_number": num,
+                "residue_number": number,
                 "residue_name": name,
-                "one": _PDB_AA.get(name, name),
-                "label": f"{chain}{num}{name}",
-                "coordinate_present": coord_present,
+                "one": residue["one"] if residue else _PDB_AA.get(name, "X"),
+                "label": label,
+                "coordinate_present": residue is not None,
             })
-        pocket["residue_details"] = parsed_res
-
-        # gap ranges per chain in the pocket
-        pocket_nums_by_chain: dict[str, set[int]] = {}
-        for r in parsed_res:
-            if r["chain"]:
-                pocket_nums_by_chain.setdefault(r["chain"], set()).add(r["residue_number"])
-
-        pocket_gap_ranges = []
-        for chain in chains:
-            nums = pocket_nums_by_chain.get(chain["id"])
-            if not nums:
-                continue
-            gaps = _pocket_gap_ranges(chain, nums)
-            if gaps:
-                pocket_gap_ranges.append({"chain": chain["id"], "gaps": gaps})
-        pocket["gap_ranges"] = pocket_gap_ranges
-
-        # chain span summary
-        spans = {}
-        for r in parsed_res:
-            if not r["chain"]:
-                continue
-            s = spans.setdefault(r["chain"], {"min": r["residue_number"], "max": r["residue_number"], "count": 0})
-            s["min"] = min(s["min"], r["residue_number"])
-            s["max"] = max(s["max"], r["residue_number"])
-            s["count"] += 1
-        pocket["chain_spans"] = [{"chain": k, **v} for k, v in spans.items()]
+            spans.setdefault(chain, []).append(number)
+        pocket["residue_details"] = details
+        pocket["chain_spans"] = [
+            {"chain": chain, "min": min(numbers), "max": max(numbers), "count": len(numbers)}
+            for chain, numbers in spans.items() if numbers
+        ]
+        pocket["gap_ranges"] = [
+            {"chain": chain["id"], "gaps": chain["gaps"]}
+            for chain in parsed["chains"] if chain["id"] in spans and chain["gaps"]
+        ]

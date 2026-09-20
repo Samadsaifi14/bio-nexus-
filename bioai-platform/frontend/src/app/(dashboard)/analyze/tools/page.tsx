@@ -1,49 +1,57 @@
 'use client';
 
-import { useState, useRef, useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Copy, Check } from '@phosphor-icons/react';
+import { Check, Copy, Flask, Warning as WarningIcon } from '@phosphor-icons/react';
+
 import { fadeUp } from '@/lib/animations';
+import { longApi } from '@/lib/api';
+import { BackButton, CriticalButton, FlatTextarea, PageHeader } from '@/components/ui';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
-import { BackButton, PageHeader, CriticalButton, FlatTextarea } from '@/components/ui';
+import { isScientificResult, type ScientificResult } from '@/types/scientific-result';
 
-const COMPLEMENT: Record<string, string> = {
-  A: 'T', T: 'A', C: 'G', G: 'C',
-  U: 'A', R: 'Y', Y: 'R', S: 'S', W: 'W', K: 'M', M: 'K',
-  B: 'V', V: 'B', D: 'H', H: 'D', N: 'N',
-};
-
-const CODON: Record<string, string> = {
-  TTT:'F',TTC:'F',TTA:'L',TTG:'L',TCT:'S',TCC:'S',TCA:'S',TCG:'S',
-  TAT:'Y',TAC:'Y',TAA:'*',TAG:'*',TGT:'C',TGC:'C',TGA:'*',TGG:'W',
-  CTT:'L',CTC:'L',CTA:'L',CTG:'L',CCT:'P',CCC:'P',CCA:'P',CCG:'P',
-  CAT:'H',CAC:'H',CAA:'Q',CAG:'Q',CGT:'R',CGC:'R',CGA:'R',CGG:'R',
-  ATT:'I',ATC:'I',ATA:'I',ATG:'M',ACT:'T',ACC:'T',ACA:'T',ACG:'T',
-  AAT:'N',AAC:'N',AAA:'K',AAG:'K',AGT:'S',AGC:'S',AGA:'R',AGG:'R',
-  GTT:'V',GTC:'V',GTA:'V',GTG:'V',GCT:'A',GCC:'A',GCA:'A',GCG:'A',
-  GAT:'D',GAC:'D',GAA:'E',GAG:'E',GGT:'G',GGC:'G',GGA:'G',GGG:'G',
-};
-
-const VALID_DNA = new Set('ACGTUN');
-
-// Insulin CDS (human) — complete ORF with stop codon
 const SAMPLE_CDS = 'ATGGCCCTGTGGATGCGCCTCCTGCCCCTGCTGGCGCTGCTGGCCCTCTGGGGACCTGACCCAGCCGCAGCCTTTGTGAACCAACACCTGTGCGGCTCACACCTGGTGGAAGCTCTCTACCTAGTGTGCGGGGAACGAGGCTTCTTCTACACACCCAAGACCCGCCGGGAGGCAGAGGACCTGCAGGTGGGGCAGGTGGAGCTGGGCGGGGGCCCTGGTGCAGGCAGCCTGCAGCCCTTGGCCCTGGAGGGGTCCCTGCAGAAGCGTGGCATTGTGGAACAATGCTGTACCAGCATCTGCTCCCTCTACCAGCTGGAGAACTACTGCAACTAG';
 
 const TOOLS = [
-  { id: 'translate' as const, label: 'Translate CDS' },
-  { id: 'revcomp' as const, label: 'Reverse Complement' },
-  { id: 'reverse' as const, label: 'Reverse' },
-  { id: 'complement' as const, label: 'Complement' },
-  { id: 'gc' as const, label: 'GC Content' },
-  { id: 'fasta' as const, label: '→ FASTA' },
-];
+  { id: 'analyze', label: 'Sequence analysis' },
+  { id: 'translate_frame', label: 'Translate selected frame' },
+  { id: 'find_orfs', label: 'Find ORFs' },
+  { id: 'translate_cds', label: 'Translate declared CDS' },
+  { id: 'reverse_complement', label: 'Reverse complement' },
+  { id: 'complement', label: 'Complement' },
+  { id: 'reverse', label: 'Reverse' },
+  { id: 'transcribe', label: 'Transcribe DNA → RNA' },
+  { id: 'fasta', label: 'Format FASTA' },
+] as const;
+
+type Operation = typeof TOOLS[number]['id'];
+
+type OperationResults = Record<string, unknown> & {
+  operation: Operation;
+  sequence_type: string;
+  input_length: number;
+  value: unknown;
+};
+
+function displayValue(value: unknown): string {
+  if (typeof value === 'string') return value;
+  return JSON.stringify(value, null, 2);
+}
 
 export default function ToolsPage() {
   const audit = useAuditTrail();
-  const auditedRef = useRef(false);
   const [input, setInput] = useState('');
-  const [output, setOutput] = useState('');
-  const [tool, setTool] = useState<string>('translate');
+  const [operation, setOperation] = useState<Operation>('translate_frame');
+  const [seqType, setSeqType] = useState<'auto' | 'dna' | 'rna' | 'protein'>('auto');
+  const [frame, setFrame] = useState(1);
+  const [stopAtStop, setStopAtStop] = useState(false);
+  const [requireStart, setRequireStart] = useState(false);
+  const [requireTerminalStop, setRequireTerminalStop] = useState(false);
+  const [minOrfAa, setMinOrfAa] = useState(1);
+  const [fastaName, setFastaName] = useState('sequence');
+  const [result, setResult] = useState<ScientificResult<OperationResults> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [running, setRunning] = useState(false);
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
@@ -51,148 +59,159 @@ export default function ToolsPage() {
     if (stored) {
       sessionStorage.removeItem('cds_sequence');
       setInput(stored);
-      setTool('translate');
+      setOperation('translate_cds');
+      setSeqType('dna');
     }
   }, []);
 
-  const process = () => {
-    const raw = input.replace(/[^A-Za-z]/g, '').toUpperCase();
-    if (!raw) return;
-    auditedRef.current = false;
-    switch (tool) {
-      case 'translate': {
-        const chars = raw.split('');
-        const invalid = chars.filter(c => !VALID_DNA.has(c));
-        if (invalid.length > 0) {
-          setOutput(`Error: Invalid DNA character(s): ${Array.from(new Set(invalid)).join(', ')}\nOnly A, C, G, T, U, N allowed.`);
-          audit.emitFailed('translate_cds', 'CDStool', `${raw.length}bp`, `invalid chars: ${Array.from(new Set(invalid)).join(',')}`);
-          return;
-        }
-        const seq = raw.replace(/U/g, 'T');
-        if (seq.length < 3) {
-          setOutput('Error: Sequence too short — need at least 3 bases (1 codon).');
-          audit.emitFailed('translate_cds', 'CDStool', `${seq.length}bp`, 'too short');
-          return;
-        }
-        const startIdx = seq.indexOf('ATG');
-        const offset = startIdx >= 0 ? startIdx : 0;
-        const cdsLen = seq.length - offset;
-        const codons: string[] = [];
-        for (let i = offset; i + 2 < seq.length; i += 3) {
-          codons.push(seq.slice(i, i + 3));
-        }
-        const aa: string[] = [];
-        let stopped = false;
-        for (const codon of codons) {
-          if (codon.includes('N')) { aa.push('X'); continue; }
-          const a = CODON[codon];
-          if (!a) { aa.push('X'); continue; }
-          if (a === '*') { stopped = true; break; }
-          aa.push(a);
-        }
-        const protein = aa.join('');
-        const line1 = `> Translated CDS${startIdx >= 0 ? '' : ' (no start codon — translated from position 0)'}`;
-        const lines: string[] = [];
-        for (let i = 0; i < protein.length; i += 60) {
-          lines.push(protein.slice(i, i + 60));
-        }
-        const stats =
-          `CDS: ${cdsLen} bp → Protein: ${protein.length} aa` +
-          (stopped ? ' (complete ORF)' : cdsLen % 3 !== 0 ? ' (incomplete final codon)' : ' (no stop codon — partial CDS)') +
-          (offset > 0 ? `\nORF start at position ${offset + 1}` : '');
-        setOutput(`${line1}\n${lines.join('\n')}\n\n${stats}`);
-        if (!auditedRef.current) { auditedRef.current = true; audit.emitSuccess('translate_cds', 'CDStool', `${raw.length}bp`, `${protein.length}aa`); }
-        break;
-      }
-      case 'revcomp':
-        setOutput(raw.split('').reverse().map(c => COMPLEMENT[c] || c).join(''));
-        break;
-      case 'reverse':
-        setOutput(raw.split('').reverse().join(''));
-        break;
-      case 'complement':
-        setOutput(raw.split('').map(c => COMPLEMENT[c] || c).join(''));
-        break;
-      case 'gc': {
-        const gc = raw.replace(/[^CG]/g, '').length;
-        const at = raw.replace(/[^AT]/g, '').length;
-        const total = raw.length;
-        const other = total - gc - at;
-        setOutput(
-          `GC content: ${(gc / total * 100).toFixed(1)}%  (${gc}/${total})\n` +
-          `AT content: ${(at / total * 100).toFixed(1)}%  (${at}/${total})\n` +
-          `Length: ${total} bp\n` +
-          (other > 0 ? `Other: ${other} (ambiguous bases)\n` : '') +
-          `GC skew (G-C)/(G+C): ${raw.includes('G') || raw.includes('C') ? ((raw.replace(/[^G]/g, '').length - raw.replace(/[^C]/g, '').length) / (raw.replace(/[^GC]/g, '').length || 1) * 100).toFixed(1) : 0}%`
-        );
-        break;
-      }
-      case 'fasta': {
-        const name = raw.slice(0, 20);
-        const lines = [];
-        for (let i = 0; i < raw.length; i += 60) {
-          lines.push(raw.slice(i, i + 60));
-        }
-        setOutput(`>${name}\n${lines.join('\n')}`);
-        break;
-      }
+  const showFrame = operation === 'translate_frame' || operation === 'translate_cds';
+  const output = useMemo(() => result ? displayValue(result.results.value) : '', [result]);
+
+  const process = async () => {
+    if (!input.trim()) return;
+    const summary = `operation:${operation},type:${seqType},frame:${frame}`;
+    setRunning(true);
+    setError(null);
+    setResult(null);
+    audit.emitStarted('sequence_utility', 'Validated sequence backend', summary);
+    try {
+      const response = await longApi.post('/api/seq-tools/operate', {
+        sequence: input,
+        seq_type: seqType,
+        operation,
+        frame,
+        stop_at_stop: stopAtStop,
+        require_start: requireStart,
+        require_terminal_stop: requireTerminalStop,
+        min_orf_aa: minOrfAa,
+        fasta_name: fastaName,
+        fasta_width: 60,
+      });
+      if (!isScientificResult(response.data)) throw new Error('Backend did not emit a valid ScientificResult');
+      const scientific = response.data as ScientificResult<OperationResults>;
+      setResult(scientific);
+      audit.emitSuccess('sequence_utility', 'Validated sequence backend', summary, scientific.output_sha256);
+    } catch (cause: unknown) {
+      const axiosLike = cause as { response?: { data?: { detail?: string } }; message?: string };
+      const message = axiosLike.response?.data?.detail || axiosLike.message || 'Sequence operation failed';
+      setError(message);
+      audit.emitFailed('sequence_utility', 'Validated sequence backend', summary, message);
+    } finally {
+      setRunning(false);
     }
   };
 
-  const handleCopy = () => {
-    navigator.clipboard.writeText(output);
+  const copy = async () => {
+    if (!output) return;
+    await navigator.clipboard.writeText(output);
     setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+    setTimeout(() => setCopied(false), 1500);
   };
 
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-4xl">
       <BackButton />
+      <PageHeader
+        title="Utility Tools"
+        subtitle="All scientific sequence operations execute in the same validated backend used by Sequence Utilities. No browser-side sequence biology is performed."
+      />
 
-      <PageHeader title="Utility Tools" subtitle="Translate CDS, reverse complement, GC content, FASTA formatting, and more." />
-
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6 space-y-4">
-        <div className="flex gap-2 flex-wrap">
-          {TOOLS.map((t) => (
-            <button key={t.id} onClick={() => { setTool(t.id); setOutput(''); }} className={`px-4 py-2 text-sm font-medium rounded-lg transition ${tool === t.id ? 'bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30' : 'glass-card text-text-secondary hover:text-text-primary'}`}>
-              {t.label}
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card mb-6 space-y-5 p-5">
+        <div className="flex flex-wrap gap-2">
+          {TOOLS.map((tool) => (
+            <button
+              key={tool.id}
+              onClick={() => { setOperation(tool.id); setResult(null); setError(null); }}
+              className={`rounded-lg border px-3 py-2 text-xs transition ${operation === tool.id ? 'border-accent-cyan/40 bg-accent-cyan/10 text-accent-cyan' : 'border-glass-border bg-surface-1 text-text-secondary hover:text-text-primary'}`}
+            >
+              {tool.label}
             </button>
           ))}
         </div>
 
-        <FlatTextarea
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste raw DNA or protein sequence..."
-          className="w-full h-32 text-sm"
-        />
+        <div className="grid gap-3 md:grid-cols-3">
+          <label className="text-xs text-text-muted">
+            Sequence type
+            <select value={seqType} onChange={(event) => setSeqType(event.target.value as typeof seqType)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-sm text-text-primary">
+              <option value="auto">Auto detect</option>
+              <option value="dna">DNA</option>
+              <option value="rna">RNA</option>
+              <option value="protein">Protein</option>
+            </select>
+          </label>
+          {showFrame && (
+            <label className="text-xs text-text-muted">
+              Frame
+              <select value={frame} onChange={(event) => setFrame(Number(event.target.value))} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-sm text-text-primary">
+                {[1, 2, 3, -1, -2, -3].map((value) => <option key={value} value={value}>{value > 0 ? `+${value}` : value}</option>)}
+              </select>
+            </label>
+          )}
+          {operation === 'find_orfs' && (
+            <label className="text-xs text-text-muted">
+              Minimum ORF length (aa)
+              <input type="number" min={1} value={minOrfAa} onChange={(event) => setMinOrfAa(Math.max(1, Number(event.target.value) || 1))} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-sm text-text-primary" />
+            </label>
+          )}
+          {operation === 'fasta' && (
+            <label className="text-xs text-text-muted">
+              FASTA name
+              <input value={fastaName} onChange={(event) => setFastaName(event.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-sm text-text-primary" />
+            </label>
+          )}
+        </div>
 
-        <div className="flex gap-3">
-          <button
-            onClick={() => { setInput(SAMPLE_CDS); setOutput(''); }}
-            className="text-sm text-accent-cyan hover:text-accent-cyan/80 underline"
-          >
-            Load sample
-          </button>
+        {operation === 'translate_frame' && (
+          <label className="flex items-center gap-2 text-xs text-text-secondary">
+            <input type="checkbox" checked={stopAtStop} onChange={(event) => setStopAtStop(event.target.checked)} />
+            Stop translation at the first stop codon
+          </label>
+        )}
+        {operation === 'translate_cds' && (
+          <div className="flex flex-wrap gap-5 text-xs text-text-secondary">
+            <label className="flex items-center gap-2"><input type="checkbox" checked={requireStart} onChange={(event) => setRequireStart(event.target.checked)} /> Require start codon in selected frame</label>
+            <label className="flex items-center gap-2"><input type="checkbox" checked={requireTerminalStop} onChange={(event) => setRequireTerminalStop(event.target.checked)} /> Require terminal stop</label>
+          </div>
+        )}
+
+        <FlatTextarea value={input} onChange={(event) => { setInput(event.target.value); setResult(null); setError(null); }} placeholder="Paste a raw sequence or FASTA…" className="h-40 w-full font-mono text-sm" />
+
+        <div className="flex items-center gap-3">
+          <button onClick={() => { setInput(SAMPLE_CDS); setSeqType('dna'); setResult(null); }} className="text-xs text-accent-cyan hover:underline">Load sample CDS</button>
           <div className="flex-1" />
-          <CriticalButton onClick={process} disabled={!input.trim()}>
-            Process
+          <CriticalButton onClick={process} disabled={running || !input.trim()}>
+            <Flask className="h-4 w-4" /> {running ? 'Running…' : 'Run backend operation'}
           </CriticalButton>
         </div>
       </motion.div>
 
-      {output && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-xs font-medium text-text-muted uppercase tracking-wider">Result</p>
-            <button onClick={handleCopy} className="text-xs text-accent-cyan hover:underline flex items-center gap-1">
-              {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
-              {copied ? 'Copied' : 'Copy'}
-            </button>
+      {error && (
+        <div className="mb-6 flex gap-2 rounded-xl border border-error/25 bg-error/5 p-4 text-sm text-error">
+          <WarningIcon className="mt-0.5 h-4 w-4 flex-none" />
+          <span>{error}</span>
+        </div>
+      )}
+
+      {result && (
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+          <div className="data-card p-5">
+            <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <p className="text-sm font-semibold text-text-primary">{result.method}</p>
+                <p className="text-xs text-text-muted">{result.engine} · {result.engine_version} · {result.status}</p>
+              </div>
+              <button onClick={copy} className="flex items-center gap-1.5 text-xs text-accent-cyan hover:underline">
+                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Copied' : 'Copy result'}
+              </button>
+            </div>
+            <pre className="max-h-[34rem] overflow-auto whitespace-pre-wrap break-words rounded-xl bg-surface-0 p-4 font-mono text-xs text-text-secondary">{output}</pre>
           </div>
-          <pre className="font-mono text-sm text-text-secondary bg-surface-0 rounded-xl p-4 max-h-48 overflow-auto whitespace-pre-wrap break-all">
-            {output}
-          </pre>
+
+          <div className="data-card grid gap-3 p-5 text-xs md:grid-cols-2">
+            <div><p className="text-text-muted">Input SHA-256</p><p className="break-all font-mono text-text-secondary">{result.input_sha256}</p></div>
+            <div><p className="text-text-muted">Output SHA-256</p><p className="break-all font-mono text-text-secondary">{result.output_sha256}</p></div>
+          </div>
         </motion.div>
       )}
     </div>

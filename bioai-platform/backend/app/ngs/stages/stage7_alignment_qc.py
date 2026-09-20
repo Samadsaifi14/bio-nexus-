@@ -30,11 +30,14 @@ def alignment_qc(records: list[dict]) -> dict:
     unmapped = [r for r in records if r.get("is_unmapped")]
     secondary = [r for r in records if r.get("is_secondary")]
     supplementary = [r for r in records if r.get("is_supplementary")]
-    proper = [r for r in mapped if r.get("is_proper_pair")]
+    paired = [r for r in mapped if r.get("is_paired")]
+    proper = [r for r in paired if r.get("is_proper_pair")]
     duplicates = [r for r in records if r.get("is_duplicate")]
 
-    mapqs = [r["mapq"] for r in mapped if r.get("mapq")]
-    insert_sizes = [abs(r.get("tlen", 0)) for r in mapped
+    # MAPQ=0 is meaningful evidence of an ambiguous placement and must stay in
+    # the denominator.  Dropping zeroes falsely inflates median/high-MAPQ rates.
+    mapqs = [int(r.get("mapq", 0) or 0) for r in mapped]
+    insert_sizes = [abs(r.get("tlen", 0)) for r in paired
                     if r.get("tlen") and r.get("tlen") != 0 and abs(r.get("tlen")) < 2000]
 
     # per-contig coverage (consume reference bases per record)
@@ -47,8 +50,9 @@ def alignment_qc(records: list[dict]) -> dict:
 
     med_mapq = statistics.median(mapqs) if mapqs else 0
     high_mapq = sum(1 for m in mapqs if m >= 30) / len(mapqs) * 100 if mapqs else 0.0
-    med_insert = statistics.median(insert_sizes) if insert_sizes else 0
-    insert_outliers = sum(1 for x in insert_sizes if x > 1000) / len(insert_sizes) * 100 if insert_sizes else 0.0
+    med_insert = statistics.median(insert_sizes) if insert_sizes else None
+    insert_outliers = (sum(1 for x in insert_sizes if x > 1000) / len(insert_sizes) * 100) if insert_sizes else None
+    proper_pair_rate = (len(proper) / len(paired) * 100.0) if paired else None
 
     return {
         "total_alignments": total,
@@ -57,12 +61,16 @@ def alignment_qc(records: list[dict]) -> dict:
         "secondary_alignments": len(secondary),
         "supplementary_alignments": len(supplementary),
         "mapping_rate": round(len(mapped) / total * 100.0, 2) if total else 0.0,
-        "proper_pair_rate": round(len(proper) / len(mapped) * 100.0, 2) if mapped else 0.0,
+        "proper_pair_rate": round(proper_pair_rate, 2) if proper_pair_rate is not None else None,
+        "pairing_evaluated": bool(paired),
+        "paired_alignments": len(paired),
         "duplicate_rate": round(len(duplicates) / total * 100.0, 2) if total else 0.0,
         "median_mapq": med_mapq,
         "high_mapq_percent": round(high_mapq, 2),
+        "mapq_scope": "mapping confidence, distinct from FASTQ/Phred base quality",
         "median_insert_size": med_insert,
-        "insert_size_outlier_percent": round(insert_outliers, 2),
+        "insert_size_outlier_percent": round(insert_outliers, 2) if insert_outliers is not None else None,
+        "insert_size_evaluated": bool(insert_sizes),
         "coverage_by_contig": contig_bases,
     }
 
@@ -77,12 +85,15 @@ def _stage7_run(sample: dict, state: dict) -> tuple[dict, dict]:
             return {"error": "no aligned data"}, {"mapping_ok": 0.0}
     qc = alignment_qc(records)
     state.setdefault("alignment_qc", {})["metrics"] = qc
-    return qc, {
+    metrics = {
         "mapping_ok": qc["mapping_rate"],
-        "proper_pair_ok": qc["proper_pair_rate"],
         "high_mapq": qc["high_mapq_percent"],
-        "insert_ok": (100.0 - qc["insert_size_outlier_percent"]),
     }
+    if qc["proper_pair_rate"] is not None:
+        metrics["proper_pair_ok"] = qc["proper_pair_rate"]
+    if qc["insert_size_outlier_percent"] is not None:
+        metrics["insert_ok"] = 100.0 - qc["insert_size_outlier_percent"]
+    return qc, metrics
 
 
 def stage7_contract() -> StageContract:
@@ -95,12 +106,20 @@ def stage7_contract() -> StageContract:
         rules=[
             ThresholdRule(name="mapping_ok", metric="mapping_ok",
                           evaluate=lambda v: _pct_rule(v, 95, 90)),
-            ThresholdRule(name="proper_pair_ok", metric="proper_pair_ok",
-                          evaluate=lambda v: _pct_rule(v, 90, 80)),
+            ThresholdRule(
+                name="proper_pair_ok", metric="proper_pair_ok",
+                evaluate=lambda v: _pct_rule(v, 90, 80), optional=True,
+                expectation=">= 90% when mate-aware paired-end alignment was evaluated",
+                missing_detail="proper-pair status not evaluated by this alignment evidence",
+            ),
             ThresholdRule(name="high_mapq", metric="high_mapq",
                           evaluate=lambda v: _pct_rule(v, 90, 70)),
-            ThresholdRule(name="insert_ok", metric="insert_ok",
-                          evaluate=lambda v: _pct_rule(v, 90, 80)),
+            ThresholdRule(
+                name="insert_ok", metric="insert_ok",
+                evaluate=lambda v: _pct_rule(v, 90, 80), optional=True,
+                expectation=">= 90% non-outlier inserts when template lengths were evaluated",
+                missing_detail="insert-size distribution not evaluated by this alignment evidence",
+            ),
         ],
         fail_blocks=False,   # alignment QC flags problems; later stages can still run
         run=_stage7_run,

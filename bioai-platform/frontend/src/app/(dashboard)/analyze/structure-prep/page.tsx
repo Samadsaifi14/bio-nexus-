@@ -10,6 +10,7 @@ import { DockingViewer } from '@/components/DockingViewer';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 import { runStructurePrep, runStructurePrepSequence, getStructurePrepStatus, type StructurePrepResult } from '@/lib/api';
+import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 type PipelineStatus = StructurePrepResult;
 type InputMode = 'pdb_id' | 'sequence';
@@ -72,6 +73,22 @@ export default function StructurePrepPage() {
   }, [result?.cleaned_pdb]);
 
   useEffect(() => () => { if (pdbUrl) URL.revokeObjectURL(pdbUrl); }, [pdbUrl]);
+
+  useEffect(() => {
+    const handoff = getAnalysisHandoff();
+    const carriedPdb = consumeParam('structure_prep_pdb_id') || handoff?.pdbId || null;
+    const carriedSequence = consumeParam('structure_prep_sequence')
+      || handoff?.resolvedSequence
+      || handoff?.querySequence
+      || null;
+    if (carriedPdb) {
+      setMode('pdb_id');
+      setPdbId(carriedPdb);
+    } else if (carriedSequence) {
+      setMode('sequence');
+      setSequence(carriedSequence);
+    }
+  }, []);
 
   const canSubmit = mode === 'pdb_id' ? pdbId.trim().length > 0 : cleanSeq.length >= 10;
 

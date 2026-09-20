@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import threading
 import time
 import uuid
@@ -48,7 +49,7 @@ class PhyloRequest(BaseModel):
     method: Method     = "nj"
     seq_type: SeqType  = "protein"
     # ML-only options
-    model: str         = "LG"
+    model: Optional[str] = None
     bootstrap: int     = Field(100, ge=0, le=1000)
 
 
@@ -58,6 +59,9 @@ class PhyloJob(BaseModel):
     seq_type: SeqType
     model: Optional[str]
     bootstrap: Optional[int]
+    bootstrap_requested: Optional[int] = None
+    bootstrap_effective: Optional[int] = None
+    engine: Optional[str] = None
     phase: JobPhase
     aln_fasta:   Optional[str] = None
     newick:      Optional[str] = None
@@ -74,6 +78,79 @@ class RunResponse(BaseModel):
     status: str
 
 
+_SAFE_TAXON_ID = re.compile(r"^[A-Za-z0-9_.-]+$")
+_DNA_IUPAC = set("ACGTRYSWKMBDHVN")
+_PROTEIN_IUPAC = set("ACDEFGHIKLMNPQRSTVWYBXZJUO")
+
+
+def _validate_sequence_records(sequences: list[dict], seq_type: str) -> list[dict]:
+    """Validate and normalize unaligned records before sending them to MSA.
+
+    Taxon identifiers are restricted to a Newick/PHYLIP-safe token alphabet so
+    the same identifier survives FASTA -> alignment -> tree -> export without
+    silent truncation or reinterpretation. Sequence characters are validated
+    against the declared molecule type; no auto-correction is performed.
+    """
+    if seq_type not in ("protein", "dna"):
+        raise ValueError("seq_type must be 'protein' or 'dna'")
+
+    alphabet = _PROTEIN_IUPAC if seq_type == "protein" else _DNA_IUPAC
+    seen: set[str] = set()
+    out: list[dict] = []
+
+    for index, raw in enumerate(sequences):
+        if not isinstance(raw, dict):
+            raise ValueError(f"Sequence record {index + 1} must be an object")
+        ident = str(raw.get("id") or "").strip()
+        seq = "".join(str(raw.get("sequence") or "").split()).upper()
+        if not ident:
+            raise ValueError(f"Sequence record {index + 1} is missing an identifier")
+        if not _SAFE_TAXON_ID.fullmatch(ident):
+            raise ValueError(
+                f"Sequence identifier {ident!r} contains characters unsafe for Newick/PHYLIP; "
+                "use letters, digits, underscore, dot or hyphen"
+            )
+        if ident in seen:
+            raise ValueError(f"Duplicate sequence identifier: {ident}")
+        if not seq:
+            raise ValueError(f"Sequence {ident!r} is empty")
+        bad = sorted(set(seq) - alphabet)
+        if bad:
+            raise ValueError(
+                f"Sequence {ident!r} contains characters invalid for {seq_type}: {', '.join(bad)}"
+            )
+        seen.add(ident)
+        out.append({"id": ident, "sequence": seq})
+
+    return out
+
+
+def _resolve_ml_model(model: str | None, seq_type: str) -> str:
+    valid = PROTEIN_MODELS if seq_type == "protein" else DNA_MODELS
+    default = "LG" if seq_type == "protein" else "GTR"
+    if model is None or not str(model).strip():
+        return default
+    lookup = {m.lower(): m for m in valid}
+    key = str(model).strip().lower()
+    if key not in lookup:
+        raise ValueError(
+            f"Model {model!r} not valid for {seq_type}. Choose from: {', '.join(valid)}"
+        )
+    return lookup[key]
+
+
+def _effective_iqtree_bootstrap(requested: int) -> int:
+    """Return the number IQ-TREE will actually execute for UFBoot.
+
+    IQ-TREE requires at least 1000 UFBoot replicates. A request of zero means
+    no bootstrap. When a positive request below 1000 is supplied, provenance
+    must record that IQ-TREE executes 1000 rather than the smaller requested
+    value.
+    """
+    requested = max(int(requested), 0)
+    return 0 if requested == 0 else max(1000, requested)
+
+
 # ─── In-memory store ──────────────────────────────────────────────────────────
 
 _jobs: dict[str, dict] = {}
@@ -86,8 +163,11 @@ def _init(job_id: str, req: PhyloRequest) -> None:
             "job_id":    job_id,
             "method":    req.method,
             "seq_type":  req.seq_type,
-            "model":     req.model,
+            "model":     _resolve_ml_model(req.model, req.seq_type) if req.method == "ml" else None,
             "bootstrap": req.bootstrap,
+            "bootstrap_requested": req.bootstrap if req.method == "ml" else None,
+            "bootstrap_effective": None,
+            "engine": None,
             "phase":     "queued",
             "aln_fasta": None,
             "newick":    None,
@@ -188,18 +268,40 @@ async def _run_clustalo(job_id: str, sequences: list[dict], stype: str) -> tuple
 
 def _parse_aligned_fasta(fasta: str) -> dict[str, str]:
     seqs: dict[str, str] = {}
-    cur = None
-    for line in fasta.strip().splitlines():
+    cur: str | None = None
+    for line_no, line in enumerate((fasta or "").splitlines(), start=1):
         stripped = line.strip()
+        if not stripped:
+            continue
         if stripped.startswith(">"):
-            cur = stripped[1:].split()[0]
+            ident = stripped[1:].split()[0] if stripped[1:].strip() else ""
+            if not ident:
+                raise ValueError(f"Aligned FASTA header at line {line_no} has no identifier")
+            if ident in seqs:
+                raise ValueError(f"Duplicate aligned FASTA identifier: {ident}")
+            if not _SAFE_TAXON_ID.fullmatch(ident):
+                raise ValueError(f"Aligned FASTA identifier {ident!r} is not Newick/PHYLIP safe")
+            cur = ident
             seqs[cur] = ""
-        elif cur:
-            seqs[cur] += stripped
+        else:
+            if cur is None:
+                raise ValueError(f"Aligned FASTA sequence appears before a header at line {line_no}")
+            seqs[cur] += "".join(stripped.split()).upper()
+
+    if not seqs:
+        return {}
+    empty = [name for name, seq in seqs.items() if not seq]
+    if empty:
+        raise ValueError(f"Aligned FASTA contains empty sequences: {', '.join(empty)}")
+    lengths = {len(seq) for seq in seqs.values()}
+    if len(lengths) != 1:
+        raise ValueError("All aligned FASTA sequences must have the same aligned length")
     return seqs
 
 
 def _p_distance(s1: str, s2: str) -> float:
+    if len(s1) != len(s2):
+        raise ValueError("p-distance requires aligned sequences of equal length")
     pairs = [(a, b) for a, b in zip(s1, s2) if a != "-" and b != "-"]
     if not pairs:
         return 1.0
@@ -268,23 +370,18 @@ def _upgma_newick(aln_fasta: str) -> str:
 # ─── PhyML local (subprocess) ────────────────────────────────────────────────
 
 def fasta_to_phylip(fasta: str) -> str:
-    """Convert aligned FASTA to relaxed PHYLIP (names up to 100 chars)."""
-    seqs: dict[str, str] = {}
-    cur: str | None = None
-    for line in fasta.strip().splitlines():
-        t = line.strip()
-        if t.startswith(">"):
-            cur = t[1:].split()[0][:100]
-            seqs[cur] = ""
-        elif cur:
-            seqs[cur] += t.upper()
+    """Convert validated aligned FASTA to relaxed PHYLIP."""
+    seqs = _parse_aligned_fasta(fasta)
     if not seqs:
         return ""
+    truncated = [name[:100] for name in seqs]
+    if len(truncated) != len(set(truncated)):
+        raise ValueError("Sequence identifiers collide after PHYLIP's 100-character limit")
     n = len(seqs)
     L = len(next(iter(seqs.values())))
     lines = [f"{n} {L}"]
     for name, s in seqs.items():
-        lines.append(f"{name:<100}{s}")
+        lines.append(f"{name[:100]:<100}{s}")
     return "\n".join(lines)
 
 
@@ -314,9 +411,9 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
         with open(aln_path, "w") as f:
             f.write(fasta_to_phylip(aln_fasta))
 
-        bs = req.bootstrap if req.bootstrap else 0
+        bs_requested = req.bootstrap if req.bootstrap else 0
         datatype = "aa" if req.seq_type == "protein" else "nt"
-        model = req.model if req.model else ("LG" if req.seq_type == "protein" else "GTR")
+        model = _resolve_ml_model(req.model, req.seq_type)
 
         if use_iqtree:
             out_prefix = aln_path.replace(".phy", "")
@@ -330,38 +427,49 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             # IQ-TREE ultrafast bootstrap (-bb) REQUIRES >= 1000 samples; passing
             # 0 or <1000 errors out. Sample count is a quality knob, not a
             # speed knob — it only scales UFBoot iterations, ~seconds for 1000.
-            if bs > 0:
-                bb = max(1000, bs)
-                cmd += ["-bb", str(bb), "-alrt", str(bb)]
+            bs_effective = _effective_iqtree_bootstrap(bs_requested)
+            if bs_effective > 0:
+                cmd += ["-bb", str(bs_effective)]
             # IQ-TREE timeout: ultrafast bootstrap is fast even at 1000+
-            if bs <= 0:
+            if bs_effective <= 0:
                 timeout_s = 300
-            elif bs <= 1000:
+            elif bs_effective <= 1000:
                 timeout_s = 600
             else:
                 timeout_s = 1200
         else:
+            bs_effective = bs_requested
             cmd = [
                 "phyml",
                 "-i", aln_path,
                 "-d", datatype,
                 "-m", model,
-                "-b", str(bs),
+                "-b", str(bs_effective),
                 "-o", "tlr",
                 "--no_memory_check",
             ]
             # PhyML timeout (slow classic bootstrap)
-            if bs <= 0:
+            if bs_effective <= 0:
                 timeout_s = 900
-            elif bs <= 100:
+            elif bs_effective <= 100:
                 timeout_s = 900
-            elif bs <= 500:
+            elif bs_effective <= 500:
                 timeout_s = 1800
             else:
                 timeout_s = 3600
 
-        _patch(job_id, engine=engine, bootstrap=bs)
-        logger.info(f"[{job_id}] Running {engine} with bootstrap={bs}")
+        _patch(
+            job_id,
+            engine=engine,
+            model=model,
+            bootstrap=bs_requested,
+            bootstrap_requested=bs_requested,
+            bootstrap_effective=bs_effective,
+        )
+        logger.info(
+            "[%s] Running %s model=%s bootstrap requested=%d effective=%d",
+            job_id, engine, model, bs_requested, bs_effective,
+        )
 
         proc = await asyncio.create_subprocess_exec(
             *cmd,
@@ -375,7 +483,7 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             await proc.communicate()
             _patch(job_id, phase="error",
                    error=f"{engine} timed out after {timeout_s // 60} minutes "
-                         f"(bootstrap={bs}). Try reducing to 100-200.")
+                         f"(bootstrap requested={bs_requested}, effective={bs_effective}).")
             return
 
         if proc.returncode != 0:
@@ -555,13 +663,12 @@ async def run_phylo(
     if len(req.sequences) > 50:
         raise HTTPException(400, detail="Maximum 50 sequences per run")
 
-    valid_models = PROTEIN_MODELS if req.seq_type == "protein" else DNA_MODELS
-    if req.method == "ml" and req.model not in valid_models:
-        raise HTTPException(
-            400,
-            detail=f"Model '{req.model}' not valid for {req.seq_type}. "
-                   f"Choose from: {', '.join(valid_models)}"
-        )
+    try:
+        req.sequences = _validate_sequence_records(req.sequences, req.seq_type)
+        if req.method == "ml":
+            req.model = _resolve_ml_model(req.model, req.seq_type)
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
 
     job_id = str(uuid.uuid4())
     _init(job_id, req)

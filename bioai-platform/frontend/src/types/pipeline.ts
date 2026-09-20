@@ -178,12 +178,11 @@ export interface AssembledContext {
   domains?: PipelineDomainEvidence | null;
   msa?: {
     aln_fasta?: string | null;
-    phylotree?: string | null;
-    phylotree_method?: string | null;
-    method?: string | null;
-    sequence_count?: number;
-    method?: string | null;
-    engine?: string | null;
+  phylotree?: string | null;
+  phylotree_method?: string | null;
+  method?: string | null;
+  sequence_count?: number;
+  engine?: string | null;
     msa_stats?: MsaStats | null;
   };
   phylo?: { phylotree_newick?: string; method?: string | null; source_alignment_method?: string | null };
@@ -245,8 +244,8 @@ export interface BlastHitSummary {
 export interface PairwiseAlignResult {
   mode: 'global' | 'local';
   matrix: string;
-  gap_open: number;
-  gap_extend: number;
+  open_gap_score: number;
+  extend_gap_score: number;
   score: number;
   aligned_query: string;
   aligned_hit: string;
@@ -283,7 +282,6 @@ export interface MsaStepResult {
   method?: string | null;
   sequence_count?: number;
   alignment_mode?: 'global' | 'local';
-  method?: string | null;
   engine?: string | null;
   engine_version?: string | null;
   input_sha256?: string;

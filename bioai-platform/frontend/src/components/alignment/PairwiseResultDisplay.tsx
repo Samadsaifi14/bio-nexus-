@@ -215,8 +215,8 @@ export function PairwiseResultDisplay({
       [
         ['Mode', result.mode],
         ['Matrix', result.matrix],
-        ['Gap open penalty', String(result.gap_open)],
-        ['Gap extend penalty', String(result.gap_extend)],
+        ['Gap open penalty', String(result.open_gap_score)],
+        ['Gap extend penalty', String(result.extend_gap_score)],
         ['Score', String(result.score)],
         ['Alignment length', String(result.alignment_length)],
         ['Identical residues', String(result.identity)],

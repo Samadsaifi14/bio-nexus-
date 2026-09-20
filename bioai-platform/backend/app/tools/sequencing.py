@@ -1,8 +1,9 @@
 """Small-reference consensus sequencing with explicit scientific failure states.
 
 This module intentionally has no pseudo-aligner fallback.  If minimap2 cannot
-run successfully, alignment-dependent processing stops and the returned
-ScientificResult is FAILED.  A failed download is also never replaced with
+run successfully, alignment-dependent processing hard-stops before consensus
+construction: accepted input returns an explicit DEGRADED ScientificResult;
+input errors return FAILED.  A failed download is also never replaced with
 synthetic reads; synthetic data is used only when explicitly requested.
 """
 
@@ -47,7 +48,7 @@ SMALL_REFERENCE = "sars-cov-2"
 MAX_FASTQ_SIZE = 50 * 1024 * 1024
 REF_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "references")
 
-DEFAULT_MIN_DEPTH = 10
+DEFAULT_MIN_DEPTH = 3
 DEFAULT_MIN_BASE_QUALITY = 20
 DEFAULT_MIN_MAPPING_QUALITY = 20
 DEFAULT_ALLELE_FREQUENCY = 0.50
@@ -415,6 +416,9 @@ def _parse_sam_evidence(
         "snv_candidates": snv_candidates,
         "depth": depth_rows,
         "consensus": consensus,
+        # Genuine per-anchor insertion observations (count, forward, reverse)
+        # recorded from the CIGAR before any min_depth call gate is applied.
+        "insertions": dict(insertions),
     }
 
 
@@ -459,8 +463,10 @@ def _pileup_reads(
     uses (`_parse_sam_evidence`). Each `positions` entry is reshaped 1:1 from
     the analyzer's real depth row: depth, strand["+"]/strand["-"] (from the real
     forward/reverse depth columns), and the true per-base counts. `ins` tallies
-    only genuine INS variant records at that position. Nothing here is invented:
-    if the analyzer reports no support at a position, depth is 0 with no bases.
+    the analyzer's genuine insertion observations at that anchor position
+    (recorded from the CIGAR before the variant-call depth gate). Nothing here
+    is invented: if the analyzer reports no support at a position, depth is 0
+    with no bases.
     """
     evidence = _parse_sam_evidence(
         sam_path,
@@ -493,10 +499,25 @@ def _pileup_reads(
     variants: list[dict] = []
     for variant in evidence["variants"]:
         record = dict(variant)
+        if record.get("type") == "DEL":
+            # Contract form for deletions: 1-based position of the first
+            # deleted base, ref = the deleted bases only, alt = "*" (the
+            # analyzer emits the anchor base + deleted bases as ref/alt).
+            record = {
+                **record,
+                "pos": int(record["pos"]) + 1,
+                "ref": record["ref"][len(record["alt"]):],
+                "alt": "*",
+            }
         variants.append(record)
-        if record.get("type") == "INS":
-            ins_pos = int(record.get("pos", 0))
-            positions[ins_pos - 1]["ins"] += 1
+
+    # Genuine insertion observations from the analyzer, independent of the
+    # variant-call depth gate: a single supporting read (depth 1) is still a
+    # real observed insertion at its anchor position and is tallied as such.
+    for (anchor, _inserted), support in (evidence.get("insertions") or {}).items():
+        anchor = int(anchor)
+        if anchor in positions:
+            positions[anchor]["ins"] += int(support.get("count", 0))
 
     return {
         "alignment": evidence.get("alignment"),
@@ -662,30 +683,30 @@ def _persist_artifacts(
     consensus_fasta: str,
     provenance: dict,
 ) -> list[dict[str, Any]]:
-    payloads: list[tuple[str, str, str]] = [
-        ("fastq_qc.json", json.dumps(fastq_qc, sort_keys=True, indent=2), "application/json"),
-        ("alignment.sam", Path(sam_path).read_text(encoding="utf-8", errors="replace"), "text/plain"),
-        ("variants.vcf", vcf_text, "text/plain"),
-        ("depth.tsv", depth_text, "text/tab-separated-values"),
-        ("consensus.fasta", consensus_fasta, "text/x-fasta"),
-        ("provenance.json", json.dumps(provenance, sort_keys=True, indent=2), "application/json"),
+    payloads: list[tuple[str, str, str, str]] = [
+        ("fastq_qc.json", "fastq_qc", json.dumps(fastq_qc, sort_keys=True, indent=2), "application/json"),
+        ("alignment.sam", "sam", Path(sam_path).read_text(encoding="utf-8", errors="replace"), "text/plain"),
+        ("variants.vcf", "vcf", vcf_text, "text/plain"),
+        ("depth.tsv", "depth_table", depth_text, "text/tab-separated-values"),
+        ("consensus.fasta", "consensus_fasta", consensus_fasta, "text/x-fasta"),
+        ("provenance.json", "provenance", json.dumps(provenance, sort_keys=True, indent=2), "application/json"),
     ]
     artifacts: list[dict[str, Any]] = []
     if not job_id:
-        for name, content, media_type in payloads:
-            artifacts.append({"name": name, "media_type": media_type, "available": False, "reason": "No durable job id supplied", "sha256": hashlib.sha256(content.encode()).hexdigest()})
+        for name, kind, content, media_type in payloads:
+            artifacts.append({"name": name, "kind": kind, "content": content, "media_type": media_type, "available": False, "reason": "No durable job id supplied", "sha256": hashlib.sha256(content.encode()).hexdigest()})
         return artifacts
 
     from app.services.artifact_storage import upload_artifact, upload_bytes_artifact
 
-    for name, content, media_type in payloads:
+    for name, kind, content, media_type in payloads:
         digest = hashlib.sha256(content.encode()).hexdigest()
         try:
             url = upload_artifact(job_id, name, content, media_type)
-            artifacts.append({"name": name, "media_type": media_type, "url": url, "sha256": digest, "available": True})
+            artifacts.append({"name": name, "kind": kind, "content": content, "media_type": media_type, "url": url, "sha256": digest, "available": True})
         except Exception as exc:
             logger.warning("Could not persist sequencing artifact %s: %s", name, type(exc).__name__)
-            artifacts.append({"name": name, "media_type": media_type, "sha256": digest, "available": False, "reason": "Artifact storage unavailable"})
+            artifacts.append({"name": name, "kind": kind, "content": content, "media_type": media_type, "sha256": digest, "available": False, "reason": "Artifact storage unavailable"})
 
     samtools = shutil.which("samtools")
     if samtools:
@@ -790,11 +811,26 @@ class SequencingPipeline(BaseTool):
             try:
                 mm2_path = await asyncio.wait_for(_ensure_minimap2(), timeout=120)
             except Exception as exc:
-                return failed_scientific_result(
-                    method="reference-guided consensus sequencing", engine="minimap2", engine_version="unavailable",
+                # Accepted input, but alignment-dependent processing cannot run:
+                # an explicit DEGRADED hard-stop before consensus construction.
+                return build_scientific_result(
+                    status=ScientificStatus.DEGRADED,
+                    method="reference-guided consensus sequencing",
+                    engine="minimap2",
+                    engine_version="unavailable",
                     input_payload={**input_manifest, "fastq_sha256": _sha256_file(fastq_path), "reference_sha256": _sha256_file(ref_path)},
-                    reason=str(exc), parameters=params,
-                    validation={"alignment_completed": False, "variant_calling_executed": False, "consensus_constructed": False},
+                    results={},
+                    parameters=params,
+                    fallback_used=True,
+                    validation={
+                        "no_consensus": True,
+                        "hard_stop_before_consensus": True,
+                        "alignment_completed": False,
+                        "variant_calling_executed": False,
+                        "consensus_constructed": False,
+                        "scientific_processing_stopped": True,
+                        "reason": str(exc),
+                    },
                 )
 
             version = _engine_version(mm2_path)
@@ -861,21 +897,21 @@ class SequencingPipeline(BaseTool):
 
             plots = [
                 {
-                    "id": "depth_vs_position", "title": "Depth vs position", "x": "position", "y": "depth",
+                    "id": "depth_vs_position", "name": "depth_vs_position", "title": "Depth vs position", "x": "position", "y": "depth",
                     "data": _downsample_depth(depth_rows), "calculated_points": len(depth_rows),
                     "displayed_points": min(len(depth_rows), 2000), "source_artifact": "depth.tsv",
                 },
                 {
-                    "id": "base_quality_distribution", "title": "Base-quality distribution", "x": "quality", "y": "count",
+                    "id": "base_quality_distribution", "name": "base_quality_distribution", "title": "Base-quality distribution", "x": "quality", "y": "count",
                     "data": qc.get("quality_histogram", []), "source": "FASTQ Phred+33 qualities",
                 },
                 {
-                    "id": "allele_fraction_vs_position", "title": "Allele fraction vs position", "x": "position", "y": "allele_fraction",
+                    "id": "allele_fraction_vs_position", "name": "allele_fraction_vs_position", "title": "Allele fraction vs position", "x": "position", "y": "allele_fraction",
                     "data": [{"position": v["pos"], "allele_fraction": v["freq"], "type": v["type"], "ref": v["ref"], "alt": v["alt"]} for v in variants],
                     "source_artifact": "variants.vcf",
                 },
                 {
-                    "id": "variant_type_summary", "title": "Variant type/count summary", "x": "type", "y": "count",
+                    "id": "variant_type_summary", "name": "variant_type_summary", "title": "Variant type/count summary", "x": "type", "y": "count",
                     "data": type_counts, "source_artifact": "variants.vcf",
                 },
             ]

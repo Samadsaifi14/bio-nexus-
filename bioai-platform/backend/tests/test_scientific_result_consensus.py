@@ -130,7 +130,7 @@ def test_historical_fallback_is_disabled():
 
 
 @pytest.mark.asyncio
-async def test_missing_minimap2_returns_failed_and_never_consensus(monkeypatch, tmp_path: Path):
+async def test_missing_minimap2_returns_degraded_and_never_consensus(monkeypatch, tmp_path: Path):
     import app.tools.sequencing as sequencing
 
     reference = tmp_path / "reference.fa"
@@ -146,11 +146,14 @@ async def test_missing_minimap2_returns_failed_and_never_consensus(monkeypatch, 
     monkeypatch.setattr(sequencing, "_ensure_minimap2", absent_minimap2)
 
     result = await sequencing.SequencingPipeline().run({"fastq_url": "synthetic", "reference": "sars-cov-2"})
-    assert result["status"] == "FAILED"
+    assert result["status"] == "DEGRADED"
+    assert result["fallback_used"] is True
     assert result["results"] == {}
     assert result["validation"]["scientific_processing_stopped"] is True
     assert result["validation"]["consensus_constructed"] is False
+    assert result["validation"]["no_consensus"] is True
     assert "consensus_sequence" not in result["results"]
+    assert "ai_interpretation" not in result["results"]
 
 
 @pytest.mark.asyncio

@@ -735,6 +735,8 @@ class SequencingPipeline(BaseTool):
             return failed_scientific_result(
                 method="reference-guided consensus sequencing", engine="minimap2", engine_version="unavailable",
                 input_payload=input_manifest, reason="fastq_url is required", parameters=params,
+                results={"error": "fastq_url is required"},
+                validation={"failed_step": "input", "reason": "fastq_url is required"},
             )
 
         tmpdir = tempfile.mkdtemp(prefix="seqpipe_")
@@ -742,10 +744,17 @@ class SequencingPipeline(BaseTool):
             try:
                 ref_path = await _download_reference(reference)
             except Exception as exc:
+                msg = str(exc)
+                if isinstance(exc, ValueError) and "Unknown reference genome" in msg:
+                    return failed_scientific_result(
+                        method="reference-guided consensus sequencing", engine="minimap2", engine_version="unavailable",
+                        input_payload=input_manifest, reason=msg, parameters=params,
+                        results={"error": msg},
+                        validation={"failed_step": "input", "reason": msg},
+                    )
                 return failed_scientific_result(
                     method="reference-guided consensus sequencing", engine="minimap2", engine_version="unavailable",
                     input_payload=input_manifest, reason=f"Reference retrieval failed: {type(exc).__name__}", parameters=params,
-                    database="reference genome", database_version=reference,
                 )
             ref_content = Path(ref_path).read_text(encoding="utf-8", errors="replace")
             ref_seq = _reference_sequence(ref_content)

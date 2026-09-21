@@ -2,85 +2,89 @@
   "schema": "bionexus-fixture-manifest/v1",
   "root": "benchmark/fixtures",
   "files": {
-    "ai/adversarial/cases.json": {
-      "sha256": "4ae0565132a53a4da7a06b457a302cf72e17d1d627d7a7958f683cceee68c52a",
-      "bytes": 6568
+    "README.md": {
+      "sha256": "f3d9b4edb00d671ad3f44c11a3d8fc07bf87aa34b058facb7de6f16f42ba3813",
+      "bytes": 3111
     },
     "ai/adversarial/README.md": {
-      "sha256": "ad80628e96a1fb3f71e2478111c9be35733a8f0cd01256451a55bbc057265c0f",
-      "bytes": 1626
+      "sha256": "a26ed18fd8d5d808c5e5fb8eb10fbdbf60057e69297648bba3f1a7542c368159",
+      "bytes": 1596
+    },
+    "ai/adversarial/cases.json": {
+      "sha256": "cfbb08ea13763f069c674900cec41dde15802a5575b98947935cb2d6f7f19892",
+      "bytes": 6438
     },
     "ai/adversarial/run_evidence_adversarial.py": {
-      "sha256": "4bfc55c9c0cbf0570190b00f5bd48f61e7ee4afb36ba3baad519368102a0645b",
-      "bytes": 4842
+      "sha256": "67871e4d3efb15bb99b5e9640c136aa7a751b5cbee608fa0195d4841ffd1a93f",
+      "bytes": 4736
+    },
+    "ai/prompts/README.md": {
+      "sha256": "87c62d5286dc523ab1da9a9f5502742927746c6af38dc176a280a581caa00b33",
+      "bytes": 1411
     },
     "ai/prompts/generate_prompt_corpus.py": {
-      "sha256": "b5796ac9bd150f913e56f837777a8708a88a78383a399623b617c697c2cfb249",
-      "bytes": 10218
+      "sha256": "ecc785ef0eda8d9cf5f60b450404c8839e93d984f5fe615c158946608c47d19f",
+      "bytes": 9990
     },
     "ai/prompts/prompt_corpus.json": {
       "sha256": "872aab7f26f17862f357a1b8b5799d04779b47fb55770b18b631b73ad96eb845",
       "bytes": 64908
     },
-    "ai/prompts/README.md": {
-      "sha256": "089c61afac96d57d539dae469246dcc87948ec483a1fa469e4162c937f6d0fe8",
-      "bytes": 1445
+    "cheminformatics/descriptor_parity/README.md": {
+      "sha256": "879de6667d82f878d6e31f37e106fcf1382be69a3bc0429010280298baab8c06",
+      "bytes": 1441
     },
     "cheminformatics/descriptor_parity/expected_descriptors.json": {
-      "sha256": "d5907f4e251701b6875b29db6ad91e5754ff86711b8adb53b50b7a81450b34a7",
-      "bytes": 157433
+      "sha256": "2e0558eac0f260e1a7bde60d8a926ae8cab093a63d9d4e37ad6955c9ce9f79ca",
+      "bytes": 152440
     },
     "cheminformatics/descriptor_parity/molecules.json": {
-      "sha256": "5d1b1f8a9e1f028e4d810d5aef936dd1263f97382133d8e175ff0072f3192fdc",
-      "bytes": 18938
+      "sha256": "1fa2b4dd1e7506981369b542db6524064627d947910d3d7560826a4b4c99cb95",
+      "bytes": 18774
     },
     "cheminformatics/descriptor_parity/pin_expected.py": {
-      "sha256": "95464aab0ddd68e39c90fba95c9b4bbe29efe6a21cfbd7bfa839d438832b4b8d",
-      "bytes": 4403
-    },
-    "cheminformatics/descriptor_parity/README.md": {
-      "sha256": "5a51a048e6486937b5263a8f3ff9325d8d76e79aef2d55441eaf2c3b0d02e1b9",
-      "bytes": 1457
+      "sha256": "2b89a1b0238e6bb3e6048f5795512b25f1517d6484552516fcd73fe03305a1af",
+      "bytes": 4281
     },
     "cheminformatics/descriptor_parity/run_descriptor_parity.py": {
-      "sha256": "c2bf7afe66f785a7030de5ce6909649af80557e113bcf0de6ca1e29cc5391124",
-      "bytes": 6669
+      "sha256": "9875f7fbaf245c536c7a0c052f659710a841b3eb01f13cf17168edc099c6953f",
+      "bytes": 6488
     },
     "cheminformatics/drug_likeness/drug_likeness.json": {
-      "sha256": "de159904745cbff2a92ea9f46384315a7816709161c145fcd724ff325d23aab1",
-      "bytes": 2927
+      "sha256": "12b5684d5009de0c00cf458ae5ee1c8a0f4ab8f01e78246f77622d8996cf7d7d",
+      "bytes": 2893
     },
     "cheminformatics/drug_likeness/rules.json": {
-      "sha256": "7b4fcb7638a56281bfc00c0aa2b8d6dbe5cbcf7f3654a191cbe6bcd604bb9cae",
-      "bytes": 3356
+      "sha256": "f016c64f07f3433d2e05756080dc56a79937e9518f3f873fd526c664a101a889",
+      "bytes": 3308
     },
     "cheminformatics/drug_likeness/run_drug_likeness.py": {
-      "sha256": "78dbadecfb181e98f117b2611eff5d58d07b00659f73cdb40d234e8777da2f7a",
-      "bytes": 9314
+      "sha256": "abea9874e4fbce8fa12232aca244913be9a0093dacb42aa56068e04c8a26eccc",
+      "bytes": 9096
     },
     "cheminformatics/protox/protox_contract.json": {
-      "sha256": "7480faaa5463441cf3d4cab3f85a3f220d389cc0417ffb019fbee6366b8a7258",
-      "bytes": 1845
+      "sha256": "2c6d4e92880fceeba11053fcff015df5f5ba89fcb55855e5ab0dbec08cb10b37",
+      "bytes": 1813
     },
     "cheminformatics/protox/record_reference.py": {
-      "sha256": "a667e53d103e7e41813752c10c6a878b548c8d11b88dbc6e25df37919b705a27",
-      "bytes": 2734
+      "sha256": "30af40f574ea9eda72121d22dd9e06233be6b55e76904a928c0b6c3508b492ba",
+      "bytes": 2658
     },
     "docking/README.md": {
-      "sha256": "f3541ceca7ac3bc308ed1049f3fac3e3594a42f79f493cae8d6125388c4635d5",
-      "bytes": 1394
+      "sha256": "e7cd506fcd0cb716ca441465cb97722f6a42b8dca28c247d9a48a7499ae3d510",
+      "bytes": 1363
     },
     "docking/redock_panel.json": {
-      "sha256": "06f7c2ae7f303c094f0cbb1befc9fbf73795982408480153b957049921831ba3",
-      "bytes": 4039
+      "sha256": "759e5005676d524aaaae3e044d94146b861eab58cb2fda0312888d92dcf78703",
+      "bytes": 4003
     },
     "docking/run_redock_panel.py": {
-      "sha256": "fc51565092c25e77470e4fcfab311ebe55c07363102ec363611093f7af94e6d0",
-      "bytes": 10929
+      "sha256": "8d81890bde23f9098aaabf8ce8315d005d47c3f86db80c2de1d343e5fe0c041a",
+      "bytes": 10672
     },
-    "README.md": {
-      "sha256": "7404eb75be769062493382faaffe32fabff3564720fd79422636933c8653047c",
-      "bytes": 3156
+    "sequence/README.md": {
+      "sha256": "3fab39ccf23dd9b12a36fd6fe1d74ae32c50bf661ca82174cbd08e5a7c65b3f2",
+      "bytes": 1681
     },
     "sequence/blast_parser/README.md": {
       "sha256": "b0650e38da20d619a586264a540a1fc2bf01ec66e443d889fb374378dbeef348",
@@ -103,28 +107,24 @@
       "bytes": 4443
     },
     "sequence/blast_queries.json": {
-      "sha256": "28d0cb3b044f278dec2d63a540a0d751f420614c4f9506820767e6afe2de6256",
-      "bytes": 3426
-    },
-    "sequence/README.md": {
-      "sha256": "4516a37b67876be97f9da0adaa9b83f71a86669b85dc4db7c9dc556b6dc5ca9c",
-      "bytes": 1719
+      "sha256": "b5177dc26dfa70f0fe6c4cda7b45db2f6faca1701a35b029543850579a9e2113",
+      "bytes": 3346
     },
     "sequence/run_blast_recovery.py": {
-      "sha256": "d2ecb5a160c3783740c86a6f43fcfd0cad5371ab03c25dfcc475a5f3f299a2fb",
-      "bytes": 7937
+      "sha256": "0ca4810fc15fb804146234c80a230cd75597d6f03c62353dc533ba4a27684335",
+      "bytes": 7748
     },
     "structure_prep/README.md": {
-      "sha256": "5f02c402c9c95eccbfc895d4b7f8bab269d218e83b940b1b8eb70f8e9359fd44",
-      "bytes": 1570
+      "sha256": "a3f3be5c8bf353fafc4f5769b85d06dfe8e2baf53f9408d6947251fbdb915bc8",
+      "bytes": 1531
     },
     "structure_prep/run_structure_prep_e2e.py": {
-      "sha256": "854c130e8cb1cf59d83c14228cb658ade806b9c765bbf83ecaeb5a617a3059f7",
-      "bytes": 7392
+      "sha256": "0256a109d7915645cf733daaa3601bd5c453acecb863a391138aaca186b89118",
+      "bytes": 7210
     },
     "structure_prep/structure_prep_panel.json": {
-      "sha256": "21b90995f80096b4d26f3d34c82bc9588742090e1d317eef664d1926faade9b9",
-      "bytes": 2071
+      "sha256": "e43c3f15509f880a5b6c56f75dcf3abf1d03547f3b00e13fcab457a559f6c574",
+      "bytes": 2030
     }
   }
 }

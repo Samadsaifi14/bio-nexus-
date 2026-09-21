@@ -595,6 +595,17 @@ class TestBlastDownstreamFeatureRestoration:
 class TestBlastStructureAnalysisRestoration:
     """BLAST downstream structure panels must operate on carried evidence honestly."""
 
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["AAAA.invalid", "AAAA?x=1", "../A", "A" * 100])
+    async def test_remote_structure_identifiers_reject_url_metacharacters(self, identifier):
+        from fastapi import HTTPException
+        from app.routers.structure_analysis import ramachandran, secondary_structure
+
+        for endpoint in (ramachandran, secondary_structure):
+            with pytest.raises(HTTPException) as exc:
+                await endpoint(identifier)
+            assert exc.value.status_code == 422
+
     def test_secondary_structure_accepts_raw_sequence_and_is_labelled_heuristic(self):
         from app.routers.structure_analysis import _predict_secondary_structure
 

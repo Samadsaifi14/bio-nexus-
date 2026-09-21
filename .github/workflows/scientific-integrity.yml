@@ -37,7 +37,7 @@ jobs:
           python-version: '3.11'
           cache: pip
       - name: Install BBS-2 dependencies
-        run: python -m pip install --upgrade pip pytest rdkit==2022.09.5
+        run: python -m pip install --upgrade pip pytest 'numpy<2' rdkit==2022.09.5
       - name: Verify fixture manifests (no checksum drift)
         run: python ../../benchmark/verify_fixtures.py
       - name: Run descriptor-parity benchmark (pinned RDKit reference)
@@ -49,7 +49,7 @@ jobs:
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: bbs2-cheminformatics
-          path: ../../benchmark/results/cheminformatics/**/*.json
+          path: benchmark/results/cheminformatics/**/*.json
           if-no-files-found: error
 
   bbs1-core:

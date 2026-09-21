@@ -70,6 +70,8 @@ def _ramachandran_points(pdb_data: str, chain: str) -> list[RamachandranPoint]:
 @router.get("/ramachandran/{pdb_id}", response_model=RamachandranResponse)
 async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
     pdb_id = pdb_id.upper()
+    if not re.fullmatch(r"[A-Z0-9]{4}|[A-Z0-9]{6,10}", pdb_id):
+        raise HTTPException(422, "Expected a four-character PDB ID or a UniProt accession")
 
     async with httpx.AsyncClient(timeout=20) as client:
         r = await client.get(f"https://files.rcsb.org/download/{pdb_id}.pdb")
@@ -146,6 +148,8 @@ def _predict_secondary_structure(seq: str, source: str) -> dict:
 @router.get("/secondary_structure/{identifier}")
 async def secondary_structure(identifier: str):
     identifier = identifier.upper()
+    if not re.fullmatch(r"[A-Z0-9]{6,10}", identifier):
+        raise HTTPException(422, "Expected a UniProt accession")
 
     async with httpx.AsyncClient(timeout=15) as client:
         r = await client.get(

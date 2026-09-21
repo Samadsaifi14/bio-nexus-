@@ -71,20 +71,60 @@ async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float, meth
     if method_key in {"fpocket", "f_pocket"}:
         fpocket = FPOCKET_BIN if Path(FPOCKET_BIN).exists() else (shutil.which("fpocket") or "")
         if not fpocket or not Path(fpocket).exists():
-            result = _empty_result(
-                pdb_id,
-                probe_radius,
-                method="fpocket",
-                status="FAILED",
-                engine_version="unavailable",
-                evidence_class="Unsupported/insufficient evidence",
-                reason="fpocket executable is unavailable; no heuristic was substituted",
+            if not _parse_pdb_chains(pdb_text)["chains"]:
+                result = _empty_result(
+                    pdb_id,
+                    probe_radius,
+                    method="fpocket",
+                    status="FAILED",
+                    engine_version="unavailable",
+                    evidence_class="Unsupported/insufficient evidence",
+                    reason="fpocket executable is unavailable; no heuristic was substituted",
+                )
+                _attach_structure_summary(pdb_text, result)
+                return result
+            methods_tried = [{"method": "fpocket", "status": "unavailable"}]
+            try:
+                loop = asyncio.get_running_loop()
+                result = await loop.run_in_executor(None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius)
+            except Exception as exc:
+                error = f"{type(exc).__name__}: {exc}"
+                methods_tried.append({"method": "sasa_heuristic", "status": "crashed"})
+                result = _empty_result(
+                    pdb_id,
+                    probe_radius,
+                    method="none",
+                    status="FAILED",
+                    engine_version="fpocket unavailable; sasa_heuristic crashed",
+                    evidence_class="Unsupported/insufficient evidence",
+                    reason=error,
+                )
+                result["methods_tried"] = methods_tried
+                result["fallback_used"] = True
+                result["fallback_method"] = "sasa_heuristic"
+                result["error"] = str(exc)
+                _attach_structure_summary(pdb_text, result)
+                return result
+            heuristic_status = "ran_no_pockets" if not result.get("pockets") else "ran_with_pockets"
+            methods_tried.append({"method": "sasa_heuristic", "status": heuristic_status})
+            result["method"] = "sasa_heuristic"
+            result["engine"] = "BioNexus exploratory SASA heuristic"
+            result["status"] = "DEGRADED"
+            result["methods_tried"] = methods_tried
+            result["fallback_used"] = True
+            result["fallback_method"] = "sasa_heuristic"
+            result["note"] = (
+                "CASTp architecture: fpocket is unavailable in this deployment, so the "
+                "analysis fell back to the BioNexus exploratory SASA heuristic. All "
+                "values are attributed to sasa_heuristic; no fpocket or CASTp values "
+                "were substituted."
             )
             _attach_structure_summary(pdb_text, result)
             return result
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, _run_fpocket_analysis, fpocket, pdb_text, pdb_id, probe_radius)
-        _attach_structure_summary(pdb_text, result)
+        result.setdefault("fallback_used", False)
+        result["methods_tried"] = [{"method": "fpocket", "status": "ok"}]
         return result
 
     if method_key in {"heuristic", "sasa", "sasa_heuristic", "bionexus_heuristic"}:
@@ -166,7 +206,7 @@ def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float, version: str
     current: dict[str, Any] | None = None
     for raw in info_file.read_text(encoding="utf-8", errors="replace").splitlines():
         line = raw.strip()
-        pocket_match = re.match(r"Pocket\s+(\d+)\s*:?")
+        pocket_match = re.match(r"Pocket\s+(\d+)\s*:?", line)
         if pocket_match:
             if current:
                 pockets.append(current)

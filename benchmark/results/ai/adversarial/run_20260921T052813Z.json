@@ -3,7 +3,7 @@
   "domain": "ai",
   "benchmark": "adversarial_evidence_integrity",
   "fixture": "evidence_adversarial_v1",
-  "timestamp": "2026-09-21T05:28:27+00:00",
+  "timestamp": "2026-09-21T05:28:13+00:00",
   "live_environments": {
     "python": "3.11.15"
   },

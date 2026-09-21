@@ -14,5 +14,5 @@
     "essential_top_pose_success": true,
     "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags)."
   },
-  "recorded": "2026-09-19"
+  "recorded": "2026-09-21"
 }

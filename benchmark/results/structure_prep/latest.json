@@ -13,5 +13,5 @@
     "pocket_detection_runs_complete": "fpocket returns status 'complete' for every entry",
     "pocket_expected_found": "entries flagged expect_pocket=true report >=1 pocket; others only require complete status"
   },
-  "recorded": "2026-09-19"
+  "recorded": "2026-09-21"
 }

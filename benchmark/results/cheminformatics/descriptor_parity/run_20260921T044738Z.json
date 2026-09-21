@@ -3,7 +3,7 @@
   "domain": "cheminformatics",
   "benchmark": "descriptor_parity",
   "fixture": "diverse_rdkit_parity_v1",
-  "timestamp": "2026-09-21T05:28:25+00:00",
+  "timestamp": "2026-09-21T04:47:38+00:00",
   "live_environments": {
     "python": "3.11.15",
     "rdkit": "2022.09.5"

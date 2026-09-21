@@ -37,7 +37,7 @@ jobs:
           python-version: '3.11'
           cache: pip
       - name: Install BBS-2 dependencies
-        run: python -m pip install --upgrade pip pytest 'numpy<2' rdkit==2022.09.5
+        run: python -m pip install --upgrade pip pytest 'numpy<2' rdkit==2022.09.5 fastapi 'pydantic[email]' httpx biopython python-dotenv
       - name: Verify fixture manifests (no checksum drift)
         run: python ../../benchmark/verify_fixtures.py
       - name: Run descriptor-parity benchmark (pinned RDKit reference)

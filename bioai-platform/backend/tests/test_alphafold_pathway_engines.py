@@ -100,6 +100,16 @@ def test_structure_engine_accepts_experimental_rcsb_without_plddt():
     assert "pLDDT" not in svg
 
 
+def test_esmfold_requires_inline_coordinates_and_retains_source():
+    eng = get_engine("alphafold")
+    raw = {"structure_available": True, "source": "esmfold", "pdb_text": "ATOM  test", "mean_plddt": 80.0}
+    result = eng.parse(raw)
+    assert result.tool == "ESMFold"
+    assert result.database is None
+    assert eng.validate(result).valid
+    assert not eng.validate(eng.parse({**raw, "pdb_text": ""})).valid
+
+
 def test_alphafold_validate_flags_bad_confidence_and_url():
     eng = get_engine("alphafold")
     bad_conf = dict(AF_AVAILABLE, confidence=150.0)

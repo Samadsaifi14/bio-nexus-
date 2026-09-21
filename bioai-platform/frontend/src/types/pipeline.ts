@@ -229,7 +229,7 @@ export interface BlastHitSummary {
   identity_pct: number;
   bit_score: number;
   alignment_length?: number;
-  query_coverage_pct?: number;
+  query_coverage_pct?: number | null;
   query_from?: number;
   query_to?: number;
   hit_from?: number;

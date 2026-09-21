@@ -7,10 +7,10 @@ type RPoint = { residue: string; chain: string; resnum: number; phi: number; psi
 type RamaResponse = { points: RPoint[]; classifier?: string; classifier_note?: string; wwpdb_note?: string };
 
 const REGION_COLOR: Record<string, string> = {
-  core_alpha: "#4ADE80",
-  core_beta:  "#7C3AED",
-  allowed:    "#FBBF24",
-  outlier:    "#EF4444",
+  alpha: "#4ADE80",
+  beta: "#7C3AED",
+  left_handed: "#FBBF24",
+  other: "#94A3B8",
 };
 
 export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null; chain?: string }) {
@@ -41,24 +41,17 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
   const toY = (psi: number) => PAD + ((180 - psi) / 360) * (H - PAD * 2);
 
   const counts = {
-    core_alpha: points.filter(p => p.region === "core_alpha").length,
-    core_beta:  points.filter(p => p.region === "core_beta").length,
-    allowed:    points.filter(p => p.region === "allowed").length,
-    outlier:    points.filter(p => p.region === "outlier").length,
+    alpha: points.filter(p => p.region === "alpha").length,
+    beta: points.filter(p => p.region === "beta").length,
+    left_handed: points.filter(p => p.region === "left_handed").length,
+    other: points.filter(p => p.region === "other").length,
   };
-  const outlierPct = points.length ? ((counts.outlier / points.length) * 100).toFixed(1) : "0";
 
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h3 className="text-text-primary font-semibold">Ramachandran Plot</h3>
-        <span className={`text-xs px-2 py-0.5 rounded-full ${
-          +outlierPct < 2 ? "text-good bg-good/10"
-            : +outlierPct < 5 ? "text-warn bg-warn/10"
-            : "text-error bg-error/10"
-        }`}>
-          {outlierPct}% coarse outliers
-        </span>
+        <span className="text-xs px-2 py-0.5 rounded-full text-text-muted bg-surface-1">Descriptive regions only</span>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-6">
@@ -118,7 +111,7 @@ export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null;
               </div>
             </div>
           ))}
-          <p className="text-text-muted text-xs">&gt;98% in favoured regions (wwPDB/MolProbity) is a benchmark for official validation reports, not for this plot.</p>
+          <p className="text-text-muted text-xs">Use the official wwPDB validation report to assess favoured regions and outliers.</p>
           {resp.classifier_note && <p className="text-[11px] leading-4 text-text-muted border-t border-glass-border pt-2">{resp.classifier_note}</p>}
           {resp.wwpdb_note && <p className="text-[11px] leading-4 text-text-muted">{resp.wwpdb_note}</p>}
         </div>

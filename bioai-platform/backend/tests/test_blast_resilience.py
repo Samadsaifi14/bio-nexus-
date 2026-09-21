@@ -250,6 +250,16 @@ class TestStandaloneBlastRouting:
 
 
 class TestBlastCoverageSemantics:
+    def test_query_coverage_unions_overlapping_hsps_without_double_counting(self):
+        from app.routers.pipeline_v2 import _blast_query_coverage_pct
+
+        hit = {"hsps": [
+            {"query_from": 1, "query_to": 30},
+            {"query_from": 21, "query_to": 50},
+            {"query_from": 70, "query_to": 80},
+        ]}
+        assert _blast_query_coverage_pct(hit, 100) == 61.0
+
     def test_query_coverage_uses_query_span_not_alignment_length(self):
         from app.routers.pipeline_v2 import _blast_query_coverage_pct
 

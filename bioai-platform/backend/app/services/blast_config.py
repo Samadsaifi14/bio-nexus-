@@ -24,7 +24,7 @@ PROGRAM_DATABASES = {
 # a protein database, while tblastn takes a protein query and searches a
 # nucleotide database.
 PROGRAM_DEFAULT_DATABASE = {
-    "blastp": "nr",
+    "blastp": "swissprot",
     "blastn": "nt",
     "blastx": "nr",
     "tblastn": "nt",

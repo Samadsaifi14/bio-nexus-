@@ -12,6 +12,7 @@ import PathwayDiagram from '@/components/results/PathwayDiagram';
 import { BackButton, PageHeader, ClaySegmented, CriticalButton, FlatInput, FlatTextarea } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
+import { downloadJson, downloadTsv } from '@/lib/export-utils';
 
 type Tab = 'reactome' | 'kegg' | 'enrichment';
 
@@ -263,11 +264,21 @@ export default function PathwayPage() {
               </p>
             )}
           </div>
-          <p className="text-xs text-text-muted mb-2">{enrichmentResult.pathways.length} enriched pathway{enrichmentResult.pathways.length !== 1 ? 's' : ''} returned</p>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-xs text-text-muted">Top {Math.min(20, enrichmentResult.pathways.length)} displayed / {enrichmentResult.pathways.length} returned by provider</p>
+            <div className="flex gap-2">
+              <button className="btn-ghost text-xs px-2 py-1" onClick={() => downloadTsv(
+                ['Stable ID', 'Name', 'Species', 'Found', 'Total', 'Gene ratio', 'Reactome p', 'Reactome FDR', 'Adjusted p', 'Provider', 'Correction'],
+                enrichmentResult.pathways.map(pw => [pw.stId, pw.name, pw.species, String(pw.entitiesFound), String(pw.entitiesTotal), String(pw.geneRatio), String(pw.reactomePValue ?? ''), String(pw.reactomeFDR ?? ''), String(pw.adjustedPValue ?? ''), pw.provider ?? '', pw.correction_method ?? '']),
+                'pathway-enrichment-all.tsv'
+              )}>Download all pathways</button>
+              <button className="btn-ghost text-xs px-2 py-1" onClick={() => downloadJson(enrichmentResult, 'pathway-enrichment-full.json')}>Download full result JSON</button>
+            </div>
+          </div>
           {enrichmentResult.pathways.length === 0 ? (
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No enriched pathways returned by the provider.</p></div>
           ) : (
-            enrichmentResult.pathways.map((pw) => {
+            enrichmentResult.pathways.slice(0, 20).map((pw) => {
               const isReactome = pw.diagram_provider === 'reactome' || pw.provider === 'reactome' || pw.stId.startsWith('R-HSA-');
               return (
               <div key={pw.stId} className="data-card overflow-hidden">

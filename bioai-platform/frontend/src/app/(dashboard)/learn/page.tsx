@@ -30,7 +30,7 @@ const groups: { title: string; items: Topic[] }[] = [
     title: 'Structure & Networks',
     items: [
       { id: 'structure',   title: 'Protein Structure',     description: 'PDB format, AlphaFold, pLDDT scores, and structure visualization.',            icon: Dna },
-      { id: 'function',    title: 'Function Prediction',   description: 'GO terms, Gene Ontology namespaces, EC numbers, and DeepFRI-style prediction.',  icon: Brain },
+      { id: 'function',    title: 'Function Evidence & Functional Hints',   description: 'Source-linked GO and EC annotations with separately labelled hints.',  icon: Brain },
       { id: 'pathways',    title: 'Pathway Analysis',      description: 'Reactome vs KEGG, pathway mapping, and enrichment analysis.',                  icon: GitBranch },
       { id: 'interactions', title: 'Protein Interactions', description: 'STRING database, interaction networks, and confidence scores.',                icon: Globe },
       { id: 'docking',     title: 'Molecular Docking',     description: 'Binding poses, scoring functions, and interaction fingerprints.',              icon: LinkIcon },

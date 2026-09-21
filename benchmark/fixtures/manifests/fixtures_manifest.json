@@ -82,10 +82,6 @@
       "sha256": "7404eb75be769062493382faaffe32fabff3564720fd79422636933c8653047c",
       "bytes": 3156
     },
-    "results/sequence/blast_parser/latest.json": {
-      "sha256": "9b284517b20b8d485adde9ab15f2bae4f79205dc3ff6a7f874db3e564932781f",
-      "bytes": 1191
-    },
     "sequence/blast_parser/README.md": {
       "sha256": "b0650e38da20d619a586264a540a1fc2bf01ec66e443d889fb374378dbeef348",
       "bytes": 2861
@@ -99,8 +95,8 @@
       "bytes": 2130
     },
     "sequence/blast_parser/run_blast_parser_fidelity.py": {
-      "sha256": "3759dcd930befaa0c1701e842b040b6fe7ba902d7ca7294735d79e160a809702",
-      "bytes": 10965
+      "sha256": "ac55211a236e14ad5098f7fe98921c3e203caeac139736c50246b7e0013541f2",
+      "bytes": 10966
     },
     "sequence/blast_parser/synthetic_structure.xml": {
       "sha256": "5503a376ccc8fc2db4c0290574d31fcb87e511eb448b8d30fd814bc057d08f9e",

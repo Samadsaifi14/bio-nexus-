@@ -489,6 +489,8 @@ export async function searchKEGGPathways(query: string): Promise<{ results: KEGG
 
 export type EnrichmentResult = {
   token: string;
+  complete_result?: boolean;
+  source_report?: Record<string, unknown>;
   method?: string;
   provider?: string;
   provider_label?: string;

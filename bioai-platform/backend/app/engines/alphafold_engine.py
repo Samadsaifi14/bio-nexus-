@@ -31,7 +31,7 @@ class AlphaFoldEngine(BaseEngine):
     version = "1.0.0"
     tool = "AlphaFold"
     tool_version = None
-    databases = ["AlphaFold DB"]
+    databases = ["AlphaFold DB", "RCSB PDB"]
     parameters = {
         "lookup": "AlphaFold DB by UniProt accession",
         "de_novo": "ESMFold ab initio when resolution is unavailable",
@@ -55,6 +55,11 @@ class AlphaFoldEngine(BaseEngine):
         if "structure_available" not in raw:
             raise ValueError("cannot parse: not a canonical alphafold result (missing structure_available)")
         source = raw.get("source") or ("esmfold" if raw.get("pdb_text") else "alphafold_db")
+        if source not in {"alphafold_db", "esmfold", "rcsb_pdb"}:
+            raise ValueError(f"Unknown structure source: {source}")
+        experimental = source == "rcsb_pdb"
+        tool = "RCSB PDB" if experimental else ("ESMFold" if source == "esmfold" else "AlphaFold")
+        database = "RCSB PDB" if experimental else (None if source == "esmfold" else "AlphaFold DB")
         confidence = raw.get("confidence")
         stats: dict[str, Any] = {
             "structure_available": bool(raw.get("structure_available")),
@@ -63,6 +68,9 @@ class AlphaFoldEngine(BaseEngine):
             "model_created_date": raw.get("model_created_date"),
             "latest_version": _int_or_none(raw.get("latest_version")),
             "source": source,
+            "structure_type": raw.get("structure_type") or ("experimental" if experimental else "predicted"),
+            "pdb_id": raw.get("pdb_id"),
+            "coordinates_present": bool(raw.get("pdb_text")),
         }
         evidence: dict[str, Any] = {
             "uniprot_accession": raw.get("uniprot_accession"),
@@ -76,12 +84,15 @@ class AlphaFoldEngine(BaseEngine):
             "message": raw.get("message"),
             "error": raw.get("error"),
             "source": source,
+            "structure_type": raw.get("structure_type") or ("experimental" if experimental else "predicted"),
+            "pdb_id": raw.get("pdb_id"),
+            "coordinates_present": bool(raw.get("pdb_text")),
         }
         return EngineResult(
             engine=self.name,
-            tool=self.tool,
-            database=self.databases[0],
-            input_ref=raw.get("uniprot_accession"),
+            tool=tool,
+            database=database,
+            input_ref=raw.get("pdb_id") if experimental else raw.get("uniprot_accession"),
             statistics=stats,
             evidence=evidence,
         )
@@ -93,7 +104,7 @@ class AlphaFoldEngine(BaseEngine):
         checks = [
             {"name": "engine", "passed": result.engine == self.name, "detail": result.engine},
             {"name": "tool", "passed": bool(result.tool), "detail": result.tool},
-            {"name": "database", "passed": bool(result.database), "detail": result.database},
+            {"name": "database", "passed": bool(result.database) or evidence.get("source") == "esmfold", "detail": result.database},
             {"name": "structure_availability_declared", "passed": isinstance(evidence.get("structure_available"), bool), "detail": str(available)},
         ]
         if confidence is not None:
@@ -105,11 +116,16 @@ class AlphaFoldEngine(BaseEngine):
         if available:
             pdb = evidence.get("pdb_url") or ""
             accession = evidence.get("uniprot_accession") or ""
-            checks.append({
-                "name": "pdb_url_consistent",
-                "passed": pdb.startswith("https://") and (not accession or accession in pdb or f"AF-{accession}" in pdb),
-                "detail": pdb,
-            })
+            if evidence.get("source") == "esmfold":
+                checks.append({"name": "coordinates_present", "passed": evidence.get("coordinates_present") is True, "detail": "inline ESMFold coordinates"})
+            else:
+                expected_host = "files.rcsb.org" if evidence.get("source") == "rcsb_pdb" else "alphafold.ebi.ac.uk"
+                expected_id = evidence.get("pdb_id") if evidence.get("source") == "rcsb_pdb" else accession
+                checks.append({
+                    "name": "pdb_url_consistent",
+                    "passed": bool(expected_id) and pdb.startswith(f"https://{expected_host}/") and str(expected_id) in pdb,
+                    "detail": pdb,
+                })
         return ValidationReport(checks, self.name)
 
     def _export_csv(self, result: EngineResult) -> str:
@@ -146,15 +162,17 @@ class AlphaFoldEngine(BaseEngine):
             # ESMFold reports mean_plddt on 0-100 and confidence on 0-1; AF DB
             # reports confidence on 0-100. Prefer the 0-100 native mean_plddt,
             # and always label the scale so values are never ambiguous.
-            if mean is not None:
-                badge = f"Structure available · pLDDT {mean}/100"
+            if source == "rcsb_pdb":
+                badge = f"Experimental structure available · PDB {evidence.get('pdb_id') or 'n/a'}"
+            elif mean is not None:
+                badge = f"Predicted structure available · pLDDT {mean}/100"
             elif confidence is not None:
                 if source == "esmfold" and confidence <= 1:
-                    badge = f"Structure available · confidence {confidence}/1"
+                    badge = f"Predicted structure available · confidence {confidence}/1"
                 else:
-                    badge = f"Structure available · pLDDT {confidence}/100"
+                    badge = f"Predicted structure available · pLDDT {confidence}/100"
             else:
-                badge = "Structure available"
+                badge = "Predicted structure available"
         else:
             badge_color = "#b7791f"
             badge = f"No structure available ({self._esc(source or 'n/a')})"

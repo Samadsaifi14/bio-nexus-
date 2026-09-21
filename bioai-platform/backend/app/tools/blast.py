@@ -61,6 +61,7 @@ class BlastTool(BaseTool):
 
         return {
             "hits": parsed,
+            "raw_provider_hits": hits,
             "count": len(parsed),
             "source": "EBI BLAST",
             "database": database,
@@ -234,5 +235,6 @@ class BlastTool(BaseTool):
                 "query_alignment": hsp.get("hsp_qseq", hsp.get("query_alignment", "")),
                 "hit_alignment": hsp.get("hsp_hseq", hsp.get("hit_alignment", "")),
                 "midline": hsp.get("hsp_mseq", hsp.get("midline", "")),
+                "hsps": hsps if isinstance(hsps, list) else [],
             })
         return parsed

@@ -29,7 +29,7 @@ const SEGMENT_LABELS: Record<string, string> = {
   admet: 'ADMET Prediction',
   primers: 'Primer Design',
   sequencing: 'Sequencing',
-  function: 'Function Prediction',
+  function: 'Function Evidence & Functional Hints',
   pathway: 'Pathway Analysis',
   compare: 'Sequence Comparison',
   sequences: 'Sequence Utilities',

@@ -54,7 +54,7 @@ def test_nucleotide_query_supports_all_valid_core_programs(program, database):
 @pytest.mark.parametrize(
     ("program", "database"),
     [
-        ("blastp", "nr"),
+        ("blastp", "swissprot"),
         ("tblastn", "nt"),
     ],
 )

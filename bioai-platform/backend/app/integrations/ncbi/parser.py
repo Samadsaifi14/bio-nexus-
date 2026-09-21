@@ -43,6 +43,8 @@ def parse_blast_xml(raw_xml: str) -> dict:
 
     return {
         "query_length": query_len,
+        "provider_version": root.findtext("BlastOutput_version"),
+        "provider_database_label": root.findtext("BlastOutput_db"),
         "hits": hits,
         "count": len(hits),
     }
@@ -99,6 +101,7 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
         "hit_alignment": top_hsp.get("hit_alignment", "") if top_hsp else "",
         "midline": top_hsp.get("midline", "") if top_hsp else "",
         "hsp_count": len(parsed_hsps),
+        "hsps": parsed_hsps,
     }
 
 

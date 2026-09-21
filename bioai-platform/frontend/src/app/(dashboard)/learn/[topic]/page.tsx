@@ -28,12 +28,12 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'How to read E-values',
-        content: 'The E-value (Expect value) describes how many matches you would expect to see by chance when searching a database of a given size. A lower E-value means a more significant match. An E-value of 0.05 means there is a 5% chance of seeing that match by chance alone. A good rule of thumb: E-values below 1e-5 (0.00001) are typically considered significant for homology searches. Values between 0.001 and 0.1 may indicate distant homology and should be investigated further.',
+        content: 'The E-value is the expected number of alignments with at least this score arising by chance in the searched space. It is not the probability that a match is false. An E-value of 0.05 means 0.05 such matches are expected under the random-sequence model. Interpret it together with the database searched, bit score, identity, query coverage and the biological question.',
         code: 'E-value = K × m × n × e^(−λS)\n\n  K = search-space constant\n  m = query length\n  n = database length\n  S = raw alignment score\n  λ = scoring-system lambda',
       },
       {
         heading: 'Understanding bit scores',
-        content: 'The bit score is a normalized, log-scaled version of the raw alignment score. It is independent of database size and scoring matrix, making it comparable across different searches. A bit score of 50 or higher typically indicates a biologically relevant match. Bit scores are calculated as S\' = (λS − ln K) / ln 2, where S is the raw score, λ and K are statistical parameters of the scoring system.',
+        content: 'The bit score normalizes a raw alignment score using parameters of the scoring system. It is independent of database size, but no single bit-score cutoff establishes biological relevance. Consider alignment length, composition, identity, coverage and the search context. The score is calculated as S\' = (λS − ln K) / ln 2, where S is the raw score and λ and K are scoring-system parameters.',
       },
       {
         heading: 'Interpreting identity percentage',
@@ -51,7 +51,7 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'Scoring matrices',
-        content: 'Scoring matrices define the score for aligning any two residues. BLOSUM (BLOcks SUbstitution Matrix) matrices are the most common for proteins. BLOSUM62 is the default for most searches — it assumes sequences with ~62% identity. Higher numbers (BLOSUM80) are better for closely related sequences; lower numbers (BLOSUM45) are better for distantly related ones. For nucleotides, simple match/mismatch scores are typically used (e.g., +1/-1 or +2/-3).',
+        content: 'Scoring matrices define the score for aligning any two residues. BLOSUM (BLOcks SUbstitution Matrix) matrices are commonly used for proteins. BLOSUM62 was constructed after clustering blocks at a 62% identity threshold; it does not assume the query and hit have 62% identity. Higher-numbered matrices often suit closer sequences and lower-numbered matrices more distant ones. Nucleotide alignments commonly use match and mismatch scores.',
         code: 'BLOSUM62 example (positive scores = conserved substitutions):\n\n     A   R   N   D   C   Q   E   G ...\n  A  4  -1  -2  -2   0  -1  -1   0\n  R -1   5   0  -2  -3   1   0  -2\n  N -2   0   6   1  -3   0   0   0\n  D -2  -2   1   6  -3   0   2  -1',
       },
       {

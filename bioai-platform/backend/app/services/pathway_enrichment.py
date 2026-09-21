@@ -92,7 +92,8 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
                 f"{ANALYSIS_BASE}/identifiers/projection",
                 content=body,
                 headers={"Content-Type": "text/plain"},
-                params={"pageSize": "20", "page": "1"},
+                # Reactome returns the complete result when pagination is omitted.
+                # Restrict the browser view, never the scientific record.
             )
             if resp.status_code != 200:
                 logger.warning("Reactome Analysis Service returned %d", resp.status_code)
@@ -126,6 +127,8 @@ async def run_enrichment(identifiers: list[str]) -> dict | None:
             result = {
                 "token": token,
                 "pathways": pathways,
+                "source_report": data,
+                "complete_result": True,
                 "projection": projection,
                 "method": "Reactome over-representation analysis",
                 "provider": "reactome",

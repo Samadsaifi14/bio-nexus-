@@ -6,7 +6,7 @@ import { CaretDown as ChevronDown, CaretUp as ChevronUp, ArrowSquareOut as Exter
 import type { BlastHitSummary } from '@/types/pipeline';
 import { AlignmentView } from './AlignmentView';
 import { PairwiseAlignView } from './PairwiseAlignView';
-import { downloadTsv, downloadText } from '@/lib/export-utils';
+import { downloadTsv, downloadText, downloadJson } from '@/lib/export-utils';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { confidenceBand, formatEvalue, coverageColor } from '@/lib/confidence';
 
@@ -30,6 +30,7 @@ function looksLikeProtein(seq: string): boolean {
 export function BlastPanel({ hits, count, source, querySequence, fullSequences }: BlastPanelProps) {
   const [expanded, setExpanded] = useState<number | null>(null);
   const safeHits = hits ?? [];
+  const displayedHits = safeHits.slice(0, 20);
 
   /** Best available subject sequence for a hit: the full-length MSA copy when
    *  present, otherwise the aligned segment (gaps stripped). */
@@ -44,15 +45,18 @@ export function BlastPanel({ hits, count, source, querySequence, fullSequences }
       <div className="px-6 py-4 border-b border-glass-border bg-surface-1 flex items-center justify-between">
         <h2 className="font-semibold text-text-primary">
           BLAST Hits
-          <span className="text-xs text-text-muted ml-2 font-normal">({count} found{source ? ` via ${source}` : ''})</span>
+          <span className="text-xs text-text-muted ml-2 font-normal">({count} found, top {displayedHits.length} displayed{source ? ` via ${source}` : ''})</span>
         </h2>
         <div className="flex items-center gap-2">
           <button onClick={() => downloadTsv(
-            ["Accession", "Description", "Organism", "E-value", "Identity%", "Coverage%", "Score", "Confidence"],
+            ["Accession", "Description", "Organism", "E-value", "Identity%", "Coverage%", "Score", "E-value band"],
             safeHits.map(h => [h.accession, h.description, h.organism ?? '', h.evalue_raw || String(h.evalue), String(h.identity_pct), String(h.query_coverage_pct ?? ''), String(h.bit_score), confidenceBand(h.evalue).label]),
             "blast-hits.tsv"
           )} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
-            <Download className="w-3 h-3" /> Export CSV
+            <Download className="w-3 h-3" /> All hits TSV
+          </button>
+          <button onClick={() => downloadJson(safeHits, 'blast-hits-full.json')} className="btn-ghost text-xs px-2 py-1 flex items-center gap-1">
+            <Download className="w-3 h-3" /> All hits JSON
           </button>
           <button onClick={() => {
             const fasta = safeHits.map(h => `>${h.accession} ${h.description}\n${(h.hit_alignment || h.midline || "").replace(/-/g, "")}`).join("\n");
@@ -63,9 +67,9 @@ export function BlastPanel({ hits, count, source, querySequence, fullSequences }
         </div>
       </div>
       <motion.div variants={stagger} className="divide-y divide-glass-border">
-        {safeHits.length === 0 ? (
+        {displayedHits.length === 0 ? (
           <div className="px-6 py-8 text-center text-sm text-text-muted">No hits to display</div>
-        ) : safeHits.map((hit, i) => {
+        ) : displayedHits.map((hit, i) => {
           const band = confidenceBand(hit.evalue);
           const isExpanded = expanded === i;
           return (
@@ -89,7 +93,7 @@ export function BlastPanel({ hits, count, source, querySequence, fullSequences }
                       </span>
                     </span>
                     <span>Identity: <strong className="text-text-primary">{hit.identity_pct}%</strong></span>
-                    <span>Coverage: <strong className={coverageColor(hit.query_coverage_pct ?? 0)}>{hit.query_coverage_pct ?? '—'}%</strong></span>
+                    <span>Coverage: <strong className={coverageColor(hit.query_coverage_pct ?? 0)}>{hit.query_coverage_pct == null ? '—' : `${hit.query_coverage_pct}%`}</strong></span>
                     <span>Score: <strong className="text-text-primary">{hit.bit_score}</strong></span>
                   </div>
                 </div>

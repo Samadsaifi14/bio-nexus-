@@ -359,7 +359,7 @@ class TestRamachandran:
         from app.routers.structure_analysis import ramachandran
         resp = await ramachandran("1CRN", chain="A")
         regions = set(p.region for p in resp.points)
-        assert "core_alpha" in regions or "core_beta" in regions, \
+        assert "alpha" in regions or "beta" in regions, \
             f"Expected core regions, got {regions}"
 
     @pytest.mark.asyncio
@@ -375,7 +375,7 @@ class TestRamachandran:
         """Crambin is well-structured: >70% of residues should be in core regions."""
         from app.routers.structure_analysis import ramachandran
         resp = await ramachandran("1CRN", chain="A")
-        core_count = sum(1 for p in resp.points if p.region.startswith("core_"))
+        core_count = sum(1 for p in resp.points if p.region in {"alpha", "beta"})
         fraction = core_count / len(resp.points)
         assert fraction > 0.5, f"Expected >50% core, got {fraction:.1%}"
 

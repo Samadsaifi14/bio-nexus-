@@ -1,7 +1,7 @@
 /**
- * Shared scientific-confidence color scales.
+ * Shared E-value magnitude color scale for display only.
  *
- * Thresholds follow BLAST e-value conventions. Red is intentionally never
+ * Bands describe numeric ranges, not biological confidence. Red is intentionally never
  * used here — the `error` token is reserved for genuine failures (API
  * errors, failed jobs), not for "low confidence" scientific output.
  */
@@ -27,10 +27,10 @@ export interface ConfidenceBand {
 
 /** Tailwind class pair for badges/chips. */
 export function confidenceBand(evalue: number): ConfidenceBand {
-  if (evalue < 1e-50) return { label: 'Very High', color: 'text-accent-cyan', bg: 'bg-accent-cyan/10' };
-  if (evalue < 1e-10) return { label: 'High', color: 'text-info', bg: 'bg-info/10' };
-  if (evalue < 1e-3) return { label: 'Moderate', color: 'text-warn', bg: 'bg-warn/10' };
-  return { label: 'Low', color: 'text-text-muted', bg: 'bg-surface-1' };
+  if (evalue < 1e-50) return { label: 'E < 1e-50', color: 'text-accent-cyan', bg: 'bg-accent-cyan/10' };
+  if (evalue < 1e-10) return { label: 'E < 1e-10', color: 'text-info', bg: 'bg-info/10' };
+  if (evalue < 1e-3) return { label: 'E < 1e-3', color: 'text-warn', bg: 'bg-warn/10' };
+  return { label: 'E ≥ 1e-3', color: 'text-text-muted', bg: 'bg-surface-1' };
 }
 
 /** Human-readable e-value formatting shared by BLAST result views. */

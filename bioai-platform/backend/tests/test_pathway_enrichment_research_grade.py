@@ -62,3 +62,37 @@ def test_cross_validation_contract_does_not_define_combined_significance():
     # The public contract must keep source-specific statistics separate.
     source = pe.run_cross_validated_enrichment.__doc__ or ""
     assert "does not combine p-values" in source
+
+
+@pytest.mark.asyncio
+async def test_reactome_retains_unpaginated_source_report(monkeypatch):
+    class ReactomeResponse:
+        status_code = 200
+
+        def json(self):
+            return {"summary": {"token": "test-token", "identifiersFound": 2}, "pathways": [
+                {"stId": f"R-HSA-{n}", "name": f"Pathway {n}", "species": {"name": "Homo sapiens"},
+                 "entities": {"found": 2, "total": 3, "fdr": 0.01, "pValue": 0.001}}
+                for n in range(25)
+            ]}
+
+    class ReactomeClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return False
+
+        async def post(self, *args, **kwargs):
+            assert "params" not in kwargs
+            return ReactomeResponse()
+
+    monkeypatch.setattr(pe, "cache_get", lambda *_: None)
+    monkeypatch.setattr(pe, "cache_set", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(pe.httpx, "AsyncClient", ReactomeClient)
+    result = await pe.run_enrichment(["TP53", "BRCA1"])
+    assert result["complete_result"] is True
+    assert len(result["pathways"]) == len(result["source_report"]["pathways"]) == 25

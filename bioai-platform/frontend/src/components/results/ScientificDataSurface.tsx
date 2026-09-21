@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChartLine, Database, FileCode, Table as TableIcon, WarningCircle } from '@phosphor-icons/react';
+import { downloadJson, downloadTsv } from '@/lib/export-utils';
 
 type Obj = Record<string, unknown>;
 type Capture = { key: string; url: string; at: string; payload: unknown };
@@ -175,7 +176,10 @@ function ResultTable({ t }: { t: TableModel }) {
           </tbody>
         </table>
       </div>
-      {t.rows.length > rows.length && <p className="border-t border-glass-border px-4 py-2 text-[10px] text-text-muted">Rendering first {rows.length} rows for browser performance; the raw payload below preserves the full response.</p>}
+      <div className="border-t border-glass-border px-4 py-2 text-[10px] text-text-muted">
+        {t.rows.length > rows.length && <span>Showing first {rows.length} rows. </span>}
+        <button onClick={() => downloadTsv(t.columns, t.rows.map(row => t.columns.map(column => fmt(row[column]))), 'backend-table.tsv')} className="underline">Download all {t.rows.length} rows as TSV</button>
+      </div>
     </details>
   );
 }
@@ -206,7 +210,7 @@ function PayloadPanel({ capture }: { capture: Capture }) {
       </div>
       {sr.length > 0 && <div className="data-card p-4"><div className="mb-3 flex items-center gap-2"><ChartLine className="h-4 w-4 text-accent-cyan"/><h3 className="text-sm font-semibold text-text-primary">Backend-Derived Charts</h3></div><div className="grid gap-4 xl:grid-cols-2">{sr.map(s => <LinePlot key={`${s.path}:${s.xKey}:${s.yKey}`} s={s}/>)}</div></div>}
       {tb.length > 0 && <div className="data-card p-4"><div className="mb-3 flex items-center gap-2"><TableIcon className="h-4 w-4 text-accent-purple"/><h3 className="text-sm font-semibold text-text-primary">Returned Tables and Series</h3></div><div className="space-y-3">{tb.map(t => <ResultTable key={t.path} t={t}/>)}</div></div>}
-      <div className="data-card p-4"><details><summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-text-primary"><FileCode className="h-4 w-4 text-accent-amber"/>Raw Scientific Payload</summary><p className="mt-2 text-[11px] text-text-muted">Lossless source for values shown above. Nested fields remain available even when they are not meaningful as a chart.</p><pre className="mt-3 max-h-[700px] overflow-auto rounded-lg border border-glass-border bg-surface-1 p-4 text-[11px] leading-relaxed text-text-secondary">{raw}</pre></details></div>
+      <div className="data-card p-4"><details><summary className="flex cursor-pointer items-center gap-2 text-sm font-semibold text-text-primary"><FileCode className="h-4 w-4 text-accent-amber"/>Captured JSON response</summary><p className="mt-2 text-[11px] text-text-muted">This diagnostic copy may omit other requests in the analysis. Use the backend result and its declared artifacts for publication.</p><button className="mt-2 text-xs underline" onClick={() => downloadJson(capture.payload, 'captured-backend-response.json')}>Download this response</button><pre className="mt-3 max-h-[700px] overflow-auto rounded-lg border border-glass-border bg-surface-1 p-4 text-[11px] leading-relaxed text-text-secondary">{raw}</pre></details></div>
     </div>
   );
 }
@@ -324,15 +328,15 @@ export function ScientificDataSurface() {
           <div className="flex items-start gap-3">
             <Database className="mt-0.5 h-5 w-5 text-accent-cyan"/>
             <div>
-              <h2 className="text-base font-semibold text-text-primary">Complete Scientific Backend Data</h2>
-              <p className="mt-1 text-xs text-text-muted">All captured scientific responses for this analysis are preserved below as metrics, scientifically appropriate plots, tables and raw machine-readable data.</p>
+              <h2 className="text-base font-semibold text-text-primary">Recent backend response inspector</h2>
+              <p className="mt-1 text-xs text-text-muted">Diagnostic view of up to eight recent JSON responses. Charts are exploratory previews inferred from field names.</p>
             </div>
           </div>
           <span className="rounded border border-glass-border px-2 py-1 text-[10px] text-text-muted">{captures.length} scientific response{captures.length === 1 ? '' : 's'}</span>
         </div>
         <div className="flex gap-2 px-5 py-3 text-xs text-text-secondary">
           <WarningCircle className="mt-0.5 h-4 w-4 shrink-0 text-accent-amber"/>
-          <p>No measurement is invented by this layer. Charts require an explicit backend coordinate/index field such as time, step, frame, position, residue, rank or mode. Missing output is not treated as a negative biological finding. Computational results remain distinct from experimental validation.</p>
+          <p>These inferred charts have no declared units, transformations or plot provenance. Use backend ScientificResult plots and artifact exports for scientific reporting.</p>
         </div>
       </div>
       {captures.map(c => <PayloadPanel key={c.key} capture={c}/>)}

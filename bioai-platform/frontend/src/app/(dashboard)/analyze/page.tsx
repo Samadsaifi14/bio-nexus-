@@ -33,7 +33,7 @@ const groups: Group[] = [
     { id: 'predict-structure', name: 'Structure Prediction', description: 'Sequence-to-structure prediction with confidence-aware output.', icon: Rocket },
     { id: 'swissmodel', name: 'SWISS-MODEL', description: 'Homology-model and experimental-structure retrieval.', icon: HouseLine },
     { id: 'md-v2', name: 'Molecular Dynamics', description: 'Staged MD with structure QC, force-field gate, equilibration, production, trajectory QC and convergence evidence.', icon: Activity, badge: 'QC workflow' },
-    { id: 'function', name: 'Function Prediction', description: 'Structure-informed functional predictions with confidence context.', icon: Brain },
+    { id: 'function', name: 'Function Evidence & Functional Hints', description: 'Explore source-linked annotations and clearly labelled functional hints.', icon: Brain },
   ]},
   { title: 'Drug Discovery', description: 'Molecular interaction and developability evidence for research workflows.', items: [
     { id: 'docking', name: 'Molecular Docking', description: 'AutoDock Vina docking with pose, affinity and interaction evidence.', icon: Atom },

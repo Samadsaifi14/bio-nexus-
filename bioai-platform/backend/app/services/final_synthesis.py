@@ -126,11 +126,17 @@ def build_findings(context: dict) -> tuple[list[dict], list[dict]]:
 
     af = context.get("alphafold") or {}
     if af.get("structure_available"):
-        source_label = "ESMFold prediction" if af.get("source") == "esmfold" else "AlphaFold DB model"
+        source = af.get("source")
+        if source == "rcsb_pdb":
+            source_label = f"experimental RCSB PDB structure {af.get('pdb_id') or 'unknown'}"
+        else:
+            source_label = "ESMFold prediction" if source == "esmfold" else "AlphaFold DB model"
         # mean_plddt is on a 0-100 scale; confidence is on a 0-1 scale.
         # Report the native scale, never mix them.
         mean_plddt = af.get("mean_plddt")
-        if mean_plddt is not None:
+        if source == "rcsb_pdb":
+            plddt_detail = ""
+        elif mean_plddt is not None:
             plddt_detail = f", mean pLDDT {mean_plddt:.1f}/100"
         elif af.get("confidence") is not None:
             plddt_detail = f", confidence {af.get('confidence'):.2f}/1"

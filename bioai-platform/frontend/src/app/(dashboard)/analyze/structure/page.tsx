@@ -195,7 +195,7 @@ export default function StructurePage() {
                 </button>
                 <button onClick={() => setPrefill(router, 'function_pdb_id', pdbId, '/analyze/function')}
                   className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-glass-border bg-surface-1 hover:bg-surface-2 hover:text-accent-cyan transition">
-                  <Brain className="w-3 h-3" /> Function Prediction
+                  <Brain className="w-3 h-3" /> Function Evidence
                 </button>
               </>
             )}

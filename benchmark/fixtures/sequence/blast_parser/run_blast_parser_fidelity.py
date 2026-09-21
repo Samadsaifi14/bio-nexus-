@@ -37,7 +37,7 @@ from pathlib import Path
 
 HERE = Path(__file__).resolve().parent
 REPO = HERE.parents[3]
-RESULTS = HERE.parents[1] / "results" / "sequence" / "blast_parser"
+RESULTS = HERE.parents[2] / "results" / "sequence" / "blast_parser"
 BACKEND = REPO / "bioai-platform" / "backend"
 
 REFERENCE_XML = HERE / "synthetic_structure.xml"  # overridden by reference.json["source_xml"]

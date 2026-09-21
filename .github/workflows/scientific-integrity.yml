@@ -46,7 +46,7 @@ jobs:
           python ../../benchmark/fixtures/cheminformatics/drug_likeness/run_drug_likeness.py
           pytest -q tests/test_bbs2_fixtures.py
       - name: Publish BBS-2 cheminformatics run records
-        uses: actions/upload-artifact@65c4c4a1ddee5b7f6983f2dd7d0f882267dd81e8f # v4.6.0
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: bbs2-cheminformatics
           path: ../../benchmark/results/cheminformatics/**/*.json

@@ -36,17 +36,36 @@ def classify_rama(phi: float, psi: float, resname: str = "") -> str:
     def in_region(p, q, cp, cq, rp, rq):
         return abs(p - cp) < rp and abs(q - cq) < rq
     if in_region(phi, psi, -57, -47, 30, 30):
-        return "core_alpha"
+        return "alpha"
     if in_region(phi, psi, -119, 113, 30, 30):
-        return "core_beta"
-    if phi < 0:
-        return "allowed"
-    # Glycine has no sidechain and is routinely found with phi >= 0
-    # (e.g. in beta turns). Marking it "outlier" here would be an error,
-    # since wwPDB/MolProbity reports apply no such blanket rule.
-    if resname == "GLY":
-        return "allowed"
-    return "outlier"
+        return "beta"
+    if in_region(phi, psi, 60, 40, 40, 40):
+        return "left_handed"
+    # These are descriptive bins, not wwPDB validation categories.
+    return "other"
+
+
+def _ramachandran_points(pdb_data: str, chain: str) -> list[RamachandranPoint]:
+    parser = PDBParser(QUIET=True)
+    structure = parser.get_structure("protein", io.StringIO(pdb_data))
+    builder = PPBuilder()
+    points: list[RamachandranPoint] = []
+    for model in structure:
+        for ch in model:
+            if chain and ch.id != chain:
+                continue
+            for pp in builder.build_peptides(ch):
+                for residue, (phi, psi) in zip(pp, pp.get_phi_psi_list()):
+                    if phi is None or psi is None:
+                        continue
+                    phi_deg, psi_deg = math.degrees(phi), math.degrees(psi)
+                    points.append(RamachandranPoint(
+                        residue=residue.get_resname(), chain=ch.id,
+                        resnum=residue.get_id()[1], phi=round(phi_deg, 2),
+                        psi=round(psi_deg, 2),
+                        region=classify_rama(phi_deg, psi_deg, residue.get_resname()),
+                    ))
+    return points
 
 @router.get("/ramachandran/{pdb_id}", response_model=RamachandranResponse)
 async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
@@ -62,42 +81,17 @@ async def ramachandran(pdb_id: str, chain: str = Query(default="A")):
             raise HTTPException(404, f"PDB not found: {pdb_id}")
         pdb_data = r.text
 
-    parser = PDBParser(QUIET=True)
-    structure = parser.get_structure("protein", io.StringIO(pdb_data))
-    builder = PPBuilder()
-
-    points: list[RamachandranPoint] = []
-    for model in structure:
-        for ch in model:
-            if chain and ch.id != chain:
-                continue
-            for pp in builder.build_peptides(ch):
-                phi_psi = pp.get_phi_psi_list()
-                for residue, angles in zip(pp, phi_psi):
-                    phi, psi = angles
-                    if phi is None or psi is None:
-                        continue
-                    phi_deg = math.degrees(phi)
-                    psi_deg = math.degrees(psi)
-                    points.append(RamachandranPoint(
-                        residue=residue.get_resname(),
-                        chain=ch.id,
-                        resnum=residue.get_id()[1],
-                        phi=round(phi_deg, 2),
-                        psi=round(psi_deg, 2),
-                        region=classify_rama(phi_deg, psi_deg, residue.get_resname()),
-                    ))
+    points = _ramachandran_points(pdb_data, chain)
     if not points:
         raise HTTPException(404, "No φ/ψ angles found — check chain ID")
     return RamachandranResponse(
         pdb_id=pdb_id,
         chain=chain,
-        classifier="Bio Nexus coarse phi/psi box regions",
+        classifier="Bio Nexus descriptive phi/psi regions",
         classifier_note=(
-            "Regions are coarse (±30°) boxes around idealized alpha-helix and beta-sheet "
-            "coordinates plus a phi<0 'allowed' zone; glycine is always treated as allowed. "
-            "This is a LOCAL approximation for screening, not a wwPDB/MolProbity-generated "
-            "Ramachandran analysis."
+            "Alpha, beta and left-handed regions are coarse boxes around idealized coordinates; "
+            "other points are unclassified. This is a local descriptive plot, not a "
+            "wwPDB/MolProbity-generated validation report."
         ),
         wwpdb_note=(
             "Authoritative model quality comes from the official wwPDB validation report "
@@ -133,6 +127,22 @@ class SSResidue(BaseModel):
     ss: str
     source: str
 
+
+def _predict_secondary_structure(seq: str, source: str) -> dict:
+    """Return only local propensity hints; no structural measurement is implied."""
+    seq = "".join(seq.split()).upper()
+    if not seq or any(aa not in AA1_TO_AA3 for aa in seq):
+        raise ValueError("A nonempty standard amino-acid sequence is required")
+    window = 6
+    residues: list[SSResidue] = []
+    for i, aa in enumerate(seq):
+        window_aas = seq[max(0, i - window):min(len(seq), i + window + 1)]
+        h_avg = sum(CF_PROPENSITY[AA1_TO_AA3[a]][0] for a in window_aas) / len(window_aas)
+        e_avg = sum(CF_PROPENSITY[AA1_TO_AA3[a]][1] for a in window_aas) / len(window_aas)
+        ss = "H" if h_avg > 1.03 and h_avg >= e_avg else "E" if e_avg > 1.05 and e_avg > h_avg else "C"
+        residues.append(SSResidue(position=i + 1, residue=aa, ss=ss, source="heuristic"))
+    return {"identifier": source, "source": source, "method": "Chou-Fasman propensity heuristic", "evidence_class": "heuristic", "residues": residues}
+
 @router.get("/secondary_structure/{identifier}")
 async def secondary_structure(identifier: str):
     identifier = identifier.upper()
@@ -146,22 +156,10 @@ async def secondary_structure(identifier: str):
         fasta = r.text
         seq = "".join(fasta.split("\n")[1:])
 
-    WINDOW = 6
-    ss_list: list[SSResidue] = []
-    for i, aa in enumerate(seq):
-        aa3 = AA1_TO_AA3.get(aa, "GLY")
-        window_aas = seq[max(0, i - WINDOW):min(len(seq), i + WINDOW + 1)]
-        h_avg = sum(CF_PROPENSITY.get(AA1_TO_AA3.get(a, "GLY"), (1.0, 1.0))[0] for a in window_aas) / len(window_aas)
-        e_avg = sum(CF_PROPENSITY.get(AA1_TO_AA3.get(a, "GLY"), (1.0, 1.0))[1] for a in window_aas) / len(window_aas)
-        if h_avg > 1.03 and h_avg >= e_avg:
-            ss = "H"
-        elif e_avg > 1.05 and e_avg > h_avg:
-            ss = "E"
-        else:
-            ss = "C"
-        ss_list.append(SSResidue(position=i + 1, residue=aa, ss=ss, source="predicted"))
-
-    return {"identifier": identifier, "method": "Chou-Fasman (predicted)", "residues": ss_list}
+    try:
+        return _predict_secondary_structure(seq, identifier)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 # ── Structure Comparison (Foldseek) ────────────────────────
 

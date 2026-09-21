@@ -5,6 +5,7 @@ in a background thread. Uses a thread-safe dict for job storage.
 
 import asyncio
 import logging
+import re
 import threading
 import uuid
 from datetime import datetime, timezone
@@ -632,6 +633,36 @@ EBI_BLAST_DATABASE_MAP = {
 }
 
 
+def _blast_query_coverage_pct(hit: dict, query_length: int) -> float | None:
+    """Union inclusive query HSP spans; alignment columns can include gaps."""
+    if query_length <= 0:
+        return None
+    hsps = hit.get("hsps") or [hit]
+    intervals = []
+    for hsp in hsps:
+        if not isinstance(hsp, dict):
+            continue
+        try:
+            start = int(hsp.get("query_from") or hsp.get("hsp_query_from") or 0)
+            end = int(hsp.get("query_to") or hsp.get("hsp_query_to") or 0)
+        except (TypeError, ValueError):
+            continue
+        if start >= 1 and end >= 1:
+            intervals.append((min(start, end), max(start, end)))
+    if not intervals:
+        return None
+    covered = 0
+    left, right = sorted(intervals)[0]
+    for start, end in sorted(intervals)[1:]:
+        if start <= right + 1:
+            right = max(right, end)
+        else:
+            covered += right - left + 1
+            left, right = start, end
+    covered += right - left + 1
+    return round(min(100.0, covered / query_length * 100), 1)
+
+
 def _build_blast_result(
     hits: list[dict],
     *,
@@ -646,6 +677,32 @@ def _build_blast_result(
     """Normalize parsed hits (NCBI XML parser or EBI tool) into the pipeline's
     canonical BLAST result shape consumed by the frontend."""
     top_hit = hits[0] if hits else None
+    normalized_hits = [
+        {
+            "accession": h["accession"],
+            "description": h["description"],
+            "organism": h.get("organism", ""),
+            "evalue": h["evalue"],
+            "evalue_raw": h.get("evalue_raw") or str(h["evalue"]),
+            "identity_pct": h["identity_pct"],
+            "bit_score": h["bit_score"],
+            "alignment_length": h.get("alignment_length", 0),
+            "query_coverage_pct": _blast_query_coverage_pct(h, query_length),
+            "hit_alignment": h.get("hit_alignment", ""),
+            "query_alignment": h.get("query_alignment", ""),
+            "midline": h.get("midline", ""),
+            "score": h.get("score", 0),
+            "positive": h.get("positive", 0),
+            "gaps": h.get("gaps", 0),
+            "query_from": h.get("query_from", 0),
+            "query_to": h.get("query_to", 0),
+            "hit_from": h.get("hit_from", 0),
+            "hit_to": h.get("hit_to", 0),
+            "hsp_count": h.get("hsp_count", len(h.get("hsps") or [])),
+            "hsps": h.get("hsps") or [],
+        }
+        for h in hits
+    ]
     return {
         "count": len(hits),
         "search_complete": True,
@@ -664,30 +721,9 @@ def _build_blast_result(
             "bit_score": top_hit["bit_score"],
             "alignment_length": top_hit.get("alignment_length", 0),
         } if top_hit else None,
-        "hits": [
-            {
-                "accession": h["accession"],
-                "description": h["description"],
-                "organism": h.get("organism", ""),
-                "evalue": h["evalue"],
-                "evalue_raw": str(h["evalue"]),
-                "identity_pct": h["identity_pct"],
-                "bit_score": h["bit_score"],
-                "alignment_length": h.get("alignment_length", 0),
-                "query_coverage_pct": round(h.get("alignment_length", 0) / query_length * 100, 1) if query_length > 0 else 0,
-                "hit_alignment": h.get("hit_alignment", ""),
-                "query_alignment": h.get("query_alignment", ""),
-                "midline": h.get("midline", ""),
-                "score": h.get("score", 0),
-                "positive": h.get("positive", 0),
-                "gaps": h.get("gaps", 0),
-                "query_from": h.get("query_from", 0),
-                "query_to": h.get("query_to", 0),
-                "hit_from": h.get("hit_from", 0),
-                "hit_to": h.get("hit_to", 0),
-            }
-            for h in hits[:display_limit]
-        ],
+        "hits": normalized_hits,
+        "display_limit": display_limit,
+        "query_coverage_method": "union of inclusive query coordinate spans across HSPs",
     }
 
 
@@ -732,6 +768,12 @@ async def _run_ebi_blast_fallback(
         query_accession="",
         query_length=query_length,
     )
+    payload["requested_database"] = database
+    payload["executed_database"] = "uniprotkb_swissprot" if degraded_from else ebi_database
+    payload["fallback_used"] = bool(degraded_from)
+    payload["provider_version"] = result.get("provider_version")
+    payload["database_release"] = result.get("database_release")
+    payload["raw_provider_hits"] = result.get("raw_provider_hits")
     if degraded_from:
         payload["_degraded_from"] = degraded_from
     return payload
@@ -786,6 +828,7 @@ async def _run_blast(
     # even with an API key), so run EBI FIRST and fall back to NCBI.
     ebi_result = await _run_ebi_blast_fallback(sequence, program, database, seq_type, max_hits)
     if ebi_result is not None:
+        ebi_result["parameters"] = {"program": program, "requested_database": database, "max_hits": max_hits, "fast_mode": fast_mode}
         if status_callback:
             try:
                 await status_callback("parsing")
@@ -813,7 +856,7 @@ async def _run_blast(
                 except Exception:
                     pass
             hits = parsed.get("hits", [])[:max_hits]
-            return _build_blast_result(
+            payload = _build_blast_result(
                 hits,
                 source="ncbi",
                 database=database,
@@ -822,6 +865,15 @@ async def _run_blast(
                 query_accession=query_accession,
                 query_length=parsed.get("query_length", 0),
             )
+            payload["requested_database"] = database
+            payload["executed_database"] = database
+            payload["fallback_used"] = False
+            payload["provider_version"] = parsed.get("provider_version")
+            payload["provider_database_label"] = parsed.get("provider_database_label")
+            payload["database_release"] = None
+            payload["parameters"] = {"program": program, "requested_database": database, "max_hits": max_hits, "fast_mode": fast_mode}
+            payload["raw_result_xml"] = results["raw"]
+            return payload
         ncbi_error = parsed["error"]
     else:
         ncbi_error = results["error"]
@@ -1006,11 +1058,29 @@ async def _run_msa(query_sequence: str, blast_hits: list, alignment_mode: str = 
 
         from app.tools.alignment_stats import alignment_stats, parse_aligned_fasta
         from app.scientific.contract import sha256_hex
-        msa_stats = alignment_stats(parse_aligned_fasta(aln_fasta))
+        aligned_rows = parse_aligned_fasta(aln_fasta)
+        msa_stats = alignment_stats(aligned_rows)
+        phylotree_method = None
+        if not phylotree and len(aligned_rows) >= 2:
+            from app.tools.msa_fallback import _upgma_newick
+            labels = [line[1:].strip().split()[0] for line in aln_fasta.splitlines() if line.startswith(">")]
+            if len(labels) != len(aligned_rows) or len({len(row) for row in aligned_rows}) != 1:
+                raise ValueError("Cannot infer tree from malformed aligned FASTA")
+            n = len(aligned_rows)
+            distances = [[0.0] * n for _ in range(n)]
+            for i in range(n):
+                for j in range(i + 1, n):
+                    pairs = [(a, b) for a, b in zip(aligned_rows[i], aligned_rows[j]) if a not in "-." and b not in "-."]
+                    if not pairs:
+                        raise ValueError("Cannot infer p-distance without comparable residues")
+                    distances[i][j] = distances[j][i] = sum(a != b for a, b in pairs) / len(pairs)
+            phylotree = _upgma_newick(labels, distances)
+            phylotree_method = "upgma-pdistance"
 
         payload = {
             "aln_fasta": aln_fasta,
             "phylotree": phylotree,
+            "phylotree_method": phylotree_method,
             "sequence_count": len(sequences),
             "alignment_mode": alignment_mode,
             "method": method,
@@ -1139,15 +1209,52 @@ async def _run_domains_or_denovo(sequence: str, accession: str | None, resolved_
 async def _run_alphafold_or_esmfold(
     context: dict, sequence: str, accession: str | None, resolved_uniprot: bool,
 ) -> dict:
-    """AlphaFold DB lookup when resolved; ESMFold ab initio otherwise."""
+    """Use AlphaFold DB, then experimental PDB, then explicit ESMFold prediction."""
     if accession and resolved_uniprot:
         result = await _run_alphafold(context)
-        return result or {}
+        if result and result.get("structure_available"):
+            return {**result, "source": "alphafold_db", "structure_type": "predicted"}
+        uniprot_data = context.get("uniprot") or {}
+        experimental = await _fetch_experimental_pdb(uniprot_data, accession)
+        if experimental:
+            return experimental
     from app.services.de_novo import esmfold_structure
     try:
-        return await esmfold_structure(sequence)
+        predicted = await esmfold_structure(sequence)
+        return {**predicted, "uniprot_accession": accession, "source": "esmfold", "structure_type": "predicted"}
     except Exception as e:
         return {"structure_available": False, "source": "esmfold", "message": str(e)}
+
+
+async def _fetch_experimental_pdb(uniprot_data: dict, accession: str) -> dict | None:
+    """Only a successfully retrieved RCSB coordinate file earns experimental identity."""
+    import httpx
+
+    for candidate in (uniprot_data.get("pdb_ids") or [])[:5]:
+        pdb_id = str(candidate).upper()
+        if not re.fullmatch(r"[0-9][A-Z0-9]{3}", pdb_id):
+            continue
+        url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                response = await client.get(url)
+                response.raise_for_status()
+            if not any(line.startswith(("ATOM  ", "HETATM")) for line in response.text.splitlines()):
+                continue
+            return {
+                "uniprot_accession": accession,
+                "structure_available": True,
+                "source": "rcsb_pdb",
+                "structure_type": "experimental",
+                "pdb_id": pdb_id,
+                "pdb_url": url,
+                "cif_url": f"https://files.rcsb.org/download/{pdb_id}.cif",
+                "pdb_text": response.text,
+                "confidence": None,
+            }
+        except (httpx.HTTPError, ValueError) as exc:
+            logger.warning("RCSB PDB fetch failed for %s: %s", pdb_id, exc)
+    return None
 
 
 async def _run_pathway_enrichment(context: dict) -> dict | None:

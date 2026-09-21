@@ -183,10 +183,14 @@ def preprocess_fastq(
             for i, line in enumerate(src):
                 if max_reads is not None and raw_reads >= max_reads:
                     break
-                buf.append(line.decode("ascii", "replace").rstrip("\n"))
+                # Binary input retains CR on Windows CRLF FASTQ files. Leaving it
+                # in the record inserts blank lines into the emitted FASTQ.
+                buf.append(line.decode("ascii", "replace").rstrip("\r\n"))
                 if len(buf) == 4:
                     raw_reads += 1
-                    header, seq, _, qual = buf
+                    header, seq, plus, qual = buf
+                    if not header.startswith("@") or not plus.startswith("+") or len(seq) != len(qual):
+                        return {"error": f"invalid FASTQ record {raw_reads} in {path}"}
                     res = trim_read(header, seq, qual, plan)
                     if res and res[0] is not None:
                         retained += 1

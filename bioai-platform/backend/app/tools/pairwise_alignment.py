@@ -130,18 +130,28 @@ def pairwise_align(
             pass
 
     query_blocks, hit_blocks = best.aligned
-    if len(query_blocks):
-        query_start = int(query_blocks[0][0]) + 1
-        query_end = int(query_blocks[-1][1])
-        query_offset = int(query_blocks[0][0])
+    if mode == "global":
+        # A global alignment always spans both whole sequences, so coordinates
+        # are the full 1..len range regardless of where matched blocks start.
+        query_start = 1
+        query_end = len(seq_a)
+        query_offset = 0
+        hit_start = 1
+        hit_end = len(seq_b)
+        hit_offset = 0
     else:
-        query_start = query_end = query_offset = 0
-    if len(hit_blocks):
-        hit_start = int(hit_blocks[0][0]) + 1
-        hit_end = int(hit_blocks[-1][1])
-        hit_offset = int(hit_blocks[0][0])
-    else:
-        hit_start = hit_end = hit_offset = 0
+        if len(query_blocks):
+            query_start = int(query_blocks[0][0]) + 1
+            query_end = int(query_blocks[-1][1])
+            query_offset = int(query_blocks[0][0])
+        else:
+            query_start = query_end = query_offset = 0
+        if len(hit_blocks):
+            hit_start = int(hit_blocks[0][0]) + 1
+            hit_end = int(hit_blocks[-1][1])
+            hit_offset = int(hit_blocks[0][0])
+        else:
+            hit_start = hit_end = hit_offset = 0
 
     gap_positions = [
         run for run in _gap_runs(aligned_a, "query", query_offset) + _gap_runs(aligned_b, "subject", hit_offset)

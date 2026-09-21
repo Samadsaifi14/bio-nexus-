@@ -334,7 +334,7 @@ def analyze_sequence(sequence: str, seq_type: str = "auto") -> dict:
             f"Biopython average molecular weight; linear single-stranded {effective.upper()}; unambiguous bases required"
         )
         if report["molecular_weight"] is None:
-            issues.append("Exact molecular weight is unavailable because ambiguity symbols do not specify a unique mass")
+            issues.append("Exact molecular weight is unavailable because ambiguous IUPAC symbols do not specify a unique mass")
 
         report["reverse_complement"] = _reverse_complement(seq, effective)
         if effective == "dna":

@@ -683,6 +683,15 @@ def compute_descriptors(smiles: str) -> dict:
         "smiles": smiles,
         "formula": formula,
         "swissadme": swissadme,
+        "_descriptor_conventions": {
+            "hba": "RDKit CalcNumLipinskiHBA",
+            "hbd": "RDKit Lipinski.NumHDonors",
+            "rotatable_bonds": "RDKit Lipinski.NumRotatableBonds",
+            "tpsa": "RDKit TPSA (includeSandP=True)",
+            "molecular_weight": "RDKit Descriptors.MolWt",
+            "heavy_atoms": "RDKit GetNumHeavyAtoms",
+            "note": "Descriptor values are the literal output of the named RDKit call — deterministic, reproducible, no fabricated or rounded-invented constants.",
+        },
         "_methodology": {
             "core_descriptors": {"tier": "3a", "confidence": "high", "evidence_class": EvidenceClass.DETERMINISTIC.value, "method": "RDKit descriptors", "note": "Computed directly from molecular graph — production-ready"},
             "drug_likeness": {"tier": "3a", "confidence": "high", "evidence_class": EvidenceClass.DETERMINISTIC.value, "method": "RDKit + Lipinski/Veber/Ghose/Egan rules", "note": "Validated pharma filters — production-ready"},
@@ -759,6 +768,7 @@ def compute_descriptors(smiles: str) -> dict:
             "cyp_substrate_risk": cyp_substrate,
             "half_life_class": half_life_class,
             "lipophilic_efficiency": lipe,
+            "lipophilic_efficiency_note": "LipE = pIC50 − LogP. A pIC50/pEC50 experimental potency value is required; BioNexus reports None rather than inventing a LipE from descriptors with no potency input.",
         },
         "toxicity": {
             "_disclaimer": "Rule-based heuristics only — no ML classifiers and no numeric LD50 (requires a validated model, e.g. ProTox). For research screening, not clinical/ regulatory use.",
@@ -770,6 +780,7 @@ def compute_descriptors(smiles: str) -> dict:
             "skin_sensitization_factors": skin_risk_factors,
             "acute_toxicity_ld50": ld50_class,
             "ld50_estimate_log": None,
+            "acute_toxicity_note": "Withheld — no numeric LD50. A numeric LD50/LD50 log requires a validated QSAR model (e.g. ProTox). Rule-based alerts alone cannot quantify acute lethality.",
             "risk_score": admet_risk,
         },
         "clearance": {

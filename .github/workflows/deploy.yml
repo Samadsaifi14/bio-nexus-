@@ -4,11 +4,14 @@ on:
   push:
     branches: [main]
 
+permissions:
+  contents: read
+  statuses: read
+
 jobs:
   deploy-backend:
     name: Deploy Backend to HuggingFace Spaces
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - name: Push to HuggingFace Spaces
@@ -19,25 +22,20 @@ jobs:
           hf upload Samad14/bio-nexus-api bioai-platform/backend --repo-type space --exclude "**/.env" --exclude "**/.env.deploy" --exclude "**/__pycache__/**"
 
   deploy-frontend:
-    name: Deploy Frontend to Vercel
+    name: Verify production frontend deployment
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: bioai-platform/frontend
-    env:
-      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-      VERCEL_ORG_ID: team_y6MYl4hpatRBHMHSwAzCzQ5f
-      VERCEL_PROJECT_ID: prj_ylJFEbddC3dQsqLVsKyhMWDMHqeG
     steps:
-      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
-      - name: Reset and pin Vercel project link
+      - name: Wait for the canonical Vercel project to deploy this commit
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
-          rm -rf .vercel
-          mkdir -p .vercel
-          printf '{"orgId":"%s","projectId":"%s"}\n' "$VERCEL_ORG_ID" "$VERCEL_PROJECT_ID" > .vercel/project.json
-      - name: Pull production project settings
-        run: npx vercel pull --yes --environment=production --token "$VERCEL_TOKEN"
-      - name: Build production frontend
-        run: npx vercel build --prod --token "$VERCEL_TOKEN"
-      - name: Deploy production frontend
-        run: npx vercel deploy --prebuilt --prod --token "$VERCEL_TOKEN"
+          for attempt in {1..40}; do
+            state="$(gh api "repos/$GITHUB_REPOSITORY/commits/$GITHUB_SHA/status" --jq '.statuses[] | select(.context == "Vercel – bio-nexus") | .state' | head -n 1)"
+            case "$state" in
+              success) echo "Canonical Vercel deployment succeeded for $GITHUB_SHA"; exit 0 ;;
+              failure|error) echo "Canonical Vercel deployment failed for $GITHUB_SHA"; exit 1 ;;
+            esac
+            sleep 15
+          done
+          echo "Timed out waiting for canonical Vercel deployment of $GITHUB_SHA"
+          exit 1

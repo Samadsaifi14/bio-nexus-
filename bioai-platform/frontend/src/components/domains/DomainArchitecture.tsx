@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState, useRef, useCallback } from "react";
+import { ArrowUpRight, Cube, Dna, GitBranch, Graph, Lightning, PuzzlePiece, Ruler, ShareNetwork, Target, Wrench } from "@phosphor-icons/react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
 import { AIResultSummary } from "@/components/results/AIResultSummary";
@@ -78,15 +79,15 @@ type FullAnalysis = {
 };
 
 const TABS = [
-  { id: "domains",    label: "Domains",    icon: "ðŸ§©" },
-  { id: "sites",      label: "Sites",      icon: "âš¡" },
-  { id: "ptm",        label: "PTMs",       icon: "ðŸ”§" },
-  { id: "motifs",     label: "Motifs",     icon: "ðŸŽ¯" },
-  { id: "topology",   label: "Topology",   icon: "ðŸ“" },
-  { id: "variants",   label: "Variants",   icon: "ðŸ”€" },
-  { id: "go",         label: "GO Terms",   icon: "ðŸ·ï¸" },
-  { id: "pathways",   label: "Pathways",   icon: "ðŸ›¤ï¸" },
-  { id: "structure",  label: "Structure",  icon: "ðŸ’Ž" },
+  { id: "domains",    label: "Domains",    icon: PuzzlePiece },
+  { id: "sites",      label: "Sites",      icon: Lightning },
+  { id: "ptm",        label: "PTMs",       icon: Wrench },
+  { id: "motifs",     label: "Motifs",     icon: Target },
+  { id: "topology",   label: "Topology",   icon: Ruler },
+  { id: "variants",   label: "Variants",   icon: Dna },
+  { id: "go",         label: "GO Terms",   icon: Graph },
+  { id: "pathways",   label: "Pathways",   icon: GitBranch },
+  { id: "structure",  label: "Structure",  icon: Cube },
 ] as const;
 
 type TabId = typeof TABS[number]["id"];
@@ -181,19 +182,20 @@ export function DomainArchitecture({ accession }: { accession: string }) {
       </div>
 
       {data && (
-        <div className="flex flex-wrap gap-1 border-b border-glass-border pb-1">
+        <div className="flex flex-wrap gap-1.5 border-b border-glass-border pb-2" role="group" aria-label="Annotation categories">
           {TABS.map(tab => {
             const count = getTabCount(tab.id, data);
+            const Icon = tab.icon;
             return (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id)}
-                className={`px-3 py-1.5 text-xs rounded-lg transition-colors ${
+              <button key={tab.id} type="button" onClick={() => setActiveTab(tab.id)} aria-pressed={activeTab === tab.id}
+                className={`inline-flex items-center gap-1.5 px-3 py-2 text-xs font-medium rounded-lg border transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan ${
                   activeTab === tab.id
-                    ? "bg-accent-cyan/15 text-accent-cyan border border-accent-cyan/30"
-                    : "text-text-muted hover:text-text-primary hover:bg-surface-1 border border-transparent"
+                    ? "bg-accent-cyan/15 text-accent-cyan border-accent-cyan/30"
+                    : "text-text-muted hover:text-text-primary hover:bg-surface-1 border-transparent"
                 }`}>
-                <span className="mr-1">{tab.icon}</span>
+                <Icon size={15} aria-hidden="true" />
                 {tab.label}
-                {count > 0 && <span className="ml-1 text-[10px] opacity-60">{count}</span>}
+                {count > 0 && <span className="text-[10px] tabular-nums opacity-60">{count}</span>}
               </button>
             );
           })}
@@ -599,7 +601,11 @@ function GOTermsView({ terms }: { terms: GOTerm[] }) {
 
 function PathwaysView({ pathways }: { pathways: PathwayAnnotation[] }) {
   if (!pathways.length) return <p className="text-sm text-text-muted">No pathway annotations.</p>;
-  const DB_ICONS: Record<string, string> = { KEGG: "ðŸŸ ", Reactome: "ðŸ”µ", WikiPathways: "ðŸŸ£" };
+  const databaseStyles: Record<string, string> = {
+    KEGG: "bg-accent-amber/10 text-accent-amber border-accent-amber/20",
+    Reactome: "bg-info/10 text-info border-info/20",
+    WikiPathways: "bg-accent-purple/10 text-accent-purple border-accent-purple/20",
+  };
   return (
     <div className="space-y-2">
       {pathways.map((p, i) => {
@@ -608,15 +614,18 @@ function PathwaysView({ pathways }: { pathways: PathwayAnnotation[] }) {
           : p.database === "Reactome"
           ? `https://reactome.org/content/detail/${p.id}`
           : `https://www.wikipathways.org/index.php/${p.id}`;
+        const name = p.name?.trim() && p.name.trim() !== "-" ? p.name.trim() : p.id;
         return (
           <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-            className="flex items-center gap-3 px-3 py-2 rounded-xl border border-glass-border hover:bg-surface-1 transition-colors">
-            <span className="text-lg">{DB_ICONS[p.database] ?? "ðŸ“‹"}</span>
+            className="group flex items-center gap-3 rounded-xl border border-glass-border px-3 py-3 transition-colors hover:border-accent-cyan/30 hover:bg-surface-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent-cyan">
+            <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border ${databaseStyles[p.database] ?? "bg-surface-1 text-text-secondary border-glass-border"}`}>
+              <ShareNetwork size={18} aria-hidden="true" />
+            </span>
             <div className="flex-1 min-w-0">
-              <p className="text-xs font-medium text-text-primary truncate">{p.name || p.id}</p>
-              <p className="text-[10px] text-text-muted">{p.database} &middot; {p.id}</p>
+              <p className="text-sm font-medium text-text-primary truncate" title={name}>{name}</p>
+              <p className="mt-0.5 text-xs text-text-muted">{p.database} &middot; {p.id}</p>
             </div>
-            <span className="text-text-muted text-[10px]">\u2197</span>
+            <ArrowUpRight size={16} className="shrink-0 text-text-muted transition-colors group-hover:text-accent-cyan" aria-hidden="true" />
           </a>
         );
       })}
@@ -633,7 +642,7 @@ function StructureInfoView({ data }: { data: FullAnalysis }) {
           <div className="flex flex-wrap gap-1.5">
             {data.disulfide_bonds.map((b, i) => (
               <span key={i} className="px-2 py-1 text-[10px] rounded-lg bg-accent-amber/10 border border-accent-amber/30 text-accent-amber">
-                Cys{b.begin}\u2013Cys{b.end}
+                Cys{b.begin}&ndash;Cys{b.end}
               </span>
             ))}
           </div>

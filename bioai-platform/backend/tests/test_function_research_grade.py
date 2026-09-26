@@ -71,3 +71,39 @@ def test_ec_scope_is_explicit(monkeypatch):
 
     assert result["ec_numbers"] == []
     assert "not implemented" in result["ec_scope_note"]
+
+
+def test_retrieval_failure_is_reported_as_failure_not_as_absent_evidence(monkeypatch):
+    """A failed lookup must not masquerade as a protein with no InterPro2GO mapping."""
+    monkeypatch.setattr(fp, "_fetch_pdb_sequence", lambda _pdb: "ACDEFGHIKLMNPQRSTVWY")
+
+    def _outage(*_args, **_kwargs):
+        raise OSError("simulated network outage")
+
+    monkeypatch.setattr(fp.urllib.request, "urlopen", _outage)
+
+    result = fp.predict_function("1abc")
+
+    assert result["status"] == "evidence_unavailable"
+    assert result["method"] == "interpro2go_retrieval_failed"
+    # The core research-grade guarantee is unchanged: no GO term is invented.
+    assert result["go_terms"] == []
+    assert result["ec_numbers"] == []
+    # Provenance must not claim a live retrieval that never happened.
+    assert result["provenance"]["retrieval_is_live"] is False
+    assert result["provenance"]["retrieval_failures"]
+    assert "retrieval failure" in result["note"].lower()
+    assert "does not substitute" in result["note"]
+
+
+def test_successful_lookup_with_no_mapping_stays_insufficient_evidence(monkeypatch):
+    """A completed scan that simply matched nothing is genuine insufficient evidence."""
+    monkeypatch.setattr(fp, "_fetch_pdb_sequence", lambda _pdb: "ACDEFGHIKLMNPQRSTVWY")
+    monkeypatch.setattr(fp, "_run_interproscan", lambda _sequence: [])
+
+    result = fp.predict_function("1abc")
+
+    assert result["status"] == "insufficient_evidence"
+    assert result["method"] == "interpro2go_no_evidence"
+    assert result["provenance"]["retrieval_is_live"] is True
+    assert result["provenance"]["retrieval_failures"] == []

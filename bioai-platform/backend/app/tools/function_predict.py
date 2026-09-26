@@ -34,6 +34,16 @@ _RCSB_FASTA_API = "https://www.rcsb.org/fasta/entry/{pdb_id}"
 
 METHOD_VERSION = "interpro2go-evidence-v1"
 
+# Retrieval failures recorded by the live InterProScan/InterPro2GO calls. A lookup
+# that failed is a different scientific claim than a lookup that succeeded and found
+# no mapping, so the two must not collapse into the same reported state.
+_RETRIEVAL_FAILURES: list[str] = []
+
+
+def _record_retrieval_failure(reason: str) -> None:
+    if reason not in _RETRIEVAL_FAILURES:
+        _RETRIEVAL_FAILURES.append(reason)
+
 
 # ---------------------------------------------------------------------------
 # Sequence fetching
@@ -86,6 +96,7 @@ def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
             return []
     except Exception as exc:
         logger.warning("InterProScan submit failed: %s", exc)
+        _record_retrieval_failure(f"InterProScan submission failed: {type(exc).__name__}: {exc}")
         return []
 
     status_url = f"https://www.ebi.ac.uk/interpro/service/rest/iprscan5/status/{job_id}"
@@ -104,10 +115,12 @@ def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
             break
         if status in ("FAILED", "ERROR"):
             logger.warning("InterProScan job %s status: %s", job_id, status)
+            _record_retrieval_failure(f"InterProScan job {job_id} ended with status {status}")
             return []
         time.sleep(3)
     else:
         logger.warning("InterProScan job %s timed out", job_id)
+        _record_retrieval_failure(f"InterProScan job {job_id} timed out")
         return []
 
     try:
@@ -115,6 +128,7 @@ def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
         results = json.loads(result_resp.read())
     except Exception as exc:
         logger.warning("InterProScan result fetch failed: %s", exc)
+        _record_retrieval_failure(f"InterProScan result fetch failed: {type(exc).__name__}: {exc}")
         return []
 
     hits: list[dict] = []
@@ -155,6 +169,9 @@ def _fetch_interpro_go_terms(accession: str) -> list[dict]:
         data = json.loads(resp.read())
     except Exception as exc:
         logger.warning("InterPro GO lookup failed for %s: %s", accession, exc)
+        _record_retrieval_failure(
+            f"InterPro entry lookup failed for {accession}: {type(exc).__name__}: {exc}"
+        )
         return []
 
     terms: list[dict] = []
@@ -275,6 +292,8 @@ def predict_function(pdb_id: str) -> dict:
     `insufficient_evidence` state. It does not fabricate GO terms from sequence
     composition.
     """
+    _RETRIEVAL_FAILURES.clear()
+
     sequence = _fetch_pdb_sequence(pdb_id)
     if not sequence:
         raise RuntimeError(f"No sequence available for PDB {pdb_id}")
@@ -288,6 +307,16 @@ def predict_function(pdb_id: str) -> dict:
         note = (
             "GO terms are inferred from InterPro entry-to-GO mappings. They are not direct "
             "experimental annotations for this protein and no calibrated probability is reported."
+        )
+    elif _RETRIEVAL_FAILURES:
+        status = "evidence_unavailable"
+        method = "interpro2go_retrieval_failed"
+        note = (
+            "InterProScan/InterPro2GO retrieval did not complete, so no GO mapping could be read: "
+            + "; ".join(_RETRIEVAL_FAILURES)
+            + ". This is a retrieval failure, not evidence that the protein has no InterPro2GO "
+            "mapping. BioNexus does not substitute composition heuristics for a function "
+            "prediction in research-grade mode."
         )
     else:
         status = "insufficient_evidence"
@@ -335,7 +364,8 @@ def predict_function(pdb_id: str) -> dict:
             "sequence_source": "RCSB PDB",
             "domain_source": "InterProScan",
             "go_mapping_source": "InterPro2GO via InterPro API",
-            "retrieval_is_live": True,
+            "retrieval_is_live": not _RETRIEVAL_FAILURES,
+            "retrieval_failures": list(_RETRIEVAL_FAILURES),
         },
         "note": note,
     }

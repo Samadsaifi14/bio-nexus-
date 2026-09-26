@@ -1,0 +1,61 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "BBS1-DOCK-1STP-BTN",
+  "system": "streptavidin-biotin redocking",
+  "source": {
+    "pdb_id": "1STP",
+    "ligand_resname": "BTN",
+    "reference_pose": "crystallographic BTN coordinates from RCSB PDB entry 1STP"
+  },
+  "predeclared_protocol": {
+    "seed": 42,
+    "exhaustiveness": 32,
+    "num_modes": 20,
+    "grid_center_rule": "crystallographic BTN heavy-atom centroid",
+    "grid_size_angstrom": [
+      20,
+      20,
+      20
+    ],
+    "receptor_rule": "retain protein ATOM records; remove BTN and crystallographic solvent/other HETATM records",
+    "pose_selection_rule": "lowest Vina affinity among emitted modes",
+    "metric": "RDKit GetBestRMS symmetry-aware heavy-atom RMSD",
+    "acceptance_threshold_angstrom": 2
+  },
+  "retained_execution": {
+    "workflow_run_id": 35389973834,
+    "workflow_head_sha": "af008e43e61b32760ff618e43395940656d1543f",
+    "artifact_id": 10565356302,
+    "artifact_name": "docking-1stp-redocking",
+    "artifact_zip_sha256": "7844d5f217a2c7105ca4c022a2b18667e2fc085dd10df2ee8fcb1db26fbacba2",
+    "artifact_expires_at": "2026-12-17T20:10:14Z",
+    "archival_status": "WORKFLOW_ARTIFACT_NOT_PERSISTENT_ARCHIVE"
+  },
+  "result": {
+    "status": "PASSED",
+    "passed": true,
+    "rmsd_angstrom": 0.7252,
+    "threshold_angstrom": 2,
+    "heavy_atom_count": 16,
+    "best_affinity_kcal_mol": -6.373,
+    "num_poses": 20,
+    "grid_center_angstrom": [
+      11.118,
+      1.68,
+      -10.755
+    ],
+    "vina_version": "1.2.7",
+    "openbabel_version": "3.1.0",
+    "rdkit_version": "2026.03.6"
+  },
+  "evidence_sha256": {
+    "input_1STP_pdb": "6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30",
+    "ligand_pdb": "6243300bd6945395ade902611e8b80d169b29ba789193038abae957dee946359",
+    "ligand_pdbqt": "190a4e1d545486df3b79e24f626abe5f6d41dc6f8f76320f50120365069a4031",
+    "predicted_best_pose_pdb": "f48f7c3b3f20e54890dc6700c052c09db93692fe0ad25c555f468a5a4db0a97f",
+    "receptor_pdb": "da87736d1aac3877c5fab83ea7bc9d063502da14052d5f93b8c3920a65a8ce72",
+    "receptor_pdbqt": "9fc00549804f3130bbf640f7c92132d3f92dee9af104896b1968875703b71151",
+    "vina_log": "9463f6a6ce30f1425142452022f679d29fc927e8ed8fa58822131a576775fa3f"
+  },
+  "claim_boundary": "This retained result verifies pose recovery for the single predeclared 1STP-biotin redocking fixture under the recorded preparation and AutoDock Vina protocol. It does not validate affinity prediction, other receptors or ligands, clinical use, or general docking superiority."
+}

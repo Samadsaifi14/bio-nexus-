@@ -44,6 +44,15 @@ _JOB_KIND = "pipeline_v2"
 # collected mid-await; entries are discarded on completion.
 _INTERPRO_POLL_TASKS: set = set()
 
+# How many InterProScan polls are still outstanding per job, and which jobs are
+# being held open *because* of one. The parent pipeline cannot be marked terminal
+# while its domains step is still running upstream: the client stops polling the
+# moment it sees a terminal status and navigates to the report, so a parent that
+# reported `complete` here would hide the background result permanently. The last
+# poll to settle is what closes the job out.
+_INTERPRO_PENDING: dict[str, int] = {}
+_INTERPRO_DEFERRED: set = set()
+
 
 def _mirror(job_id: str) -> None:
     """Write a snapshot of the live job to the durable mirror, outside the lock.
@@ -119,6 +128,71 @@ def _set_job_failed(job_id: str, message: str):
             _jobs[job_id]["status"] = "failed"
             _jobs[job_id]["error"] = message
     _mirror(job_id)
+
+
+def _interpro_pending(job_id: str) -> int:
+    with _jobs_lock:
+        return _INTERPRO_PENDING.get(job_id, 0)
+
+
+def _interpro_is_last(job_id: str) -> bool:
+    """True when the poll about to settle is the one the job is waiting on."""
+    with _jobs_lock:
+        return _INTERPRO_PENDING.get(job_id, 0) <= 1 and job_id in _INTERPRO_DEFERRED
+
+
+def _complete_job(job_id: str, context: dict, finalize=None) -> None:
+    """Mark the job complete, or hold it open while an InterPro poll is due.
+
+    InterProScan 6 can run for many minutes upstream, so the domains step is left
+    non-terminal and patched later by a detached poller. Marking the parent
+    `complete` in that window would end client polling (see PipelineResults.tsx)
+    and the background result would never be seen, so the parent stays `running`
+    until the last outstanding poll settles.
+    """
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        if job is None:
+            return
+        job["context"] = context
+        deferred = _INTERPRO_PENDING.get(job_id, 0) > 0
+        if deferred:
+            _INTERPRO_DEFERRED.add(job_id)
+            job["status"] = "running"
+        else:
+            job["status"] = "complete"
+    _mirror(job_id)
+    if not deferred:
+        _persist_v2_final(job_id, "complete", context)
+        if finalize:
+            finalize()
+
+
+def _interpro_settle(job_id: str, context: dict, finalize=None) -> None:
+    """Called when an InterPro poll ends. The last one out closes the job.
+
+    Safe to call when no poll was outstanding: a job whose InterPro result
+    arrived before the pipeline finished has nothing left to wait for, and is
+    closed by the normal path in `_complete_job` instead.
+    """
+    with _jobs_lock:
+        left = _INTERPRO_PENDING.get(job_id, 0) - 1
+        if left > 0:
+            _INTERPRO_PENDING[job_id] = left
+            return
+        _INTERPRO_PENDING.pop(job_id, None)
+        if job_id not in _INTERPRO_DEFERRED:
+            return
+        _INTERPRO_DEFERRED.discard(job_id)
+        job = _jobs.get(job_id)
+        if job is None or job.get("status") != "running":
+            return
+        job["status"] = "complete"
+        job["context"] = context
+    _mirror(job_id)
+    _persist_v2_final(job_id, "complete", context)
+    if finalize:
+        finalize()
 
 
 def _reconcile() -> int:
@@ -424,14 +498,10 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
 
     if denovo_mode:
         context["query"]["confidence"] = "de_novo"
-        await _run_denovo_steps(job_id, sequence, steps, _mark, context)
+        settle = lambda: _record_provenance_and_finalize("complete")  # noqa: E731
+        await _run_denovo_steps(job_id, sequence, steps, _mark, context, settle)
         await _finalize_context(job_id, context)
-        with _jobs_lock:
-            if job_id in _jobs:
-                _jobs[job_id]["status"] = "complete"
-                _jobs[job_id]["context"] = context
-        _persist_v2_final(job_id, "complete", context)
-        _record_provenance_and_finalize("complete")
+        _complete_job(job_id, context, settle)
         return
 
     # ---- Step 2: Fan-out — UniProt, MSA, Pathway run in parallel ----
@@ -586,12 +656,7 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         _record_provenance_and_finalize("failed", error=f"Pipeline failed at {_failed_step}: {_failed_error}")
     else:
         await _finalize_context(job_id, context)
-        with _jobs_lock:
-            if job_id in _jobs:
-                _jobs[job_id]["status"] = "complete"
-                _jobs[job_id]["context"] = context
-        _persist_v2_final(job_id, "complete", context)
-        _record_provenance_and_finalize("complete")
+        _complete_job(job_id, context, lambda: _record_provenance_and_finalize("complete"))
 
 
 async def _finalize_context(job_id: str, context: dict):
@@ -1159,7 +1224,8 @@ async def _run_domains(accession: str) -> dict:
         return {"error": str(e), "uniprot_accession": accession, "sequence_length": 0, "domains": []}
 
 
-async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark, context: dict) -> None:
+async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark, context: dict,
+                            finalize=None) -> None:
     """Tier-6 branch (techspec.md §1): characterize from sequence alone.
 
     Runs when BLAST finds no homolog at all. Composition/function hints land
@@ -1227,7 +1293,8 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
         if name == "domains" and isinstance(res, dict) and res.get("status") == "running":
             _mark(name, "running", progress=50, data=res)
             context[name] = res
-            _schedule_interpro_poll(res.get("interpro_job_id"), _mark, name)
+            _schedule_interpro_poll(res.get("interpro_job_id"), _mark, name, job_id,
+                                    context, finalize)
             continue
 
         ok = (
@@ -1245,43 +1312,76 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
             _mark(name, "failed", error=unavailable)
 
 
-def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str) -> None:
+def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str, job_id: str,
+                            context: dict, finalize=None) -> None:
     """Poll a running InterProScan 6 job in the background, then patch the step.
 
     The EBI job can take 7-20+ minutes, far longer than a request or the pipeline
     step itself. Rather than block, a detached task waits for FINISHED and then
     records the real domains (or an explicit failure) on the step.
+
+    `job_id`/`context` let the poller both hold the parent job open while it waits
+    and refresh the persisted report with the domains, so the result is not only
+    patched in memory but actually reaches the client and the job history.
     """
     if not interpro_job_id:
         return
+
+    with _jobs_lock:
+        _INTERPRO_PENDING[job_id] = _INTERPRO_PENDING.get(job_id, 0) + 1
 
     async def _runner():
         from app.services.de_novo import await_interpro_result
 
         try:
-            result = await await_interpro_result(interpro_job_id)
-        except asyncio.CancelledError:
-            raise
-        except Exception as exc:
-            logger.warning("InterProScan background poll failed for %s: %s", interpro_job_id, exc)
-            mark(step, "failed", progress=100,
-                 data={"domains": [], "source": "interproscan6", "interpro_job_id": interpro_job_id},
-                 error=f"InterProScan job could not be completed: {exc}")
-            return
+            try:
+                result = await await_interpro_result(interpro_job_id)
+            except asyncio.CancelledError:
+                raise
+            except Exception as exc:
+                logger.warning("InterProScan background poll failed for %s: %s", interpro_job_id, exc)
+                result = {
+                    "status": "failed",
+                    "domains": [],
+                    "source": "interproscan6",
+                    "interpro_job_id": interpro_job_id,
+                    "error": f"InterProScan job could not be completed: {exc}",
+                }
 
-        if result.get("status") == "complete":
-            mark(step, "complete", progress=100, data=result, error=None)
-        else:
-            mark(step, "failed", progress=100, data=result,
-                 error=result.get("error") or "InterProScan job did not complete")
+            if result.get("status") == "complete":
+                mark(step, "complete", progress=100, data=result, error=None)
+            else:
+                result.setdefault("error", None)
+                mark(step, "failed", progress=100, data=result,
+                     error=result.get("error") or "InterProScan job did not complete")
+
+            # The report is what provenance and the job history are built from, so
+            # the finished result has to land there too, not just on the step.
+            with _jobs_lock:
+                context[step] = result
+
+            if _interpro_is_last(job_id):
+                # The synthesis and the InterPro source capture are both derived
+                # from the domains, and both ran while the result was still pending.
+                # Rebuild them now, or the report would ship a placeholder forever.
+                try:
+                    await _finalize_context(job_id, context)
+                except Exception as e:
+                    logger.warning(
+                        "[%s] report rebuild after InterProScan failed (continuing): %s", job_id, e
+                    )
+        finally:
+            _interpro_settle(job_id, context, finalize)
 
     try:
         task = asyncio.create_task(_runner())
         _INTERPRO_POLL_TASKS.add(task)
         task.add_done_callback(_INTERPRO_POLL_TASKS.discard)
     except RuntimeError:
-        # No running loop (shutdown): the step keeps its "running" state and the
-        # durable mirror records the upstream id for a later resume.
+        # No running loop (shutdown): undo the reservation so the job is not held
+        # open forever, and leave the step's "running" state for the durable mirror.
+        with _jobs_lock:
+            _INTERPRO_PENDING.pop(job_id, None)
         logger.warning("could not schedule InterProScan poll for %s", interpro_job_id)
 
 

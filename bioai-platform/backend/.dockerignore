@@ -1,0 +1,22 @@
+# Never bake secrets into the image. Without this, `COPY . .` embeds the local
+# .env (SUPABASE_SERVICE_ROLE_KEY, GROQ_API_KEY, GOOGLE_API_KEY, HF_TOKEN,
+# NCBI_API_KEY) into the image, where anyone who can pull or run it can read them.
+#
+# The Hugging Face Space does not need these files: its real credentials come from
+# Space secrets, and only .env.example is synced into the public repo. Keep the
+# examples so the image still documents the expected variable names.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+# VCS and Python caches
+.git/
+.gitignore
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/

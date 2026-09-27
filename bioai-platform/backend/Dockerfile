@@ -4,7 +4,6 @@ FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates git libnetcdf-dev \
     openbabel libgl1 libgomp1 libopenblas-dev \
-    ocl-icd-libopencl1 pocl-opencl-icd clinfo \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools \
     r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
@@ -13,29 +12,41 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Verify the deterministic RNA-seq statistical runtime at image-build time.
 RUN Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)}); cat("DESeq2", as.character(packageVersion("DESeq2")), "ComplexHeatmap", as.character(packageVersion("ComplexHeatmap")), "\n")'
 
-# Gnina (CNN-based rescoring) — pre-built binary; --no_gpu for CPU-only environments.
-# The v1.3.2 asset is named "gnina.1.3.2"; the older ".../v1.3.2/gnina" path 404s.
-# ~1.4 GB, installed by default. Pass --build-arg INSTALL_GNINA=0 to skip and use
-# the Vina/Python fallback instead.
+# Gnina (CNN-based rescoring) — OFF BY DEFAULT, and the reason is not image size.
 #
-# gnina resolves its compute device through OpenCL, so a CPU OpenCL ICD (pocl,
-# installed above) is required even with --no_gpu: without one the binary aborts
-# with "no OpenCL platforms found" at run time rather than at install time.
-# `gnina --version` exits before OpenCL is initialised, so it cannot prove the CPU
-# device gnina needs is present -- clinfo can, and that is the check that gates the
-# build. The version output is informational: its exit status is not a reliable
-# health signal and must not fail an otherwise good image.
-ARG INSTALL_GNINA=1
+# Verified on this base image (python:3.11-slim-bookworm, CPU-only):
+#   * The v1.3.2 release asset "gnina.1.3.2" (1,426,790,536 bytes) downloads
+#     fine, but the official CPU build is still linked against cuDNN and aborts
+#     at load time:
+#         gnina: error while loading shared libraries:
+#         libcudnn.so.9: cannot open shared object file: No such file or directory
+#   * libcudnn9 is not in Debian bookworm. It lives only in NVIDIA's CUDA apt
+#     repository, whose signing key the image cannot currently verify
+#     (NO_PUBKEY A4B469963BF863CC), so enabling gnina fails the build.
+#   * Its OpenCL requirement is otherwise satisfiable: pocl provides a working CPU
+#     device (verified via clinfo), so the blocker is the cuDNN link, not OpenCL.
+#
+# Rather than ship a ~1.4 GB binary that cannot execute, or bake a third-party GPU
+# repository with a rotating GPG key into a CPU image, rescoring uses the
+# Vina/Python fallback and says so. To enable on a host that genuinely provides
+# cuDNN, build with --build-arg INSTALL_GNINA=1.
+ARG INSTALL_GNINA=0
 RUN if [ "$INSTALL_GNINA" = "0" ]; then \
-        echo "gnina skipped (INSTALL_GNINA=0); Vina/Python rescoring fallback in use"; \
+        echo "gnina skipped (INSTALL_GNINA=0): CPU build requires cuDNN, see comment above"; \
+        echo "  CNN rescoring falls back to the Vina/Python path and reports it as such"; \
     else \
-        echo "gnina: downloading ~1.4 GB release asset"; \
+        apt-get update && apt-get install -y --no-install-recommends \
+            ocl-icd-libopencl1 pocl-opencl-icd clinfo && \
+        rm -rf /var/lib/apt/lists/*; \
         wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina.1.3.2" -O /usr/local/bin/gnina && \
         chmod +x /usr/local/bin/gnina || { echo "ERROR: gnina download failed"; exit 1; }; \
         echo "gnina: size $(stat -c %s /usr/local/bin/gnina) bytes"; \
-        echo "gnina: version output -> $(gnina --version 2>&1 | head -1)"; \
-        echo "gnina: OpenCL platforms ->"; \
-        clinfo -l 2>&1 | head -5; \
+        gnina --version 2>&1 | head -3 || true; \
+        if ! gnina --version >/dev/null 2>&1; then \
+            echo "ERROR: gnina cannot execute here. Its CPU build links libcudnn.so.9,"; \
+            echo "       which a CPU-only image does not provide. Install cuDNN or set INSTALL_GNINA=0."; \
+            exit 1; \
+        fi; \
         if ! clinfo -l 2>/dev/null | grep -qi "pocl\|portable computing language"; then \
             echo "ERROR: no CPU OpenCL platform visible; gnina would fail at run time."; \
             exit 1; \

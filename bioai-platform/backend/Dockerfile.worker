@@ -3,7 +3,6 @@ FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates git libnetcdf-dev \
     openbabel libgl1 libgomp1 libopenblas-dev \
-    ocl-icd-libopencl1 pocl-opencl-icd clinfo \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools && \
     rm -rf /var/lib/apt/lists/*
@@ -11,22 +10,30 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
-# The v1.3.2 asset is named "gnina.1.3.2"; ".../v1.3.2/gnina" 404s. ~1.4 GB,
-# installed by default; set INSTALL_GNINA=0 to use the Vina/Python fallback.
-# gnina needs a CPU OpenCL ICD (pocl) to run without a GPU. `gnina --version`
-# exits before OpenCL initialises, so clinfo is used to assert a real platform is
-# visible; otherwise the binary would install fine and fail on first use.
-ARG INSTALL_GNINA=1
+# Gnina (CNN-based rescoring) — OFF BY DEFAULT, and the reason is not image size.
+# Verified on this base image: the v1.3.2 asset "gnina.1.3.2" (1,426,790,536 bytes)
+# downloads fine, but gnina's CPU build is still linked against cuDNN and aborts at
+# load time with "libcudnn.so.9: cannot open shared object file". libcudnn9 is not
+# in Debian bookworm -- only in NVIDIA's CUDA repo, whose signing key currently
+# fails to verify. OpenCL itself is fine (pocl gives a working CPU device), so the
+# blocker is the cuDNN link. Enable with INSTALL_GNINA=1 on a host that has cuDNN.
+ARG INSTALL_GNINA=0
 RUN if [ "$INSTALL_GNINA" = "0" ]; then \
-        echo "gnina skipped (INSTALL_GNINA=0); Vina/Python rescoring fallback in use"; \
+        echo "gnina skipped (INSTALL_GNINA=0): CPU build requires cuDNN, see comment above"; \
+        echo "  CNN rescoring falls back to the Vina/Python path and reports it as such"; \
     else \
-        echo "gnina: downloading ~1.4 GB release asset"; \
+        apt-get update && apt-get install -y --no-install-recommends \
+            ocl-icd-libopencl1 pocl-opencl-icd clinfo && \
+        rm -rf /var/lib/apt/lists/*; \
         wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina.1.3.2" -O /usr/local/bin/gnina && \
         chmod +x /usr/local/bin/gnina || { echo "ERROR: gnina download failed"; exit 1; }; \
         echo "gnina: size $(stat -c %s /usr/local/bin/gnina) bytes"; \
-        echo "gnina: version output -> $(gnina --version 2>&1 | head -1)"; \
-        echo "gnina: OpenCL platforms ->"; \
-        clinfo -l 2>&1 | head -5; \
+        gnina --version 2>&1 | head -3 || true; \
+        if ! gnina --version >/dev/null 2>&1; then \
+            echo "ERROR: gnina cannot execute here. Its CPU build links libcudnn.so.9,"; \
+            echo "       which a CPU-only image does not provide. Install cuDNN or set INSTALL_GNINA=0."; \
+            exit 1; \
+        fi; \
         if ! clinfo -l 2>/dev/null | grep -qi "pocl\|portable computing language"; then \
             echo "ERROR: no CPU OpenCL platform visible; gnina would fail at run time."; \
             exit 1; \

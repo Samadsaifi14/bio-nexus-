@@ -451,7 +451,20 @@ async def castp_submit(pdb_text: str, probe_radius: float = 1.4) -> dict:
         )
         if job_match:
             return {"job_id": job_match.group(1), "status": "submitted"}
-        return {"status": "complete", "raw_html": text, "job_id": None}
+        # No job id means the remote never accepted the submission (the service can
+        # answer with its HTML app shell instead of a result payload). Report that
+        # honestly; "complete" with zero pockets would present a retrieval failure as
+        # a scientific finding that the structure has no pockets.
+        return {
+            "status": "unavailable",
+            "job_id": None,
+            "error": (
+                "CASTpFold returned no job id for this submission (the remote did not "
+                "expose a result payload). This is a submission failure, not a result "
+                "with zero pockets."
+            ),
+            "raw_html": text[:2000],
+        }
 
 
 async def castp_poll(job_id: str) -> dict:

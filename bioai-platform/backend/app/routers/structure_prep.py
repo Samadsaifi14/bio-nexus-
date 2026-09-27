@@ -38,6 +38,17 @@ _STALE_AFTER = timedelta(minutes=20)
 # Protein alphabet incl. ambiguity codes; validated before any network call (A4).
 _AA_RE = re.compile(r"^[ACDEFGHIKLMNPQRSTVWYBXZUJ]+$")
 
+# Per-status CASTp failure wording. A status must never be summarised as a timeout
+# when the real outcome was that the remote never accepted the submission.
+_CASTP_FAILURE_NOTE = {
+    "unavailable": (
+        "remote CASTpFold did not accept the submission (no job id returned); no "
+        "CASTp pockets were obtained and zero must not be read as a CASTp result"
+    ),
+    "error": "CASTp job failed before returning pockets",
+    "timed_out": "no CASTp result after 90s of polling",
+}
+
 
 class PipelineRequest(BaseModel):
     pdb_id: str = Field(default="", description="4-char PDB ID (mutually exclusive with sequence)")
@@ -386,6 +397,7 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         except asyncio.TimeoutError:
             fpocket_result = FpocketResult(raw_output="fpocket timed out", status="error")
         result_fields["fpocket_pockets"] = fpocket_result.pockets
+        result_fields["fpocket_engine"] = "fpocket"
         op("pocket_detection", "fpocket 2.0", fpocket_result.status,
            f"{fpocket_result.pocket_count} pockets, probe radius {body.probe_radius}",
            t0=t0)
@@ -398,6 +410,13 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                 run_sasa_pockets, cleaned, body.probe_radius,
             )
             result_fields["fpocket_pockets"] = sasa_pockets
+            # Record which engine actually produced the numbers so the UI never
+            # labels fallback output as fpocket output.
+            result_fields["fpocket_engine"] = "sasa_concave_packing_fallback"
+            result_fields["fpocket_engine_note"] = (
+                f"fpocket returned '{fpocket_result.status}' with no pockets; the listed "
+                "pockets come from the BioNexus SASA concave-packing fallback, not fpocket."
+            )
             op("pocket_detection", "BioNexus SASA concave-packing (numpy)", "complete",
                f"fpocket returned {fpocket_result.status} with no pockets; fallback found {len(sasa_pockets)}",
                t0=t0)
@@ -419,7 +438,13 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
             t0 = time.perf_counter()
             try:
                 castp_sub = await castp_submit(cleaned, body.probe_radius)
-                if castp_sub.get("status") == "complete":
+                if castp_sub.get("status") == "unavailable":
+                    castp_status = "unavailable"
+                    logger.warning(
+                        "CASTp submission unavailable for job %s: %s",
+                        job_id, castp_sub.get("error"),
+                    )
+                elif castp_sub.get("status") == "complete":
                     castp_status = "complete"
                 elif castp_sub.get("job_id"):
                     for _ in range(30):
@@ -433,7 +458,8 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
                 logger.warning("CASTp job failed: %s", e)
                 castp_status = "error"
             op("pocket_validation", "CASTp 3.0 (CASTpFold, remote)", castp_status,
-               f"{len(castp_pockets)} pockets" if castp_status == "complete" else "failed or timed out after 90s",
+               f"{len(castp_pockets)} pockets" if castp_status == "complete" else _CASTP_FAILURE_NOTE.get(
+                   castp_status, "failed or timed out after 90s"),
                t0=t0)
             result_fields["castp_pockets"] = castp_pockets
             _update_job(

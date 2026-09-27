@@ -12,15 +12,23 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # Verify the deterministic RNA-seq statistical runtime at image-build time.
 RUN Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)}); cat("DESeq2", as.character(packageVersion("DESeq2")), "ComplexHeatmap", as.character(packageVersion("ComplexHeatmap")), "\n")'
 
-# Gnina (CNN-based rescoring) — pre-built binary; --no_gpu for CPU-only environments
-RUN wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina" -O /usr/local/bin/gnina && \
-    chmod +x /usr/local/bin/gnina || echo "gnina download skipped (optional)"
+# Gnina (CNN-based rescoring) — pre-built binary; --no_gpu for CPU-only environments.
+# The v1.3.2 asset is named "gnina.1.3.2"; the older ".../v1.3.2/gnina" path 404s.
+# ~1.4 GB, so it is opt-in and the Vina/Python fallback is used otherwise.
+ARG INSTALL_GNINA=0
+RUN if [ "$INSTALL_GNINA" = "1" ]; then \
+        wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina.1.3.2" -O /usr/local/bin/gnina && \
+        chmod +x /usr/local/bin/gnina; \
+    else echo "gnina skipped (pass --build-arg INSTALL_GNINA=1 to include, ~1.4 GB)"; fi
 
-# MAFFT (local MSA) — portable Linux package, faster and more reliable than remote EBI endpoints
+# MAFFT (local MSA) — portable Linux package, faster and more reliable than remote EBI endpoints.
+# mafft.bat resolves its helpers from `dirname $0`, so a symlink makes it look for
+# /usr/local/bin/mafftdir and fail (exit 127) — hence the exec wrapper, not a symlink.
 RUN wget -q "https://mafft.cbrc.jp/alignment/software/mafft-7.526-linux.tgz" -O /tmp/mafft.tgz && \
     tar xzf /tmp/mafft.tgz -C /opt && \
-    ln -sf /opt/mafft-linux64/mafft.bat /usr/local/bin/mafft && \
-    rm /tmp/mafft.tgz || echo "mafft download skipped (optional)"
+    printf '#!/bin/sh\nexec /opt/mafft-linux64/mafft.bat "$@"\n' > /usr/local/bin/mafft && \
+    chmod +x /usr/local/bin/mafft && \
+    rm /tmp/mafft.tgz && mafft --version || echo "mafft download skipped (optional)"
 
 # fpocket (pocket detection) — not packaged in Debian repos; build from source
 RUN git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket && \

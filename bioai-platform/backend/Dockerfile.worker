@@ -10,13 +10,19 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
     chmod +x /usr/local/bin/vina
 
-RUN wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina" -O /usr/local/bin/gnina && \
-    chmod +x /usr/local/bin/gnina || echo "gnina download skipped (optional)"
+# The v1.3.2 asset is named "gnina.1.3.2"; ".../v1.3.2/gnina" 404s. ~1.4 GB, so
+# it is opt-in and the Vina/Python fallback is used otherwise.
+ARG INSTALL_GNINA=0
+RUN if [ "$INSTALL_GNINA" = "1" ]; then \
+        wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina.1.3.2" -O /usr/local/bin/gnina && \
+        chmod +x /usr/local/bin/gnina; \
+    else echo "gnina skipped (pass --build-arg INSTALL_GNINA=1 to include, ~1.4 GB)"; fi
 
 RUN wget -q "https://mafft.cbrc.jp/alignment/software/mafft-7.526-linux.tgz" -O /tmp/mafft.tgz && \
     tar xzf /tmp/mafft.tgz -C /opt && \
-    ln -sf /opt/mafft-linux64/mafft.bat /usr/local/bin/mafft && \
-    rm /tmp/mafft.tgz || echo "mafft download skipped (optional)"
+    printf '#!/bin/sh\nexec /opt/mafft-linux64/mafft.bat "$@"\n' > /usr/local/bin/mafft && \
+    chmod +x /usr/local/bin/mafft && \
+    rm /tmp/mafft.tgz && mafft --version || echo "mafft download skipped (optional)"
 
 RUN git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket && \
     make -C /tmp/fpocket && make -C /tmp/fpocket install && \

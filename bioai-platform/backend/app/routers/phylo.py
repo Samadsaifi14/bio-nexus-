@@ -542,17 +542,17 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             "engine": engine,
             "engine_version": engine_version,
             "model": model,
-            "support": iqtree_support_type or (f"classic bootstrap {bs}" if bs > 0 else "none"),
+            "support": iqtree_support_type or (f"classic bootstrap {bs_effective}" if bs_effective > 0 else "none"),
             "support_detail": (
-                "IQ-TREE ultrafast bootstrap (UFBoot >= 1000 replicates) with SH-aLRT."
-                if use_iqtree and bs > 0 else
+                "IQ-TREE ultrafast bootstrap (UFBoot >= 1000 replicates)."
+                if use_iqtree and bs_effective > 0 else
                 "PhyML classic nonparametric bootstrap replicates."
-                if not use_iqtree and bs > 0 else
+                if not use_iqtree and bs_effective > 0 else
                 "No bootstrap requested."
             ),
             "likelihood": likelihood,
-            "bootstrap_effective": (max(1000, bs) if use_iqtree and bs > 0 else bs) if bs > 0 else None,
-            "bootstrap_requested": bs,
+            "bootstrap_effective": bs_effective if bs_effective > 0 else None,
+            "bootstrap_requested": bs_requested,
         }
         _patch(job_id, phase="complete", newick=newick, stats=stats, meta=meta, done_at=time.time())
 

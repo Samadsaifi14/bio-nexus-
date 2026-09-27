@@ -32,17 +32,33 @@ ALN_FASTA = (
 )
 
 IQTREE_STATS_TMPL = (
-    "IQ-TREE version: 2.3.6\n"
-    "{ufboot}"
+    "IQ-TREE 2.3.6 built Aug  1 2024\n"
+    "Input file name: /tmp/alignment.phy\n"
+    "Type of analysis: tree reconstruction{ufboot}\n"
+    "Random seed number: 806723\n"
+    "\n"
+    "REFERENCES\n"
+    "----------\n"
+    "To cite IQ-TREE please use:\n"
+    "IQ-TREE 2: New models and efficient methods for phylogenetic inference\n"
+    "\n"
+    "Numbers in parentheses are  ultrafast bootstrap support (%)\n"
+    "Log-likelihood of the tree: -1234.567890 (s.e. 11.8203)\n"
+)
+
+# IQ-TREE 1.x phrased the UFBoot count differently; keep the path covered.
+IQTREE_STATS_LEGACY = (
+    "IQ-TREE version: 1.6.22\n"
+    "Ultrafast bootstrap (UFBoot) with 1000 iterations\n"
     "Log-likelihood of the tree: -1234.567890\n"
 )
 
 
 def _iqtree_stats(argv):
-    """IQ-TREE only reports a UFBoot run when -bb was actually passed."""
+    """Reproduce the .iqtree text IQ-TREE actually writes for this command."""
     if "-bb" in argv:
         n = argv[argv.index("-bb") + 1]
-        ufboot = f"Ultrafast bootstrap (UFBoot) with {n} iterations\n"
+        ufboot = f" + ultrafast bootstrap ({n} replicates)"
     else:
         ufboot = ""
     return IQTREE_STATS_TMPL.format(ufboot=ufboot)
@@ -64,7 +80,7 @@ class _FakeProc:
         pass
 
 
-def _iqtree_exec(captured):
+def _iqtree_exec(captured, stats_fn=None):
     """Fake create_subprocess_exec that writes the files IQ-TREE would emit."""
 
     async def _exec(*cmd, **kwargs):
@@ -72,7 +88,9 @@ def _iqtree_exec(captured):
         captured["argv"] = argv
         prefix = argv[argv.index("-pre") + 1]
         Path(prefix + ".treefile").write_text(TREE + "\n")
-        Path(prefix + ".iqtree").write_text(_iqtree_stats(argv))
+        Path(prefix + ".iqtree").write_text(
+            stats_fn(argv) if stats_fn else _iqtree_stats(argv)
+        )
         return _FakeProc()
 
     return _exec
@@ -180,6 +198,61 @@ def test_ml_provenance_reports_replicates_actually_run(monkeypatch, job):
     assert got["meta"]["bootstrap_requested"] == 100
     assert got["meta"]["bootstrap_effective"] == 1000
     assert "UFBoot" in got["meta"]["support_detail"]
+    # Reproduced from real IQ-TREE 2.3.6 output: the label must say UFBoot,
+    # not "classic bootstrap" (which is PhyML's method and was wrongly used
+    # as the fallback label for both engines).
+    assert got["meta"]["support"] == "ultrafast bootstrap 1000"
+    assert got["meta"]["engine_version"] == "2.3.6"
+
+
+def test_ml_reads_version_and_count_from_legacy_iqtree_format(monkeypatch, job):
+    """IQ-TREE 1.x phrased both fields differently; both must still parse."""
+    _install_tools(monkeypatch)
+    captured = {}
+    monkeypatch.setattr(
+        phylo.asyncio,
+        "create_subprocess_exec",
+        _iqtree_exec(captured, stats_fn=lambda argv: IQTREE_STATS_LEGACY),
+    )
+    phylo._init(job, _req(bootstrap=1000))
+
+    asyncio.run(phylo._run_phyml_local(job, ALN_FASTA, _req(bootstrap=1000)))
+
+    got = phylo._read(job)
+    assert got["phase"] == "complete", got.get("error")
+    assert got["meta"]["support"] == "ultrafast bootstrap 1000"
+    assert got["meta"]["engine_version"] == "1.6.22"
+
+
+def test_ml_fallback_label_never_calls_iqtree_classic(monkeypatch, job):
+    """If the support count cannot be parsed, the label must still not lie.
+
+    The fallback is reached whenever the .iqtree text does not yield a
+    recognizable UFBoot count; naming an IQ-TREE run "classic bootstrap"
+    would misattribute the method, so the engine decides the word.
+    """
+    _install_tools(monkeypatch)
+    captured = {}
+    # -bb was passed, but the stats file reports no UFBoot line at all.
+    monkeypatch.setattr(
+        phylo.asyncio,
+        "create_subprocess_exec",
+        _iqtree_exec(
+            captured,
+            stats_fn=lambda argv: (
+                "IQ-TREE 2.3.6 built Aug  1 2024\n"
+                "Log-likelihood of the tree: -1234.567890\n"
+            ),
+        ),
+    )
+    phylo._init(job, _req(bootstrap=1000))
+
+    asyncio.run(phylo._run_phyml_local(job, ALN_FASTA, _req(bootstrap=1000)))
+
+    got = phylo._read(job)
+    assert got["phase"] == "complete", got.get("error")
+    assert "classic" not in got["meta"]["support"]
+    assert got["meta"]["support"] == "ultrafast bootstrap 1000"
 
 
 def test_ml_support_detail_never_claims_uncomputed_alrt(monkeypatch, job):

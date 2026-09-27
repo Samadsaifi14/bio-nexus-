@@ -1697,11 +1697,15 @@ export interface CastpResult {
   uniprot?: CastpUniProt | null;
   chains?: CastpChain[];
   active_sites?: CastpActiveSiteResidue[];
+  contacts?: IntramolecularContacts;
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {
   const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
-  return res.data;
+  // The endpoint wraps its payload in a scientific-result envelope; the pockets,
+  // pdb_id and structure live under `results` (set on both the success and the
+  // failed path). Returning the envelope made every field read as undefined.
+  return (res.data?.results ?? res.data) as CastpResult;
 }
 
 export async function runCastpSequence(sequence: string, probeRadius = 1.4): Promise<CastpResult> {
@@ -1779,6 +1783,46 @@ export interface StructurePrepJob {
   status: string;
 }
 
+export type ContactCategory = {
+  items: {
+    donor?: string;
+    donor_atom?: string;
+    donor_chain?: string;
+    donor_residue_seq?: number;
+    acceptor?: string;
+    acceptor_atom?: string;
+    acceptor_chain?: string;
+    acceptor_residue_seq?: number;
+    partner_residue?: string;
+    partner_residue_seq?: number;
+    partner_chain?: string;
+    partner_atom?: string;
+    distance: number;
+    geometry?: string;
+    charge_pair?: string;
+  }[];
+  count: number;
+  total: number;
+  truncated: boolean;
+};
+
+export type IntramolecularContacts = {
+  status?: 'error';
+  error?: string;
+  hbonds: ContactCategory;
+  salt_bridges: ContactCategory;
+  hydrophobic: ContactCategory;
+  disulfides: ContactCategory;
+  method?: {
+    name: string;
+    kind: string;
+    explicit_hydrogens: boolean | null;
+    criteria: Record<string, Record<string, unknown>>;
+    excludes: string;
+  };
+  limitation?: string;
+};
+
 export interface StructurePrepResult {
   job_id: string;
   status: string;
@@ -1796,6 +1840,11 @@ export interface StructurePrepResult {
   } | null;
   fpocket_pockets: { id: number; druggability_score: number; volume: number; area: number; score: number; num_residues: number }[];
   castp_pockets: { id: number; area_sa: number; volume_sa: number }[];
+  fpocket_engine?: 'fpocket' | 'sasa_concave_packing_fallback' | string;
+  fpocket_engine_note?: string;
+  fpocket_status?: string;
+  castp_status?: string;
+  contacts?: IntramolecularContacts;
   operations: { step: string; engine: string; status: string; duration_s: number; note: string }[];
   cleaned_pdb: string;
   error: string | null;

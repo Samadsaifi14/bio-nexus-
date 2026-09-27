@@ -7,6 +7,7 @@ method never silently substitutes another method's values.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
 from typing import Any
@@ -18,6 +19,7 @@ from pydantic import BaseModel, Field
 from app.science.result import build_scientific_result, failed_scientific_result
 from app.services.identifier_resolution import is_uniprot_accession, resolve_to_uniprot
 from app.tools.castp import PocketAnalysisError, analyze_pockets_pdb_text
+from app.tools.contacts import compute_intramolecular_contacts
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/castp", tags=["Pocket & Cavity Analysis"])
@@ -232,6 +234,20 @@ async def analyze_pockets(body: CastpRequest):
         "chains": method_result.get("chains", []),
         "active_sites": [],
     }
+
+    # The analysed structure is a bare receptor with no ligand, so report the bonds
+    # defined within the structure itself. A failure is reported as an error, never
+    # as "no contacts found".
+    try:
+        results["contacts"] = await asyncio.to_thread(
+            compute_intramolecular_contacts, pdb_text,
+        )
+    except Exception as e:
+        results["contacts"] = {
+            "status": "error",
+            "error": f"intramolecular contact analysis failed: {e}",
+        }
+        logger.warning("CASTp intramolecular contact analysis failed: %s", e)
 
     if method_status == "FAILED":
         failed = failed_scientific_result(

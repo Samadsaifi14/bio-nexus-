@@ -20,6 +20,7 @@ from pydantic import BaseModel, Field
 
 from app.services.auth import require_user_id
 from app.services.supabase import get_supabase
+from app.tools.contacts import compute_intramolecular_contacts
 from app.tools.structure_prep import validate_pdb_id, validate_template, validate_uniprot_accession
 
 logger = logging.getLogger(__name__)
@@ -98,8 +99,13 @@ class PipelineStatusResponse(BaseModel):
     castp_pockets: list[dict[str, Any]] = []
     # Explicit integrity/outcome tags — never silently degraded:
     chain_integrity: str = "unknown"   # intact | repaired | broken_unrepaired | unknown
-    castp_status: str = "pending"      # pending | skipped | running | complete | timed_out | error
+    castp_status: str = "pending"      # pending | skipped | running | complete | timed_out | error | unavailable
     fpocket_status: str = "pending"    # pending | running | complete | unavailable | error
+    # Which engine actually produced fpocket_pockets: "fpocket" or
+    # "sasa_concave_packing_fallback", so the UI never labels fallback as fpocket.
+    fpocket_engine: str = "unknown"
+    fpocket_engine_note: str = ""
+    contacts: dict[str, Any] | None = None
     operations: list[PrepOperation] = []
     cleaned_pdb: str = ""
     error: str | None = None
@@ -211,6 +217,9 @@ def _row_to_response(job_id: str, row: dict) -> PipelineStatusResponse:
         chain_integrity=row.get("chain_integrity", "unknown"),
         castp_status=row.get("castp_status", "pending"),
         fpocket_status=row.get("fpocket_status", "pending"),
+        fpocket_engine=result.get("fpocket_engine", "unknown"),
+        fpocket_engine_note=result.get("fpocket_engine_note", ""),
+        contacts=result.get("contacts"),
         operations=result.get("operations", []),
         cleaned_pdb=result.get("cleaned_pdb", ""),
         error=row.get("error"),
@@ -469,6 +478,34 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
             )
 
         result_fields["cleaned_pdb"] = cleaned[:50000]
+
+        # Intramolecular contacts. The structure is a bare receptor with no ligand,
+        # so these are the bonds actually defined here (internal H-bonds, salt
+        # bridges, hydrophobic core packing, disulfide bridges).
+        t0 = time.perf_counter()
+        try:
+            contacts = await asyncio.to_thread(
+                compute_intramolecular_contacts, cleaned,
+            )
+            result_fields["contacts"] = contacts
+            op(
+                "contact_analysis", "BioNexus geometric intramolecular contacts",
+                "complete",
+                f"{contacts['hbonds']['count']} H-bonds, "
+                f"{contacts['salt_bridges']['count']} salt bridges, "
+                f"{contacts['hydrophobic']['count']} hydrophobic contacts, "
+                f"{contacts['disulfides']['count']} disulfides",
+                t0=t0,
+            )
+        except Exception as e:
+            # A contact-analysis failure must not be reported as "no contacts".
+            result_fields["contacts"] = {
+                "status": "error",
+                "error": f"intramolecular contact analysis failed: {e}",
+            }
+            op("contact_analysis", "BioNexus geometric intramolecular contacts",
+               "error", f"failed: {e}", t0=t0)
+            logger.warning("Intramolecular contact analysis failed: %s", e)
 
         # AI interpretation (best-effort, never blocks)
         try:

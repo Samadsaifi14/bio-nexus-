@@ -10,6 +10,7 @@ import { DockingViewer } from '@/components/DockingViewer';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
 import { runStructurePrep, runStructurePrepSequence, getStructurePrepStatus, type StructurePrepResult } from '@/lib/api';
+import { IntramolecularContactsPanel } from '@/components/results/IntramolecularContactsPanel';
 import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 
 type PipelineStatus = StructurePrepResult;
@@ -328,11 +329,22 @@ export default function StructurePrepPage() {
 
             <div className="mb-4">
               <div className="flex items-center justify-between mb-2">
-                <h4 className="text-sm font-medium text-text-primary">fpocket (local)</h4>
+                <h4 className="text-sm font-medium text-text-primary">
+                  {result.fpocket_engine === 'fpocket'
+                    ? 'fpocket (local)'
+                    : 'Pockets (SASA concave-packing fallback)'}
+                </h4>
                 <span className="text-xs text-text-muted bg-surface-1 px-2 py-0.5 rounded">{result.fpocket_pockets.length} pockets</span>
               </div>
+              {result.fpocket_engine_note && (
+                <p className="text-xs text-status-warning mb-2">{result.fpocket_engine_note}</p>
+              )}
               {result.fpocket_pockets.length === 0 ? (
-                <p className="text-xs text-text-muted">No pockets detected</p>
+                <p className="text-xs text-text-muted">
+                  {result.fpocket_status && result.fpocket_status !== 'complete'
+                    ? `Pocket detection unavailable (fpocket status: ${result.fpocket_status}) — this is not a result of zero pockets.`
+                    : 'No pockets detected'}
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -367,7 +379,11 @@ export default function StructurePrepPage() {
                 <span className="text-xs text-text-muted bg-surface-1 px-2 py-0.5 rounded">{result.castp_pockets.length} pockets</span>
               </div>
               {result.castp_pockets.length === 0 ? (
-                <p className="text-xs text-text-muted">No pockets returned</p>
+                <p className="text-xs text-text-muted">
+                  {result.castp_status && result.castp_status !== 'complete'
+                    ? `CASTp unavailable (status: ${result.castp_status}) — this is not a result of zero pockets.`
+                    : 'No pockets returned'}
+                </p>
               ) : (
                 <div className="overflow-x-auto">
                   <table className="w-full text-xs">
@@ -392,6 +408,12 @@ export default function StructurePrepPage() {
               )}
             </div>
           </motion.div>
+
+          {result.contacts && (
+            <motion.div variants={fadeUp}>
+              <IntramolecularContactsPanel contacts={result.contacts} />
+            </motion.div>
+          )}
         </motion.div>
       )}
     </div>

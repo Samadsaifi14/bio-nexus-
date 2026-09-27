@@ -2,8 +2,11 @@
 set -uo pipefail
 
 echo "==> Installing system tools and figure renderer libraries"
+# build-essential/git are needed to compile fpocket from source (not packaged in
+# Debian repos) — Render's native Python runtime ships neither.
 apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-    samtools libcairo2 libpango-1.0-0 libpangocairo-1.0-0 2>/dev/null && \
+    samtools libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
+    build-essential git 2>/dev/null && \
     echo "     samtools installed: $(samtools --version | head -1)" || \
     { echo "     ERROR: system dependency installation failed"; exit 1; }
 
@@ -19,9 +22,34 @@ else
         { echo "     ERROR: minimap2 installation failed"; exit 1; }
 fi
 
+echo "==> Building fpocket (pocket detection)"
+# The Dockerfiles build fpocket, but Render deploys with `runtime: python`, so the
+# Dockerfiles never run and fpocket was silently absent in production — every
+# structure-prep run degraded to the SASA fallback. Build and verify it here.
+FPOCKET_DEST="/usr/local/bin/fpocket"
+if [ -x "$FPOCKET_DEST" ]; then
+    echo "     fpocket already present"
+else
+    if git clone --depth 1 --branch 4.2.3 https://github.com/Discngine/fpocket /tmp/fpocket-src >/dev/null 2>&1 && \
+       make -C /tmp/fpocket-src >/dev/null 2>&1 && \
+       make -C /tmp/fpocket-src install >/dev/null 2>&1; then
+        rm -rf /tmp/fpocket-src
+        echo "     fpocket installed: $FPOCKET_DEST"
+    else
+        rm -rf /tmp/fpocket-src
+        echo "     ERROR: fpocket build failed — pocket detection would silently fall back to SASA"
+        exit 1
+    fi
+fi
+# Fail the build if the binary is unusable, so a broken toolchain cannot ship as a
+# silent downgrade to fallback output.
+fpocket --version >/dev/null 2>&1 || fpocket -h >/dev/null 2>&1 || {
+    echo "     ERROR: fpocket present but not executable at $FPOCKET_DEST"; exit 1; }
+
 echo "==> Verifying native tools"
 samtools --version | head -1
 minimap2 --version 2>&1 | head -1
+echo "     fpocket: $(command -v fpocket || echo 'not on PATH')"
 
 echo "==> Installing Python dependencies"
 pip install -r requirements.txt

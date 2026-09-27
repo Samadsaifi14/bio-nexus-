@@ -28,6 +28,7 @@ import {
   type CastpActiveSiteResidue,
   type CastpChain,
 } from '@/lib/api';
+import { IntramolecularContactsPanel } from '@/components/results/IntramolecularContactsPanel';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
@@ -615,6 +616,12 @@ export default function CastpPage() {
               </div>
             )}
           </motion.div>
+
+          {result.contacts && (
+            <motion.div variants={fadeUp}>
+              <IntramolecularContactsPanel contacts={result.contacts} />
+            </motion.div>
+          )}
         </motion.div>
       )}
     </div>

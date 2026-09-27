@@ -4,6 +4,7 @@ FROM python:3.11-slim-bookworm
 RUN apt-get update && apt-get install -y --no-install-recommends \
     build-essential gcc g++ wget ca-certificates git libnetcdf-dev \
     openbabel libgl1 libgomp1 libopenblas-dev \
+    ocl-icd-libopencl1 pocl-opencl-icd clinfo \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools \
     r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
@@ -14,12 +15,30 @@ RUN Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(Complex
 
 # Gnina (CNN-based rescoring) — pre-built binary; --no_gpu for CPU-only environments.
 # The v1.3.2 asset is named "gnina.1.3.2"; the older ".../v1.3.2/gnina" path 404s.
-# ~1.4 GB, so it is opt-in and the Vina/Python fallback is used otherwise.
-ARG INSTALL_GNINA=0
-RUN if [ "$INSTALL_GNINA" = "1" ]; then \
+# ~1.4 GB, installed by default. Pass --build-arg INSTALL_GNINA=0 to skip and use
+# the Vina/Python fallback instead.
+#
+# gnina resolves its compute device through OpenCL, so a CPU OpenCL ICD (pocl,
+# installed above) is required even with --no_gpu: without one the binary aborts
+# with "no OpenCL platforms found" at run time rather than at install time.
+# `gnina --version` alone would NOT catch that -- it exits before OpenCL is
+# initialised -- so the gate also asserts a real OpenCL platform is visible. This
+# turns a silent rescoring outage into a failed build.
+ARG INSTALL_GNINA=1
+RUN if [ "$INSTALL_GNINA" = "0" ]; then \
+        echo "gnina skipped (INSTALL_GNINA=0); Vina/Python rescoring fallback in use"; \
+    else \
         wget -q "https://github.com/gnina/gnina/releases/download/v1.3.2/gnina.1.3.2" -O /usr/local/bin/gnina && \
-        chmod +x /usr/local/bin/gnina; \
-    else echo "gnina skipped (pass --build-arg INSTALL_GNINA=1 to include, ~1.4 GB)"; fi
+        chmod +x /usr/local/bin/gnina || { echo "ERROR: gnina download failed"; exit 1; }; \
+        gnina --version || { echo "ERROR: gnina binary is not runnable"; exit 1; }; \
+        if ! clinfo -l 2>/dev/null | grep -qi "pocl\|portable computing language"; then \
+            echo "ERROR: no CPU OpenCL platform visible; gnina would fail at run time. clinfo -l said:"; \
+            clinfo -l 2>&1 | head -20; \
+            exit 1; \
+        fi; \
+        echo "gnina installed with CPU OpenCL:"; \
+        clinfo -l | head -3; \
+    fi
 
 # MAFFT (local MSA) — portable Linux package, faster and more reliable than remote EBI endpoints.
 # mafft.bat resolves its helpers from `dirname $0`, so a symlink makes it look for

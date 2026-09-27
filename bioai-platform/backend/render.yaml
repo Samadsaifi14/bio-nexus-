@@ -27,7 +27,8 @@ services:
       # silently disabled and every job stays stuck in "queued".
       - key: RUN_WORKER
         value: "true"
-      # gnina CNN rescoring is a ~1.4 GB static build, so it is opt-in. While
-      # this is "0", rescoring falls back to the Vina/Python path and says so.
+      # gnina CNN rescoring (~1.4 GB) is installed by default. Set this to "0"
+      # to skip it and let rescoring fall back to the Vina/Python path, which
+      # the UI then labels as such.
       - key: INSTALL_GNINA
-        value: "0"
+        value: "1"

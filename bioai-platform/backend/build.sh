@@ -5,7 +5,8 @@ echo "==> Installing system tools and figure renderer libraries"
 # bzip2 is required by the .tar.bz2 payloads below (minimap2, PhyML) and is not
 # guaranteed on the native runtime.
 apt-get update -qq && apt-get install -y -qq --no-install-recommends \
-    samtools libcairo2 libpango-1.0-0 libpangocairo-1.0-0 bzip2 2>/dev/null && \
+    samtools libcairo2 libpango-1.0-0 libpangocairo-1.0-0 bzip2 \
+    ocl-icd-libopencl1 pocl-opencl-icd clinfo 2>/dev/null && \
     echo "     samtools installed: $(samtools --version | head -1)" || \
     { echo "     ERROR: system dependency installation failed"; exit 1; }
 
@@ -68,23 +69,35 @@ else
         { echo "     ERROR: IQ-TREE installation failed"; exit 1; }
 fi
 
-# Gnina is a ~1.4 GB static CUDA-linked build, so it is opt-in: a default install
-# would add that download to every build. The v1.3.2 asset is named
-# "gnina.1.3.2" — the old ".../v1.3.2/gnina" URL 404s.
+# Gnina is a ~1.4 GB static build, installed by default. Set INSTALL_GNINA=0 to
+# skip it and keep the Vina/Python rescoring fallback.
+# The v1.3.2 asset is named "gnina.1.3.2" — the old ".../v1.3.2/gnina" URL 404s.
+# gnina picks its compute device through OpenCL, so it needs a CPU OpenCL ICD
+# (pocl, installed above) even with --no_gpu; without one it aborts at run time
+# rather than install time. The runnability gate below fails the build instead of
+# silently downgrading every rescore to the Vina path.
 GNINA_URL="https://github.com/gnina/gnina/releases/download/v1.3.2/gnina.1.3.2"
-if [ "${INSTALL_GNINA:-0}" = "1" ]; then
-    echo "==> Installing gnina (INSTALL_GNINA=1, ~1.4 GB)"
-    if [ -x /usr/local/bin/gnina ]; then
+if [ "${INSTALL_GNINA:-1}" = "0" ]; then
+    echo "==> Skipping gnina (INSTALL_GNINA=0); Vina/Python rescoring fallback in use"
+else
+    echo "==> Installing gnina (~1.4 GB)"
+    if [ -x /usr/local/bin/gnina ] && gnina --version >/dev/null 2>&1; then
         echo "     gnina already present"
     else
         curl -fSL -o /usr/local/bin/gnina "$GNINA_URL" && \
-            chmod +x /usr/local/bin/gnina && \
-            echo "     gnina installed" || \
+            chmod +x /usr/local/bin/gnina || \
             { echo "     ERROR: gnina download failed"; exit 1; }
+        gnina --version || { echo "     ERROR: gnina binary is not runnable"; exit 1; }
+        # `gnina --version` exits before OpenCL is initialised, so it cannot prove
+        # the CPU device gnina actually needs is present. clinfo can.
+        if ! clinfo -l 2>/dev/null | grep -qi "pocl\|portable computing language"; then
+            echo "     ERROR: no CPU OpenCL platform visible; gnina would fail at run time."
+            clinfo -l 2>&1 | head -20
+            exit 1
+        fi
+        echo "     gnina installed with CPU OpenCL:"
+        clinfo -l | head -3
     fi
-else
-    echo "==> Skipping gnina (set INSTALL_GNINA=1 to enable; ~1.4 GB per build)"
-    echo "     CNN rescoring falls back to the Vina/Python path and reports it as such"
 fi
 
 echo "==> Building fpocket (pocket detection)"

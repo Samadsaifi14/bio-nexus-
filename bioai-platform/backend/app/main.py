@@ -32,6 +32,12 @@ async def lifespan(app):
     """Initialize request-critical services and explicitly enabled daemons."""
     await _startup_services()
 
+    # Reconcile background jobs that a previous deploy/redeploy interrupted.
+    # Runs on the event loop but the reconciler is a short, fully guarded sequence
+    # of best-effort Supabase reads, and it must happen before the first poll can
+    # observe an empty in-memory store.
+    _reconcile_background_jobs()
+
     from app.services.paper_artifacts import start_continuous_thread
     if os.environ.get("BIONEXUS_CONTINUOUS_PAPERS", "0").strip().lower() in ("1", "true", "yes"):
         app.state.continuous_thread = start_continuous_thread(_CONTINUOUS_PAPERS_STOP)
@@ -177,6 +183,25 @@ def _sentry_filter(event, hint):
         if exc.get("type") == "HTTPException" and "429" in str(exc.get("value", "")):
             return None
     return event
+
+
+def _reconcile_background_jobs():
+    """Restore finished jobs and fail restart-interrupted ones.
+
+    phylo, pipeline_v2 and structure_predict run work in background tasks and hold
+    live state in memory, so a redeploy used to wipe them: a client still polling got
+    a 404 for a job that had merely been interrupted. The durable mirror
+    (app/services/job_state.py) lets us put finished results back and give the rest
+    an explicit terminal state. Never raises -- an unavailable mirror just leaves
+    in-memory behaviour unchanged.
+    """
+    from app.routers import phylo, pipeline_v2, structure_predict
+
+    for module in (phylo, pipeline_v2, structure_predict):
+        try:
+            module._reconcile()
+        except Exception:
+            logger.warning("job reconciliation failed for %s", module.__name__, exc_info=True)
 
 
 async def _startup_services():

@@ -1,4 +1,4 @@
-"""
+﻿"""
 Phylogenetic tree router — three methods:
   nj    : Neighbor-Joining via Clustal Omega guide tree (~60s)
   upgma : UPGMA computed locally from Clustal alignment (adds ~0s after MSA)
@@ -8,7 +8,7 @@ PhyML binary must be installed at build time (see Dockerfile).
 Download source from: https://github.com/stephaneguindon/phyml
 Compile: ./configure --enable-phyml && make && make install
 
-Job lifecycle (in-memory, thread-safe):
+Job lifecycle (thread-safe, mirrored to Supabase so a restart does not lose it):
   queued -> msa_running -> msa_done -> tree_running -> complete | error
 """
 
@@ -25,6 +25,8 @@ from typing import Literal, Optional
 import httpx
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
+
+from app.services import job_state
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/phylo", tags=["phylo"])
@@ -151,10 +153,20 @@ def _effective_iqtree_bootstrap(requested: int) -> int:
     return 0 if requested == 0 else max(1000, requested)
 
 
-# ─── In-memory store ──────────────────────────────────────────────────────────
+# ─── Job store ────────────────────────────────────────────────────────────────
+#
+# `_jobs` is the live copy; `job_state` mirrors it to Supabase so a restart does
+# not erase a job the client is still polling (see app/services/job_state.py).
+
+_JOB_KIND = "phylo"
 
 _jobs: dict[str, dict] = {}
 _lock = threading.Lock()
+
+
+def _hydratable(job: dict) -> dict:
+    """Strip the resubmit-only request echo so it is not persisted or returned."""
+    return {k: v for k, v in job.items() if not k.startswith("_")}
 
 
 def _init(job_id: str, req: PhyloRequest) -> None:
@@ -175,22 +187,37 @@ def _init(job_id: str, req: PhyloRequest) -> None:
             "meta":      None,
             "engine":    None,
             "error":     None,
+            "status":    "running",
             "created_at": time.time(),
             "msa_done_at": None,
             "done_at":   None,
             "_req":      req.model_dump(),
         }
+    job_state.mirror(job_id, _JOB_KIND, _hydratable(_read(job_id) or {}))
 
 
 def _patch(job_id: str, **kw) -> None:
     with _lock:
-        if job_id in _jobs:
-            _jobs[job_id].update(kw)
+        if job_id not in _jobs:
+            return
+        _jobs[job_id].update(kw)
+        snapshot = _hydratable(_jobs[job_id])
+    job_state.mirror(job_id, _JOB_KIND, snapshot)
 
 
 def _read(job_id: str) -> dict | None:
     with _lock:
         return dict(_jobs[job_id]) if job_id in _jobs else None
+
+
+def _reconcile() -> int:
+    """Restore finished jobs and mark restart-interrupted ones. Called at startup."""
+    def hydrate(job_id: str, state: dict) -> None:
+        with _lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
 
 
 # ─── EBI helpers (same pattern as alignment.py) ───────────────────────────────

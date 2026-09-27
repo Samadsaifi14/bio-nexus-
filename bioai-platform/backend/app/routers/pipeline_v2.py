@@ -1,4 +1,4 @@
-"""
+﻿"""
 In-memory pipeline v2 — runs BLAST → UniProt → MSA → Phylo → Domains → Interpretation
 in a background thread. Uses a thread-safe dict for job storage.
 """
@@ -15,6 +15,7 @@ from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.deps import limiter
+from app.services import job_state
 from app.services.rate_limit import check_daily_limit_pipelines
 from app.services.auth import get_user_id
 from app.services.supabase import get_supabase
@@ -36,6 +37,27 @@ _jobs: dict[str, dict] = {}
 _jobs_lock = threading.Lock()
 
 STEP_ORDER = ["blast", "uniprot", "msa", "phylo", "domains", "pathway_enrichment", "alphafold", "interpret"]
+
+_JOB_KIND = "pipeline_v2"
+
+# Strong references to in-flight InterProScan polls so they are not garbage
+# collected mid-await; entries are discarded on completion.
+_INTERPRO_POLL_TASKS: set = set()
+
+
+def _mirror(job_id: str) -> None:
+    """Write a snapshot of the live job to the durable mirror, outside the lock.
+
+    Kept off the lock because it touches the network and must never stall a step
+    transition or a status poll.
+    """
+    if not _is_real_uuid(job_id):
+        return
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        snapshot = dict(job) if job else None
+    if snapshot is not None:
+        job_state.mirror(job_id, _JOB_KIND, snapshot)
 
 
 def _get_job(job_id: str) -> dict | None:
@@ -69,6 +91,7 @@ def _persist_v2_final(job_id: str, status: str, context: dict, error: str | None
         get_supabase().table("jobs").update(payload).eq("id", job_id).execute()
     except Exception as e:
         logger.warning("Could not update v2 job %s to Supabase: %s", job_id, e)
+    _mirror(job_id)
 
 
 def _persist_v2_job(job_id: str, payload: dict):
@@ -87,6 +110,7 @@ def _set_step_status(job_id: str, step: str, status: str, progress: int = 0, dat
         _jobs[job_id]["steps"][step] = {"status": status, "progress": progress, "data": data, "error": error}
         if status == "running":
             _jobs[job_id]["current_step"] = step
+    _mirror(job_id)
 
 
 def _set_job_failed(job_id: str, message: str):
@@ -94,6 +118,22 @@ def _set_job_failed(job_id: str, message: str):
         if job_id in _jobs:
             _jobs[job_id]["status"] = "failed"
             _jobs[job_id]["error"] = message
+    _mirror(job_id)
+
+
+def _reconcile() -> int:
+    """Restore finished jobs and mark restart-interrupted ones. Called at startup.
+
+    Wizard v2 jobs already have an owner-scoped row in ``jobs`` (see
+    _persist_v2_job), so this only rehydrates the in-memory working copy that the
+    status endpoint reads; it never touches that user-visible record.
+    """
+    def hydrate(job_id: str, state: dict) -> None:
+        with _jobs_lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
 
 
 class PipelineV2RunRequest(BaseModel):
@@ -167,6 +207,7 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
     if req.parent_job_id:
         persist_payload["parent_job_id"] = req.parent_job_id
     _persist_v2_job(job_id, persist_payload)
+    _mirror(job_id)
 
     t = threading.Thread(
         target=_run_pipeline,
@@ -1178,6 +1219,17 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
         if isinstance(res, Exception):
             _mark(name, "failed", error=str(res)[:500])
             continue
+
+        # A de novo InterProScan 6 job that is still running upstream must NOT be
+        # recorded as "complete with no domains" -- that reads as "this protein has
+        # no domains", which is a scientific falsehood. Keep it running and patch
+        # the step when the background poller gets the result.
+        if name == "domains" and isinstance(res, dict) and res.get("status") == "running":
+            _mark(name, "running", progress=50, data=res)
+            context[name] = res
+            _schedule_interpro_poll(res.get("interpro_job_id"), _mark, name)
+            continue
+
         ok = (
             res.get("domains") is not None if name == "domains"
             else res.get("structure_available") is True if name == "alphafold"
@@ -1191,6 +1243,46 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
     for name in ("msa", "phylo", "pathway_enrichment"):
         if name in steps:
             _mark(name, "failed", error=unavailable)
+
+
+def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str) -> None:
+    """Poll a running InterProScan 6 job in the background, then patch the step.
+
+    The EBI job can take 7-20+ minutes, far longer than a request or the pipeline
+    step itself. Rather than block, a detached task waits for FINISHED and then
+    records the real domains (or an explicit failure) on the step.
+    """
+    if not interpro_job_id:
+        return
+
+    async def _runner():
+        from app.services.de_novo import await_interpro_result
+
+        try:
+            result = await await_interpro_result(interpro_job_id)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:
+            logger.warning("InterProScan background poll failed for %s: %s", interpro_job_id, exc)
+            mark(step, "failed", progress=100,
+                 data={"domains": [], "source": "interproscan6", "interpro_job_id": interpro_job_id},
+                 error=f"InterProScan job could not be completed: {exc}")
+            return
+
+        if result.get("status") == "complete":
+            mark(step, "complete", progress=100, data=result, error=None)
+        else:
+            mark(step, "failed", progress=100, data=result,
+                 error=result.get("error") or "InterProScan job did not complete")
+
+    try:
+        task = asyncio.create_task(_runner())
+        _INTERPRO_POLL_TASKS.add(task)
+        task.add_done_callback(_INTERPRO_POLL_TASKS.discard)
+    except RuntimeError:
+        # No running loop (shutdown): the step keeps its "running" state and the
+        # durable mirror records the upstream id for a later resume.
+        logger.warning("could not schedule InterProScan poll for %s", interpro_job_id)
 
 
 async def _run_domains_or_denovo(sequence: str, accession: str | None, resolved_uniprot: bool) -> dict:

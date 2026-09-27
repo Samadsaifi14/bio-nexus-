@@ -31,7 +31,7 @@ _TOOL_PROMPTS: dict[str, str] = {
     ),
     "function_predict": (
         "You are a protein biochemist. A function prediction just completed using "
-        "InterProScan5 with InterPro2GO mapping. Summarize the top GO terms by "
+        "InterProScan6 with InterPro2GO mapping. Summarize the top GO terms by "
         "category (molecular function, biological process, cellular component), "
         "key domains found, and what they suggest about protein function. "
         "2-4 sentences max."

@@ -48,6 +48,8 @@ async def test_esmfold_structure_failure_is_explicit(monkeypatch):
 # ── InterProScan normalization ───────────────────────────────────────────────
 
 _IPRSCAN_JSON = {
+    "interproscan-version": "5.77-106.0",
+    "interpro-version": "106.0",
     "results": [{
         "length": 12,
         "matches": [{
@@ -91,6 +93,7 @@ class _FakeIprscanClient:
         return False
 
     async def post(self, url, **kw):
+        assert de_novo.IPRSCAN6_BASE in url, f"must target iprscan6, got {url}"
         return _FakeResp(200, text="iprscan-job-1\n")
 
     async def get(self, url, **kw):
@@ -101,16 +104,92 @@ class _FakeIprscanClient:
         return _FakeResp(404)
 
 
+class _SlowIprscanClient(_FakeIprscanClient):
+    """Stays RUNNING so the client must return the 'running' marker, not empty hits."""
+
+    async def get(self, url, **kw):
+        if "/status/" in url:
+            return _FakeResp(200, text="RUNNING\n")
+        return await super().get(url, **kw)
+
+
 @pytest.mark.asyncio
 async def test_interpro_sequence_search_normalizes(monkeypatch):
     monkeypatch.setattr(de_novo.httpx, "AsyncClient", lambda *a, **k: _FakeIprscanClient())
     monkeypatch.setattr(de_novo, "POLL_INTERVAL_S", 0)
     result = await de_novo.interpro_sequence_search("ACDEFGHIKLMN")
-    assert result["source"] == "interproscan5"
+    assert result["source"] == "interproscan6"
+    assert result["status"] == "complete"
+    assert result["interpro_job_id"] == "iprscan-job-1"
     assert result["sequence_length"] == 12
     d = result["domains"][0]
     assert d["accession"] == "IPR007087"  # InterPro entry preferred over PFAM sig
     assert d["start"] == 2 and d["end"] == 9
+
+
+@pytest.mark.asyncio
+async def test_interpro_sequence_search_targets_iprscan6(monkeypatch):
+    """The retired v5 endpoint must never be contacted."""
+    seen = {}
+
+    class _Recorder(_FakeIprscanClient):
+        async def post(self, url, **kw):
+            seen["submit"] = url
+            return await super().post(url, **kw)
+
+        async def get(self, url, **kw):
+            seen.setdefault("gets", []).append(url)
+            return await super().get(url, **kw)
+
+    monkeypatch.setattr(de_novo.httpx, "AsyncClient", lambda *a, **k: _Recorder())
+    monkeypatch.setattr(de_novo, "POLL_INTERVAL_S", 0)
+    await de_novo.interpro_sequence_search("ACDEFGHIKLMN")
+
+    assert seen["submit"] == f"{de_novo.IPRSCAN6_BASE}/run"
+    assert all("iprscan5" not in u for u in seen["gets"])
+
+
+@pytest.mark.asyncio
+async def test_interpro_sequence_search_reports_running_not_absent(monkeypatch):
+    """A slow upstream job must return a 'running' marker, never empty domains.
+
+    Returning [] would let callers render 'no domains found', which is a
+    scientific falsehood when the scan has not finished.
+    """
+    monkeypatch.setattr(de_novo.httpx, "AsyncClient", lambda *a, **k: _SlowIprscanClient())
+    monkeypatch.setattr(de_novo, "POLL_INTERVAL_S", 0)
+    monkeypatch.setattr(de_novo, "INLINE_WAIT_BUDGET_S", 0)
+
+    result = await de_novo.interpro_sequence_search("ACDEFGHIKLMN")
+    assert result["status"] == "running"
+    assert result["interpro_job_id"] == "iprscan-job-1"
+    assert result["domains"] == []
+    assert "still running" in result["_note"]
+
+
+@pytest.mark.asyncio
+async def test_await_interpro_result_completes(monkeypatch):
+    monkeypatch.setattr(de_novo.httpx, "AsyncClient", lambda *a, **k: _FakeIprscanClient())
+    monkeypatch.setattr(de_novo, "POLL_INTERVAL_S", 0)
+    result = await de_novo.await_interpro_result("iprscan-job-1")
+    assert result["status"] == "complete"
+    assert result["domains"][0]["accession"] == "IPR007087"
+    assert result["source"] == "interproscan6"
+
+
+@pytest.mark.asyncio
+async def test_await_interpro_result_reports_upstream_failure(monkeypatch):
+    class _Failed(_FakeIprscanClient):
+        async def get(self, url, **kw):
+            if "/status/" in url:
+                return _FakeResp(200, text="ERROR\n")
+            return await super().get(url, **kw)
+
+    monkeypatch.setattr(de_novo.httpx, "AsyncClient", lambda *a, **k: _Failed())
+    monkeypatch.setattr(de_novo, "POLL_INTERVAL_S", 0)
+    result = await de_novo.await_interpro_result("iprscan-job-1")
+    assert result["status"] == "failed"
+    assert "failed upstream" in result["error"]
 
 
 # ── Composition + function hints (local, real calls) ────────────────────────
@@ -141,7 +220,7 @@ async def test_zero_hit_protein_run_completes_denovo(monkeypatch):
         return {"error": "No hits", "count": 0, "hits": [], "top_hit": None}
 
     async def fake_ipro(sequence, email=""):
-        return {"domains": [], "sequence_length": len(sequence), "source": "interproscan5"}
+        return {"domains": [], "sequence_length": len(sequence), "source": "interproscan6", "status": "complete"}
 
     async def fake_fold(sequence):
         return {"structure_available": True, "source": "esmfold", "pdb_text": _PDB_SNIPPET,

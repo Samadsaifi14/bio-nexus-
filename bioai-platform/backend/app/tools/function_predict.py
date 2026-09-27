@@ -27,7 +27,6 @@ import urllib.request
 
 logger = logging.getLogger(__name__)
 
-_INTERPRO_SEARCH_URL = "https://www.ebi.ac.uk/interpro/service/rest/iprscan5/run"
 _INTERPRO_ENTRY_API = "https://www.ebi.ac.uk/interpro/api/entry/interpro/{accession}/?format=json"
 _RCSB_SEQUENCE_API = "https://data.rcsb.org/rest/v1/core/polymer_entity/{pdb_id}/1"
 _RCSB_FASTA_API = "https://www.rcsb.org/fasta/entry/{pdb_id}"
@@ -71,56 +70,87 @@ def _fetch_pdb_sequence(pdb_id: str) -> str:
 # InterProScan sequence search
 # ---------------------------------------------------------------------------
 
-def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
-    """Submit a protein sequence to the configured InterProScan REST service.
+def _run_interproscan(sequence: str, timeout: int = 90) -> list[dict]:
+    """Submit a protein sequence to the InterProScan REST service and return hits.
 
-    Returns domain/entry hits. An empty list means that no usable evidence was
-    obtained; callers must not reinterpret service failure as biological
-    evidence for absence of function.
+    InterProScan 5 is retired by EBI and its REST endpoint 404s, so this targets
+    InterProScan 6 at the EBI Tools REST path. Note the v6 API is *not* the v5
+    JSON ``{"sequences": ...}`` shape used previously: submission is form-encoded
+    and returns a plain-text job id, and status is plain text, not JSON.
+
+    Returns domain/entry hits. An empty list means no usable evidence was
+    obtained; every failure path records itself via ``_record_retrieval_failure``
+    so callers report ``evidence_unavailable`` rather than biological absence.
+
+    ``timeout`` is deliberately short. This helper is synchronous and inlined in a
+    request path, while the EBI job needs 7-20+ minutes; on timeout the failure is
+    recorded honestly and the caller degrades to "evidence unavailable". Callers
+    that can afford to wait should use the async job client in
+    ``app.services.de_novo`` instead.
     """
     import time
+    from urllib.parse import urlencode
 
-    body = json.dumps({"sequences": [{"sequence": sequence}], "type": "PROTEIN"})
+    from app.services.ssrf import validate_url
+
+    base = "https://www.ebi.ac.uk/Tools/services/rest/iprscan6"
+    try:
+        validate_url(f"{base}/run")
+    except Exception as exc:
+        logger.warning("InterProScan URL rejected by SSRF policy: %s", exc)
+        _record_retrieval_failure(f"InterProScan endpoint rejected: {exc}")
+        return []
+
+    body = urlencode(
+        {
+            "email": "bioflow@example.com",
+            "stype": "protein",
+            "sequence": "".join(c for c in (sequence or "") if c.isalpha()).upper(),
+        }
+    ).encode()
     req = urllib.request.Request(
-        _INTERPRO_SEARCH_URL,
-        data=body.encode(),
-        headers={"Content-Type": "application/json"},
+        f"{base}/run",
+        data=body,
+        headers={"Content-Type": "application/x-www-form-urlencoded", "Accept": "text/plain"},
         method="POST",
     )
 
     try:
         resp = urllib.request.urlopen(req, timeout=30)  # nosemgrep
-        job_data = json.loads(resp.read())
-        job_id = job_data.get("jobId", "")
+        job_id = resp.read().decode().strip()
         if not job_id:
+            _record_retrieval_failure("InterProScan submission returned no job id")
             return []
     except Exception as exc:
         logger.warning("InterProScan submit failed: %s", exc)
         _record_retrieval_failure(f"InterProScan submission failed: {type(exc).__name__}: {exc}")
         return []
 
-    status_url = f"https://www.ebi.ac.uk/interpro/service/rest/iprscan5/status/{job_id}"
-    result_url = f"https://www.ebi.ac.uk/interpro/service/rest/iprscan5/result/{job_id}/json"
+    status_url = f"{base}/status/{job_id}"
+    result_url = f"{base}/result/{job_id}/json"
 
     deadline = time.time() + timeout
     while time.time() < deadline:
         try:
             status_resp = urllib.request.urlopen(status_url, timeout=15)  # nosemgrep
-            status = json.loads(status_resp.read()).get("status", "")
+            status = status_resp.read().decode().strip()
         except Exception:
             time.sleep(3)
             continue
 
         if status == "FINISHED":
             break
-        if status in ("FAILED", "ERROR"):
+        if status in ("FAILED", "ERROR", "NOT_FOUND"):
             logger.warning("InterProScan job %s status: %s", job_id, status)
             _record_retrieval_failure(f"InterProScan job {job_id} ended with status {status}")
             return []
         time.sleep(3)
     else:
-        logger.warning("InterProScan job %s timed out", job_id)
-        _record_retrieval_failure(f"InterProScan job {job_id} timed out")
+        logger.warning("InterProScan job %s did not finish within %ss", job_id, timeout)
+        _record_retrieval_failure(
+            f"InterProScan job {job_id} did not finish within the {timeout}s in-request budget; "
+            "it is still running upstream. This is a retrieval failure, not an absence of domains."
+        )
         return []
 
     try:
@@ -131,13 +161,20 @@ def _run_interproscan(sequence: str, timeout: int = 120) -> list[dict]:
         _record_retrieval_failure(f"InterProScan result fetch failed: {type(exc).__name__}: {exc}")
         return []
 
+    # v6 keeps the v5 results -> matches -> locations shape.
     hits: list[dict] = []
-    for entry in results.get("results", []):
-        accession = entry.get("accession", "")
-        name = entry.get("name", "")
-        database = entry.get("database", "")
-        for match in entry.get("matches", []):
-            for loc in match.get("locations", []):
+    blocks = results.get("results", []) if isinstance(results, dict) else (results or [])
+    for block in blocks or []:
+        if not isinstance(block, dict):
+            continue
+        for match in block.get("matches", []) or []:
+            sig = match.get("signature", {}) or {}
+            entry = sig.get("entry", {}) or {}
+            lib = (sig.get("signatureLibraryRelease") or {}).get("library", "")
+            accession = entry.get("accession") or sig.get("accession", "")
+            name = entry.get("name") or sig.get("name") or ""
+            database = entry.get("sourceDatabase") or lib or ""
+            for loc in match.get("locations", []) or []:
                 hits.append({
                     "accession": accession,
                     "name": name,

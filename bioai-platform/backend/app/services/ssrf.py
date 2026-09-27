@@ -27,7 +27,7 @@ ALLOWED_HOSTS: set[str] = {
     "cfold.bme.uic.edu",
     "api.esmatlas.com",
     "api-inference.huggingface.co",
-    # EBI Tools services (InterProScan5 de novo sequence search; MSA tools)
+    # EBI Tools services (InterProScan6 de novo sequence search; MSA tools)
     "www.ebi.ac.uk",
 }
 

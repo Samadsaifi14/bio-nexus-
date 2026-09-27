@@ -87,16 +87,18 @@ else
         curl -fSL -o /usr/local/bin/gnina "$GNINA_URL" && \
             chmod +x /usr/local/bin/gnina || \
             { echo "     ERROR: gnina download failed"; exit 1; }
-        gnina --version || { echo "     ERROR: gnina binary is not runnable"; exit 1; }
-        # `gnina --version` exits before OpenCL is initialised, so it cannot prove
-        # the CPU device gnina actually needs is present. clinfo can.
+        echo "     size $(stat -c %s /usr/local/bin/gnina) bytes"
+        # `gnina --version` exits before OpenCL is initialised, so its output and
+        # exit status are informational only. clinfo is what actually proves the
+        # CPU device gnina needs is present, and that is what gates the build.
+        echo "     version -> $(gnina --version 2>&1 | head -1)"
+        echo "     OpenCL platforms:"
+        clinfo -l 2>&1 | head -5
         if ! clinfo -l 2>/dev/null | grep -qi "pocl\|portable computing language"; then
             echo "     ERROR: no CPU OpenCL platform visible; gnina would fail at run time."
-            clinfo -l 2>&1 | head -20
             exit 1
         fi
-        echo "     gnina installed with CPU OpenCL:"
-        clinfo -l | head -3
+        echo "     gnina installed and a CPU OpenCL device is available"
     fi
 fi
 

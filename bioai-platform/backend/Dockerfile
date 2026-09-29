@@ -104,6 +104,19 @@ RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-
 
 COPY . .
 
+# Exercise the bundled R analysis and figure export during every backend build.
+# The 221-gene SALS subset is a regression fixture, not a biological result.
+RUN mkdir -p /tmp/rnaseq-smoke && \
+    Rscript app/rnaseq/deseq2_analysis.R \
+      app/data/rnaseq/Cer_SALS_every100_validation_subset.tsv \
+      app/data/rnaseq/Cer_SALS_metadata.tsv \
+      /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 && \
+    test -s /tmp/rnaseq-smoke/analysis_summary.json && \
+    test -s /tmp/rnaseq-smoke/pca.svg && \
+    test -s /tmp/rnaseq-smoke/volcano.svg && \
+    test -s /tmp/rnaseq-smoke/deseq2_all_results.tsv && \
+    rm -rf /tmp/rnaseq-smoke
+
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 

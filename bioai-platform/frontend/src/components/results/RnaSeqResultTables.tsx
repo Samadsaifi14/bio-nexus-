@@ -49,9 +49,9 @@ function downloadLink(item: RnaSeqArtifact | undefined, label: string) {
 }
 
 export function RnaSeqResultTables({ result }: { result: RnaSeqExpressionResult }) {
-  const { deg, all, libraries, factors } = useMemo(() => {
+  const { deg, all, libraries, factors, pca } = useMemo(() => {
     const get = (name: string) => result.artifacts.find(item => item.name === name);
-    return { deg: get('deseq2_significant.tsv'), all: get('deseq2_all_results.tsv'), libraries: get('library_sizes.tsv'), factors: get('size_factors.tsv') };
+    return { deg: get('deseq2_significant.tsv'), all: get('deseq2_all_results.tsv'), libraries: get('library_sizes.tsv'), factors: get('size_factors.tsv'), pca: get('pca_coordinates.tsv') };
   }, [result.artifacts]);
   const [genePreview, setGenePreview] = useState<Preview | null>(null);
   const [sampleRows, setSampleRows] = useState<Row[]>([]);
@@ -61,27 +61,33 @@ export function RnaSeqResultTables({ result }: { result: RnaSeqExpressionResult 
     const controller = new AbortController();
     async function load() {
       try {
-        const [genes, libraryTable, factorTable] = await Promise.all([
+        const [genes, libraryTable, factorTable, pcaTable] = await Promise.all([
           deg ? readTsvPreview(deg.url, 50, controller.signal) : null,
           libraries ? readTsvPreview(libraries.url, 500, controller.signal) : null,
           factors ? readTsvPreview(factors.url, 500, controller.signal) : null,
+          pca ? readTsvPreview(pca.url, 500, controller.signal) : null,
         ]);
         if (controller.signal.aborted) return;
         setGenePreview(genes);
         const factorBySample = new Map(factorTable?.rows.map(row => [row.sample, row.size_factor]));
-        setSampleRows((libraryTable?.rows ?? []).map(row => ({ ...row, size_factor: factorBySample.get(row.sample) ?? '' })));
+        const pcaBySample = new Map(pcaTable?.rows.map(row => [row.sample, row]));
+        setSampleRows((libraryTable?.rows ?? []).map(row => ({
+          ...row, size_factor: factorBySample.get(row.sample) ?? '',
+          PC1: pcaBySample.get(row.sample)?.PC1 ?? '', PC2: pcaBySample.get(row.sample)?.PC2 ?? '',
+        })));
       } catch (caught) {
         if (!controller.signal.aborted) setError(caught instanceof Error ? caught.message : 'Could not load result tables.');
       }
     }
     void load();
     return () => controller.abort();
-  }, [deg, libraries, factors]);
+  }, [deg, libraries, factors, pca]);
 
   return <div className="space-y-4">
     <section className="rounded-xl border border-glass-border bg-surface-0 p-4">
-      <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Sample QC and normalization</h3><p className="mt-1 text-xs text-text-muted">Library totals and DESeq2 size factors emitted by R. Compare samples before interpreting gene calls.</p></div><div className="flex gap-3">{downloadLink(libraries, 'Library sizes')}{downloadLink(factors, 'Size factors')}</div></div>
-      {sampleRows.length > 0 ? <div className="mt-3 max-h-80 overflow-auto rounded border border-glass-border"><table className="w-full text-left text-xs"><thead className="sticky top-0 bg-surface-1 text-text-muted"><tr><th className="px-3 py-2">Sample</th><th className="px-3 py-2">Condition</th><th className="px-3 py-2 text-right">Library counts</th><th className="px-3 py-2 text-right">Size factor</th></tr></thead><tbody className="divide-y divide-glass-border">{sampleRows.map(row => <tr key={row.sample}><td className="px-3 py-2 font-mono text-text-primary">{row.sample}</td><td className="px-3 py-2">{row.condition}</td><td className="px-3 py-2 text-right font-mono">{Number(row.total_counts).toLocaleString()}</td><td className="px-3 py-2 text-right font-mono">{row.size_factor}</td></tr>)}</tbody></table></div> : <p className="mt-3 text-xs text-text-muted">{error ?? 'Loading sample evidence…'}</p>}
+      <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Sample QC and normalization</h3><p className="mt-1 text-xs text-text-muted">Library totals, DESeq2 size factors and exact PCA coordinates emitted by R. Each sample is listed even when plot labels overlap.</p></div><div className="flex flex-wrap gap-3">{downloadLink(libraries, 'Library sizes')}{downloadLink(factors, 'Size factors')}{downloadLink(pca, 'PCA coordinates')}</div></div>
+      {Number(result.summary.library_size_fold_range) > 10 && <p className="mt-3 rounded border border-warn/25 bg-warn/5 p-3 text-xs leading-5 text-warn">Library count totals differ by {Number(result.summary.library_size_fold_range).toLocaleString(undefined, { maximumFractionDigits: 1 })}×. Review low-depth samples, detection rates and source QC before interpreting PCA separation or DEG calls. This is a QC warning, not an automatic exclusion.</p>}
+      {sampleRows.length > 0 ? <div className="mt-3 max-h-80 overflow-auto rounded border border-glass-border"><table className="w-full text-left text-xs"><thead className="sticky top-0 bg-surface-1 text-text-muted"><tr><th className="px-3 py-2">Sample</th><th className="px-3 py-2">Condition</th><th className="px-3 py-2 text-right">Library counts</th><th className="px-3 py-2 text-right">Size factor</th><th className="px-3 py-2 text-right">PC1</th><th className="px-3 py-2 text-right">PC2</th></tr></thead><tbody className="divide-y divide-glass-border">{sampleRows.map(row => <tr key={row.sample}><td className="px-3 py-2 font-mono text-text-primary">{row.sample}</td><td className="px-3 py-2">{row.condition}</td><td className="px-3 py-2 text-right font-mono">{Number(row.total_counts).toLocaleString()}</td><td className="px-3 py-2 text-right font-mono">{row.size_factor}</td><td className="px-3 py-2 text-right font-mono">{row.PC1 || '—'}</td><td className="px-3 py-2 text-right font-mono">{row.PC2 || '—'}</td></tr>)}</tbody></table></div> : <p className="mt-3 text-xs text-text-muted">{error ?? 'Loading sample evidence…'}</p>}
     </section>
     <section className="rounded-xl border border-glass-border bg-surface-0 p-4">
       <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Differentially expressed genes</h3><p className="mt-1 text-xs text-text-muted">Ordered by adjusted p-value. Calls require padj &lt; {result.summary.alpha} and |log2FC| &gt; {result.summary.lfc_threshold}; open the full tables for all rows and precision.</p></div><div className="flex gap-3">{downloadLink(deg, 'Full DEG TSV')}{downloadLink(all, 'All genes TSV')}</div></div>

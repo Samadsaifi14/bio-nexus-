@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 
 import { CriticalButton } from '@/components/ui';
+import { RnaSeqResultTables } from './RnaSeqResultTables';
 import {
   runCerSalsDemo,
   runRnaSeqExpression,
@@ -155,6 +156,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
   const distance = artifact(displayedResult, 'sample_distance_heatmap.svg');
   const distanceData = artifact(displayedResult, 'sample_distance_matrix.tsv');
   const ma = artifact(displayedResult, 'ma_plot.svg');
+  const dispersion = artifact(displayedResult, 'dispersion_plot.svg');
   const volcano = artifact(displayedResult, 'volcano.svg');
   const resultsTable = artifact(displayedResult, 'deseq2_all_results.tsv');
   const degTable = artifact(displayedResult, 'deseq2_significant.tsv');
@@ -270,17 +272,21 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
 
           <div className="space-y-4">
             <div className="flex items-center gap-2"><ChartScatter className="text-accent-cyan" /><h3 className="text-sm font-semibold text-text-primary">QC before differential testing</h3></div>
+            <p className="text-xs leading-5 text-text-muted">R computes these QC matrices before fitting the DESeq2 model. This run does not pause for a manual QC decision; inspect outliers, batch patterns and sample identity before interpreting the gene calls.</p>
             <div className="grid gap-4 xl:grid-cols-2">
               <FigureCard title="PCA on variance-stabilized counts" subtitle="Sample-level QC generated in R with DESeq2 VST. Inspect grouping and outliers before interpreting differential expression." image={pca} data={pcaData} onExpand={setExpanded} />
               <FigureCard title="Sample-to-sample distance" subtitle="ComplexHeatmap generated from the exact VST distance matrix. The downloadable TSV is the matrix plotted here." image={distance} data={distanceData} onExpand={setExpanded} />
             </div>
           </div>
 
+          <RnaSeqResultTables key={displayedResult.run_id} result={displayedResult} />
+
           <div className="space-y-4">
             <div className="flex items-center gap-2"><ChartScatter className="text-accent-cyan" /><h3 className="text-sm font-semibold text-text-primary">Differential expression evidence</h3></div>
             <div className="grid gap-4 xl:grid-cols-2">
               <FigureCard title="DESeq2 MA plot" subtitle="Effect size versus mean abundance from the fitted negative-binomial model. Dashed lines mark the declared fold-change threshold." image={ma} data={resultsTable} onExpand={setExpanded} />
               <FigureCard title="Volcano plot" subtitle="log2 fold change versus adjusted-p-value evidence. Calls use the predeclared padj and fold-change criteria shown above." image={volcano} data={degTable} onExpand={setExpanded} />
+              <FigureCard title="Dispersion fit" subtitle="DESeq2 gene-wise dispersion estimates and the fitted mean-dispersion trend. Check this model diagnostic alongside the gene calls." image={dispersion} onExpand={setExpanded} />
             </div>
           </div>
 

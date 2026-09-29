@@ -70,7 +70,7 @@ def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
 
 def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch):
     series = {"accession": "GSE336901", "samples": [
-        {"accession": f"GSM{i}", "title": f"sample GZ1000{i}", "characteristics": {"treatment": "sensitive" if i < 3 else "resistant"}}
+        {"accession": f"GSM{i}", "title": f"sample GZ1000{i}", "characteristics": {"treatment": "sensitive" if i < 3 else "resistant", "batch": "FFPE"}}
         for i in range(1, 5)], "files": [{"name": "counts.csv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/counts.csv.gz"}]}
     matrix = parse_matrix(gzip.compress(matrix_text().encode()), "counts.csv.gz", series["samples"])
     observed = {}
@@ -127,4 +127,26 @@ def test_geo_analysis_rejects_changed_source_and_duplicate_sample(monkeypatch):
     request.source_sha256 = matrix["sha256"]
     request.assignments[1].gsm = request.assignments[0].gsm
     with pytest.raises(Exception, match="distinct sample"):
+        asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))
+
+
+def test_geo_analysis_rejects_unmodelled_varying_batch(monkeypatch):
+    samples = [{"accession": f"GSM{i}", "title": f"sample GZ1000{i}",
+                "characteristics": {"batch": "run_A" if i % 2 else "run_B"}} for i in range(1, 5)]
+    matrix = parse_matrix(gzip.compress(matrix_text().encode()), "counts.csv.gz", samples)
+
+    async def fake_series(client, accession):
+        return {"accession": accession, "samples": samples}
+
+    async def fake_matrix(client, detail, filename):
+        return matrix, "https://ftp.ncbi.nlm.nih.gov/counts.csv.gz"
+
+    monkeypatch.setattr(geo_search, "fetch_series", fake_series)
+    monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
+    request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
+        source_sha256=matrix["sha256"], reference_level="sensitive", test_level="resistant",
+        assignments=[geo_search.SampleAssignment(column=column, gsm=f"GSM{i}",
+                     condition="sensitive" if i < 3 else "resistant")
+                     for i, column in enumerate(matrix["columns"], 1)])
+    with pytest.raises(Exception, match="varying technical variables.*batch"):
         asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))

@@ -18,6 +18,7 @@ from app.services.auth import require_user_id
 
 router = APIRouter(prefix="/api/ngs/v2/geo", tags=["geo-discovery"])
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+TECHNICAL_KEY = re.compile(r"(^|[ _-])(batch|run|lane|plate|operator|site|processing[ _-]?day|extraction[ _-]?batch|kit[ _-]?lot|flow[ _-]?cell)([ _-]|$)", re.I)
 
 
 class MatrixSelection(BaseModel):
@@ -88,13 +89,22 @@ async def analyze_geo_matrix(selection: GeoAnalysisRequest, user_id: str = Depen
         selected_gsm = [assignments[column].gsm for column in matrix["columns"]]
         if any(gsm not in valid_gsm for gsm in selected_gsm) or len(set(selected_gsm)) != len(selected_gsm):
             raise GeoCountsError("Each count column must map to a distinct sample from this GEO Series.")
+        sample_details = {item["accession"]: item for item in series["samples"]}
+        characteristics = [sample_details[gsm].get("characteristics", {}) for gsm in selected_gsm]
+        technical_keys = {key for row in characteristics for key in row if TECHNICAL_KEY.search(key)}
+        varying = sorted(key for key in technical_keys if len({row.get(key, "") for row in characteristics}) > 1)
+        if varying:
+            raise GeoCountsError(
+                "GEO records varying technical variables (" + ", ".join(varying) +
+                "). This two-group importer cannot adjust for them. Download the matrix and use manual upload with a reviewed metadata TSV and explicit covariates."
+            )
         if selection.reference_level == selection.test_level or not selection.reference_level or not selection.test_level:
             raise GeoCountsError("Choose distinct reference and test groups.")
         groups = [assignments[column].condition for column in matrix["columns"]]
         if set(groups) != {selection.reference_level, selection.test_level}:
             raise GeoCountsError("Every sample must belong to the declared reference or test group.")
         if min(groups.count(selection.reference_level), groups.count(selection.test_level)) < 2:
-            raise GeoCountsError("Each group needs at least two independent biological samples.")
+            raise GeoCountsError("Each group needs at least two sample rows. Confirm biological independence from the GEO study design.")
         params = ExpressionParameters(reference_level=selection.reference_level, test_level=selection.test_level,
                                       lfc_threshold=selection.lfc_threshold, min_count=selection.min_count,
                                       min_samples=selection.min_samples)

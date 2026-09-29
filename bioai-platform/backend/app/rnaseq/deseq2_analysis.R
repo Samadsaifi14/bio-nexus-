@@ -307,6 +307,9 @@ plot_svg_pdf_png("ma_plot", 8, 6, function() {
   plotMA(res, alpha = alpha, main = paste0(test_level, " vs ", reference_level, " · DESeq2 MA"))
   abline(h = c(-lfc_threshold, lfc_threshold), lty = 3)
 })
+plot_svg_pdf_png("dispersion_plot", 8, 6, function() {
+  plotDispEsts(dds, main = "DESeq2 mean-dispersion fit")
+})
 
 volcano_df <- res_df[!is.na(res_df$padj) & !is.na(res_df$pvalue) & is.finite(res_df$log2FoldChange), , drop = FALSE]
 volcano_df$minus_log10_padj <- -log10(pmax(volcano_df$padj, .Machine$double.xmin))

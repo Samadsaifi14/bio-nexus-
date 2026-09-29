@@ -113,6 +113,7 @@ RUN mkdir -p /tmp/rnaseq-smoke && \
       /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 && \
     test -s /tmp/rnaseq-smoke/analysis_summary.json && \
     test -s /tmp/rnaseq-smoke/pca.svg && \
+    test -s /tmp/rnaseq-smoke/dispersion_plot.svg && \
     test -s /tmp/rnaseq-smoke/volcano.svg && \
     test -s /tmp/rnaseq-smoke/deseq2_all_results.tsv && \
     rm -rf /tmp/rnaseq-smoke

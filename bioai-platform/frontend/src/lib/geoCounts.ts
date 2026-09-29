@@ -12,6 +12,7 @@ export type GeoCountPreview = {
   source: string;
   genes: number;
   columns: GeoCountColumn[];
+  excludedColumns: string[];
   counts: File;
 };
 
@@ -79,26 +80,41 @@ export async function prepareGeoCounts(record: GeoRecord, filename: string): Pro
   const delimiter = lines[0].includes('\t') ? '\t' : ',';
   const heading = fields(lines[0], delimiter);
   if (heading.length < 3 || new Set(heading).size !== heading.length) throw new Error('The matrix needs unique sample columns and a gene column.');
-  const names = heading.slice(1);
+  const rows = lines.slice(1).map((line, index) => {
+    const values = fields(line, delimiter);
+    if (values.length !== heading.length) throw new Error(`Matrix row ${index + 2} has ${values.length} fields; expected ${heading.length}.`);
+    return values;
+  });
+  const annotation = /^(gene_?name|gene_?symbol|symbol|description|gene_?type|gene_?biotype|biotype|chr|chromosome|start|end|strand|length|gene_?length|entrez|ensembl_?id)$/i;
+  const invalid = (column: number) => rows.findIndex(row => !/^\d+$/.test(row[column]));
+  const selected = heading.slice(1).map((name, index) => index + 1).filter(index =>
+    !annotation.test(heading[index]) && (matchSample(heading[index], record).sample || invalid(index) === -1));
+  if (selected.length < 2) {
+    const index = heading.slice(1).findIndex((name, column) => !annotation.test(name) && invalid(column + 1) >= 0) + 1;
+    if (index > 0) {
+      const row = invalid(index);
+      throw new Error(`No usable raw count matrix: row ${row + 2}, column “${heading[index]}” contains “${rows[row][index].slice(0, 60)}”. DESeq2 requires non-negative integer counts.`);
+    }
+    throw new Error('This file has fewer than two sample count columns.');
+  }
+  const bad = selected.map(index => ({ index, row: invalid(index) })).find(item => item.row >= 0);
+  if (bad) throw new Error(`Row ${bad.row + 2}, column “${heading[bad.index]}” contains “${rows[bad.row][bad.index].slice(0, 60)}”. DESeq2 requires raw non-negative integer counts.`);
+  const names = selected.map(index => heading[index]);
   const columns: GeoCountColumn[] = names.map(name => ({ name, ...matchSample(name, record) }));
+  const excludedColumns = heading.slice(1).filter((_, index) => !selected.includes(index + 1));
   const ids = new Set<string>();
   const output = [`gene\t${names.join('\t')}`];
-  for (const line of lines.slice(1)) {
-    const values = fields(line, delimiter);
-    if (values.length !== heading.length) throw new Error('The count matrix has inconsistent column widths.');
+  for (const values of rows) {
     const gene = values[0].trim();
     if (!gene || ids.has(gene)) throw new Error('The count matrix has empty or duplicate gene identifiers.');
     ids.add(gene);
-    if (values.slice(1).some(value => !/^\d+$/.test(value))) {
-      throw new Error('This file contains non-integer or normalized expression values. DESeq2 requires raw non-negative integer counts.');
-    }
-    output.push(`${gene}\t${values.slice(1).join('\t')}`);
+    output.push(`${gene}\t${selected.map(index => values[index]).join('\t')}`);
   }
   const tsv = output.join('\n') + '\n';
   if (new Blob([tsv]).size > MAX_DECOMPRESSED) throw new Error('The converted matrix exceeds the 60 MB analysis limit.');
   return {
     filename, source: `https://ftp.ncbi.nlm.nih.gov/geo/series/GSE${record.accession.slice(3, -3)}nnn/${record.accession}/suppl/${encodeURIComponent(filename)}`,
-    genes: ids.size, columns,
+    genes: ids.size, columns, excludedColumns,
     counts: new File([tsv], `${record.accession}_${filename.replace(/\.(gz)$/i, '').replace(/\.(csv|txt)$/i, '.tsv')}`, { type: 'text/tab-separated-values' }),
   };
 }

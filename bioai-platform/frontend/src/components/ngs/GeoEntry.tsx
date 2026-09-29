@@ -48,7 +48,7 @@ export function GeoEntry({ onRna, onDna }: { onRna: () => void; onDna: () => voi
           <input id="geo-accession" value={value} onChange={event => setValue(event.target.value)} placeholder="GSE47774, GSM12345, GDS1234, GPL1234" autoComplete="off" spellCheck={false} className="min-w-0 flex-1 rounded-xl border border-glass-border bg-surface-1 px-4 py-3 font-mono text-sm text-text-primary outline-none transition focus:border-accent-cyan" />
           <button type="submit" disabled={pending} className="inline-flex items-center justify-center gap-2 rounded-xl bg-accent-cyan/15 px-5 py-3 text-sm font-semibold text-text-primary transition hover:bg-accent-cyan/25 disabled:opacity-50">{pending ? <CircleNotch className="animate-spin" /> : <MagnifyingGlass />} {pending ? 'Looking up…' : 'Find data'}</button>
         </form>
-        {error && <p role="alert" className="mt-3 flex items-center gap-2 text-xs text-error"><Warning />{error}</p>}
+        {error && <div role="alert" className="mt-3 text-xs text-error"><p className="flex items-start gap-2"><Warning className="mt-0.5 shrink-0" />{error}</p>{/^(GSE|GSM|GDS|GPL)\d{1,9}$/.test(value.trim().toUpperCase()) && <a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${value.trim().toUpperCase()}`} target="_blank" rel="noopener noreferrer" className="ml-6 mt-1 inline-block underline underline-offset-2">Check this accession at NCBI ↗</a>}</div>}
       </div>
 
       {record && <div className="space-y-5 p-5 sm:p-6" aria-live="polite">

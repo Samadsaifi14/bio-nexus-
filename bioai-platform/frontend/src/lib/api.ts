@@ -1192,7 +1192,9 @@ export type GeoRecord = {
 };
 
 export async function resolveGeo(accession: string): Promise<GeoRecord> {
-  const res = await api.get(`/api/ngs/v2/geo/${encodeURIComponent(accession.trim().toUpperCase())}`);
+  // This route lives with the Next.js page, so a frontend preview does not
+  // depend on the separate BioNexus compute backend being deployed in sync.
+  const res = await axios.get(`/api/geo/${encodeURIComponent(accession.trim().toUpperCase())}`, { timeout: 35_000 });
   return res.data;
 }
 

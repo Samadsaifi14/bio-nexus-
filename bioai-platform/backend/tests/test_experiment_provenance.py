@@ -462,7 +462,16 @@ class TestExecuteWiring:
         monkeypatch.setattr(pv, "_run_interpret", fake_interpret)
         monkeypatch.setattr(pv, "_finalize_context", fake_finalize_context)
         monkeypatch.setattr(pv, "_persist_v2_final", lambda *a, **k: None)
-        return calls
+        # _execute normally receives a registered job from the route. The
+        # completion hook only runs for such a job; model that entry here.
+        for job_id in ("job-mock", "job-mock-fail"):
+            pv._jobs[job_id] = {
+                "status": "running",
+                "steps": {step: {"status": "pending", "data": None} for step in pv.STEP_ORDER},
+            }
+        yield calls
+        pv._jobs.pop("job-mock", None)
+        pv._jobs.pop("job-mock-fail", None)
 
     def test_execute_complete_path_hooks_fire(self, mocks):
         import asyncio as _asyncio

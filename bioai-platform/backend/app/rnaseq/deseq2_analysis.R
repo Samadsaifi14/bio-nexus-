@@ -184,10 +184,10 @@ design_audit <- list(
   biological_replication_note = "Sample-row counts are reported here; independence must follow the declared experimental unit. Technical repeats are not biological replicates.",
   experimental_unit_column = if (length(experimental_unit_col) > 0) experimental_unit_col else NULL,
   experimental_unit_status = experimental_unit_status,
-  covariates = covariates,
-  technical_covariates_detected = technical_covariates_detected,
-  technical_covariates_in_model = technical_covariates_in_model,
-  confounded_columns = confounded_columns,
+  covariates = as.list(covariates),
+  technical_covariates_detected = as.list(technical_covariates_detected),
+  technical_covariates_in_model = as.list(technical_covariates_in_model),
+  confounded_columns = as.list(confounded_columns),
   design = paste(deparse(design_formula), collapse = ""),
   design_rank = design_rank,
   design_columns = design_columns,
@@ -197,7 +197,7 @@ design_audit <- list(
   library_size_min = min(library_sizes),
   library_size_max = max(library_sizes),
   library_size_fold_range = library_size_fold_range,
-  warnings = design_warnings
+  warnings = as.list(design_warnings)
 )
 if (length(design_warnings) == 0) design_audit$status <- "PASS"
 write(toJSON(design_audit, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "design_audit.json"))
@@ -370,7 +370,7 @@ summary <- list(
   reference_level = reference_level,
   test_level = test_level,
   condition_column = condition_col,
-  covariates = covariates,
+  covariates = as.list(covariates),
   design = paste(deparse(design_formula), collapse = ""),
   min_count = min_count,
   min_samples_requested = min_samples_requested,
@@ -379,10 +379,10 @@ summary <- list(
   design_full_rank = design_rank == design_columns,
   design_rank = design_rank,
   design_columns = design_columns,
-  design_warnings = design_warnings,
+  design_warnings = as.list(design_warnings),
   experimental_unit_status = experimental_unit_status,
-  technical_covariates_detected = technical_covariates_detected,
-  technical_covariates_in_model = technical_covariates_in_model,
+  technical_covariates_detected = as.list(technical_covariates_detected),
+  technical_covariates_in_model = as.list(technical_covariates_in_model),
   library_size_min = min(library_sizes),
   library_size_max = max(library_sizes),
   library_size_fold_range = library_size_fold_range,

@@ -29,6 +29,11 @@ function number(value: number | null | undefined, digits = 2) {
     : '—';
 }
 
+function stringList(value: unknown): string[] {
+  if (Array.isArray(value)) return value.filter((item): item is string => typeof item === 'string');
+  return typeof value === 'string' ? [value] : [];
+}
+
 function artifact(result: RnaSeqExpressionResult | null, name: string) {
   return result?.artifacts.find(item => item.name === name) ?? null;
 }
@@ -253,12 +258,12 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
               <Metric label="Experimental units" value={summary.experimental_unit_status ?? 'NOT_DECLARED'} />
             </div>
             <div className="mt-3 rounded-lg border border-glass-border bg-surface-1 p-3 text-[10px] leading-5 text-text-muted">
-              Recorded technical variables: {(summary.technical_covariates_detected ?? []).join(', ') || 'none declared'}.
-              {(summary.technical_covariates_in_model ?? []).length > 0 && <> Modelled: {(summary.technical_covariates_in_model ?? []).join(', ')}.</>}
+              Recorded technical variables: {stringList(summary.technical_covariates_detected).join(', ') || 'none declared'}.
+              {stringList(summary.technical_covariates_in_model).length > 0 && <> Modelled: {stringList(summary.technical_covariates_in_model).join(', ')}.</>}
             </div>
-            {(summary.design_warnings ?? []).length > 0 && (
+            {stringList(summary.design_warnings).length > 0 && (
               <div className="mt-3 rounded-lg border border-warn/25 bg-warn/5 p-3 text-[10px] leading-5 text-warn">
-                {(summary.design_warnings ?? []).join(' ')}
+                {stringList(summary.design_warnings).join(' ')}
               </div>
             )}
           </div>

@@ -9,7 +9,7 @@ import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
 
 type GeoSeries = { accession: string; title: string; summary: string; sample_count?: number; organism?: string; url: string };
 type GeoSample = { accession: string; title: string; characteristics: Record<string, string> };
-type SeriesDetail = { accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string }[] };
+type SeriesDetail = { accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
 type CountColumn = { column: string; gsm: string | null; title: string | null; characteristics: Record<string, string>; library_size: number };
 type MatrixPreview = { accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
 type Assignment = { column: string; gsm: string; condition: string };
@@ -116,9 +116,9 @@ export default function RnaSeqWorkflow() {
     {series && <section className="data-card p-5">
       <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">02</span><h2 className="text-base font-semibold text-text-primary">Choose a raw count matrix</h2></div>
       <p className="mt-2 text-xs leading-5 text-text-secondary">{series.design}</p>
-      <p className="mt-2 text-xs text-text-muted">{series.samples.length} GEO samples · {series.files.length} supported Series-level text files</p>
+      <p className="mt-2 text-xs text-text-muted">{series.samples.length} GEO samples · {series.files.length} Series-level text files. Only validated raw count matrices can enter DESeq2.</p>
       {!series.files.length && <p className="mt-3 text-xs text-warn">No direct CSV/TSV count matrix is listed. This study cannot use the automatic count-matrix path; inspect its source record.</p>}
-      <div className="mt-3 space-y-2">{series.files.map(file => <div key={file.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><span className="break-all font-mono text-xs text-text-primary">{file.name}</span><div className="flex gap-2"><a href={file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-text-secondary"><DownloadSimple /> Source</a><button type="button" disabled={!!busy} onClick={() => inspectMatrix(file.name)} className="rounded border border-accent-cyan/30 px-3 py-2 text-xs text-accent-cyan disabled:opacity-40">{busy === 'preview' ? 'Validating…' : 'Validate counts'}</button></div></div>)}</div>
+      <div className="mt-3 space-y-2">{series.files.map(file => <div key={file.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><div><span className="break-all font-mono text-xs text-text-primary">{file.name}</span>{file.analysis_issue && <p className="mt-1 text-xs leading-5 text-warn">{file.analysis_issue}</p>}</div><div className="flex gap-2"><a href={file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-text-secondary"><DownloadSimple /> Source</a><button type="button" disabled={!!busy || file.analysis_eligible === false} onClick={() => inspectMatrix(file.name)} className="rounded border border-accent-cyan/30 px-3 py-2 text-xs text-accent-cyan disabled:opacity-40">{file.analysis_eligible === false ? 'Not raw counts' : busy === 'preview' ? 'Validating…' : 'Validate counts'}</button></div></div>)}</div>
       <a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${series.accession}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-accent-cyan">Open GEO source record <ArrowSquareOut /></a>
     </section>}
 

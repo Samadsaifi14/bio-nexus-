@@ -16,10 +16,27 @@ MAX_SOURCE_BYTES = 12 * 1024 * 1024
 MAX_MATRIX_BYTES = 60 * 1024 * 1024
 COUNT_EXTENSIONS = (".csv", ".tsv", ".txt", ".csv.gz", ".tsv.gz", ".txt.gz")
 ANNOTATION_COLUMNS = {"gene_symbol", "gene_name", "symbol", "description", "gene_type", "biotype", "chromosome", "chr", "length"}
+NON_COUNT_NAME = re.compile(r"(?:^|[._-])(fpkm|rpkm|tpm|cpm|normalized|normalised|logcpm|log2|rlog|vst)(?:[._-]|$)", re.I)
 
 
 class GeoCountsError(ValueError):
     pass
+
+
+def count_file_issue(filename: str) -> str | None:
+    """Reject files explicitly labelled as transformed abundance before download or fitting."""
+    match = NON_COUNT_NAME.search(filename)
+    if match:
+        return (f"This file is labelled {match.group(1).upper()} and is not a raw integer count matrix. "
+                "DESeq2 needs raw gene counts; use a raw-count supplement or an independently verified count matrix.")
+    return None
+
+
+def _is_annotation_column(name: str) -> bool:
+    key = re.sub(r"[\s.-]+", "_", name.strip().lower())
+    return key in ANNOTATION_COLUMNS or bool(re.fullmatch(
+        r"(?:gene|transcript|feature|ensembl_gene|ensembl_transcript)_(?:id|identifier)(?:_clean|_raw|_version)?", key
+    ))
 
 
 @dataclass(frozen=True)
@@ -86,7 +103,10 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     for raw in _soft_lines(series_text, "Series_supplementary_file"):
         url = _source_url(raw)
         if url:
-            files.append({"name": url.rsplit("/", 1)[-1], "url": url})
+            name = url.rsplit("/", 1)[-1]
+            issue = count_file_issue(name)
+            files.append({"name": name, "url": url, "analysis_eligible": issue is None,
+                          "analysis_issue": issue})
     return {
         "accession": accession,
         "title": next(iter(_soft_lines(series_text, "Series_title")), ""),
@@ -126,6 +146,9 @@ def _match_column(column: str, samples: list[dict]) -> str | None:
 
 
 def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
+    issue = count_file_issue(filename)
+    if issue:
+        raise GeoCountsError(issue)
     text = _decode_counts(payload, filename)
     delimiter = "," if ".csv" in filename.lower() else "\t"
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
@@ -134,7 +157,7 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
         raise GeoCountsError("The matrix needs a unique gene column and at least two unique sample columns.")
     if not header[0].strip() or header[0].strip().lower() in {"", "index"}:
         raise GeoCountsError("The first column must identify each gene.")
-    sample_indices = [i for i, name in enumerate(header[1:], 1) if name.strip().lower() not in ANNOTATION_COLUMNS]
+    sample_indices = [i for i, name in enumerate(header[1:], 1) if not _is_annotation_column(name)]
     if len(sample_indices) < 4:
         raise GeoCountsError("At least four sample count columns are needed for two replicated groups.")
     sample_columns = [header[i] for i in sample_indices]
@@ -156,7 +179,11 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
         for index, column_index in enumerate(sample_indices):
             value = row[column_index].strip()
             if not re.fullmatch(r"\d+", value):
-                raise GeoCountsError(f"Non-integer or missing count in row {line_number}, column {header[column_index]}.")
+                raise GeoCountsError(
+                    f"Column {header[column_index]} has a non-integer or missing value at row {line_number}. "
+                    "This file may contain normalized expression or an unrecognized annotation column; "
+                    "DESeq2 requires raw non-negative integer sample counts."
+                )
             number = int(value)
             if number > 2_147_483_647:
                 raise GeoCountsError(f"Count exceeds the DESeq2 integer limit in row {line_number}.")
@@ -173,7 +200,7 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
         "matched_samples": matches,
         "genes": len(rows),
         "library_sizes": sums,
-        "annotation_columns": [name for name in header[1:] if name.strip().lower() in ANNOTATION_COLUMNS],
+        "annotation_columns": [name for name in header[1:] if _is_annotation_column(name)],
         "rows": rows,
         "sha256": hashlib.sha256(payload).hexdigest(),
     }
@@ -183,6 +210,9 @@ async def fetch_matrix(client: httpx.AsyncClient, series: dict, filename: str) -
     matched = [item for item in series["files"] if item["name"] == filename]
     if len(matched) != 1:
         raise GeoCountsError("Select a supplementary matrix listed by this GEO Series.")
+    issue = count_file_issue(filename)
+    if issue:
+        raise GeoCountsError(issue)
     source = matched[0]["url"]
     payload = await _get_limited(client, source)
     return parse_matrix(payload, filename, series["samples"]), source

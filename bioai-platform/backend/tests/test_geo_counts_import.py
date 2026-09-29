@@ -4,7 +4,7 @@ import gzip
 import httpx
 import pytest
 
-from app.rnaseq.geo_counts import GeoCountsError, fetch_series, parse_matrix
+from app.rnaseq.geo_counts import GeoCountsError, count_file_issue, fetch_matrix, fetch_series, parse_matrix
 from app.routers import geo_search
 
 
@@ -48,8 +48,32 @@ def test_gene_symbol_is_annotation_and_sample_titles_map():
 
 
 def test_fractional_counts_are_rejected():
-    with pytest.raises(GeoCountsError, match="Non-integer"):
+    with pytest.raises(GeoCountsError, match="non-integer"):
         parse_matrix(gzip.compress(matrix_text("1.5").encode()), "counts.csv.gz", [])
+
+
+def test_gse336902_fpkm_and_secondary_gene_id_are_not_counts():
+    # GSE336902's actual header shape and first value: three annotations, then FPKM samples.
+    header = "gene_id,gene_symbol,gene_name,gene_id_clean,figure6_cell_line_control_rep1,figure6_cell_line_control_rep2,figure6_cell_line_lrig1_rep1,figure6_cell_line_lrig1_rep2\n"
+    normalized = header + "ENSMUSG00000109644,0610005C13Rik,0610005C13Rik,ENSMUSG00000109644,0.0404558,0.110689676,0,0.057924203\n"
+    filename = "GSE336902_Fig6_cell_line_FPKM_matrix_GEO.csv.gz"
+    assert "FPKM" in count_file_issue(filename)
+    with pytest.raises(GeoCountsError, match="FPKM.*not a raw integer count"):
+        parse_matrix(gzip.compress(normalized.encode()), filename, [])
+    raw = header + "ENSMUSG00000109644,ABC,ABC,ENSMUSG00000109644,1,2,3,4\nENSMUSG00000108652,DEF,DEF,ENSMUSG00000108652,5,6,7,8\n"
+    result = parse_matrix(gzip.compress(raw.encode()), "raw_counts.csv.gz", [])
+    assert result["annotation_columns"] == ["gene_symbol", "gene_name", "gene_id_clean"]
+    assert result["columns"] == header.strip().split(",")[4:]
+    assert result["rows"][0] == ["ENSMUSG00000109644", "1", "2", "3", "4"]
+
+
+def test_explicitly_normalized_file_cannot_bypass_preview():
+    series = {"files": [{"name": "expression_TPM.tsv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/file.tsv.gz"}]}
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: pytest.fail("must not download"))) as client:
+            await fetch_matrix(client, series, "expression_TPM.tsv.gz")
+    with pytest.raises(GeoCountsError, match="TPM.*not a raw integer count"):
+        asyncio.run(run())
 
 
 def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
@@ -64,8 +88,24 @@ def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
     result = asyncio.run(run())
     assert len(result["files"]) == 1
     assert result["files"][0]["url"].startswith("https://ftp.ncbi.nlm.nih.gov/")
+    assert result["files"][0]["analysis_eligible"] is True
     assert [sample["characteristics"]["treatment"] for sample in result["samples"]] == [
         "sensitive", "sensitive", "resistant", "resistant"]
+
+
+def test_geo_series_marks_fpkm_supplement_as_unavailable(monkeypatch):
+    def respond(request):
+        if request.url.params["targ"] == "self":
+            return httpx.Response(200, text=SERIES.replace("counts.csv.gz", "GSE336902_Fig6_cell_line_FPKM_matrix_GEO.csv.gz"))
+        return httpx.Response(200, text=SAMPLES)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            return await fetch_series(client, "GSE336901")
+
+    result = asyncio.run(run())
+    assert result["files"][0]["analysis_eligible"] is False
+    assert "FPKM" in result["files"][0]["analysis_issue"]
 
 
 def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch):

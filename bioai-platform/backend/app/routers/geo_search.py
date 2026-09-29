@@ -1,4 +1,4 @@
-"""GEO Series discovery. Results are links to source records, never count matrices."""
+"""GEO Series discovery and validated raw-count import for DESeq2."""
 from __future__ import annotations
 
 import re

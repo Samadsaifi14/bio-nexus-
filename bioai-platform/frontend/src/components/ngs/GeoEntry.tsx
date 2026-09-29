@@ -15,7 +15,7 @@ function saveSamples(record: GeoRecord) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-export function GeoEntry({ onRna }: { onRna: () => void }) {
+export function GeoEntry({ onRna, onDna }: { onRna: () => void; onDna: () => void }) {
   const [value, setValue] = useState('');
   const [record, setRecord] = useState<GeoRecord | null>(null);
   const [pending, setPending] = useState(false);
@@ -66,9 +66,10 @@ export function GeoEntry({ onRna }: { onRna: () => void }) {
         {record.files.length > 0 && <div><h4 className="text-sm font-semibold text-text-primary">Published files</h4><div className="mt-2 flex flex-wrap gap-2">{record.files.map(file => <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" className="max-w-full truncate rounded-lg border border-glass-border px-3 py-2 text-xs text-text-secondary hover:text-text-primary" title={file.name}>{file.name} ↗</a>)}</div></div>}
         {record.relations.length > 0 && <p className="text-[11px] text-text-muted">Linked records: {record.relations.map(item => `${item.name}: ${item.target}`).join(' · ')}</p>}
         <div className="rounded-xl border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">
-          {record.kind === 'GPL' || record.kind === 'GDS' ? 'This record describes a platform or curated dataset. Open its linked study or sample for sequencing inputs.' : record.is_sequencing ? 'GEO metadata alone cannot generate read QC, variant calls or expression figures. Use linked raw FASTQ in the production lane, or a raw integer count matrix and matched sample metadata for the expression figures below.' : 'This record is not labeled as a sequencing assay. Check its study methods before using an NGS workflow.'}
+          {record.kind === 'GPL' || record.kind === 'GDS' ? 'This record describes a platform or curated dataset. Open its linked study or sample for sequencing inputs.' : record.is_sequencing ? 'GEO metadata alone cannot generate read QC, variant calls or expression figures. Use the published raw reads in the appropriate production workflow. For RNA expression figures, supply raw integer counts and matching sample metadata with a valid study design.' : 'This record is not labeled as a sequencing assay. Check its study methods before using an NGS workflow.'}
         </div>
-        {record.is_sequencing && <button type="button" onClick={onRna} className="inline-flex items-center gap-2 text-xs font-medium text-accent-cyan hover:underline">Open count matrix and figures <ArrowRight /></button>}
+        {record.is_sequencing && /expression profiling/i.test(record.assay) && <button type="button" onClick={onRna} className="inline-flex items-center gap-2 text-xs font-medium text-accent-cyan hover:underline">Open count matrix and figures <ArrowRight /></button>}
+        {record.is_sequencing && /genome variation profiling/i.test(record.assay) && <button type="button" onClick={onDna} className="inline-flex items-center gap-2 text-xs font-medium text-accent-cyan hover:underline">Open DNA sequencing workflow <ArrowRight /></button>}
       </div>}
     </section>
   );

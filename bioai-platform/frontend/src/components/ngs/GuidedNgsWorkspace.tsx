@@ -739,7 +739,7 @@ export default function GuidedNgsWorkspace() {
       <BackButton />
       <PageHeader title="NGS Pipeline" subtitle="A guided sequencing workflow: finish one scientific stage, inspect its evidence, then continue." />
 
-      <GeoEntry onRna={() => { setFamily('rna'); setTimeout(() => document.getElementById('ngs-expression')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} />
+      <GeoEntry onRna={() => { setFamily('rna'); setTimeout(() => document.getElementById('ngs-expression')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} onDna={() => { setFamily('dna'); setTimeout(() => document.getElementById('ngs-dna-production')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} />
 
       <section className="data-card overflow-hidden">
         <div className="grid gap-px bg-glass-border md:grid-cols-2">
@@ -766,7 +766,7 @@ export default function GuidedNgsWorkspace() {
               ))}
             </div>
           </section>
-          <div><p className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-primary"><Dna /> Production WGS/WES execution</p><NgsProductionSupportCard defaultReference="GRCh38" /></div>
+          <div id="ngs-dna-production" className="scroll-mt-24"><p className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-primary"><Dna /> Production WGS/WES execution</p><NgsProductionSupportCard defaultReference="GRCh38" /></div>
         </>
       ) : (
         <>

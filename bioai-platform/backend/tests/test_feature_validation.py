@@ -194,13 +194,22 @@ class TestFunctionPrediction:
         assert result["pdb_id"] == "1CRN"
 
     def test_hydrophobic_protein_detection(self):
-        """Crambin has ~46% hydrophobic residues — verify composition-based prediction."""
+        """Crambin has ~46% hydrophobic residues — composition is descriptive only.
+
+        The research-grade module does not turn composition into a GO prediction;
+        only InterPro2GO evidence earns a `go_terms` list.
+        """
+        import asyncio
+
         from app.tools.function_predict import _predict_from_sequence
         # Crambin sequence: TTCCPSIVARSNFNVCRLPGTPEALCATYTGCIIIPGATCPGDYAN
         seq = "TTCCPSIVARSNFNVCRLPGTPEALCATYTGCIIIPGATCPGDYAN"
-        result = _predict_from_sequence(seq, "1CRN")
-        assert len(result["go_terms"]) > 0
-        assert result["method"] == "heuristic_composition"
+        result = asyncio.run(_predict_from_sequence(seq, "1CRN"))
+        assert "go_terms" in result
+        assert result["method"] in (
+            "interpro2go", "interpro2go_no_evidence", "interpro2go_retrieval_failed",
+        )
+        assert result["status"] in ("inferred", "insufficient_evidence", "evidence_unavailable")
 
 
 def _fetch_pdb_chain_sequence(pdb_id: str) -> str:

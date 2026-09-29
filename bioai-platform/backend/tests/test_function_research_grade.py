@@ -1,5 +1,9 @@
 """Scientific-integrity tests for the research-grade function module."""
 
+import asyncio
+
+import pytest
+
 from app.tools import function_predict as fp
 
 
@@ -106,4 +110,87 @@ def test_successful_lookup_with_no_mapping_stays_insufficient_evidence(monkeypat
     assert result["status"] == "insufficient_evidence"
     assert result["method"] == "interpro2go_no_evidence"
     assert result["provenance"]["retrieval_is_live"] is True
+    assert result["provenance"]["retrieval_failures"] == []
+
+
+# ── Async de novo sequence path (the pipeline's function_hints) ─────────────
+
+
+@pytest.mark.asyncio
+async def test_predict_from_sequence_returns_running_marker(monkeypatch):
+    async def fake_search(sequence, email=""):
+        return {"status": "running", "domains": [], "interpro_job_id": "iprscan-abc"}
+
+    monkeypatch.setattr("app.services.de_novo.interpro_sequence_search", fake_search)
+
+    result = await fp._predict_from_sequence("ACDEFGHIKLMNPQRSTVWY", pdb_id="de_novo")
+
+    assert result["status"] == "running"
+    assert result["interpro_job_id"] == "iprscan-abc"
+    assert result["go_terms"] == []
+    assert result["sequence_length"] == 20
+    assert "still running" in result["note"]
+
+
+@pytest.mark.asyncio
+async def test_predict_from_sequence_complete_maps_go(monkeypatch):
+    async def fake_search(sequence, email=""):
+        return {
+            "status": "complete",
+            "domains": [
+                {"accession": "IPR000001", "name": "A", "source_db": "PFAM", "start": 1, "end": 20}
+            ],
+        }
+
+    monkeypatch.setattr("app.services.de_novo.interpro_sequence_search", fake_search)
+    monkeypatch.setattr(
+        fp,
+        "_fetch_interpro_go_terms",
+        lambda accession: [{"id": "GO:0000001", "name": "example", "category": "BP"}],
+    )
+
+    result = await fp._predict_from_sequence("ACDEFGHIKLMNPQRSTVWY", pdb_id="de_novo")
+
+    assert result["status"] == "inferred"
+    assert result["method"] == "interpro2go"
+    assert result["go_terms"][0]["go_id"] == "GO:0000001"
+    assert result["domain_hits"][0]["database"] == "PFAM"
+    assert result["provenance"]["sequence_source"] == "user-submitted sequence"
+
+
+@pytest.mark.asyncio
+async def test_predict_from_sequence_submission_failure_is_evidence_unavailable(monkeypatch):
+    async def fake_search(sequence, email=""):
+        raise OSError("EBI unreachable")
+
+    monkeypatch.setattr("app.services.de_novo.interpro_sequence_search", fake_search)
+
+    result = await fp._predict_from_sequence("ACDEFGHIKLMNPQRSTVWY", pdb_id="de_novo")
+
+    assert result["status"] == "evidence_unavailable"
+    assert result["method"] == "interpro2go_retrieval_failed"
+    assert result["go_terms"] == []
+    assert result["provenance"]["retrieval_is_live"] is False
+
+
+def test_prediction_from_result_reports_evidence_unavailable(monkeypatch):
+    result = fp.prediction_from_result(
+        {"status": "failed", "error": "InterProScan job failed upstream: ERROR"},
+        "ACDEFGHIKLMNPQRSTVWY",
+        pdb_id="de_novo",
+    )
+
+    assert result["status"] == "evidence_unavailable"
+    assert result["method"] == "interpro2go_retrieval_failed"
+    assert result["go_terms"] == []
+    assert "failed upstream" in result["note"]
+
+
+def test_prediction_from_result_empty_scan_is_insufficient(monkeypatch):
+    result = fp.prediction_from_result(
+        {"status": "complete", "domains": []}, "ACDEFGHIKLMNPQRSTVWY", pdb_id="de_novo"
+    )
+
+    assert result["status"] == "insufficient_evidence"
+    assert result["method"] == "interpro2go_no_evidence"
     assert result["provenance"]["retrieval_failures"] == []

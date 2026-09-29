@@ -33,6 +33,11 @@ _RCSB_FASTA_API = "https://www.rcsb.org/fasta/entry/{pdb_id}"
 
 METHOD_VERSION = "interpro2go-evidence-v1"
 
+_EC_SCOPE_NOTE = (
+    "EC-number inference is not implemented in the research-grade function module; "
+    "no EC number is returned unless a separately validated method is added."
+)
+
 # Retrieval failures recorded by the live InterProScan/InterPro2GO calls. A lookup
 # that failed is a different scientific claim than a lookup that succeeded and found
 # no mapping, so the two must not collapse into the same reported state.
@@ -322,20 +327,34 @@ def _residue_chemistry_scores(sequence: str) -> list[float]:
 # Main entry point
 # ---------------------------------------------------------------------------
 
-def predict_function(pdb_id: str) -> dict:
-    """Infer GO terms for a PDB entry from InterPro2GO evidence.
+def _clean_sequence(sequence: str) -> str:
+    return "".join(c for c in (sequence or "") if c.isalpha()).upper()
 
-    If no InterPro2GO evidence is available, the function returns an explicit
-    `insufficient_evidence` state. It does not fabricate GO terms from sequence
-    composition.
-    """
-    _RETRIEVAL_FAILURES.clear()
 
-    sequence = _fetch_pdb_sequence(pdb_id)
-    if not sequence:
-        raise RuntimeError(f"No sequence available for PDB {pdb_id}")
+def _hits_from_scan(scan: dict) -> list[dict]:
+    """Normalize an InterProScan domains payload to the research-grade hit shape."""
+    hits: list[dict] = []
+    for domain in (scan.get("domains") or []):
+        if not isinstance(domain, dict):
+            continue
+        hits.append({
+            "accession": domain.get("accession", ""),
+            "name": domain.get("name", ""),
+            "database": domain.get("source_db") or domain.get("database", ""),
+            "start": domain.get("start", 0),
+            "end": domain.get("end", 0),
+            "score": domain.get("score"),
+        })
+    hits.sort(key=lambda hit: (hit.get("start", 0), hit.get("end", 0)))
+    return hits
 
-    domain_hits = _run_interproscan(sequence)
+
+def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
+                retrieval_failures: list[str]) -> dict:
+    """Build the research-grade prediction payload from sequence and InterPro hits."""
+    retrieval_failures = list(retrieval_failures or [])
+    retrieval_failures += [f for f in _RETRIEVAL_FAILURES if f not in retrieval_failures]
+
     go_terms = _interpro_to_go(domain_hits) if domain_hits else []
 
     if go_terms:
@@ -345,12 +364,12 @@ def predict_function(pdb_id: str) -> dict:
             "GO terms are inferred from InterPro entry-to-GO mappings. They are not direct "
             "experimental annotations for this protein and no calibrated probability is reported."
         )
-    elif _RETRIEVAL_FAILURES:
+    elif retrieval_failures:
         status = "evidence_unavailable"
         method = "interpro2go_retrieval_failed"
         note = (
             "InterProScan/InterPro2GO retrieval did not complete, so no GO mapping could be read: "
-            + "; ".join(_RETRIEVAL_FAILURES)
+            + "; ".join(retrieval_failures)
             + ". This is a retrieval failure, not evidence that the protein has no InterPro2GO "
             "mapping. BioNexus does not substitute composition heuristics for a function "
             "prediction in research-grade mode."
@@ -372,10 +391,7 @@ def predict_function(pdb_id: str) -> dict:
         "status": status,
         "go_terms": go_terms,
         "ec_numbers": [],
-        "ec_scope_note": (
-            "EC-number inference is not implemented in the research-grade function module; "
-            "no EC number is returned unless a separately validated method is added."
-        ),
+        "ec_scope_note": _EC_SCOPE_NOTE,
         "domain_hits": [
             {
                 "accession": hit.get("accession", ""),
@@ -398,11 +414,107 @@ def predict_function(pdb_id: str) -> dict:
         "method": method,
         "method_version": METHOD_VERSION,
         "provenance": {
-            "sequence_source": "RCSB PDB",
+            "sequence_source": (
+                "RCSB PDB" if pdb_id.lower() != "de_novo" else "user-submitted sequence"
+            ),
             "domain_source": "InterProScan",
             "go_mapping_source": "InterPro2GO via InterPro API",
-            "retrieval_is_live": not _RETRIEVAL_FAILURES,
-            "retrieval_failures": list(_RETRIEVAL_FAILURES),
+            "retrieval_is_live": not retrieval_failures,
+            "retrieval_failures": retrieval_failures,
         },
         "note": note,
     }
+
+
+def _running_marker(scan: dict, sequence: str, pdb_id: str) -> dict:
+    """Explicit "not yet" payload for a scan that is still running upstream."""
+    return {
+        "pdb_id": pdb_id.upper(),
+        "sequence_length": len(sequence),
+        "status": "running",
+        "interpro_job_id": scan.get("interpro_job_id"),
+        "go_terms": [],
+        "ec_numbers": [],
+        "ec_scope_note": _EC_SCOPE_NOTE,
+        "domain_hits": [],
+        "saliency": [],
+        "residue_chemistry_scores": _residue_chemistry_scores(sequence),
+        "residue_chemistry_note": (
+            "Descriptive residue-class scores only; not model saliency or feature importance."
+        ),
+        "composition": _amino_acid_composition(sequence),
+        "method": "interpro2go",
+        "method_version": METHOD_VERSION,
+        "provenance": {
+            "sequence_source": "user-submitted sequence",
+            "domain_source": "InterProScan",
+            "go_mapping_source": "InterPro2GO via InterPro API",
+            "retrieval_is_live": True,
+            "retrieval_failures": [],
+        },
+        "note": (
+            "InterProScan 6 is still running; GO terms will be computed when the "
+            "background job finishes."
+        ),
+    }
+
+
+async def _predict_from_sequence(sequence: str, pdb_id: str = "de_novo") -> dict:
+    """Run InterProScan 6 on a raw sequence and return a function prediction.
+
+    Waits at most ``INLINE_WAIT_BUDGET_S`` (see ``app.services.de_novo``). If the
+    EBI job is still running it returns an explicit ``running`` marker carrying the
+    job id; ``prediction_from_result`` completes it on the background poller.
+    """
+    seq = _clean_sequence(sequence)
+    if not seq:
+        raise ValueError("Empty sequence")
+
+    from app.services.de_novo import interpro_sequence_search
+
+    failures: list[str] = []
+    try:
+        scan = await interpro_sequence_search(sequence)
+    except Exception as exc:
+        logger.warning("De novo function search failed: %s", exc)
+        failures.append(f"InterProScan submission failed: {type(exc).__name__}: {exc}")
+        scan = {"status": "failed", "domains": [], "error": str(exc)}
+
+    if scan.get("status") == "running":
+        return _running_marker(scan, seq, pdb_id)
+
+    if scan.get("status") != "complete":
+        failures.append(scan.get("error") or "InterProScan job did not complete")
+
+    # Sequence-mode GO mapping reuses the worker's retrieval-failure ledger.
+    # Function predictions are rare, and this clear runs immediately before the
+    # mapping below, so cross-job provenance races are not a practical concern.
+    _RETRIEVAL_FAILURES.clear()
+    return _prediction(seq, pdb_id, _hits_from_scan(scan), failures)
+
+
+def prediction_from_result(result: dict, sequence: str, pdb_id: str = "de_novo") -> dict:
+    """Finish a function prediction from an InterProScan job that completed later."""
+    seq = _clean_sequence(sequence)
+    _RETRIEVAL_FAILURES.clear()
+    failures: list[str] = []
+    if result.get("status") != "complete":
+        failures.append(result.get("error") or "InterProScan job did not complete")
+    return _prediction(seq, pdb_id, _hits_from_scan(result), failures)
+
+
+def predict_function(pdb_id: str) -> dict:
+    """Infer GO terms for a PDB entry from InterPro2GO evidence.
+
+    If no InterPro2GO evidence is available, the function returns an explicit
+    `insufficient_evidence` state. It does not fabricate GO terms from sequence
+    composition.
+    """
+    _RETRIEVAL_FAILURES.clear()
+
+    sequence = _fetch_pdb_sequence(pdb_id)
+    if not sequence:
+        raise RuntimeError(f"No sequence available for PDB {pdb_id}")
+
+    domain_hits = _run_interproscan(sequence)
+    return _prediction(sequence, pdb_id, domain_hits, _RETRIEVAL_FAILURES)

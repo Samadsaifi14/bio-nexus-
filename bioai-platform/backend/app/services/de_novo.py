@@ -309,21 +309,24 @@ def composition_stats(sequence: str) -> dict:
     return report
 
 
-# ── Function hints (composition-level heuristics, explicitly unscored) ──────
+# ── Function hints (InterProScan 6 + InterPro2GO on the raw sequence) ───────
 
 
-def function_hints(sequence: str) -> dict:
-    """Composition-level functional hints.
+async def function_hints(sequence: str) -> dict:
+    """GO-term function hints for a raw de novo sequence.
 
-    Heuristic only — there is no homolog to score against, so these are NOT
-    database-grade GO terms. Labeled accordingly.
+    Real InterProScan 6 + InterPro2GO inference on the sequence itself — no
+    UniProt accession is required. May return an explicit ``running`` marker while
+    the EBI job is still up; the pipeline background poller completes it. BioNexus
+    never substitutes composition heuristics for a function prediction.
     """
     from app.tools.function_predict import _predict_from_sequence
 
-    hint = _predict_from_sequence(_clean_sequence(sequence), pdb_id="de_novo")
-    hint["source"] = "composition_heuristic"
-    hint["_note"] = (
-        "Heuristic composition-level hints — no identified homolog, "
-        "not scored against any database"
+    hint = await _predict_from_sequence(_clean_sequence(sequence), pdb_id="de_novo")
+    hint.setdefault("source", "interpro2go")
+    hint.setdefault(
+        "_note",
+        "GO terms inferred from InterProScan 6 + InterPro2GO on the submitted "
+        "sequence (no UniProt accession required)",
     )
     return hint

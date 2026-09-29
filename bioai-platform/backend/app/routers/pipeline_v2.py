@@ -1246,7 +1246,7 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
         except Exception as e:
             bundle["composition"] = {"error": str(e)}
         try:
-            bundle["function_hints"] = function_hints(sequence)
+            bundle["function_hints"] = await function_hints(sequence)
         except Exception as e:
             bundle["function_hints"] = {"error": str(e)}
         return bundle
@@ -1297,6 +1297,18 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
                                     context, finalize)
             continue
 
+        # The GO-term prediction in the annotation bundle has the same 7-20+ min
+        # EBI window. Hold the uniprot step open and merge the finished prediction
+        # into the bundle (keeping composition) when the poller settles.
+        if name == "uniprot" and isinstance(res, dict):
+            hint = res.get("function_hints")
+            if isinstance(hint, dict) and hint.get("status") == "running":
+                _mark(name, "running", progress=50, data=res)
+                context[name] = res
+                _schedule_function_hints_poll(hint.get("interpro_job_id"), _mark,
+                                              job_id, context, sequence, finalize)
+                continue
+
         ok = (
             res.get("domains") is not None if name == "domains"
             else res.get("structure_available") is True if name == "alphafold"
@@ -1313,7 +1325,7 @@ async def _run_denovo_steps(job_id: str, sequence: str, steps: list[str], _mark,
 
 
 def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str, job_id: str,
-                            context: dict, finalize=None) -> None:
+                            context: dict, finalize=None, commit=None) -> None:
     """Poll a running InterProScan 6 job in the background, then patch the step.
 
     The EBI job can take 7-20+ minutes, far longer than a request or the pipeline
@@ -1323,6 +1335,10 @@ def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str, job_id
     `job_id`/`context` let the poller both hold the parent job open while it waits
     and refresh the persisted report with the domains, so the result is not only
     patched in memory but actually reaches the client and the job history.
+
+    `commit`: optional ``async (result) -> None`` callback invoked instead of the
+    default step patch, for results that must be merged into an existing step
+    payload (the annotation bundle). The callback owns the step and context writes.
     """
     if not interpro_job_id:
         return
@@ -1348,17 +1364,21 @@ def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str, job_id
                     "error": f"InterProScan job could not be completed: {exc}",
                 }
 
-            if result.get("status") == "complete":
-                mark(step, "complete", progress=100, data=result, error=None)
+            if commit is not None:
+                await commit(result)
             else:
-                result.setdefault("error", None)
-                mark(step, "failed", progress=100, data=result,
-                     error=result.get("error") or "InterProScan job did not complete")
+                if result.get("status") == "complete":
+                    mark(step, "complete", progress=100, data=result, error=None)
+                else:
+                    result.setdefault("error", None)
+                    mark(step, "failed", progress=100, data=result,
+                         error=result.get("error") or "InterProScan job did not complete")
 
-            # The report is what provenance and the job history are built from, so
-            # the finished result has to land there too, not just on the step.
-            with _jobs_lock:
-                context[step] = result
+                # The report is what provenance and the job history are built from, so
+                # the finished result has to land there too, not just on the step.
+                # (A commit callback updates the bundle it belongs to itself.)
+                with _jobs_lock:
+                    context[step] = result
 
             if _interpro_is_last(job_id):
                 # The synthesis and the InterPro source capture are both derived
@@ -1383,6 +1403,50 @@ def _schedule_interpro_poll(interpro_job_id: str | None, mark, step: str, job_id
         with _jobs_lock:
             _INTERPRO_PENDING.pop(job_id, None)
         logger.warning("could not schedule InterProScan poll for %s", interpro_job_id)
+
+
+def _schedule_function_hints_poll(interpro_job_id: str | None, _mark, job_id: str,
+                                  context: dict, sequence: str, finalize=None) -> None:
+    """Background-complete a still-running de novo GO-term prediction.
+
+    Function hints run inside the ``uniprot`` annotation bundle alongside
+    ``composition``, so this poller merges the finished prediction into that
+    bundle instead of replacing the whole step payload the way the domains poller
+    does. An upstream scan failure is a verdict (``evidence_unavailable``), not a
+    crash, so the step is reported complete with the honest payload.
+    """
+    async def _commit(result: dict) -> None:
+        from app.tools.function_predict import prediction_from_result
+
+        try:
+            prediction = await asyncio.to_thread(
+                prediction_from_result, result, sequence, "de_novo"
+            )
+        except Exception as exc:
+            logger.warning("Function prediction completion failed for %s: %s", job_id, exc)
+            prediction = {
+                "status": "evidence_unavailable",
+                "go_terms": [],
+                "source": "interpro2go",
+                "error": str(exc)[:500],
+            }
+            step_status, step_error = "failed", str(exc)[:500]
+        else:
+            step_status, step_error = "complete", None
+
+        with _jobs_lock:
+            data = dict(
+                (_jobs.get(job_id, {}).get("steps", {}).get("uniprot", {}).get("data") or {})
+            )
+        data["function_hints"] = prediction
+        _mark("uniprot", step_status, progress=100, data=data, error=step_error)
+
+        bundle = dict(context.get("uniprot") or {})
+        bundle["function_hints"] = prediction
+        context["uniprot"] = bundle
+
+    _schedule_interpro_poll(interpro_job_id, _mark, "uniprot", job_id, context,
+                            finalize, commit=_commit)
 
 
 async def _run_domains_or_denovo(sequence: str, accession: str | None, resolved_uniprot: bool) -> dict:

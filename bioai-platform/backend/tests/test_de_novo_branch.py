@@ -1,5 +1,7 @@
 """Tests for the tier-6 de novo branch (techspec.md §1)."""
 
+import asyncio
+
 import pytest
 
 from app.routers import pipeline_v2 as pv
@@ -201,11 +203,31 @@ def test_composition_stats_runs_accession_free():
     assert result["_note"]
 
 
-def test_function_hints_are_labeled_heuristic():
-    result = de_novo.function_hints("ACDEFGHIKLMNPQRSTVWYMLLLLLLLLVVAA")
+def test_function_hints_are_interpro2go(monkeypatch):
+    async def fake_predict(sequence, pdb_id="de_novo"):
+        return {
+            "status": "inferred",
+            "go_terms": [{"go_id": "GO:0003674", "name": "molecular function", "namespace": "MF"}],
+        }
+
+    monkeypatch.setattr("app.tools.function_predict._predict_from_sequence", fake_predict)
+    result = asyncio.run(de_novo.function_hints("ACDEFGHIKLMNPQRSTVWYMLLLLLLLLVVAA"))
+
     assert result["go_terms"]
-    assert "Heuristic" in result["_note"]
-    assert result["source"] == "composition_heuristic"
+    assert result["source"] == "interpro2go"
+    assert "interpro2go" in result["_note"].lower()
+
+
+def test_function_hints_running_marker_passes_through(monkeypatch):
+    async def fake_predict(sequence, pdb_id="de_novo"):
+        return {"status": "running", "interpro_job_id": "iprscan-job-1", "go_terms": []}
+
+    monkeypatch.setattr("app.tools.function_predict._predict_from_sequence", fake_predict)
+    result = asyncio.run(de_novo.function_hints("ACDEFGHIKLMNPQRSTVWYMLLLLLLLLVVAA"))
+
+    assert result["status"] == "running"
+    assert result["interpro_job_id"] == "iprscan-job-1"
+    assert result["go_terms"] == []
 
 
 # ── Pipeline-level: zero-hit protein completes instead of failing ───────────
@@ -227,10 +249,14 @@ async def test_zero_hit_protein_run_completes_denovo(monkeypatch):
                 "mean_plddt": 74.2, "pdb_url": None, "cif_url": None, "confidence": 0.74,
                 "uniprot_accession": None, "_note": "x"}
 
+    async def fake_function_hints(sequence):
+        return {"status": "insufficient_evidence", "go_terms": [], "source": "interpro2go"}
+
     persisted = {}
     monkeypatch.setattr(pv, "_run_blast", fake_blast)
     monkeypatch.setattr(pv, "_persist_v2_final", lambda jid, status, ctx, error=None: persisted.update(status=status))
     monkeypatch.setattr("app.services.de_novo.interpro_sequence_search", fake_ipro)
+    monkeypatch.setattr("app.services.de_novo.function_hints", fake_function_hints)
     monkeypatch.setattr("app.services.de_novo.esmfold_structure", fake_fold)
 
     steps = [s for s in pv.STEP_ORDER if s != "interpret"]

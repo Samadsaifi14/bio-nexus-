@@ -4,12 +4,11 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { motion, AnimatePresence } from 'framer-motion';
-import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, SignOut as LogOut, Dna, List as Menu, CaretRight as ChevronRight } from '@phosphor-icons/react';
+import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, SignOut as LogOut, List as Menu, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 import { AuditInsightPanel } from '@/components/AuditInsightPanel';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 import { BreadcrumbSchema } from '@/components/seo/BreadcrumbSchema';
 
 const NAV_ITEMS = [
@@ -41,11 +40,7 @@ function SidebarContent({
   return (
     <div className="flex flex-col h-full py-4">
       <div className={`flex items-center gap-3 px-4 pb-5 mb-1 ${collapsed ? 'justify-center' : ''}`}>
-        <div
-          className="w-7 h-7 rounded-lg flex items-center justify-center flex-shrink-0 bg-accent-cyan/10 border border-accent-cyan/25"
-        >
-          <Dna size={14} className="text-accent-cyan" />
-        </div>
+        <div className="w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0 bg-accent-cyan text-surface-0 font-display text-sm" aria-hidden="true">B</div>
 
         <AnimatePresence>
           {!collapsed && (
@@ -57,7 +52,7 @@ function SidebarContent({
               exit="hidden"
               className="font-display text-sm font-semibold overflow-hidden whitespace-nowrap"
             >
-              Bio&nbsp;<span className="text-accent-cyan">Nexus</span>
+              BioNexus
             </motion.span>
           )}
         </AnimatePresence>
@@ -75,15 +70,6 @@ function SidebarContent({
               href={href}
               className={`nav-item ${active ? 'active' : ''} ${collapsed ? 'justify-center' : ''} group`}
             >
-              {active && (
-                <motion.div
-                  layoutId="nav-indicator"
-                  className="absolute left-0 inset-y-[6px] w-[3px] rounded-full"
-                  style={{ background: 'rgb(var(--accent-cyan))' }}
-                  transition={{ type: 'spring', stiffness: 380, damping: 35 }}
-                />
-              )}
-
               <Icon
                 size={16}
                 className="flex-shrink-0"
@@ -111,7 +97,6 @@ function SidebarContent({
                   style={{
                     background: 'rgb(var(--bg-surface-2))',
                     border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
-                    boxShadow:  'var(--shadow-float)',
                   }}
                 >
                   {label}
@@ -159,7 +144,6 @@ function SidebarContent({
               style={{
                 background: 'rgb(var(--bg-surface-2))',
                 border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
-                boxShadow:  'var(--shadow-float)',
               }}
             >
               Sign out
@@ -171,11 +155,7 @@ function SidebarContent({
           <div className="px-3 pt-2">
             <div className="divider mb-3" />
             <div className="flex items-center justify-between px-3">
-              <span className="text-[10px] font-mono text-text-muted/70">BIO-NEXUS CORE</span>
-              <span className="flex items-center gap-1.5 text-[10px] font-mono text-accent-cyan/80">
-                <span className="w-1 h-1 rounded-full bg-accent-cyan" />
-                v2.1
-              </span>
+              <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Research workspace</span>
             </div>
           </div>
         )}
@@ -193,7 +173,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => { setMobileOpen(false); }, [pathname]);
 
   return (
-    <div className="flex h-screen bg-void overflow-hidden">
+    <div className="flex min-h-[100dvh] h-[100dvh] bg-void overflow-hidden">
       <motion.aside
         animate={{ width: collapsed ? 68 : 220 }}
         transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
@@ -208,17 +188,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <button
           onClick={() => setCollapsed(!collapsed)}
-          className="absolute -right-3 top-[18px] z-20 w-6 h-6 rounded-full flex items-center justify-center transition-all hover:scale-110"
+          className="absolute -right-5 top-[10px] z-20 w-11 h-11 rounded-sm flex items-center justify-center"
           style={{
             background: 'rgb(var(--bg-surface-2))',
             border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
-            boxShadow:  'var(--shadow-float-sm)',
-          }}
-          onMouseEnter={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgba(74,222,128,0.4)';
-          }}
-          onMouseLeave={(e) => {
-            (e.currentTarget as HTMLButtonElement).style.borderColor = 'rgb(var(--glass-border) / var(--glass-border-a))';
           }}
           aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
         >
@@ -268,7 +241,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <button
             onClick={() => setMobileOpen(true)}
-            className="md:hidden text-text-muted hover:text-text-primary transition-colors"
+            className="md:hidden flex h-11 w-11 items-center justify-center text-text-secondary hover:text-text-primary transition-colors"
             aria-label="Open navigation"
           >
             <Menu size={18} />
@@ -280,19 +253,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             </span>
           </div>
 
-          <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-full border border-accent-cyan/20 bg-accent-cyan/5">
-            <span className="relative flex w-1.5 h-1.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent-cyan opacity-60" />
-              <span className="relative inline-flex rounded-full w-1.5 h-1.5 bg-accent-cyan" />
-            </span>
-            <span className="text-[11px] font-mono text-text-muted">systems live</span>
-          </div>
-
-          <ThemeToggle />
+          <span className="hidden sm:inline text-[11px] font-mono uppercase tracking-widest text-text-muted">BioNexus / Field Notes</span>
         </header>
 
         <main className="flex-1 overflow-y-auto relative">
-          <div className="absolute inset-0 bg-grid pointer-events-none opacity-[0.025]" />
           <div className="relative z-10 max-w-content mx-auto px-6 py-8">
             <ErrorBoundary>{children}</ErrorBoundary>
           </div>

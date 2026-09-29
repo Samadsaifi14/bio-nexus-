@@ -1,6 +1,4 @@
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
 import Script from 'next/script';
 import { MotionConfig } from 'framer-motion';
 import './globals.css';
@@ -23,7 +21,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en">
       <head>
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar.css" />
         <Script

@@ -1,180 +1,51 @@
-# Bio Nexus — Design System
+# BioNexus — Field Notes design language
 
-Canonical source of truth for the whole-site redesign (supersedes the older
-BioFlow AI draft this file used to hold). Implemented in
-`bioai-platform/frontend/src/app/globals.css` and
-`bioai-platform/frontend/tailwind.config.ts` — when these files and this doc
-disagree, the files win and this doc is wrong.
+BioNexus is a research workspace presented like a contemporary scientific field notebook: paper, ink, measured annotation, and traceable evidence. This system replaces the earlier dark instrument language. Its public page has a more editorial rhythm; dense analysis views use the same colors and materials with tighter spacing.
 
-## 1. Identity
+## Source and intent
 
-A **bioluminescent lab instrument that feels alive**. Not a SaaS dashboard, not
-a 2003 bioinformatics portal. Dark-only, cinematic, scientific.
+The flat, ruled enterprise clarity in the curated IBM DESIGN.md analysis and the editorial workflow hierarchy in the Airtable analysis informed this direction. These are references from awesome-design-md/getdesign.md, not official BioNexus specifications or copied brand assets. BioNexus uses its own forest green, warm paper palette, typography, and research content.
 
-- Canvas: near-black indigo HUD surfaces. Pure black kills depth; translucent
-  panels layer over a deep indigo void.
-- The instrument metaphor runs through the chrome: scan-lines, pulsing job
-  status dots, monospace data panels, glow only where a signal is live.
-- Motion is one authored moment per view (see §7), never a generic entrance on
-  every section.
+## Foundation
 
-### Public landing page application (September 2026)
-
-The landing page uses the existing dark tokens with one green action color and
-quiet surface borders. Its layout takes cues from technical product pages in
-the curated DESIGN.md collection: a clear editorial headline, a method index,
-and a compact explanation of how results are organized. Those references are
-inspiration, not BioNexus brand specifications.
-
-- Keep the hero readable without a 3D helix, ambient orbs, or continuous motion.
-- Use method names and descriptions as the primary navigation. Link directly to
-  the corresponding workspace routes.
-- Keep examples structural. Do not invent hits, affinity values, job counts,
-  confidence bands, or provenance records for marketing visuals.
-- Distinguish an exploratory NGS preview from production planning and external
-  execution. Describe AlphaFold DB as structure retrieval where applicable.
-- Use the existing type scale, 4px spacing system, and green accent; avoid
-  decorative gradients in data and method content.
-
-## 2. Color System
-
-### 2.1 Canvas & surfaces
-
-| Token | Value | Role |
+| Role | Value | Use |
 |---|---|---|
-| `--bg-void` | `#050609` | app background, page base |
-| `--bg-surface-0` | `#0A0B10` | cards, panels, data cards |
-| `--bg-surface-1` | `#0F1016` | inputs, hover, second level |
-| `--bg-surface-2` | `#14161E` | raised panels, table rows |
-| `--bg-surface-3` | `#191B25` | modals, dropdowns, popovers |
-| `--glass-border` | `rgba(148,163,184,0.12)` | hairline borders everywhere |
-| `--data-card-bg` | `rgba(10,11,16,0.96)` | near-opaque scientific output |
-| `--hud-bg` | `rgba(15,16,22,0.90)` | 3D viewer chrome |
+| Paper | `#F5F3EC` | App canvas |
+| Sheet | `#FFFEFA` | Content panels, tables, controls |
+| Soft sheet | `#F9F8F3` | Reading surfaces |
+| Sidebar | `#F0F1E9` | Navigation |
+| Ink | `#1D2F2A` | Primary text |
+| Secondary ink | `#40524A` | Descriptions |
+| Annotation | `#57655C` | Labels and metadata |
+| Rule | `#CBD3C5` | Dividers and panel borders |
+| Forest | `#16634E` | Primary actions, links, selection |
+| Forest hover | `#0F4D3C` | Action hover |
+| Blue | `#30557E` | Neutral information and scientific channels |
+| Ochre | `#8F531A` | Caution and moderate confidence |
+| Red | `#A1362E` | Actual errors only |
 
-### 2.2 Accents — bioluminescent triad
+Tokens live in `bioai-platform/frontend/src/app/globals.css`; Tailwind maps them through `bioai-platform/frontend/tailwind.config.ts`. Existing token aliases such as `accent-cyan` and `glass-border` are compatibility names. They resolve to the new palette, regardless of their historical names.
 
-The instrument reads **life-green** first, **violet** second, **amber** for
-warnings. Green is the single signal the eye tracks across every screen.
+## Typography and spacing
 
-| Token | Value | Contrast on `surface-0` | Use |
-|---|---|---|---|
-| `--accent-cyan` | `#4ADE80` | 10.6:1 | primary accent, active nav, CTAs |
-| `--accent-purple` | `#A78BFA` | 6.8:1 | secondary/alternate accent (e.g. MSA, docking) |
-| `--accent-amber` | `#FBBF24` | 11:1 | warnings that are *not* errors (e.g. RMSD) |
+- Georgia is the editorial display face for headings. Arial/Helvetica is the compact interface face for controls and body copy. Monospace is reserved for accessions, values, labels, and provenance.
+- Landing display: 48–86px, regular weight, tight tracking, short lines. Product titles remain smaller and legible at high density.
+- Body: 14–18px with generous line height. Use 12px uppercase mono labels sparingly to mark sections and data types.
+- Use 4px spacing increments, 5–8px corners, and one-pixel rules. Panels are opaque and flat. Do not use blur, glow, elevated shadows, ornamental gradients, or moving decorative elements.
 
-All three pass WCAG AA on every dark surface tier. Light theme swaps to
-green-700 `#15803D` and violet-800 `#5B21B6` to hold AA on white. Do not add a
-fourth accent.
+## Components and behavior
 
-### 2.3 Text tiers (AA-verified)
+- Primary action: filled forest green, white text, at least 42px high. Secondary action: bordered sheet with ink text. Focus: visible 2px forest outline with offset.
+- Navigation: a solid forest active state, no colored stripe. The sidebar has a distinct sage surface; the top bar is a sheet.
+- Content cards and data surfaces: opaque white sheet, rule border, 8px radius or less, no elevation. Tables retain tabular numerals and explicit empty/loading/error states.
+- Scientific colors convey distinct information and confidence. Color is paired with labels, never used as the only indicator. Missing, measured zero, pending, unavailable, and failed remain separate states.
+- Motion is limited to purposeful state changes and short hover transitions. Respect reduced motion. The landing page has no auto-playing decoration.
+- At narrow widths, method rows and editorial columns stack; actions retain touch targets and keyboard focus.
 
-| Token | Value | Contrast on `surface-0` | Role |
-|---|---|---|---|
-| `--text-primary` | `#ECF0FA` | 16:1 | headings, primary content |
-| `--text-secondary` | `#A3ACBC` | 8.5:1 | secondary copy, descriptions |
-| `--text-muted` | `#808898` | 5.5:1 | labels, metadata, disabled |
+## Content principles
 
-`text-muted` was raised from `#4A4F6A` (2.5:1 — failed AA on 441 usages). The
-hierarchy is preserved: three clearly separated tiers, all legible.
+Describe the method and its limits concretely. Do not fabricate example measurements, hits, affinities, confidence values, or run records to make the interface feel populated. Explain exploratory NGS preview separately from production planning and external execution. A grounded AI explanation is not independent biological validation.
 
-### 2.4 Semantic — scientific confidence bands
+## Verification
 
-Confidence is a **statistical statement, never a pass/fail**. Red is reserved
-for real errors only (job failed, API down). `#EF4444` is the only error color.
-
-| Band | Value | Meaning shown to user |
-|---|---|---|
-| Very high | `#4ADE80` (green) | "Very high statistical confidence" |
-| High | `#60A5FA` (blue) | "High statistical confidence" |
-| Moderate | `#FBBF24` (amber) | "Moderate — worth a closer look" |
-| Low | `#94A3B8` (gray) | "Low confidence — not necessarily wrong, just uncertain" |
-
-Bands are never color-only: always pair with the text label (colorblind-safe).
-Tailwind tokens: `confidence-very-high`, `confidence-high`, `confidence-moderate`,
-`confidence-low`.
-
-## 3. Typography
-
-| Role | Font | Source |
-|---|---|---|
-| Display (hero, headings) | **Geist Sans** | `geist/font/sans` (self-hosted) |
-| UI (body, labels, buttons) | **Geist Sans** | same |
-| Data (sequences, accessions, raw output) | **Geist Mono** | `geist/font/mono` |
-
-- Fonts are self-hosted via the `geist` package and applied through
-  `--font-geist-sans` / `--font-geist-mono` CSS variables in `layout.tsx`.
-  No runtime Google Fonts fetch. No `next/font/google` imports.
-- Tailwind classes: `font-sans`, `font-display`, `font-body` → Geist Sans;
-  `font-mono` → Geist Mono.
-- Headings: weight 600, `letter-spacing: -0.02em`.
-- Body measure 65–75ch. Display max 6rem. Tracking floor −0.04em.
-- Type scale: `12 / 14 / 16 / 20 / 28 / 40 / 56px`, body line-height 1.5.
-
-## 4. Spacing, Radius, Depth
-
-- Base unit 4px. Scale `4 / 8 / 12 / 16 / 24 / 32 / 48 / 64 / 96`.
-- Max content width 1280px (`max-w-content`).
-- Radius: 16px cards (`rounded-2xl`), 12–14px panels, 10px buttons/inputs,
-  8px badges/pills. Pills are for small controls only.
-- Elevation is declared **once**: border XOR shadow, never a 1px border under a
-  wide soft shadow (the "ghost card" is banned). Shadows carry an offset and a
-  soft blur; a zero-offset halo is decoration.
-
-## 5. Component System
-
-CSS component classes in `globals.css` (`@layer components`):
-
-| Class | Role | Notes |
-|---|---|---|
-| `.data-card` | scientific output (near-opaque) | charts, tables, sequences, scores |
-| `.glass-card` | general card | translucent, 16px radius |
-| `.glass-panel` | inset panel | `blur(32px) saturate(180%)` |
-| `.liquid-glass` | hero/nav chrome only | the "wow" surface; never over data |
-| `.clay` / `.clay-*` | tactile low-stakes controls | toggles, sliders, mode pickers only |
-| `.hud` / `.hud-legend` | 3D viewer chrome | near-opaque, sits in the viewer |
-| `.btn-critical` | primary CTA | solid green gradient, dark text |
-| `.btn-primary` | secondary solid | `--accent-cyan` fill |
-| `.btn-ghost` | quiet action | border + text |
-| `.btn-critical-danger` | destructive | red, only for real destructive actions |
-| `.input-flat` / `.input-glass` | data-entry inputs | flat is precision-first |
-| `.nav-item` (+ `.active`) | sidebar items | active = green fill `--accent-cyan-10` |
-| `.badge-cyan` / `.badge-purple` | status badges | uppercase mono, pill |
-
-Banned: nested cards, gradient text, kicker/eyebrow labels above headings,
-section numbers (01/02/03), emoji as icons, monospace as costume (only for
-code/data/measurement), glass/blur as decoration, sparklines/progress rings as
-content, hard offset shadows outside a neobrutalist world, sketch/doodle SVG
-scenes.
-
-## 6. Icons
-
-- **Phosphor** (`@phosphor-icons/react`), weight regular/semi-bold, sizes
-  16/20/24. One consistent stroke weight across the whole app.
-- `lucide-react` is fully removed (migration is its own commit).
-- No emoji or unicode glyphs as icons anywhere.
-
-## 7. Motion Principles
-
-- Page transitions: 200ms ease-out, fade + 8px slide (framer-motion).
-- Job status: slow pulsing `--accent-cyan` dot during active steps — the
-  instrument is working, not the page broken. Not a generic spinner.
-- Hero: animated sequence "typewriter" or helix canvas linework.
-- One authored moment per view. Respect `prefers-reduced-motion` (already
-  global in `globals.css`).
-- Durations 150–300ms. Exponentially eased, from an already-visible default.
-
-## 8. Legacy cleanup
-
-- The `!important` Tailwind override layer at the end of `globals.css`
-  (`.bg-white`, `.text-gray-*`, `.border-teal-*`, ...) is a transitional crutch
-  for legacy light-mode pages. **Delete it in its own commit** after the
-  legacy pages (`(auth)`, `shared/[token]`, AIInterpretation) are converted to
-  native dark tokens.
-- Theme toggle/context machinery is removed — Bio Nexus is dark-only.
-
-## 9. Verification
-
-- `npx tsc --noEmit` — clean (unused imports are errors).
-- `npm run build` and `npm run lint` must pass before push.
-- Contrast table in §2 is the source of truth for token values; any new tint
-  must be AA-verified on all five surfaces.
+Review semantic headings, labels, focus order, contrast, responsive overflow, reduced motion, and status language using the Web Design Guidelines. Inspect the landing and representative workflows with Playwright CLI when a browser binary is available; use build and static checks as a fallback, reporting that limitation plainly.

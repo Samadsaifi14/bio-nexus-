@@ -2,11 +2,10 @@
 
 import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Dna, CircleNotch as LoaderCircle } from '@phosphor-icons/react';
+import { CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
 import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
-import { ThemeToggle } from '@/components/ui/ThemeToggle';
 
 export default function AuthPage() {
   const { user, loading, signIn, isGuest } = useAuth();
@@ -28,13 +27,10 @@ export default function AuthPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-void relative">
-      <div className="absolute top-5 right-5">
-        <ThemeToggle />
-      </div>
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="bg-surface-0 rounded-2xl border border-glass-border p-8 w-full max-w-sm shadow-glass-lg">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="bg-surface-0 rounded-lg border border-glass-border p-8 w-full max-w-sm">
         <div className="flex items-center gap-2 justify-center mb-6">
-          <Dna className="w-8 h-8 text-accent-cyan" />
-          <span className="text-xl font-bold text-text-primary">Bio Nexus</span>
+          <span className="flex h-8 w-8 items-center justify-center rounded-sm bg-accent-cyan font-display text-surface-0">B</span>
+          <span className="font-display text-xl text-text-primary">BioNexus</span>
         </div>
 
         <h1 className="text-xl font-semibold text-text-primary text-center mb-2">Welcome to Bio Nexus</h1>

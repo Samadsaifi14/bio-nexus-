@@ -1176,6 +1176,28 @@ export async function runNgs2Analyze(payload: {
   return result;
 }
 
+export type GeoRecord = {
+  accession: string;
+  kind: 'GSE' | 'GSM' | 'GDS' | 'GPL';
+  title: string;
+  summary: string;
+  assay: string;
+  organism: string;
+  sample_count: number;
+  samples: Array<{ accession: string; title: string }>;
+  files: Array<{ name: string; url: string }>;
+  relations: Array<{ name: string; target: string }>;
+  url: string;
+  is_sequencing: boolean;
+};
+
+export async function resolveGeo(accession: string): Promise<GeoRecord> {
+  // This route lives with the Next.js page, so a frontend preview does not
+  // depend on the separate BioNexus compute backend being deployed in sync.
+  const res = await axios.get(`/api/geo/${encodeURIComponent(accession.trim().toUpperCase())}`, { timeout: 35_000 });
+  return res.data;
+}
+
 export async function getNgsPortableBenchmark(): Promise<NgsPortableBenchmark> {
   const res = await api.get('/api/ngs/v2/benchmarks/portable');
   return res.data;

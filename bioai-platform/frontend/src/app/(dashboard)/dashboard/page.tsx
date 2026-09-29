@@ -2,230 +2,78 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { motion } from 'framer-motion';
-import { fadeUp, stagger, cardHover, hoverLift, press } from '@/lib/animations';
-import { Parallax } from '@/components/effects/Parallax';
-import { CircleNotch as LoaderCircle, Dna, Play, Clock, CheckCircle, XCircle, TrendUp as TrendingUp, ChartBar as BarChart3, CaretRight as ChevronRight, Pulse as Activity, Calendar } from '@phosphor-icons/react';
-import { AlignmentBarIcon, DockingPocketIcon, EnrichmentClusterIcon, HelixRibbonIcon, PhyloTIcon, PPIWebIcon, ReadPileupIcon } from '@/components/PipelineIcons';
+import { motion, useReducedMotion } from 'framer-motion';
+import { ArrowRight, ArrowUpRight, CircleNotch, Clock, Flask, MagnifyingGlass, Atom, Dna, CheckCircle } from '@phosphor-icons/react';
 import { getJobs, getJobCount } from '@/lib/api';
 import { useAuth } from '@/contexts/auth';
 import type { JobStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
 import { STATUS_TEXT } from '@/lib/status-colors';
 
-const STATUS_ICONS: Record<string, typeof Clock> = {
-  queued: Clock, submitted_to_ncbi: Clock, polling_ncbi: Clock,
-  parsing: Clock, interpreting: Clock, complete: CheckCircle, failed: XCircle,
-};
-
-const QUICK_TOOLS = [
-  { icon: ReadPileupIcon,        label: 'BLAST',        desc: 'Sequence similarity',      href: '/analyze',             color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10'   },
-  { icon: AlignmentBarIcon,      label: 'Alignment',    desc: 'MSA via Clustal',          href: '/analyze/alignment',   color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10'   },
-  { icon: HelixRibbonIcon,       label: 'Structure',    desc: 'AlphaFold 3D viewer',      href: '/analyze/structure',   color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
-  { icon: DockingPocketIcon,     label: 'Docking',      desc: 'Pose & fingerprints',      href: '/analyze/docking',     color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
-  { icon: PPIWebIcon,            label: 'Interactions', desc: 'PPI via STRING',           href: '/analyze/interactions', color: 'text-accent-purple', bg: 'bg-accent-purple/10' },
-  { icon: PhyloTIcon,            label: 'Phylogeny',    desc: 'NJ / UPGMA / ML',          href: '/analyze/phylo',       color: 'text-accent-amber',  bg: 'bg-accent-amber/10'  },
-  { icon: EnrichmentClusterIcon, label: 'Pathways',     desc: 'Reactome / KEGG',          href: '/analyze/pathway',     color: 'text-accent-amber',  bg: 'bg-accent-amber/10'  },
+const startingPoints = [
+  { title: 'Explore sequencing evidence', field: 'Genomics', href: '/analyze/ngs-v2', icon: Dna, description: 'QC, coverage and variant evidence' },
+  { title: 'Find sequence similarity', field: 'Sequence biology', href: '/analyze/blast', icon: MagnifyingGlass, description: 'Matches, alignments and reference context' },
+  { title: 'Inspect molecular binding', field: 'Structural biology', href: '/analyze/docking', icon: Atom, description: 'Pose and interaction views' },
 ];
 
-function getInitials(name?: string, email?: string): string {
-  if (name) return name.split(' ').map(p => p[0]).slice(0, 2).join('').toUpperCase();
-  if (email) return email[0].toUpperCase();
-  return 'G';
-}
+const statusLabel: Record<string, string> = { complete: 'Complete', completed: 'Complete', failed: 'Failed', queued: 'Queued', running: 'Running', submitted_to_ncbi: 'Submitted', polling_ncbi: 'In progress', parsing: 'Parsing', interpreting: 'Interpreting' };
 
 export default function DashboardPage() {
   const { user, isGuest } = useAuth();
-  const [jobs, setJobs]   = useState<JobStatus[]>([]);
+  const reduceMotion = useReducedMotion();
+  const [jobs, setJobs] = useState<JobStatus[]>([]);
   const [usage, setUsage] = useState({ count: 0, limit: 10, remaining: 10 });
-  const [loading, setLoading]     = useState(true);
+  const [loading, setLoading] = useState(true);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
   useEffect(() => {
     Promise.all([getJobs(), getJobCount()])
-      .then(([j, u]) => { setJobs(j); setUsage(u); setFetchError(null); })
-      .catch(err  => { setFetchError('Failed to load data — check your connection'); console.error(err); })
+      .then(([recent, daily]) => { setJobs(recent); setUsage(daily); setFetchError(null); })
+      .catch(() => setFetchError('We could not load your recent work. Please try again shortly.'))
       .finally(() => setLoading(false));
   }, []);
 
-  const recentJobs      = jobs.slice(0, 5);
-  const completedCount  = jobs.filter(j => j.status === 'complete').length;
-  const failedCount     = jobs.filter(j => j.status === 'failed').length;
-  const activeCount     = jobs.filter(j => !['complete', 'failed'].includes(j.status)).length;
-  const usagePercent    = Math.min(Math.round((usage.count / usage.limit) * 100), 100);
+  const firstName = (user?.user_metadata?.full_name as string | undefined)?.split(' ')[0];
+  const completed = jobs.filter(job => job.status === 'complete').length;
+  const failed = jobs.filter(job => job.status === 'failed').length;
+  const active = jobs.filter(job => !['complete', 'failed'].includes(job.status)).length;
+  const usagePercent = usage.limit > 0 ? Math.min((usage.count / usage.limit) * 100, 100) : 0;
+  const enter = reduceMotion ? false : { opacity: 0, y: 16 };
 
-  const fullName  = user?.user_metadata?.full_name as string | undefined;
-  const firstName = fullName?.split(' ')[0];
-  const initials  = getInitials(fullName, user?.email);
-  const today     = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric' });
+  return <div className="bn-dashboard">
+    <motion.section initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5 }} className="bn-dashboard-intro">
+      <div><p className="bn-kicker">Research desk</p><h1>{isGuest ? 'Welcome to BioNexus.' : `Welcome back${firstName ? `, ${firstName}` : ''}.`}</h1><p>Pick up a result, or start with the question you want to answer.</p></div>
+      <Link href="/analyze" className="bn-button bn-button-primary shrink-0">New analysis <ArrowUpRight size={18} aria-hidden="true" /></Link>
+    </motion.section>
 
-  if (loading) return (
-    <div className="flex items-center justify-center py-20">
-      <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
-    </div>
-  );
+    {fetchError && <div role="alert" className="bn-dashboard-error">{fetchError}</div>}
 
-  return (
-    <div className="space-y-8">
-      {fetchError && (
-        <div className="glass-card p-4 border border-accent-amber/20 bg-accent-amber/5">
-          <p className="text-sm text-accent-amber">{fetchError}</p>
-        </div>
-      )}
+    <div className="bn-dashboard-columns">
+      <div className="min-w-0">
+        <motion.section initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .08 }} className="bn-dashboard-section">
+          <div className="bn-dashboard-section-heading"><div><p className="bn-kicker">Begin here</p><h2>Follow a line of inquiry</h2></div><Link href="/analyze" className="bn-text-link">All methods <ArrowRight size={16} aria-hidden="true" /></Link></div>
+          <div className="bn-starting-points">{startingPoints.map((item, index) => { const Icon = item.icon; return <Link href={item.href} key={item.title} className="bn-starting-point group"><span className="bn-start-number">0{index + 1}</span><span className="bn-start-icon"><Icon size={26} aria-hidden="true" /></span><span className="bn-start-body"><small>{item.field}</small><strong>{item.title}</strong><span>{item.description}</span></span><ArrowUpRight className="bn-start-arrow" size={20} aria-hidden="true" /></Link>; })}</div>
+          <Link href="/wizard" className="bn-dashboard-guide"><Flask size={21} aria-hidden="true" /><span><strong>Not sure where to begin?</strong><small>Let the guided workflow help you choose a method.</small></span><ArrowRight size={18} aria-hidden="true" /></Link>
+        </motion.section>
 
-      {/* ── Header ── */}
-      <motion.div variants={fadeUp} className="flex items-start justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-accent-cyan/15 border border-accent-cyan/25 flex items-center justify-center shrink-0">
-            <span className="text-accent-cyan font-bold text-lg tracking-tight">{initials}</span>
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-text-primary">
-              {isGuest ? 'Welcome to Bio Nexus' : `Hey, ${firstName ?? 'Researcher'}`}
-            </h1>
-            <div className="flex items-center gap-1.5 mt-0.5">
-              <Calendar className="w-3.5 h-3.5 text-text-muted" />
-              <p className="text-sm text-text-muted">{today}</p>
-            </div>
-          </div>
-        </div>
-        <Link href="/analyze" className="btn-critical text-sm flex items-center gap-2 shrink-0">
-          <Play className="w-4 h-4" />
-          New Analysis
-        </Link>
-      </motion.div>
-
-      {/* ── Daily usage bar ── */}
-      <Parallax speed={0.06}>
-        <motion.div variants={fadeUp} className="data-card p-5">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-accent-cyan" />
-              <span className="text-sm font-medium text-text-primary">Daily Usage</span>
-            </div>
-            <span className="text-sm text-text-muted">{usage.count} / {usage.limit} analyses</span>
-          </div>
-          <div className="h-1.5 bg-surface-0 rounded-full overflow-hidden border border-glass-border">
-            <motion.div
-              className={`h-full rounded-full ${usagePercent >= 80 ? 'bg-accent-amber' : 'bg-accent-cyan'}`}
-              initial={{ width: 0 }}
-              animate={{ width: `${usagePercent}%` }}
-              transition={{ duration: 0.9, ease: 'easeOut' }}
-            />
-          </div>
-          <p className="text-xs text-text-muted mt-2">
-            {usage.remaining} {usage.remaining === 1 ? 'analysis' : 'analyses'} remaining today
-            {isGuest && (
-              <span className="ml-2 text-accent-cyan">
-                · <Link href="/auth" className="underline underline-offset-2 hover:text-accent-cyan/80 transition">Sign in to keep history</Link>
-              </span>
-            )}
-          </p>
-        </motion.div>
-      </Parallax>
-
-      {/* ── Stats ── */}
-      <motion.div variants={stagger} animate="show" className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {[
-          { icon: BarChart3,   label: 'Total Jobs', value: jobs.length,     color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10',   sub: 'all time' },
-          { icon: CheckCircle, label: 'Completed',  value: completedCount,  color: 'text-accent-cyan',   bg: 'bg-accent-cyan/10',   sub: jobs.length ? `${Math.round((completedCount / jobs.length) * 100)}% rate` : '—' },
-          { icon: TrendingUp,  label: 'Active',     value: activeCount,     color: 'text-accent-purple', bg: 'bg-accent-purple/10', sub: 'in progress' },
-          { icon: XCircle,     label: 'Failed',     value: failedCount,     color: 'text-error',         bg: 'bg-error/10',         sub: 'need review' },
-        ].map(s => (
-          <motion.div key={s.label} variants={fadeUp} whileHover={cardHover} className="data-card p-4">
-            <div className={`w-8 h-8 ${s.bg} rounded-lg flex items-center justify-center mb-3`}>
-              <s.icon className={`w-4 h-4 ${s.color}`} />
-            </div>
-            <div className="text-2xl font-bold text-text-primary">{s.value}</div>
-            <div className="text-xs font-medium text-text-muted mt-0.5">{s.label}</div>
-            <div className="text-[11px] text-text-muted/50 mt-0.5">{s.sub}</div>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* ── Quick tools ── */}
-      <div>
-        <motion.div variants={fadeUp} className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">Quick Tools</h2>
-          <Link href="/analyze" className="text-sm text-accent-cyan hover:text-accent-cyan/80 font-medium transition flex items-center gap-1">
-            All tools <ChevronRight className="w-3.5 h-3.5" />
-          </Link>
-        </motion.div>
-        <motion.div variants={stagger} animate="show" className="grid grid-cols-2 md:grid-cols-3 gap-3">
-          {QUICK_TOOLS.map(t => (
-            <motion.div key={t.label} variants={fadeUp} whileHover={hoverLift} whileTap={press}>
-              <Link href={t.href} className="glass-card p-4 flex items-center gap-3 hover:bg-surface-2 transition group">
-                <div className={`w-9 h-9 ${t.bg} rounded-xl flex items-center justify-center shrink-0`}>
-                  <t.icon className={`w-4 h-4 ${t.color}`} />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-text-primary group-hover:text-accent-cyan transition truncate">{t.label}</p>
-                  <p className="text-[11px] text-text-muted truncate">{t.desc}</p>
-                </div>
-              </Link>
-            </motion.div>
-          ))}
-        </motion.div>
+        <motion.section initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .14 }} className="bn-dashboard-section">
+          <div className="bn-dashboard-section-heading"><div><p className="bn-kicker">Your activity</p><h2>Recent work</h2></div><Link href="/jobs" className="bn-text-link">View jobs <ArrowRight size={16} aria-hidden="true" /></Link></div>
+          {loading ? <div role="status" className="bn-dashboard-loading"><CircleNotch size={20} className="animate-spin" aria-hidden="true" /> Loading recent work</div> : jobs.length ? <div className="bn-job-list">{jobs.slice(0, 5).map(job => {
+            const label = job.current_step_label || STEP_LABELS[job.status as keyof typeof STEP_LABELS] || job.status;
+            return <Link key={job.id} href={`/jobs/${job.id}`} className="bn-job-row group"><span className={`bn-job-status ${STATUS_TEXT[job.status] || 'text-text-muted'}`}><span className="bn-status-dot" />{statusLabel[job.status] || job.status}</span><span className="bn-job-title">{label}</span><span className="bn-job-date">{job.created_at ? new Date(job.created_at).toLocaleDateString() : 'Date unavailable'}</span><ArrowUpRight size={17} className="bn-job-arrow" aria-hidden="true" /></Link>;
+          })}</div> : <div className="bn-dashboard-empty"><Clock size={25} aria-hidden="true" /><h3>Your work will appear here.</h3><p>Start a method, then return to review its status and results.</p><Link href="/analyze">Explore methods <ArrowRight size={16} aria-hidden="true" /></Link></div>}
+        </motion.section>
       </div>
 
-      {/* ── Recent activity ── */}
-      <div>
-        <motion.div variants={fadeUp} className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-text-primary">Recent Activity</h2>
-          {jobs.length > 5 && (
-            <Link href="/jobs" className="text-sm text-accent-cyan hover:text-accent-cyan/80 font-medium transition flex items-center gap-1">
-              View all <ChevronRight className="w-3.5 h-3.5" />
-            </Link>
-          )}
-        </motion.div>
-
-        {recentJobs.length > 0 ? (
-          <motion.div variants={stagger} animate="show" className="space-y-2">
-            {recentJobs.map(job => {
-              const Icon     = STATUS_ICONS[job.status] || Clock;
-              const color    = STATUS_TEXT[job.status] || 'text-text-muted';
-              const label    = job.current_step_label || STEP_LABELS[job.status as keyof typeof STEP_LABELS] || job.status;
-              const isComplete = job.status === 'complete';
-              const isFailed   = job.status === 'failed';
-              return (
-                <motion.div key={job.id} variants={fadeUp}>
-                  <Link href={`/jobs/${job.id}`} className="flex items-center gap-3 data-card p-4 hover:bg-surface-2 transition group">
-                    <div className={`w-8 h-8 rounded-lg flex items-center justify-center shrink-0 ${isComplete ? 'bg-accent-cyan/10' : isFailed ? 'bg-error/10' : 'bg-surface-1'}`}>
-                      <Icon className={`w-4 h-4 ${color}`} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-text-primary group-hover:text-accent-cyan transition truncate">{label}</p>
-                      {job.context_json?.query?.sequence && (
-                        <p className="text-[11px] text-text-muted font-mono truncate mt-0.5">
-                          {job.context_json.query.sequence.slice(0, 72)}…
-                        </p>
-                      )}
-                    </div>
-                    <div className="flex items-center gap-3 shrink-0">
-                      {isComplete && <span className="text-[10px] px-2 py-0.5 rounded-full bg-accent-cyan/10 text-accent-cyan font-medium">Done</span>}
-                      {isFailed   && <span className="text-[10px] px-2 py-0.5 rounded-full bg-error/10 text-error font-medium">Failed</span>}
-                      <span className="text-xs text-text-muted">{new Date(job.created_at || Date.now()).toLocaleDateString()}</span>
-                      <ChevronRight className="w-3.5 h-3.5 text-text-muted group-hover:text-accent-cyan transition" />
-                    </div>
-                  </Link>
-                </motion.div>
-              );
-            })}
-          </motion.div>
-        ) : (
-          <motion.div variants={fadeUp} whileHover={cardHover} className="glass-card p-12 text-center">
-            <Dna className="w-12 h-12 text-text-muted mx-auto mb-4" />
-            <h3 className="text-lg font-semibold text-text-primary mb-2">Run your first analysis</h3>
-            <p className="text-sm text-text-secondary mb-6 max-w-sm mx-auto">
-              Submit a protein or nucleotide sequence — BLAST, annotate, visualize structure, and get AI interpretation.
-            </p>
-            <Link href="/analyze" className="inline-flex items-center gap-2 btn-critical text-sm">
-              <Play className="w-4 h-4" />
-              Start Analysis
-            </Link>
-          </motion.div>
-        )}
-      </div>
+      <motion.aside initial={enter} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .2 }} className="bn-dashboard-aside" aria-label="Workspace overview">
+        <p className="bn-kicker">At a glance</p><h2>Workspace pulse</h2>
+        {loading ? <div role="status" className="bn-dashboard-loading"><CircleNotch size={18} className="animate-spin" aria-hidden="true" /> Loading overview</div> : <>
+          <dl className="bn-pulse-grid"><div><dt>Total runs</dt><dd>{jobs.length}</dd></div><div><dt>In progress</dt><dd>{active}</dd></div><div><dt>Completed</dt><dd>{completed}</dd></div><div><dt>Need review</dt><dd>{failed}</dd></div></dl>
+          <div className="bn-usage"><div className="flex items-center justify-between gap-4"><h3>Today&apos;s usage</h3><span>{usage.count} / {usage.limit}</span></div><div className="bn-usage-track" role="progressbar" aria-label="Daily analysis usage" aria-valuenow={usage.count} aria-valuemin={0} aria-valuemax={usage.limit || 1}><motion.span initial={reduceMotion ? false : { width: 0 }} animate={{ width: `${usagePercent}%` }} transition={{ duration: .8, ease: 'easeOut' }} /></div><p>{usage.remaining} {usage.remaining === 1 ? 'analysis' : 'analyses'} remaining today</p></div>
+        </>}
+        <div className="bn-aside-note"><CheckCircle size={20} aria-hidden="true" /><p>Read results alongside their method, status and quality checks. A missing value does not mean a negative finding.</p></div>
+        {isGuest && <Link href="/auth" className="bn-aside-signin">Sign in to keep your history <ArrowUpRight size={16} aria-hidden="true" /></Link>}
+      </motion.aside>
     </div>
-  );
+  </div>;
 }

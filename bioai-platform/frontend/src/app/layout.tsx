@@ -1,11 +1,10 @@
 import type { Metadata } from 'next';
-import { GeistSans } from 'geist/font/sans';
-import { GeistMono } from 'geist/font/mono';
 import Script from 'next/script';
 import { MotionConfig } from 'framer-motion';
 import './globals.css';
 import './scientific-ui.css';
 import './scientific-data-surface.css';
+import './experience.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
 import { themeInitScript } from '@/lib/theme';
@@ -13,8 +12,8 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { ORG_ID, SITE_NAME, SITE_URL, WEBSITE_ID } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Bio Nexus — One interface for every bioinformatics tool',
-  description: 'Protein sequence analysis, BLAST, UniProt, AlphaFold, docking — all in one place. Built for researchers who aren\'t bioinformaticians.',
+  title: 'BioNexus — Bioinformatics research workspace',
+  description: 'Explore sequencing, sequence biology and structural methods with quality checks, results and scientific context in one workspace.',
 };
 
 export default function RootLayout({
@@ -23,7 +22,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }) {
   return (
-    <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
+    <html lang="en">
       <head>
         <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar.css" />
         <Script
@@ -43,7 +42,7 @@ export default function RootLayout({
                 name: SITE_NAME,
                 url: `${SITE_URL}/`,
                 description:
-                  'Bio Nexus unifies BLAST, UniProt, AlphaFold, molecular docking and AI interpretation into a single bioinformatics research interface.',
+                  'BioNexus brings sequencing, sequence analysis and structural methods into a research workspace with scientific result views.',
                 sameAs: ['https://github.com/Samadsaifi14/bio-nexus-'],
                 foundingLocation: {
                   '@type': 'Place',

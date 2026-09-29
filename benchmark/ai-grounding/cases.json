@@ -1,0 +1,230 @@
+{
+  "schema_version": 1,
+  "benchmark_id": "BBS2-AI-GROUNDING-GATE-FIXED-SET",
+  "claim_boundary": "Evaluates deterministic grounding-gate correspondence to supplied evidence. It does not measure language-model biological correctness and does not establish biological truth.",
+  "cases": [
+    {
+      "id": "supported_numeric_citation",
+      "expected_pass": true,
+      "generated_text": "Identity was 97.2 for P12345.",
+      "evidence_text": "Identity was 97.2 for P12345.",
+      "generated_citations": [
+        "PMID:1"
+      ],
+      "allowed_citations": [
+        "PMID:1"
+      ],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "blast.identity_pct"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "unsupported_numeric",
+      "expected_pass": false,
+      "generated_text": "Identity was 99.9 for P12345.",
+      "evidence_text": "Identity was 97.2 for P12345.",
+      "generated_citations": [
+        "PMID:1"
+      ],
+      "allowed_citations": [
+        "PMID:1"
+      ],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "blast.identity_pct"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "invalid_citation",
+      "expected_pass": false,
+      "generated_text": "The accession was recorded.",
+      "evidence_text": "The accession was recorded.",
+      "generated_citations": [
+        "PMID:2"
+      ],
+      "allowed_citations": [
+        "PMID:1"
+      ],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "reference retrieval",
+          "evidence_refs": [
+            "uniprot.accession"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "missing_claim_support",
+      "expected_pass": false,
+      "generated_text": "A functional interpretation is shown.",
+      "evidence_text": "A functional interpretation is shown.",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "AI-generated interpretation",
+          "evidence_refs": []
+        }
+      ]
+    },
+    {
+      "id": "unsupported_classification",
+      "expected_pass": false,
+      "generated_text": "A hypothesis is shown.",
+      "evidence_text": "A hypothesis is shown.",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "unsupported/insufficient evidence",
+          "evidence_refs": [
+            "note"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "two_supported_numbers",
+      "expected_pass": true,
+      "generated_text": "PC1 was 35.227 and PC2 was 18.709.",
+      "evidence_text": "PC1 35.227; PC2 18.709",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "pca"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "one_of_two_numbers_wrong",
+      "expected_pass": false,
+      "generated_text": "PC1 was 35.227 and PC2 was 19.0.",
+      "evidence_text": "PC1 35.227; PC2 18.709",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "pca"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "citation_case_normalization",
+      "expected_pass": true,
+      "generated_text": "Source recorded.",
+      "evidence_text": "Source recorded.",
+      "generated_citations": [
+        "pmid:1"
+      ],
+      "allowed_citations": [
+        "PMID:1"
+      ],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "reference retrieval",
+          "evidence_refs": [
+            "source"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "empty_text_supported_claim",
+      "expected_pass": true,
+      "generated_text": "",
+      "evidence_text": "",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "result"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "multiple_claim_one_missing",
+      "expected_pass": false,
+      "generated_text": "Recorded evidence.",
+      "evidence_text": "Recorded evidence.",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "reference retrieval",
+          "evidence_refs": [
+            "source"
+          ]
+        },
+        {
+          "id": "c2",
+          "classification": "AI-generated interpretation",
+          "evidence_refs": []
+        }
+      ]
+    },
+    {
+      "id": "percent_supported",
+      "expected_pass": true,
+      "generated_text": "Mapping was 98.5%.",
+      "evidence_text": "Mapping was 98.5%.",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "mapping"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "percent_mismatch",
+      "expected_pass": false,
+      "generated_text": "Mapping was 99.0%.",
+      "evidence_text": "Mapping was 98.5%.",
+      "generated_citations": [],
+      "allowed_citations": [],
+      "claims": [
+        {
+          "id": "c1",
+          "classification": "deterministic computation",
+          "evidence_refs": [
+            "mapping"
+          ]
+        }
+      ]
+    }
+  ]
+}

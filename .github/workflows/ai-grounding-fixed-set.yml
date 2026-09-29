@@ -1,0 +1,35 @@
+name: ai-grounding-fixed-set
+
+on:
+  push:
+    branches:
+      - audit/final-publication-hardening-2026-09-19
+    paths:
+      - 'benchmark/ai-grounding/**'
+      - 'bioai-platform/backend/app/benchmarking/bbs2.py'
+      - '.github/workflows/ai-grounding-fixed-set.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  evaluate:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Execute predeclared grounding-gate cases
+        env:
+          PYTHONPATH: bioai-platform/backend
+        run: python benchmark/ai-grounding/run_fixed_set.py
+      - name: Upload retained evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-grounding-fixed-set
+          path: benchmark/ai-grounding/results/
+          if-no-files-found: error

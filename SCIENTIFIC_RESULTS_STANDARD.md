@@ -76,7 +76,7 @@ Every result should be reviewable at three levels: concise summary, scientist-fa
 
 The registry in `bioai-platform/backend/app/science/validation_registry.py` is separate from per-run `ScientificResult.status`. A module can be software/method verified while production accuracy remains `NOT_EVALUATED`.
 
-`VALIDATED` is benchmark-gated. Runtime/UI/AI code cannot promote it. A promotion requires an integrity-checked evidence artifact under `benchmarks/validation-registry` containing the benchmark identifier, run identifier, predeclared acceptance criteria and retained results.
+`VALIDATED` is benchmark-gated. Runtime/UI/AI code cannot promote it. A promotion requires an integrity-checked evidence artifact under `benchmark/validation-registry` containing the benchmark identifier, run identifier, predeclared acceptance criteria and retained results.
 
 ## Minimum outputs by workflow
 

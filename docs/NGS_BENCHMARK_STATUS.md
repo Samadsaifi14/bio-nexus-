@@ -1,13 +1,16 @@
 # NGS benchmark status
 
-Last reviewed: 2026-09-01
+Last reviewed: 2026-09-19
 
 ## Current conclusion
 
-Bio-Nexus NGS v2 has **not** been shown to match or outperform nf-core/sarek. No same-input
-Nextflow comparison or GIAB truth-set evaluation has completed. The current endpoint is an
-exploratory, sampled, surrogate implementation and must not be used for whole-run, research,
-diagnostic, or clinical conclusions.
+BioNexus has **not** been shown to match or outperform nf-core/sarek for production germline
+accuracy. The product now has two deliberately separate execution classes: (1) an exploratory,
+sampled Python preview for bounded teaching/UI evidence and (2) configured durable production
+execution that submits pinned nf-core workflows through local, SLURM or AWS Batch adapters.
+Neither the existence nor successful execution of a production adapter establishes variant-calling
+accuracy. BioNexus-produced germline accuracy remains `NOT_EVALUATED` until a matched GIAB
+benchmark is completed and retained.
 
 ## Compact portability benchmark
 
@@ -56,21 +59,19 @@ Required reported metrics:
 supports it. It must never be generalized from one caller, region, sample, or variant class to the
 whole pipeline.
 
-## Current execution blockers
+## Current production-benchmark requirement
 
-Preflight on 2026-09-01 found:
+The repository now contains durable production executor adapters, but the selected full HG002
+experiment still requires a storage-backed execution environment with staged HG002 reads, the
+matching GRCh38 reference/resource bundle, the accepted GIAB truth VCF and confident-region BED,
+Nextflow and an appropriate container runtime. Local, SLURM and AWS Batch adapters fail closed
+when their preflight requirements are not configured.
 
-- 29 GB free storage, 15 GiB RAM, 9 CPUs and no swap;
-- no Nextflow, Docker, Singularity or Apptainer;
-- no samtools, bcftools, BWA-MEM2, GATK or DeepVariant;
-- no HG002 WGS FASTQs or matching GIAB truth VCF/BED;
-- no configured GRCh38 FASTA, indexes, dictionary, annotation, known-sites or blacklist bundle;
-- repository inputs consist only of two tiny single-end cleaned FASTQs with no truth data.
-
-This workspace therefore cannot execute the selected full-genome comparison. A storage-backed
-HPC or cloud runner with a container runtime is required. Until a completed signed benchmark
-report is ingested, all comparison entries remain `NOT_EVALUATED` and all accuracy claims remain
-`NO_ACCURACY_CLAIM`.
+The retained real HG002 chr20 benchmark currently exercises the hap.py truth-evaluation harness
+against an independent public query callset. It verifies the evaluator path only; those calls were
+not produced by BioNexus/Sarek. Until a BioNexus production Sarek callset is generated and a
+complete matched benchmark report is retained, production accuracy remains `NOT_EVALUATED` and
+the claim state remains `NO_ACCURACY_CLAIM`.
 
 ## Acceptance gate
 
@@ -80,16 +81,19 @@ metrics, logs, and an artifact location. Missing evidence keeps the status `NOT_
 
 ## Production WGS/WES support
 
-Bio-Nexus now exposes a production launch planner at `POST /api/ngs/v2/production/plan` for
-human WGS and WES from FASTQ, BAM or CRAM inputs. It supports singleton, cohort, duo, trio and
-family models across Docker, Singularity, Apptainer, SLURM and AWS Batch execution profiles.
-Plans pin `nf-core/sarek` 3.10.0, return a non-shell argument array, declare required artifacts
-and provenance, and block incomplete WES or cluster/cloud plans before launch.
+BioNexus exposes a production plan/submit/status/artifact path for human WGS/WES. Plans pin
+`nf-core/sarek` 3.10.0, return a non-shell argument array, declare required artifacts and
+provenance, and block incomplete WES or executor configurations before launch.
 
-The planner is not the compute worker. The deployment must stage private inputs and references
-on an authorized durable worker, execute the returned argument array without shell interpolation,
-then import the actual run trace, reports, checksums, QC, alignment and variant artifacts. Until
-that import is implemented and completes, the plan remains `PLANNED` and never `EXECUTED`.
+When explicitly enabled and preflight-ready, the production executor can submit the validated
+command to a durable local worker, SLURM or AWS Batch. The run record preserves workflow/revision,
+executor identity and the launch contract; artifact import inventories the observed output groups.
+Production execution never falls back to the exploratory Python preview. An unavailable executor
+therefore blocks submission rather than producing a surrogate result.
+
+A `SUBMITTED` or `SUCCEEDED` workflow state means that the configured execution adapter handled
+the pinned workflow. It does **not** mean that the caller is scientifically validated against GIAB,
+nor does it establish clinical validity.
 
 ## Clinical-intent software gate
 

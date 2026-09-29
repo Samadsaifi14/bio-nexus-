@@ -1,0 +1,43 @@
+name: docking-1stp-redocking
+
+on:
+  push:
+    branches:
+      - audit/final-publication-hardening-2026-09-19
+    paths:
+      - 'benchmark/real_data/DOCKING_1STP/**'
+      - 'bioai-platform/backend/app/benchmarking/docking_redock.py'
+      - 'bioai-platform/backend/app/tools/docking.py'
+      - '.github/workflows/docking-1stp-redocking.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  redock:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    defaults:
+      run:
+        working-directory: .
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Install benchmark dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install rdkit openbabel-wheel
+      - name: Execute predeclared 1STP redocking benchmark
+        env:
+          PYTHONPATH: bioai-platform/backend
+        run: python benchmark/real_data/DOCKING_1STP/run_redocking.py
+      - name: Upload retained evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: docking-1stp-redocking
+          path: benchmark/real_data/DOCKING_1STP/results/
+          if-no-files-found: error

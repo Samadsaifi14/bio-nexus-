@@ -38,7 +38,8 @@ main {
   box-shadow: var(--data-card-shadow) !important;
 }
 
-.data-card:hover {
+a.data-card:hover,
+button.data-card:hover {
   border-color: var(--data-card-border-hover) !important;
 }
 

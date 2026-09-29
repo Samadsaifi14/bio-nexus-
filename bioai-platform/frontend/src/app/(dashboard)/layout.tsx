@@ -1,10 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useId } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { motion, AnimatePresence } from 'framer-motion';
-import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, SignOut as LogOut, List as Menu, CaretRight as ChevronRight } from '@phosphor-icons/react';
+import { motion, AnimatePresence, useReducedMotion } from 'framer-motion';
+import { SquaresFour as LayoutDashboard, TestTube as FlaskConical, Clock, ClockCounterClockwise as History, MagnifyingGlass as Search, GearSix as Settings, BookOpen, SignOut as LogOut, List as Menu, CaretRight as ChevronRight, ArrowUpRight } from '@phosphor-icons/react';
 import { useAuth } from '@/contexts/auth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
@@ -21,6 +21,10 @@ const NAV_ITEMS = [
   { href: '/settings',  icon: Settings,        label: 'Settings'   },
 ] as const;
 
+const PAGE_TITLES: Record<string, string> = {
+  dashboard: 'Research desk', analyze: 'Methods', retrieve: 'Retrieve evidence', jobs: 'Jobs', history: 'History', learn: 'Learning library', settings: 'Settings', results: 'Results', report: 'Report', wizard: 'Guided workflow', shared: 'Shared result',
+};
+
 const labelVariants = {
   hidden: { opacity: 0, width: 0,    transition: { duration: 0.15 } },
   show:   { opacity: 1, width: 'auto', transition: { duration: 0.2, delay: 0.05 } },
@@ -31,16 +35,18 @@ function SidebarContent({
   pathname,
   user,
   signOut,
+  onNavigate,
 }: {
   collapsed: boolean;
   pathname: string;
   user: { email?: string | null } | null;
   signOut: () => void;
+  onNavigate?: () => void;
 }) {
   return (
-    <div className="flex flex-col h-full py-4">
-      <div className={`flex items-center gap-3 px-4 pb-5 mb-1 ${collapsed ? 'justify-center' : ''}`}>
-        <div className="w-8 h-8 rounded-sm flex items-center justify-center flex-shrink-0 bg-accent-cyan text-surface-0 font-display text-sm" aria-hidden="true">B</div>
+    <div className="flex flex-col h-full py-5">
+      <div className={`flex items-center gap-3 px-4 pb-6 mb-1 ${collapsed ? 'justify-center' : ''}`}>
+        <div className="bn-mark flex-shrink-0" aria-hidden="true">B<span className="bn-mark-dot" /></div>
 
         <AnimatePresence>
           {!collapsed && (
@@ -50,7 +56,7 @@ function SidebarContent({
               initial="hidden"
               animate="show"
               exit="hidden"
-              className="font-display text-sm font-semibold overflow-hidden whitespace-nowrap"
+              className="font-display text-lg font-semibold overflow-hidden whitespace-nowrap"
             >
               BioNexus
             </motion.span>
@@ -58,9 +64,8 @@ function SidebarContent({
         </AnimatePresence>
       </div>
 
-      <div className="divider mx-4 mb-3" />
-
-      <nav className="flex-1 px-3 space-y-0.5">
+      {!collapsed && <p className="px-5 pb-3 text-[10px] font-mono uppercase tracking-[.16em] text-text-muted">Workspace</p>}
+      <nav aria-label="Workspace navigation" className="flex-1 px-3 space-y-1 overflow-y-auto">
         {NAV_ITEMS.map(({ href, icon: Icon, label }) => {
           const active = pathname === href || (href !== '/dashboard' && pathname.startsWith(href + '/'));
 
@@ -68,6 +73,9 @@ function SidebarContent({
             <Link
               key={href}
               href={href}
+              onClick={onNavigate}
+              aria-current={active ? 'page' : undefined}
+              title={collapsed ? label : undefined}
               className={`nav-item ${active ? 'active' : ''} ${collapsed ? 'justify-center' : ''} group`}
             >
               <Icon
@@ -93,7 +101,7 @@ function SidebarContent({
 
               {collapsed && (
                 <div
-                  className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap text-text-primary pointer-events-none opacity-0 group-hover:opacity-100 transition-opacity z-[100]"
+                  className="absolute left-full ml-3 px-2.5 py-1.5 rounded-lg text-xs whitespace-nowrap text-text-primary pointer-events-none opacity-0 group-hover:opacity-100 group-focus-within:opacity-100 transition-opacity z-[100]"
                   style={{
                     background: 'rgb(var(--bg-surface-2))',
                     border:     '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
@@ -151,14 +159,7 @@ function SidebarContent({
           )}
         </button>
 
-        {!collapsed && (
-          <div className="px-3 pt-2">
-            <div className="divider mb-3" />
-            <div className="flex items-center justify-between px-3">
-              <span className="text-[10px] font-mono uppercase tracking-widest text-text-muted">Research workspace</span>
-            </div>
-          </div>
-        )}
+        {!collapsed && <p className="px-3 pt-2 text-[10px] font-mono uppercase tracking-widest text-text-muted">Research workspace</p>}
       </div>
     </div>
   );
@@ -169,14 +170,22 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const { user, signOut }     = useAuth();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const auditSessionId = useId();
+  const reduceMotion = useReducedMotion();
+  const section = pathname.split('/').filter(Boolean)[0] || 'dashboard';
 
-  useEffect(() => { setMobileOpen(false); }, [pathname]);
+  useEffect(() => {
+    if (!mobileOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => { if (event.key === 'Escape') setMobileOpen(false); };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileOpen]);
 
   return (
-    <div className="flex min-h-[100dvh] h-[100dvh] bg-void overflow-hidden">
+    <div className="bn-app-shell flex min-h-[100dvh] h-[100dvh] bg-void overflow-hidden">
       <motion.aside
-        animate={{ width: collapsed ? 68 : 220 }}
-        transition={{ duration: 0.28, ease: [0.25, 1, 0.5, 1] }}
+        animate={{ width: collapsed ? 72 : 248 }}
+        transition={{ duration: reduceMotion ? 0 : 0.34, ease: [0.22, 1, 0.36, 1] }}
         className="glass-sidebar relative hidden md:flex flex-col flex-shrink-0 overflow-visible"
       >
         <SidebarContent
@@ -188,6 +197,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
         <button
           onClick={() => setCollapsed(!collapsed)}
+          aria-expanded={!collapsed}
           className="absolute -right-5 top-[10px] z-20 w-11 h-11 rounded-sm flex items-center justify-center"
           style={{
             background: 'rgb(var(--bg-surface-2))',
@@ -206,7 +216,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       <AnimatePresence>
         {mobileOpen && (
           <>
-            <motion.div
+            <motion.button
+              type="button"
+              aria-label="Close navigation"
               key="backdrop"
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -218,17 +230,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
             <motion.aside
               key="drawer"
-              initial={{ x: -240 }}
+              initial={reduceMotion ? false : { x: -256 }}
               animate={{ x: 0 }}
-              exit={{ x: -240 }}
-              transition={{ type: 'spring', damping: 32, stiffness: 300 }}
-              className="glass-sidebar fixed left-0 top-0 bottom-0 w-56 z-50 md:hidden overflow-hidden"
+              exit={reduceMotion ? { opacity: 0 } : { x: -256 }}
+              transition={{ duration: reduceMotion ? 0 : .3, ease: [0.22, 1, 0.36, 1] }}
+              className="glass-sidebar fixed left-0 top-0 bottom-0 w-64 z-50 md:hidden overflow-hidden"
             >
               <SidebarContent
                 collapsed={false}
                 pathname={pathname}
                 user={user}
                 signOut={signOut}
+                onNavigate={() => setMobileOpen(false)}
               />
             </motion.aside>
           </>
@@ -237,7 +250,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <header
-          className="glass-header flex items-center gap-4 px-6 py-4 flex-shrink-0"
+          className="glass-header bn-app-topbar flex items-center gap-4 px-4 py-3 sm:px-8 flex-shrink-0"
         >
           <button
             onClick={() => setMobileOpen(true)}
@@ -247,23 +260,24 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Menu size={18} />
           </button>
 
-          <div className="flex-1">
-            <span className="text-xs font-mono text-text-muted capitalize">
-              {pathname.split('/').filter(Boolean).join(' · ')}
-            </span>
+          <div className="flex-1 min-w-0">
+            <p className="text-[10px] font-mono uppercase tracking-[.13em] text-text-muted">BioNexus / {section}</p>
+            <p className="truncate font-display text-lg leading-tight text-text-primary">{PAGE_TITLES[section] || section}</p>
           </div>
 
-          <span className="hidden sm:inline text-[11px] font-mono uppercase tracking-widest text-text-muted">BioNexus / Field Notes</span>
+          <Link href="/analyze" className="bn-shell-action hidden sm:inline-flex">New analysis <ArrowUpRight size={17} aria-hidden="true" /></Link>
         </header>
 
         <main className="flex-1 overflow-y-auto relative">
-          <div className="relative z-10 max-w-content mx-auto px-6 py-8">
-            <ErrorBoundary>{children}</ErrorBoundary>
+          <div className="relative z-10 max-w-[1380px] mx-auto px-4 py-8 sm:px-8 lg:py-10">
+            <motion.div key={pathname} initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35, ease: [0.22, 1, 0.36, 1] }}>
+              <ErrorBoundary>{children}</ErrorBoundary>
+            </motion.div>
           </div>
         </main>
       </div>
       <TutorialWalkthrough />
-      <AuditInsightPanel sessionId={typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `${Date.now()}`} />
+      <AuditInsightPanel sessionId={auditSessionId} />
       <BreadcrumbSchema />
     </div>
   );

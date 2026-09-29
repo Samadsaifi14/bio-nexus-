@@ -1,11 +1,9 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, Funnel, Rocket, HouseLine, Wrench } from '@phosphor-icons/react';
-import { motion } from 'framer-motion';
-import { fadeUp } from '@/lib/animations';
-import { CriticalButton } from '@/components/ui';
+import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, Funnel, Rocket, HouseLine, Wrench, ArrowUpRight, X } from '@phosphor-icons/react';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 
 type Operation = { id: string; name: string; description: string; icon: typeof Dna; badge?: string };
 type Group = { title: string; description: string; items: Operation[] };
@@ -48,17 +46,37 @@ const groups: Group[] = [
   ]},
 ];
 
-function OperationCard({ op }: { op: Operation }) {
-  const Icon = op.icon;
-  return <Link href={`/analyze/${op.id}`} className="group block w-full rounded-xl border border-glass-border bg-surface-0 p-4 text-left transition hover:border-accent-cyan/35 hover:bg-surface-1">
-    <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg border border-glass-border bg-surface-1 p-2"><Icon className="h-4 w-4 text-accent-cyan" /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="text-sm font-semibold text-text-primary">{op.name}</h3>{op.badge && <span className="rounded border border-accent-cyan/25 bg-accent-cyan/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent-cyan">{op.badge}</span>}</div><p className="mt-1 text-xs leading-5 text-text-muted">{op.description}</p></div></div>
-  </Link>;
-}
-
 export default function AnalyzePage() {
-  const router = useRouter();
-  return <div className="max-w-6xl">
-    <motion.div variants={fadeUp} initial={{ y: 18 }} animate="show" className="mb-8 flex flex-col justify-between gap-4 border-b border-glass-border pb-6 md:flex-row md:items-end"><div><p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-accent-cyan">Scientific workspace</p><h1 className="text-2xl font-semibold text-text-primary">Choose a research workflow</h1><p className="mt-2 max-w-2xl text-sm text-text-muted">Run established bioinformatics methods while preserving QC, raw outputs, methods and provenance as first-class results.</p></div><CriticalButton onClick={() => router.push('/wizard')} className="px-4 py-2.5 text-sm">Guided workflow</CriticalButton></motion.div>
-    {groups.map((group) => <section key={group.title} className="mb-9"><div className="mb-3"><h2 className="text-sm font-semibold text-text-primary">{group.title}</h2><p className="mt-0.5 text-xs text-text-muted">{group.description}</p></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{group.items.map((op) => <OperationCard key={op.id} op={op} />)}</div></section>)}
+  const [category, setCategory] = useState('All methods');
+  const [query, setQuery] = useState('');
+  const reduceMotion = useReducedMotion();
+  const filtered = useMemo(() => groups.map(group => ({ ...group, items: group.items.filter(op =>
+    (category === 'All methods' || category === group.title) &&
+    `${op.name} ${op.description} ${group.title}`.toLowerCase().includes(query.trim().toLowerCase())
+  ) })).filter(group => group.items.length > 0), [category, query]);
+  const count = filtered.reduce((total, group) => total + group.items.length, 0);
+
+  return <div className="bn-catalog max-w-7xl">
+    <div className="bn-catalog-heading">
+      <div><p className="bn-kicker">BioNexus / Methods</p><h1>What would you like to investigate?</h1><p>Search by question or choose a field. Each method opens a dedicated workspace with its own inputs and result views.</p></div>
+      <Link href="/wizard" className="bn-button bn-button-primary shrink-0">Help me choose <ArrowUpRight size={18} aria-hidden="true" /></Link>
+    </div>
+    <div className="bn-catalog-layout">
+      <aside className="bn-catalog-filters" aria-label="Filter methods by field">
+        <p className="bn-kicker">Fields</p>
+        {['All methods', ...groups.map(group => group.title)].map(label => <button key={label} type="button" aria-pressed={category === label} onClick={() => setCategory(label)} className={`bn-filter ${category === label ? 'is-active' : ''}`}><span>{label}</span><span className="font-mono text-xs">{label === 'All methods' ? groups.reduce((n, g) => n + g.items.length, 0) : groups.find(g => g.title === label)?.items.length}</span></button>)}
+        <div className="bn-filter-help"><span>NEW TO THE WORKSPACE?</span><p>Answer a few questions and follow a guided path.</p><Link href="/wizard">Open guide <ArrowUpRight size={15} aria-hidden="true" /></Link></div>
+      </aside>
+      <div className="bn-catalog-results">
+        <div className="bn-catalog-toolbar"><label className="bn-search-field"><Search size={19} aria-hidden="true" /><span className="sr-only">Search methods</span><input type="search" value={query} onChange={e => setQuery(e.target.value)} placeholder="Search methods, inputs or evidence" /></label><span className="bn-result-count" aria-live="polite">{count} {count === 1 ? 'method' : 'methods'}</span></div>
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div key={`${category}:${query}`} initial={reduceMotion ? false : { opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -6 }} transition={{ duration: .2 }}>
+            {count ? filtered.map(group => <section key={group.title} className="bn-catalog-group"><div className="bn-catalog-group-heading"><div><p className="bn-kicker">{group.title}</p><h2>{group.description}</h2></div><span className="font-mono text-xs text-text-muted">{String(group.items.length).padStart(2, '0')}</span></div>
+              <div className="bn-catalog-rows">{group.items.map(op => { const Icon = op.icon; return <Link href={`/analyze/${op.id}`} key={op.id} className="bn-catalog-row group"><span className="bn-catalog-icon"><Icon size={21} aria-hidden="true" /></span><span className="min-w-0"><span className="bn-catalog-name">{op.name} {op.badge && <small>{op.badge}</small>}</span><span className="bn-catalog-description">{op.description}</span></span><ArrowUpRight className="bn-catalog-arrow" size={19} aria-hidden="true" /></Link>; })}</div>
+            </section>) : <div className="bn-catalog-empty"><Search size={30} aria-hidden="true" /><h2>No methods match that search.</h2><p>Try another term or show every method.</p><button type="button" onClick={() => { setQuery(''); setCategory('All methods'); }}>Clear filters <X size={16} aria-hidden="true" /></button></div>}
+          </motion.div>
+        </AnimatePresence>
+      </div>
+    </div>
   </div>;
 }

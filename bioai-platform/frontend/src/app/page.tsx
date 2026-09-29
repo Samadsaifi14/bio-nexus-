@@ -1,131 +1,137 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
-import { ArrowRight, Atom, ChartScatter, Dna, MagnifyingGlass } from "@phosphor-icons/react";
+import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { ArrowRight, Atom, ChartScatter, Dna, MagnifyingGlass, ArrowUpRight } from "@phosphor-icons/react";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { ORG_ID, SOFTWARE_ID, SITE_NAME, SITE_URL, WEBPAGE_ID, WEBSITE_ID } from "@/lib/seo";
 
 const methods = [
-  { number: "01", title: "NGS analysis", field: "Genomics", href: "/analyze/ngs-v2", icon: Dna,
-    description: "Explore sequencing quality, coverage, contamination, identity and variant evidence. Plan production workflows separately from the exploratory preview." },
-  { number: "02", title: "BLAST search", field: "Sequence biology", href: "/analyze/blast", icon: MagnifyingGlass,
-    description: "Inspect similarity hits with identity, coverage, scores, alignments and reference information." },
-  { number: "03", title: "Molecular docking", field: "Structural biology", href: "/analyze/docking", icon: Atom,
-    description: "Review poses, affinity estimates and available interaction evidence alongside the method details." },
-  { number: "04", title: "Molecular dynamics", field: "Simulation", href: "/analyze/md-v2", icon: ChartScatter,
-    description: "Follow preparation, equilibration, production and trajectory quality checks for the hosted implicit-solvent OpenMM workflow." },
+  {
+    number: "01", title: "NGS analysis", field: "Genomics", href: "/analyze/ngs-v2", icon: Dna,
+    question: "What does this sequencing run actually support?",
+    description: "Explore quality, coverage, contamination, identity and variant evidence in the exploratory preview.",
+    input: "FASTQ reads", output: "QC and variant evidence", boundary: "Production planning and external execution are separate steps.",
+  },
+  {
+    number: "02", title: "BLAST search", field: "Sequence biology", href: "/analyze/blast", icon: MagnifyingGlass,
+    question: "Where does this sequence find its closest matches?",
+    description: "Inspect hits with identity, coverage, scores, alignments and reference information.",
+    input: "Protein or nucleotide sequence", output: "Ranked similarity hits", boundary: "Similarity alone does not establish function.",
+  },
+  {
+    number: "03", title: "Molecular docking", field: "Structural biology", href: "/analyze/docking", icon: Atom,
+    question: "How might this ligand fit the target?",
+    description: "Review poses, affinity estimates and available interaction evidence alongside method details.",
+    input: "Prepared target and ligand", output: "Pose and interaction views", boundary: "A docking score is a model estimate, not experimental binding.",
+  },
+  {
+    number: "04", title: "Molecular dynamics", field: "Simulation", href: "/analyze/md-v2", icon: ChartScatter,
+    question: "What changes during the simulated trajectory?",
+    description: "Follow preparation, equilibration, production and trajectory quality checks for hosted implicit-solvent OpenMM.",
+    input: "Prepared molecular system", output: "Trajectory and QC views", boundary: "The hosted workflow uses implicit solvent.",
+  },
 ];
 
+const reveal = { hidden: { opacity: 0, y: 24 }, visible: { opacity: 1, y: 0 } };
+
 export default function LandingPage() {
+  const [selected, setSelected] = useState(0);
+  const reduceMotion = useReducedMotion();
+  const method = methods[selected];
+  const Icon = method.icon;
+  const inView = reduceMotion ? undefined : { once: true, amount: 0.16 as const };
+
   return (
-    <main className="min-h-[100dvh] bg-void text-text-primary">
+    <main className="bn-landing min-h-[100dvh] bg-void text-text-primary">
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-accent-cyan focus:px-4 focus:py-3 focus:text-surface-0">Skip to content</a>
-      <header className="border-b border-glass-border bg-surface-0">
-        <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-5 sm:px-8">
-          <Link href="/" className="flex items-center gap-3 font-display text-xl text-text-primary">
-            <span className="flex h-9 w-9 items-center justify-center rounded-sm bg-accent-cyan text-lg text-surface-0" aria-hidden="true">B</span>BioNexus
-          </Link>
-          <div className="flex items-center gap-4 sm:gap-7">
-            <Link href="#methods" className="hidden min-h-11 items-center text-sm text-text-secondary hover:text-accent-cyan sm:inline-flex">Methods</Link>
-            <Link href="#approach" className="hidden min-h-11 items-center text-sm text-text-secondary hover:text-accent-cyan md:inline-flex">Approach</Link>
-            <Link href="/auth" className="hidden min-h-11 items-center text-sm text-text-secondary hover:text-accent-cyan md:inline-flex">Sign in</Link>
-            <Link href="/analyze" className="inline-flex min-h-11 items-center gap-2 rounded-sm border border-accent-cyan bg-accent-cyan px-4 py-2 text-sm font-semibold text-surface-0 hover:bg-accent-hover">Open workspace <ArrowRight aria-hidden="true" size={16} /></Link>
+      <header className="bn-site-header">
+        <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
+          <Link href="/" className="bn-wordmark" aria-label="BioNexus home"><span className="bn-mark" aria-hidden="true">B<span className="bn-mark-dot" /></span><span>BioNexus</span></Link>
+          <div className="flex items-center gap-3 sm:gap-8">
+            <Link href="#methods" className="bn-nav-link hidden sm:inline-flex">Methods</Link>
+            <Link href="#principles" className="bn-nav-link hidden md:inline-flex">How it works</Link>
+            <Link href="/auth" className="bn-nav-link hidden md:inline-flex">Sign in</Link>
+            <Link href="/analyze" className="bn-button bn-button-primary text-sm">Enter workspace <ArrowUpRight size={17} aria-hidden="true" /></Link>
           </div>
         </nav>
       </header>
+
       <div id="main-content">
-        <section className="mx-auto grid max-w-7xl border-x border-glass-border lg:grid-cols-[minmax(0,1.25fr)_minmax(320px,.75fr)]">
-          <div className="flex flex-col justify-between px-5 pb-16 pt-16 sm:px-8 sm:pb-24 sm:pt-24 lg:border-r lg:border-glass-border lg:px-12 lg:pt-28">
-            <div>
-              <p className="mb-10 font-mono text-xs uppercase tracking-[.18em] text-accent-cyan">Research workspace / 2026</p>
-              <h1 className="max-w-[13ch] font-display text-5xl font-normal leading-[1.03] tracking-[-.035em] sm:text-6xl lg:text-[5.4rem]">The evidence is the starting point.</h1>
-              <p className="mt-8 max-w-[55ch] text-lg leading-8 text-text-secondary">BioNexus brings sequencing, sequence biology and structural methods into one research workspace. Follow the input, inspect the run, and read the result with its context.</p>
-            </div>
-            <div className="mt-12 flex flex-wrap items-center gap-5">
-              <Link href="/analyze" className="inline-flex min-h-12 items-center gap-3 rounded-sm bg-accent-cyan px-6 py-3 text-sm font-semibold text-surface-0 hover:bg-accent-hover">Explore methods <ArrowRight aria-hidden="true" size={18} /></Link>
-              <Link href="/wizard" className="inline-flex min-h-12 items-center gap-2 border-b border-accent-cyan text-sm font-semibold text-accent-cyan hover:text-accent-hover">Start a guided workflow <ArrowRight aria-hidden="true" size={16} /></Link>
-            </div>
+        <section className="bn-hero mx-auto max-w-7xl px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:pb-24 lg:pt-28">
+          <div className="bn-hero-copy">
+            <motion.p initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45 }} className="bn-eyebrow"><span className="bn-eyebrow-line" /> A workspace for asking better biological questions</motion.p>
+            <motion.h1 initial={reduceMotion ? false : { opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .68, delay: .08, ease: [.22, 1, .36, 1] }} className="bn-hero-title">From raw signal to <em>reasoned</em> result.</motion.h1>
+            <motion.p initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .55, delay: .2 }} className="bn-hero-description">Sequence, structure and simulation in one place. BioNexus keeps the method, the quality checks and the source result close enough to read together.</motion.p>
+            <motion.div initial={reduceMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .32 }} className="mt-9 flex flex-wrap items-center gap-5">
+              <Link href="/analyze" className="bn-button bn-button-primary">Explore the methods <ArrowRight size={18} aria-hidden="true" /></Link>
+              <Link href="/wizard" className="bn-text-link">Guide me through a workflow <ArrowUpRight size={17} aria-hidden="true" /></Link>
+            </motion.div>
+            <p className="mt-9 max-w-[54ch] text-xs leading-6 text-text-muted">Run availability depends on the method, input and connected services. Each result reports its own status and limits.</p>
           </div>
-          <aside className="flex flex-col border-t border-glass-border bg-surface-1 px-5 py-10 sm:px-8 lg:border-t-0 lg:px-10 lg:py-16" aria-labelledby="result-anatomy">
-            <p className="font-mono text-xs uppercase tracking-[.18em] text-text-muted">Field note 001 / Reading a result</p>
-            <h2 id="result-anatomy" className="mt-7 max-w-[15ch] font-display text-3xl leading-tight sm:text-4xl">A result has a history.</h2>
-            <p className="mt-5 text-sm leading-7 text-text-secondary">The workspace keeps these layers visible where the method supplies them. This is a workflow outline, without sample measurements.</p>
-            <ol className="mt-12 border-t border-glass-border">
+          <motion.div initial={reduceMotion ? false : { opacity: 0, x: 28, rotate: 1 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: .75, delay: .16, ease: [.22, 1, .36, 1] }} className="bn-specimen" aria-label="Illustrative structure of a research workflow; no sample data">
+            <div className="bn-specimen-top"><span>THE RESEARCH RECORD</span><span>BN / 001</span></div>
+            <div className="bn-specimen-body">
+              <div className="bn-specimen-index">Observe <span>→</span> Test <span>→</span> Interpret</div>
+              <div className="bn-specimen-figure" aria-hidden="true">
+                <span className="bn-figure-ring bn-figure-ring-one" /><span className="bn-figure-ring bn-figure-ring-two" /><span className="bn-figure-ring bn-figure-ring-three" />
+                <span className="bn-figure-core">?</span>
+                <span className="bn-figure-note bn-figure-note-one">INPUT</span><span className="bn-figure-note bn-figure-note-two">METHOD</span><span className="bn-figure-note bn-figure-note-three">EVIDENCE</span>
+              </div>
+              <p className="bn-specimen-caption">A finding is only as useful as the path that produced it.</p>
+            </div>
+            <div className="bn-specimen-bottom"><span>ILLUSTRATIVE WORKFLOW</span><span>NO SAMPLE MEASUREMENTS</span></div>
+          </motion.div>
+        </section>
+
+        <section id="methods" className="bn-methods-section">
+          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
+            <motion.div variants={reveal} initial={reduceMotion ? false : "hidden"} whileInView="visible" viewport={inView} transition={{ duration: .6 }} className="bn-section-heading">
+              <div><p className="bn-kicker">Explore / 01—04</p><h2>Start with the question.</h2></div>
+              <p>Choose a method to see the input, the evidence it can show, and the boundary that matters when interpreting it.</p>
+            </motion.div>
+            <div className="bn-method-explorer">
+              <div className="bn-method-list" aria-label="Research methods">
+                {methods.map((item, index) => {
+                  const ItemIcon = item.icon;
+                  return <button key={item.number} type="button" onClick={() => setSelected(index)} aria-pressed={selected === index} className={`bn-method-choice ${selected === index ? "is-selected" : ""}`}>
+                    <span className="bn-method-number">{item.number}</span><span className="bn-method-icon"><ItemIcon size={23} aria-hidden="true" /></span><span className="bn-method-name"><strong>{item.title}</strong><small>{item.field}</small></span><ArrowUpRight size={18} className="bn-method-arrow" aria-hidden="true" />
+                  </button>;
+                })}
+              </div>
+              <div className="bn-method-detail" aria-live="polite">
+                <AnimatePresence mode="wait" initial={false}>
+                  <motion.div key={method.number} initial={reduceMotion ? false : { opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: -12 }} transition={{ duration: .28, ease: "easeOut" }}>
+                    <div className="bn-detail-top"><span>METHOD {method.number} / {method.field.toUpperCase()}</span><Icon size={27} aria-hidden="true" /></div>
+                    <h3>{method.question}</h3><p className="bn-detail-description">{method.description}</p>
+                    <dl className="bn-detail-facts"><div><dt>Begin with</dt><dd>{method.input}</dd></div><div><dt>Inspect</dt><dd>{method.output}</dd></div></dl>
+                    <div className="bn-detail-boundary"><span>READ WITH CARE</span><p>{method.boundary}</p></div>
+                    <Link href={method.href} className="bn-button bn-button-primary mt-8">Open {method.title} <ArrowRight size={18} aria-hidden="true" /></Link>
+                  </motion.div>
+                </AnimatePresence>
+              </div>
+            </div>
+            <Link href="/analyze" className="bn-text-link mt-8 inline-flex">Browse every workflow <ArrowUpRight size={17} aria-hidden="true" /></Link>
+          </div>
+        </section>
+
+        <section id="principles" className="bn-principles-section">
+          <div className="mx-auto grid max-w-7xl gap-12 px-5 py-20 sm:px-8 lg:grid-cols-[.85fr_1.15fr] lg:gap-24 lg:py-28">
+            <motion.div variants={reveal} initial={reduceMotion ? false : "hidden"} whileInView="visible" viewport={inView} transition={{ duration: .6 }}><p className="bn-kicker">The way we work</p><h2 className="bn-principles-title">Make room for the <em>why</em> behind a result.</h2><p className="mt-6 max-w-[42ch] leading-7 text-text-secondary">An output becomes useful when you can see where it came from and what it cannot tell you.</p></motion.div>
+            <div className="bn-principles-list">
               {[
-                ["01", "Input", "Start from a sequence, structure or sequencing dataset."],
-                ["02", "Method", "Review parameters, run status and quality checks."],
-                ["03", "Evidence", "Inspect tables, figures, source data and limits."],
-              ].map(([number, title, detail]) => (
-                <li key={number} className="grid grid-cols-[2.5rem_1fr] gap-3 border-b border-glass-border py-5">
-                  <span className="font-mono text-xs text-accent-cyan">{number}</span>
-                  <div><h3 className="font-sans text-sm font-semibold">{title}</h3><p className="mt-1 text-sm leading-6 text-text-secondary">{detail}</p></div>
-                </li>
-              ))}
-            </ol>
-            <p className="mt-auto pt-10 text-xs leading-5 text-text-muted">Analysis availability depends on the method, input and connected services. Each run shows its own status.</p>
-          </aside>
-        </section>
-        <section id="methods" className="border-y border-glass-border bg-surface-0">
-          <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:px-12">
-            <div className="grid gap-5 md:grid-cols-[1fr_1fr] md:gap-12">
-              <div><p className="font-mono text-xs uppercase tracking-[.18em] text-accent-cyan">Method index / 01—04</p><h2 className="mt-5 max-w-[15ch] font-display text-4xl leading-tight sm:text-5xl">Choose the question. See the method.</h2></div>
-              <p className="max-w-[54ch] self-end text-base leading-7 text-text-secondary">Each method opens into its own workflow, with the scientific output and available provenance beside it.</p>
-            </div>
-            <div className="mt-14 border-t border-glass-border">
-              {methods.map(({ number, title, field, href, icon: Icon, description }) => (
-                <Link key={number} href={href} className="group grid gap-3 border-b border-glass-border px-2 py-7 transition-colors hover:bg-surface-1 sm:grid-cols-[3rem_minmax(0,1fr)_minmax(0,1.2fr)_2rem] sm:items-start sm:gap-6">
-                  <span className="font-mono text-xs text-accent-cyan">{number}</span>
-                  <div><Icon aria-hidden="true" size={22} className="mb-4 text-accent-cyan" /><h3 className="font-display text-2xl sm:text-3xl">{title}</h3><span className="mt-2 block font-mono text-xs uppercase tracking-wider text-text-muted">{field}</span></div>
-                  <p className="max-w-[53ch] text-sm leading-7 text-text-secondary">{description}</p>
-                  <ArrowRight aria-hidden="true" size={20} className="text-accent-cyan transition-transform group-hover:translate-x-1" />
-                </Link>
-              ))}
+                ["01", "See the measurement", "Tables and figures show values returned by the run. Missing data is never treated as a measured zero."],
+                ["02", "Keep the method in view", "Parameters, reference identity, quality checks and run status stay close to the result where available."],
+                ["03", "Interpret with limits", "AI explanations are checked against recorded evidence. Grounding is not independent biological validation."],
+              ].map(([number, title, copy]) => <motion.div key={number} variants={reveal} initial={reduceMotion ? false : "hidden"} whileInView="visible" viewport={inView} transition={{ duration: .5 }} className="bn-principle"><span>{number}</span><div><h3>{title}</h3><p>{copy}</p></div></motion.div>)}
             </div>
           </div>
         </section>
-        <section id="approach" className="mx-auto grid max-w-7xl border-x border-glass-border lg:grid-cols-[1fr_1fr]">
-          <div className="px-5 py-20 sm:px-8 lg:border-r lg:border-glass-border lg:px-12"><p className="font-mono text-xs uppercase tracking-[.18em] text-accent-cyan">Approach / Scientific context</p><h2 className="mt-5 max-w-[17ch] font-display text-4xl leading-tight sm:text-5xl">Keep the result connected to the run.</h2></div>
-          <div className="border-t border-glass-border px-5 py-12 sm:px-8 lg:border-t-0 lg:px-12 lg:py-20">
-            <div className="space-y-8">
-              <div><h3 className="font-sans text-base font-semibold">Measurements</h3><p className="mt-2 text-sm leading-7 text-text-secondary">Tables and plots represent values returned by the run. A missing measurement is different from a measured zero.</p></div>
-              <div className="border-t border-glass-border pt-8"><h3 className="font-sans text-base font-semibold">Methods and provenance</h3><p className="mt-2 text-sm leading-7 text-text-secondary">Review the engine, parameters, reference identity and run status where those records are available.</p></div>
-              <div className="border-t border-glass-border pt-8"><h3 className="font-sans text-base font-semibold">Interpretation with limits</h3><p className="mt-2 text-sm leading-7 text-text-secondary">AI explanations are checked against recorded results. A grounding check does not independently validate a biological conclusion.</p></div>
-            </div>
-          </div>
-        </section>
-        <section className="border-t border-glass-border bg-accent-cyan px-5 py-16 text-surface-0 sm:px-8"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-8 md:flex-row md:items-end"><div><p className="font-mono text-xs uppercase tracking-[.18em] text-surface-0/80">Continue / Workspace</p><h2 className="mt-4 max-w-[18ch] font-display text-3xl text-surface-0 sm:text-4xl">Bring your question to the workspace.</h2></div><Link href="/analyze" className="inline-flex min-h-12 items-center gap-3 self-start rounded-sm border border-surface-0 px-5 py-3 text-sm font-semibold text-surface-0 hover:bg-surface-0 hover:text-accent-cyan">Open workspace <ArrowRight aria-hidden="true" size={18} /></Link></div></section>
+        <section className="bn-final-cta"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-8 px-5 py-16 sm:px-8 md:flex-row md:items-end"><div><p className="bn-kicker">Your next question</p><h2>Take it into the workspace.</h2><p className="mt-3 text-sm text-text-secondary">Browse methods or start with a guided path.</p></div><Link href="/analyze" className="bn-button bn-button-primary self-start">Open workspace <ArrowUpRight size={18} aria-hidden="true" /></Link></div></section>
       </div>
-      <footer className="border-t border-glass-border px-5 py-8 text-sm text-text-secondary sm:px-8"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 sm:flex-row"><span>BioNexus · Built at Jamia Millia Islamia</span><div className="flex gap-6"><Link href="/auth" className="hover:text-accent-cyan">Sign in</Link><span>© 2026 BioNexus</span></div></div></footer>
-      <JsonLd
-        data={{
-          "@context": "https://schema.org",
-          "@type": "WebPage",
-          "@id": WEBPAGE_ID,
-          url: `${SITE_URL}/`,
-          name: "BioNexus — Bioinformatics research workspace",
-          isPartOf: { "@id": WEBSITE_ID },
-          about: { "@id": SOFTWARE_ID },
-          mainEntity: {
-            "@type": "SoftwareApplication",
-            "@id": SOFTWARE_ID,
-            name: SITE_NAME,
-            applicationCategory: "ScienceApplication",
-            applicationSubCategory: "Bioinformatics",
-            operatingSystem: "Web",
-            url: `${SITE_URL}/`,
-            description:
-              "Bioinformatics workspace for sequencing, sequence analysis and structural methods with result and provenance views.",
-            featureList: [
-              "NGS exploratory analysis and production planning",
-              "BLAST similarity search",
-              "Molecular docking",
-              "Molecular dynamics",
-              "Scientific result workspace",
-            ],
-            creator: { "@id": ORG_ID },
-          },
-        }}
-      />
+      <footer className="bn-footer"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 px-5 py-8 sm:flex-row sm:px-8"><span>BioNexus · Built at Jamia Millia Islamia</span><div className="flex gap-6"><Link href="/auth">Sign in</Link><span>© 2026 BioNexus</span></div></div></footer>
+      <JsonLd data={{ "@context": "https://schema.org", "@type": "WebPage", "@id": WEBPAGE_ID, url: `${SITE_URL}/`, name: "BioNexus — Bioinformatics research workspace", isPartOf: { "@id": WEBSITE_ID }, about: { "@id": SOFTWARE_ID }, mainEntity: { "@type": "SoftwareApplication", "@id": SOFTWARE_ID, name: SITE_NAME, applicationCategory: "ScienceApplication", applicationSubCategory: "Bioinformatics", operatingSystem: "Web", url: `${SITE_URL}/`, description: "Bioinformatics workspace for sequencing, sequence analysis and structural methods with result and provenance views.", featureList: ["NGS exploratory analysis and production planning", "BLAST similarity search", "Molecular docking", "Molecular dynamics", "Scientific result workspace"], creator: { "@id": ORG_ID } } }} />
     </main>
   );
 }

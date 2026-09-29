@@ -71,10 +71,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ['Georgia', 'Times New Roman', 'serif'],
-        body:    ['Arial', 'Helvetica', 'sans-serif'],
+        display: ['Palatino Linotype', 'Palatino', 'Georgia', 'serif'],
+        body:    ['Trebuchet MS', 'Segoe UI', 'Arial', 'sans-serif'],
         mono:    ['SFMono-Regular', 'Consolas', 'Liberation Mono', 'monospace'],
-        sans:    ['Arial', 'Helvetica', 'sans-serif'],
+        sans:    ['Trebuchet MS', 'Segoe UI', 'Arial', 'sans-serif'],
       },
       boxShadow: {
         'glow-cyan':   'var(--shadow-glow-cyan)',

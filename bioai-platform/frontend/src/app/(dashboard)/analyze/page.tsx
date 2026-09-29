@@ -1,9 +1,10 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Dna, SquaresFour as Layout, MagnifyingGlass as Search, Globe, GitBranch, Flask as Beaker, Stack as Layers, ShareNetwork as Share2, TestTube as FlaskConical, Shuffle, GitFork, Atom, Pill, Pulse as Activity, Brain, ArrowsLeftRight as ArrowSwap, Calculator, Target, ChartScatter, Funnel, Rocket, HouseLine, Wrench } from '@phosphor-icons/react';
 import { motion } from 'framer-motion';
-import { fadeUp, stagger, press } from '@/lib/animations';
+import { fadeUp } from '@/lib/animations';
 import { CriticalButton } from '@/components/ui';
 
 type Operation = { id: string; name: string; description: string; icon: typeof Dna; badge?: string };
@@ -47,17 +48,17 @@ const groups: Group[] = [
   ]},
 ];
 
-function OperationCard({ op, router }: { op: Operation; router: ReturnType<typeof useRouter> }) {
+function OperationCard({ op }: { op: Operation }) {
   const Icon = op.icon;
-  return <motion.button variants={fadeUp} whileTap={press} onClick={() => router.push(`/analyze/${op.id}`)} className="group w-full rounded-xl border border-glass-border bg-surface-0 p-4 text-left transition hover:border-accent-cyan/35 hover:bg-surface-1">
+  return <Link href={`/analyze/${op.id}`} className="group block w-full rounded-xl border border-glass-border bg-surface-0 p-4 text-left transition hover:border-accent-cyan/35 hover:bg-surface-1">
     <div className="flex items-start gap-3"><div className="mt-0.5 rounded-lg border border-glass-border bg-surface-1 p-2"><Icon className="h-4 w-4 text-accent-cyan" /></div><div className="min-w-0 flex-1"><div className="flex items-center gap-2"><h3 className="text-sm font-semibold text-text-primary">{op.name}</h3>{op.badge && <span className="rounded border border-accent-cyan/25 bg-accent-cyan/8 px-1.5 py-0.5 text-[9px] font-semibold uppercase tracking-wider text-accent-cyan">{op.badge}</span>}</div><p className="mt-1 text-xs leading-5 text-text-muted">{op.description}</p></div></div>
-  </motion.button>;
+  </Link>;
 }
 
 export default function AnalyzePage() {
   const router = useRouter();
   return <div className="max-w-6xl">
     <motion.div variants={fadeUp} initial={{ y: 18 }} animate="show" className="mb-8 flex flex-col justify-between gap-4 border-b border-glass-border pb-6 md:flex-row md:items-end"><div><p className="mb-2 font-mono text-[10px] uppercase tracking-[0.18em] text-accent-cyan">Scientific workspace</p><h1 className="text-2xl font-semibold text-text-primary">Choose a research workflow</h1><p className="mt-2 max-w-2xl text-sm text-text-muted">Run established bioinformatics methods while preserving QC, raw outputs, methods and provenance as first-class results.</p></div><CriticalButton onClick={() => router.push('/wizard')} className="px-4 py-2.5 text-sm">Guided workflow</CriticalButton></motion.div>
-    {groups.map((group) => <section key={group.title} className="mb-9"><div className="mb-3"><h2 className="text-sm font-semibold text-text-primary">{group.title}</h2><p className="mt-0.5 text-xs text-text-muted">{group.description}</p></div><motion.div variants={stagger} initial="hidden" animate="show" className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{group.items.map((op) => <OperationCard key={op.id} op={op} router={router} />)}</motion.div></section>)}
+    {groups.map((group) => <section key={group.title} className="mb-9"><div className="mb-3"><h2 className="text-sm font-semibold text-text-primary">{group.title}</h2><p className="mt-0.5 text-xs text-text-muted">{group.description}</p></div><div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{group.items.map((op) => <OperationCard key={op.id} op={op} />)}</div></section>)}
   </div>;
 }

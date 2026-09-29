@@ -13,8 +13,8 @@ import { JsonLd } from '@/components/seo/JsonLd';
 import { ORG_ID, SITE_NAME, SITE_URL, WEBSITE_ID } from '@/lib/seo';
 
 export const metadata: Metadata = {
-  title: 'Bio Nexus — One interface for every bioinformatics tool',
-  description: 'Protein sequence analysis, BLAST, UniProt, AlphaFold, docking — all in one place. Built for researchers who aren\'t bioinformaticians.',
+  title: 'BioNexus — Bioinformatics research workspace',
+  description: 'Explore sequencing, sequence biology and structural methods with quality checks, results and scientific context in one workspace.',
 };
 
 export default function RootLayout({
@@ -43,7 +43,7 @@ export default function RootLayout({
                 name: SITE_NAME,
                 url: `${SITE_URL}/`,
                 description:
-                  'Bio Nexus unifies BLAST, UniProt, AlphaFold, molecular docking and AI interpretation into a single bioinformatics research interface.',
+                  'BioNexus brings sequencing, sequence analysis and structural methods into a research workspace with scientific result views.',
                 sameAs: ['https://github.com/Samadsaifi14/bio-nexus-'],
                 foundingLocation: {
                   '@type': 'Place',

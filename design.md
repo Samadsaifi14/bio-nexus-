@@ -18,6 +18,24 @@ a 2003 bioinformatics portal. Dark-only, cinematic, scientific.
 - Motion is one authored moment per view (see §7), never a generic entrance on
   every section.
 
+### Public landing page application (September 2026)
+
+The landing page uses the existing dark tokens with one green action color and
+quiet surface borders. Its layout takes cues from technical product pages in
+the curated DESIGN.md collection: a clear editorial headline, a method index,
+and a compact explanation of how results are organized. Those references are
+inspiration, not BioNexus brand specifications.
+
+- Keep the hero readable without a 3D helix, ambient orbs, or continuous motion.
+- Use method names and descriptions as the primary navigation. Link directly to
+  the corresponding workspace routes.
+- Keep examples structural. Do not invent hits, affinity values, job counts,
+  confidence bands, or provenance records for marketing visuals.
+- Distinguish an exploratory NGS preview from production planning and external
+  execution. Describe AlphaFold DB as structure retrieval where applicable.
+- Use the existing type scale, 4px spacing system, and green accent; avoid
+  decorative gradients in data and method content.
+
 ## 2. Color System
 
 ### 2.1 Canvas & surfaces

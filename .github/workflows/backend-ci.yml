@@ -56,6 +56,10 @@ jobs:
             tests/test_ngs_paired_preview.py \
             tests/test_ngs_demo_downloads.py \
             tests/test_ngs_guided_pipeline.py \
+            tests/test_geo_counts_import.py \
+            tests/test_geo_search.py \
+            tests/test_rnaseq_expression_contract.py \
+            tests/test_rnaseq_production.py \
             -q
 
       - name: Benchmark + engine registry integrity

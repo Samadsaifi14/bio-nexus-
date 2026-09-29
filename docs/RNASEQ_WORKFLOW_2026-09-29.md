@@ -1,12 +1,19 @@
-# RNA-seq workflow in the NGS workspace
+# BioNexus RNA-seq counts workflow
 
-The NGS screen follows the supplied ten-stage RNA-seq sequence: question/design; GEO/SRA selection; FASTQ acquisition; raw QC; contextual identity/homology check; matching FASTA/GTF reference; alignment/quantification; raw counts; sample/design QC; differential expression.
+The primary NGS page follows one runnable route: GEO Series search → source-linked supplementary matrix selection → validation of raw integer gene counts → explicit sample mapping and group review → R/DESeq2 → figures and exportable source tables.
 
-## What is executable
+The page does not present the unavailable nf-core worker as part of this route. FASTQ alignment/quantification is a different upstream analysis and must not be reported as executed by importing a published count matrix.
 
-- **GEO discovery** searches NCBI's GDS E-utilities for public Series and opens the source record. Inspect its sample metadata, supplementary files and SRA links. Search results alone do not supply an analysis-ready matrix.
-- **FASTQ production** uses the existing pinned nf-core/rnaseq 3.26.0 runner when a staged sample sheet, reference, worker and storage are configured. The screen reports capability status and never calls a plan an executed analysis.
-- **Count-matrix statistics** accept a raw integer gene-by-sample TSV and a separate sample metadata TSV. The existing R/DESeq2 engine audits design, filters, normalizes, computes VST sample QC, tests the declared contrast and emits downloadable tables and figures.
-- **SALS practical**: the uploaded teaching matrix has 22,085 genes, 18 samples (8 healthy, 10 SALS), no malformed rows, and 20,169 genes meeting at least 10 counts in at least 8 samples. Upload the complete matrix and a matching metadata file to run the full practical. The bundled demo remains a 221-gene regression subset.
+## GEO handoff
 
-GEO studies do not have one universal processed-data format. A GEO result must be inspected to establish whether the supplementary file is raw integer counts, normalized expression, or another assay. The current GEO search does not automatically convert arbitrary Series to DESeq2 input. SRA acquisition and homology checks remain separate operations; the ten-stage list is a guide to the scientific sequence, not a claim that every stage was run by a search result.
+GEO SOFT Series and Sample records provide the supplementary file URLs, GSM identifiers, titles and recorded characteristics. BioNexus accepts bounded CSV/TSV files (optionally gzip compressed) hosted under NCBI's GEO Series path. It does not fetch an arbitrary caller-supplied URL. The parser retains the first gene identifier column, excludes named annotation fields such as `gene_symbol`, and rejects non-integer, missing, negative, duplicate or malformed counts. It rejects ambiguous sample matches and requires an explicit one-to-one mapping to GEO samples and a reviewed two-group contrast before fitting.
+
+Preview includes the original source SHA-256. Analysis refetches the file and fails if that checksum changed, then writes a temporary gene-by-GSM TSV and metadata TSV for the existing R execution engine. The derived run provenance includes source URL, source SHA-256, original count columns and reviewed group assignments. Raw source and temporary converted files are not stored in the result bucket.
+
+The GSE336901 FFPE raw-count supplement is a concrete supported example: the CSV has `gene_id`, `gene_symbol`, then ten integer count columns. The parser recognizes `gene_symbol` as annotation and maps the count columns to ten GSM records using their laboratory sample IDs. This example is independent of the bundled SALS practical.
+
+The uploaded SALS teaching matrix contains 22,085 genes and 18 samples (8 healthy, 10 SALS); 20,169 genes meet the practical filter of at least ten counts in at least eight samples. Users can upload that full file with matching metadata through the secondary manual upload control. The bundled 221-gene demo is a regression fixture, not a full biological analysis.
+
+## Execution boundary
+
+The statistical backend requires Rscript, DESeq2, ComplexHeatmap, ggplot2, jsonlite and circlize plus private artifact storage. The Dockerfile installs the R packages, while the local development environment may not. A GEO Series without a suitable raw integer count matrix remains browseable but cannot enter this DESeq2 route. Input validation and statistical execution do not independently validate the study design or biological interpretation.

@@ -7,21 +7,12 @@ from app.routers import geo_search
 
 
 def test_geo_series_search(monkeypatch):
-    calls = []
+    async def detail(client, accession):
+        assert accession == "GSE336901"
+        return {"accession": accession, "title": "RNA-seq study", "design": "Published data", "samples": [{}] * 8}
 
-    def respond(request):
-        calls.append(request)
-        if request.url.path.endswith("esearch.fcgi"):
-            return httpx.Response(200, json={"esearchresult": {"idlist": ["123"]}})
-        return httpx.Response(200, json={"result": {"123": {
-            "accession": "GSE336901", "title": "RNA-seq study", "summary": "Published data", "n_samples": 8,
-        }}})
-
-    original_client = httpx.AsyncClient
-    monkeypatch.setattr(geo_search.httpx, "AsyncClient", lambda **kwargs: original_client(transport=httpx.MockTransport(respond)))
+    monkeypatch.setattr(geo_search, "fetch_series", detail)
     response = asyncio.run(geo_search.search_geo("GSE336901"))
-    assert len(calls) == 2
-    assert calls[0].url.params["term"] == "GSE336901[ACCN]"
     assert response["results"] == [{
         "accession": "GSE336901", "title": "RNA-seq study", "summary": "Published data",
         "sample_count": 8, "organism": "", "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE336901",

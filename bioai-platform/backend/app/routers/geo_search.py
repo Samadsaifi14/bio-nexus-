@@ -2,12 +2,125 @@
 from __future__ import annotations
 
 import re
+import csv
+import tempfile
+from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
+
+from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, execute_expression_analysis
+from app.rnaseq.geo_counts import GeoCountsError, fetch_matrix, fetch_series
+from app.rnaseq.study_scope import classify_rnaseq_study_scope
+from app.services.auth import require_user_id
 
 router = APIRouter(prefix="/api/ngs/v2/geo", tags=["geo-discovery"])
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
+
+
+class MatrixSelection(BaseModel):
+    accession: str
+    filename: str
+
+
+class SampleAssignment(BaseModel):
+    column: str
+    gsm: str
+    condition: str = Field(min_length=1, max_length=100)
+
+
+class GeoAnalysisRequest(MatrixSelection):
+    source_sha256: str
+    assignments: list[SampleAssignment]
+    reference_level: str
+    test_level: str
+    lfc_threshold: float = 1.0
+    min_count: int = 10
+    min_samples: int = 0
+
+
+def _bad_geo(exc: GeoCountsError) -> HTTPException:
+    return HTTPException(422, str(exc))
+
+
+@router.get("/series/{accession}")
+async def geo_series(accession: str):
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            return await fetch_series(client, accession)
+    except GeoCountsError as exc:
+        raise _bad_geo(exc) from exc
+
+
+@router.post("/preview")
+async def preview_geo_matrix(selection: MatrixSelection):
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            series = await fetch_series(client, selection.accession)
+            matrix, source = await fetch_matrix(client, series, selection.filename)
+    except GeoCountsError as exc:
+        raise _bad_geo(exc) from exc
+    samples = {sample["accession"]: sample for sample in series["samples"]}
+    columns = []
+    for column, gsm, total in zip(matrix["columns"], matrix["matched_samples"], matrix["library_sizes"]):
+        sample = samples.get(gsm or "", {})
+        columns.append({"column": column, "gsm": gsm, "title": sample.get("title"),
+                        "characteristics": sample.get("characteristics", {}), "library_size": total})
+    return {"accession": series["accession"], "filename": selection.filename, "source_url": source,
+            "source_sha256": matrix["sha256"], "genes": matrix["genes"], "annotation_columns": matrix["annotation_columns"],
+            "columns": columns, "samples": series["samples"], "design": series["design"]}
+
+
+@router.post("/analyze")
+async def analyze_geo_matrix(selection: GeoAnalysisRequest, user_id: str = Depends(require_user_id)):
+    try:
+        async with httpx.AsyncClient(timeout=45) as client:
+            series = await fetch_series(client, selection.accession)
+            matrix, source = await fetch_matrix(client, series, selection.filename)
+        if matrix["sha256"] != selection.source_sha256:
+            raise GeoCountsError("The GEO source changed since review. Preview it again before analysis.")
+        assignments = {item.column: item for item in selection.assignments}
+        if len(assignments) != len(selection.assignments) or set(assignments) != set(matrix["columns"]):
+            raise GeoCountsError("Review an assignment for every count column exactly once.")
+        valid_gsm = {item["accession"] for item in series["samples"]}
+        selected_gsm = [assignments[column].gsm for column in matrix["columns"]]
+        if any(gsm not in valid_gsm for gsm in selected_gsm) or len(set(selected_gsm)) != len(selected_gsm):
+            raise GeoCountsError("Each count column must map to a distinct sample from this GEO Series.")
+        if selection.reference_level == selection.test_level or not selection.reference_level or not selection.test_level:
+            raise GeoCountsError("Choose distinct reference and test groups.")
+        groups = [assignments[column].condition for column in matrix["columns"]]
+        if set(groups) != {selection.reference_level, selection.test_level}:
+            raise GeoCountsError("Every sample must belong to the declared reference or test group.")
+        if min(groups.count(selection.reference_level), groups.count(selection.test_level)) < 2:
+            raise GeoCountsError("Each group needs at least two independent biological samples.")
+        params = ExpressionParameters(reference_level=selection.reference_level, test_level=selection.test_level,
+                                      lfc_threshold=selection.lfc_threshold, min_count=selection.min_count,
+                                      min_samples=selection.min_samples)
+        params.validate()
+        with tempfile.TemporaryDirectory(prefix="bionexus-geo-") as folder:
+            counts_path, metadata_path = Path(folder) / "counts.tsv", Path(folder) / "metadata.tsv"
+            with counts_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+                writer.writerow(["gene", *selected_gsm])
+                writer.writerows(matrix["rows"])
+            with metadata_path.open("w", encoding="utf-8", newline="") as handle:
+                writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
+                writer.writerow(["sample", "condition", "experimental_unit"])
+                writer.writerows((gsm, group, gsm) for gsm, group in zip(selected_gsm, groups))
+            result = await run_in_threadpool(execute_expression_analysis,
+                user_id=user_id, counts_path=counts_path, metadata_path=metadata_path, params=params,
+                source_label=f"NCBI GEO {series['accession']}",
+                source_metadata={"source_url": source, "source_sha256": matrix["sha256"],
+                                 "original_columns": matrix["columns"], "mapped_samples": selected_gsm,
+                                 "reviewed_conditions": groups})
+        result["study_scope"] = classify_rnaseq_study_scope(result)
+        return result
+    except GeoCountsError as exc:
+        raise _bad_geo(exc) from exc
+    except RnaSeqExpressionError as exc:
+        raise HTTPException(422, str(exc)) from exc
 
 
 @router.get("/search")
@@ -15,7 +128,16 @@ async def search_geo(q: str = Query(min_length=2, max_length=120)):
     query = q.strip()
     if not query:
         raise HTTPException(422, "Enter a GEO accession or search terms.")
-    term = f"{query.upper()}[ACCN]" if re.fullmatch(r"GSE\d+", query, re.I) else f"({query}) AND gse[ETYP]"
+    if re.fullmatch(r"GSE\d+", query, re.I):
+        try:
+            async with httpx.AsyncClient(timeout=25) as client:
+                series = await fetch_series(client, query)
+        except GeoCountsError as exc:
+            raise _bad_geo(exc) from exc
+        return {"query": query, "results": [{"accession": series["accession"], "title": series["title"],
+            "summary": series["design"], "sample_count": len(series["samples"]),
+            "organism": "", "url": f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={series['accession']}"}]}
+    term = f"({query}) AND gse[ETYP]"
     try:
         async with httpx.AsyncClient(timeout=15) as client:
             search = (await client.get(f"{BASE}/esearch.fcgi", params={"db": "gds", "term": term, "retmode": "json", "retmax": 20, "tool": "BioNexus"}))

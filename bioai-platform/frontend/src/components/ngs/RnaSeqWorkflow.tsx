@@ -1,72 +1,137 @@
 'use client';
 
 import { FormEvent, useState } from 'react';
-import { CircleNotch, MagnifyingGlass, ArrowSquareOut } from '@phosphor-icons/react';
+import { ArrowSquareOut, CircleNotch, DownloadSimple, MagnifyingGlass } from '@phosphor-icons/react';
 import { PageHeader, BackButton } from '@/components/ui';
 import { RnaSeqExpressionWorkspace } from '@/components/results/RnaSeqExpressionWorkspace';
-import { RnaSeqProductionSupportCard } from '@/components/results/RnaSeqProductionSupportCard';
 import { longApi } from '@/lib/api';
+import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
 
 type GeoSeries = { accession: string; title: string; summary: string; sample_count?: number; organism?: string; url: string };
+type GeoSample = { accession: string; title: string; characteristics: Record<string, string> };
+type SeriesDetail = { accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string }[] };
+type CountColumn = { column: string; gsm: string | null; title: string | null; characteristics: Record<string, string>; library_size: number };
+type MatrixPreview = { accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
+type Assignment = { column: string; gsm: string; condition: string };
 
-const steps = [
-  { title: 'Define the biological question', detail: 'Declare the organism, condition, comparison, biological replicates, experimental units and expected outcome before data selection.', evidence: 'Sample metadata and explicit contrast' },
-  { title: 'Find and select RNA-seq data', detail: 'Search GEO for a Series, inspect its sample metadata and SRA links, and choose a study with adequate biological replication. GEO records may contain processed counts; SRA contains raw reads.', evidence: 'GSE accession, sample sheet and source links' },
-  { title: 'Acquire FASTQ reads', detail: 'For raw-read analysis, stage SRA runs as paired or single-end FASTQ using SRA Toolkit. Record source accessions and verify checksums and sample identity.', evidence: 'FASTQ files, accessions and SHA-256 checksums' },
-  { title: 'Quality control', detail: 'Inspect per-base quality, GC content, adapters, duplication and overrepresented sequences using FastQC and MultiQC before deciding on trimming.', evidence: 'FastQC and MultiQC reports' },
-  { title: 'Sequence identity and homology', detail: 'When organism or sample identity needs confirmation, compare representative sequences with an appropriate reference. Identity checks are contextual; they do not replace whole-study read QC.', evidence: 'Search database, version, alignments, coverage and E-values' },
-  { title: 'Prepare the reference', detail: 'Select a matching genome FASTA and gene annotation GTF/GFF from the same assembly. Record versions and checksums before building indexes.', evidence: 'Reference build, annotation and index provenance' },
-  { title: 'Align or quantify reads', detail: 'Run the pinned nf-core/rnaseq production workflow with a declared aligner and quantifier. Review alignment, assignment and expression outputs when execution completes.', evidence: 'BAM or quantification files and execution trace' },
-  { title: 'Generate raw gene counts', detail: 'Export a gene-by-sample raw integer count matrix with matching sample identifiers. Estimated fractional abundances, TPM and FPKM are not raw DESeq2 input.', evidence: 'Count matrix and sample metadata' },
-  { title: 'Review sample quality and design', detail: 'Check library sizes, count distributions, replication, batch/confounding, PCA and sample distances before interpreting a contrast.', evidence: 'Design audit, VST PCA and sample-distance heatmap' },
-  { title: 'Differential expression', detail: 'Use DESeq2 size factors, dispersion estimates and a negative-binomial model. Report the explicit test-versus-reference contrast, adjusted p-values and log2 fold changes.', evidence: 'All-gene and DEG tables, MA, volcano and expression heatmap' },
-];
+function message(caught: unknown): string {
+  if (caught && typeof caught === 'object' && 'response' in caught) {
+    const response = (caught as { response?: { data?: { detail?: unknown } } }).response;
+    const detail = response?.data?.detail;
+    if (typeof detail === 'string') return detail;
+    if (Array.isArray(detail)) return detail.map(item => typeof item?.msg === 'string' ? item.msg : 'Invalid request').join('; ');
+  }
+  return caught instanceof Error ? caught.message : 'The request failed. Please try again.';
+}
 
 export default function RnaSeqWorkflow() {
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeoSeries[]>([]);
-  const [searched, setSearched] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [series, setSeries] = useState<SeriesDetail | null>(null);
+  const [preview, setPreview] = useState<MatrixPreview | null>(null);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const [reference, setReference] = useState('');
+  const [test, setTest] = useState('');
+  const [reviewed, setReviewed] = useState(false);
+  const [analysis, setAnalysis] = useState<RnaSeqExpressionResult | null>(null);
+  const [busy, setBusy] = useState<'search' | 'series' | 'preview' | 'analysis' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [searched, setSearched] = useState(false);
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (query.trim().length < 2) return;
-    setBusy(true); setError(null); setSearched(false); setResults([]);
+    setBusy('search'); setError(null); setSearched(false); setResults([]); setSeries(null); setPreview(null); setAnalysis(null);
     try {
       const response = await longApi.get<{ results: GeoSeries[] }>('/api/ngs/v2/geo/search', { params: { q: query.trim() } });
-      setResults(response.data.results);
-      setSearched(true);
-    } catch (caught) {
-      setError(caught instanceof Error ? caught.message : 'GEO search failed.');
-    } finally { setBusy(false); }
+      setResults(response.data.results); setSearched(true);
+    } catch (caught) { setError(message(caught)); }
+    finally { setBusy(null); }
+  }
+
+  async function inspect(accession: string) {
+    setBusy('series'); setError(null); setSeries(null); setPreview(null); setAnalysis(null);
+    try {
+      const response = await longApi.get<SeriesDetail>(`/api/ngs/v2/geo/series/${encodeURIComponent(accession)}`);
+      setSeries(response.data);
+    } catch (caught) { setError(message(caught)); }
+    finally { setBusy(null); }
+  }
+
+  async function inspectMatrix(filename: string) {
+    if (!series) return;
+    setBusy('preview'); setError(null); setPreview(null); setAnalysis(null); setReviewed(false);
+    try {
+      const response = await longApi.post<MatrixPreview>('/api/ngs/v2/geo/preview', { accession: series.accession, filename });
+      const next = response.data;
+      setPreview(next);
+      const groups = next.columns.map(column => column.characteristics.treatment ?? column.characteristics.condition ?? '');
+      setAssignments(next.columns.map((column, i) => ({ column: column.column, gsm: column.gsm ?? '', condition: groups[i] })));
+      const distinct = [...new Set(groups.filter(Boolean))];
+      setReference(distinct.length === 2 ? distinct[0] : '');
+      setTest(distinct.length === 2 ? distinct[1] : '');
+    } catch (caught) { setError(message(caught)); }
+    finally { setBusy(null); }
+  }
+
+  function assign(index: number, patch: Partial<Assignment>) {
+    setReviewed(false);
+    setAssignments(current => current.map((row, i) => i === index ? { ...row, ...patch } : row));
+  }
+
+  const mapped = assignments.length > 0 && assignments.every(row => row.gsm && row.condition) && new Set(assignments.map(row => row.gsm)).size === assignments.length;
+  const groupsValid = Boolean(reference && test && reference !== test && assignments.every(row => row.condition === reference || row.condition === test)
+    && assignments.filter(row => row.condition === reference).length >= 2 && assignments.filter(row => row.condition === test).length >= 2);
+
+  async function runAnalysis() {
+    if (!preview || !mapped || !groupsValid || !reviewed) return;
+    setBusy('analysis'); setError(null); setAnalysis(null);
+    try {
+      const response = await longApi.post<RnaSeqExpressionResult>('/api/ngs/v2/geo/analyze', {
+        accession: preview.accession, filename: preview.filename, source_sha256: preview.source_sha256,
+        assignments, reference_level: reference, test_level: test, min_count: 10, min_samples: 0, lfc_threshold: 1,
+      });
+      setAnalysis(response.data);
+      window.setTimeout(() => document.getElementById('expression-results')?.scrollIntoView({ behavior: 'smooth' }), 100);
+    } catch (caught) { setError(message(caught)); }
+    finally { setBusy(null); }
   }
 
   return <div className="scientific-page mx-auto max-w-7xl space-y-6 pb-12">
     <BackButton />
-    <PageHeader title="RNA-seq analysis" subtitle="From a biological question and GEO/SRA sources to quality control, raw counts and DESeq2 figures." />
+    <PageHeader title="RNA-seq analysis" subtitle="Find published raw gene counts, check the samples and groups, then run DESeq2 and inspect the figures." />
+    <div className="rounded-lg border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">This path begins with a published raw count matrix. It does not reprocess SRA FASTQ files. GEO sample metadata and the matrix are inspected before the statistical run; each result retains the source link and checksums.</div>
 
     <section className="data-card p-5">
-      <h2 className="text-base font-semibold text-text-primary">Workflow</h2>
-      <p className="mt-1 text-xs text-text-muted">Follow the source of each result. Raw FASTQ execution and count-matrix statistics use different inputs; the production runner requires staged files and configured compute.</p>
-      <div className="mt-4 flex flex-wrap gap-2 text-xs"><a href="#geo-search" className="rounded border border-glass-border px-3 py-2 text-accent-cyan">Find GEO study</a><a href="#raw-reads" className="rounded border border-glass-border px-3 py-2 text-accent-cyan">Run raw reads</a><a href="#count-matrix" className="rounded border border-glass-border px-3 py-2 text-accent-cyan">Analyze counts</a></div>
-      <ol className="mt-4 grid gap-3 md:grid-cols-2">
-        {steps.map((step, index) => <li key={step.title} className="rounded-lg border border-glass-border bg-surface-1 p-4">
-          <div className="flex gap-3"><span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-glass-border font-mono text-xs text-accent-cyan">{index + 1}</span><div><h3 className="text-sm font-semibold text-text-primary">{step.title}</h3><p className="mt-1 text-xs leading-5 text-text-secondary">{step.detail}</p><p className="mt-2 text-[11px] text-text-muted">Evidence: {step.evidence}</p></div></div>
-        </li>)}
-      </ol>
+      <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">01</span><h2 className="text-base font-semibold text-text-primary">Find a GEO Series</h2></div>
+      <form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><input aria-label="GEO accession or search terms" value={query} onChange={event => setQuery(event.target.value)} placeholder="GSE336901 or RNA-seq topic" className="min-w-0 flex-1 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-sm text-text-primary" /><button disabled={!!busy || query.trim().length < 2} className="inline-flex items-center gap-2 rounded-lg border border-accent-cyan/30 px-4 py-2 text-xs text-accent-cyan disabled:opacity-40">{busy === 'search' ? <CircleNotch className="animate-spin" /> : <MagnifyingGlass />} Search</button></form>
+      {searched && !results.length && <p className="mt-3 text-xs text-text-muted">No Series matched. Try a GSE accession.</p>}
+      <div className="mt-4 space-y-2">{results.map(item => <article key={item.accession} className="rounded-lg border border-glass-border bg-surface-1 p-4"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-sm font-semibold text-text-primary">{item.accession} · {item.title}</p><p className="mt-1 text-xs text-text-muted">{item.organism || 'Organism unspecified'}{item.sample_count ? ` · ${item.sample_count} samples` : ''}</p></div><button type="button" disabled={!!busy} onClick={() => inspect(item.accession)} className="rounded border border-accent-cyan/30 px-3 py-2 text-xs text-accent-cyan disabled:opacity-40">{busy === 'series' ? 'Loading…' : 'Inspect files'}</button></div><p className="mt-2 text-xs leading-5 text-text-secondary">{item.summary}</p></article>)}</div>
     </section>
 
-    <section id="geo-search" className="data-card p-5">
-      <h2 className="text-base font-semibold text-text-primary">Search GEO Series</h2>
-      <p className="mt-1 text-xs leading-5 text-text-muted">Search a GSE accession or biological terms. Open the source record to inspect the samples, supplementary files and SRA runs. A GEO Series is not automatically a DESeq2-ready raw count matrix.</p>
-      <form onSubmit={search} className="mt-4 flex flex-wrap gap-2"><input aria-label="GEO accession or search terms" value={query} onChange={event => setQuery(event.target.value)} placeholder="GSE accession or RNA-seq topic" className="min-w-0 flex-1 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-sm text-text-primary" /><button disabled={busy || query.trim().length < 2} className="inline-flex items-center gap-2 rounded-lg border border-accent-cyan/30 px-4 py-2 text-xs text-accent-cyan disabled:opacity-40">{busy ? <CircleNotch className="animate-spin" /> : <MagnifyingGlass />} Search</button></form>
-      {error && <p role="alert" className="mt-3 text-xs text-error">{error}</p>}
-      {searched && !results.length && <p className="mt-3 text-xs text-text-muted">No GEO Series matched this search.</p>}
-      <div className="mt-4 space-y-2">{results.map(item => <article key={item.accession} className="rounded-lg border border-glass-border bg-surface-1 p-4"><a href={item.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-sm font-semibold text-accent-cyan">{item.accession} · {item.title} <ArrowSquareOut /></a><p className="mt-1 text-xs text-text-muted">{item.organism || 'Organism unspecified'}{item.sample_count ? ` · ${item.sample_count} samples` : ''}</p><p className="mt-2 text-xs leading-5 text-text-secondary">{item.summary}</p></article>)}</div>
-    </section>
+    {series && <section className="data-card p-5">
+      <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">02</span><h2 className="text-base font-semibold text-text-primary">Choose a raw count matrix</h2></div>
+      <p className="mt-2 text-xs leading-5 text-text-secondary">{series.design}</p>
+      <p className="mt-2 text-xs text-text-muted">{series.samples.length} GEO samples · {series.files.length} supported Series-level text files</p>
+      {!series.files.length && <p className="mt-3 text-xs text-warn">No direct CSV/TSV count matrix is listed. This study cannot use the automatic count-matrix path; inspect its source record.</p>}
+      <div className="mt-3 space-y-2">{series.files.map(file => <div key={file.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><span className="break-all font-mono text-xs text-text-primary">{file.name}</span><div className="flex gap-2"><a href={file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-text-secondary"><DownloadSimple /> Source</a><button type="button" disabled={!!busy} onClick={() => inspectMatrix(file.name)} className="rounded border border-accent-cyan/30 px-3 py-2 text-xs text-accent-cyan disabled:opacity-40">{busy === 'preview' ? 'Validating…' : 'Validate counts'}</button></div></div>)}</div>
+      <a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${series.accession}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-accent-cyan">Open GEO source record <ArrowSquareOut /></a>
+    </section>}
 
-    <div id="raw-reads"><RnaSeqProductionSupportCard /></div>
-    <div id="count-matrix"><RnaSeqExpressionWorkspace /></div>
+    {preview && <section className="data-card p-5">
+      <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">03</span><h2 className="text-base font-semibold text-text-primary">Review sample mapping and comparison</h2></div>
+      <p className="mt-2 text-xs leading-5 text-text-secondary">{preview.genes.toLocaleString()} genes · {preview.columns.length} count columns · {preview.annotation_columns.length ? `excluded annotation column(s): ${preview.annotation_columns.join(', ')}` : 'no annotation columns excluded'}. Raw non-negative integer counts and unique gene identifiers passed validation.</p>
+      <p className="mt-1 break-all font-mono text-[10px] text-text-muted">Source SHA-256: {preview.source_sha256}</p>
+      <div className="mt-4 overflow-x-auto rounded-lg border border-glass-border"><table className="w-full text-xs"><thead className="bg-surface-1 text-text-muted"><tr><th className="px-3 py-2 text-left">Count column</th><th className="px-3 py-2 text-left">GEO sample</th><th className="px-3 py-2 text-left">Condition</th><th className="px-3 py-2 text-right">Library counts</th></tr></thead><tbody className="divide-y divide-glass-border">{preview.columns.map((column, index) => <tr key={column.column}><td className="max-w-[300px] break-all px-3 py-2 font-mono text-text-secondary">{column.column}</td><td className="px-3 py-2"><select aria-label={`GEO sample for ${column.column}`} value={assignments[index]?.gsm ?? ''} onChange={event => { const sample = preview.samples.find(item => item.accession === event.target.value); assign(index, { gsm: event.target.value, condition: sample?.characteristics.treatment ?? sample?.characteristics.condition ?? assignments[index]?.condition ?? '' }); }} className="scientific-select min-w-[190px]"><option value="">Select sample</option>{preview.samples.map(sample => <option key={sample.accession} value={sample.accession}>{sample.accession} · {sample.title}</option>)}</select></td><td className="px-3 py-2"><input aria-label={`Condition for ${column.column}`} value={assignments[index]?.condition ?? ''} onChange={event => assign(index, { condition: event.target.value })} className="w-32 rounded border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></td><td className="px-3 py-2 text-right font-mono text-text-secondary">{column.library_size.toLocaleString()}</td></tr>)}</tbody></table></div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs text-text-muted">Reference group<input value={reference} onChange={event => { setReviewed(false); setReference(event.target.value); }} className="mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-text-primary" /></label><label className="text-xs text-text-muted">Test group<input value={test} onChange={event => { setReviewed(false); setTest(event.target.value); }} className="mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-text-primary" /></label></div>
+      <p className="mt-3 text-xs text-text-muted">Positive log2 fold change means higher expression in the test group. Verify that each matrix column matches its GEO sample and that the condition is biologically correct.</p>
+      <label className="mt-4 flex items-center gap-2 text-xs text-text-secondary"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} /> I reviewed the sample identities and group assignments</label>
+      {(!mapped || !groupsValid) && <p className="mt-2 text-xs text-warn">Map each column to a different GEO sample and assign at least two samples to each of the two groups.</p>}
+      <button type="button" disabled={!mapped || !groupsValid || !reviewed || !!busy} onClick={runAnalysis} className="mt-4 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2.5 text-xs font-semibold text-accent-cyan disabled:opacity-40">{busy === 'analysis' ? 'Running DESeq2…' : 'Run DESeq2 and generate figures'}</button>
+    </section>}
+
+    {error && <div role="alert" className="rounded-lg border border-error/25 bg-error/10 p-4 text-sm text-error">{error}</div>}
+
+    <div id="expression-results"><RnaSeqExpressionWorkspace externalResult={analysis} /></div>
   </div>;
 }

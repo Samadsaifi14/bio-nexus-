@@ -100,7 +100,7 @@ function FigureCard({
   );
 }
 
-export function RnaSeqExpressionWorkspace() {
+export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?: RnaSeqExpressionResult | null }) {
   const [counts, setCounts] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<File | null>(null);
   const [conditionColumn, setConditionColumn] = useState('condition');
@@ -143,18 +143,19 @@ export function RnaSeqExpressionWorkspace() {
     } finally { setRunning(null); }
   };
 
-  const summary = result?.summary;
-  const pca = artifact(result, 'pca.svg');
-  const pcaData = artifact(result, 'pca_coordinates.tsv');
-  const distance = artifact(result, 'sample_distance_heatmap.svg');
-  const distanceData = artifact(result, 'sample_distance_matrix.tsv');
-  const ma = artifact(result, 'ma_plot.svg');
-  const volcano = artifact(result, 'volcano.svg');
-  const resultsTable = artifact(result, 'deseq2_all_results.tsv');
-  const degTable = artifact(result, 'deseq2_significant.tsv');
-  const heatmap = artifact(result, 'expression_heatmap.svg');
-  const heatmapData = artifact(result, 'heatmap_matrix_zscore.tsv');
-  const heatmapSelection = artifact(result, 'heatmap_gene_selection.tsv');
+  const displayedResult = externalResult ?? result;
+  const summary = displayedResult?.summary;
+  const pca = artifact(displayedResult, 'pca.svg');
+  const pcaData = artifact(displayedResult, 'pca_coordinates.tsv');
+  const distance = artifact(displayedResult, 'sample_distance_heatmap.svg');
+  const distanceData = artifact(displayedResult, 'sample_distance_matrix.tsv');
+  const ma = artifact(displayedResult, 'ma_plot.svg');
+  const volcano = artifact(displayedResult, 'volcano.svg');
+  const resultsTable = artifact(displayedResult, 'deseq2_all_results.tsv');
+  const degTable = artifact(displayedResult, 'deseq2_significant.tsv');
+  const heatmap = artifact(displayedResult, 'expression_heatmap.svg');
+  const heatmapData = artifact(displayedResult, 'heatmap_matrix_zscore.tsv');
+  const heatmapSelection = artifact(displayedResult, 'heatmap_gene_selection.tsv');
   const heatmapTitle = summary?.expression_heatmap_basis === 'significant_DE_genes'
     ? 'Top differential genes'
     : 'Top variable genes (QC)';
@@ -164,8 +165,9 @@ export function RnaSeqExpressionWorkspace() {
 
   return (
     <section className="space-y-5">
-      <div className="overflow-hidden rounded-xl border border-glass-border bg-surface-0">
-        <div className="border-b border-glass-border p-5">
+      <details className="overflow-hidden rounded-xl border border-glass-border bg-surface-0">
+        <summary className="cursor-pointer p-5 text-sm font-semibold text-text-primary">Analyze your own count matrix or run the SALS teaching demo</summary>
+        <div className="border-b border-glass-border px-5 pb-5">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div className="max-w-3xl">
               <p className="font-mono text-[10px] uppercase tracking-[0.14em] text-accent-cyan">Real statistical execution</p>
@@ -206,11 +208,11 @@ export function RnaSeqExpressionWorkspace() {
           </div>
           <div className="mt-4 flex flex-wrap items-center justify-between gap-3"><p className="text-[10px] leading-4 text-text-muted">DESeq2 input is always raw counts. A min-samples value of 0 uses the smaller comparison group for pre-filtering. Before fitting, BioNexus checks replication, explicit experimental units, recorded technical confounders and model-matrix rank. PCA/sample distances then use blind VST for QC before inference.</p><CriticalButton disabled={!counts || !metadata || Boolean(running)} onClick={runUpload} className="px-4 py-2 text-xs disabled:opacity-40">{running === 'upload' ? <CircleNotch className="animate-spin" /> : <ChartScatter />} {running === 'upload' ? 'Running R…' : 'Run uploaded matrix'}</CriticalButton></div>
         </div>
-      </div>
+      </details>
 
       {error && <div className="rounded-xl border border-error/25 bg-error/10 p-4 text-sm text-error"><Warning className="mr-2 inline h-4 w-4" />{error}</div>}
 
-      {summary && result && (
+      {summary && displayedResult && (
         <>
           <div className="rounded-xl border border-good/20 bg-good/5 p-4 text-[11px] leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-good" />DESeq2 completed. These values are read from the emitted R artifacts; no result card below is populated from placeholder data.</div>
 
@@ -283,8 +285,8 @@ export function RnaSeqExpressionWorkspace() {
           </div>
 
           <div className="rounded-xl border border-glass-border bg-surface-0 p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Complete reproducibility bundle</h3><p className="mt-1 text-[11px] leading-5 text-text-muted">Normalized counts, size factors, PCA coordinates, distance matrix, all-gene results, significant-gene table, plotted heatmap matrix, gene-selection evidence, SVG/PDF/300-dpi PNG figures and provenance.</p></div>{result.manifest_url && <a href={result.manifest_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Manifest</a>}</div>
-            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{result.artifacts.map(item => <button type="button" key={item.name} onClick={() => downloadRemote(item)} className="flex items-center justify-between gap-3 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-left text-[10px] text-text-secondary"><span className="truncate font-mono">{item.name}</span><span className="shrink-0 text-text-muted">{number(item.bytes / 1024)} KB</span></button>)}</div>
+            <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Complete reproducibility bundle</h3><p className="mt-1 text-[11px] leading-5 text-text-muted">Normalized counts, size factors, PCA coordinates, distance matrix, all-gene results, significant-gene table, plotted heatmap matrix, gene-selection evidence, SVG/PDF/300-dpi PNG figures and provenance.</p></div>{displayedResult.manifest_url && <a href={displayedResult.manifest_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Manifest</a>}</div>
+            <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{displayedResult.artifacts.map(item => <button type="button" key={item.name} onClick={() => downloadRemote(item)} className="flex items-center justify-between gap-3 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-left text-[10px] text-text-secondary"><span className="truncate font-mono">{item.name}</span><span className="shrink-0 text-text-muted">{number(item.bytes / 1024)} KB</span></button>)}</div>
           </div>
         </>
       )}

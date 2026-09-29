@@ -168,6 +168,7 @@ def execute_expression_analysis(
     metadata_path: Path,
     params: ExpressionParameters,
     source_label: str,
+    source_metadata: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     params.validate()
     if counts_path.stat().st_size > MAX_COUNTS_BYTES:
@@ -187,6 +188,7 @@ def execute_expression_analysis(
         provenance = {
             "run_id": run_id,
             "source_label": source_label,
+            "source_metadata": source_metadata or {},
             "counts_sha256": counts_sha256,
             "metadata_sha256": metadata_sha256,
             "condition_column": params.condition_column,

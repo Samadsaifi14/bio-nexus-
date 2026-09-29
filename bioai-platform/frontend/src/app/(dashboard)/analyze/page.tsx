@@ -11,7 +11,7 @@ type Group = { title: string; description: string; items: Operation[] };
 
 const groups: Group[] = [
   { title: 'Genomics', description: 'Raw sequencing data to quality-controlled, traceable evidence.', items: [
-    { id: 'ngs-v2', name: 'NGS Analysis', description: 'Multi-assay FASTQ workflow with 21-stage QC contracts, coverage, contamination, identity, variant evidence and an analysis-readiness gate.', icon: Dna, badge: 'Flagship' },
+    { id: 'ngs-v2', name: 'RNA-seq Analysis', description: 'GEO discovery, FASTQ quality control, reference alignment, raw counts and DESeq2 figures.', icon: Dna, badge: 'Flagship' },
     { id: 'sequencing', name: 'Consensus Sequencing', description: 'Focused reference/consensus workflow for compact sequencing analyses and teaching datasets.', icon: Layers },
   ]},
   { title: 'Sequence Biology', description: 'Similarity, conservation, evolution, motifs and sequence-level interpretation.', items: [

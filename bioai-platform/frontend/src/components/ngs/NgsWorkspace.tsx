@@ -1,5 +1,5 @@
-import GuidedNgsWorkspace from './GuidedNgsWorkspace';
+import RnaSeqWorkflow from './RnaSeqWorkflow';
 
 export default function NgsWorkspace() {
-  return <GuidedNgsWorkspace />;
+  return <RnaSeqWorkflow />;
 }

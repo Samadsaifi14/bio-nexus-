@@ -26,7 +26,7 @@ export function RnaSeqProductionSupportCard() {
   const [strandedness, setStrandedness] = useState<RnaSeqProductionPlanRequest['strandedness']>('auto');
   const [customConfig, setCustomConfig] = useState('');
   const [skipTrimming, setSkipTrimming] = useState(false);
-  const [saveTrimmed, setSaveTrimmed] = useState(true);
+  const saveTrimmed = true;
   const [deRequested, setDeRequested] = useState(true);
   const [plan, setPlan] = useState<ProductionPlan | null>(null);
   const [capabilities, setCapabilities] = useState<ProductionCapabilities | null>(null);
@@ -98,7 +98,7 @@ export function RnaSeqProductionSupportCard() {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="text-sm font-semibold text-text-primary">Production RNA-seq</h2>
             <span className="rounded border border-info/20 bg-info/5 px-2 py-0.5 font-mono text-[9px] text-info">nf-core/rnaseq 3.26.0</span>
-            <span className="rounded border border-good/20 bg-good/5 px-2 py-0.5 font-mono text-[9px] text-good">EXECUTION CAPABLE</span>
+            <span className={`rounded border px-2 py-0.5 font-mono text-[9px] ${executor?.available ? 'border-good/20 bg-good/5 text-good' : 'border-warn/20 bg-warn/5 text-warn'}`}>{executor?.available ? 'WORKER AVAILABLE' : 'WORKER STATUS PENDING / UNAVAILABLE'}</span>
           </div>
           <p className="mt-1 max-w-3xl text-xs leading-5 text-text-muted">A design-aware launch contract for real transcriptomics compute. The workflow produces QC, alignment and abundance evidence; differential-expression claims remain a separate statistical stage using raw counts and recorded contrasts.</p>
         </div>

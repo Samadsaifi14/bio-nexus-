@@ -56,6 +56,7 @@ async function directGeoRecord(accession: string): Promise<GeoSummary | null> {
       accession, title: fields.get('title')?.[0] ?? '', summary: (fields.get('summary') ?? []).join(' '),
       gdstype: (fields.get('type') ?? []).join(' · '), taxon: fields.get('organism')?.[0] ?? '',
       n_samples: sampleIds.length, samples: sampleIds.map(id => ({ accession: id, title: '' })),
+      supplementary_urls: fields.get('supplementary_file') ?? [],
     };
   } catch { return null; }
 }
@@ -74,6 +75,26 @@ async function eutilsRecord(accession: string): Promise<GeoSummary | null> {
   return ids.map(id => result?.[id]).find(row => text(row?.accession, 20).toUpperCase() === accession) ?? null;
 }
 
+async function fillSampleTitles(accession: string, samples: GeoSample[]): Promise<GeoSample[]> {
+  if (!accession.startsWith('GSE') || !samples.length || samples.length > 100 || samples.some(item => item.title)) return samples;
+  const url = new URL('https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi');
+  url.search = new URLSearchParams({ acc: accession, targ: 'gsm', form: 'text', view: 'brief' }).toString();
+  try {
+    const response = await fetch(url, { signal: AbortSignal.timeout(12000), cache: 'no-store' });
+    if (!response.ok) return samples;
+    const body = (await response.text()).slice(0, 2_000_000);
+    const titles = new Map<string, string>();
+    let current = '';
+    for (const line of body.split(/\r?\n/)) {
+      const marker = line.match(/^\^SAMPLE = (GSM\d+)$/);
+      if (marker) current = marker[1];
+      const title = line.match(/^!Sample_title\s*=\s*(.+)$/);
+      if (current && title) titles.set(current, title[1].slice(0, 300));
+    }
+    return samples.map(item => ({ ...item, title: titles.get(item.accession) ?? item.title }));
+  } catch { return samples; }
+}
+
 export async function GET(_request: NextRequest, context: { params: Promise<{ accession: string }> }) {
   const accession = (await context.params).accession.trim().toUpperCase();
   if (!accessionPattern.test(accession)) return NextResponse.json({ detail: 'Enter a valid GSE, GSM, GDS or GPL accession.' }, { status: 422 });
@@ -87,20 +108,36 @@ export async function GET(_request: NextRequest, context: { params: Promise<{ ac
     url: `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${accession}`,
   }, { status: 404 });
 
-  const samples: GeoSample[] = Array.isArray(record.samples) ? record.samples
+  const indexedSamples: GeoSample[] = Array.isArray(record.samples) ? record.samples
     .filter((item): item is GeoSummary => typeof item === 'object' && item !== null)
     .filter(item => /^GSM\d+$/i.test(text(item.accession, 30)))
     .slice(0, 200).map(item => ({ accession: text(item.accession, 30), title: text(item.title, 300) })) : [];
+  const samples = await fillSampleTitles(accession, indexedSamples);
   const rawRelations = Array.isArray(record.extrelations) ? record.extrelations : Array.isArray(record.relations) ? record.relations : [];
   const relations = rawRelations.slice(0, 30).filter((item): item is GeoSummary => typeof item === 'object' && item !== null)
     .map(item => ({ name: text(item.name, 80), target: text(item.target, 80) }));
   const assay = text(record.gdstype ?? record.gdsType, 200);
   const count = Number(record.n_samples ?? record.nSamples ?? samples.length);
+  let files = await publicFiles(accession);
+  if (!files.length && accession.startsWith('GS')) {
+    const direct = record.supplementary_urls ? record : await directGeoRecord(accession);
+    const urls = Array.isArray(direct?.supplementary_urls) ? direct.supplementary_urls : [];
+    const directory = accessionDirectory(accession);
+    files = urls.map(value => {
+      const raw = text(value, 700).replace(/^ftp:\/\//i, 'https://');
+      try {
+        const url = new URL(raw);
+        const name = decodeURIComponent(url.pathname.split('/').at(-1) ?? '');
+        return directory && url.hostname === 'ftp.ncbi.nlm.nih.gov' && url.href.startsWith(directory)
+          && /^[A-Za-z0-9_.-]{1,180}$/.test(name) ? { name, url: directory + encodeURIComponent(name) } : null;
+      } catch { return null; }
+    }).filter((file): file is GeoFile => file !== null).slice(0, 40);
+  }
   return NextResponse.json({
     accession, kind: accession.slice(0, 3), title: text(record.title, 500), summary: text(record.summary, 2000),
     assay, organism: text(record.taxon ?? record.taxonname, 160),
     sample_count: Number.isFinite(count) && count >= 0 ? count : samples.length,
-    samples, files: await publicFiles(accession), relations,
+    samples, files, relations,
     url: `https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${accession}`,
     is_sequencing: /sequencing/i.test(assay),
   });

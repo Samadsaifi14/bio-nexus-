@@ -100,7 +100,7 @@ function FigureCard({
   );
 }
 
-export function RnaSeqExpressionWorkspace() {
+export function RnaSeqExpressionWorkspace({ initialResult = null }: { initialResult?: RnaSeqExpressionResult | null }) {
   const [counts, setCounts] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<File | null>(null);
   const [conditionColumn, setConditionColumn] = useState('condition');
@@ -110,7 +110,8 @@ export function RnaSeqExpressionWorkspace() {
   const [minSamples, setMinSamples] = useState(0);
   const [lfcThreshold, setLfcThreshold] = useState(1);
   const [running, setRunning] = useState<'demo' | 'upload' | null>(null);
-  const [result, setResult] = useState<RnaSeqExpressionResult | null>(null);
+  const [localResult, setResult] = useState<RnaSeqExpressionResult | null>(null);
+  const result = localResult ?? initialResult;
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<RnaSeqArtifact | null>(null);
 

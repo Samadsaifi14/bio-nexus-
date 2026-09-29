@@ -30,6 +30,7 @@ import NgsVisualizationHub from '@/components/results/NgsVisualizationHub';
 import { runNgs2Analyze, type Ngs2AnalyzeResult, type Ngs2Stage } from '@/lib/api';
 import { downloadNgsDemoFile, getNgsDemoCatalog, type NgsDemoCatalogItem } from '@/lib/ngsDemoApi';
 import { GeoEntry } from './GeoEntry';
+import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
 
 type UnknownRecord = Record<string, unknown>;
 type PipelineFamily = 'dna' | 'rna';
@@ -439,6 +440,7 @@ export default function GuidedNgsWorkspace() {
   const [runningDemo, setRunningDemo] = useState<string | null>(null);
   const [downloading, setDownloading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [geoExpressionResult, setGeoExpressionResult] = useState<RnaSeqExpressionResult | null>(null);
 
   useEffect(() => {
     getNgsDemoCatalog().then(items => {
@@ -739,7 +741,7 @@ export default function GuidedNgsWorkspace() {
       <BackButton />
       <PageHeader title="NGS Pipeline" subtitle="A guided sequencing workflow: finish one scientific stage, inspect its evidence, then continue." />
 
-      <GeoEntry onRna={() => { setFamily('rna'); setTimeout(() => document.getElementById('ngs-expression')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} onDna={() => { setFamily('dna'); setTimeout(() => document.getElementById('ngs-dna-production')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} />
+      <GeoEntry onRna={() => { setFamily('rna'); setTimeout(() => document.getElementById('ngs-expression')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} onDna={() => { setFamily('dna'); setTimeout(() => document.getElementById('ngs-dna-production')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} onResult={geoResult => { setGeoExpressionResult(geoResult); setFamily('rna'); setTimeout(() => document.getElementById('ngs-expression')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 0); }} />
 
       <section className="data-card overflow-hidden">
         <div className="grid gap-px bg-glass-border md:grid-cols-2">
@@ -771,7 +773,7 @@ export default function GuidedNgsWorkspace() {
       ) : (
         <>
           <div className="rounded-xl border border-accent-cyan/20 bg-accent-cyan/5 p-4 text-xs leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-accent-cyan" /><strong className="text-text-primary">Expression statistics are now executed, not mocked.</strong> The workspace below accepts raw integer counts plus explicit sample metadata and emits R/DESeq2 tables and R-generated figures. The upstream FASTQ production lane remains separate and continues through nf-core/rnaseq.</div>
-          <div id="ngs-expression" className="scroll-mt-24"><RnaSeqExpressionWorkspace /></div>
+          <div id="ngs-expression" className="scroll-mt-24"><RnaSeqExpressionWorkspace key={geoExpressionResult?.run_id ?? 'manual'} initialResult={geoExpressionResult} /></div>
           <div><p className="mb-3 flex items-center gap-2 text-xs font-semibold text-text-primary"><Flask /> Upstream production RNA-seq execution</p><RnaSeqProductionSupportCard /></div>
         </>
       )}

@@ -3,6 +3,8 @@
 import { useState, type FormEvent } from 'react';
 import { ArrowRight, CircleNotch, DownloadSimple, MagnifyingGlass, Warning } from '@phosphor-icons/react';
 import { resolveGeo, type GeoRecord } from '@/lib/api';
+import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
+import { GeoAnalysis } from './GeoAnalysis';
 
 function saveSamples(record: GeoRecord) {
   const clean = (value: string) => value.replace(/[\t\r\n]+/g, ' ').trim();
@@ -15,7 +17,7 @@ function saveSamples(record: GeoRecord) {
   setTimeout(() => URL.revokeObjectURL(link.href), 1000);
 }
 
-export function GeoEntry({ onRna, onDna }: { onRna: () => void; onDna: () => void }) {
+export function GeoEntry({ onRna, onDna, onResult }: { onRna: () => void; onDna: () => void; onResult: (result: RnaSeqExpressionResult) => void }) {
   const [value, setValue] = useState('');
   const [record, setRecord] = useState<GeoRecord | null>(null);
   const [pending, setPending] = useState(false);
@@ -64,9 +66,10 @@ export function GeoEntry({ onRna, onDna }: { onRna: () => void; onDna: () => voi
         </div>
         {record.samples.length > 0 && <div><div className="flex flex-wrap items-center justify-between gap-2"><h4 className="text-sm font-semibold text-text-primary">Samples <span className="font-normal text-text-muted">(first {record.samples.length})</span></h4><button onClick={() => saveSamples(record)} className="inline-flex items-center gap-2 rounded-lg border border-glass-border px-3 py-2 text-xs text-text-secondary"><DownloadSimple /> Metadata template</button></div><div className="mt-2 max-h-56 overflow-auto rounded-xl border border-glass-border divide-y divide-glass-border">{record.samples.map(sample => <div key={sample.accession} className="grid gap-1 px-3 py-2 text-xs sm:grid-cols-[110px_1fr]"><button type="button" onClick={() => setValue(sample.accession)} className="text-left font-mono text-accent-cyan hover:underline">{sample.accession}</button><span className="text-text-secondary">{sample.title}</span></div>)}</div><p className="mt-2 text-[11px] text-text-muted">Fill the condition column from the study design before using the template for differential expression.</p></div>}
         {record.files.length > 0 && <div><h4 className="text-sm font-semibold text-text-primary">Published files</h4><div className="mt-2 flex flex-wrap gap-2">{record.files.map(file => <a key={file.url} href={file.url} target="_blank" rel="noopener noreferrer" className="max-w-full truncate rounded-lg border border-glass-border px-3 py-2 text-xs text-text-secondary hover:text-text-primary" title={file.name}>{file.name} ↗</a>)}</div></div>}
+        {record.kind === 'GSE' && record.is_sequencing && /expression profiling/i.test(record.assay) && <GeoAnalysis key={record.accession} record={record} onResult={onResult} />}
         {record.relations.length > 0 && <p className="text-[11px] text-text-muted">Linked records: {record.relations.map(item => `${item.name}: ${item.target}`).join(' · ')}</p>}
         <div className="rounded-xl border border-glass-border bg-surface-1 p-4 text-xs leading-5 text-text-secondary">
-          {record.kind === 'GPL' || record.kind === 'GDS' ? 'This record describes a platform or curated dataset. Open its linked study or sample for sequencing inputs.' : record.is_sequencing ? 'GEO metadata alone cannot generate read QC, variant calls or expression figures. Use the published raw reads in the appropriate production workflow. For RNA expression figures, supply raw integer counts and matching sample metadata with a valid study design.' : 'This record is not labeled as a sequencing assay. Check its study methods before using an NGS workflow.'}
+          {record.kind === 'GPL' || record.kind === 'GDS' ? 'This record describes a platform or curated dataset. Open its linked study or sample for sequencing inputs.' : record.is_sequencing ? 'The raw count workflow above produces expression figures when compatible counts and a valid comparison are available. Read QC and variant calls require sequencing reads and a separate assay-specific execution.' : 'This record is not labeled as a sequencing assay. Check its study methods before using an NGS workflow.'}
         </div>
         {record.is_sequencing && /expression profiling/i.test(record.assay) && <button type="button" onClick={onRna} className="inline-flex items-center gap-2 text-xs font-medium text-accent-cyan hover:underline">Open count matrix and figures <ArrowRight /></button>}
         {record.is_sequencing && /genome variation profiling/i.test(record.assay) && <button type="button" onClick={onDna} className="inline-flex items-center gap-2 text-xs font-medium text-accent-cyan hover:underline">Open DNA sequencing workflow <ArrowRight /></button>}

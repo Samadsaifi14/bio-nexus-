@@ -2,7 +2,7 @@
 
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
-import { useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useReducedMotion, useScroll, useTransform } from 'framer-motion';
 import { ArrowRight, Database, FlowArrow, Brain, CaretDown as ChevronDown } from '@phosphor-icons/react';
 import { TiltCard } from '@/components/ui/TiltCard';
@@ -72,6 +72,20 @@ export default function LandingPage() {
   });
 
   const reduceMotion = useReducedMotion();
+  const [showHero3d, setShowHero3d] = useState(false);
+
+  useEffect(() => {
+    if (reduceMotion || !window.matchMedia('(min-width: 768px)').matches) {
+      setShowHero3d(false);
+      return;
+    }
+
+    // Do not make the first paint/hydration compete with Three.js. The dynamic
+    // chunk is only requested after the page has become interactive on a
+    // viewport where the scene is actually visible.
+    const timer = window.setTimeout(() => setShowHero3d(true), 450);
+    return () => window.clearTimeout(timer);
+  }, [reduceMotion]);
 
   // Parallax slides the hero as you scroll — flattened to a cross-fade under
   // reduced motion (apple-design §14).
@@ -199,7 +213,11 @@ export default function LandingPage() {
                 style={{ aspectRatio: '4 / 4.3' }}
               >
                 <div className="absolute inset-0">
-                  <DNAHelix className="w-full h-full" />
+                  {showHero3d ? (
+                    <DNAHelix className="w-full h-full" />
+                  ) : (
+                    <div className="h-full w-full bg-surface-0" aria-hidden="true" />
+                  )}
                 </div>
                 <div
                   className="absolute inset-0 pointer-events-none opacity-40"

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { DockingInteraction } from '@/lib/api';
 import { HudPanel, HudLegend } from '@/components/ui';
 import { useTheme } from '@/contexts/theme';
+import { ensurePdbeMolstar } from '@/lib/pdbeMolstar';
 import { ArrowCounterClockwise as RotateCcw, ArrowClockwise as RotateCw, Camera, FlipHorizontal, Palette, Cube as Box, Stack as Layers, Minus, Circle, Hexagon } from '@phosphor-icons/react';
 
 interface DockingViewerProps {
@@ -294,6 +295,13 @@ export function DockingViewer({
     let checkInterval: ReturnType<typeof setInterval> | null = null;
 
     container.innerHTML = '';
+
+    void ensurePdbeMolstar().catch(() => {
+      if (!cancelled) {
+        setStatus('error');
+        setError('The 3D viewer failed to load. Docking scores and interaction data are still available.');
+      }
+    });
 
     const el = document.createElement('pdbe-molstar') as PDBeElement;
     if (pdbUrl) {

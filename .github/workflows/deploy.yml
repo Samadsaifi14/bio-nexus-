@@ -12,6 +12,7 @@ jobs:
   deploy-backend:
     name: Deploy Backend to HuggingFace Spaces
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - name: Push to HuggingFace Spaces
@@ -20,10 +21,24 @@ jobs:
         run: |
           pip install -U huggingface_hub
           hf upload Samad14/bio-nexus-api bioai-platform/backend --repo-type space --exclude "**/.env" --exclude "**/.env.deploy" --exclude "**/__pycache__/**"
+      - name: Verify backend health
+        run: |
+          for attempt in {1..30}; do
+            if curl --fail --silent --show-error --max-time 15 \
+              https://samad14-bio-nexus-api.hf.space/health \
+              | grep -q '"status":"ok"'; then
+              echo "BioNexus backend health check passed"
+              exit 0
+            fi
+            sleep 10
+          done
+          echo "Backend did not become healthy after deployment"
+          exit 1
 
   deploy-frontend:
     name: Verify production frontend deployment
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - name: Wait for the canonical Vercel project to deploy this commit
         env:
@@ -39,3 +54,13 @@ jobs:
           done
           echo "Timed out waiting for canonical Vercel deployment of $GITHUB_SHA"
           exit 1
+      - name: Verify public frontend response
+        run: |
+          curl --fail --silent --show-error --max-time 20 \
+            https://bio-nexus-ebon.vercel.app/ \
+            -o /tmp/bionexus-home.html
+          test -s /tmp/bionexus-home.html
+          curl --fail --silent --show-error --max-time 20 \
+            https://bio-nexus-ebon.vercel.app/robots.txt \
+            -o /tmp/bionexus-robots.txt
+          test -s /tmp/bionexus-robots.txt

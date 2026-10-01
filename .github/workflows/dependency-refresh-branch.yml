@@ -1,0 +1,47 @@
+name: Branch dependency refresh
+
+on:
+  push:
+    branches:
+      - chore/free-for-dev-platform-optimization-20261001
+    paths:
+      - '.github/workflows/dependency-refresh-branch.yml'
+      - 'bioai-platform/frontend/package.json'
+      - 'bioai-platform/frontend/package-lock.json'
+
+permissions:
+  contents: write
+
+jobs:
+  refresh:
+    if: "!contains(github.event.head_commit.message, 'chore(deps): refresh patched frontend lockfile')"
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/frontend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+        with:
+          ref: chore/free-for-dev-platform-optimization-20261001
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bioai-platform/frontend/package-lock.json
+      - name: Refresh patched production dependencies
+        run: |
+          npm install --package-lock-only next@16.3.8 axios@^1.20.0
+          npm audit fix --package-lock-only
+          npm audit --omit=dev --audit-level=critical
+      - name: Commit refreshed lockfile
+        working-directory: .
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add bioai-platform/frontend/package.json bioai-platform/frontend/package-lock.json
+          if git diff --cached --quiet; then
+            echo "Dependency files already patched"
+            exit 0
+          fi
+          git commit -m "chore(deps): refresh patched frontend lockfile"
+          git push origin HEAD:chore/free-for-dev-platform-optimization-20261001

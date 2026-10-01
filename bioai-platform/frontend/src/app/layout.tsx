@@ -1,7 +1,6 @@
 import type { Metadata } from 'next';
 import { GeistSans } from 'geist/font/sans';
 import { GeistMono } from 'geist/font/mono';
-import Script from 'next/script';
 import { MotionConfig } from 'framer-motion';
 import './globals.css';
 import './scientific-ui.css';
@@ -12,9 +11,32 @@ import { themeInitScript } from '@/lib/theme';
 import { JsonLd } from '@/components/seo/JsonLd';
 import { ORG_ID, SITE_NAME, SITE_URL, WEBSITE_ID } from '@/lib/seo';
 
+const description =
+  'Provenance-aware bioinformatics workspace for sequence analysis, structures, docking, NGS/RNA-seq, scientific figures and evidence-backed interpretation.';
+
 export const metadata: Metadata = {
-  title: 'Bio Nexus — One interface for every bioinformatics tool',
-  description: 'Protein sequence analysis, BLAST, UniProt, AlphaFold, docking — all in one place. Built for researchers who aren\'t bioinformaticians.',
+  metadataBase: new URL(SITE_URL),
+  applicationName: SITE_NAME,
+  title: {
+    default: 'Bio Nexus — Bioinformatics analysis with traceable scientific evidence',
+    template: '%s | Bio Nexus',
+  },
+  description,
+  alternates: {
+    canonical: '/',
+  },
+  openGraph: {
+    type: 'website',
+    url: '/',
+    siteName: SITE_NAME,
+    title: 'Bio Nexus — Bioinformatics analysis with traceable scientific evidence',
+    description,
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'Bio Nexus — Bioinformatics analysis with traceable scientific evidence',
+    description,
+  },
 };
 
 export default function RootLayout({
@@ -25,11 +47,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${GeistSans.variable} ${GeistMono.variable}`}>
       <head>
-        <link rel="stylesheet" type="text/css" href="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar.css" />
-        <Script
-          src="https://cdn.jsdelivr.net/npm/pdbe-molstar@3.12.0/build/pdbe-molstar-component.js"
-          strategy="beforeInteractive"
-        />
         <script dangerouslySetInnerHTML={{ __html: themeInitScript }} />
       </head>
       <body className="font-sans antialiased">
@@ -43,7 +60,7 @@ export default function RootLayout({
                 name: SITE_NAME,
                 url: `${SITE_URL}/`,
                 description:
-                  'Bio Nexus unifies BLAST, UniProt, AlphaFold, molecular docking and AI interpretation into a single bioinformatics research interface.',
+                  'Bio Nexus unifies bioinformatics analysis, scientific provenance, visualization and evidence-backed interpretation in a single research workspace.',
                 sameAs: ['https://github.com/Samadsaifi14/bio-nexus-'],
                 foundingLocation: {
                   '@type': 'Place',

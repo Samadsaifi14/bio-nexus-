@@ -76,7 +76,8 @@ jobs:
       - name: Install local RNA-seq statistical and annotation runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-bioc-org.mm.eg.db r-bioc-go.db
+          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db
+          Rscript -e 'BiocManager::install("org.Mm.eg.db", ask = FALSE, update = FALSE); stopifnot(requireNamespace("org.Mm.eg.db", quietly = TRUE))'
       - name: Known-answer GO statistics and real identifier mapping
         run: Rscript tests/test_go_enrichment.R
       - name: Execute the ten-stage SALS regression fixture

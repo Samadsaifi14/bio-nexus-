@@ -85,6 +85,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     if f"^SERIES = {accession}" not in series_text:
         raise GeoCountsError("GEO did not return the requested Series record.")
     sample_text = (await _get_limited(client, GEO_URL, params={**base, "targ": "gsm"}, limit=5 * 1024 * 1024)).decode("utf-8-sig")
+    organisms = sorted(set(_soft_lines(sample_text, "Sample_organism_ch1")))
     samples: list[GeoSample] = []
     for block in re.split(r"(?=\^SAMPLE = )", sample_text):
         match = re.match(r"\^SAMPLE = (GSM\d+)", block)
@@ -109,6 +110,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
                           "analysis_issue": issue})
     return {
         "accession": accession,
+        "organisms": organisms,
         "title": next(iter(_soft_lines(series_text, "Series_title")), ""),
         "design": next(iter(_soft_lines(series_text, "Series_overall_design")), ""),
         "samples": [{"accession": sample.accession, "title": sample.title, "characteristics": sample.characteristics} for sample in samples],

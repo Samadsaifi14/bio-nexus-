@@ -109,9 +109,11 @@ async def run_expression_analysis(
     min_count: int = Form(10),
     min_samples: int = Form(0),
     top_heatmap_genes: int = Form(40),
+    organism: str = Form("auto"),
     user_id: str = Depends(require_user_id),
 ):
     params = ExpressionParameters(
+        organism=organism,
         condition_column=condition_column.strip(),
         reference_level=reference_level.strip(),
         test_level=test_level.strip(),
@@ -150,6 +152,7 @@ def run_cer_sals_demo(user_id: str = Depends(require_user_id)):
     if not DEMO_COUNTS.exists() or not DEMO_METADATA.exists():
         raise HTTPException(status_code=503, detail="The bundled cerebellum SALS validation subset is not installed.")
     params = ExpressionParameters(
+        organism="human",
         condition_column="condition",
         reference_level="healthy",
         test_level="SALS",

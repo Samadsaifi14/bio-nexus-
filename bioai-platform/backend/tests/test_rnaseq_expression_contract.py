@@ -70,3 +70,10 @@ def test_r_script_contains_required_statistical_and_figure_stages():
         "confounded_columns",
     ):
         assert token in text
+
+
+def test_enrichment_organism_validation():
+    for organism in ("auto", "human", "mouse"):
+        ExpressionParameters(organism=organism).validate()
+    with pytest.raises(RnaSeqExpressionError):
+        ExpressionParameters(organism="guess").validate()

@@ -36,6 +36,7 @@ class RnaSeqExpressionError(RuntimeError):
 
 @dataclass(frozen=True)
 class ExpressionParameters:
+    organism: str = "auto"
     condition_column: str = "condition"
     reference_level: str = "healthy"
     test_level: str = "SALS"
@@ -47,6 +48,8 @@ class ExpressionParameters:
     top_heatmap_genes: int = 40
 
     def validate(self) -> None:
+        if self.organism not in {"auto", "human", "mouse"}:
+            raise RnaSeqExpressionError("Supported enrichment organisms: auto, human, mouse.")
         if not SAFE_NAME.fullmatch(self.condition_column):
             raise RnaSeqExpressionError("Condition column must use letters, numbers, underscore or dot and start with a letter.")
         for covariate in self.covariates:
@@ -143,6 +146,7 @@ def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: Express
         str(params.lfc_threshold),
         str(params.min_count),
         f"{params.min_samples}:{params.top_heatmap_genes}",
+        params.organism,
     ]
     try:
         completed = subprocess.run(argv, capture_output=True, text=True, timeout=timeout_seconds, check=False)
@@ -191,6 +195,7 @@ def execute_expression_analysis(
             "source_metadata": source_metadata or {},
             "counts_sha256": counts_sha256,
             "metadata_sha256": metadata_sha256,
+            "organism": params.organism,
             "condition_column": params.condition_column,
             "reference_level": params.reference_level,
             "test_level": params.test_level,

@@ -98,7 +98,7 @@ function FigureCard({
         </div>
       </div>
       {image ? (
-        <div className="bg-white p-3"><img src={image.url} alt={title} className="mx-auto max-h-[520px] w-full object-contain" /></div>
+        <div className="bg-white p-3"><img loading="lazy" decoding="async" src={image.url} alt={title} className="mx-auto max-h-[520px] w-full object-contain" /></div>
       ) : (
         <div className="p-6 text-xs text-text-muted">This figure was not emitted by the analysis. BioNexus does not synthesize a replacement.</div>
       )}
@@ -113,6 +113,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
   const [referenceLevel, setReferenceLevel] = useState('healthy');
   const [testLevel, setTestLevel] = useState('SALS');
   const [covariates, setCovariates] = useState('');
+  const [organism, setOrganism] = useState('auto');
   const [minSamples, setMinSamples] = useState(0);
   const [lfcThreshold, setLfcThreshold] = useState(1);
   const [running, setRunning] = useState<'demo' | 'upload' | null>(null);
@@ -134,6 +135,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
       setResult(await runRnaSeqExpression({
         counts,
         metadata,
+        organism,
         conditionColumn,
         referenceLevel,
         testLevel,
@@ -160,6 +162,9 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
   const volcano = artifact(displayedResult, 'volcano.svg');
   const resultsTable = artifact(displayedResult, 'deseq2_all_results.tsv');
   const degTable = artifact(displayedResult, 'deseq2_significant.tsv');
+  const enrichment = summary?.enrichment;
+  const enrichmentPlot = artifact(displayedResult, 'go_enrichment.svg');
+  const enrichmentTable = artifact(displayedResult, 'go_enrichment_significant.tsv');
   const heatmap = artifact(displayedResult, 'expression_heatmap.svg');
   const heatmapData = artifact(displayedResult, 'heatmap_matrix_zscore.tsv');
   const heatmapSelection = artifact(displayedResult, 'heatmap_gene_selection.tsv');
@@ -206,6 +211,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
 
         <div className="border-t border-glass-border p-5">
           <div className="grid gap-3 md:grid-cols-3 lg:grid-cols-6">
+            <label className="text-[10px] text-text-muted">Organism for GO enrichment<select value={organism} onChange={e => setOrganism(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary"><option value="auto">Auto (Ensembl IDs only)</option><option value="human">Human</option><option value="mouse">Mouse</option></select></label>
             <label className="text-[10px] text-text-muted">Condition column<input value={conditionColumn} onChange={e => setConditionColumn(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
             <label className="text-[10px] text-text-muted">Reference<input value={referenceLevel} onChange={e => setReferenceLevel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
             <label className="text-[10px] text-text-muted">Test level<input value={testLevel} onChange={e => setTestLevel(e.target.value)} className="mt-1 w-full rounded-lg border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></label>
@@ -222,6 +228,15 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
       {summary && displayedResult && (
         <>
           <div className="rounded-xl border border-good/20 bg-good/5 p-4 text-[11px] leading-5 text-text-secondary"><ShieldCheck className="mr-2 inline h-4 w-4 text-good" />DESeq2 completed. These values are read from the emitted R artifacts; no result card below is populated from placeholder data.</div>
+
+          <div className="rounded-xl border border-glass-border bg-surface-0 p-4">
+            <h3 className="text-sm font-semibold text-text-primary">Ten-step practical workflow</h3>
+            <ol className="mt-3 grid list-inside list-decimal gap-2 text-xs text-text-secondary sm:grid-cols-2">
+              {['Inspect counts and library sizes', 'Build sample metadata', 'Construct DESeq2 object and design', 'Pre-filter low-count genes', 'Median-of-ratios normalization', 'PCA and sample-distance QC', 'Fit, shrink, filter and export DEGs', 'Volcano plot', 'Expression heatmap'].map(step => <li key={step}>{step}</li>)}
+              <li>Functional enrichment — {enrichment?.status === 'SUCCEEDED' ? 'completed' : enrichment?.status?.replaceAll('_', ' ').toLowerCase() ?? 'not available for this older run'}</li>
+            </ol>
+            <p className="mt-3 text-[11px] text-text-muted">QC is computed before fitting and requires review. Shrinkage uses the recorded DESeq2 normal prior; the teaching slides show apeglm.</p>
+          </div>
 
           <div className="grid gap-2 sm:grid-cols-4 lg:grid-cols-8">
             <Metric label="Genes input" value={number(summary.genes_input, 0)} />
@@ -293,6 +308,22 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
           <div className="space-y-4">
             <div className="flex items-center gap-2"><GridFour className="text-accent-cyan" /><h3 className="text-sm font-semibold text-text-primary">Expression heatmap</h3></div>
             <FigureCard title={heatmapTitle} subtitle={heatmapSubtitle} image={heatmap} data={heatmapData ?? heatmapSelection} onExpand={setExpanded} />
+          </div>
+
+          <div className="space-y-4 rounded-xl border border-glass-border bg-surface-0 p-4">
+            <h3 className="text-sm font-semibold text-text-primary">10. Functional enrichment · Gene Ontology</h3>
+            <p className="text-xs leading-5 text-text-secondary">{enrichment?.message ?? 'This saved run predates GO enrichment. Run the analysis again to generate it.'}</p>
+            <p className="text-[11px] leading-5 text-text-muted">Local human/mouse annotations. Up and down DEG sets are tested separately against uniquely mapped, GO-annotated genes with non-missing DESeq2 adjusted p-values. One-sided hypergeometric tests use BH correction across both directions and all GO ontologies; terms contain 10–500 background genes. GO association is exploratory and does not establish causation.</p>
+            {enrichment && <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
+              <Metric label="Organism / IDs" value={`${enrichment.organism} / ${enrichment.gene_id_type ?? 'unresolved'}`} />
+              <Metric label="Mapped input rows" value={`${enrichment.genes_uniquely_mapped ?? '—'} / ${enrichment.genes_eligible ?? '—'}`} />
+              <Metric label="Background genes" value={String(enrichment.background_genes ?? '—')} />
+              <Metric label="Unmapped / ambiguous" value={`${enrichment.genes_unmapped ?? '—'} / ${enrichment.genes_ambiguous ?? '—'}`} />
+              <Metric label="Term tests" value={String(enrichment.terms_tested ?? '—')} />
+              <Metric label="Significant terms" value={String(enrichment.significant_terms ?? '—')} />
+            </div>}
+            {enrichmentPlot && <FigureCard title="GO over-representation" subtitle="Top 20 significant term-direction tests ranked by BH adjusted p-value. Full results, mapping audit, background and annotation release metadata are in the reproducibility bundle." image={enrichmentPlot} data={enrichmentTable} onExpand={setExpanded} />}
+            {enrichmentTable && <a href={enrichmentTable.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs text-accent-cyan"><DownloadSimple /> Download significant GO terms</a>}
           </div>
 
           <div className="rounded-xl border border-glass-border bg-surface-0 p-4">

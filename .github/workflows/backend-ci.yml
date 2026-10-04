@@ -65,3 +65,22 @@ jobs:
       - name: Benchmark + engine registry integrity
         run: |
           python scripts/ci_validate.py
+
+  rnaseq-r:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - name: Install local RNA-seq statistical and annotation runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-bioc-org.mm.eg.db r-bioc-go.db
+      - name: Known-answer GO statistics and real identifier mapping
+        run: Rscript tests/test_go_enrichment.R
+      - name: Execute the ten-stage SALS regression fixture
+        run: |
+          mkdir -p /tmp/rnaseq-smoke
+          Rscript app/rnaseq/deseq2_analysis.R app/data/rnaseq/Cer_SALS_every100_validation_subset.tsv app/data/rnaseq/Cer_SALS_metadata.tsv /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 human
+          Rscript -e 's <- jsonlite::fromJSON("/tmp/rnaseq-smoke/analysis_summary.json"); stopifnot(s$samples == 18, s$genes_input == 221, s$enrichment$background_genes > 0, s$enrichment$status %in% c("SUCCEEDED", "NO_SIGNIFICANT_TERMS", "NO_TESTABLE_TERMS")); for (f in c("pca.svg", "sample_distance_heatmap.svg", "volcano.svg", "expression_heatmap.svg", "deseq2_all_results.tsv", "go_enrichment_all.tsv", "go_gene_mapping.tsv", "go_background.tsv", "go_annotation_metadata.json")) stopifnot(file.exists(file.path("/tmp/rnaseq-smoke", f)))'

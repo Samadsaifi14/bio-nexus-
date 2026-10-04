@@ -8,7 +8,7 @@ suppressPackageStartupMessages({
 })
 
 args <- commandArgs(trailingOnly = TRUE)
-if (length(args) != 11) {
+if (!length(args) %in% c(11L, 12L)) {
   stop("Expected 11 arguments: counts metadata outdir condition reference test covariates alpha lfc min_count min_samples:top_heatmap_genes")
 }
 
@@ -365,7 +365,20 @@ if (length(selected_genes) >= 2) {
   heatmap_written <- TRUE
 }
 
+script_arg <- grep("^--file=", commandArgs(), value = TRUE)[[1]]
+source(file.path(dirname(sub("^--file=", "", script_arg)), "go_enrichment.R"))
+enrichment <- tryCatch(
+  run_go_enrichment(res_df, if (length(args) >= 12L) args[[12]] else "auto", outdir, alpha, plot_svg_pdf_png),
+  error = function(e) {
+    status <- list(status = "ERROR", organism = if (length(args) >= 12L) args[[12]] else "auto",
+      message = paste("GO enrichment failed:", conditionMessage(e)))
+    write(toJSON(status, auto_unbox = TRUE, pretty = TRUE), file.path(outdir, "go_enrichment_summary.json"))
+    status
+  }
+)
+
 summary <- list(
+  enrichment = enrichment,
   genes_input = genes_input,
   genes_kept = genes_kept,
   genes_removed = genes_input - genes_kept,

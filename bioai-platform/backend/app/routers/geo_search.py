@@ -105,7 +105,9 @@ async def analyze_geo_matrix(selection: GeoAnalysisRequest, user_id: str = Depen
             raise GeoCountsError("Every sample must belong to the declared reference or test group.")
         if min(groups.count(selection.reference_level), groups.count(selection.test_level)) < 2:
             raise GeoCountsError("Each group needs at least two sample rows. Confirm biological independence from the GEO study design.")
-        params = ExpressionParameters(reference_level=selection.reference_level, test_level=selection.test_level,
+        organisms = set(series.get("organisms", []))
+        organism = "human" if organisms == {"Homo sapiens"} else "mouse" if organisms == {"Mus musculus"} else "auto"
+        params = ExpressionParameters(organism=organism, reference_level=selection.reference_level, test_level=selection.test_level,
                                       lfc_threshold=selection.lfc_threshold, min_count=selection.min_count,
                                       min_samples=selection.min_samples)
         params.validate()

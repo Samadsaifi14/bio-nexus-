@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openbabel libgl1 libgomp1 libopenblas-dev \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools \
-    r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
+    r-base-core r-bioc-org.hs.eg.db r-bioc-org.mm.eg.db r-bioc-go.db r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
     rm -rf /var/lib/apt/lists/*
 
 # Verify the deterministic RNA-seq statistical runtime at image-build time.
@@ -104,13 +104,17 @@ RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-
 
 COPY . .
 
+RUN Rscript tests/test_go_enrichment.R
+
 # Exercise the bundled R analysis and figure export during every backend build.
 # The 221-gene SALS subset is a regression fixture, not a biological result.
 RUN mkdir -p /tmp/rnaseq-smoke && \
     Rscript app/rnaseq/deseq2_analysis.R \
       app/data/rnaseq/Cer_SALS_every100_validation_subset.tsv \
       app/data/rnaseq/Cer_SALS_metadata.tsv \
-      /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 && \
+      /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 human && \
+    test -s /tmp/rnaseq-smoke/go_enrichment_all.tsv && \
+    test -s /tmp/rnaseq-smoke/go_gene_mapping.tsv && \
     test -s /tmp/rnaseq-smoke/analysis_summary.json && \
     test -s /tmp/rnaseq-smoke/pca.svg && \
     test -s /tmp/rnaseq-smoke/dispersion_plot.svg && \

@@ -10,6 +10,11 @@ export type RnaSeqArtifact = {
 };
 
 export type RnaSeqExpressionSummary = {
+  enrichment?: {
+    status: string; message: string; organism: string; gene_id_type?: string;
+    background_genes?: number; genes_eligible?: number; genes_uniquely_mapped?: number;
+    genes_unmapped?: number; genes_ambiguous?: number; terms_tested?: number; significant_terms?: number;
+  };
   genes_input: number;
   genes_kept: number;
   genes_removed: number;
@@ -70,10 +75,12 @@ export type RnaSeqExpressionUpload = {
   minCount?: number;
   minSamples?: number;
   topHeatmapGenes?: number;
+  organism?: string;
 };
 
 export async function runRnaSeqExpression(payload: RnaSeqExpressionUpload): Promise<RnaSeqExpressionResult> {
   const form = new FormData();
+  form.append('organism', payload.organism ?? 'auto');
   form.append('counts', payload.counts);
   form.append('metadata', payload.metadata);
   form.append('condition_column', payload.conditionColumn);

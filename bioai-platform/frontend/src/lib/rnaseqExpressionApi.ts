@@ -12,6 +12,9 @@ export type RnaSeqArtifact = {
 export type RnaSeqExpressionSummary = {
   enrichment?: {
     status: string; message: string; organism: string; gene_id_type?: string;
+    database?: string; method?: string; method_key?: string; background?: string;
+    aliases_recovered?: number; mapping_coverage?: number; annotation_coverage?: number;
+    coverage_warning?: string; interpretation_note?: string;
     background_genes?: number; genes_eligible?: number; genes_uniquely_mapped?: number;
     genes_unmapped?: number; genes_ambiguous?: number; terms_tested?: number; significant_terms?: number;
   };
@@ -105,5 +108,26 @@ export async function runCerSalsDemo(): Promise<RnaSeqExpressionResult> {
 
 export async function getRnaSeqExpressionRun(runId: string): Promise<RnaSeqExpressionResult> {
   const response = await longApi.get(`/api/ngs/v2/rnaseq/expression/runs/${encodeURIComponent(runId)}`);
+  return response.data;
+}
+
+export type EnrichmentRetryOptions = {
+  organism: string; database: string; method: string; idType: string; aliases: boolean;
+  databaseLabel?: string; namespace?: string; gmt?: File | null; mapping?: File | null;
+};
+
+export async function rerunRnaSeqEnrichment(runId: string, options: EnrichmentRetryOptions): Promise<RnaSeqExpressionResult> {
+  const form = new FormData();
+  form.append('organism', options.organism);
+  form.append('database', options.database);
+  form.append('method', options.method);
+  form.append('id_type', options.idType);
+  form.append('aliases', String(options.aliases));
+  form.append('database_label', options.databaseLabel ?? '');
+  form.append('namespace', options.namespace ?? '');
+  if (options.gmt) form.append('gmt', options.gmt);
+  if (options.mapping) form.append('mapping', options.mapping);
+  const response = await longApi.post(`/api/ngs/v2/rnaseq/expression/runs/${encodeURIComponent(runId)}/enrichment`, form,
+    { headers: { 'Content-Type': 'multipart/form-data' } });
   return response.data;
 }

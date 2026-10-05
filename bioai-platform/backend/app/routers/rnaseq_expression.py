@@ -5,6 +5,10 @@ import shutil
 import tempfile
 from pathlib import Path
 
+from starlette.concurrency import run_in_threadpool
+
+from app.rnaseq.enrichment_retry import EnrichmentOptions, MAX_ANNOTATION_BYTES, rerun_enrichment
+
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from app.rnaseq.expression import (
@@ -78,6 +82,7 @@ def expression_capabilities():
             "ma_plot",
             "volcano_plot",
             "complexheatmap",
+            "functional_enrichment",
         ],
         "study_scope": {
             "bundled_fixture": {
@@ -92,6 +97,8 @@ def expression_capabilities():
                 "but independent biological interpretation remains required before manuscript-level ALS claims."
             ),
         },
+        "enrichment": {"databases": ["GO", "GO:BP", "GO:MF", "GO:CC", "CUSTOM"],
+            "methods": ["ora", "ranked_wilcoxon"], "custom_gmt": True, "saved_run_retry": True},
         "privacy": "Uploaded count matrices are processed in a temporary directory. Derived artifacts are stored in a private per-user bucket; raw uploads are not persisted by this route.",
     }
 
@@ -180,3 +187,30 @@ def get_expression_run(run_id: str, user_id: str = Depends(require_user_id)):
         return _with_study_scope(load_manifest(user_id, run_id))
     except RnaSeqExpressionError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
+
+
+@router.post("/runs/{run_id}/enrichment")
+async def retry_expression_enrichment(
+    run_id: str,
+    organism: str = Form("auto"), database: str = Form("GO"), method: str = Form("ora"),
+    id_type: str = Form("auto"), aliases: bool = Form(True),
+    database_label: str = Form(""), namespace: str = Form(""),
+    gmt: UploadFile | None = File(None), mapping: UploadFile | None = File(None),
+    user_id: str = Depends(require_user_id),
+):
+    options = EnrichmentOptions(organism=organism.strip(), database=database, method=method,
+        id_type=id_type, aliases=aliases, database_label=database_label.strip(), namespace=namespace.strip())
+    try:
+        options.validate(gmt is not None, mapping is not None)
+        with tempfile.TemporaryDirectory(prefix="bionexus-enrichment-upload-") as folder:
+            gmt_path = Path(folder) / "sets.gmt" if gmt else None
+            mapping_path = Path(folder) / "mapping.tsv" if mapping else None
+            if gmt and gmt_path:
+                await _save_upload(gmt, gmt_path, MAX_ANNOTATION_BYTES)
+            if mapping and mapping_path:
+                await _save_upload(mapping, mapping_path, MAX_ANNOTATION_BYTES)
+            result = await run_in_threadpool(rerun_enrichment, user_id=user_id, run_id=run_id,
+                options=options, gmt=gmt_path, mapping=mapping_path)
+            return _with_study_scope(result)
+    except RnaSeqExpressionError as exc:
+        raise _http_error(exc) from exc

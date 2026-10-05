@@ -16,6 +16,7 @@ import {
 } from '@phosphor-icons/react';
 
 import { CriticalButton } from '@/components/ui';
+import { EnrichmentRecovery } from './EnrichmentRecovery';
 import { RnaSeqResultTables } from './RnaSeqResultTables';
 import {
   runCerSalsDemo,
@@ -118,6 +119,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
   const [lfcThreshold, setLfcThreshold] = useState(1);
   const [running, setRunning] = useState<'demo' | 'upload' | null>(null);
   const [result, setResult] = useState<RnaSeqExpressionResult | null>(null);
+  const [recovered, setRecovered] = useState<{ sourceId: string; result: RnaSeqExpressionResult } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<RnaSeqArtifact | null>(null);
 
@@ -151,7 +153,8 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
     } finally { setRunning(null); }
   };
 
-  const displayedResult = externalResult ?? result;
+  const baseResult = externalResult ?? result;
+  const displayedResult = recovered && recovered.sourceId === baseResult?.run_id ? recovered.result : baseResult;
   const summary = displayedResult?.summary;
   const pca = artifact(displayedResult, 'pca.svg');
   const pcaData = artifact(displayedResult, 'pca_coordinates.tsv');
@@ -311,20 +314,28 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
           </div>
 
           <div className="space-y-4 rounded-xl border border-glass-border bg-surface-0 p-4">
-            <h3 className="text-sm font-semibold text-text-primary">10. Functional enrichment · Gene Ontology</h3>
-            <p className="text-xs leading-5 text-text-secondary">{enrichment?.message ?? 'This saved run predates GO enrichment. Run the analysis again to generate it.'}</p>
-            <p className="text-[11px] leading-5 text-text-muted">Local human/mouse annotations. Up and down DEG sets are tested separately against uniquely mapped, GO-annotated genes with non-missing DESeq2 adjusted p-values. One-sided hypergeometric tests use BH correction across both directions and all GO ontologies; terms contain 10–500 background genes. GO association is exploratory and does not establish causation.</p>
+            <h3 className="text-sm font-semibold text-text-primary">10. Functional enrichment · {enrichment?.database ?? 'GO'}</h3>
+            <p className="text-xs leading-5 text-text-secondary">{enrichment?.message ?? 'This saved run has no enrichment. Use the recovery options below to generate it.'}</p>
+            <p className="text-[11px] leading-5 text-text-muted">{enrichment?.method ?? 'GO over-representation with BH correction across terms and directions'}. Background: {enrichment?.background ?? 'Uniquely mapped, GO-annotated genes with non-missing DESeq2 adjusted p-values'}. Terms contain 10–500 background genes.</p>
+            {enrichment?.coverage_warning && <p role="status" className="text-xs text-amber-500">{enrichment.coverage_warning}</p>}
+            {enrichment?.interpretation_note && <p className="text-xs text-text-muted">{enrichment.interpretation_note}</p>}
             {enrichment && <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Metric label="Organism / IDs" value={`${enrichment.organism} / ${enrichment.gene_id_type ?? 'unresolved'}`} />
               <Metric label="Mapped input rows" value={`${enrichment.genes_uniquely_mapped ?? '—'} / ${enrichment.genes_eligible ?? '—'}`} />
+              <Metric label="Alias recoveries" value={String(enrichment.aliases_recovered ?? '—')} />
+              <Metric label="Annotated coverage" value={enrichment.annotation_coverage == null ? '—' : `${number(100 * enrichment.annotation_coverage)}%`} />
               <Metric label="Background genes" value={String(enrichment.background_genes ?? '—')} />
               <Metric label="Unmapped / ambiguous" value={`${enrichment.genes_unmapped ?? '—'} / ${enrichment.genes_ambiguous ?? '—'}`} />
               <Metric label="Term tests" value={String(enrichment.terms_tested ?? '—')} />
               <Metric label="Significant terms" value={String(enrichment.significant_terms ?? '—')} />
             </div>}
-            {enrichmentPlot && <FigureCard title="GO over-representation" subtitle="Top 20 significant term-direction tests ranked by BH adjusted p-value. Full results, mapping audit, background and annotation release metadata are in the reproducibility bundle." image={enrichmentPlot} data={enrichmentTable} onExpand={setExpanded} />}
-            {enrichmentTable && <a href={enrichmentTable.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs text-accent-cyan"><DownloadSimple /> Download significant GO terms</a>}
+            {enrichmentPlot && <FigureCard title="Functional enrichment" subtitle="Top 20 significant term-direction tests ranked by BH adjusted p-value. Full results, mapping audit, background and annotation release metadata are in the reproducibility bundle." image={enrichmentPlot} data={enrichmentTable} onExpand={setExpanded} />}
+            {enrichmentTable && <a href={enrichmentTable.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs text-accent-cyan"><DownloadSimple /> Download significant terms</a>}
           </div>
+
+          <EnrichmentRecovery key={displayedResult.run_id} result={displayedResult} onResult={next => {
+            if (baseResult) setRecovered({ sourceId: baseResult.run_id, result: next });
+          }} />
 
           <div className="rounded-xl border border-glass-border bg-surface-0 p-4">
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Complete reproducibility bundle</h3><p className="mt-1 text-[11px] leading-5 text-text-muted">Normalized counts, size factors, PCA coordinates, distance matrix, all-gene results, significant-gene table, plotted heatmap matrix, gene-selection evidence, SVG/PDF/300-dpi PNG figures and provenance.</p></div>{displayedResult.manifest_url && <a href={displayedResult.manifest_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Manifest</a>}</div>

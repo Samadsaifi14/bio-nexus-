@@ -120,7 +120,13 @@ def _hydrate_manifest(manifest: dict[str, Any], prefix: str) -> dict[str, Any]:
     """Attach short-lived owner access URLs without mutating stored provenance."""
     hydrated = json.loads(json.dumps(manifest))
     for artifact in hydrated.get("artifacts", []):
-        artifact["url"] = _signed_url(f"{prefix}/{artifact['name']}")
+        source_run = artifact.get("source_run_id")
+        source_prefix = prefix
+        if source_run:
+            if not re.fullmatch(r"[0-9a-fA-F-]{36}", source_run):
+                raise RnaSeqExpressionError("Invalid artifact source run.")
+            source_prefix = f"{prefix.rsplit('/', 1)[0]}/{source_run}"
+        artifact["url"] = _signed_url(f"{source_prefix}/{artifact['name']}")
     hydrated["manifest_url"] = _signed_url(f"{prefix}/manifest.json")
     return hydrated
 

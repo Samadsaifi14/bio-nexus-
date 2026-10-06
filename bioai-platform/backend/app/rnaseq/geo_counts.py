@@ -25,6 +25,8 @@ class GeoCountsError(ValueError):
 
 def count_file_issue(filename: str) -> str | None:
     """Reject files explicitly labelled as transformed abundance before download or fitting."""
+    if not filename.lower().endswith(COUNT_EXTENSIONS):
+        return "This supplement is not a supported text count matrix. Archives and signal tracks need a separate preparation workflow; they cannot be imported as gene counts."
     match = NON_COUNT_NAME.search(filename)
     if match:
         return (f"This file is labelled {match.group(1).upper()} and is not a raw integer count matrix. "
@@ -67,13 +69,23 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
 
 def _source_url(raw: str) -> str | None:
     parsed = urlparse(raw)
-    if parsed.scheme not in {"ftp", "https"} or parsed.hostname != "ftp.ncbi.nlm.nih.gov":
+    if parsed.scheme not in {"ftp", "https"} or parsed.netloc != "ftp.ncbi.nlm.nih.gov":
         return None
     if not parsed.path.startswith("/geo/series/") or ".." in parsed.path or parsed.query or parsed.fragment:
         return None
-    if not parsed.path.lower().endswith(COUNT_EXTENSIONS):
-        return None
     return f"https://ftp.ncbi.nlm.nih.gov{parsed.path}"
+
+
+def assay_issue(experiment_types: list[str]) -> str | None:
+    if experiment_types and any(kind != "Expression profiling by high throughput sequencing" for kind in experiment_types):
+        preparation = (
+            "CUT&Tag/ChIP-seq requires aligned reads and a reviewed peak or region count matrix; bigWig signal tracks are not raw gene counts. "
+            if any("Genome binding/occupancy" in kind for kind in experiment_types)
+            else "Use an analysis appropriate to the recorded assay. "
+        )
+        return ("This Series includes an assay outside the RNA-seq gene-expression workflow: "
+                + "; ".join(experiment_types) + ". " + preparation + "Choose an RNA-seq Series for this workflow.")
+    return None
 
 
 async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
@@ -101,16 +113,20 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     if not samples or set(declared) != {sample.accession for sample in samples}:
         raise GeoCountsError("GEO sample metadata is incomplete for this Series.")
     files = []
+    experiment_types = _soft_lines(series_text, "Series_type")
+    workflow_issue = assay_issue(experiment_types)
     for raw in _soft_lines(series_text, "Series_supplementary_file"):
         url = _source_url(raw)
         if url:
             name = url.rsplit("/", 1)[-1]
-            issue = count_file_issue(name)
+            issue = count_file_issue(name) or workflow_issue
             files.append({"name": name, "url": url, "analysis_eligible": issue is None,
                           "analysis_issue": issue})
     return {
         "accession": accession,
         "organisms": organisms,
+        "experiment_types": experiment_types,
+        "workflow_issue": workflow_issue,
         "title": next(iter(_soft_lines(series_text, "Series_title")), ""),
         "design": next(iter(_soft_lines(series_text, "Series_overall_design")), ""),
         "samples": [{"accession": sample.accession, "title": sample.title, "characteristics": sample.characteristics} for sample in samples],
@@ -209,10 +225,12 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
 
 
 async def fetch_matrix(client: httpx.AsyncClient, series: dict, filename: str) -> tuple[dict, str]:
+    if series.get("workflow_issue"):
+        raise GeoCountsError(series["workflow_issue"])
     matched = [item for item in series["files"] if item["name"] == filename]
     if len(matched) != 1:
         raise GeoCountsError("Select a supplementary matrix listed by this GEO Series.")
-    issue = count_file_issue(filename)
+    issue = matched[0].get("analysis_issue") or count_file_issue(filename)
     if issue:
         raise GeoCountsError(issue)
     source = matched[0]["url"]

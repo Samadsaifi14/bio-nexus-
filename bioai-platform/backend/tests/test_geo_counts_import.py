@@ -108,6 +108,39 @@ def test_geo_series_marks_fpkm_supplement_as_unavailable(monkeypatch):
     assert "FPKM" in result["files"][0]["analysis_issue"]
 
 
+def test_cut_and_tag_archive_is_visible_but_cannot_enter_expression_analysis():
+    text = SERIES.replace("counts.csv.gz", "GSE336091_RAW.tar") + "!Series_type = Genome binding/occupancy profiling by high throughput sequencing\n"
+    def respond(request):
+        return httpx.Response(200, text=text if request.url.params["targ"] == "self" else SAMPLES + "!Sample_organism_ch1 = Mus musculus\n")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            result = await fetch_series(client, "GSE336901")
+        assert result["organisms"] == ["Mus musculus"]
+        assert result["files"][0]["name"] == "GSE336091_RAW.tar"
+        assert result["files"][0]["analysis_eligible"] is False
+        assert "bigWig" in result["workflow_issue"]
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: pytest.fail("must not download archive"))) as client:
+            with pytest.raises(GeoCountsError, match="outside the RNA-seq"):
+                await fetch_matrix(client, result, result["files"][0]["name"])
+    asyncio.run(run())
+
+
+def test_rnaseq_archive_fallback_preserves_source_and_rejects_download():
+    text = SERIES.replace("counts.csv.gz", "counts.tar") + "!Series_type = Expression profiling by high throughput sequencing\n"
+    def respond(request):
+        return httpx.Response(200, text=text if request.url.params["targ"] == "self" else SAMPLES)
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            result = await fetch_series(client, "GSE336901")
+        assert result["workflow_issue"] is None
+        assert result["files"][0]["url"].endswith("counts.tar")
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: pytest.fail("must not download archive"))) as client:
+            with pytest.raises(GeoCountsError, match="separate preparation workflow"):
+                await fetch_matrix(client, result, "counts.tar")
+    asyncio.run(run())
+
+
 def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch):
     series = {"accession": "GSE336901", "samples": [
         {"accession": f"GSM{i}", "title": f"sample GZ1000{i}", "characteristics": {"treatment": "sensitive" if i < 3 else "resistant", "batch": "FFPE"}}

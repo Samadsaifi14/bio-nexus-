@@ -9,7 +9,7 @@ import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
 
 type GeoSeries = { accession: string; title: string; summary: string; sample_count?: number; organism?: string; url: string };
 type GeoSample = { accession: string; title: string; characteristics: Record<string, string> };
-type SeriesDetail = { accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
+type SeriesDetail = { organisms?: string[]; experiment_types?: string[]; workflow_issue?: string | null; accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
 type CountColumn = { column: string; gsm: string | null; title: string | null; characteristics: Record<string, string>; library_size: number };
 type MatrixPreview = { accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
 type Assignment = { column: string; gsm: string; condition: string };
@@ -79,6 +79,8 @@ export default function RnaSeqWorkflow() {
     setAssignments(current => current.map((row, i) => i === index ? { ...row, ...patch } : row));
   }
 
+  const eligibleFiles = series?.files.filter(file => file.analysis_eligible !== false) ?? [];
+
   const mapped = assignments.length > 0 && assignments.every(row => row.gsm && row.condition) && new Set(assignments.map(row => row.gsm)).size === assignments.length;
   const groupsValid = Boolean(reference && test && reference !== test && assignments.every(row => row.condition === reference || row.condition === test)
     && assignments.filter(row => row.condition === reference).length >= 2 && assignments.filter(row => row.condition === test).length >= 2);
@@ -116,8 +118,18 @@ export default function RnaSeqWorkflow() {
     {series && <section className="data-card p-5">
       <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">02</span><h2 className="text-base font-semibold text-text-primary">Choose a raw count matrix</h2></div>
       <p className="mt-2 text-xs leading-5 text-text-secondary">{series.design}</p>
-      <p className="mt-2 text-xs text-text-muted">{series.samples.length} GEO samples · {series.files.length} Series-level text files. Only validated raw count matrices can enter DESeq2.</p>
-      {!series.files.length && <p className="mt-3 text-xs text-warn">No direct CSV/TSV count matrix is listed. This study cannot use the automatic count-matrix path; inspect its source record.</p>}
+      <p className="mt-2 text-xs text-text-muted">{series.organisms?.join(", ") || "Organism not recorded"} · {series.samples.length} GEO samples · {series.files.length} Series supplements · {eligibleFiles.length} candidate count matrices. Only validated raw count matrices can enter DESeq2.</p>
+      {!!series.experiment_types?.length && <p className="mt-2 text-xs text-text-muted">Assay: {series.experiment_types.join('; ')}</p>}
+      {series.workflow_issue && <p role="status" className="mt-3 rounded border border-warn/25 bg-warn/5 p-3 text-xs leading-5 text-warn">{series.workflow_issue}</p>}
+      {!eligibleFiles.length && <div className="mt-3 space-y-2 text-xs leading-5 text-text-secondary">
+        <p>{series.workflow_issue ? 'Choose a study with RNA-seq gene counts to continue here.' : 'No supported raw-count candidate is listed. Check the GEO record and sample supplements for a raw gene count matrix.'}</p>
+        {!series.workflow_issue && <p>If counts are inside an archive or available from another repository, extract and verify them, then use the manual upload below with sample metadata. If only FASTQ reads are available, alignment or quantification and raw gene counting are required first. Normalized expression and signal tracks cannot substitute for raw counts.</p>}
+        <div className="flex flex-wrap gap-3">
+          <button type="button" onClick={() => { setQuery('RNA-seq'); document.querySelector<HTMLInputElement>('[aria-label="GEO accession or search terms"]')?.focus(); }} className="text-accent-cyan">Find an RNA-seq study</button>
+          {!series.workflow_issue && <button type="button" onClick={() => document.getElementById('expression-results')?.scrollIntoView({ behavior: 'smooth' })} className="text-accent-cyan">Upload verified counts and metadata</button>}
+          <a href={`https://www.ncbi.nlm.nih.gov/sra/?term=${series.accession}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-cyan">Inspect SRA reads <ArrowSquareOut /></a>
+        </div>
+      </div>}
       <div className="mt-3 space-y-2">{series.files.map(file => <div key={file.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><div><span className="break-all font-mono text-xs text-text-primary">{file.name}</span>{file.analysis_issue && <p className="mt-1 text-xs leading-5 text-warn">{file.analysis_issue}</p>}</div><div className="flex gap-2"><a href={file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-text-secondary"><DownloadSimple /> Source</a><button type="button" disabled={!!busy || file.analysis_eligible === false} onClick={() => inspectMatrix(file.name)} className="rounded border border-accent-cyan/30 px-3 py-2 text-xs text-accent-cyan disabled:opacity-40">{file.analysis_eligible === false ? 'Not raw counts' : busy === 'preview' ? 'Validating…' : 'Validate counts'}</button></div></div>)}</div>
       <a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${series.accession}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-accent-cyan">Open GEO source record <ArrowSquareOut /></a>
     </section>}

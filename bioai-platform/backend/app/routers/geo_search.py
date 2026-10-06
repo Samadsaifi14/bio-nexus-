@@ -148,7 +148,7 @@ async def search_geo(q: str = Query(min_length=2, max_length=120)):
             raise _bad_geo(exc) from exc
         return {"query": query, "results": [{"accession": series["accession"], "title": series["title"],
             "summary": series["design"], "sample_count": len(series["samples"]),
-            "organism": "", "url": f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={series['accession']}"}]}
+            "organism": ", ".join(series.get("organisms", [])), "url": f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={series['accession']}"}]}
     term = f"({query}) AND gse[ETYP]"
     try:
         async with httpx.AsyncClient(timeout=15) as client:

@@ -9,13 +9,13 @@ from app.routers import geo_search
 def test_geo_series_search(monkeypatch):
     async def detail(client, accession):
         assert accession == "GSE336901"
-        return {"accession": accession, "title": "RNA-seq study", "design": "Published data", "samples": [{}] * 8}
+        return {"accession": accession, "title": "RNA-seq study", "design": "Published data", "samples": [{}] * 8, "organisms": ["Mus musculus"]}
 
     monkeypatch.setattr(geo_search, "fetch_series", detail)
     response = asyncio.run(geo_search.search_geo("GSE336901"))
     assert response["results"] == [{
         "accession": "GSE336901", "title": "RNA-seq study", "summary": "Published data",
-        "sample_count": 8, "organism": "", "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE336901",
+        "sample_count": 8, "organism": "Mus musculus", "url": "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE336901",
     }]
 
 

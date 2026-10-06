@@ -78,6 +78,12 @@ status <- run_go_enrichment(res, "Test species", out, .05, function(...) {}, dat
                           gmt_path = gmt, mapping_path = mapping, database_label = "Fixture v1", namespace = "locus_tag")
 audit <- read.delim(file.path(out,"go_gene_mapping.tsv"))
 stopifnot(status$genes_ambiguous == 1L, !audit$in_background[1], status$background_genes == 29L)
+# Opposing DEG rows mapped to one target stay in background but leave both query sets.
+write.table(data.frame(source_id=res$gene, target_id=c("g1", "g1", res$gene[-c(1,2)])), mapping, sep="\t", quote=FALSE,row.names=FALSE)
+conflicted <- res; conflicted$direction[2] <- "DOWN"
+status <- run_go_enrichment(conflicted, "Test species", out, .05, function(...) {}, database="CUSTOM",
+  gmt_path=gmt, mapping_path=mapping, database_label="Fixture v1", namespace="locus_tag")
+stopifnot(status$direction_conflicts == 1L)
 # Exercise the production saved-results runner and all figure formats.
 result_path <- file.path(out, "results.tsv")
 write.table(res, result_path, sep="\t", quote=FALSE, row.names=FALSE)

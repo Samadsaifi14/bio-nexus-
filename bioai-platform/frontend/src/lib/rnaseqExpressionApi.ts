@@ -13,7 +13,7 @@ export type RnaSeqExpressionSummary = {
   enrichment?: {
     status: string; message: string; organism: string; gene_id_type?: string;
     database?: string; method?: string; method_key?: string; background?: string;
-    aliases_recovered?: number; mapping_coverage?: number; annotation_coverage?: number;
+    direction_conflicts?: number; aliases_recovered?: number; mapping_coverage?: number; annotation_coverage?: number;
     coverage_warning?: string; interpretation_note?: string;
     background_genes?: number; genes_eligible?: number; genes_uniquely_mapped?: number;
     genes_unmapped?: number; genes_ambiguous?: number; terms_tested?: number; significant_terms?: number;

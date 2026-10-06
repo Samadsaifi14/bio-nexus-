@@ -184,6 +184,9 @@ run_go_enrichment <- function(res_df, organism, outdir, alpha, plot_fun, databas
   if (database == "CUSTOM") write(jsonlite::toJSON(status$annotation_versions, pretty = TRUE), file.path(outdir, "go_annotation_metadata.json"))
   if (method == "ora") {
     sets <- list(UP = mapped[res_df$direction == "UP" & eligible], DOWN = mapped[res_df$direction == "DOWN" & eligible])
+    conflicts <- intersect(intersect(sets$UP, sets$DOWN), universe)
+    status$direction_conflicts <- length(conflicts)
+    sets <- lapply(sets, setdiff, y = conflicts)
     result <- go_ora(sets, universe, term_genes, terms, alpha)
   } else {
     scores <- tapply(res_df$stat[audit$in_background], mapped[audit$in_background], median)

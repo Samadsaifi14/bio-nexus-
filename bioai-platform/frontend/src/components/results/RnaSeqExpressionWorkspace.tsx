@@ -318,6 +318,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
             <p className="text-xs leading-5 text-text-secondary">{enrichment?.message ?? 'This saved run has no enrichment. Use the recovery options below to generate it.'}</p>
             <p className="text-[11px] leading-5 text-text-muted">{enrichment?.method ?? 'GO over-representation with BH correction across terms and directions'}. Background: {enrichment?.background ?? 'Uniquely mapped, GO-annotated genes with non-missing DESeq2 adjusted p-values'}. Terms contain 10–500 background genes.</p>
             {enrichment?.coverage_warning && <p role="status" className="text-xs text-amber-500">{enrichment.coverage_warning}</p>}
+            {!!enrichment?.direction_conflicts && <p className="text-xs text-amber-500">{enrichment.direction_conflicts} mapped genes had conflicting up/down calls and were excluded from both ORA query sets.</p>}
             {enrichment?.interpretation_note && <p className="text-xs text-text-muted">{enrichment.interpretation_note}</p>}
             {enrichment && <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-6">
               <Metric label="Organism / IDs" value={`${enrichment.organism} / ${enrichment.gene_id_type ?? 'unresolved'}`} />

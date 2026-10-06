@@ -32,7 +32,7 @@ GMT rows are tab-separated: `term_id`, `description`, then gene IDs. Up to 10 MB
 and 10,000 unique terms are accepted. Custom IDs match exactly and case-sensitively.
 An optional TSV with `source_id` and `target_id` maps the result IDs to GMT IDs.
 One-to-many mappings are excluded. Many input rows mapping to one target are counted
-once in ORA; ranked testing uses the median Wald statistic for that target.
+once in ORA; targets with conflicting up/down calls leave both query sets while remaining in the background. Ranked testing uses the median Wald statistic for that target.
 
 ## Methods
 

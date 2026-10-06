@@ -96,7 +96,8 @@ def rerun_enrichment(*, user_id: str, run_id: str, options: EnrichmentOptions,
                   "gmt_path": str(gmt) if gmt else "", "mapping_path": str(mapping) if mapping else ""}
         config_path = root / "options.json"; config_path.write_text(json.dumps(config))
         enrichment = _execute(results, config_path, out)
-        provenance = {**parent.get("provenance", {}), "run_id": new_id, "parent_run_id": run_id,
+        provenance = {**{k: v for k, v in parent.get("provenance", {}).items() if not k.startswith("enrichment_")},
+                      "run_id": new_id, "parent_run_id": run_id,
                       "enrichment_options": asdict(options), "enrichment_source_sha256": hashlib.sha256(data).hexdigest(),
                       "enrichment_execution": "Local R; no gene lists sent to external services"}
         for name, path in (("enrichment_gene_sets.gmt", gmt), ("enrichment_id_mapping.tsv", mapping)):

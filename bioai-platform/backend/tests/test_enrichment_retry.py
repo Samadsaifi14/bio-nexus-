@@ -44,6 +44,7 @@ def test_owner_scoped_download_checks_hash_and_ignores_urls(monkeypatch):
 
 def test_retry_retains_original_artifacts_and_removes_stale_enrichment(monkeypatch):
     original = parent(); stored = {}
+    original["provenance"]["enrichment_gene_sets.gmt_sha256"] = "previous-database"
     monkeypatch.setattr(ex, "load_manifest", lambda user, run: original)
     monkeypatch.setattr(er, "_download_results", lambda *args: b"results")
     def execute(results, options, out):
@@ -57,6 +58,7 @@ def test_retry_retains_original_artifacts_and_removes_stale_enrichment(monkeypat
     assert result["run_id"] != RUN
     assert result["provenance"]["parent_run_id"] == RUN
     assert result["summary"]["samples"] == 18
+    assert "enrichment_gene_sets.gmt_sha256" not in result["provenance"]
     assert original["summary"] == {"alpha": .05, "samples": 18}
     assert not any(x["name"] == "go_enrichment.svg" for x in result["artifacts"])
     retained = next(x for x in result["artifacts"] if x["name"] == "deseq2_all_results.tsv")

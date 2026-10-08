@@ -72,7 +72,7 @@ def _source_url(raw: str) -> str | None:
     parsed = urlparse(raw)
     if parsed.scheme not in {"ftp", "https"} or parsed.netloc != "ftp.ncbi.nlm.nih.gov":
         return None
-    if not parsed.path.startswith("/geo/series/") or ".." in parsed.path or parsed.query or parsed.fragment:
+    if not parsed.path.startswith(("/geo/series/", "/geo/samples/")) or ".." in parsed.path or parsed.query or parsed.fragment:
         return None
     return f"https://ftp.ncbi.nlm.nih.gov{parsed.path}"
 
@@ -100,6 +100,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     sample_text = (await _get_limited(client, GEO_URL, params={**base, "targ": "gsm"}, limit=5 * 1024 * 1024)).decode("utf-8-sig")
     organisms = sorted(set(_soft_lines(sample_text, "Sample_organism_ch1")))
     samples: list[GeoSample] = []
+    sample_supplements: list[tuple[str, str]] = []
     for block in re.split(r"(?=\^SAMPLE = )", sample_text):
         match = re.match(r"\^SAMPLE = (GSM\d+)", block)
         if not match:
@@ -110,6 +111,9 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
                 key, value = entry.split(":", 1)
                 characteristics[key.strip().lower()] = value.strip()
         samples.append(GeoSample(match.group(1), next(iter(_soft_lines(block, "Sample_title")), ""), characteristics))
+        for line in block.splitlines():
+            if re.match(r"!Sample_supplementary_file(?:_\d+)? = ", line):
+                sample_supplements.append((match.group(1), line.split(" = ", 1)[1].strip()))
     declared = _soft_lines(series_text, "Series_sample_id")
     if not samples or set(declared) != {sample.accession for sample in samples}:
         raise GeoCountsError("GEO sample metadata is incomplete for this Series.")
@@ -125,13 +129,26 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
             name = url.rsplit("/", 1)[-1]
             issue = count_file_issue(name) or workflow_issue
             files.append({"name": name, "url": url, "analysis_eligible": issue is None,
-                          "analysis_issue": issue})
+                          "analysis_issue": issue, "scope": "series"})
+    seen = {file["url"] for file in files}
+    for gsm, raw in sample_supplements:
+        url = _source_url(raw)
+        if url and url not in seen:
+            seen.add(url)
+            name = gsm + "/" + url.rsplit("/", 1)[-1]
+            issue = count_file_issue(name) or workflow_issue
+            files.append({"name": name, "url": url, "analysis_eligible": issue is None,
+                          "analysis_issue": issue, "scope": "sample", "sample_accession": gsm})
     return {
         "accession": accession,
         "organisms": organisms,
         "experiment_types": experiment_types,
         "library_strategies": library_strategies,
         "workflow_issue": workflow_issue,
+        "raw_candidates": [file["name"] for file in files if file["analysis_eligible"]],
+        "contact_email": next(iter(_soft_lines(series_text, "Series_contact_email")), None),
+        "source_record_sha256": hashlib.sha256((series_text + sample_text).encode()).hexdigest(),
+        "read_projects": sorted(set(re.findall(r"\b(?:SRP\d+|PRJ[END][AB]\d+)\b", " ".join(_soft_lines(series_text, "Series_relation"))))),
         "title": next(iter(_soft_lines(series_text, "Series_title")), ""),
         "design": next(iter(_soft_lines(series_text, "Series_overall_design")), ""),
         "samples": [{"accession": sample.accession, "title": sample.title, "characteristics": sample.characteristics} for sample in samples],

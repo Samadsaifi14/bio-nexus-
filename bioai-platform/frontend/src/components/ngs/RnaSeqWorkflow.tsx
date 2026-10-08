@@ -9,7 +9,7 @@ import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
 
 type GeoSeries = { accession: string; title: string; summary: string; sample_count?: number; organism?: string; url: string };
 type GeoSample = { accession: string; title: string; characteristics: Record<string, string> };
-type SeriesDetail = { organisms?: string[]; experiment_types?: string[]; workflow_issue?: string | null; accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
+type SeriesDetail = { read_projects?: string[]; organisms?: string[]; experiment_types?: string[]; workflow_issue?: string | null; accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
 type CountColumn = { column: string; gsm: string | null; title: string | null; characteristics: Record<string, string>; library_size: number };
 type MatrixPreview = { accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
 type Assignment = { column: string; gsm: string; condition: string };
@@ -34,7 +34,7 @@ export default function RnaSeqWorkflow() {
   const [test, setTest] = useState('');
   const [reviewed, setReviewed] = useState(false);
   const [analysis, setAnalysis] = useState<RnaSeqExpressionResult | null>(null);
-  const [busy, setBusy] = useState<'search' | 'series' | 'preview' | 'analysis' | null>(null);
+  const [busy, setBusy] = useState<'search' | 'series' | 'preview' | 'analysis' | 'recovery' | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [searched, setSearched] = useState(false);
 
@@ -74,12 +74,26 @@ export default function RnaSeqWorkflow() {
     finally { setBusy(null); }
   }
 
+  async function downloadRecovery() {
+    if (!series) return;
+    setBusy('recovery'); setError(null);
+    try {
+      const response = await longApi.get<Blob>(`/api/ngs/v2/geo/series/${encodeURIComponent(series.accession)}/recovery`, { responseType: 'blob' });
+      const url = URL.createObjectURL(response.data);
+      const anchor = document.createElement('a');
+      anchor.href = url; anchor.download = `${series.accession}_expression_recovery.zip`; anchor.click();
+      window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+    } catch (caught) { setError(message(caught)); }
+    finally { setBusy(null); }
+  }
+
   function assign(index: number, patch: Partial<Assignment>) {
     setReviewed(false);
     setAssignments(current => current.map((row, i) => i === index ? { ...row, ...patch } : row));
   }
 
   const eligibleFiles = series?.files.filter(file => file.analysis_eligible !== false) ?? [];
+  const hasNormalizedFiles = series?.files.some(file => /labelled.*(?:FPKM|RPKM|TPM|CPM|NORMALIZED|NORMALISED)/i.test(file.analysis_issue ?? '')) ?? false;
 
   const mapped = assignments.length > 0 && assignments.every(row => row.gsm && row.condition) && new Set(assignments.map(row => row.gsm)).size === assignments.length;
   const groupsValid = Boolean(reference && test && reference !== test && assignments.every(row => row.condition === reference || row.condition === test)
@@ -118,7 +132,7 @@ export default function RnaSeqWorkflow() {
     {series && <section className="data-card p-5">
       <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">02</span><h2 className="text-base font-semibold text-text-primary">Choose a raw count matrix</h2></div>
       <p className="mt-2 text-xs leading-5 text-text-secondary">{series.design}</p>
-      <p className="mt-2 text-xs text-text-muted">{series.organisms?.join(", ") || "Organism not recorded"} · {series.samples.length} GEO samples · {series.files.length} Series supplements · {eligibleFiles.length} candidate count matrices. Only validated raw count matrices can enter DESeq2.</p>
+      <p className="mt-2 text-xs text-text-muted">{series.organisms?.join(", ") || "Organism not recorded"} · {series.samples.length} GEO samples · {series.files.length} Series and sample supplements · {eligibleFiles.length} candidate count matrices. Only validated raw count matrices can enter DESeq2.</p>
       {!!series.experiment_types?.length && <p className="mt-2 text-xs text-text-muted">Assay: {series.experiment_types.join('; ')}</p>}
       {series.workflow_issue && <p role="status" className="mt-3 rounded border border-warn/25 bg-warn/5 p-3 text-xs leading-5 text-warn">{series.workflow_issue}</p>}
       {!eligibleFiles.length && <div className="mt-3 space-y-2 text-xs leading-5 text-text-secondary">
@@ -131,6 +145,20 @@ export default function RnaSeqWorkflow() {
         </div>
       </div>}
       <div className="mt-3 space-y-2">{series.files.map(file => <div key={file.name} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-glass-border bg-surface-1 p-3"><div><span className="break-all font-mono text-xs text-text-primary">{file.name}</span>{file.analysis_issue && <p className="mt-1 text-xs leading-5 text-warn">{file.analysis_issue}</p>}</div><div className="flex gap-2"><a href={file.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-xs text-text-secondary"><DownloadSimple /> Source</a><button type="button" disabled={!!busy || file.analysis_eligible === false} onClick={() => inspectMatrix(file.name)} className="rounded border border-accent-cyan/30 px-3 py-2 text-xs text-accent-cyan disabled:opacity-40">{file.analysis_eligible === false ? 'Not raw counts' : busy === 'preview' ? 'Validating…' : 'Validate counts'}</button></div></div>)}</div>
+      {!series.workflow_issue && (hasNormalizedFiles || !eligibleFiles.length) && <div className="mt-4 rounded-lg border border-glass-border p-4 text-xs leading-5 text-text-secondary">
+        <h3 className="font-semibold text-text-primary">Recover a usable expression analysis</h3>
+        <p className="mt-2">BioNexus checked both Series and sample supplements. {eligibleFiles.length ? 'Validate a raw-count candidate above before choosing an alternative.' : 'No supported candidate is currently listed. The source may contain an archive, raw reads or an author-provided matrix.'} Individual sample files still need a reviewed cohort matrix.</p>
+        <ol className="mt-3 list-decimal space-y-2 pl-5">
+          <li><strong>Obtain raw counts.</strong> Inspect the source supplements or use the author-request draft in the recovery download. It requests the count matrix, sample mapping, batch information and annotation versions.</li>
+          <li><strong>Regenerate from FASTQ.</strong> Use reviewed STAR/HISAT2 alignments with featureCounts, or actual Salmon quantifications with tximport and DESeq2 length corrections. The download includes scripts and metadata templates. These steps run in your own compute/R environment.</li>
+          <li><strong>Only FPKM/TPM remains.</strong> The download includes a separate exploratory limma-trend script for reviewed, unlogged continuous expression. It exports its own results and figures. It does not enter the hosted DESeq2 workflow.</li>
+        </ol>
+        <p className="mt-3 text-warn">Rounding FPKM/TPM or back-calculating approximate counts does not restore the original count model. limma-voom also needs counts. Review normalized-data assumptions before using limma-trend.</p>
+        <div className="mt-3 flex flex-wrap items-center gap-3">
+          <button type="button" disabled={!!busy} onClick={downloadRecovery} className="inline-flex items-center gap-1 rounded border border-accent-cyan/30 px-3 py-2 text-accent-cyan disabled:opacity-40"><DownloadSimple />{busy === 'recovery' ? 'Preparing recovery package…' : 'Download recovery scripts and templates'}</button>
+          {(series.read_projects ?? []).map(project => <a key={project} href={`https://www.ebi.ac.uk/ena/browser/view/${encodeURIComponent(project)}`} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1 text-accent-cyan">{project} on ENA <ArrowSquareOut /></a>)}
+        </div>
+      </div>}
       <a href={`https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=${series.accession}`} target="_blank" rel="noopener noreferrer" className="mt-3 inline-flex items-center gap-1 text-xs text-accent-cyan">Open GEO source record <ArrowSquareOut /></a>
     </section>}
 

@@ -10,9 +10,11 @@ import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
+from starlette.responses import Response
 
 from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, execute_expression_analysis
 from app.rnaseq.geo_counts import GeoCountsError, fetch_matrix, fetch_series
+from app.rnaseq.geo_recovery import recovery_bundle
 from app.rnaseq.study_scope import classify_rnaseq_study_scope
 from app.services.auth import require_user_id
 
@@ -72,6 +74,17 @@ async def preview_geo_matrix(selection: MatrixSelection):
     return {"accession": series["accession"], "filename": selection.filename, "source_url": source,
             "source_sha256": matrix["sha256"], "genes": matrix["genes"], "annotation_columns": matrix["annotation_columns"],
             "columns": columns, "samples": series["samples"], "design": series["design"]}
+
+
+@router.get("/series/{accession}/recovery")
+async def download_geo_recovery(accession: str):
+    try:
+        async with httpx.AsyncClient(timeout=25) as client:
+            series = await fetch_series(client, accession)
+        return Response(recovery_bundle(series), media_type="application/zip",
+                        headers={"Content-Disposition": f'attachment; filename="{series["accession"]}_expression_recovery.zip"'})
+    except GeoCountsError as exc:
+        raise _bad_geo(exc) from exc
 
 
 @router.post("/analyze")

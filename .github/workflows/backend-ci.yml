@@ -59,6 +59,7 @@ jobs:
             tests/test_ngs_lecture_contracts.py \
             tests/test_geo_counts_import.py \
             tests/test_geo_search.py \
+            tests/test_geo_recovery.py \
             tests/test_rnaseq_expression_contract.py \
             tests/test_enrichment_retry.py \
             tests/test_rnaseq_production.py \
@@ -78,10 +79,12 @@ jobs:
       - name: Install local RNA-seq statistical and annotation runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db
+          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-tximport r-bioc-limma r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db
           sudo Rscript -e 'BiocManager::install("org.Mm.eg.db", ask = FALSE, update = FALSE); stopifnot(requireNamespace("org.Mm.eg.db", quietly = TRUE))'
       - name: Known-answer GO statistics and real identifier mapping
         run: Rscript tests/test_go_enrichment.R
+      - name: Known-answer expression recovery scripts
+        run: Rscript tests/test_expression_recovery.R
       - name: Execute the ten-stage SALS regression fixture
         run: |
           mkdir -p /tmp/rnaseq-smoke

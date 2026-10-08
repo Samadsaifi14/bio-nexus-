@@ -10,6 +10,7 @@ from dataclasses import dataclass
 from urllib.parse import urlparse
 
 import httpx
+from app.ngs.assays import SMALL_RNA_PATTERN, SMALL_RNA_GUIDANCE
 
 GEO_URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi"
 MAX_SOURCE_BYTES = 12 * 1024 * 1024
@@ -115,6 +116,9 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     files = []
     experiment_types = _soft_lines(series_text, "Series_type")
     workflow_issue = assay_issue(experiment_types)
+    library_strategies = sorted(set(_soft_lines(sample_text, "Sample_library_strategy")))
+    if any(SMALL_RNA_PATTERN.search(strategy) for strategy in library_strategies):
+        workflow_issue = SMALL_RNA_GUIDANCE + " This automatic importer expects gene-expression counts, not miRNA target predictions."
     for raw in _soft_lines(series_text, "Series_supplementary_file"):
         url = _source_url(raw)
         if url:
@@ -126,6 +130,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
         "accession": accession,
         "organisms": organisms,
         "experiment_types": experiment_types,
+        "library_strategies": library_strategies,
         "workflow_issue": workflow_issue,
         "title": next(iter(_soft_lines(series_text, "Series_title")), ""),
         "design": next(iter(_soft_lines(series_text, "Series_overall_design")), ""),

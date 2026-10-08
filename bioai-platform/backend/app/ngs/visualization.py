@@ -13,6 +13,7 @@ Nothing here invents alignments or variants; it only serializes what the stage D
 from __future__ import annotations
 
 from typing import Any
+import math
 
 from app.ngs.sam import cigar_length
 
@@ -62,17 +63,18 @@ def variants_to_vcf(variants: list[dict]) -> str:
     """Serialize the variant-call list into VCF text for the IGV variant track.
 
     Field mapping is evidence preserving: ref/alt/pos come straight from the call. QUAL is
-    emitted only when the upstream evidence contains an explicit caller/genotype quality;
+    emitted only when the upstream evidence contains an explicit site quality;
     BioNexus does not synthesize a VCF QUAL value from depth or allele fraction. FILTER uses
-    explicit variant-QC evidence when present, then caller-concordance evidence when present,
+    explicit variant-QC evidence when present,
     otherwise remains "." (not evaluated). INFO carries observed DP/AF/type and annotations.
     """
     header = [
         "##fileformat=VCFv4.2",
         '##FILTER=<ID=PASS,Description="All filters passed">',
-        '##FILTER=<ID=LowQual,Description="Failed quality or concordance filters">',
+        '##FILTER=<ID=LowQual,Description="Preview QC warning or failure, not a production filter">',
         '##INFO=<ID=DP,Number=1,Type=Integer,Description="Total read depth">',
-        '##INFO=<ID=AF,Number=A,Type=Float,Description="Allele fraction">',
+        '##INFO=<ID=VAF,Number=A,Type=Float,Description="Observed alternate read fraction, not cohort allele frequency">',
+        '##INFO=<ID=OBSERVED_GQ,Number=1,Type=Float,Description="Observed genotype quality of the preview record, not site QUAL">',
         '##INFO=<ID=VT,Number=1,Type=String,Description="Variant type">',
         '##INFO=<ID=GENE,Number=1,Type=String,Description="Annotated gene">',
         '##INFO=<ID=CONSEQUENCE,Number=1,Type=String,Description="Consequence">',
@@ -161,15 +163,15 @@ def _cigar_len(cigar: str) -> int:
 
 def _vcf_qual(v: dict) -> str:
     """Return an observed upstream quality value, never a BioNexus heuristic."""
-    for key in ("qual", "QUAL", "genotype_quality", "gq"):
+    for key in ("qual", "QUAL"):
         value = v.get(key)
-        if isinstance(value, (int, float)) and value >= 0:
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
             return _fmt(value)
     qc = v.get("qc")
     if isinstance(qc, dict):
-        for key in ("qual", "genotype_quality", "gq"):
+        for key in ("qual", "QUAL"):
             value = qc.get(key)
-            if isinstance(value, (int, float)) and value >= 0:
+            if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value) and value >= 0:
                 return _fmt(value)
     return "."
 
@@ -182,10 +184,6 @@ def _vcf_filter(v: dict) -> str:
             return "PASS"
         if status in {"WARN", "FAIL"}:
             return "LowQual"
-    if v.get("concordant") is True:
-        return "PASS"
-    if v.get("concordant") is False:
-        return "LowQual"
     return "."
 
 
@@ -201,8 +199,12 @@ def _vcf_info(v: dict) -> str:
     parts = []
     if v.get("dp") is not None:
         parts.append(f"DP={v['dp']}")
-    if v.get("af") is not None:
-        parts.append(f"AF={_fmt(v['af'])}")
+    af = v.get("af")
+    if isinstance(af, (int, float)) and not isinstance(af, bool) and math.isfinite(af) and 0 <= af <= 1 and "," not in str(v.get("alt", "")):
+        parts.append(f"VAF={_fmt(af)}")
+    gq = v.get("genotype_quality", v.get("gq"))
+    if isinstance(gq, (int, float)) and not isinstance(gq, bool) and math.isfinite(gq) and gq >= 0:
+        parts.append(f"OBSERVED_GQ={_fmt(gq)}")
     if v.get("type"):
         parts.append(f"VT={v['type']}")
     for k in ("gene", "consequence", "impact", "clinvar", "significance"):

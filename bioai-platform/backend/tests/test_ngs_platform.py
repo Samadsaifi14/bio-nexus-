@@ -691,7 +691,8 @@ def test_vcf_visualization_does_not_invent_qual_or_filter():
         "genotype_quality": 99, "qc": {"status": "PASS"},
     }])
     row2 = [line for line in explicit.splitlines() if not line.startswith("#")][0].split("\t")
-    assert row2[5] == "99"
+    assert row2[5] == "."
+    assert "OBSERVED_GQ=99" in row2[7]
     assert row2[6] == "PASS"
 
 
@@ -809,12 +810,13 @@ def test_variant_calling_calls_snp_and_orthogonal():
 
 
 def test_variant_normalization_trims_shared_prefix():
-    norm = normalize_variants([{"ref": "GAA", "alt": "GAT"}])
+    norm = normalize_variants([{"pos": 100, "ref": "GAA", "alt": "GAT"}])
     assert norm[0]["ref"] == "A"
     assert norm[0]["alt"] == "T"
-    # multiallelic alt reduces to biallelic first allele
-    norm2 = normalize_variants([{"ref": "C", "alt": "A,T"}])
-    assert norm2[0]["alt"] == "A"
+    assert norm[0]["pos"] == 102
+    # Keep all alternate alleles and their indices.
+    norm2 = normalize_variants([{"pos": 100, "ref": "C", "alt": "A,T"}])
+    assert norm2[0]["alt"] == "A,T"
     assert norm2[0]["biallelic"] is False
 
 

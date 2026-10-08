@@ -26,6 +26,7 @@ class AssayType(str, Enum):
     WGS = "WGS"
     WES = "WES"
     RNA_SEQ = "RNA-seq"
+    SMALL_RNA_SEQ = "Small-RNA-seq"
     AMPLICON = "Amplicon"
     UNKNOWN = "Unknown"
 
@@ -147,6 +148,12 @@ def sample_id_from_name(name: str) -> str:
 
 _AMPLICON_WORDS = ["amplicon", "panel", "targeted", "bait", "hotspot", "16s", "16s-", "amplicons"]
 _RNA_WORDS = ["rna", "rnaseq", "rna-seq", "mrna", "cdna", "poly-a", "polya", "exon", "stranded"]
+SMALL_RNA_PATTERN = re.compile(r"(?:^|[^a-z])(?:small[ _-]*rna(?:[ _-]*seq)?|smrna(?:seq)?|mi[ _-]*rna(?:[ _-]*seq)?|micro[ _-]*rna(?:[ _-]*seq)?)(?:$|[^a-z])", re.I)
+SMALL_RNA_GUIDANCE = (
+    "Small-RNA sequencing requires a dedicated workflow with the library-kit adapter/UMI policy, "
+    "post-trimming length distributions, short-read multimapping policy and versioned small-RNA annotations. "
+    "The bulk RNA-seq preview cannot process this assay. Use a dedicated workflow such as nf-core/smrnaseq."
+)
 _WES_WORDS = ["wes", "exome", "exon", "targeted-exome", "targeted exome", "whole-exome"]
 _WGS_WORDS = ["wgs", "whole-genome", "whole genome", "genome", "dna"]
 _SOMATIC_WORDS = ["somatic", "tumor", "tumour", "cancer", "tum", "normal", "germline_tumor"]
@@ -201,7 +208,9 @@ class AssayRouter:
         declared_assay = str(metadata.get("assay", "")).lower()
         declared_ref = str(reference or "").lower()
 
-        if declared_assay in ("wgs", "whole-genome"):
+        if SMALL_RNA_PATTERN.search(declared_assay) or SMALL_RNA_PATTERN.search(str(metadata.get("library_strategy", ""))):
+            assay = AssayType.SMALL_RNA_SEQ; evidence.append("declared small-RNA library")
+        elif declared_assay in ("wgs", "whole-genome"):
             assay = AssayType.WGS; evidence.append("declared assay=whole-genome")
         elif declared_assay in ("wes", "exome", "whole-exome"):
             assay = AssayType.WES; evidence.append("declared assay=exome")
@@ -209,6 +218,9 @@ class AssayRouter:
             assay = AssayType.RNA_SEQ; evidence.append("declared assay=rna-seq")
         elif declared_assay in ("amplicon", "panel", "targeted"):
             assay = AssayType.AMPLICON; evidence.append("declared assay=amplicon/panel")
+
+        if assay == AssayType.UNKNOWN and SMALL_RNA_PATTERN.search(name_blob + " " + declared_ref):
+            assay = AssayType.SMALL_RNA_SEQ; evidence.append("small-RNA keywords in input/reference")
 
         if assay == AssayType.UNKNOWN and _score(declared_ref, _RNA_WORDS):
             assay = AssayType.RNA_SEQ; evidence.append("reference suggests RNA-seq")

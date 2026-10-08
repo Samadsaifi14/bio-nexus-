@@ -141,6 +141,21 @@ def test_rnaseq_archive_fallback_preserves_source_and_rejects_download():
     asyncio.run(run())
 
 
+def test_geo_small_rna_library_cannot_enter_bulk_gene_import():
+    def respond(request):
+        return httpx.Response(200, text=SERIES if request.url.params["targ"] == "self" else SAMPLES + "!Sample_library_strategy = miRNA-Seq\n")
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            result = await fetch_series(client, "GSE336901")
+        assert result["library_strategies"] == ["miRNA-Seq"]
+        assert "dedicated workflow" in result["workflow_issue"]
+        assert result["files"][0]["analysis_eligible"] is False
+        async with httpx.AsyncClient(transport=httpx.MockTransport(lambda request: pytest.fail("must not import small-RNA counts as genes"))) as client:
+            with pytest.raises(GeoCountsError, match="dedicated workflow"):
+                await fetch_matrix(client, result, "counts.csv.gz")
+    asyncio.run(run())
+
+
 def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch):
     series = {"accession": "GSE336901", "samples": [
         {"accession": f"GSM{i}", "title": f"sample GZ1000{i}", "characteristics": {"treatment": "sensitive" if i < 3 else "resistant", "batch": "FFPE"}}

@@ -1,22 +1,16 @@
 """
 Stage 13 — Variant QC (blueprint Stage 13).
 
-Each variant is quality-assessed before any frequency filtering, using a tiered PASS/WARN/FAIL
-surrogate that follows the professional practice of masking low-quality / low-complexity calls:
-
-    * depth (DP)
-    * allele balance (AB = alt_fraction), sanity window for SNPs
-    * mapping quality (MAPQ)
-    * strand bias (a simple surrogate: fraction of alt reads on the forward strand ~ 0.5)
-    * homopolymer / low-complexity context (approximated here by tandem-repeat length)
-    * genotype quality (GQ)
-
-A variant that fails hard criteria is masked before the filtering engine sees it.
+The preview checks depth, observed alternate read fraction, alternate read count,
+homopolymer context and GQ when supplied. It also records representation limitations.
+Missing GQ is unevaluated. Mapping/strand-bias annotations, genotype-aware balance,
+GATK hard filtering and VQSR are not computed here. PASS is a preview QC status.
 """
 
 from __future__ import annotations
 
 from typing import Optional
+import math
 
 from app.ngs.contracts import StageContract, ThresholdRule
 
@@ -61,8 +55,19 @@ def variant_qc(variant: dict) -> dict:
     if homopolymer >= 4:
         reasons_warn.append("low_complexity_context")
 
-    if variant.get("genotype_quality", 99) < 20:
+    gq = variant.get("genotype_quality", variant.get("gq"))
+    if gq is None:
+        reasons_warn.append("genotype_quality_not_evaluated")
+    elif isinstance(gq, bool) or not isinstance(gq, (int, float)) or not math.isfinite(gq) or gq < 0:
+        reasons_fail.append("invalid_gq")
+    elif gq < 20:
         reasons_fail.append("low_gq")
+    if variant.get("normalization_issue"):
+        reasons_fail.append(variant["normalization_issue"])
+    if variant.get("normalization", {}).get("requires_reference_left_alignment"):
+        reasons_warn.append("reference_left_alignment_not_evaluated")
+    if variant.get("biallelic") is False:
+        reasons_warn.append("multiallelic_site_requires_allele_aware_processing")
 
     if not reasons_fail and not reasons_warn:
         status = "PASS"
@@ -77,6 +82,7 @@ def variant_qc(variant: dict) -> dict:
         "reasons_warn": reasons_warn,
         "homopolymer_run": homopolymer,
         "ab": round(ab, 3),
+        "genotype_quality": gq if isinstance(gq, (int, float)) and not isinstance(gq, bool) and math.isfinite(gq) and gq >= 0 else None,
     }
 
 
@@ -107,8 +113,9 @@ def run_variant_qc(variants: list[dict]) -> dict:
 
 
 def _stage13_run(sample: dict, state: dict) -> tuple[dict, dict]:
-    variants = state.get("variants", {}).get("normalized") or \
-        state.get("variants", {}).get("call", {}).get("variants")
+    variants = state.get("variants", {}).get("normalized")
+    if variants is None:
+        variants = state.get("variants", {}).get("call", {}).get("variants")
     if variants is None:
         return {"error": "variant QC needs normalized variants"}, {"good_variant_frac": 0.0}
     report = run_variant_qc(variants)
@@ -122,7 +129,7 @@ def stage13_contract() -> StageContract:
     return StageContract(
         step="variant_qc",
         tool="platform-variant-qc",
-        version="0.1.0",
+        version="0.2.0",
         inputs=["normalized_variants"],
         outputs=["qc_variants"],
         rules=[

@@ -1,13 +1,9 @@
-"""
-Stage 12 — Variant normalization (blueprint Stage 12).
+"""Minimal VCF allele trimming for the exploratory preview.
 
-The platform normalizes raw calls to a single internal representation before any QC or
-filtering: strings exchanged for structured {chrom,pos,ref,alt}, the ref/alt are left-normalized
-(common suffix/prefix trimmed, ambiguity codes removed), and only biallelic records are kept for
-the filtering engine.
-
-This stage is intentionally thin; it exists so downstream QC/filtering operate on a
-canonical, comparable representation as the blueprint describes.
+Preserve an anchoring base and advance POS when removing a shared prefix.
+All ALT alleles remain in their original order, preserving GT/AD/PL indexing.
+This is not reference-based left alignment: production indel comparison must
+use a reference-aware normalizer such as bcftools norm.
 """
 
 from __future__ import annotations
@@ -15,33 +11,40 @@ from __future__ import annotations
 from app.ngs.contracts import StageContract
 
 
-def _trim_normalize(ref: str, alt: str) -> tuple[str, str]:
-    """Left-normalize ref/alt (trim shared prefix, transform to upper-case biallelic)."""
-    ref = ref.upper()
-    alt = alt.upper()
-    if "," in alt:        # skip multiallelic; keep the first for biallelic-only pass
-        alt = alt.split(",")[0]
-    # trim shared prefix
-    i = 0
-    while i < len(ref) and i < len(alt) and ref[i] == alt[i]:
-        i += 1
-    ref = ref[i:]
-    alt = alt[i:]
-    if ref == alt:
-        return ref, alt
-    return ref, alt
+def _minimal_alleles(alleles: list[str]) -> tuple[list[str], int]:
+    while all(len(a) > 1 for a in alleles) and len({a[-1] for a in alleles}) == 1:
+        alleles = [a[:-1] for a in alleles]
+    offset = 0
+    while all(len(a) > 1 for a in alleles) and len({a[0] for a in alleles}) == 1:
+        alleles = [a[1:] for a in alleles]
+        offset += 1
+    return alleles, offset
 
 
 def normalize_variants(variants: list[dict]) -> list[dict]:
     out = []
     for v in variants:
-        ref, alt = _trim_normalize(v.get("ref", ""), v.get("alt", ""))
-        if not ref or not alt or ref == alt:
-            continue
         nv = dict(v)
-        nv["ref"] = ref
-        nv["alt"] = alt
-        nv["biallelic"] = "," not in v.get("alt", "")
+        ref, alt = str(v.get("ref") or "").upper(), str(v.get("alt") or "")
+        alts = alt.split(",")
+        nv["biallelic"] = len(alts) == 1
+        nv["normalization"] = {"method": "minimal_allele_trimming", "reference_left_aligned": False}
+        pos = v.get("pos")
+        if not isinstance(pos, int) or isinstance(pos, bool) or pos < 1:
+            nv["normalization_issue"] = "invalid_or_missing_position"
+        elif not ref or not all(alts):
+            nv["normalization_issue"] = "empty_allele"
+        elif any(set(a.upper()) - set("ACGTN") for a in [ref, *alts]):
+            # Symbolic alleles, spanning deletions and breakends need their own
+            # semantics. Preserve them verbatim rather than changing their IDs.
+            nv["normalization_issue"] = "unsupported_symbolic_or_non_sequence_allele"
+        elif ref in [a.upper() for a in alts] or len(set(a.upper() for a in alts)) != len(alts):
+            nv["normalization_issue"] = "identical_or_duplicate_allele"
+        else:
+            alleles, offset = _minimal_alleles([ref, *[a.upper() for a in alts]])
+            nv.update(ref=alleles[0], alt=",".join(alleles[1:]), pos=pos + offset)
+            if any(len(a) != len(alleles[0]) for a in alleles[1:]):
+                nv["normalization"]["requires_reference_left_alignment"] = True
         out.append(nv)
     return out
 
@@ -59,7 +62,7 @@ def stage12_contract() -> StageContract:
     return StageContract(
         step="variant_normalization",
         tool="platform-normalize",
-        version="0.1.0",
+        version="0.2.0",
         inputs=["variant_calls"],
         outputs=["normalized_variants"],
         rules=[],

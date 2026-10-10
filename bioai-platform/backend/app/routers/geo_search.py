@@ -13,6 +13,8 @@ from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
 from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, execute_expression_analysis
+from app.rnaseq.input_contract import CountOrigin
+from app.rnaseq import durable
 from app.rnaseq.geo_counts import GeoCountsError, fetch_matrix, fetch_series
 from app.rnaseq.geo_recovery import recovery_bundle
 from app.rnaseq.study_scope import classify_rnaseq_study_scope
@@ -32,9 +34,11 @@ class SampleAssignment(BaseModel):
     column: str
     gsm: str
     condition: str = Field(min_length=1, max_length=100)
+    experimental_unit: str = Field(min_length=1, max_length=200)
 
 
 class GeoAnalysisRequest(MatrixSelection):
+    origin: CountOrigin
     source_sha256: str
     assignments: list[SampleAssignment]
     reference_level: str
@@ -90,6 +94,7 @@ async def download_geo_recovery(accession: str):
 @router.post("/analyze")
 async def analyze_geo_matrix(selection: GeoAnalysisRequest, user_id: str = Depends(require_user_id)):
     try:
+        origin = selection.origin.check()
         async with httpx.AsyncClient(timeout=45) as client:
             series = await fetch_series(client, selection.accession)
             matrix, source = await fetch_matrix(client, series, selection.filename)
@@ -133,19 +138,17 @@ async def analyze_geo_matrix(selection: GeoAnalysisRequest, user_id: str = Depen
             with metadata_path.open("w", encoding="utf-8", newline="") as handle:
                 writer = csv.writer(handle, delimiter="\t", lineterminator="\n")
                 writer.writerow(["sample", "condition", "experimental_unit"])
-                writer.writerows((gsm, group, gsm) for gsm, group in zip(selected_gsm, groups))
-            result = await run_in_threadpool(execute_expression_analysis,
-                user_id=user_id, counts_path=counts_path, metadata_path=metadata_path, params=params,
-                source_label=f"NCBI GEO {series['accession']}",
-                source_metadata={"source_url": source, "source_sha256": matrix["sha256"],
+                writer.writerows((gsm, assignments[column].condition, assignments[column].experimental_unit.strip()) for column, gsm in zip(matrix["columns"], selected_gsm))
+            result = await run_in_threadpool(durable.enqueue,
+                user=user_id, counts=counts_path, metadata=metadata_path, params=params,
+                source={**origin, "accession": series["accession"],"source_url": source, "source_sha256": matrix["sha256"],
                                  "original_columns": matrix["columns"], "mapped_samples": selected_gsm,
                                  "reviewed_conditions": groups})
-        result["study_scope"] = classify_rnaseq_study_scope(result)
         return result
     except GeoCountsError as exc:
         raise _bad_geo(exc) from exc
     except RnaSeqExpressionError as exc:
-        raise HTTPException(422, str(exc)) from exc
+        raise HTTPException(503 if "unavailable" in str(exc).lower() else 422, str(exc)) from exc
 
 
 @router.get("/search")

@@ -34,7 +34,7 @@ jobs:
 
       - name: Deterministic validation suite
         run: |
-          python -m pytest tests/test_benchmarks_compare.py \
+          python -m pytest --basetemp="$GITHUB_WORKSPACE/pytest-work" tests/test_benchmarks_compare.py \
             tests/test_experiment_provenance.py \
             tests/test_blast_engine.py \
             tests/test_blast_program_matrix.py \
@@ -60,6 +60,7 @@ jobs:
             tests/test_geo_counts_import.py \
             tests/test_geo_search.py \
             tests/test_geo_recovery.py \
+            tests/test_rnaseq_durable_recovery.py \
             tests/test_rnaseq_expression_contract.py \
             tests/test_enrichment_retry.py \
             tests/test_rnaseq_production.py \
@@ -90,3 +91,7 @@ jobs:
           mkdir -p /tmp/rnaseq-smoke
           Rscript app/rnaseq/deseq2_analysis.R app/data/rnaseq/Cer_SALS_every100_validation_subset.tsv app/data/rnaseq/Cer_SALS_metadata.tsv /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 human
           Rscript -e 's <- jsonlite::fromJSON("/tmp/rnaseq-smoke/analysis_summary.json"); stopifnot(s$samples == 18, s$genes_input == 221, s$enrichment$background_genes > 0, s$enrichment$status %in% c("SUCCEEDED", "NO_SIGNIFICANT_TERMS", "NO_TESTABLE_TERMS")); for (f in c("pca.svg", "sample_distance_heatmap.svg", "volcano.svg", "expression_heatmap.svg", "deseq2_all_results.tsv", "go_enrichment_all.tsv", "go_gene_mapping.tsv", "go_background.tsv", "go_annotation_metadata.json")) stopifnot(file.exists(file.path("/tmp/rnaseq-smoke", f)))'
+      - name: Numerical QC checkpoint and tximport integration
+        run: |
+          python -m pip install pytest numpy supabase python-dotenv
+          PYTHONPATH=. python -m pytest tests/test_rnaseq_recovery_r.py -q

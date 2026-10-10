@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openbabel libgl1 libgomp1 libopenblas-dev \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools \
-    r-base-core r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
+    r-base-core r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db r-bioc-deseq2 r-bioc-tximport r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
     rm -rf /var/lib/apt/lists/*
 
 # Mouse annotations are absent from Debian/Ubuntu apt repositories.

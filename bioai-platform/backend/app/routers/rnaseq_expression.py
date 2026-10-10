@@ -18,6 +18,7 @@ from app.rnaseq.expression import (
     RnaSeqExpressionError,
     execute_expression_analysis,
     load_manifest,
+    expression_readiness,
 )
 from app.rnaseq.study_scope import (
     CI_SALS_GENES,
@@ -39,7 +40,7 @@ def _parse_covariates(raw: str) -> tuple[str, ...]:
 
 
 def _http_error(exc: RnaSeqExpressionError) -> HTTPException:
-    status = 503 if "Rscript is not installed" in str(exc) or "storage is unavailable" in str(exc) else 422
+    status = 503 if "Rscript is not installed" in str(exc) or "unavailable" in str(exc).lower() else 422
     return HTTPException(status_code=status, detail=str(exc))
 
 
@@ -65,8 +66,10 @@ async def _save_upload(upload: UploadFile, target: Path, max_bytes: int) -> None
 
 @router.get("/capabilities")
 def expression_capabilities():
-    rscript = shutil.which("Rscript")
+    readiness = expression_readiness()
+    rscript = readiness["rscript_available"]
     return {
+        **readiness,
         "engine": "DESeq2",
         "rscript_available": bool(rscript),
         "workflow": [
@@ -99,13 +102,14 @@ def expression_capabilities():
         },
         "enrichment": {"databases": ["GO", "GO:BP", "GO:MF", "GO:CC", "CUSTOM"],
             "methods": ["ora", "ranked_wilcoxon"], "custom_gmt": True, "saved_run_retry": True},
-        "privacy": "Uploaded count matrices are processed in a temporary directory. Derived artifacts are stored in a private per-user bucket; raw uploads are not persisted by this route.",
+        "privacy": "Reviewed inputs and QC checkpoints are retained privately on the persistent worker volume. Derived artifacts are stored in a private per-user bucket.",
     }
 
 
 @router.post("/run")
 async def run_expression_analysis(
     counts: UploadFile = File(...),
+    count_origin: str = Form(...),
     metadata: UploadFile = File(...),
     condition_column: str = Form("condition"),
     reference_level: str = Form(...),
@@ -119,6 +123,15 @@ async def run_expression_analysis(
     organism: str = Form("auto"),
     user_id: str = Depends(require_user_id),
 ):
+    from app.rnaseq.input_contract import CountOrigin
+    from app.routers.rnaseq_recovery import require_units
+    try:
+        review = CountOrigin.model_validate_json(count_origin)
+        if review.kind != "raw_counts":
+            raise RnaSeqExpressionError("Use the reviewed Salmon import route for quantifier estimates")
+        origin = review.check()
+    except (ValueError, RnaSeqExpressionError) as exc:
+        raise HTTPException(422, str(exc)) from exc
     params = ExpressionParameters(
         organism=organism,
         condition_column=condition_column.strip(),
@@ -143,14 +156,11 @@ async def run_expression_analysis(
         await _save_upload(counts, counts_path, MAX_COUNTS_BYTES)
         await _save_upload(metadata, metadata_path, MAX_METADATA_BYTES)
         try:
-            return _with_study_scope(execute_expression_analysis(
-                user_id=user_id,
-                counts_path=counts_path,
-                metadata_path=metadata_path,
-                params=params,
-                source_label="user-upload",
-            ))
-        except RnaSeqExpressionError as exc:
+            require_units(metadata_path.read_bytes())
+            from app.rnaseq import durable
+            return await run_in_threadpool(durable.enqueue, user=user_id, counts=counts_path,
+                metadata=metadata_path, params=params, source={"count_origin": origin, "source_label": "user-upload"})
+        except (ValueError, RnaSeqExpressionError) as exc:
             raise _http_error(exc) from exc
 
 

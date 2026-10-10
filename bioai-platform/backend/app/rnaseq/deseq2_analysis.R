@@ -33,6 +33,10 @@ if (is.na(min_count) || min_count < 0) stop("min_count must be >= 0")
 if (is.na(min_samples) || min_samples < 0) stop("min_samples must be >= 0 (use 0 for automatic smallest-group filtering)")
 if (is.na(top_heatmap_genes) || top_heatmap_genes < 2) stop("top_heatmap_genes must be >= 2")
 
+stage <- Sys.getenv("BIONEXUS_EXPRESSION_STAGE", "full")
+input_kind <- Sys.getenv("BIONEXUS_EXPRESSION_INPUT", "raw_counts")
+checkpoint <- Sys.getenv("BIONEXUS_EXPRESSION_CHECKPOINT", "")
+if (!stage %in% c("full", "qc", "infer")) stop("Invalid expression stage")
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
 
 safe_name <- function(x) grepl("^[A-Za-z][A-Za-z0-9_.]*$", x)
@@ -45,17 +49,35 @@ if (nzchar(covariates_raw)) {
   if (any(!vapply(covariates, safe_name, logical(1)))) stop("covariate name has unsupported characters")
 }
 
-raw <- read.delim(counts_path, check.names = FALSE, stringsAsFactors = FALSE)
-if (ncol(raw) < 3) stop("count matrix must contain one gene column and at least two samples")
-if (anyDuplicated(raw[[1]]) > 0) stop("count matrix contains duplicate gene identifiers")
-gene_ids <- as.character(raw[[1]])
-counts <- as.matrix(raw[, -1, drop = FALSE])
-mode(counts) <- "numeric"
-rownames(counts) <- gene_ids
-if (any(!is.finite(counts))) stop("count matrix contains non-finite values")
-if (any(counts < 0)) stop("count matrix contains negative values")
-if (any(abs(counts - round(counts)) > 1e-8)) stop("DESeq2 requires raw integer counts; non-integer values were detected")
-storage.mode(counts) <- "integer"
+txi <- NULL
+if (input_kind == "salmon") {
+  suppressPackageStartupMessages(library(tximport))
+  manifest <- read.delim(counts_path, check.names = FALSE, stringsAsFactors = FALSE)
+  if (!all(c("sample", "quant_file") %in% names(manifest)) || anyNA(manifest) || anyDuplicated(manifest$sample)) stop("Invalid quantification manifest")
+  files <- setNames(manifest$quant_file, manifest$sample)
+  if (anyDuplicated(normalizePath(files, mustWork = TRUE))) stop("Samples share quantification files")
+  mapping <- read.delim(Sys.getenv("BIONEXUS_TX2GENE"), colClasses = "character", check.names = FALSE)
+  if (ncol(mapping) != 2 || anyNA(mapping) || any(!nzchar(unlist(mapping))) || anyDuplicated(mapping[[1]])) stop("Invalid transcript-to-gene mapping")
+  for (file in files) {
+    q <- read.delim(file, check.names = FALSE)
+    fields <- c("Length", "EffectiveLength", "TPM", "NumReads")
+    if (!all(c("Name", fields) %in% names(q)) || anyDuplicated(q$Name) || any(!q$Name %in% mapping[[1]])) stop("Quantification and transcript mapping do not match")
+    if (!all(vapply(q[fields], is.numeric, logical(1))) || any(!is.finite(as.matrix(q[fields]))) || any(q$Length <= 0) || any(q$EffectiveLength <= 0) || any(q$TPM < 0) || any(q$NumReads < 0)) stop("Invalid Salmon quantification values")
+  }
+  txi <- tximport(files, type = "salmon", tx2gene = mapping, countsFromAbundance = "no")
+  counts <- txi$counts
+} else {
+  raw <- read.delim(counts_path, check.names = FALSE, stringsAsFactors = FALSE)
+  if (ncol(raw) < 3 || anyNA(raw[[1]]) || any(!nzchar(as.character(raw[[1]])))) stop("Missing gene identifiers or sample columns")
+  if (anyDuplicated(raw[[1]]) > 0) stop("count matrix contains duplicate gene identifiers")
+  counts <- as.matrix(raw[, -1, drop = FALSE])
+  mode(counts) <- "numeric"
+  rownames(counts) <- as.character(raw[[1]])
+  if (any(!is.finite(counts))) stop("count matrix contains non-finite values")
+  if (any(counts < 0) || any(counts > .Machine$integer.max)) stop("Counts outside R integer range")
+  if (any(abs(counts - round(counts)) > 1e-8)) stop("DESeq2 requires raw integer counts; non-integer values were detected")
+  storage.mode(counts) <- "integer"
+}
 if (anyDuplicated(colnames(counts)) > 0) stop("count matrix contains duplicate sample names")
 
 meta <- read.delim(metadata_path, check.names = FALSE, stringsAsFactors = FALSE)
@@ -108,6 +130,7 @@ experimental_unit_status <- "NOT_DECLARED"
 if (length(experimental_unit_col) > 0) {
   experimental_unit_col <- experimental_unit_col[[1]]
   units <- as.character(meta[[experimental_unit_col]])
+  if (anyNA(units) || any(!nzchar(trimws(units)))) stop("Missing experimental unit identifiers")
   repeated_units <- unique(units[duplicated(units) & !is.na(units) & nzchar(units)])
   if (length(repeated_units) > 0 && !(experimental_unit_col %in% covariates)) {
     stop(paste0(
@@ -165,6 +188,8 @@ if (design_rank < design_columns) {
   ))
 }
 
+if (nrow(design_matrix) <= design_rank) stop("Design has no residual degrees of freedom")
+
 library_sizes <- colSums(counts)
 if (any(library_sizes <= 0)) stop("one or more samples has zero total library size")
 library_size_fold_range <- max(library_sizes) / min(library_sizes)
@@ -202,7 +227,11 @@ design_audit <- list(
 if (length(design_warnings) == 0) design_audit$status <- "PASS"
 write(toJSON(design_audit, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "design_audit.json"))
 
-dds <- DESeqDataSetFromMatrix(countData = counts, colData = meta, design = design_formula)
+dds <- if (is.null(txi)) {
+  DESeqDataSetFromMatrix(countData = counts, colData = meta, design = design_formula)
+} else {
+  DESeqDataSetFromTximport(txi, colData = meta, design = design_formula)
+}
 genes_input <- nrow(dds)
 keep <- rowSums(counts(dds) >= min_count) >= min_samples
 dds <- dds[keep, ]
@@ -212,6 +241,13 @@ if (genes_kept < 2) stop("pre-filtering retained fewer than two genes")
 dds <- estimateSizeFactors(dds)
 normalized <- counts(dds, normalized = TRUE)
 size_factors <- sizeFactors(dds)
+if (is.null(size_factors)) {
+  # tximport uses a gene-by-sample normalization matrix, including length offsets.
+  nf <- normalizationFactors(dds)
+  write.table(data.frame(gene = rownames(nf), nf, check.names = FALSE), file.path(outdir, "normalization_factors.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+  size_factors <- setNames(exp(colMeans(log(nf))), colnames(dds))
+}
+
 size_factor_library_correlation <- suppressWarnings(cor(
   as.numeric(size_factors),
   as.numeric(library_sizes[names(size_factors)]),
@@ -240,6 +276,35 @@ write.table(pca_out, file.path(outdir, "pca_coordinates.tsv"), sep = "\t", quote
 
 sample_dists <- as.matrix(dist(t(assay(vsd))))
 write.table(data.frame(sample = rownames(sample_dists), sample_dists, check.names = FALSE), file.path(outdir, "sample_distance_matrix.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+
+plot_svg_pdf_png <- function(name, width, height, draw_fun) {
+  svg(file.path(outdir, paste0(name, ".svg")), width = width, height = height, onefile = TRUE)
+  draw_fun(); dev.off()
+  pdf(file.path(outdir, paste0(name, ".pdf")), width = width, height = height, onefile = TRUE)
+  draw_fun(); dev.off()
+  png(file.path(outdir, paste0(name, ".png")), width = width, height = height, units = "in", res = 300)
+  draw_fun(); dev.off()
+}
+
+if (stage == "infer") {
+  if (!nzchar(checkpoint) || !file.exists(checkpoint)) stop("Reviewed QC checkpoint is missing")
+  saved <- readRDS(checkpoint)
+  if (!identical(saved$deseq2_version, as.character(packageVersion("DESeq2")))) stop("DESeq2 version changed since QC; submit a new reviewed run")
+  dds <- saved$dds; vsd <- saved$vsd
+}
+if (stage == "qc") {
+  if (!nzchar(checkpoint)) stop("QC checkpoint destination is required")
+  saveRDS(list(dds = dds, vsd = vsd, deseq2_version = as.character(packageVersion("DESeq2"))), checkpoint)
+  qc_pca <- ggplot(pca, aes(x = PC1, y = PC2, label = name)) + geom_point() + geom_text(check_overlap = TRUE) + theme_minimal()
+  plot_svg_pdf_png("pca", 8, 6, function() print(qc_pca))
+  plot_svg_pdf_png("sample_distance_heatmap", 8, 7, function() draw(Heatmap(sample_dists, name = "VST distance")))
+  summary <- list(stage = "qc", genes_input = genes_input, genes_kept = genes_kept, samples = ncol(dds),
+    design = paste(deparse(design_formula), collapse = ""), input_kind = input_kind,
+    pca_percent_variance = list(PC1 = percent_var[[1]], PC2 = percent_var[[2]]),
+    design_warnings = as.list(design_warnings), inference_performed = FALSE)
+  write(toJSON(summary, auto_unbox = TRUE, pretty = TRUE, null = "null"), file.path(outdir, "analysis_summary.json"))
+  quit(save = "no", status = 0)
+}
 
 dds <- DESeq(dds)
 res <- results(dds, contrast = c(condition_col, test_level, reference_level), alpha = alpha)
@@ -273,14 +338,6 @@ deg_df <- res_df[sig, , drop = FALSE]
 write.table(res_df, file.path(outdir, "deseq2_all_results.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 write.table(deg_df, file.path(outdir, "deseq2_significant.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 
-plot_svg_pdf_png <- function(name, width, height, draw_fun) {
-  svg(file.path(outdir, paste0(name, ".svg")), width = width, height = height, onefile = TRUE)
-  draw_fun(); dev.off()
-  pdf(file.path(outdir, paste0(name, ".pdf")), width = width, height = height, onefile = TRUE)
-  draw_fun(); dev.off()
-  png(file.path(outdir, paste0(name, ".png")), width = width, height = height, units = "in", res = 300)
-  draw_fun(); dev.off()
-}
 
 pca$.condition <- pca[[condition_col]]
 pca_plot <- ggplot(pca, aes(x = PC1, y = PC2, label = name, shape = .condition)) +
@@ -313,6 +370,7 @@ plot_svg_pdf_png("dispersion_plot", 8, 6, function() {
 
 volcano_df <- res_df[!is.na(res_df$padj) & !is.na(res_df$pvalue) & is.finite(res_df$log2FoldChange), , drop = FALSE]
 volcano_df$minus_log10_padj <- -log10(pmax(volcano_df$padj, .Machine$double.xmin))
+write.table(volcano_df, file.path(outdir, "volcano_plot_data.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 volcano_df$category <- factor(volcano_df$direction, levels = c("DOWN", "NS", "UP"))
 volcano_plot <- ggplot(volcano_df, aes(x = log2FoldChange, y = minus_log10_padj, shape = category)) +
   geom_point(alpha = 0.55, size = 1.5) +
@@ -338,10 +396,13 @@ if (nrow(deg_df) >= 2) {
   heatmap_basis <- "top_variable_genes_QC"
 }
 
+invalid_genes <- selected_genes[!is.finite(gene_variance[selected_genes]) | gene_variance[selected_genes] <= 0]
+write.table(data.frame(gene = invalid_genes, reason = rep("zero_or_nonfinite_VST_variance", length(invalid_genes))), file.path(outdir, "heatmap_exclusions.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
+selected_genes <- setdiff(selected_genes, invalid_genes)
 if (length(selected_genes) >= 2) {
   hm <- vst_matrix[selected_genes, , drop = FALSE]
   hm_z <- t(scale(t(hm)))
-  hm_z[!is.finite(hm_z)] <- 0
+  if (any(!is.finite(hm_z))) stop("Unexpected nonfinite heatmap values")
   heatmap_gene_count <- nrow(hm_z)
   write.table(data.frame(gene = rownames(hm_z), hm_z, check.names = FALSE), file.path(outdir, "heatmap_matrix_zscore.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
   result_index <- match(selected_genes, res_df$gene)
@@ -377,7 +438,10 @@ enrichment <- tryCatch(
   }
 )
 
+saveRDS(dds, file.path(outdir, "dds_fitted.rds"))
 summary <- list(
+  input_kind = input_kind,
+  normalization_method = if (is.null(txi)) "median_of_ratios" else "tximport_length_offsets",
   enrichment = enrichment,
   genes_input = genes_input,
   genes_kept = genes_kept,

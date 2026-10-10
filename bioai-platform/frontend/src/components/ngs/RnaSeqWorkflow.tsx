@@ -5,6 +5,8 @@ import { ArrowSquareOut, CircleNotch, DownloadSimple, MagnifyingGlass } from '@p
 import { PageHeader, BackButton } from '@/components/ui';
 import { RnaSeqExpressionWorkspace } from '@/components/results/RnaSeqExpressionWorkspace';
 import { longApi } from '@/lib/api';
+import { DurableJobReview } from './RnaSeqRecoveryPanel';
+import RnaSeqProductionPanel from './RnaSeqProductionPanel';
 import type { RnaSeqExpressionResult } from '@/lib/rnaseqExpressionApi';
 
 type GeoSeries = { accession: string; title: string; summary: string; sample_count?: number; organism?: string; url: string };
@@ -12,7 +14,7 @@ type GeoSample = { accession: string; title: string; characteristics: Record<str
 type SeriesDetail = { read_projects?: string[]; organisms?: string[]; experiment_types?: string[]; workflow_issue?: string | null; accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
 type CountColumn = { column: string; gsm: string | null; title: string | null; characteristics: Record<string, string>; library_size: number };
 type MatrixPreview = { accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
-type Assignment = { column: string; gsm: string; condition: string };
+type Assignment = { column: string; gsm: string; condition: string; experimental_unit: string };
 
 function message(caught: unknown): string {
   if (caught && typeof caught === 'object' && 'response' in caught) {
@@ -36,12 +38,16 @@ export default function RnaSeqWorkflow() {
   const [analysis, setAnalysis] = useState<RnaSeqExpressionResult | null>(null);
   const [busy, setBusy] = useState<'search' | 'series' | 'preview' | 'analysis' | 'recovery' | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [jobId, setJobId] = useState('');
+  const [originEvidence, setOriginEvidence] = useState('');
+  const [countMethod, setCountMethod] = useState('');
+  const [annotation, setAnnotation] = useState('');
   const [searched, setSearched] = useState(false);
 
   async function search(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (query.trim().length < 2) return;
-    setBusy('search'); setError(null); setSearched(false); setResults([]); setSeries(null); setPreview(null); setAnalysis(null);
+    setBusy('search'); setError(null); setSearched(false); setResults([]); setSeries(null); setPreview(null); setAnalysis(null); setJobId('');
     try {
       const response = await longApi.get<{ results: GeoSeries[] }>('/api/ngs/v2/geo/search', { params: { q: query.trim() } });
       setResults(response.data.results); setSearched(true);
@@ -50,7 +56,7 @@ export default function RnaSeqWorkflow() {
   }
 
   async function inspect(accession: string) {
-    setBusy('series'); setError(null); setSeries(null); setPreview(null); setAnalysis(null);
+    setBusy('series'); setError(null); setSeries(null); setPreview(null); setAnalysis(null); setJobId('');
     try {
       const response = await longApi.get<SeriesDetail>(`/api/ngs/v2/geo/series/${encodeURIComponent(accession)}`);
       setSeries(response.data);
@@ -60,13 +66,13 @@ export default function RnaSeqWorkflow() {
 
   async function inspectMatrix(filename: string) {
     if (!series) return;
-    setBusy('preview'); setError(null); setPreview(null); setAnalysis(null); setReviewed(false);
+    setBusy('preview'); setError(null); setPreview(null); setAnalysis(null); setJobId(''); setReviewed(false);
     try {
       const response = await longApi.post<MatrixPreview>('/api/ngs/v2/geo/preview', { accession: series.accession, filename });
       const next = response.data;
       setPreview(next);
       const groups = next.columns.map(column => column.characteristics.treatment ?? column.characteristics.condition ?? '');
-      setAssignments(next.columns.map((column, i) => ({ column: column.column, gsm: column.gsm ?? '', condition: groups[i] })));
+      setAssignments(next.columns.map((column, i) => ({ column: column.column, gsm: column.gsm ?? '', condition: groups[i], experimental_unit: '' })));
       const distinct = [...new Set(groups.filter(Boolean))];
       setReference(distinct.length === 2 ? distinct[0] : '');
       setTest(distinct.length === 2 ? distinct[1] : '');
@@ -95,7 +101,7 @@ export default function RnaSeqWorkflow() {
   const eligibleFiles = series?.files.filter(file => file.analysis_eligible !== false) ?? [];
   const hasNormalizedFiles = series?.files.some(file => /labelled.*(?:FPKM|RPKM|TPM|CPM|NORMALIZED|NORMALISED)/i.test(file.analysis_issue ?? '')) ?? false;
 
-  const mapped = assignments.length > 0 && assignments.every(row => row.gsm && row.condition) && new Set(assignments.map(row => row.gsm)).size === assignments.length;
+  const mapped = assignments.length > 0 && assignments.every(row => row.gsm && row.condition && row.experimental_unit.trim()) && new Set(assignments.map(row => row.gsm)).size === assignments.length;
   const groupsValid = Boolean(reference && test && reference !== test && assignments.every(row => row.condition === reference || row.condition === test)
     && assignments.filter(row => row.condition === reference).length >= 2 && assignments.filter(row => row.condition === test).length >= 2);
   const assignedCharacteristics = preview ? assignments.map(row => preview.samples.find(sample => sample.accession === row.gsm)?.characteristics ?? {}) : [];
@@ -105,13 +111,14 @@ export default function RnaSeqWorkflow() {
 
   async function runAnalysis() {
     if (!preview || !mapped || !groupsValid || !reviewed || varyingTechnical.length) return;
-    setBusy('analysis'); setError(null); setAnalysis(null);
+    setBusy('analysis'); setError(null); setAnalysis(null); setJobId('');
     try {
-      const response = await longApi.post<RnaSeqExpressionResult>('/api/ngs/v2/geo/analyze', {
+      const response = await longApi.post<{ job_id: string }>('/api/ngs/v2/geo/analyze', {
         accession: preview.accession, filename: preview.filename, source_sha256: preview.source_sha256,
+        origin: { kind: 'raw_counts', normalization: 'none', evidence: originEvidence, method: countMethod, annotation, reviewed },
         assignments, reference_level: reference, test_level: test, min_count: 10, min_samples: 0, lfc_threshold: 1,
       });
-      setAnalysis(response.data);
+      setJobId(response.data.job_id);
       window.setTimeout(() => document.getElementById('expression-results')?.scrollIntoView({ behavior: 'smooth' }), 100);
     } catch (caught) { setError(message(caught)); }
     finally { setBusy(null); }
@@ -166,18 +173,26 @@ export default function RnaSeqWorkflow() {
       <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">03</span><h2 className="text-base font-semibold text-text-primary">Review sample mapping and comparison</h2></div>
       <p className="mt-2 text-xs leading-5 text-text-secondary">{preview.genes.toLocaleString()} genes · {preview.columns.length} count columns · {preview.annotation_columns.length ? `excluded annotation column(s): ${preview.annotation_columns.join(', ')}` : 'no annotation columns excluded'}. Non-negative integer values and unique gene identifiers passed format validation; confirm from the GEO record that these are raw counts.</p>
       <p className="mt-1 break-all font-mono text-[10px] text-text-muted">Source SHA-256: {preview.source_sha256}</p>
-      <div className="mt-4 overflow-x-auto rounded-lg border border-glass-border"><table className="w-full text-xs"><thead className="bg-surface-1 text-text-muted"><tr><th className="px-3 py-2 text-left">Count column</th><th className="px-3 py-2 text-left">GEO sample</th><th className="px-3 py-2 text-left">Condition</th><th className="px-3 py-2 text-right">Library counts</th></tr></thead><tbody className="divide-y divide-glass-border">{preview.columns.map((column, index) => <tr key={column.column}><td className="max-w-[300px] break-all px-3 py-2 font-mono text-text-secondary">{column.column}</td><td className="px-3 py-2"><select aria-label={`GEO sample for ${column.column}`} value={assignments[index]?.gsm ?? ''} onChange={event => { const sample = preview.samples.find(item => item.accession === event.target.value); assign(index, { gsm: event.target.value, condition: sample?.characteristics.treatment ?? sample?.characteristics.condition ?? assignments[index]?.condition ?? '' }); }} className="scientific-select min-w-[190px]"><option value="">Select sample</option>{preview.samples.map(sample => <option key={sample.accession} value={sample.accession}>{sample.accession} · {sample.title}</option>)}</select><p className="mt-1 max-w-sm text-[10px] leading-4 text-text-muted">{Object.entries(preview.samples.find(item => item.accession === assignments[index]?.gsm)?.characteristics ?? {}).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'No characteristics recorded'}</p></td><td className="px-3 py-2"><input aria-label={`Condition for ${column.column}`} value={assignments[index]?.condition ?? ''} onChange={event => assign(index, { condition: event.target.value })} className="w-32 rounded border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></td><td className="px-3 py-2 text-right font-mono text-text-secondary">{column.library_size.toLocaleString()}</td></tr>)}</tbody></table></div>
+      <div className="mt-4 overflow-x-auto rounded-lg border border-glass-border"><table className="w-full text-xs"><thead className="bg-surface-1 text-text-muted"><tr><th className="px-3 py-2 text-left">Count column</th><th className="px-3 py-2 text-left">GEO sample</th><th className="px-3 py-2 text-left">Condition</th><th className="px-3 py-2 text-left">Biological unit</th><th className="px-3 py-2 text-right">Library counts</th></tr></thead><tbody className="divide-y divide-glass-border">{preview.columns.map((column, index) => <tr key={column.column}><td className="max-w-[300px] break-all px-3 py-2 font-mono text-text-secondary">{column.column}</td><td className="px-3 py-2"><select aria-label={`GEO sample for ${column.column}`} value={assignments[index]?.gsm ?? ''} onChange={event => { const sample = preview.samples.find(item => item.accession === event.target.value); assign(index, { gsm: event.target.value, condition: sample?.characteristics.treatment ?? sample?.characteristics.condition ?? assignments[index]?.condition ?? '' }); }} className="scientific-select min-w-[190px]"><option value="">Select sample</option>{preview.samples.map(sample => <option key={sample.accession} value={sample.accession}>{sample.accession} · {sample.title}</option>)}</select><p className="mt-1 max-w-sm text-[10px] leading-4 text-text-muted">{Object.entries(preview.samples.find(item => item.accession === assignments[index]?.gsm)?.characteristics ?? {}).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'No characteristics recorded'}</p></td><td className="px-3 py-2"><input aria-label={`Condition for ${column.column}`} value={assignments[index]?.condition ?? ''} onChange={event => assign(index, { condition: event.target.value })} className="w-32 rounded border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></td><td className="px-3 py-2"><input aria-label={`Biological unit for ${column.column}`} value={assignments[index]?.experimental_unit ?? ''} onChange={event => assign(index, { experimental_unit: event.target.value })} placeholder="Reviewed unit ID" className="scientific-select" /></td><td className="px-3 py-2 text-right font-mono text-text-secondary">{column.library_size.toLocaleString()}</td></tr>)}</tbody></table></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs text-text-muted">Reference group<input value={reference} onChange={event => { setReviewed(false); setReference(event.target.value); }} className="mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-text-primary" /></label><label className="text-xs text-text-muted">Test group<input value={test} onChange={event => { setReviewed(false); setTest(event.target.value); }} className="mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-text-primary" /></label></div>
       <p className="mt-3 text-xs text-text-muted">Positive log2 fold change means higher expression in the test group. Verify that each matrix column matches its GEO sample and that the condition is biologically correct.</p>
       <p className="mt-2 text-xs text-text-muted">The automatic model includes condition only. Other GEO characteristics are shown for review but are not adjusted in this comparison.</p>
       {varyingTechnical.length > 0 && <p className="mt-2 rounded border border-warn/25 bg-warn/5 p-3 text-xs leading-5 text-warn">Varying recorded technical variables: {varyingTechnical.join(', ')}. This automatic comparison cannot adjust for them. Use the source matrix and the manual count upload with reviewed sample metadata and explicit covariates.</p>}
+      <div className="mt-4 grid gap-3 sm:grid-cols-3">
+        <label className="text-xs">Evidence that the matrix is unnormalized raw counts<input value={originEvidence} onChange={event => { setReviewed(false); setOriginEvidence(event.target.value); }} placeholder="Source URL and methods statement" className="scientific-select mt-1 w-full" /></label>
+        <label className="text-xs">Counting method<input value={countMethod} onChange={event => { setReviewed(false); setCountMethod(event.target.value); }} className="scientific-select mt-1 w-full" /></label>
+        <label className="text-xs">Reference / annotation release<input value={annotation} onChange={event => { setReviewed(false); setAnnotation(event.target.value); }} className="scientific-select mt-1 w-full" /></label>
+      </div>
+      <p className="mt-2 text-xs text-text-muted">GSM accessions identify deposited samples, not independent biological units. Count origin is analyst attestation; integer formatting is not independent validation.</p>
       <label className="mt-4 flex items-center gap-2 text-xs text-text-secondary"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} /> I reviewed the GEO source, sample identities, biological units, group assignments and recorded batch variables</label>
       {(!mapped || !groupsValid) && <p className="mt-2 text-xs text-warn">Map each column to a different GEO sample and assign at least two samples to each of the two groups.</p>}
-      <button type="button" disabled={!mapped || !groupsValid || !reviewed || !!busy || varyingTechnical.length > 0} onClick={runAnalysis} className="mt-4 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2.5 text-xs font-semibold text-accent-cyan disabled:opacity-40">{busy === 'analysis' ? 'Running DESeq2…' : 'Run DESeq2 and generate figures'}</button>
+      <button type="button" disabled={!mapped || !groupsValid || !reviewed || originEvidence.length < 10 || countMethod.length < 2 || annotation.length < 2 || !!busy || varyingTechnical.length > 0} onClick={runAnalysis} className="mt-4 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2.5 text-xs font-semibold text-accent-cyan disabled:opacity-40">{busy === 'analysis' ? 'Submitting QC…' : 'Generate PCA and QC for review'}</button>
     </section>}
 
     {error && <div role="alert" className="rounded-lg border border-error/25 bg-error/10 p-4 text-sm text-error">{error}</div>}
 
+    {jobId && <DurableJobReview jobId={jobId} onResult={setAnalysis} />}
+    <RnaSeqProductionPanel />
     <div id="expression-results"><RnaSeqExpressionWorkspace externalResult={analysis} /></div>
   </div>;
 }

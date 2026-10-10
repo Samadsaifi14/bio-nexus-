@@ -170,27 +170,28 @@ def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch):
         return matrix, "https://ftp.ncbi.nlm.nih.gov/counts.csv.gz"
 
     def fake_execution(**kwargs):
-        observed["counts"] = kwargs["counts_path"].read_text()
-        observed["metadata"] = kwargs["metadata_path"].read_text()
-        observed["source"] = kwargs["source_metadata"]
-        return {"summary": {"genes_input": 2}, "artifacts": [], "provenance": {}, "run_id": "test"}
+        observed["counts"] = kwargs["counts"].read_text()
+        observed["metadata"] = kwargs["metadata"].read_text()
+        observed["source"] = kwargs["source"]
+        return {"job_id": "test", "state":"QUEUED"}
 
     async def inline(func, **kwargs):
         return func(**kwargs)
 
     monkeypatch.setattr(geo_search, "fetch_series", fake_series)
     monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
-    monkeypatch.setattr(geo_search, "execute_expression_analysis", fake_execution)
+    monkeypatch.setattr(geo_search.durable, "enqueue", fake_execution)
     monkeypatch.setattr(geo_search, "run_in_threadpool", inline)
     monkeypatch.setattr(geo_search, "classify_rnaseq_study_scope", lambda result: {"classification": "TEST"})
-    assignments = [geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", condition="sensitive" if i < 3 else "resistant")
+    assignments = [geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", experimental_unit=f"unit{i}", condition="sensitive" if i < 3 else "resistant")
                    for i, column in enumerate(matrix["columns"], 1)]
     request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
+        origin={"normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
         source_sha256=matrix["sha256"], assignments=assignments, reference_level="sensitive", test_level="resistant")
     result = asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))
-    assert result["study_scope"]["classification"] == "TEST"
+    assert result["state"] == "QUEUED"
     assert observed["counts"].splitlines()[0] == "gene\tGSM1\tGSM2\tGSM3\tGSM4"
-    assert observed["metadata"].splitlines()[1] == "GSM1\tsensitive\tGSM1"
+    assert observed["metadata"].splitlines()[1] == "GSM1\tsensitive\tunit1"
     assert observed["source"]["source_sha256"] == matrix["sha256"]
 
 
@@ -206,9 +207,10 @@ def test_geo_analysis_rejects_changed_source_and_duplicate_sample(monkeypatch):
 
     monkeypatch.setattr(geo_search, "fetch_series", fake_series)
     monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
-    assignments = [geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", condition="sensitive" if i < 3 else "resistant")
+    assignments = [geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", experimental_unit=f"unit{i}", condition="sensitive" if i < 3 else "resistant")
                    for i, column in enumerate(matrix["columns"], 1)]
     request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
+        origin={"normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
         source_sha256="0" * 64, assignments=assignments, reference_level="sensitive", test_level="resistant")
     with pytest.raises(Exception, match="source changed"):
         asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))
@@ -232,8 +234,9 @@ def test_geo_analysis_rejects_unmodelled_varying_batch(monkeypatch):
     monkeypatch.setattr(geo_search, "fetch_series", fake_series)
     monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
     request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
+        origin={"normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
         source_sha256=matrix["sha256"], reference_level="sensitive", test_level="resistant",
-        assignments=[geo_search.SampleAssignment(column=column, gsm=f"GSM{i}",
+        assignments=[geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", experimental_unit=f"unit{i}",
                      condition="sensitive" if i < 3 else "resistant")
                      for i, column in enumerate(matrix["columns"], 1)])
     with pytest.raises(Exception, match="varying technical variables.*batch"):

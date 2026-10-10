@@ -1,6 +1,7 @@
 """Authenticated DESeq2 execution and private artifact storage for RNA-seq count matrices."""
 from __future__ import annotations
 
+from functools import lru_cache
 import hashlib
 import json
 import mimetypes
@@ -131,7 +132,43 @@ def _hydrate_manifest(manifest: dict[str, Any], prefix: str) -> dict[str, Any]:
     return hydrated
 
 
-def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600) -> dict[str, Any]:
+@lru_cache(maxsize=8)
+def _package_readiness(rscript: str, salmon: bool) -> list[str]:
+    packages = ["DESeq2", "ComplexHeatmap", "ggplot2", "jsonlite", "circlize"] + (["tximport"] if salmon else [])
+    code = 'p <- c(' + ','.join(json.dumps(p) for p in packages) + '); cat(p[!vapply(p, requireNamespace, logical(1), quietly=TRUE)], sep="\\n")'
+    try:
+        completed = subprocess.run([rscript, "-e", code], capture_output=True, text=True, timeout=30)
+        if completed.returncode:
+            return ["R package preflight failed"]
+        return completed.stdout.splitlines()
+    except (OSError, subprocess.TimeoutExpired):
+        return ["R package preflight unavailable"]
+
+
+def expression_readiness(salmon: bool = False) -> dict:
+    rscript = shutil.which(os.environ.get("BIONEXUS_RSCRIPT", "Rscript"))
+    missing = _package_readiness(rscript, salmon) if rscript else ["Rscript"]
+    from app.config import settings
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        missing = [*missing, "private artifact storage configuration"]
+    return {"available": not missing, "rscript_available": bool(rscript), "missing": missing,
+            "engine": "DESeq2", "quantifier_import": "Salmon/tximport" if salmon else None}
+
+
+def validate_artifacts(outdir: Path, summary: dict, stage: str) -> None:
+    required = {"analysis_summary.json", "pca.svg", "pca_coordinates.tsv", "sample_distance_heatmap.svg",
+                "sample_distance_matrix.tsv", "design_audit.json", "normalized_counts.tsv", "size_factors.tsv"}
+    if stage != "qc":
+        required |= {"ma_plot.svg", "volcano.svg", "volcano_plot_data.tsv", "deseq2_all_results.tsv",
+                     "deseq2_significant.tsv", "dispersion_plot.svg", "dds_fitted.rds"}
+        if summary.get("expression_heatmap_generated"):
+            required |= {"expression_heatmap.svg", "heatmap_matrix_zscore.tsv", "heatmap_gene_selection.tsv"}
+    missing = sorted(name for name in required if not (outdir / name).is_file() or (outdir / name).stat().st_size == 0)
+    if missing:
+        raise RnaSeqExpressionError("Required output artifacts missing: " + ", ".join(missing))
+
+
+def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600, *, stage: str = "full", checkpoint_path: Path | None = None, input_kind: str = "raw_counts", tx2gene_path: Path | None = None) -> dict[str, Any]:
     rscript = shutil.which(os.environ.get("BIONEXUS_RSCRIPT", "Rscript"))
     if not rscript:
         raise RnaSeqExpressionError("Rscript is not installed in the backend runtime; DESeq2 execution is unavailable.")
@@ -155,11 +192,15 @@ def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: Express
         params.organism,
     ]
     try:
-        completed = subprocess.run(argv, capture_output=True, text=True, timeout=timeout_seconds, check=False)
+        environment = dict(os.environ, BIONEXUS_EXPRESSION_STAGE=stage, BIONEXUS_EXPRESSION_INPUT=input_kind,
+                           BIONEXUS_EXPRESSION_CHECKPOINT=str(checkpoint_path or ""), BIONEXUS_TX2GENE=str(tx2gene_path or ""))
+        completed = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=timeout_seconds, check=False)
     except subprocess.TimeoutExpired as exc:
         raise RnaSeqExpressionError(f"DESeq2 execution exceeded {timeout_seconds} seconds.") from exc
     if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "DESeq2 failed").strip().splitlines()[-1]
+        lines = (completed.stderr or completed.stdout or "DESeq2 failed").strip().splitlines()
+        errors = [i for i, line in enumerate(lines) if line.startswith("Error")]
+        detail = " ".join(lines[errors[-1]:errors[-1] + 3]) if errors else " ".join(lines[-3:])
         raise RnaSeqExpressionError(f"DESeq2 execution failed: {detail[:500]}")
 
     summary_path = outdir / "analysis_summary.json"
@@ -179,6 +220,10 @@ def execute_expression_analysis(
     params: ExpressionParameters,
     source_label: str,
     source_metadata: dict[str, Any] | None = None,
+    stage: str = "full",
+    checkpoint_path: Path | None = None,
+    input_kind: str = "raw_counts",
+    tx2gene_path: Path | None = None,
 ) -> dict[str, Any]:
     params.validate()
     if counts_path.stat().st_size > MAX_COUNTS_BYTES:
@@ -186,6 +231,11 @@ def execute_expression_analysis(
     if metadata_path.stat().st_size > MAX_METADATA_BYTES:
         raise RnaSeqExpressionError("Metadata file exceeds the 5 MB analysis limit.")
 
+    if stage not in {"full", "qc", "infer"} or input_kind not in {"raw_counts", "salmon"}:
+        raise RnaSeqExpressionError("Unsupported statistical stage or input kind")
+    if input_kind == "salmon" and (not tx2gene_path or not tx2gene_path.is_file()):
+        raise RnaSeqExpressionError("Salmon import requires an annotation-matched transcript mapping")
+    _ensure_bucket()
     run_id = str(uuid.uuid4())
     counts_sha256 = sha256_file(counts_path)
     metadata_sha256 = sha256_file(metadata_path)
@@ -193,7 +243,9 @@ def execute_expression_analysis(
     with tempfile.TemporaryDirectory(prefix="bionexus-rnaseq-") as tmp:
         outdir = Path(tmp) / "results"
         outdir.mkdir(parents=True, exist_ok=True)
-        summary = _run_r(counts_path, metadata_path, outdir, params)
+        summary = _run_r(counts_path, metadata_path, outdir, params, stage=stage, checkpoint_path=checkpoint_path,
+                         input_kind=input_kind, tx2gene_path=tx2gene_path)
+        validate_artifacts(outdir, summary, stage)
 
         provenance = {
             "run_id": run_id,
@@ -212,11 +264,12 @@ def execute_expression_analysis(
             "min_samples": params.min_samples,
             "top_heatmap_genes": params.top_heatmap_genes,
             "execution": "Rscript + DESeq2 + ComplexHeatmap",
+            "stage": stage, "input_kind": input_kind,
             "claim_boundary": "Deterministic statistical output; biological interpretation and external validation remain separate.",
         }
         manifest = {
             "run_id": run_id,
-            "state": "SUCCEEDED",
+            "state": "QC_READY" if stage == "qc" else "SUCCEEDED",
             "summary": summary,
             "provenance": provenance,
             "artifacts": [],

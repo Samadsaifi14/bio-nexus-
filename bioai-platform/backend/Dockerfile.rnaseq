@@ -1,0 +1,12 @@
+FROM python:3.11-slim-bookworm
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    r-base-core r-bioc-deseq2 r-bioc-tximport r-bioc-complexheatmap \
+    r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-go.db r-bioc-org.hs.eg.db \
+    && rm -rf /var/lib/apt/lists/*
+RUN Rscript -e 'for (p in c("DESeq2","tximport","ComplexHeatmap","ggplot2","jsonlite","circlize")) stopifnot(requireNamespace(p, quietly=TRUE))'
+RUN pip install --no-cache-dir supabase python-dotenv
+WORKDIR /app
+COPY app ./app
+ENV BIONEXUS_EXPRESSION_ROOT=/var/lib/bionexus-expression
+VOLUME ["/var/lib/bionexus-expression"]
+CMD ["python", "-m", "app.rnaseq.durable"]

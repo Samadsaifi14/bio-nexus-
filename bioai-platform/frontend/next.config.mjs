@@ -51,7 +51,8 @@ const nextConfig = {
   },
 };
 
-export default withSentryConfig(nextConfig, {
+// Offline/local verification must not send source maps or build telemetry.
+export default process.env.BIONEXUS_LOCAL_VERIFY === '1' ? nextConfig : withSentryConfig(nextConfig, {
   silent: true,
   hideSourceMaps: true,
 });

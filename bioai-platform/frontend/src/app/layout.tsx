@@ -4,6 +4,7 @@ import './globals.css';
 import './scientific-ui.css';
 import './scientific-data-surface.css';
 import './experience.css';
+import './immersive.css';
 import { Toaster } from 'react-hot-toast';
 import { Providers } from './providers';
 import { themeInitScript } from '@/lib/theme';

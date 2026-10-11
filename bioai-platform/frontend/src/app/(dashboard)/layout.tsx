@@ -9,6 +9,7 @@ import { useAuth } from '@/contexts/auth';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { TutorialWalkthrough } from '@/components/TutorialWalkthrough';
 import { AuditInsightPanel } from '@/components/AuditInsightPanel';
+import { WorkspaceExperience } from '@/components/experience/WorkspaceExperience';
 import { BreadcrumbSchema } from '@/components/seo/BreadcrumbSchema';
 
 const NAV_ITEMS = [
@@ -271,6 +272,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         <main className="flex-1 overflow-y-auto relative">
           <div className="relative z-10 max-w-[1380px] mx-auto px-4 py-8 sm:px-8 lg:py-10">
             <motion.div key={pathname} initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .35, ease: [0.22, 1, 0.36, 1] }}>
+              <WorkspaceExperience />
               <ErrorBoundary>{children}</ErrorBoundary>
             </motion.div>
           </div>

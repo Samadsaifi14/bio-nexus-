@@ -1,6 +1,8 @@
 "use client";
 
 import { useState } from "react";
+import { ImmersiveStory } from "@/components/experience/ImmersiveStory";
+import { WebGLCursor } from "@/components/experience/WebGLCursor";
 import Link from "next/link";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 import { ArrowRight, Atom, ChartScatter, Dna, MagnifyingGlass, ArrowUpRight } from "@phosphor-icons/react";
@@ -44,7 +46,8 @@ export default function LandingPage() {
   const inView = reduceMotion ? undefined : { once: true, amount: 0.16 as const };
 
   return (
-    <main className="bn-landing min-h-[100dvh] bg-void text-text-primary">
+    <main className="bn-landing bn-immersive-landing min-h-[100dvh] bg-void text-text-primary">
+      <WebGLCursor />
       <a href="#main-content" className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[100] focus:bg-accent-cyan focus:px-4 focus:py-3 focus:text-surface-0">Skip to content</a>
       <header className="bn-site-header">
         <nav aria-label="Main navigation" className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
@@ -59,36 +62,12 @@ export default function LandingPage() {
       </header>
 
       <div id="main-content">
-        <section className="bn-hero mx-auto max-w-7xl px-5 pb-16 pt-14 sm:px-8 sm:pt-20 lg:pb-24 lg:pt-28">
-          <div className="bn-hero-copy">
-            <motion.p initial={reduceMotion ? false : { opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .45 }} className="bn-eyebrow"><span className="bn-eyebrow-line" /> A workspace for asking better biological questions</motion.p>
-            <motion.h1 initial={reduceMotion ? false : { opacity: 0, y: 28 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .68, delay: .08, ease: [.22, 1, .36, 1] }} className="bn-hero-title">From raw signal to <em>reasoned</em> result.</motion.h1>
-            <motion.p initial={reduceMotion ? false : { opacity: 0, y: 18 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .55, delay: .2 }} className="bn-hero-description">Sequence, structure and simulation in one place. BioNexus keeps the method, the quality checks and the source result close enough to read together.</motion.p>
-            <motion.div initial={reduceMotion ? false : { opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: .5, delay: .32 }} className="mt-9 flex flex-wrap items-center gap-5">
-              <Link href="/analyze" className="bn-button bn-button-primary">Explore the methods <ArrowRight size={18} aria-hidden="true" /></Link>
-              <Link href="/wizard" className="bn-text-link">Guide me through a workflow <ArrowUpRight size={17} aria-hidden="true" /></Link>
-            </motion.div>
-            <p className="mt-9 max-w-[54ch] text-xs leading-6 text-text-muted">Run availability depends on the method, input and connected services. Each result reports its own status and limits.</p>
-          </div>
-          <motion.div initial={reduceMotion ? false : { opacity: 0, x: 28, rotate: 1 }} animate={{ opacity: 1, x: 0, rotate: 0 }} transition={{ duration: .75, delay: .16, ease: [.22, 1, .36, 1] }} className="bn-specimen" aria-label="Illustrative structure of a research workflow; no sample data">
-            <div className="bn-specimen-top"><span>THE RESEARCH RECORD</span><span>BN / 001</span></div>
-            <div className="bn-specimen-body">
-              <div className="bn-specimen-index">Observe <span>→</span> Test <span>→</span> Interpret</div>
-              <div className="bn-specimen-figure" aria-hidden="true">
-                <span className="bn-figure-ring bn-figure-ring-one" /><span className="bn-figure-ring bn-figure-ring-two" /><span className="bn-figure-ring bn-figure-ring-three" />
-                <span className="bn-figure-core">?</span>
-                <span className="bn-figure-note bn-figure-note-one">INPUT</span><span className="bn-figure-note bn-figure-note-two">METHOD</span><span className="bn-figure-note bn-figure-note-three">EVIDENCE</span>
-              </div>
-              <p className="bn-specimen-caption">A finding is only as useful as the path that produced it.</p>
-            </div>
-            <div className="bn-specimen-bottom"><span>ILLUSTRATIVE WORKFLOW</span><span>NO SAMPLE MEASUREMENTS</span></div>
-          </motion.div>
-        </section>
+        <ImmersiveStory />
 
         <section id="methods" className="bn-methods-section">
           <div className="mx-auto max-w-7xl px-5 py-20 sm:px-8 lg:py-28">
             <motion.div variants={reveal} initial={reduceMotion ? false : "hidden"} whileInView="visible" viewport={inView} transition={{ duration: .6 }} className="bn-section-heading">
-              <div><p className="bn-kicker">Explore / 01—04</p><h2>Start with the question.</h2></div>
+              <div><p className="bn-kicker">Research methods</p><h2>Start with the question.</h2></div>
               <p>Choose a method to see the input, the evidence it can show, and the boundary that matters when interpreting it.</p>
             </motion.div>
             <div className="bn-method-explorer">
@@ -131,7 +110,7 @@ export default function LandingPage() {
         <section className="bn-final-cta"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-8 px-5 py-16 sm:px-8 md:flex-row md:items-end"><div><p className="bn-kicker">Your next question</p><h2>Take it into the workspace.</h2><p className="mt-3 text-sm text-text-secondary">Browse methods or start with a guided path.</p></div><Link href="/analyze" className="bn-button bn-button-primary self-start">Open workspace <ArrowUpRight size={18} aria-hidden="true" /></Link></div></section>
       </div>
       <footer className="bn-footer"><div className="mx-auto flex max-w-7xl flex-col justify-between gap-4 px-5 py-8 sm:flex-row sm:px-8"><span>BioNexus · Built at Jamia Millia Islamia</span><div className="flex gap-6"><Link href="/auth">Sign in</Link><span>© 2026 BioNexus</span></div></div></footer>
-      <JsonLd data={{ "@context": "https://schema.org", "@type": "WebPage", "@id": WEBPAGE_ID, url: `${SITE_URL}/`, name: "BioNexus — Bioinformatics research workspace", isPartOf: { "@id": WEBSITE_ID }, about: { "@id": SOFTWARE_ID }, mainEntity: { "@type": "SoftwareApplication", "@id": SOFTWARE_ID, name: SITE_NAME, applicationCategory: "ScienceApplication", applicationSubCategory: "Bioinformatics", operatingSystem: "Web", url: `${SITE_URL}/`, description: "Bioinformatics workspace for sequencing, sequence analysis and structural methods with result and provenance views.", featureList: ["NGS exploratory analysis and production planning", "BLAST similarity search", "Molecular docking", "Molecular dynamics", "Scientific result workspace"], creator: { "@id": ORG_ID } } }} />
+      <JsonLd data={{ "@context": "https://schema.org", "@type": "WebPage", "@id": WEBPAGE_ID, url: `${SITE_URL}/`, name: "BioNexus: Bioinformatics research workspace", isPartOf: { "@id": WEBSITE_ID }, about: { "@id": SOFTWARE_ID }, mainEntity: { "@type": "SoftwareApplication", "@id": SOFTWARE_ID, name: SITE_NAME, applicationCategory: "ScienceApplication", applicationSubCategory: "Bioinformatics", operatingSystem: "Web", url: `${SITE_URL}/`, description: "Bioinformatics workspace for sequencing, sequence analysis and structural methods with result and provenance views.", featureList: ["NGS exploratory analysis and production planning", "BLAST similarity search", "Molecular docking", "Molecular dynamics", "Scientific result workspace"], creator: { "@id": ORG_ID } } }} />
     </main>
   );
 }

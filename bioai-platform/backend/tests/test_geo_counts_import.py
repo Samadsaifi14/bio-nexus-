@@ -156,11 +156,15 @@ def test_geo_small_rna_library_cannot_enter_bulk_gene_import():
     asyncio.run(run())
 
 
-def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch):
+@pytest.mark.parametrize("automatic_mapping", [True, False])
+def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch, automatic_mapping):
     series = {"accession": "GSE336901", "samples": [
         {"accession": f"GSM{i}", "title": f"sample GZ1000{i}", "characteristics": {"treatment": "sensitive" if i < 3 else "resistant", "batch": "FFPE"}}
         for i in range(1, 5)], "files": [{"name": "counts.csv.gz", "url": "https://ftp.ncbi.nlm.nih.gov/counts.csv.gz"}]}
     matrix = parse_matrix(gzip.compress(matrix_text().encode()), "counts.csv.gz", series["samples"])
+    if not automatic_mapping:
+        # A reviewed manual assignment must also work when no auto-match exists.
+        matrix["matched_samples"] = [None] * len(matrix["columns"])
     observed = {}
 
     async def fake_series(client, accession):

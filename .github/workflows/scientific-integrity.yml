@@ -84,6 +84,9 @@ jobs:
           tests/test_redock_runner.py
           tests/test_docking_engine.py
           tests/test_vina_log.py
+          tests/test_geo_sample_matching.py
+          tests/test_geo_counts_import.py
+          tests/test_geo_search.py
           tests/test_alignment_pairwise.py
 
   ngs-integrity:

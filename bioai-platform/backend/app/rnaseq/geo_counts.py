@@ -173,16 +173,47 @@ def _decode_counts(payload: bytes, filename: str) -> str:
         raise GeoCountsError("The count matrix must use UTF-8 text.") from exc
 
 
-def _match_column(column: str, samples: list[dict]) -> str | None:
-    lower = column.casefold()
-    matches = []
+def _column_match(column: str, samples: list[dict]) -> dict:
+    """Prefer GEO identities; never resolve a tie by metadata order."""
+    lower = column.strip().casefold()
+
+    def result(candidates: set[str], method: str) -> dict:
+        ordered = sorted(candidates)
+        return {"gsm": ordered[0] if len(ordered) == 1 else None,
+                "status": "matched" if len(ordered) == 1 else "ambiguous" if ordered else "unmatched",
+                "method": method, "candidates": ordered}
+
+    exact = {sample["accession"] for sample in samples
+             if sample["accession"].casefold() == lower}
+    if exact:
+        return result(exact, "exact_accession")
+    # Underscores/punctuation delimit IDs; adjacent letters/digits do not.
+    accessions = set(re.findall(r"(?<![a-z0-9])gsm\d+(?![a-z0-9])", lower))
+    if accessions:
+        known = {sample["accession"] for sample in samples
+                 if sample["accession"].casefold() in accessions}
+        matched = result(known, "accession_token")
+        # Unknown or multiple explicit GSM IDs must not fall back to title hints.
+        if len(accessions) != 1 or not known:
+            matched.update(gsm=None, status="ambiguous" if len(accessions) > 1 else "unmatched")
+        return matched
+    exact_titles = {sample["accession"] for sample in samples
+                    if sample.get("title", "").strip().casefold() == lower}
+    if exact_titles:
+        return result(exact_titles, "exact_title")
+    candidates = set()
     for sample in samples:
-        accession = sample["accession"]
-        # GEO submitters often put a laboratory sample ID in a long count-column name.
-        tokens = re.findall(r"[A-Za-z]*\d[A-Za-z\d]{4,}", sample["title"])
-        if accession.casefold() in lower or any(token.casefold() in lower for token in tokens):
-            matches.append(accession)
-    return matches[0] if len(matches) == 1 else None
+        # Retain conservative title-ID discovery, but match the entire token.
+        tokens = re.findall(r"(?<![A-Za-z0-9])[A-Za-z]*\d[A-Za-z\d]{4,}(?![A-Za-z0-9])",
+                            sample.get("title", ""))
+        if any(re.search(r"(?<![a-z0-9])" + re.escape(token.casefold()) + r"(?![a-z0-9])", lower)
+               for token in tokens):
+            candidates.add(sample["accession"])
+    return result(candidates, "title_identifier_token")
+
+
+def _match_column(column: str, samples: list[dict]) -> str | None:
+    return _column_match(column, samples)["gsm"]
 
 
 def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
@@ -232,12 +263,23 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
         rows.append([gene, *values])
     if len(rows) < 2 or any(total == 0 for total in sums):
         raise GeoCountsError("The matrix has too few genes or an all-zero sample library.")
-    matches = [_match_column(name, samples) for name in sample_columns]
-    if len([item for item in matches if item]) != len(set(item for item in matches if item)):
-        raise GeoCountsError("Multiple count columns appear to match the same GEO sample.")
+    mappings = [_column_match(name, samples) for name in sample_columns]
+    seen_samples: set[str] = set()
+    duplicates: set[str] = set()
+    for item in mappings:
+        gsm = item["gsm"]
+        if gsm:
+            if gsm in seen_samples:
+                duplicates.add(gsm)
+            seen_samples.add(gsm)
+    for item in mappings:
+        if item["gsm"] in duplicates:
+            item.update(gsm=None, status="duplicate_sample")
+    matches = [item["gsm"] for item in mappings]
     return {
         "columns": sample_columns,
         "matched_samples": matches,
+        "sample_mapping": mappings,
         "genes": len(rows),
         "library_sizes": sums,
         "annotation_columns": [name for name in header[1:] if _is_annotation_column(name)],

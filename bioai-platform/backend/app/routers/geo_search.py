@@ -71,10 +71,11 @@ async def preview_geo_matrix(selection: MatrixSelection):
         raise _bad_geo(exc) from exc
     samples = {sample["accession"]: sample for sample in series["samples"]}
     columns = []
-    for column, gsm, total in zip(matrix["columns"], matrix["matched_samples"], matrix["library_sizes"]):
+    for index, (column, gsm, total) in enumerate(zip(matrix["columns"], matrix["matched_samples"], matrix["library_sizes"])):
         sample = samples.get(gsm or "", {})
         columns.append({"column": column, "gsm": gsm, "title": sample.get("title"),
-                        "characteristics": sample.get("characteristics", {}), "library_size": total})
+                        "characteristics": sample.get("characteristics", {}), "library_size": total,
+                        "mapping": matrix["sample_mapping"][index]})
     return {"accession": series["accession"], "filename": selection.filename, "source_url": source,
             "source_sha256": matrix["sha256"], "genes": matrix["genes"], "annotation_columns": matrix["annotation_columns"],
             "columns": columns, "samples": series["samples"], "design": series["design"]}

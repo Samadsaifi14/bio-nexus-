@@ -37,3 +37,30 @@ def test_invalid_threshold_is_rejected():
     ref = _embedded_ethanol()
     with pytest.raises(ValueError, match="must be > 0"):
         evaluate_redocking(ref, Chem.Mol(ref), threshold_angstrom=0)
+
+
+def test_translated_pose_fails_without_ligand_alignment():
+    ref = _embedded_ethanol()
+    pred = Chem.Mol(ref)
+    conf = pred.GetConformer()
+    for i in range(pred.GetNumAtoms()):
+        point = conf.GetAtomPosition(i)
+        conf.SetAtomPosition(i, (point.x + 10, point.y, point.z))
+    before = [tuple(conf.GetAtomPosition(i)) for i in range(pred.GetNumAtoms())]
+    result = evaluate_redocking(ref, pred)
+    assert result.rmsd_angstrom == pytest.approx(10.0, abs=1e-4)
+    assert not result.passed
+    assert [tuple(conf.GetAtomPosition(i)) for i in range(pred.GetNumAtoms())] == before
+
+
+def test_atom_renumbering_retains_zero_rmsd():
+    ref = _embedded_ethanol()
+    pred = Chem.RenumberAtoms(ref, list(reversed(range(ref.GetNumAtoms()))))
+    assert evaluate_redocking(ref, pred).rmsd_angstrom == pytest.approx(0, abs=1e-4)
+
+
+@pytest.mark.parametrize("threshold", [float("nan"), float("inf")])
+def test_nonfinite_threshold_is_rejected(threshold):
+    ref = _embedded_ethanol()
+    with pytest.raises(ValueError, match="finite"):
+        evaluate_redocking(ref, Chem.Mol(ref), threshold)

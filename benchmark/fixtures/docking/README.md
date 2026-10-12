@@ -12,7 +12,8 @@ heavy-atom RMSD vs the crystal pose is measured.
 - `run_redock_panel.py` — runs the *same* docking code path the production API
   uses (`app.tools.docking.run_vina` / `compute_pocket_grid`): fpocket grid,
   obabel pH-7.4 PDBQT prep, Vina exhaustiveness 32 / 9 modes / fixed seed,
-  RDKit symmetry-aware heavy-atom RMSD (`GetBestRMS`).
+  RDKit symmetry-aware heavy-atom RMSD (`CalcRMS` in the receptor frame,
+  without ligand alignment). Translated poses must fail the threshold.
 
 ## Honesty rule (never negotiable)
 
@@ -26,7 +27,14 @@ matrix keeps DOCK-REDOCK unclaimed until the panel genuinely passes.
 
 ```bash
 python benchmark/fixtures/docking/run_redock_panel.py
+
+# Canonical 1STP-BTN control (separate evidence from the ten-complex panel)
+python benchmark/fixtures/docking/run_redock_panel.py --canonical \
+  --outdir benchmark/results/docking/canonical
 ```
 
 Result: `benchmark/results/docking/redock/latest.json` (schema
-`bionexus-redock-panel/v1`).
+`bionexus-redock-panel/v1`). Each execution also retains a dated report and
+source PDB, prepared receptor/ligand, Vina output/log, and top-pose SDF with
+SHA-256 hashes. A passing canonical control supports only that complex;
+panel validation still requires the predeclared panel threshold.

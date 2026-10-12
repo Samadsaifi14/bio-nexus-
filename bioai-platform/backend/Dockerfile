@@ -95,6 +95,7 @@ RUN wget -q https://github.com/iqtree/iqtree2/releases/download/v2.3.6/iqtree-2.
 
 # Download pre-compiled AutoDock Vina binary from GitHub releases
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
+    echo "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644  /usr/local/bin/vina" | sha256sum -c - && \
     chmod +x /usr/local/bin/vina
 
 WORKDIR /app

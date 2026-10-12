@@ -1,0 +1,117 @@
+{
+  "benchmark": "bionexus-redock-panel/v1",
+  "run_id": "20261012T075903800288Z",
+  "tool_versions": {
+    "python": "3.12.14",
+    "rdkit": "2026.09.1",
+    "openbabel": "Open Babel 3.1.0 -- Feb 17 2026 -- 06:47:59",
+    "vina_binary_sha256": "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644",
+    "fpocket_binary_sha256": "a9aeb813056827c916ed676b04bb9f1a9ff8410a2a7aaabed9520ebdfa680deb"
+  },
+  "code_sha256": {
+    "benchmark/fixtures/docking/run_redock_panel.py": "0e714337d416a2191f69e1ecbff41baaee0a556b37ce9e486138c7c83ef04598",
+    "bioai-platform/backend/app/tools/docking.py": "a9cc05d05185e4c879cca7c998400ef6c6d1348a0d9d1d0e868c0f56bddbf7d8",
+    "bioai-platform/backend/app/benchmarking/docking_redock.py": "5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb"
+  },
+  "executed_at_utc": "2026-10-12T07:59:13.874091+00:00",
+  "status": "failed",
+  "recorded": "2026-10-12",
+  "n_complexes": 10,
+  "n_passed": 0,
+  "passed_fraction": 0.0,
+  "essential_passed": false,
+  "success_criteria": {
+    "panel_pass_threshold_frac": 0.7,
+    "per_complex_rmsd_threshold_angstrom": 2.0,
+    "essential_top_pose_success": true,
+    "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags)."
+  },
+  "results": [
+    {
+      "id": "1STP",
+      "pdb": "1STP",
+      "ligand_resname": "BTN",
+      "essential": true,
+      "passed": false,
+      "error": "fpocket found no pocket"
+    },
+    {
+      "id": "1IEP",
+      "pdb": "1IEP",
+      "ligand_resname": "STU",
+      "essential": true,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "1HVR",
+      "pdb": "1HVR",
+      "ligand_resname": "AHA",
+      "essential": true,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "2F12",
+      "pdb": "2F12",
+      "ligand_resname": "FU1",
+      "essential": true,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "1GKC",
+      "pdb": "1GKC",
+      "ligand_resname": "GSH",
+      "essential": false,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "1OYT",
+      "pdb": "1OYT",
+      "ligand_resname": "MES",
+      "essential": false,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "1UYG",
+      "pdb": "1UYG",
+      "ligand_resname": "TIM",
+      "essential": false,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "2H4G",
+      "pdb": "2H4G",
+      "ligand_resname": "DOG",
+      "essential": false,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "1Q4T",
+      "pdb": "1Q4T",
+      "ligand_resname": "FAD",
+      "essential": false,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    },
+    {
+      "id": "1P62",
+      "pdb": "1P62",
+      "ligand_resname": "STR",
+      "essential": false,
+      "passed": false,
+      "error": "no receptor/ligand lines parsed"
+    }
+  ],
+  "limitations": [
+    "Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.",
+    "Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.",
+    "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
+    "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
+  ]
+}

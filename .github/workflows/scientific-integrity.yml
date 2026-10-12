@@ -80,6 +80,10 @@ jobs:
           tests/test_ngs_annotation_research_grade.py
           tests/test_pathway_enrichment_research_grade.py
           tests/test_docking_redock_benchmark.py
+          tests/test_docking_integrity.py
+          tests/test_redock_runner.py
+          tests/test_docking_engine.py
+          tests/test_vina_log.py
           tests/test_alignment_pairwise.py
 
   ngs-integrity:

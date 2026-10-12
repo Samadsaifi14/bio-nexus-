@@ -19,12 +19,19 @@ if _IS_WINDOWS:
 else:
     _VINA_URL = "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64"
 _EXE_NAME = "vina.exe" if _IS_WINDOWS else "vina"
-_VINA_SHA256 = ""
+# SHA-256 of the official v1.2.7 release assets (retrieved 2026-10-12).
+# Upstream does not publish asset digests for this release; these are frozen
+# hashes of the HTTPS release bytes, not publisher-signed attestations.
+_VINA_SHA256 = (
+    "e0c4b2715e0c1a74f6e92d0f3be0328ac97542eafbc111e6b1efad897a73cce5"
+    if _IS_WINDOWS else
+    "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644"
+)
 
 
 def _verify_checksum(path: Path) -> None:
-    if not _VINA_SHA256:
-        return
+    if not re.fullmatch(r"[0-9a-f]{64}", _VINA_SHA256):
+        raise RuntimeError("Vina binary checksum is missing or invalid; refusing to execute.")
     import hashlib
 
     h = hashlib.sha256()
@@ -33,7 +40,6 @@ def _verify_checksum(path: Path) -> None:
             h.update(chunk)
     digest = h.hexdigest()
     if digest != _VINA_SHA256:
-        path.unlink(missing_ok=True)
         raise RuntimeError(
             f"Vina binary checksum mismatch (got {digest}, expected {_VINA_SHA256})."
         )
@@ -43,12 +49,14 @@ def _ensure_vina() -> str:
     """Locate the AutoDock Vina binary."""
     global _VINA_BINARY
     if _VINA_BINARY and os.path.isfile(_VINA_BINARY):
+        _verify_checksum(Path(_VINA_BINARY))
         return _VINA_BINARY
 
     import shutil
 
     for candidate in ["/usr/local/bin/vina", shutil.which("vina") or ""]:
         if candidate and os.path.isfile(candidate):
+            _verify_checksum(Path(candidate))
             _VINA_BINARY = candidate
             return _VINA_BINARY
 
@@ -58,10 +66,18 @@ def _ensure_vina() -> str:
 
     if not exe_path.is_file():
         print(f"[docking] Downloading AutoDock Vina from {_VINA_URL} ...")
-        # fixed release URL constant, not user-controlled
-        urllib.request.urlretrieve(_VINA_URL, str(exe_path))  # nosemgrep
-        _verify_checksum(exe_path)
-        os.chmod(str(exe_path), 0o755)  # nosemgrep (binary must be executable to run)
+        # Download to a private temporary file; only publish verified bytes.
+        with tempfile.NamedTemporaryFile(dir=bin_dir, delete=False) as f:
+            download_path = Path(f.name)
+        try:
+            urllib.request.urlretrieve(_VINA_URL, str(download_path))  # nosemgrep
+            _verify_checksum(download_path)
+            os.chmod(str(download_path), 0o755)  # nosemgrep
+            os.replace(download_path, exe_path)
+        finally:
+            download_path.unlink(missing_ok=True)
+
+    _verify_checksum(exe_path)
 
     _VINA_BINARY = str(exe_path)
     return _VINA_BINARY
@@ -140,13 +156,14 @@ def _pdb_atom_coord(line: str) -> Optional[tuple[str, int, float, float, float]]
     if line[:6].strip() not in ("ATOM", "HETATM"):
         return None
     try:
-        return (
+        atom = (
             line[21].strip() or " ",
             int(line[22:26]),
             float(line[30:38]),
             float(line[38:46]),
             float(line[46:54]),
         )
+        return atom if all(math.isfinite(v) for v in atom[2:]) else None
     except (ValueError, IndexError):
         return None
 
@@ -159,7 +176,7 @@ def compute_grid_center(pdb_text: str) -> list[float]:
         if a and line.startswith("ATOM"):
             xs.append(a[2]); ys.append(a[3]); zs.append(a[4])
     if not xs:
-        return [0.0, 0.0, 0.0]
+        raise ValueError("Cannot construct docking grid: receptor contains no valid finite ATOM coordinates.")
     return [sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)]
 
 
@@ -174,6 +191,7 @@ def compute_pocket_grid(pdb_text: str, padding: float = 8.0,
 
     Returns {"center": [x,y,z], "size": [sx,sy,sz]} or None on any failure.
     """
+    compute_grid_center(pdb_text)  # Reject invalid receptors before pocket lookup.
     from app.tools.structure_prep import FPOCKET_BIN
 
     if not os.path.isfile(FPOCKET_BIN):
@@ -441,11 +459,23 @@ def parse_vina_log(vina_log: str) -> dict:
     }
 
 
+def _validate_grid_vector(value, name: str, positive: bool = False) -> list[float]:
+    if not isinstance(value, (list, tuple)) or len(value) != 3:
+        raise ValueError(f"{name} must contain exactly three finite numbers.")
+    try:
+        vector = [float(v) for v in value]
+    except (TypeError, ValueError):
+        raise ValueError(f"{name} must contain exactly three finite numbers.") from None
+    if not all(math.isfinite(v) and (not positive or v > 0) for v in vector):
+        raise ValueError(f"{name} must contain finite {'positive ' if positive else ''}numbers.")
+    return vector
+
+
 def run_vina(
     protein_pdbqt: str | bytes,
     ligand_pdbqt: str,
-    grid_center: list[float] = [0, 0, 0],
-    grid_size: list[float] = [20, 20, 20],
+    grid_center: list[float] | None = None,
+    grid_size: list[float] | None = None,
     exhaustiveness: int = 8,
     num_modes: int = 9,
     seed: int = 42,
@@ -455,6 +485,8 @@ def run_vina(
     A fixed seed (default 42) makes runs reproducible — with Vina's random
     default seed, identical inputs give different scores every run.
     """
+    grid_center = _validate_grid_vector(grid_center, "grid_center")
+    grid_size = _validate_grid_vector(grid_size, "grid_size", positive=True)
     vina_bin = _ensure_vina()
 
     with tempfile.TemporaryDirectory() as tmp:

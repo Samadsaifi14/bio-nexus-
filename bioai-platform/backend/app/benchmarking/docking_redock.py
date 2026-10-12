@@ -1,7 +1,7 @@
 """BBS-1 docking redocking benchmark helpers.
 
 The benchmark compares a predicted ligand pose with the crystallographic
-reference using RDKit's symmetry-aware best RMSD. This is intentionally kept
+reference using RDKit's symmetry-aware RMSD in the receptor frame. This is intentionally kept
 outside the production docking score path: docking affinity and pose RMSD are
 separate quantities and must not be conflated.
 """
@@ -10,6 +10,7 @@ from __future__ import annotations
 
 from copy import deepcopy
 from dataclasses import asdict, dataclass
+import math
 from typing import Any
 
 
@@ -49,7 +50,7 @@ class RedockingResult:
     threshold_angstrom: float
     passed: bool
     atom_count: int
-    metric: str = "RDKit GetBestRMS symmetry-aware heavy-atom RMSD"
+    metric: str = "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)"
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -67,8 +68,8 @@ def symmetry_aware_pose_rmsd(reference_mol, predicted_mol) -> float:
     """Return symmetry-aware heavy-atom RMSD in angstrom.
 
     Both molecules must represent the same ligand graph and contain 3D
-    coordinates. RDKit's GetBestRMS searches symmetry-equivalent atom maps,
-    avoiding inflated RMSD from arbitrary numbering of equivalent atoms.
+    coordinates in the same receptor frame. CalcRMS searches equivalent atom
+    maps without moving the predicted pose onto the reference ligand.
     """
     from rdkit.Chem import rdMolAlign
 
@@ -81,12 +82,20 @@ def symmetry_aware_pose_rmsd(reference_mol, predicted_mol) -> float:
         )
     if ref.GetNumConformers() == 0 or pred.GetNumConformers() == 0:
         raise ValueError("Both ligands must contain 3D coordinates")
-    return float(rdMolAlign.GetBestRMS(pred, ref))
+    if ref.GetNumAtoms() == 0:
+        raise ValueError("Both ligands must contain heavy atoms")
+    for mol in (ref, pred):
+        if not all(math.isfinite(float(v)) for xyz in mol.GetConformer().GetPositions() for v in xyz):
+            raise ValueError("Ligand coordinates must be finite")
+    rmsd = float(rdMolAlign.CalcRMS(pred, ref))
+    if not math.isfinite(rmsd):
+        raise ValueError("Pose RMSD must be finite")
+    return rmsd
 
 
 def evaluate_redocking(reference_mol, predicted_mol, threshold_angstrom: float = 2.0) -> RedockingResult:
-    if threshold_angstrom <= 0:
-        raise ValueError("threshold_angstrom must be > 0")
+    if not math.isfinite(threshold_angstrom) or threshold_angstrom <= 0:
+        raise ValueError("threshold_angstrom must be > 0 and finite")
     rmsd = symmetry_aware_pose_rmsd(reference_mol, predicted_mol)
     atom_count = _remove_hydrogens(reference_mol).GetNumAtoms()
     return RedockingResult(

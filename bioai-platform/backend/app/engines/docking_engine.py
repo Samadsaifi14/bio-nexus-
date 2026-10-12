@@ -21,6 +21,7 @@ Canonical input (a docking result object, e.g. from /api/docking):
 from __future__ import annotations
 
 from typing import Any
+import math
 
 from app.engines.base import BaseEngine, EngineResult, ValidationReport
 from app.figure.engine import bar_chart_panel, esc
@@ -107,8 +108,16 @@ class DockingEngine(BaseEngine):
             (_fnum(p.get("rmsd_lb"), 0.0) >= 0) and (_fnum(p.get("rmsd_ub"), 0.0) >= 0)
             for p in poses if isinstance(p, dict)
         )
-        box = result.evidence.get("box_size") or {}
-        box_ok = all(_fnum(box.get(k)) > 0 for k in ("x", "y", "z")) if box else True
+        def grid_values(value):
+            if isinstance(value, dict):
+                return [_fnum(value.get(k), float("nan")) for k in ("x", "y", "z")]
+            if isinstance(value, (list, tuple)) and len(value) == 3:
+                return [_fnum(v, float("nan")) for v in value]
+            return [float("nan")]*3
+
+        box = grid_values(result.evidence.get("box_size"))
+        center = grid_values(result.evidence.get("box_center"))
+        box_ok = all(math.isfinite(v) and v > 0 for v in box) and all(math.isfinite(v) for v in center)
 
         checks.extend([
             {"name": "poses_present", "passed": s["pose_count"] >= 1, "detail": f"{s['pose_count']} poses"},
@@ -119,7 +128,7 @@ class DockingEngine(BaseEngine):
             {"name": "rmsd_nonnegative", "passed": rmsd_ok, "detail": "all RMSD values >= 0"},
             {"name": "interactions_nonnegative", "passed": all(v >= 0 for v in
              (s["h_bonds"], s["hydrophobic"], s["pi_stacking"], s["salt_bridges"])), "detail": "interaction counts"},
-            {"name": "grid_box_valid", "passed": box_ok, "detail": "positive box sizes"},
+            {"name": "grid_box_valid", "passed": box_ok, "detail": "finite center and finite positive box sizes"},
         ])
         return ValidationReport(checks, self.name)
 

@@ -16,7 +16,7 @@ from app.config import settings
 
 
 @pytest.fixture(scope="module")
-def client():
+def client(tmp_path_factory):
     """Authenticated test client for routes that exercise server-local FASTQ files.
 
     Production code deliberately requires an authenticated user and confines local
@@ -25,7 +25,7 @@ def client():
     that anonymous/out-of-root access is rejected.
     """
     previous_root = settings.NGS_INPUT_ROOT
-    settings.NGS_INPUT_ROOT = tempfile.gettempdir()
+    settings.NGS_INPUT_ROOT = str(tmp_path_factory.getbasetemp())
     app = FastAPI(title="NGS v2 Router Tests")
     app.dependency_overrides[ngs_v2.get_user_id] = lambda: "router-test-user"
     app.include_router(ngs_v2.router)

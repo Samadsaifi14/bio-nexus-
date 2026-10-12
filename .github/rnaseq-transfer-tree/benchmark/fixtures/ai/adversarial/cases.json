@@ -1,0 +1,131 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Adversarial evidence integrity cases for the BioNexus Evidence Engine (MATRIX 9 / ANN-AI rows). Each case is a deliberately hostile input: fabricated claims, wrong identifiers, unsupported numbers, reversed interpretations, structurally broken graphs.",
+  "contract": "Cases are labelled `reject` (the engine MUST reject the fabricated input via the given check) or `gap` (the current structural engine legitimately cannot catch the semantic fabrication — recorded as a documented, tracked limitation, never silently passed). Semantic entailment cases in `gap` require the external semantic audit layer; they are part of the release-honesty register, not a pass.",
+  "cases": [
+    {
+      "id": "EV-GAP-001",
+      "name": "Numeric fabrication",
+      "category": "fabricated_number",
+      "expectation": "reject",
+      "expect_checks": ["honest_claims"],
+      "expect_reason": "numeric claim absent from supporting computation/reference payload",
+      "context": {
+        "blast": {"count": 12, "top_hit": {"accession": "P04637", "identity_pct": 42.0}, "database_version": "nr"},
+        "interpret": {"interpretation": "BLAST recovered P04637 at 42% identity. The protein confers a 73% lifetime mortality risk increase, a fact established by this analysis."}
+      }
+    },
+    {
+      "id": "EV-GAP-002",
+      "name": "Fabricated accession",
+      "category": "unverifiable_reference",
+      "expectation": "reject",
+      "expect_checks": ["honest_claims"],
+      "expect_reason": "no recorded evidence node supports this statement",
+      "context": {
+        "blast": {"count": 1, "top_hit": {"accession": "P04637", "identity_pct": 98.0}, "database_version": "nr"},
+        "interpret": {"interpretation": "An independent proteomics paper Q9XYZ0 links this protein to resistance but is not present in the session evidence."}
+      }
+    },
+    {
+      "id": "EV-GAP-003",
+      "name": "Reversed quantitative interpretation",
+      "category": "reversal",
+      "expectation": "reject",
+      "expect_checks": ["honest_claims"],
+      "expect_reason": "numeric claim absent from supporting computation/reference payload",
+      "discrete_evidence_note": "42 vs 100",
+      "context": {
+        "blast": {"count": 2, "top_hit": {"accession": "A0A1B2C3D4", "description": "putative uncharacterized protein", "identity_pct": 42.0}, "database_version": "nr"},
+        "interpret": {"interpretation": "The 100% identity to A0A1B2C3D4 confirms the query is a fully characterized tumour suppressor with identical function."}
+      }
+    },
+    {
+      "id": "EV-STRUCT-001",
+      "name": "Dangling evidence reference",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "expect_checks": ["graph_reference"],
+      "graph": {
+        "sources": [{"id": "blast", "tool": "BLAST", "database": "nr", "version": "2.14"}],
+        "claims": [{"id": "c1", "text": "The result is supported by database X.", "confidence": "high", "evidence": ["ghost-db"], "rejected": false}],
+        "edges": []
+      }
+    },
+    {
+      "id": "EV-STRUCT-002",
+      "name": "Invalid confidence tier",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "expect_checks": ["claim_fields"],
+      "graph": {
+        "sources": [{"id": "blast", "tool": "BLAST", "database": "nr", "version": "2.14"}],
+        "claims": [{"id": "c1", "text": "Certainty is absolute for this interpretation.", "confidence": "certain", "evidence": ["blast"], "rejected": false}],
+        "edges": []
+      }
+    },
+    {
+      "id": "EV-STRUCT-003",
+      "name": "Missing evidence and missing rejection flag",
+      "category": "unsupported",
+      "expectation": "reject",
+      "expect_checks": ["honest_claims"],
+      "graph": {
+        "sources": [{"id": "blast", "tool": "BLAST", "database": "nr", "version": "2.14"}],
+        "claims": [{"id": "c1", "text": "This protein binds calmodulin in vivo at human physiological temperature.", "confidence": "high", "evidence": [], "rejected": false}],
+        "edges": []
+      }
+    },
+    {
+      "id": "EV-STRUCT-004",
+      "name": "Source without identity fields",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "expect_checks": ["source_fields"],
+      "graph": {
+        "sources": [{"id": "mystery", "tool": "", "database": "", "version": ""}],
+        "claims": [{"id": "c1", "text": "A mystery source supports everything.", "confidence": "none", "evidence": ["mystery"], "rejected": false}],
+        "edges": []
+      }
+    },
+    {
+      "id": "EV-STRUCT-005",
+      "name": "Empty graph",
+      "category": "broken_graph",
+      "expectation": "reject",
+      "expect_checks": ["graph_nonempty"],
+      "graph": {"sources": [], "claims": [], "edges": []}
+    },
+    {
+      "id": "EV-SEM-001",
+      "name": "Qualitative overclaim (structured engine limitation)",
+      "category": "semantic_entailment",
+      "expectation": "gap",
+      "context": {
+        "uniprot": {"accession": "P04637", "gene_names": ["TP53"], "full_name": "Cellular tumor antigen p53", "comment": ["Tumor suppressor"], "database_version": "2024"},
+        "interpret": {"interpretation": "p53 is the master regulator of aging; modulating it extends human lifespan by decades, a proven therapeutic strategy."}
+      }
+    },
+    {
+      "id": "EV-SEM-002",
+      "name": "Keyword coincidence mislink",
+      "category": "semantic_entailment",
+      "expectation": "gap",
+      "context": {
+        "uniprot": {"accession": "P04637", "gene_names": ["TP53"], "full_name": "Cellular tumor antigen p53", "database_version": "2024"},
+        "blast": {"count": 3, "top_hit": {"accession": "P04637", "identity_pct": 100.0}, "database_version": "nr"},
+        "interpret": {"interpretation": "TP53 mutations are present in 50% of professional drivers, making airline crew a high-risk group for this cancer."}
+      }
+    },
+    {
+      "id": "EV-SEM-003",
+      "name": "Sources fabricated but structurally consistent",
+      "category": "semantic_entailment",
+      "expectation": "gap",
+      "context": {
+        "ngs": {"variant_count": 5, "pipeline": "GATK4", "database_version": "GRCh38", "variants": [{"chr": "17", "pos": 7578406, "ref": "C", "alt": "T"}]},
+        "interpret": {"interpretation": "Sanger sequencing independently confirmed all five variants, so the call set is validated against ground truth."}
+      }
+    }
+  ]
+}

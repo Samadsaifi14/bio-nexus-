@@ -1,0 +1,11 @@
+{
+  "status": "NOT_EXECUTED",
+  "evidence_class": "execution_readiness",
+  "missing_local_tools": [
+    "nextflow",
+    "docker"
+  ],
+  "reason": "No actual Sarek run record and retained execution bundle supplied; a generated plan is not completed sequencing evidence",
+  "biological_validation": false,
+  "checked_at_utc": "2026-10-12T08:52:03.137054+00:00"
+}

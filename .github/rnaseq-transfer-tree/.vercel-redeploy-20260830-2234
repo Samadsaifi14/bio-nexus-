@@ -1,0 +1,3 @@
+Redeploy trigger for production after MD v2 502 fix.
+Source commit containing the fix: 39144499520e316b5173353a854830088dd9952e
+Triggered: 2026-08-30 22:34 Asia/Kolkata

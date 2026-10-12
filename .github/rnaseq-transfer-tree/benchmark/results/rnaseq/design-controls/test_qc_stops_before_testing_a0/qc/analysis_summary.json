@@ -1,0 +1,16 @@
+{
+  "stage": "qc",
+  "genes_input": 160,
+  "genes_kept": 160,
+  "samples": 8,
+  "design": "~condition",
+  "input_kind": "raw_counts",
+  "pca_percent_variance": {
+    "PC1": 32.651,
+    "PC2": 16.235
+  },
+  "design_warnings": [
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design."
+  ],
+  "inference_performed": false
+}

@@ -1,0 +1,18 @@
+{
+  "stage": "qc",
+  "genes_input": 160,
+  "genes_kept": 160,
+  "samples": 8,
+  "design": "~condition",
+  "input_kind": "raw_counts",
+  "pca_percent_variance": {
+    "PC1": 18.364,
+    "PC2": 17.699
+  },
+  "design_warnings": [
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design.",
+    "Recorded technical variable(s) nested within condition: batch. A condition-only model does not separate these technical effects from biology. Review the study design before inference; including a perfectly confounded term will fail the model-rank check.",
+    "Recorded technical variable(s) not included in the statistical model: batch. Review PCA and study design before deciding whether adjustment is required."
+  ],
+  "inference_performed": false
+}

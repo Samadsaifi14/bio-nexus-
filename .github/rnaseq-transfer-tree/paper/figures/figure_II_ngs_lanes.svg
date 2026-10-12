@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1800" height="1200" viewBox="0 0 1800 1200" role="img" aria-labelledby="title desc">
+<title id="title">Figure II. BioNexus NGS execution lanes</title>
+<desc id="desc">Three separate lanes for production WGS/WES, production RNA-seq and exploratory preview, with shared evidence and result workspace.</desc>
+<style>text{font-family:Arial,Helvetica,sans-serif;fill:#17202a}.h{font-size:34px;font-weight:700}.s{font-size:22px;font-weight:700}.b{font-size:18px}.m{font-size:16px;fill:#4b5563}.box{fill:#fff;stroke:#263238;stroke-width:2}.dna{fill:#eef7f4;stroke:#26695c;stroke-width:2}.rna{fill:#eef4fa;stroke:#315c83;stroke-width:2}.preview{fill:#fff8e7;stroke:#8a6d1d;stroke-width:2}.external{fill:#fff;stroke:#607d8b;stroke-width:2;stroke-dasharray:10 8}.arrow{stroke:#263238;stroke-width:3;fill:none;marker-end:url(#a)}</style>
+<defs><marker id="a" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0 0 L12 6 L0 12 z" fill="#263238"/></marker></defs>
+<text x="90" y="70" class="h">BioNexus NGS: separate evidence lanes</text><text x="90" y="105" class="m">Production execution and exploratory evidence are different scientific states and are never substituted for one another.</text>
+
+<rect x="90" y="165" width="500" height="145" rx="18" class="dna"/><text x="120" y="210" class="s">Production WGS / WES</text><text x="120" y="248" class="b">nf-core/sarek 3.10.0</text><text x="120" y="280" class="m">FASTQ / BAM / CRAM · germline contract</text>
+<rect x="650" y="165" width="500" height="145" rx="18" class="rna"/><text x="680" y="210" class="s">Production RNA-seq</text><text x="680" y="248" class="b">nf-core/rnaseq 3.26.0</text><text x="680" y="280" class="m">FASTQ · strandedness · alignment · quantification</text>
+<rect x="1210" y="165" width="500" height="145" rx="18" class="preview"/><text x="1240" y="210" class="s">Exploratory preview</text><text x="1240" y="248" class="b">Internal evidence DAG</text><text x="1240" y="280" class="m">Synthetic demos or authenticated local FASTQ</text>
+
+<rect x="90" y="395" width="500" height="170" rx="18" class="box"/><text x="120" y="438" class="s">Preflight contract</text><text x="120" y="475" class="b">Reference · sample model · caller</text><text x="120" y="508" class="b">targets/config · required artifacts</text><text x="120" y="540" class="m">BLOCKED if required launch evidence is missing</text>
+<rect x="650" y="395" width="500" height="170" rx="18" class="box"/><text x="680" y="438" class="s">Preflight contract</text><text x="680" y="475" class="b">Reference · strandedness · aligner</text><text x="680" y="508" class="b">trimming policy · sample sheet</text><text x="680" y="540" class="m">DE is downstream; raw counts stay authoritative</text>
+<rect x="1210" y="395" width="500" height="170" rx="18" class="box"/><text x="1240" y="438" class="s">Preview safeguards</text><text x="1240" y="475" class="b">2,000 records/file cap disclosed</text><text x="1240" y="508" class="b">unsupported assay → fail closed</text><text x="1240" y="540" class="m">sampled/surrogate states are labelled</text>
+<path d="M340 310 V395" class="arrow"/><path d="M900 310 V395" class="arrow"/><path d="M1460 310 V395" class="arrow"/>
+
+<rect x="235" y="665" width="340" height="180" rx="18" class="external"/><text x="270" y="710" class="s">Durable compute</text><text x="270" y="750" class="b">Local worker</text><text x="270" y="785" class="b">SLURM</text><text x="270" y="820" class="b">AWS Batch</text>
+<rect x="755" y="665" width="340" height="180" rx="18" class="external"/><text x="790" y="710" class="s">Durable compute</text><text x="790" y="750" class="b">Local worker</text><text x="790" y="785" class="b">SLURM</text><text x="790" y="820" class="b">AWS Batch</text>
+<rect x="1275" y="665" width="340" height="180" rx="18" class="preview"/><text x="1310" y="710" class="s">Preview engine</text><text x="1310" y="750" class="b">Request-time analysis</text><text x="1310" y="785" class="b">Synthetic controls</text><text x="1310" y="820" class="m">Never a production fallback</text>
+<path d="M340 565 V665" class="arrow"/><path d="M900 565 V665" class="arrow"/><path d="M1460 565 V665" class="arrow"/>
+
+<rect x="250" y="930" width="1300" height="160" rx="18" class="box"/><text x="285" y="975" class="s">Evidence import + result workspace</text><text x="285" y="1015" class="b">Observed artifacts · QC · provenance · execution state · missing evidence · figures · interpretation</text><text x="285" y="1052" class="m">Production: artifact groups are workflow-specific. Preview: no whole-run or clinical accuracy claim.</text>
+<path d="M405 845 C405 895 650 890 650 930" class="arrow"/><path d="M925 845 V930" class="arrow"/><path d="M1445 845 C1445 895 1170 890 1170 930" class="arrow"/>
+</svg>

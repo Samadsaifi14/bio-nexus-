@@ -1,0 +1,15 @@
+{
+  "benchmark": "bionexus-tiny-target-v1",
+  "truth_design": "deterministic synthetic positive control",
+  "sample": "TINY001",
+  "reference": "chrTiny:1-200",
+  "reads": 20,
+  "read_length": 100,
+  "expected_variants": 1,
+  "expected_snp": "chrTiny:50:C>G:0/1",
+  "checksums": {
+    "reference.fa": "76076caab97053e755b919643f4b066957722028f2824b6f99661e782c69ec7a",
+    "reads.sam": "fb83f831da2b3b1e8c460ba86cc8b43988917a1002d41d0b4394f3e913b1501b",
+    "truth.tsv": "dba08f021d37958e22f64c215c3df7955ff3c8723e9554c9cc8921b274dcb5e1"
+  }
+}

@@ -1,0 +1,27 @@
+fastapi
+uvicorn
+slowapi
+redis
+httpx
+aiohttp
+biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)
+litellm
+sentry-sdk
+python-dotenv
+supabase
+python-multipart>=0.0.20
+reportlab
+cairosvg>=2.7
+Pillow>=10
+pydantic[email]
+rdkit
+numpy
+openmm>=8.0  # OpenMM is on PyPI since 8.0 (pip-installable in Dockerfile and Render)
+openbabel-wheel  # obabel CLI — PDBQT prep for docking (SMILES→PDBQT, PDB→PDBQT receptor)
+pymol-open-source-whl>=3.2  # unofficial wheel of open-source PyMOL; provides the `pymol2` module (headless cleanup + .pse export); 3.2 line supports numpy>=2
+# primer3-py>=2.0.3  (optional — requires C compiler; installed separately in Dockerfile)
+
+# dev / testing
+pytest>=7.0
+httpx>=0.24
+boto3>=1.35,<2

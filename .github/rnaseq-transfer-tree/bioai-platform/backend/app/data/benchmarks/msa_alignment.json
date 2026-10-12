@@ -1,0 +1,35 @@
+{
+  "category": "msa_alignment",
+  "benchmarks": [
+    {
+      "name": "MSA_VALID_ALIGNMENT",
+      "category": "msa_alignment",
+      "description": "A multiple sequence alignment result must contain at least 2 aligned sequences.",
+      "input": {"mode": "multi-sequence alignment"},
+      "section": "msa",
+      "expected_output": {"sequence_count": {"min": 2}},
+      "tolerance": {},
+      "ground_truth": "Biologically meaningful MSAs contain 2+ sequences; a count below 2 indicates a degenerate single-sequence alignment.",
+      "citation": "Madeira F. et al. Nucleic Acids Res. 2022 (EBI ClustalO/MUSCLE services).",
+      "source": "EBI Multiple Sequence Alignment",
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
+    },
+    {
+      "name": "MSA_ALIGNMENT_METHOD_RECORDED",
+      "category": "msa_alignment",
+      "description": "The alignment result must declare its alignment method (clustalo or muscle).",
+      "input": {"mode": "multi-sequence alignment"},
+      "section": "msa",
+      "expected_output": {"method": {"contains": "clustal"}},
+      "tolerance": {},
+      "ground_truth": "Reproducibility ledger needs the aligner identity; the pipeline default tool is ClustalO.",
+      "citation": "Madeira F. et al. Nucleic Acids Res. 2022.",
+      "source": "EBI Multiple Sequence Alignment",
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
+    }
+  ]
+}

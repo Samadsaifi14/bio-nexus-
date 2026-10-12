@@ -1,0 +1,68 @@
+name: BBS-2 scientific foundation gate
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  foundation-v2:
+    name: Reproducibility, evidence, statistics and publication contracts
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.12'
+          cache: pip
+      - name: Install deterministic foundation dependencies
+        run: python -m pip install --upgrade pip pytest fastapi 'pydantic[email]' numpy biopython httpx cairosvg Pillow python-dotenv
+      - name: Record execution environment
+        run: |
+          python --version
+          python -m pip freeze | sort
+          uname -a
+      - name: Syntax-check scientific foundation modules
+        run: >-
+          python -m py_compile
+          app/benchmarking/bbs2.py
+          app/engines/stats_engine.py
+          app/services/evidence_policy.py
+          app/services/evidence_graph.py
+          app/services/performance_validation.py
+          app/services/scientific_figure_panel.py
+          app/services/supplementary_material.py
+          app/services/publication_formats.py
+          app/services/reproducibility_bundle.py
+          app/services/dataset_library.py
+          app/services/figure_export.py
+          app/routers/evidence.py
+          app/routers/structure_insights.py
+          app/routers/phylo_insights.py
+          app/tools/alignment_insights.py
+          app/tools/primer_advanced.py
+          app/ngs/rnaseq_production.py
+          app/ngs/stages/rna_preview.py
+          app/services/docking_pose_analytics.py
+          benchmark/case-studies/hbb-variant-mapping/run.py
+      - name: Run BBS-2 foundation regression tests
+        env:
+          PYTHONPATH: .
+        run: pytest -q tests/test_scientific_foundation_v2.py tests/test_evidence_engine.py tests/test_evidence_graph_v3.py tests/test_figure_export.py tests/test_structure_insights.py tests/test_alignment_insights.py tests/test_primer_advanced.py tests/test_rnaseq_production.py tests/test_docking_pose_analytics.py tests/test_phylo_insights.py tests/test_hbb_case_study.py
+      - name: Execute HBB E7V reproducibility case
+        env:
+          PYTHONPATH: .
+        run: python benchmark/case-studies/hbb-variant-mapping/run.py
+      - name: Upload HBB case result
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: hbb-e7v-case-result
+          path: bioai-platform/backend/benchmark/case-studies/hbb-variant-mapping/result.json
+          if-no-files-found: error

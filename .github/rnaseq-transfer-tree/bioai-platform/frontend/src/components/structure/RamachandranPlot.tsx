@@ -1,0 +1,130 @@
+"use client";
+import { useEffect, useState } from "react";
+
+import { apiUrl } from "@/lib/api";
+
+type RPoint = { residue: string; chain: string; resnum: number; phi: number; psi: number; region: string };
+type RamaResponse = { points: RPoint[]; classifier?: string; classifier_note?: string; wwpdb_note?: string };
+
+const REGION_COLOR: Record<string, string> = {
+  alpha: "#4ADE80",
+  beta: "#7C3AED",
+  left_handed: "#FBBF24",
+  other: "#94A3B8",
+};
+
+export function RamachandranPlot({ pdbId, chain = "A" }: { pdbId: string | null; chain?: string }) {
+  const [resp, setResp] = useState<RamaResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [hovered, setHovered] = useState<RPoint | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!pdbId) { setLoading(false); return; }
+    setLoading(true);
+    setError(null);
+    fetch(apiUrl(`/api/structure_analysis/ramachandran/${pdbId}?chain=${chain}`))
+      .then(r => { if (!r.ok) return r.json().then(e => Promise.reject(new Error(e.detail || `Status ${r.status}`))); return r.json(); })
+      .then(setResp)
+      .catch(e => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [pdbId, chain]);
+
+  if (!pdbId) return <div className="text-text-muted text-sm">No PDB structure available for this protein. Ramachandran analysis requires a 3D structure.</div>;
+  if (loading) return <div className="text-text-muted text-sm animate-pulse">Calculating &phi;/&psi; angles&hellip;</div>;
+  if (error) return <div className="text-error text-sm">{error}</div>;
+  if (!resp) return null;
+
+  const points = resp.points ?? [];
+  const W = 400, H = 400, PAD = 40;
+  const toX = (phi: number) => PAD + ((phi + 180) / 360) * (W - PAD * 2);
+  const toY = (psi: number) => PAD + ((180 - psi) / 360) * (H - PAD * 2);
+
+  const counts = {
+    alpha: points.filter(p => p.region === "alpha").length,
+    beta: points.filter(p => p.region === "beta").length,
+    left_handed: points.filter(p => p.region === "left_handed").length,
+    other: points.filter(p => p.region === "other").length,
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="text-text-primary font-semibold">Ramachandran Plot</h3>
+        <span className="text-xs px-2 py-0.5 rounded-full text-text-muted bg-surface-1">Descriptive regions only</span>
+      </div>
+
+      <div className="flex flex-col lg:flex-row gap-6">
+        <div className="data-card relative">
+          <svg viewBox={`0 0 ${W} ${H}`} className="w-80 h-80">
+            <ellipse cx={toX(-57)} cy={toY(-47)} rx={30} ry={30}
+              fill="#4ADE80" fillOpacity={0.06} stroke="#4ADE80" strokeOpacity={0.15} />
+            <ellipse cx={toX(-119)} cy={toY(113)} rx={30} ry={30}
+              fill="#7C3AED" fillOpacity={0.06} stroke="#7C3AED" strokeOpacity={0.15} />
+
+            <line x1={PAD} y1={toY(0)} x2={W - PAD} y2={toY(0)} stroke="rgba(255,255,255,0.1)" />
+            <line x1={toX(0)} y1={PAD} x2={toX(0)} y2={H - PAD} stroke="rgba(255,255,255,0.1)" />
+
+            <text x={W / 2} y={H - 8} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize={11}>&phi; (phi)</text>
+            <text x={12} y={H / 2} textAnchor="middle" fill="rgba(255,255,255,0.4)" fontSize={11}
+              transform={`rotate(-90, 12, ${H / 2})`}>&psi; (psi)</text>
+
+            {[-180, -90, 0, 90, 180].map(v => (
+              <g key={v}>
+                <text x={toX(v)} y={H - PAD + 14} textAnchor="middle" fill="rgba(255,255,255,0.25)" fontSize={8}>{v}&deg;</text>
+                <text x={PAD - 10} y={toY(v) + 3} textAnchor="end" fill="rgba(255,255,255,0.25)" fontSize={8}>{v}&deg;</text>
+              </g>
+            ))}
+
+            {points.map((p, i) => (
+              <circle key={i} cx={toX(p.phi)} cy={toY(p.psi)} r={3}
+                fill={REGION_COLOR[p.region] ?? "#888"} fillOpacity={0.7}
+                className="cursor-pointer"
+                onMouseEnter={() => setHovered(p)}
+                onMouseLeave={() => setHovered(null)} />
+            ))}
+          </svg>
+
+          {hovered && (
+            <div className="absolute top-2 right-2 bg-viewer/90 border border-glass-border rounded-lg p-2 text-xs text-text-secondary pointer-events-none">
+              <p className="text-accent-cyan font-bold">{hovered.residue}{hovered.resnum}</p>
+              <p>&phi; {hovered.phi.toFixed(1)}&deg; &middot; &psi; {hovered.psi.toFixed(1)}&deg;</p>
+              <p className="capitalize">{hovered.region.replace("_", " ")}</p>
+            </div>
+          )}
+        </div>
+
+        <div className="space-y-3 flex-1">
+          <p className="text-text-muted text-xs">n = {points.length} residues</p>
+          {Object.entries(counts).map(([region, count]) => (
+            <div key={region}>
+              <div className="flex justify-between text-xs mb-1">
+                <span className="capitalize" style={{ color: REGION_COLOR[region] }}>{region.replace("_", " ")}</span>
+                <span className="text-text-muted">{points.length > 0 ? ((count / points.length) * 100).toFixed(1) : "0"}%</span>
+              </div>
+              <div className="w-full h-1.5 bg-surface-1 rounded-full overflow-hidden">
+                <div className="h-full rounded-full" style={{
+                  width: `${points.length > 0 ? (count / points.length) * 100 : 0}%`,
+                  background: REGION_COLOR[region],
+                  opacity: 0.7,
+                }} />
+              </div>
+            </div>
+          ))}
+          <p className="text-text-muted text-xs">Use the official wwPDB validation report to assess favoured regions and outliers.</p>
+          {resp.classifier_note && <p className="text-[11px] leading-4 text-text-muted border-t border-glass-border pt-2">{resp.classifier_note}</p>}
+          {resp.wwpdb_note && <p className="text-[11px] leading-4 text-text-muted">{resp.wwpdb_note}</p>}
+        </div>
+      </div>
+
+      <div className="flex flex-wrap gap-4">
+        {Object.entries(REGION_COLOR).map(([region, color]) => (
+          <div key={region} className="flex items-center gap-1.5 text-xs text-text-muted">
+            <div className="w-2.5 h-2.5 rounded-full" style={{ background: color }} />
+            <span className="capitalize">{region.replace("_", " ")}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}

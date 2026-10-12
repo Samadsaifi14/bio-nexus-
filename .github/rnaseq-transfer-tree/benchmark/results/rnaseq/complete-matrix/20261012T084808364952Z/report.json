@@ -1,0 +1,16 @@
+{
+  "run_id": "20261012T084808364952Z",
+  "status": "NOT_EXECUTED",
+  "evidence_class": "numerical_regression",
+  "biological_validation": false,
+  "raw_count_origin_independently_verified": false,
+  "fixture_sha256": {
+    "counts.tsv": "b7a9736672a6cebfdeea78dd151f5c764b058537cac09aeb0256cbfb7123dc08",
+    "metadata.tsv": "f0f34000434ce864529308cd09d1d980f75802887f22aeac4f090fd1e5f9ad52",
+    "runtime-lock.json": "7f531474afeff131aa7de0086fdcbc6d98ea59eea4841dedf78d48d5e4e3e67e",
+    "independent_reference.R": "db3a23aa1d84dbbba44b709afecac0be8a4f18601dbe73f6120e81aa108f7417"
+  },
+  "reason": "Rscript is unavailable; no numerical execution or parity claim",
+  "code_sha256": "73e9d1cc3774d19e040f2f04a2f9b26666dc1c00601e16e11c464e9b9740330f",
+  "artifact_sha256": {}
+}

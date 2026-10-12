@@ -1,0 +1,35 @@
+{
+  "category": "domain_annotation",
+  "benchmarks": [
+    {
+      "name": "DOMAINS_ANNOTATED",
+      "category": "domain_annotation",
+      "description": "InterPro domain analysis of an annotated protein must return at least one domain.",
+      "input": {"accession": "P04637"},
+      "section": "domains",
+      "expected_output": {"domain_count": {"min": 1}},
+      "tolerance": {},
+      "ground_truth": "Curated UniProt proteins resolve to 1+ InterPro member signatures (Pfam/SMART/CDD/PANTHER/PROSITE).",
+      "citation": "Paysan-Lafosse T. et al. Nucleic Acids Res. 2023 (InterPro).",
+      "source": "InterPro (EBI)",
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
+    },
+    {
+      "name": "DOMAINS_GEOMETRY_VALID",
+      "category": "domain_annotation",
+      "description": "Every reported domain must have a valid geometry (start <= end within sequence bounds).",
+      "input": {"accession": "P04637"},
+      "section": "domains",
+      "expected_output": {"sequence_length": {"min": 1}},
+      "tolerance": {},
+      "ground_truth": "A recorded domain analysis must carry a positive sequence length so geometries are interpretable.",
+      "citation": "Paysan-Lafosse T. et al. Nucleic Acids Res. 2023 (InterPro).",
+      "source": "InterPro (EBI)",
+      "stage": "curated",
+      "difficulty": "medium",
+      "version": 1
+    }
+  ]
+}

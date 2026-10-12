@@ -1,0 +1,33 @@
+{
+  "schema": "bionexus-protox-contract/v1",
+  "service": "ProTox 3.0 (Charité) ML-based toxicity prediction",
+  "version_string": "ProTox 3.0",
+  "endpoints": {
+    "enqueue_path": "/protox3/src/api_enqueue.php",
+    "retrieve_path": "/protox3/src/api_retrieve.php",
+    "csv_base_path": "/protox3/csv/"
+  },
+  "csv_contract": [
+    "tox_class.csv: columns 'LD50', 'tox_class', 'similarity' -> header-normalized lowercase keys",
+    "result.csv: columns 'Target', 'Prediction', 'Probability' -> per-model predictions",
+    "tox_targets.csv: columns 'Target', 'Prediction', 'Probability' -> predicted enrichment targets"
+  ],
+  "all_models": [
+    "dili", "neuro", "nephro", "respi", "cardio", "carcino", "immuno", "mutagen", "cyto",
+    "bbb", "eco", "clinical", "nutri", "nr_ahr", "nr_ar", "nr_ar_lbd", "nr_aromatase",
+    "nr_er", "nr_er_lbd", "nr_ppar_gamma", "sr_are", "sr_hse", "sr_mmp", "sr_p53",
+    "sr_atad5", "mie_thr_alpha", "mie_thr_beta", "mie_ttr", "mie_ryr", "mie_gabar",
+    "mie_nmdar", "mie_ampar", "mie_kar", "mie_ache", "mie_car", "mie_pxr", "mie_nadhox",
+    "mie_vgsc", "mie_nis", "CYP1A2", "CYP2C19", "CYP2C9", "CYP2D6", "CYP3A4", "CYP2E1"
+  ],
+  "default_models": [
+    "acute_tox", "tox_targets", "dili", "neuro", "nephro", "respi", "cardio", "carcino",
+    "immuno", "mutagen", "cyto"
+  ],
+  "reference_compounds": [
+    {"id": "aspirin", "name": "aspirin", "smiles": "CC(=O)OC1=CC=CC=C1C(=O)O"},
+    {"id": "ethanol", "name": "ethanol", "smiles": "CCO"},
+    {"id": "caffeine", "name": "caffeine", "smiles": "CN1C=NC2=C1C(=O)N(C(=O)N2C)C"}
+  ],
+  "ground_truth_note": "Model predictions themselves are the external reference; the client converts them verbatim. No local ground truth asserted. Live capture is recorded by record_reference.py and is not committed as fabricated data."
+}

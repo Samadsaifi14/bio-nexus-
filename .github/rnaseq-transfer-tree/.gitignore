@@ -1,0 +1,60 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.env
+venv/
+.venv/
+
+# --- Node ---
+node_modules/
+.next/
+npm-debug.log*
+
+# --- IDE ---
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# --- OS ---
+.DS_Store
+Thumbs.db
+
+# --- Env files (keep .example, ignore actual keys) ---
+.env.local
+.env.production
+backend/.env
+.env.deploy
+
+# --- Runtime artifacts ---
+dump.rdb
+*.rdb
+bioai-platform/backend/app/bin/
+bioai-platform/backend/app/data/*
+!bioai-platform/backend/app/data/benchmarks/
+
+.vercel
+
+tsconfig.tsbuildinfo
+
+# --- Temp / scratch ---
+tmp_hf/
+runtime/
+resource_readiness/
+.nextflow/
+.nextflow.log*
+bioai-platform/backend/worker_*.log
+benchmark/ngs-portability/work/
+dag-*.html
+report-*.html
+timeline-*.html
+trace-*.txt
+
+# --- Installed agent skills (restore via `npx skills experimental_install`) ---
+.agents/
+agent/
+.claude/
+.impeccable/
+odysseus/

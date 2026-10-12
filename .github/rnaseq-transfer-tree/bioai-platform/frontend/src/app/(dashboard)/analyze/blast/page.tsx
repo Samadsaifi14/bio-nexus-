@@ -1,0 +1,469 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { MagnifyingGlass as Search, CaretRight as ChevronRight, CircleNotch as LoaderCircle, CheckCircle as CircleCheck } from '@phosphor-icons/react';
+import { useAuditTrail } from '@/hooks/useAuditTrail';
+import toast from 'react-hot-toast';
+import { fetchSequence } from '@/lib/api';
+import { runBlastPipeline, type BlastProgram } from '@/lib/blastApi';
+import { extractErrorMessage, extractErrorStatus } from '@/lib/errors';
+import type { SequenceResult, SequenceType } from '@/types/pipeline';
+import { motion } from 'framer-motion';
+import { fadeUp } from '@/lib/animations';
+import { BackButton, CriticalButton, ClaySegmented, ClayToggle, FlatTextarea, FlatInput } from '@/components/ui';
+import { stripFastaHeader, cleanSequence, detectSequenceType, PROTEIN_CODES } from '@/lib/sequence-utils';
+import { consumeParam } from '@/lib/cross-link';
+
+const SAMPLES = [
+  {
+    label: 'p53 (human)',
+    seq: `>P53_HUMAN Cellular tumor antigen p53 [Homo sapiens]\nMEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEAPRMPEAAPPVAPAPAAPTPAAPAPAPSWPLSSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD`,
+  },
+  {
+    label: 'Insulin (human)',
+    seq: `>INS_HUMAN Insulin [Homo sapiens]\nMALWMRLLPLLALLALWGPDPAAAFVNQHLCGSHLVEALYLVCGERGFFYTPKTRREAEDLQVGQVELGGGPGAGSLQPLALEGSLQKRGIVEQCCTSICSLYQLENYCN`,
+  },
+];
+
+const PROTEIN_DATABASES = new Set(['nr', 'swissprot', 'pdbaa', 'refseq_protein']);
+const NUCLEOTIDE_DATABASES = new Set(['nt', 'refseq_rna', 'refseq_genomic']);
+const PROTEIN_QUERY_PROGRAMS = new Set<BlastProgram>(['blastp', 'tblastn']);
+const NUCLEOTIDE_QUERY_PROGRAMS = new Set<BlastProgram>(['blastn', 'blastx', 'tblastx']);
+const PROTEIN_TARGET_PROGRAMS = new Set<BlastProgram>(['blastp', 'blastx']);
+
+export default function BlastWizardPage() {
+  const router = useRouter();
+  const [step, setStep] = useState<2 | 3>(2);
+  const [inputMode, setInputMode] = useState<'paste' | 'accession'>('paste');
+  const [rawInput, setRawInput] = useState('');
+  const [detectedType, setDetectedType] = useState<SequenceType | null>(null);
+  const [aaCount, setAaCount] = useState(0);
+  const [accessionResult, setAccessionResult] = useState<SequenceResult | null>(null);
+  const [accessionLoading, setAccessionLoading] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const audit = useAuditTrail();
+  const [showAdvanced, setShowAdvanced] = useState(false);
+  const [advancedDb, setAdvancedDb] = useState('nr');
+  const [advancedProgram, setAdvancedProgram] = useState<BlastProgram | ''>('');
+  const [fastMode, setFastMode] = useState(false);
+
+  const defaultProgram: BlastProgram = detectedType === 'protein' ? 'blastp' : 'blastn';
+  const allowedPrograms = detectedType === 'protein' ? PROTEIN_QUERY_PROGRAMS : NUCLEOTIDE_QUERY_PROGRAMS;
+  const requestedProgram: BlastProgram = advancedProgram || defaultProgram;
+  const effectiveProgram: BlastProgram = allowedPrograms.has(requestedProgram) ? requestedProgram : defaultProgram;
+  const proteinTargetSearch = PROTEIN_TARGET_PROGRAMS.has(effectiveProgram);
+  const effectiveDatabase = fastMode && proteinTargetSearch
+    ? 'swissprot'
+    : proteinTargetSearch
+      ? (PROTEIN_DATABASES.has(advancedDb) ? advancedDb : 'nr')
+      : (NUCLEOTIDE_DATABASES.has(advancedDb) ? advancedDb : 'nt');
+
+  useEffect(() => {
+    if (inputMode === 'paste') {
+      const body = stripFastaHeader(rawInput);
+      const alpha = cleanSequence(body);
+      setAaCount(alpha.length);
+      if (alpha.length > 0) setDetectedType(detectSequenceType(rawInput));
+    }
+  }, [rawInput, inputMode]);
+
+  useEffect(() => {
+    const stored = consumeParam('blast_sequence');
+    if (stored) {
+      setRawInput(stored);
+      setInputMode('paste');
+    }
+    const storedAcc = consumeParam('domains_accession');
+    if (storedAcc) {
+      setRawInput(storedAcc);
+      setInputMode('accession');
+    }
+  }, []);
+
+  useEffect(() => {
+    // Query molecule type determines which BLAST programs are scientifically valid.
+    // Reset manual overrides when that molecule type changes so a stale program/db
+    // pair cannot leak across protein and nucleotide inputs.
+    if (detectedType === 'protein') {
+      setAdvancedProgram('');
+      setAdvancedDb('nr');
+      setFastMode(false);
+    } else if (detectedType === 'dna' || detectedType === 'rna') {
+      setAdvancedProgram('');
+      setAdvancedDb('nt');
+      setFastMode(false);
+    }
+  }, [detectedType]);
+
+  useEffect(() => {
+    // Swiss-Prot fast mode is valid only when the target database is protein.
+    if (!proteinTargetSearch && fastMode) setFastMode(false);
+  }, [proteinTargetSearch, fastMode]);
+
+  const handleFetchAccession = async () => {
+    if (!rawInput.trim()) return;
+    setAccessionLoading(true);
+    setAccessionResult(null);
+    try {
+      const res = await fetchSequence(rawInput.trim());
+      if (res.error) {
+        toast.error(res.error);
+      } else {
+        setAccessionResult(res);
+        setDetectedType(res.sequence_type);
+        toast.success('Sequence retrieved');
+      }
+    } catch (err: unknown) {
+      toast.error(extractErrorMessage(err, 'Failed to fetch sequence'));
+    } finally {
+      setAccessionLoading(false);
+    }
+  };
+
+  const handleProgramChange = (program: BlastProgram) => {
+    setAdvancedProgram(program);
+    setFastMode(false);
+    setAdvancedDb(PROTEIN_TARGET_PROGRAMS.has(program) ? 'nr' : 'nt');
+  };
+
+  const handleSubmit = async () => {
+    let seq = '';
+    if (inputMode === 'paste') {
+      seq = rawInput;
+    } else if (accessionResult) {
+      seq = `>${accessionResult.accession}\n${accessionResult.sequence}`;
+    }
+
+    if (!seq.trim()) {
+      toast.error('Enter or fetch a sequence first');
+      return;
+    }
+
+    const body = stripFastaHeader(seq);
+    const clean = cleanSequence(body);
+    const isDna = detectedType === 'dna' || detectedType === 'rna';
+    if (clean.length < 6) {
+      toast.error(`Sequence must be at least 6 ${isDna ? 'bases' : 'amino acids'}`);
+      return;
+    }
+
+    const validChars = isDna ? new Set('ACGTUN') : PROTEIN_CODES;
+    const invalid = clean.split('').filter(c => !validChars.has(c.toUpperCase()));
+    if (invalid.length > 0) {
+      const unique = Array.from(new Set(invalid.map(c => c.toUpperCase())));
+      toast.error(`Invalid character(s) for ${detectedType} sequence: ${unique.join(', ')}`);
+      return;
+    }
+
+    if (clean.length > 10000) {
+      toast.error('Sequence too long (max 10,000 bases/residues for BLAST)');
+      return;
+    }
+
+    const queryAccession = inputMode === 'accession' && accessionResult
+      ? accessionResult.accession
+      : rawInput.split('\n')[0]?.startsWith('>')
+        ? rawInput.split('\n')[0].slice(1).split(/\s+/)[0]
+        : undefined;
+    const inputSummary = `seq_len:${clean.length},program:${effectiveProgram},db:${effectiveDatabase}`;
+    audit.emitStarted('blast_search', 'BLAST', inputSummary);
+    setSubmitting(true);
+    try {
+      const result = await runBlastPipeline({
+        sequence: seq,
+        database: effectiveDatabase,
+        program: effectiveProgram,
+        maxHits: 100,
+        queryAccession,
+        fastMode,
+      });
+      audit.emitSuccess('blast_search', 'BLAST', inputSummary, `job_id:${result.job_id}`);
+      router.push(`/jobs/${result.job_id}`);
+    } catch (err: unknown) {
+      const errMsg = extractErrorMessage(err, 'Failed to start analysis');
+      audit.emitFailed('blast_search', 'BLAST', inputSummary, errMsg);
+      if (extractErrorStatus(err) === 429) {
+        toast.error(errMsg || 'Daily limit reached. Resets at midnight.');
+      } else {
+        toast.error(errMsg);
+      }
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="max-w-2xl">
+      <BackButton />
+
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="flex items-center gap-3 mb-8">
+        {[1, 2, 3].map((s) => (
+          <div key={s} className="flex items-center gap-3">
+            <div className={`w-8 h-8 rounded-full flex items-center justify-center text-sm font-medium ${
+              s < step ? 'bg-accent-cyan text-void' : s === step ? 'bg-accent-cyan text-void' : 'bg-surface-1 text-text-muted'
+            }`}>
+              {s < step ? '✓' : s}
+            </div>
+            <span className={`text-sm ${s === step ? 'font-medium text-text-primary' : 'text-text-muted'}`}>
+              {s === 1 ? 'Choose' : s === 2 ? 'Input' : 'Confirm'}
+            </span>
+            {s < 3 && <ChevronRight className="w-4 h-4 text-text-muted" />}
+          </div>
+        ))}
+      </motion.div>
+
+      {step === 2 && (
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary mb-1">Enter your sequence</h2>
+            <p className="text-sm text-text-secondary">
+              Paste a protein, DNA, or RNA sequence, or fetch it by accession number.
+            </p>
+          </div>
+
+          <ClaySegmented
+            options={[
+              { value: 'paste', label: 'Paste Sequence' },
+              { value: 'accession', label: 'Fetch by Accession' },
+            ]}
+            value={inputMode}
+            onChange={(v) => { setInputMode(v); setAccessionResult(null); }}
+          />
+
+          {inputMode === 'paste' ? (
+            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5">
+              <FlatTextarea
+                value={rawInput}
+                onChange={(e) => { setRawInput(e.target.value); setAccessionResult(null); }}
+                placeholder="Paste a FASTA or raw sequence here..."
+                className="w-full h-40"
+              />
+              <div className="flex items-center justify-between mt-4">
+                <motion.div variants={fadeUp} className="flex items-center gap-3">
+                  {SAMPLES.map((s) => (
+                    <button
+                      key={s.label}
+                      type="button"
+                      onClick={() => setRawInput(s.seq)}
+                      className="text-sm text-accent-cyan hover:text-accent-cyan/80 underline"
+                    >
+                      Load {s.label}
+                    </button>
+                  ))}
+                </motion.div>
+                {detectedType && (
+                  <div className="flex items-center gap-2">
+                    <span className={`badge text-[10px] ${
+                      detectedType === 'protein'
+                        ? 'bg-accent-cyan/10 text-accent-cyan'
+                        : 'bg-accent-purple/10 text-accent-purple'
+                    }`}>
+                      {detectedType}
+                    </span>
+                    <span className="text-xs text-text-muted">{aaCount} {detectedType === 'protein' ? 'aa' : 'bp'}</span>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 space-y-4">
+              <div className="flex gap-3">
+                <FlatInput
+                  type="text"
+                  value={rawInput}
+                  onChange={(e) => { setRawInput(e.target.value); setAccessionResult(null); }}
+                  onKeyDown={(e) => e.key === 'Enter' && handleFetchAccession()}
+                  placeholder="e.g. NP_000509.1, P04637, NM_000546"
+                  className="flex-1 font-mono"
+                />
+                <CriticalButton
+                  onClick={handleFetchAccession}
+                  disabled={accessionLoading || !rawInput.trim()}
+                >
+                  {accessionLoading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
+                  Fetch
+                </CriticalButton>
+              </div>
+
+              {accessionResult && (
+                <div className="glass p-4 border border-accent-cyan/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <CircleCheck className="w-4 h-4 text-accent-cyan" />
+                    <code className="text-sm font-mono font-semibold text-accent-cyan">{accessionResult.accession}</code>
+                    <span className="badge text-[10px] bg-accent-cyan/10 text-accent-cyan">{accessionResult.sequence_type}</span>
+                  </div>
+                  <p className="text-sm text-text-secondary">{accessionResult.description}</p>
+                  <p className="text-xs text-text-muted mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
+                </div>
+              )}
+            </motion.div>
+          )}
+
+          {proteinTargetSearch ? (
+            <div className="glass p-4 border border-accent-cyan/20">
+              <ClayToggle
+                checked={fastMode}
+                onChange={setFastMode}
+                label="Fast mode"
+                hint="Use curated Swiss-Prot instead of the larger protein database. Faster, but searches a narrower reference set."
+              />
+            </div>
+          ) : (
+            <div className="glass p-4 border border-glass-border text-xs leading-5 text-text-muted">
+              Fast mode is available only for protein-target searches (blastp and blastx). Nucleotide-target programs use nucleotide databases.
+            </div>
+          )}
+
+          <div className="border-t border-glass-border pt-4">
+            <button
+              onClick={() => setShowAdvanced(!showAdvanced)}
+              className="text-sm text-text-secondary hover:text-text-primary transition"
+            >
+              {showAdvanced ? 'Hide' : 'Show'} advanced settings
+            </button>
+            {showAdvanced && (
+              <div className="mt-3 grid grid-cols-2 gap-4 glass p-4">
+                <div>
+                  <label className="text-xs font-medium text-text-secondary block mb-1">Database</label>
+                  <select
+                    value={effectiveDatabase}
+                    disabled={fastMode && proteinTargetSearch}
+                    onChange={(e) => setAdvancedDb(e.target.value)}
+                    className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary disabled:opacity-60"
+                  >
+                    {proteinTargetSearch ? (
+                      <>
+                        <option value="nr">nr (non-redundant protein)</option>
+                        <option value="swissprot">Swiss-Prot</option>
+                        <option value="pdbaa">PDB protein sequences</option>
+                        <option value="refseq_protein">RefSeq Protein</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="nt">nt (nucleotide)</option>
+                        <option value="refseq_rna">RefSeq RNA</option>
+                        <option value="refseq_genomic">RefSeq Genomic</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+                <div>
+                  <label className="text-xs font-medium text-text-secondary block mb-1">Program</label>
+                  <select
+                    value={effectiveProgram}
+                    onChange={(e) => handleProgramChange(e.target.value as BlastProgram)}
+                    className="w-full px-3 py-2 rounded-lg border border-glass-border bg-surface-1 text-sm text-text-primary"
+                  >
+                    {detectedType === 'protein' ? (
+                      <>
+                        <option value="blastp">blastp — protein → protein</option>
+                        <option value="tblastn">tblastn — protein → translated nucleotide</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="blastn">blastn — nucleotide → nucleotide</option>
+                        <option value="blastx">blastx — translated nucleotide → protein</option>
+                        <option value="tblastx">tblastx — translated nucleotide → translated nucleotide</option>
+                      </>
+                    )}
+                  </select>
+                  <p className="text-[11px] text-text-muted mt-2">
+                    Only programs compatible with the detected query molecule are shown.
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-end">
+            <CriticalButton
+              onClick={() => setStep(3)}
+              disabled={
+                (inputMode === 'paste' && !rawInput.trim()) ||
+                (inputMode === 'accession' && !accessionResult)
+              }
+            >
+              Continue
+              <ChevronRight className="w-4 h-4" />
+            </CriticalButton>
+          </div>
+        </motion.div>
+      )}
+
+      {step === 3 && (
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-6">
+          <div>
+            <h2 className="text-lg font-semibold text-text-primary mb-1">Confirm and run</h2>
+            <p className="text-sm text-text-secondary">Review the effective search contract before submitting.</p>
+          </div>
+
+          <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-6 space-y-4">
+            <div className="flex items-center gap-3 pb-4 border-b border-glass-border">
+              <Search className="w-5 h-5 text-accent-cyan" />
+              <div>
+                <p className="font-medium text-text-primary">BLAST Search</p>
+                <p className="text-sm text-text-secondary">
+                  BioNexus will submit <strong>{effectiveProgram}</strong> for your{' '}
+                  <strong>{aaCount || accessionResult?.length}</strong>{detectedType === 'protein' ? ' aa' : ' bp'}{' '}
+                  {detectedType} sequence against <strong>{effectiveDatabase}</strong>.
+                  {fastMode && <span className="text-accent-cyan ml-1">Curated Swiss-Prot scope</span>}
+                </p>
+              </div>
+            </div>
+
+            {inputMode === 'paste' ? (
+              <div>
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sequence</p>
+                <pre className="font-mono text-xs text-text-secondary bg-surface-0 rounded-xl p-4 max-h-24 overflow-auto whitespace-pre-wrap break-all">
+                  {rawInput.slice(0, 300)}{rawInput.length > 300 ? '...' : ''}
+                </pre>
+              </div>
+            ) : accessionResult && (
+              <div>
+                <p className="text-xs font-medium text-text-muted uppercase tracking-wider mb-2">Sequence</p>
+                <div className="glass p-4">
+                  <code className="text-sm font-mono text-accent-cyan">{accessionResult.accession}</code>
+                  <p className="text-sm text-text-secondary mt-1">{accessionResult.description}</p>
+                  <p className="text-xs text-text-muted mt-1">{accessionResult.organism} · {accessionResult.length} residues</p>
+                </div>
+              </div>
+            )}
+
+            <div className="pt-2 text-xs leading-5 text-text-muted">
+              <p>Provider searches may take seconds to minutes depending on database size and service load. The stored result records the program, database and provider evidence returned for this job.</p>
+              {effectiveProgram === 'blastp' ? (
+                <p className="mt-2 text-text-secondary">
+                  After BLASTP, BioNexus will continue with UniProt annotation, multiple-sequence alignment, a phylogenetic tree, domain/pathway evidence and the strongest available protein structure source (experimental PDB, AlphaFold DB or a labelled ESMFold prediction).
+                </p>
+              ) : (
+                <p className="mt-2">
+                  This BLAST program remains similarity-search only because its nucleotide/translated query-target semantics are not automatically interchangeable with a protein sequence for structure analysis.
+                </p>
+              )}
+            </div>
+          </motion.div>
+
+          <div className="flex items-center justify-between">
+            <button
+              onClick={() => setStep(2)}
+              className="text-sm text-text-secondary hover:text-text-primary underline transition"
+            >
+              &larr; Change input
+            </button>
+            <CriticalButton
+              onClick={handleSubmit}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <><LoaderCircle className="w-4 h-4 animate-spin" /> Submitting...</>
+              ) : (
+                'Run Analysis'
+              )}
+            </CriticalButton>
+          </div>
+        </motion.div>
+      )}
+    </div>
+  );
+}

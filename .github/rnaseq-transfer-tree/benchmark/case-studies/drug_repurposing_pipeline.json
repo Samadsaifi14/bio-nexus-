@@ -1,0 +1,99 @@
+{
+  "schema": "bionexus-case-study-execution-contract/v1",
+  "id": "CS-DRUG-REPURPOSING",
+  "title": "Complete drug-repurposing workflow against a validated target",
+  "status": "execution-contract-ready",
+  "scientific_question": "Can BioNexus produce an auditable, reproducible ranking of repurposing candidates while preserving the evidence chain from target selection through docking, MD, ADMET and publication output?",
+  "story": [
+    "target evidence",
+    "protein structure",
+    "binding-site definition",
+    "ligand library",
+    "redocking validation",
+    "virtual screening",
+    "pose clustering",
+    "molecular dynamics",
+    "ADMET prioritisation",
+    "AI Evidence Engine",
+    "publication bundle"
+  ],
+  "mandatory_inputs": {
+    "target": ["gene/protein identifier", "reviewed biological evidence", "experimentally supported structure where possible"],
+    "structure": ["PDB accession", "structure release/version", "coordinate checksum", "chain and binding-site definition"],
+    "ligands": ["predeclared candidate library", "known active compounds", "decoys or negative controls", "structure identifiers/checksums"],
+    "ground_truth": ["measured activity or affinity data", "co-crystal pose when available"]
+  },
+  "stages": [
+    {
+      "id": "target-selection",
+      "required_outputs": ["target rationale", "database versions", "evidence graph nodes", "target inclusion/exclusion criteria"],
+      "gate": "target rationale is externally cited and provenance-complete"
+    },
+    {
+      "id": "structure-preparation",
+      "required_outputs": ["selected structure", "chain inventory", "binding-site coordinates", "preparation parameters", "prepared structure checksum"],
+      "gate": "input and prepared structures are immutable and traceable"
+    },
+    {
+      "id": "redocking-validation",
+      "required_outputs": ["reference pose", "predicted pose", "pose RMSD", "scoring parameters", "failure case"],
+      "gate": "predeclared redocking criterion is evaluated before screening",
+      "preferred_acceptance": "symmetry-aware heavy-atom RMSD <= 2.0 angstrom where chemically appropriate"
+    },
+    {
+      "id": "virtual-screening",
+      "required_outputs": ["all ligand scores", "all poses", "ranked table", "failed ligands", "runtime", "seed"],
+      "gate": "all screened compounds remain in raw output including failures"
+    },
+    {
+      "id": "pose-analysis",
+      "required_outputs": ["pose clusters", "interaction contacts", "water-mediated contacts when structurally justified", "pose reproducibility metrics"],
+      "gate": "pose-derived claims reference exact pose and method"
+    },
+    {
+      "id": "molecular-dynamics",
+      "required_outputs": ["trajectory checksum", "RMSD", "RMSF", "radius of gyration", "SASA", "hydrogen bonds", "contacts", "PCA", "DCCM", "free-energy landscape"],
+      "gate": "trajectory analysis records simulation and analysis parameters"
+    },
+    {
+      "id": "admet",
+      "required_outputs": ["model/provider", "model version", "input structure identifier", "predicted properties", "uncertainty/confidence where available", "out-of-domain warning where available"],
+      "gate": "ADMET predictions remain predictions and are not stated as measured pharmacology"
+    },
+    {
+      "id": "evidence-engine",
+      "required_outputs": ["claim-level evidence graph", "numeric fidelity", "citation fidelity", "unsupported claim rate"],
+      "gate": "unsupported factual or numeric claims are rejected in audited mode"
+    },
+    {
+      "id": "publication",
+      "required_outputs": ["question-oriented figures", "statistics", "failure analysis", "supplementary manifest", "reproducibility bundle", "raw outputs"],
+      "gate": "paper narrative is derived from persisted results rather than regenerated from memory"
+    }
+  ],
+  "primary_endpoints": [
+    "redocking pose RMSD",
+    "known-active enrichment or rank correlation",
+    "candidate ranking stability",
+    "MD stability metrics",
+    "ADMET prediction provenance completeness",
+    "unsupported AI claim rate",
+    "evidence graph completeness",
+    "reproduction success on an independent environment"
+  ],
+  "statistics": [
+    "bootstrap confidence intervals",
+    "effect sizes",
+    "sensitivity analysis",
+    "cross-validation where predictive models are evaluated",
+    "failure analysis",
+    "predeclared significance tests only when their assumptions match the design"
+  ],
+  "minimum_external_validation": [
+    "known active and decoy set",
+    "at least one reference co-crystal redocking case where available",
+    "measured activity/affinity values for ranking comparison",
+    "execution on at least two operating environments before a robustness claim"
+  ],
+  "publication_boundary": "Completion of this contract can support a reproducibility and interpretability case study. It does not establish drug efficacy, clinical benefit or experimental validation unless those data are independently supplied."
+}

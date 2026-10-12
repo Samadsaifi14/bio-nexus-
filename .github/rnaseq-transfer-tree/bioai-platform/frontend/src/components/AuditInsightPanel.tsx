@@ -1,0 +1,110 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Warning as AlertTriangle, Info, WarningCircle as AlertCircle, X, CaretUp as ChevronUp } from '@phosphor-icons/react';
+import { apiUrl } from '@/lib/api';
+import type { AuditInsight } from '@/types/audit';
+
+const SEVERITY_CONFIG = {
+  info:     { tone: 'text-info', icon: Info },
+  warning:  { tone: 'text-warn', icon: AlertTriangle },
+  critical: { tone: 'text-error', icon: AlertCircle },
+} as const;
+
+export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
+  const [insight, setInsight] = useState<AuditInsight | null>(null);
+  const [open, setOpen] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
+
+  useEffect(() => {
+    if (!sessionId) return;
+    const poll = async () => {
+      try {
+        const r = await fetch(`${apiUrl('/api/audit/insights')}?session=${encodeURIComponent(sessionId)}`);
+        if (!r.ok) return;
+        const data = await r.json();
+        if (data.latest) {
+          const newInsight = data.latest as AuditInsight;
+          setInsight((prev) => {
+            if (prev?.id !== newInsight.id) {
+              if (!open) setOpen(true);
+              return newInsight;
+            }
+            return prev;
+          });
+        }
+      } catch {}
+    };
+    poll();
+    const interval = setInterval(poll, 10_000);
+    return () => clearInterval(interval);
+  }, [sessionId, open]);
+
+  const handleClose = useCallback(() => {
+    setOpen(false);
+    setDismissed(true);
+  }, []);
+
+  if (dismissed && !open) return null;
+  if (!insight) return null;
+
+  const cfg = SEVERITY_CONFIG[insight.severity] ?? SEVERITY_CONFIG.info;
+  const Icon = cfg.icon;
+
+  return (
+    <AnimatePresence>
+      {open ? (
+        <motion.div
+          key="panel"
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 80, opacity: 0 }}
+          transition={{ type: 'spring', damping: 28, stiffness: 260 }}
+          className="fixed bottom-6 right-6 z-50 w-80 max-w-[calc(100vw-3rem)] rounded-xl border border-glass-border bg-surface-0 p-4"
+        >
+          <div className="flex items-start justify-between gap-2 mb-2">
+            <div className="flex items-center gap-2">
+              <Icon size={16} className={cfg.tone} />
+              <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">AI Audit</span>
+            </div>
+            <button onClick={handleClose} aria-label="Dismiss audit insight" className="flex h-9 w-9 items-center justify-center text-text-muted hover:text-text-primary transition-colors">
+              <X size={14} />
+            </button>
+          </div>
+          <p className="text-xs text-text-primary leading-relaxed">{insight.insight}</p>
+          {insight.suggestion && (
+            <p className="text-xs mt-2 text-text-muted leading-relaxed">
+              <span className="text-accent-cyan mr-1">&rarr;</span>
+              {insight.suggestion}
+            </p>
+          )}
+          {insight.affected_steps.length > 0 && (
+            <div className="flex flex-wrap gap-1.5 mt-2">
+              {insight.affected_steps.map((s) => (
+                <span key={s} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-2/60 text-text-muted font-mono">
+                  {s}
+                </span>
+              ))}
+            </div>
+          )}
+        </motion.div>
+      ) : (
+        <motion.button
+          key="badge"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          exit={{ scale: 0 }}
+          whileHover={{ scale: 1.05 }}
+          onClick={() => { setOpen(true); setDismissed(false); }}
+          className="fixed bottom-6 right-6 z-50 flex min-h-11 items-center gap-2 rounded-lg border border-glass-border bg-surface-0 px-3 py-2"
+          aria-label="Open audit insight"
+        >
+          <Icon size={15} className={cfg.tone} />
+          <span className="text-xs font-medium text-text-primary">Audit</span>
+          <ChevronUp size={11} className="text-text-muted" />
+        </motion.button>
+      )}
+    </AnimatePresence>
+  );
+}

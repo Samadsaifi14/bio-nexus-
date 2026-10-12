@@ -1,0 +1,145 @@
+name: full-feature-audit
+
+on:
+  push:
+    branches:
+      - audit/full-feature-validation-2026-09-16
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  backend-full-suite:
+    name: Backend full pytest suite
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    defaults:
+      run:
+        working-directory: bioai-platform/backend
+    env:
+      PYTHONHASHSEED: '0'
+      BIONEXUS_AUDIT_SEED: '20260916'
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_ANON_KEY: test-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: test-placeholder
+      JWT_SECRET: test-placeholder
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: bioai-platform/backend/requirements.txt
+      - name: System packages
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends build-essential curl jq
+      - name: Install backend dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pytest-timeout
+      - name: Collect complete backend suite
+        shell: bash
+        run: |
+          set +e
+          set -o pipefail
+          python -m pytest --collect-only -q 2>&1 | tee /tmp/bionexus-pytest-collection.txt
+          status=${PIPESTATUS[0]}
+          echo "pytest collection exit status: ${status}"
+          if [ "${status}" -ne 0 ]; then
+            echo "--- collection failure tail ---"
+            tail -n 120 /tmp/bionexus-pytest-collection.txt
+          fi
+          exit "${status}"
+      - name: Run every backend test with per-test hang guard
+        run: |
+          python -m pytest -vv --disable-warnings --maxfail=20 --timeout=90 --timeout-method=thread
+      - name: Validate benchmark and engine registry
+        run: python scripts/ci_validate.py
+
+  frontend-build:
+    name: Frontend lint and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: bioai-platform/frontend
+    env:
+      NEXT_PUBLIC_API_URL: https://example.invalid
+      NEXT_PUBLIC_SUPABASE_URL: https://example.supabase.co
+      NEXT_PUBLIC_SUPABASE_ANON_KEY: test-placeholder
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: bioai-platform/frontend/package-lock.json
+      - name: Install dependencies
+        run: npm ci
+      - name: Lint
+        run: npm run lint
+      - name: Production build
+        run: npm run build
+
+  audit-static-contracts:
+    name: Static scientific-contract audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
+        with:
+          python-version: '3.11'
+      - name: Reject non-finite or fabricated placeholders in retained benchmark summaries
+        run: |
+          python - <<'PY'
+          import json, math, pathlib, sys
+          roots = [pathlib.Path('benchmark'), pathlib.Path('bioai-platform/backend/benchmark')]
+          problems = []
+          for root in roots:
+              if not root.exists():
+                  continue
+              for p in root.rglob('*.json'):
+                  try:
+                      obj = json.loads(p.read_text(encoding='utf-8'))
+                  except Exception:
+                      continue
+                  stack = [([], obj)]
+                  while stack:
+                      path, value = stack.pop()
+                      if isinstance(value, dict):
+                          stack.extend((path+[str(k)], v) for k, v in value.items())
+                      elif isinstance(value, list):
+                          stack.extend((path+[str(i)], v) for i, v in enumerate(value))
+                      elif isinstance(value, float) and not math.isfinite(value):
+                          problems.append(f'{p}:{".".join(path)} non-finite={value!r}')
+          if problems:
+              print('\n'.join(problems))
+              sys.exit(1)
+          print('Retained JSON benchmark summaries contain no NaN/Inf values.')
+          PY
+      - name: Ensure synthetic/demo boundaries remain explicit
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          checks = {
+            'docs/NGS_BENCHMARK_STATUS.md': ['synthetic', 'GIAB'],
+            'benchmark/BBS1_PROTOCOL.md': ['integration', 'underlying'],
+          }
+          missing=[]
+          for fn, terms in checks.items():
+              p=Path(fn)
+              if not p.exists():
+                  missing.append(f'{fn}: missing file')
+                  continue
+              text=p.read_text(encoding='utf-8', errors='ignore').lower()
+              for t in terms:
+                  if t.lower() not in text:
+                      missing.append(f'{fn}: missing boundary term {t!r}')
+          if missing:
+              raise SystemExit('\n'.join(missing))
+          print('Scientific claim-boundary markers present.')
+          PY

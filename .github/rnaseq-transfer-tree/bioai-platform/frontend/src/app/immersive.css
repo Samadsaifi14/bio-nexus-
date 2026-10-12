@@ -1,0 +1,93 @@
+/* BioNexus Perspective. Light sage, generous space, original molecular forms.
+   DESIGN_VARIANCE 7 / MOTION_INTENSITY 7 (landing), 3 (workspace) / VISUAL_DENSITY 3.
+   Existing scientific palettes and data semantics remain owned by scientific-ui.css. */
+.bn-immersive-landing { background: #f7faf8; }
+.bn-immersive-landing h1, .bn-immersive-landing h2, .bn-immersive-landing h3,
+.bn-tool-heading h1, .bn-workspace-experience, .bn-app-topbar { font-family: 'Trebuchet MS', Arial, sans-serif; }
+.bn-immersive-landing .bn-site-header { position: relative; background: #f7faf8; }
+.bn-immersive-landing .bn-button { border-radius: 10px; }
+.bn-immersive-landing .bn-button-primary { background: #2c6f65; color: #fff; }
+.bn-immersive-landing .bn-button-primary:hover { background: #235a52; }
+.bn-immersive { max-width: 1440px; padding: 0 48px; margin: auto; }
+.bn-story-layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 24px; align-items: start; }
+.bn-story-intro { min-height: min(820px, calc(100dvh - 78px)); padding: clamp(60px, 9vh, 96px) 0 70px; display: flex; flex-direction: column; align-items: flex-start; justify-content: flex-start; }
+.bn-story-eyebrow { font-size: .78rem; color: #426a60; letter-spacing: .035em; margin-bottom: 28px; }
+.bn-story-title { font-size: clamp(48px, 5.2vw, 76px); line-height: 1.08; font-weight: 500; letter-spacing: -.065em; white-space: nowrap; }
+.bn-word-mask { display: inline-block; overflow: hidden; padding-bottom: .08em; vertical-align: bottom; }
+.bn-word-mask > span { display: inline-block; }
+.bn-story-title > .bn-word-mask:last-child { color: #2c6f65; }
+.bn-story-description { max-width: 36ch; margin: 26px 0 30px; font-size: 1.05rem; line-height: 1.8; color: #4c6761; }
+.bn-story-visual { position: sticky; top: 24px; height: min(810px, calc(100dvh - 48px)); min-height: 470px; margin: 24px 0 0; display: flex; flex-direction: column; align-items: center; }
+.bn-story-stage { position: relative; width: 100%; flex: 1; min-height: 0; background: #e9f2ed; border-radius: 48% 48% 16px 16px; overflow: hidden; }
+.bn-scene-poster { width: 100%; height: 100%; object-fit: contain; position: absolute; inset: 0; }
+.bn-research-canvas, .bn-spline-canvas { position: absolute; inset: 0; width: 100%; height: 100%; }
+.bn-research-canvas:not([data-ready="true"]) { visibility: hidden; }
+.bn-spline-canvas:not([data-ready="true"]) { opacity: 0; }
+.bn-story-stage:has([data-ready="true"]) .bn-scene-poster { visibility: hidden; }
+.bn-story-visual figcaption { padding: 14px 0 0; color: #4c6761; font-size: .67rem; line-height: 1.5; text-align: center; }
+.bn-motion-toggle { display: inline-flex; align-items: center; justify-content: center; gap: 7px; min-height: 44px; color: #2c6f65; font-size: .76rem; padding: 5px 14px; border-radius: 8px; }
+.bn-motion-toggle:hover { background: #e0ede6; }
+.bn-story-chapter { min-height: 70dvh; display: flex; align-items: center; padding: 72px 28px 72px 0; scroll-margin-top: 60px; }
+.bn-chapter-label { font-size: .8rem; color: #2c6f65; margin-bottom: 24px; }
+.bn-story-chapter h2 { max-width: 15ch; font-size: clamp(32px, 3.6vw, 52px); font-weight: 500; line-height: 1.13; letter-spacing: -.045em; }
+.bn-story-chapter h2 + p { max-width: 40ch; font-size: 1rem; line-height: 1.8; color: #4c6761; margin: 24px 0; }
+.bn-immersive-landing .bn-section-heading { display: block; }
+.bn-immersive-landing .bn-section-heading > p { margin-top: 20px; }
+.bn-immersive-landing .bn-section-heading h2, .bn-immersive-landing .bn-principles-title { font-weight: 500; }
+.bn-immersive-landing .bn-method-explorer { border-radius: 16px; }
+.bn-immersive-landing .bn-method-name strong { font: 500 1.12rem/1.4 'Trebuchet MS', Arial, sans-serif; }
+.bn-immersive-landing .bn-method-detail h3 { font-weight: 500; }
+.bn-immersive-landing .bn-principles-title em { font-style: normal; font-weight: inherit; }
+.bn-webgl-cursor { position: fixed; inset: 0; z-index: 20; pointer-events: none; width: 100%; height: 100%; }
+.bn-workspace-experience { display: flex; align-items: center; gap: 22px; min-height: 112px; padding: 16px 24px; margin-bottom: 32px; border: 1px solid #d6e1d9; border-radius: 14px; background: #eef5f0; }
+.bn-workspace-art { width: 68px; height: 80px; flex-shrink: 0; background: url('/scenes/research-poster.png') center / cover; border-radius: 40px; }
+.bn-workspace-experience p { font-size: 1.18rem; letter-spacing: -.025em; color: #203c38; }
+.bn-workspace-experience span { display: block; margin-top: 6px; color: #4c6761; font-size: .8rem; line-height: 1.6; }
+.bn-workspace-experience a { display: inline-flex; align-items: center; gap: 6px; margin-left: auto; color: #2c6f65; font-size: .78rem; min-height: 44px; white-space: nowrap; }
+.bn-tool-heading { padding-bottom: 22px; border-bottom: 1px solid #d6e1d9; }
+.bn-tool-heading h1 { font-size: clamp(1.75rem, 3vw, 2.4rem); font-weight: 500; letter-spacing: -.04em; }
+.bn-tool-heading p { max-width: 70ch; line-height: 1.8; }
+.bn-app-shell .nav-item { border-radius: 9px; }
+.bn-app-shell .bn-shell-action { border-radius: 9px; }
+@media (max-width: 1023px) {
+  .bn-immersive { padding-inline: 24px; }
+  .bn-story-title { font-size: clamp(38px, 5.2vw, 60px); }
+  .bn-workspace-experience { gap: 16px; padding: 16px; }
+  .bn-workspace-experience a { font-size: 0; gap: 0; }
+  .bn-workspace-experience a svg { width: 22px; height: 22px; }
+}
+@media (max-width: 767px) {
+  .bn-immersive-landing .bn-site-header .bn-button { white-space: nowrap; font-size: .72rem; padding-inline: .65rem; gap: .4rem; }
+  .bn-immersive { padding-inline: 20px; }
+  .bn-story-layout { display: flex; flex-direction: column; gap: 0; }
+  .bn-story-content { display: contents; }
+  .bn-story-intro { order: 0; min-height: auto; padding: 52px 0 36px; }
+  .bn-story-title { font-size: clamp(38px, 9.4vw, 64px); }
+  .bn-story-eyebrow { margin-bottom: 22px; }
+  .bn-story-description { font-size: .97rem; margin-block: 22px; }
+  .bn-story-intro .bn-button { font-size: .8rem; }
+  .bn-story-visual { order: 1; position: relative; top: auto; width: 100%; height: 420px; min-height: 0; margin: 0; }
+  .bn-story-stage { border-radius: 46% 46% 14px 14px; }
+  .bn-motion-toggle { display: none; }
+  .bn-story-chapters { order: 2; }
+  .bn-story-chapter { min-height: auto; padding: 56px 0; border-bottom: 1px solid #d6e1d9; }
+  .bn-story-chapter h2 { max-width: 20ch; font-size: 35px; }
+  .bn-research-canvas, .bn-spline-canvas, .bn-webgl-cursor { display: none; }
+  .bn-workspace-art { width: 42px; height: 64px; }
+  .bn-workspace-experience { margin-bottom: 24px; }
+  .bn-workspace-experience p { font-size: 1rem; }
+  .bn-workspace-experience span { font-size: .73rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .bn-story-chapter { min-height: auto; padding-block: 56px; }
+  .bn-story-visual { position: relative; }
+  .bn-research-canvas, .bn-spline-canvas, .bn-webgl-cursor, .bn-motion-toggle { display: none; }
+  .bn-immersive-landing *, .bn-workspace-experience * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
+  .bn-story-stage .bn-scene-poster { visibility: visible; }
+}
+@media print {
+  .bn-webgl-cursor, .bn-research-canvas, .bn-spline-canvas, .bn-motion-toggle { display: none; }
+  .bn-story-visual { position: relative; height: 360px; }
+  .bn-story-stage .bn-scene-poster { visibility: visible; }
+  .bn-story-chapter { min-height: auto; padding-block: 24px; }
+}

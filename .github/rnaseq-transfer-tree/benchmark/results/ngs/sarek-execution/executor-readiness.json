@@ -1,0 +1,71 @@
+{
+  "workflow": {
+    "name": "nf-core/sarek",
+    "revision": "3.10.0"
+  },
+  "workflows": [
+    {
+      "name": "nf-core/sarek",
+      "revision": "3.10.0",
+      "assays": [
+        "WGS",
+        "WES"
+      ]
+    },
+    {
+      "name": "nf-core/rnaseq",
+      "revision": "3.26.0",
+      "assays": [
+        "RNA-seq"
+      ]
+    }
+  ],
+  "executors": {
+    "local": {
+      "available": false,
+      "enabled": false,
+      "missing": [
+        "nextflow",
+        "docker, singularity, or apptainer"
+      ],
+      "requirements": [
+        "Nextflow",
+        "Java",
+        "Docker/Apptainer/Singularity",
+        "durable local result directory"
+      ]
+    },
+    "slurm": {
+      "available": false,
+      "enabled": false,
+      "missing": [
+        "nextflow",
+        "sbatch",
+        "sacct"
+      ],
+      "requirements": [
+        "Nextflow head node",
+        "sbatch/sacct",
+        "shared samplesheet/reference/work/result paths"
+      ]
+    },
+    "awsbatch": {
+      "available": false,
+      "enabled": false,
+      "missing": [
+        "NGS_AWS_REGION",
+        "NGS_AWS_BATCH_JOB_QUEUE",
+        "NGS_AWS_BATCH_JOB_DEFINITION",
+        "boto3"
+      ],
+      "requirements": [
+        "AWS Batch queue",
+        "Nextflow driver job definition",
+        "IAM role",
+        "S3 inputs/results"
+      ]
+    }
+  },
+  "fallback": null,
+  "note": "Production executors never fall back to the exploratory preview."
+}

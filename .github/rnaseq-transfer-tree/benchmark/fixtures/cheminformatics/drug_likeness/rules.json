@@ -1,0 +1,49 @@
+{
+  "schema_version": "1.0",
+  "purpose": "Independent literature ground truth for the drug-likeness rule panel implemented in app/tools/admet.py (MATRIX 4). Values are the published threshold constants, not BioNexus's values.",
+  "filters": {
+    "lipinski": {
+      "citation": "Lipinski CA et al., Adv. Drug Deliv. Rev. 1997;23:3-25. 'Rule of Five'",
+      "thresholds": {"MW_max": 500, "LogP_max": 5, "HBD_max": 5, "HBA_max": 10},
+      "note": "MW and LogP are to be over, not equal-or-over, the limit to count a violation (published: 'no more than one violation'), i.e. pass if violations <= 1. MW >= 500 and > 500 differ; the code flags '> 500' strictly. HBA counts in the original (Lipinski 1997) are sum of N and O atom count."
+    },
+    "veber": {
+      "citation": "Veber DF et al., J. Med. Chem. 2002;45:2615-2623. Oral bioavailability",
+      "thresholds": {"RotBonds_max": 10, "TPSA_max": 140},
+      "pass_rule": "zero violations",
+      "note": "Published cut-offs: TPSA <= 140 A^2 and <= 10 rotatable bonds jointly for good oral bioavailability."
+    },
+    "ghose": {
+      "citation": "Ghose AK et al., J. Comb. Chem. 1999;1:55-68. 'Drug-like' property ranges",
+      "thresholds": {"MW_min": 160, "MW_max": 480, "LogP_min": -0.4, "LogP_max": 5.6, "natoms_min": 20, "natoms_max": 70, "MR_min": 40, "MR_max": 130},
+      "pass_rule": "zero violations"
+    },
+    "egan": {
+      "citation": "Egan WJ et al., J. Med. Chem. 2000;43:3867-3877. Oral drug absorption (EPSA / ALOGPS)",
+      "thresholds": {"TPSA_max": 132, "LogP_max": 5.88},
+      "pass_rule": "zero violations",
+      "note": "Egg surface line: logP - 0.008*PSA <= 4.03 equivalent form; the simple box TPSA<=132 and LogP<=5.88 is the widely used approximation."
+    },
+    "muegge": {
+      "citation": "Muegge I et al., J. Med. Chem. 2001;44:1841-1846. Global drug-like filter (Bayer)",
+      "thresholds": {"MW_min": 200, "MW_max": 600, "LogP_min": -2, "LogP_max": 5, "TPSA_max": 150, "rings_max": 7, "heavy_atoms_min": 5, "heteroatoms_min": 2, "RotBonds_max": 15, "HBD_max": 5, "HBA_max": 10},
+      "pass_rule": "zero violations",
+      "note": "Plus the published pharmacophore point requirements (e.g. one of: amine, amide, hydroxyl, carboxyl, heteroaromatic) — not checkable here via simple counts; documented as scope limitation."
+    },
+    "mddr": {
+      "citation": "Oprea TI et al., J. Comb. Chem. 2000;2:157-166. MDDR drug-like rules",
+      "thresholds": {"MW_min": 200, "MW_max": 700, "LogP_min": -2, "LogP_max": 6, "TPSA_max": 180, "RotBonds_max": 15, "rings_max": 8},
+      "pass_rule": "zero violations"
+    },
+    "pains": {
+      "citation": "Baell JB, Holloway GA. J. Med. Chem. 2010;53:2719-2740. PAINS (Pan-Assay Interference Compounds) alerts",
+      "note": "Full PAINS A/B/C catalog (480 SMARTS) is in RDKit FilterCatalog. admet.py implements an 8-pattern subset; scope limitation: subset, not full catalog.",
+      "subset_size": 8
+    },
+    "brenk": {
+      "citation": "Brenk R et al., ChemMedChem 2008;3:435-444. Structural alerts for lead-like screening",
+      "note": "admet.py implements a 6-rule subset of Brenk's ~105 alerts; scope limitation: subset.",
+      "subset_rules": ["multi_halogen>2", "nitro", "sulfonamide", "aromatic_rings>5", "aldehyde", "quaternary_nitrogen"]
+    }
+  }
+}

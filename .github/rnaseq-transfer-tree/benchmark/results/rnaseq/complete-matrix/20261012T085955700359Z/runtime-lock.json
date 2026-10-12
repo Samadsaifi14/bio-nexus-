@@ -1,0 +1,5 @@
+{
+  "R": "4.3.3",
+  "packages": {"DESeq2": "1.42.0", "ggplot2": "3.4.4"},
+  "scope": "Core numerical and PCA API versions are pinned; all loaded dependencies and platform details must also be retained in sessionInfo.txt."
+}

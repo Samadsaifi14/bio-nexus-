@@ -1,0 +1,25 @@
+{
+  "category": "molecular_dynamics",
+  "benchmarks": [
+    {
+      "name": "MD_RMSD_AVG_NONNEGATIVE",
+      "category": "molecular_dynamics",
+      "description": "A finished MD simulation reports a non-negative average backbone RMSD.",
+      "input": {
+        "dataset": "simulation result",
+        "engine": "OpenMM"
+      },
+      "section": "md",
+      "expected_output": {
+        "rmsd_avg_angstrom": {"min": 0}
+      },
+      "tolerance": {},
+      "ground_truth": "Physically, a structure cannot deviate by a negative distance from its reference frame.",
+      "citation": "Eastman P, et al. OpenMM 8. J Phys Chem B 2024.",
+      "source": "OpenMM",
+      "stage": "curated",
+      "difficulty": "easy",
+      "version": 1
+    }
+  ]
+}

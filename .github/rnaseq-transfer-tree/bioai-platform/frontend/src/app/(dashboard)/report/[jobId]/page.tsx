@@ -1,0 +1,197 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useParams } from "next/navigation";
+import { Printer, Download, CircleNotch as LoaderCircle, XCircle } from '@phosphor-icons/react';
+import Link from "next/link";
+import toast from 'react-hot-toast';
+import { apiUrl } from "@/lib/api";
+import { getSupabase } from "@/lib/supabase";
+import { BlastPanel } from "@/components/results/BlastPanel";
+import { ScoreBars } from "@/components/results/ScoreBars";
+import { UniprotPanel } from "@/components/results/UniprotPanel";
+import PhyloTreeViewer from "@/components/phylo/PhyloTreeViewer";
+import { AlphaFoldViewer } from "@/components/AlphaFoldViewer";
+import { AlignmentStatsBar } from "@/components/alignment/AlignmentStatsBar";
+import { AlignmentBlock } from "@/components/alignment/AlignmentBlock";
+import { computeAlignmentStats, parseAlignedFasta } from "@/lib/alignment-stats";
+import type { BlastHitSummary, UniprotSummary } from "@/types/pipeline";
+import { BackButton } from "@/components/ui";
+
+export default function ReportPage() {
+  const params = useParams();
+  const jobId = params.jobId as string;
+  const [data, setData] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [downloading, setDownloading] = useState<'pdf' | 'json' | null>(null);
+
+  useEffect(() => {
+    if (!jobId) return;
+    fetch(apiUrl(`/api/pipeline/v2/status/${jobId}`))
+      .then(r => { if (!r.ok) throw new Error("Report not found"); return r.json(); })
+      .then(d => { setData(d); setLoading(false); })
+      .catch(e => { setError(e.message); setLoading(false); });
+  }, [jobId]);
+
+  async function downloadExport(format: 'pdf' | 'json') {
+    if (!jobId || downloading) return;
+    setDownloading(format);
+    try {
+      const supabase = getSupabase();
+      const { data: { session } } = await supabase.auth.getSession();
+      const headers: Record<string, string> = {};
+      if (session?.access_token) headers["Authorization"] = `Bearer ${session.access_token}`;
+      const res = await fetch(apiUrl(`/api/export/job/${jobId}?format=${format}`), { headers });
+      if (!res.ok) throw new Error((await res.json().catch(() => null))?.detail || `Export failed (HTTP ${res.status})`);
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = format === 'pdf' ? `bio-nexus-${jobId.slice(0, 8)}.pdf` : `bio-nexus-${jobId.slice(0, 8)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (e: any) {
+      toast.error(e.message || 'Export failed');
+    } finally {
+      setDownloading(null);
+    }
+  }
+
+  if (loading) return (
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
+    </div>
+  );
+
+  if (error || !data) return (
+    <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4">
+      <XCircle className="w-12 h-12 text-error" />
+      <p className="text-text-secondary">{error || "Report not found"}</p>
+      <Link href="/wizard" className="text-accent-cyan text-sm hover:underline">Back to Wizard</Link>
+    </div>
+  );
+
+  const steps = data.steps || {};
+  const blastData = steps.blast?.data;
+  const uniprotData = steps.uniprot?.data;
+  const msaData = steps.msa?.data;
+  const phyloData = steps.phylo?.data;
+  const domainsData = steps.domains?.data;
+  const structureData = steps.alphafold?.data;
+  const interpretData = steps.interpret?.data;
+
+  return (
+    <div className="max-w-4xl mx-auto p-6">
+      {/* Toolbar — hidden when printing */}
+      <div className="flex items-center justify-between mb-6 print:hidden">
+        <BackButton href="/wizard" label="Back to Wizard" />
+        <div className="flex gap-2">
+          <button onClick={() => downloadExport('pdf')} disabled={downloading !== null}
+            className="px-4 py-2 rounded-xl border border-accent-cyan/30 text-accent-cyan text-sm hover:bg-accent-cyan/10 transition flex items-center gap-1.5 disabled:opacity-50">
+            {downloading === 'pdf' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Printer className="w-4 h-4" />} PDF
+          </button>
+          <button onClick={() => downloadExport('json')} disabled={downloading !== null}
+            className="px-4 py-2 rounded-xl border border-glass-border text-text-secondary text-sm hover:bg-surface-1 transition flex items-center gap-1.5 disabled:opacity-50">
+            {downloading === 'json' ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />} JSON
+          </button>
+        </div>
+      </div>
+
+      {/* Title */}
+      <div className="mb-8">
+        <h1 className="text-2xl font-bold text-text-primary">Bio Nexus Analysis Report</h1>
+        <p className="text-sm text-text-muted mt-1">Job {jobId.slice(0, 8)}&hellip; &middot; {data.created_at ? new Date(data.created_at).toLocaleString() : ""}</p>
+        <p className="text-xs text-text-muted mt-0.5">Sequence length: {data.sequence?.length || "—"} aa</p>
+      </div>
+
+      {/* BLAST */}
+      {blastData && (
+        <section className="mb-8">
+          <BlastPanel hits={blastData.hits as BlastHitSummary[]} count={blastData.count ?? 0} source={blastData.source} querySequence={data.sequence} />
+          <ScoreBars hits={blastData.hits as BlastHitSummary[]} />
+        </section>
+      )}
+
+      {/* UniProt */}
+      {uniprotData && (
+        <section className="mb-8">
+          <UniprotPanel data={uniprotData as UniprotSummary} />
+        </section>
+      )}
+
+      {/* MSA */}
+      {msaData?.aln_fasta && (
+        <section className="data-card p-6 mb-8">
+          <h2 className="font-semibold text-text-primary mb-2">Multiple Sequence Alignment</h2>
+          <p className="text-xs text-text-muted mb-2">{msaData.sequence_count} sequences aligned</p>
+          {msaData.msa_stats ? (
+            <AlignmentStatsBar stats={msaData.msa_stats} className="mb-2" />
+          ) : (
+            <AlignmentStatsBar stats={computeAlignmentStats(parseAlignedFasta(msaData.aln_fasta).seqs)} className="mb-2" />
+          )}
+          <AlignmentBlock alnFasta={msaData.aln_fasta} className="max-h-96" />
+        </section>
+      )}
+
+      {/* Phylo Tree */}
+      {phyloData?.phylotree_newick && (
+        <section className="data-card p-6 mb-8">
+          <h2 className="font-semibold text-text-primary mb-3">Phylogenetic Tree</h2>
+          <PhyloTreeViewer
+            newick={phyloData.phylotree_newick}
+            method={String(phyloData.method ?? '').startsWith('upgma') ? 'upgma' : undefined}
+            alignment={msaData?.aln_fasta ?? undefined}
+            sequenceType={blastData?.query_sequence_type === 'dna' ? 'dna' : 'protein'}
+          />
+        </section>
+      )}
+
+      {/* Domain Architecture */}
+      {domainsData?.domains && domainsData.domains.length > 0 && (
+        <section className="data-card p-6 mb-8">
+          <h2 className="font-semibold text-text-primary mb-3">Domain Architecture</h2>
+          <p className="text-xs text-text-muted mb-2">{domainsData.uniprot_accession} &middot; {domainsData.sequence_length} aa &middot; {domainsData.domains.length} domain{domainsData.domains.length !== 1 ? "s" : ""}</p>
+          <div className="space-y-1.5">
+            {domainsData.domains.map((d: any, i: number) => (
+              <div key={i} className="flex items-center gap-3 bg-surface-1 rounded-lg px-3 py-2 text-sm">
+                <span className="font-mono text-accent-cyan text-xs">{d.source_db}</span>
+                <span className="text-text-primary font-medium">{d.name}</span>
+                <span className="text-text-muted text-xs ml-auto">{d.start}–{d.end}</span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Structure */}
+      {structureData?.structure_available && (
+        <section className="mb-8">
+          <h2 className="mb-3 font-semibold text-text-primary">Structure</h2>
+          <AlphaFoldViewer
+            pdbUrl={structureData.pdb_url}
+            pdbData={structureData.pdb_text}
+            uniprotId={structureData.uniprot_accession}
+            source={structureData.source}
+            structureType={structureData.structure_type}
+            pdbId={structureData.pdb_id}
+          />
+        </section>
+      )}
+
+      {/* AI Interpretation */}
+      {interpretData?.interpretation && (
+        <section className="data-card p-6 mb-8">
+          <h2 className="font-semibold text-text-primary mb-3">AI Interpretation</h2>
+          <div className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap font-mono">
+            {interpretData.interpretation}
+          </div>
+        </section>
+      )}
+
+      {/* Footer */}
+      <div className="text-center text-xs text-text-muted py-8 print:block hidden">
+        Generated by Bio Nexus &middot; {new Date().toLocaleDateString()}
+      </div>
+    </div>
+  );
+}

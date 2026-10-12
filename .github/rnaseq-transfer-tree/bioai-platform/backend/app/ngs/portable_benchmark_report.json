@@ -1,0 +1,68 @@
+{
+  "benchmark": "bionexus-tiny-target-v1",
+  "classification": "SYNTHETIC_POSITIVE_CONTROL",
+  "status": "PASS",
+  "workflow_output_parity": true,
+  "biological_scope": "one heterozygous SNP in a 200 bp synthetic target",
+  "expected_call": {
+    "chrom": "chrTiny",
+    "pos": 50,
+    "ref": "C",
+    "alt": "G",
+    "genotype": "0/1",
+    "depth": 20,
+    "allelic_depth": "10,10"
+  },
+  "toolchain": {
+    "nextflow": "26.04.6",
+    "samtools": "1.24",
+    "bcftools": "1.24",
+    "filter": "QUAL>=20 && FORMAT/DP>=10"
+  },
+  "reports": [
+    {
+      "orchestrator": "Bio-Nexus direct",
+      "execution": "EXECUTED",
+      "normalized_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "orchestrator": "Nextflow",
+      "execution": "EXECUTED",
+      "normalized_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    },
+    {
+      "orchestrator": "Galaxy wrapper command",
+      "execution": "EXECUTED_WITHOUT_GALAXY_SERVER",
+      "normalized_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+      "tp": 1,
+      "fp": 0,
+      "fn": 0,
+      "precision": 1.0,
+      "recall": 1.0,
+      "f1": 1.0
+    }
+  ],
+  "galaxy_validation": {
+    "wrapper_lint": "PASS",
+    "local_server_test": "NOT_COMPLETED",
+    "reason": "Galaxy 25.1 cloned, but its pinned dependency bootstrap was interrupted by proxy failures."
+  },
+  "limitations": [
+    "This validates deterministic workflow portability, not real-sample accuracy.",
+    "Only one synthetic heterozygous SNP in an easy 200 bp target is tested.",
+    "Indels, difficult regions, SVs, CNVs, contamination and annotation are not tested.",
+    "This does not establish parity with nf-core/sarek as a whole or a public Galaxy server."
+  ]
+}

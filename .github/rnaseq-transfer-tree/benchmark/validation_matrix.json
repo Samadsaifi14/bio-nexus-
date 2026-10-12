@@ -1,0 +1,40 @@
+{
+  "schema": "bionexus-validation-matrix/v1",
+  "policy": "A cell is not considered validated until the exact dataset, database version, software version, operating system, raw output and acceptance result are persisted.",
+  "organisms": [
+    {"id": "human", "required_domains": ["proteins", "dna", "rna", "structures", "variants", "ngs"]},
+    {"id": "bacterial", "required_domains": ["proteins", "dna", "ngs", "variants"]},
+    {"id": "plant_or_other_eukaryote", "required_domains": ["proteins", "dna", "rna", "ngs"]}
+  ],
+  "databases": [
+    {"name": "UniProtKB", "version_policy": "pinned release or reviewed-record retrieval timestamp"},
+    {"name": "RCSB PDB", "version_policy": "PDB accession plus structure revision/retrieval timestamp"},
+    {"name": "AlphaFold DB", "version_policy": "record model/database version and retrieval timestamp"},
+    {"name": "InterPro/Pfam", "version_policy": "pinned release"},
+    {"name": "GIAB", "version_policy": "truth-set release and genome build"},
+    {"name": "SEQC/MAQC", "version_policy": "dataset accession and reference build"}
+  ],
+  "operating_systems": ["ubuntu-latest", "windows-latest", "macos-latest"],
+  "python_versions": ["3.11", "3.12"],
+  "software_version_policy": {
+    "minimum": "current pinned production version",
+    "robustness_target": "current pinned version plus one supported prior release where compatibility can be reproduced",
+    "rule": "version changes must produce a new benchmark run rather than overwriting the previous result"
+  },
+  "required_cell_outputs": [
+    "dataset identifier",
+    "organism",
+    "database versions",
+    "software versions",
+    "operating system",
+    "parameters",
+    "input checksum",
+    "output checksum",
+    "metrics",
+    "confidence intervals where applicable",
+    "effect size where applicable",
+    "pass/fail",
+    "failure reason"
+  ],
+  "claim_boundary": "This matrix defines the robustness experiment. Empty or planned cells are not evidence of robustness."
+}

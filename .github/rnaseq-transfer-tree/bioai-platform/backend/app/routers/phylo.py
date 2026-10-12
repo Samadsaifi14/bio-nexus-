@@ -1,0 +1,748 @@
+﻿"""
+Phylogenetic tree router — three methods:
+  nj    : Neighbor-Joining via Clustal Omega guide tree (~60s)
+  upgma : UPGMA computed locally from Clustal alignment (adds ~0s after MSA)
+  ml    : Maximum Likelihood via local PhyML binary (~3-5 min, includes bootstrap)
+
+PhyML binary must be installed at build time (see Dockerfile).
+Download source from: https://github.com/stephaneguindon/phyml
+Compile: ./configure --enable-phyml && make && make install
+
+Job lifecycle (thread-safe, mirrored to Supabase so a restart does not lose it):
+  queued -> msa_running -> msa_done -> tree_running -> complete | error
+"""
+
+from __future__ import annotations
+
+import asyncio
+import logging
+import re
+import threading
+import time
+import uuid
+from typing import Literal, Optional
+
+import httpx
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
+from pydantic import BaseModel, Field
+
+from app.services import job_state
+
+logger = logging.getLogger(__name__)
+router = APIRouter(prefix="/phylo", tags=["phylo"])
+
+# ── EBI base URLs ──────────────────────────────────────────────────────────────
+_EBI_CLUSTALO = "https://www.ebi.ac.uk/Tools/services/rest/clustalo"
+_EMAIL        = "bionexus@example.com"
+
+# ── PhyML protein models (most-used first) ────────────────────────────────────
+PROTEIN_MODELS = ["LG", "WAG", "JTT", "Blosum62", "MtREV", "Dayhoff"]
+DNA_MODELS     = ["GTR", "HKY85", "K80", "F81", "TN93", "SYM"]
+
+# ─── Models ───────────────────────────────────────────────────────────────────
+
+Method      = Literal["nj", "ml", "upgma"]
+SeqType     = Literal["protein", "dna"]
+JobPhase    = Literal["queued", "msa_running", "msa_done", "tree_running", "complete", "error"]
+
+
+class PhyloRequest(BaseModel):
+    sequences: list[dict]
+    method: Method     = "nj"
+    seq_type: SeqType  = "protein"
+    # ML-only options
+    model: Optional[str] = None
+    bootstrap: int     = Field(100, ge=0, le=1000)
+
+
+class PhyloJob(BaseModel):
+    job_id: str
+    method: Method
+    seq_type: SeqType
+    model: Optional[str]
+    bootstrap: Optional[int]
+    bootstrap_requested: Optional[int] = None
+    bootstrap_effective: Optional[int] = None
+    engine: Optional[str] = None
+    phase: JobPhase
+    aln_fasta:   Optional[str] = None
+    newick:      Optional[str] = None
+    stats:       Optional[str] = None
+    meta:        Optional[dict] = None
+    error:       Optional[str] = None
+    created_at:  float = 0.0
+    msa_done_at: Optional[float] = None
+    done_at:     Optional[float] = None
+
+
+class RunResponse(BaseModel):
+    job_id: str
+    status: str
+
+
+_SAFE_TAXON_ID = re.compile(r"^[A-Za-z0-9_.-]+$")
+_DNA_IUPAC = set("ACGTRYSWKMBDHVN")
+_PROTEIN_IUPAC = set("ACDEFGHIKLMNPQRSTVWYBXZJUO")
+
+
+def _validate_sequence_records(sequences: list[dict], seq_type: str) -> list[dict]:
+    """Validate and normalize unaligned records before sending them to MSA.
+
+    Taxon identifiers are restricted to a Newick/PHYLIP-safe token alphabet so
+    the same identifier survives FASTA -> alignment -> tree -> export without
+    silent truncation or reinterpretation. Sequence characters are validated
+    against the declared molecule type; no auto-correction is performed.
+    """
+    if seq_type not in ("protein", "dna"):
+        raise ValueError("seq_type must be 'protein' or 'dna'")
+
+    alphabet = _PROTEIN_IUPAC if seq_type == "protein" else _DNA_IUPAC
+    seen: set[str] = set()
+    out: list[dict] = []
+
+    for index, raw in enumerate(sequences):
+        if not isinstance(raw, dict):
+            raise ValueError(f"Sequence record {index + 1} must be an object")
+        ident = str(raw.get("id") or "").strip()
+        seq = "".join(str(raw.get("sequence") or "").split()).upper()
+        if not ident:
+            raise ValueError(f"Sequence record {index + 1} is missing an identifier")
+        if not _SAFE_TAXON_ID.fullmatch(ident):
+            raise ValueError(
+                f"Sequence identifier {ident!r} contains characters unsafe for Newick/PHYLIP; "
+                "use letters, digits, underscore, dot or hyphen"
+            )
+        if ident in seen:
+            raise ValueError(f"Duplicate sequence identifier: {ident}")
+        if not seq:
+            raise ValueError(f"Sequence {ident!r} is empty")
+        bad = sorted(set(seq) - alphabet)
+        if bad:
+            raise ValueError(
+                f"Sequence {ident!r} contains characters invalid for {seq_type}: {', '.join(bad)}"
+            )
+        seen.add(ident)
+        out.append({"id": ident, "sequence": seq})
+
+    return out
+
+
+def _resolve_ml_model(model: str | None, seq_type: str) -> str:
+    valid = PROTEIN_MODELS if seq_type == "protein" else DNA_MODELS
+    default = "LG" if seq_type == "protein" else "GTR"
+    if model is None or not str(model).strip():
+        return default
+    lookup = {m.lower(): m for m in valid}
+    key = str(model).strip().lower()
+    if key not in lookup:
+        raise ValueError(
+            f"Model {model!r} not valid for {seq_type}. Choose from: {', '.join(valid)}"
+        )
+    return lookup[key]
+
+
+def _effective_iqtree_bootstrap(requested: int) -> int:
+    """Return the number IQ-TREE will actually execute for UFBoot.
+
+    IQ-TREE requires at least 1000 UFBoot replicates. A request of zero means
+    no bootstrap. When a positive request below 1000 is supplied, provenance
+    must record that IQ-TREE executes 1000 rather than the smaller requested
+    value.
+    """
+    requested = max(int(requested), 0)
+    return 0 if requested == 0 else max(1000, requested)
+
+
+# ─── Job store ────────────────────────────────────────────────────────────────
+#
+# `_jobs` is the live copy; `job_state` mirrors it to Supabase so a restart does
+# not erase a job the client is still polling (see app/services/job_state.py).
+
+_JOB_KIND = "phylo"
+
+_jobs: dict[str, dict] = {}
+_lock = threading.Lock()
+
+
+def _hydratable(job: dict) -> dict:
+    """Strip the resubmit-only request echo so it is not persisted or returned."""
+    return {k: v for k, v in job.items() if not k.startswith("_")}
+
+
+def _init(job_id: str, req: PhyloRequest) -> None:
+    with _lock:
+        _jobs[job_id] = {
+            "job_id":    job_id,
+            "method":    req.method,
+            "seq_type":  req.seq_type,
+            "model":     _resolve_ml_model(req.model, req.seq_type) if req.method == "ml" else None,
+            "bootstrap": req.bootstrap,
+            "bootstrap_requested": req.bootstrap if req.method == "ml" else None,
+            "bootstrap_effective": None,
+            "engine": None,
+            "phase":     "queued",
+            "aln_fasta": None,
+            "newick":    None,
+            "stats":     None,
+            "meta":      None,
+            "engine":    None,
+            "error":     None,
+            "status":    "running",
+            "created_at": time.time(),
+            "msa_done_at": None,
+            "done_at":   None,
+            "_req":      req.model_dump(),
+        }
+    job_state.mirror(job_id, _JOB_KIND, _hydratable(_read(job_id) or {}))
+
+
+def _patch(job_id: str, **kw) -> None:
+    with _lock:
+        if job_id not in _jobs:
+            return
+        _jobs[job_id].update(kw)
+        snapshot = _hydratable(_jobs[job_id])
+    job_state.mirror(job_id, _JOB_KIND, snapshot)
+
+
+def _read(job_id: str) -> dict | None:
+    with _lock:
+        return dict(_jobs[job_id]) if job_id in _jobs else None
+
+
+def _reconcile() -> int:
+    """Restore finished jobs and mark restart-interrupted ones. Called at startup."""
+    def hydrate(job_id: str, state: dict) -> None:
+        with _lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
+
+
+# ─── EBI helpers (same pattern as alignment.py) ───────────────────────────────
+
+async def _ebi_submit(url: str, data: dict) -> str:
+    async with httpx.AsyncClient(timeout=30) as client:
+        r = await client.post(url + "/run", data=data)
+        r.raise_for_status()
+        return r.text.strip()
+
+
+async def _ebi_poll(url: str, ebi_job: str, interval: float = 2.0, max_polls: int = 150) -> str:
+    async with httpx.AsyncClient(timeout=10) as client:
+        for _ in range(max_polls):
+            await asyncio.sleep(interval)
+            r = await client.get(f"{url}/status/{ebi_job}")
+            status = r.text.strip()
+            if status in ("FINISHED", "FAILED", "ERROR", "NOT_FOUND"):
+                return status
+    return "TIMEOUT"
+
+
+async def _ebi_result(url: str, ebi_job: str, result_type: str, retries: int = 3) -> str:
+    async with httpx.AsyncClient(timeout=60) as client:
+        for attempt in range(retries):
+            try:
+                r = await client.get(f"{url}/result/{ebi_job}/{result_type}")
+                if r.status_code == 200:
+                    return r.text
+                await asyncio.sleep(2 ** attempt)
+            except httpx.RequestError:
+                await asyncio.sleep(2 ** attempt)
+    raise RuntimeError(f"Failed to fetch EBI result {result_type} after {retries} attempts")
+
+
+# ─── MSA via Clustal Omega ────────────────────────────────────────────────────
+
+def _to_fasta(sequences: list[dict]) -> str:
+    return "\n".join(f">{s['id']}\n{s['sequence']}" for s in sequences)
+
+
+async def _run_clustalo(job_id: str, sequences: list[dict], stype: str) -> tuple[str, str] | None:
+    _patch(job_id, phase="msa_running")
+    fasta = _to_fasta(sequences)
+
+    try:
+        ebi_job = await _ebi_submit(_EBI_CLUSTALO, {
+            "email":    _EMAIL,
+            "sequence": fasta,
+            "outfmt":   "fa",
+            "stype":    "protein" if stype == "protein" else "dna",
+        })
+        logger.info(f"[{job_id}] Clustal Omega job: {ebi_job}")
+    except Exception as e:
+        _patch(job_id, phase="error", error=f"Clustal Omega submission failed: {e}")
+        return None
+
+    status = await _ebi_poll(_EBI_CLUSTALO, ebi_job)
+    if status != "FINISHED":
+        _patch(job_id, phase="error", error=f"Clustal Omega ended with status: {status}")
+        return None
+
+    try:
+        aln_fasta = await _ebi_result(_EBI_CLUSTALO, ebi_job, "fa")
+        nj_newick = await _ebi_result(_EBI_CLUSTALO, ebi_job, "phylotree")
+    except Exception as e:
+        _patch(job_id, phase="error", error=f"Clustal Omega result fetch failed: {e}")
+        return None
+
+    _patch(job_id, phase="msa_done", aln_fasta=aln_fasta, msa_done_at=time.time())
+    return aln_fasta, nj_newick
+
+
+# ─── UPGMA (pure Python) ──────────────────────────────────────────────────────
+
+def _parse_aligned_fasta(fasta: str) -> dict[str, str]:
+    seqs: dict[str, str] = {}
+    cur: str | None = None
+    for line_no, line in enumerate((fasta or "").splitlines(), start=1):
+        stripped = line.strip()
+        if not stripped:
+            continue
+        if stripped.startswith(">"):
+            ident = stripped[1:].split()[0] if stripped[1:].strip() else ""
+            if not ident:
+                raise ValueError(f"Aligned FASTA header at line {line_no} has no identifier")
+            if ident in seqs:
+                raise ValueError(f"Duplicate aligned FASTA identifier: {ident}")
+            if not _SAFE_TAXON_ID.fullmatch(ident):
+                raise ValueError(f"Aligned FASTA identifier {ident!r} is not Newick/PHYLIP safe")
+            cur = ident
+            seqs[cur] = ""
+        else:
+            if cur is None:
+                raise ValueError(f"Aligned FASTA sequence appears before a header at line {line_no}")
+            seqs[cur] += "".join(stripped.split()).upper()
+
+    if not seqs:
+        return {}
+    empty = [name for name, seq in seqs.items() if not seq]
+    if empty:
+        raise ValueError(f"Aligned FASTA contains empty sequences: {', '.join(empty)}")
+    lengths = {len(seq) for seq in seqs.values()}
+    if len(lengths) != 1:
+        raise ValueError("All aligned FASTA sequences must have the same aligned length")
+    return seqs
+
+
+def _p_distance(s1: str, s2: str) -> float:
+    if len(s1) != len(s2):
+        raise ValueError("p-distance requires aligned sequences of equal length")
+    pairs = [(a, b) for a, b in zip(s1, s2) if a != "-" and b != "-"]
+    if not pairs:
+        return 1.0
+    return sum(1 for a, b in pairs if a != b) / len(pairs)
+
+
+def _upgma_newick(aln_fasta: str) -> str:
+    seqs = _parse_aligned_fasta(aln_fasta)
+    names = list(seqs.keys())
+    n = len(names)
+
+    if n < 2:
+        return f"({names[0]}:0.0);" if names else "();"
+
+    dist: dict[tuple[str, str], float] = {}
+    for i in range(n):
+        for j in range(i + 1, n):
+            d = _p_distance(seqs[names[i]], seqs[names[j]])
+            dist[(names[i], names[j])] = d
+            dist[(names[j], names[i])] = d
+
+    clusters: dict[str, dict] = {
+        nm: {"newick": nm, "height": 0.0, "size": 1} for nm in names
+    }
+
+    counter = 0
+    while len(clusters) > 1:
+        ckeys = list(clusters.keys())
+        min_d = float("inf")
+        best = ("", "")
+        for i in range(len(ckeys)):
+            for j in range(i + 1, len(ckeys)):
+                a, b = ckeys[i], ckeys[j]
+                d = dist.get((a, b), float("inf"))
+                if d < min_d:
+                    min_d = d
+                    best = (a, b)
+
+        a, b = best
+        new_h = min_d / 2.0
+        bl_a  = max(0.0, new_h - clusters[a]["height"])
+        bl_b  = max(0.0, new_h - clusters[b]["height"])
+        new_nw = f"({clusters[a]['newick']}:{bl_a:.6f},{clusters[b]['newick']}:{bl_b:.6f})"
+        new_sz = clusters[a]["size"] + clusters[b]["size"]
+
+        counter += 1
+        new_id = f"__c{counter}"
+
+        for c in ckeys:
+            if c in (a, b):
+                continue
+            da = dist.get((a, c), dist.get((c, a), 0.0))
+            db = dist.get((b, c), dist.get((c, b), 0.0))
+            nd = (da * clusters[a]["size"] + db * clusters[b]["size"]) / new_sz
+            dist[(new_id, c)] = nd
+            dist[(c, new_id)] = nd
+
+        del clusters[a]
+        del clusters[b]
+        clusters[new_id] = {"newick": new_nw, "height": new_h, "size": new_sz}
+
+    root = next(iter(clusters.values()))
+    return root["newick"] + ";"
+
+
+# ─── PhyML local (subprocess) ────────────────────────────────────────────────
+
+def fasta_to_phylip(fasta: str) -> str:
+    """Convert validated aligned FASTA to relaxed PHYLIP."""
+    seqs = _parse_aligned_fasta(fasta)
+    if not seqs:
+        return ""
+    truncated = [name[:100] for name in seqs]
+    if len(truncated) != len(set(truncated)):
+        raise ValueError("Sequence identifiers collide after PHYLIP's 100-character limit")
+    n = len(seqs)
+    L = len(next(iter(seqs.values())))
+    lines = [f"{n} {L}"]
+    for name, s in seqs.items():
+        lines.append(f"{name[:100]:<100}{s}")
+    return "\n".join(lines)
+
+
+async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> None:
+    """Run ML tree building — prefers IQ-TREE2 (ultrafast bootstrap), falls back to PhyML."""
+    _patch(job_id, phase="tree_running")
+
+    import os
+    import re
+    import shutil
+    import tempfile
+
+    iqtree_path = shutil.which("iqtree2") or shutil.which("iqtree")
+    phyml_path = shutil.which("phyml")
+
+    if not iqtree_path and not phyml_path:
+        _patch(job_id, phase="error",
+               error="No ML tree tool found. Install IQ-TREE2 (recommended) or PhyML.")
+        return
+
+    use_iqtree = iqtree_path is not None
+    engine = "iqtree2" if use_iqtree else "phyml"
+
+    fd, aln_path = tempfile.mkstemp(suffix=".phy")
+    os.close(fd)
+    try:
+        with open(aln_path, "w") as f:
+            f.write(fasta_to_phylip(aln_fasta))
+
+        bs_requested = req.bootstrap if req.bootstrap else 0
+        datatype = "aa" if req.seq_type == "protein" else "nt"
+        model = _resolve_ml_model(req.model, req.seq_type)
+
+        if use_iqtree:
+            out_prefix = aln_path.replace(".phy", "")
+            cmd = [
+                iqtree_path,
+                "-s", aln_path,
+                "-m", model,
+                "-nt", "AUTO",
+                "-pre", out_prefix,
+            ]
+            # IQ-TREE ultrafast bootstrap (-bb) REQUIRES >= 1000 samples; passing
+            # 0 or <1000 errors out. Sample count is a quality knob, not a
+            # speed knob — it only scales UFBoot iterations, ~seconds for 1000.
+            bs_effective = _effective_iqtree_bootstrap(bs_requested)
+            if bs_effective > 0:
+                cmd += ["-bb", str(bs_effective)]
+            # IQ-TREE timeout: ultrafast bootstrap is fast even at 1000+
+            if bs_effective <= 0:
+                timeout_s = 300
+            elif bs_effective <= 1000:
+                timeout_s = 600
+            else:
+                timeout_s = 1200
+        else:
+            bs_effective = bs_requested
+            cmd = [
+                "phyml",
+                "-i", aln_path,
+                "-d", datatype,
+                "-m", model,
+                "-b", str(bs_effective),
+                "-o", "tlr",
+                "--no_memory_check",
+            ]
+            # PhyML timeout (slow classic bootstrap)
+            if bs_effective <= 0:
+                timeout_s = 900
+            elif bs_effective <= 100:
+                timeout_s = 900
+            elif bs_effective <= 500:
+                timeout_s = 1800
+            else:
+                timeout_s = 3600
+
+        _patch(
+            job_id,
+            engine=engine,
+            model=model,
+            bootstrap=bs_requested,
+            bootstrap_requested=bs_requested,
+            bootstrap_effective=bs_effective,
+        )
+        logger.info(
+            "[%s] Running %s model=%s bootstrap requested=%d effective=%d",
+            job_id, engine, model, bs_requested, bs_effective,
+        )
+
+        proc = await asyncio.create_subprocess_exec(
+            *cmd,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+        try:
+            _, stderr = await asyncio.wait_for(proc.communicate(), timeout=timeout_s)
+        except asyncio.TimeoutError:
+            proc.kill()
+            await proc.communicate()
+            _patch(job_id, phase="error",
+                   error=f"{engine} timed out after {timeout_s // 60} minutes "
+                         f"(bootstrap requested={bs_requested}, effective={bs_effective}).")
+            return
+
+        if proc.returncode != 0:
+            err_text = stderr.decode("utf-8", errors="replace")[:500] if stderr else ""
+            _patch(job_id, phase="error",
+                   error=f"{engine} failed (exit {proc.returncode}): {err_text}")
+            return
+
+        # Read output tree
+        newick = None
+        stats = None
+        likelihood = None
+        engine_version = None
+        iqtree_support_type = None
+        if use_iqtree:
+            tree_file = aln_path.replace(".phy", ".treefile")
+            iqtree_file = aln_path.replace(".phy", ".iqtree")
+            if os.path.exists(tree_file):
+                with open(tree_file) as f:
+                    newick = f.read().strip()
+            if os.path.exists(iqtree_file):
+                with open(iqtree_file) as f:
+                    stats = f.read().strip()
+                    m_ll = re.search(r"Log-likelihood of the tree:\s+(-?\d+\.\d+)", stats)
+                    if m_ll:
+                        likelihood = float(m_ll.group(1))
+                    # Actual replicate counts executed by IQ-TREE, not the
+                    # user's request (UFBoot requires >= 1000 samples).
+                    # IQ-TREE 2.x reports the count on the "Type of analysis"
+                    # line as "ultrafast bootstrap (1000 replicates)"; 1.x used
+                    # "Ultrafast bootstrap (UFBoot) with 1000". Accept both, plus
+                    # the consensus-tree line, so the label reflects the run that
+                    # actually happened instead of the caller's request.
+                    n_uf = None
+                    for _pat in (
+                        r"ultrafast bootstrap \((\d+) replicates?\)",
+                        r"Ultrafast bootstrap \(UFBoot\) with (\d+)",
+                        r"Consensus tree is constructed from (\d+) bootstrap trees",
+                    ):
+                        m_uf = re.search(_pat, stats, re.IGNORECASE)
+                        if m_uf:
+                            n_uf = int(m_uf.group(1))
+                            break
+                    if n_uf and n_uf >= 1000:
+                        iqtree_support_type = f"ultrafast bootstrap {n_uf}"
+                    else:
+                        m_alrt = re.search(r"SH-aLRT with (\d+)", stats)
+                        if m_alrt:
+                            iqtree_support_type = f"SH-aLRT {int(m_alrt.group(1))}"
+                    # Version banner: IQ-TREE 2.x writes "IQ-TREE 2.3.6 built
+                    # Aug  1 2024", 1.x wrote "IQ-TREE version: 1.6.22". Both are
+                    # anchored and require a dotted version, so the citation
+                    # block's "IQ-TREE 2: New models..." line cannot be mistaken
+                    # for the banner.
+                    for _pat in (
+                        r"^IQ-TREE\s+v?(\d+(?:\.\d+)+)",
+                        r"^IQ-TREE version:\s*(\d+(?:\.\d+)+)",
+                    ):
+                        m_ver = re.search(_pat, stats, re.MULTILINE)
+                        if m_ver:
+                            engine_version = m_ver.group(1)
+                            break
+        else:
+            tree_path = aln_path + "_phyml_tree.txt"
+            stats_path = aln_path + "_phyml_stats.txt"
+            if os.path.exists(tree_path):
+                with open(tree_path) as f:
+                    newick = f.read().strip()
+            if os.path.exists(stats_path):
+                with open(stats_path) as f:
+                    stats = f.read().strip()
+                    m_ll = re.search(r"lnL(:|=)\s*([-+]?\d*\.?\d+)", stats)
+                    if m_ll:
+                        likelihood = float(m_ll.group(2))
+
+        if not newick:
+            _patch(job_id, phase="error", error=f"{engine} produced no output tree")
+            return
+
+        meta = {
+            "engine": engine,
+            "engine_version": engine_version,
+            "model": model,
+            "support": iqtree_support_type or (
+                f"{'ultrafast' if use_iqtree else 'classic'} bootstrap {bs_effective}"
+                if bs_effective > 0 else "none"
+            ),
+            "support_detail": (
+                "IQ-TREE ultrafast bootstrap (UFBoot >= 1000 replicates)."
+                if use_iqtree and bs_effective > 0 else
+                "PhyML classic nonparametric bootstrap replicates."
+                if not use_iqtree and bs_effective > 0 else
+                "No bootstrap requested."
+            ),
+            "likelihood": likelihood,
+            "bootstrap_effective": bs_effective if bs_effective > 0 else None,
+            "bootstrap_requested": bs_requested,
+        }
+        _patch(job_id, phase="complete", newick=newick, stats=stats, meta=meta, done_at=time.time())
+
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            result_data = {"newick": newick, "method": "ml", "engine": engine, "stats": stats, "meta": meta}
+            ai_interp = await interpret_tool_result("phylo", result_data)
+            if ai_interp:
+                _patch(job_id, ai_interpretation=ai_interp)
+        except Exception:
+            pass
+    except Exception as e:
+        _patch(job_id, phase="error", error=f"ML tree error: {e}")
+    finally:
+        # Clean up all temp files (IQ-TREE produces many)
+        dir_name = os.path.dirname(aln_path)
+        base_name = os.path.basename(aln_path).replace(".phy", "")
+        for f in os.listdir(dir_name):
+            if f.startswith(base_name):
+                try:
+                    os.remove(os.path.join(dir_name, f))
+                except OSError:
+                    pass
+
+
+# ─── Main pipeline worker ─────────────────────────────────────────────────────
+
+async def _worker(job_id: str) -> None:
+    job = _read(job_id)
+    if not job:
+        return
+
+    req = PhyloRequest(**job["_req"])
+
+    result = await _run_clustalo(job_id, req.sequences, req.seq_type)
+    if result is None:
+        return
+
+    aln_fasta, nj_newick = result
+
+    if req.method == "nj":
+        result_data = {"newick": nj_newick.strip(), "method": "nj"}
+        _patch(job_id, phase="complete",
+               newick=nj_newick.strip(), done_at=time.time(),
+               meta={
+                   "engine": "Clustal Omega guide tree (Neighbor-Joining)",
+                   "engine_version": "remote (service-managed)",
+                   "model": "guide-tree distances",
+                   "support": "none",
+                   "support_detail": "Guide tree used for alignment; no bootstrap or likelihood support computed.",
+                   "likelihood": None,
+                   "bootstrap_effective": None,
+               })
+        # AI interpretation (best-effort, never blocks)
+        try:
+            from app.ai.tool_interpreter import interpret_tool_result
+            ai_interp = await interpret_tool_result("phylo", result_data)
+            if ai_interp:
+                _patch(job_id, ai_interpretation=ai_interp)
+        except Exception:
+            pass
+
+    elif req.method == "upgma":
+        _patch(job_id, phase="tree_running")
+        try:
+            newick = _upgma_newick(aln_fasta)
+            result_data = {"newick": newick, "method": "upgma"}
+            _patch(job_id, phase="complete",
+                   newick=newick, done_at=time.time(),
+                   meta={
+                       "engine": "In-process UPGMA (p-distance)",
+                       "engine_version": "1.0",
+                       "model": "uncorrected p-distance",
+                       "support": "none",
+                       "support_detail": "UPGMA produces no bootstrap or likelihood support; clusters are ultrametric under a molecular-clock assumption.",
+                       "likelihood": None,
+                       "bootstrap_effective": None,
+                   })
+            # AI interpretation (best-effort, never blocks)
+            try:
+                from app.ai.tool_interpreter import interpret_tool_result
+                ai_interp = await interpret_tool_result("phylo", result_data)
+                if ai_interp:
+                    _patch(job_id, ai_interpretation=ai_interp)
+            except Exception:
+                pass
+        except Exception as e:
+            _patch(job_id, phase="error", error=f"UPGMA computation failed: {e}")
+
+    elif req.method == "ml":
+        await _run_phyml_local(job_id, aln_fasta, req)
+        # AI interpretation for ML is handled inside _run_phyml_local after tree is built
+
+    else:
+        _patch(job_id, phase="error", error=f"Unknown method: {req.method}")
+
+
+# ─── API endpoints ─────────────────────────────────────────────────────────────
+
+@router.post("/run", response_model=RunResponse)
+async def run_phylo(
+    req: PhyloRequest,
+    background_tasks: BackgroundTasks,
+):
+    if len(req.sequences) < 2:
+        raise HTTPException(400, detail="At least 2 sequences are required")
+    if len(req.sequences) > 50:
+        raise HTTPException(400, detail="Maximum 50 sequences per run")
+
+    try:
+        req.sequences = _validate_sequence_records(req.sequences, req.seq_type)
+        if req.method == "ml":
+            req.model = _resolve_ml_model(req.model, req.seq_type)
+    except ValueError as e:
+        raise HTTPException(400, detail=str(e))
+
+    job_id = str(uuid.uuid4())
+    _init(job_id, req)
+    background_tasks.add_task(_worker, job_id)
+    return RunResponse(job_id=job_id, status="queued")
+
+
+@router.get("/status/{job_id}")
+async def get_status(job_id: str):
+    job = _read(job_id)
+    if not job:
+        raise HTTPException(404, detail=f"Job {job_id} not found")
+    return {k: v for k, v in job.items() if not k.startswith("_")}
+
+
+@router.get("/models")
+async def list_models(seq_type: SeqType = "protein"):
+    return {
+        "seq_type": seq_type,
+        "models": PROTEIN_MODELS if seq_type == "protein" else DNA_MODELS,
+        "default": "LG" if seq_type == "protein" else "GTR",
+    }

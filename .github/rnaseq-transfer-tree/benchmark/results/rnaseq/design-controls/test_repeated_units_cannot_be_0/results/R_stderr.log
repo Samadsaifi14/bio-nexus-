@@ -1,0 +1,2 @@
+Error: metadata column 'experimental_unit' contains repeated experimental units but is absent from the model. Technical/repeated measurements must not be treated as independent biological replicates; declare the unit/block in the design when scientifically appropriate.
+Execution halted

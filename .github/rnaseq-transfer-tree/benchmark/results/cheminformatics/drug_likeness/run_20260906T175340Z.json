@@ -1,0 +1,15 @@
+{
+  "schema": "bionexus-benchmark-run/v1",
+  "domain": "cheminformatics",
+  "benchmark": "drug_likeness_rules",
+  "fixture": "drug_likeness_v1",
+  "timestamp": "2026-09-06T17:53:40+00:00",
+  "live_environments": {
+    "python": "3.11.15",
+    "rdkit": "2022.09.5"
+  },
+  "n_molecules": 14,
+  "passed": true,
+  "rule_mismatches": [],
+  "spot_check_failures": []
+}

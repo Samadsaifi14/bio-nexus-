@@ -1,0 +1,659 @@
+"""Unit tests for BLAST pipeline resilience.
+
+Covers:
+- check_status_until_ready: jobs are not declared STUCK before they get a
+  meaningful share of their poll budget (NCBI routinely exceeds RTOE).
+- _run_blast (pipeline_v2): NCBI failure falls back to EBI BLAST instead of
+  failing the whole pipeline; result shape is normalized across providers.
+- BlastTool._submit stype mapping for blastx/tblastn.
+
+Network calls are mocked; these tests never touch the real providers.
+"""
+
+import pytest
+
+from app.integrations.ncbi import blast as ncbi_blast
+
+
+SAMPLE_XML = """<?xml version="1.0"?>
+<!DOCTYPE BlastOutput PUBLIC "-//NCBI//NCBI BlastOutput/EN" "http://www.ncbi.nlm.nih.gov/dtd/NCBI_BlastOutput.dtd">
+<BlastOutput>
+  <BlastOutput_program>blastp</BlastOutput_program>
+  <BlastOutput_query-len>7</BlastOutput_query-len>
+  <BlastOutput_iterations>
+    <Iteration>
+      <Iteration_iter-num>1</Iteration_iter-num>
+      <Iteration_hits>
+        <Hit>
+          <Hit_num>1</Hit_num>
+          <Hit_id>sp|P12345|FOO_HUMAN</Hit_id>
+          <Hit_def>sp|P12345|FOO_HUMAN Foo protein [Homo sapiens]</Hit_def>
+          <Hit_accession>P12345</Hit_accession>
+          <Hit_len>100</Hit_len>
+          <Hit_hsps>
+            <Hsp>
+              <Hsp_num>1</Hsp_num>
+              <Hsp_bit-score>50.0</Hsp_bit-score>
+              <Hsp_score>100</Hsp_score>
+              <Hsp_evalue>1e-5</Hsp_evalue>
+              <Hsp_query-from>1</Hsp_query-from>
+              <Hsp_query-to>7</Hsp_query-to>
+              <Hsp_hit-from>10</Hsp_hit-from>
+              <Hsp_hit-to>16</Hsp_hit-to>
+              <Hsp_query-frame>1</Hsp_query-frame>
+              <Hsp_hit-frame>1</Hsp_hit-frame>
+              <Hsp_identity>5</Hsp_identity>
+              <Hsp_positive>6</Hsp_positive>
+              <Hsp_gaps>1</Hsp_gaps>
+              <Hsp_align-len>8</Hsp_align-len>
+              <Hsp_qseq>AAAAA--</Hsp_qseq>
+              <Hsp_hseq>AAAAA--</Hsp_hseq>
+              <Hsp_midline>AAAAA  </Hsp_midline>
+            </Hsp>
+          </Hit_hsps>
+        </Hit>
+      </Iteration_hits>
+    </Iteration>
+  </BlastOutput_iterations>
+</BlastOutput>
+"""
+
+PROTEIN_SEQ = "MEEPQSDPSVEPPLSQETFSDLWKLLPENNVLSPLPSQAMDDLMLSPDDIEQWFTEDPGPDEA"
+
+
+class _FakeClock:
+    """Deterministic clock: asyncio.sleep() advances it instead of waiting."""
+
+    def __init__(self):
+        self.now = 0.0
+
+    def time(self):
+        return self.now
+
+
+@pytest.fixture
+def fake_clock(monkeypatch):
+    clock = _FakeClock()
+
+    async def _fake_sleep(seconds):
+        clock.now += seconds
+
+    monkeypatch.setattr(ncbi_blast.asyncio, "sleep", _fake_sleep)
+    monkeypatch.setattr(ncbi_blast.asyncio, "get_event_loop", lambda: clock)
+    return clock
+
+
+async def _always_waiting(rid, fmt="XML"):
+    return {"status": "WAITING", "raw": "Status=WAITING", "rid": rid}
+
+
+async def _ready_after(rid, threshold, fmt="XML"):
+    clock = ncbi_blast.asyncio.get_event_loop()
+    if clock.time() > threshold:
+        return {"status": "READY", "raw": "Status=READY", "rid": rid}
+    return {"status": "WAITING", "raw": "Status=WAITING", "rid": rid}
+
+
+class TestStuckThreshold:
+    def test_slow_job_is_not_abandoned_before_half_budget(self, monkeypatch, fake_clock):
+        # Regression: a job WAITING for ~188s used to be declared STUCK with a
+        # 900s budget (old threshold max(RTOE*5, 180)). It must keep polling.
+        async def waiting_then_ready(rid, fmt="XML"):
+            return await _ready_after(rid, threshold=300)
+
+        monkeypatch.setattr(ncbi_blast, "check_status", waiting_then_ready)
+        result = asyncio_run(ncbi_blast.check_status_until_ready(
+            "RID1", max_wait_seconds=900, estimated_seconds=10,
+        ))
+        assert result["status"] == "READY", result
+        assert fake_clock.now >= 300
+
+    def test_truly_stuck_job_declared_stuck_after_half_budget(self, monkeypatch, fake_clock):
+        monkeypatch.setattr(ncbi_blast, "check_status", _always_waiting)
+        result = asyncio_run(ncbi_blast.check_status_until_ready(
+            "RID2", max_wait_seconds=900, estimated_seconds=10,
+        ))
+        assert result["status"] == "STUCK", result
+        assert fake_clock.now >= 450, f"STUCK fired too early at {fake_clock.now:.0f}s"
+
+    def test_budget_exhaustion_returns_timeout_before_stuck(self, monkeypatch, fake_clock):
+        # With a small budget, TIMEOUT (end of budget) must win over STUCK.
+        monkeypatch.setattr(ncbi_blast, "check_status", _always_waiting)
+        result = asyncio_run(ncbi_blast.check_status_until_ready(
+            "RID3", max_wait_seconds=120, estimated_seconds=1000,
+        ))
+        assert result["status"] == "TIMEOUT", result
+        assert fake_clock.now >= 120
+
+
+class TestPipelineBlastFallback:
+    """EBI is now the PRIMARY provider (fast & reliable, ~30s); NCBI is the
+    fallback. Tests assert EBI-first ordering and the NCBI fallback path."""
+
+    def _fake_ebi_tool(self, hits):
+        class _FakeBlastTool:
+            async def run_uncached(self, input):
+                return {"hits": hits, "count": len(hits) if isinstance(hits, list) else 0,
+                        "source": "EBI BLAST", "database": "uniprotkb"}
+        return _FakeBlastTool
+
+    def test_ebi_success_never_calls_ncbi(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        called = {"ncbi": False}
+        async def fake_run_blast_with_retry(*args, **kwargs):
+            called["ncbi"] = True
+            return {"raw": SAMPLE_XML, "rid": "RID-X"}
+
+        hits = [{
+            "accession": "Q9H2H9", "description": "CCHC-type zinc finger protein 3",
+            "organism": "Homo sapiens", "evalue": 1e-30, "bit_score": 210.0,
+            "identity_pct": 98.7, "alignment_length": 152, "query_coverage_pct": 0,
+            "query_from": 1, "query_to": 152, "hit_from": 1, "hit_to": 152,
+        }]
+        monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
+        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool(hits))
+        result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
+        assert result["source"] == "ebi"
+        assert result["count"] == 1
+        assert result["top_hit"]["accession"] == "Q9H2H9"
+        assert result["database"] == "swissprot"  # reports the requested db, not EBI's
+        assert result["hits"][0]["organism"] == "Homo sapiens"
+        assert result["hits"][0]["hit_alignment"] == ""  # EBI lacks alignment text
+        assert result["hits"][0]["query_coverage_pct"] == 100.0  # coverage is bounded and derived from query coordinates
+        assert called["ncbi"] is False, "NCBI must not be called when EBI succeeds"
+
+    def test_ebi_comprehensive_timeout_degrades_to_swissprot(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        # Regression: EBI's uniprotkb (mapped from "nr") regularly times out
+        # within the 180s poll budget and NCBI is unreachable. The BLAST must
+        # degrade to the curated Swiss-Prot DB instead of failing the run.
+        hit = {
+            "accession": "Q8LP17", "description": "Carotenoid cleavage dioxygenase 1",
+            "organism": "Pisum sativum", "evalue": 0.0, "bit_score": 910.0,
+            "identity_pct": 88.3, "alignment_length": 600,
+        }
+        calls = []
+
+        class _FakeBlastTool:
+            async def run_uncached(self, input):
+                calls.append(input["database"])
+                if input["database"] == "uniprotkb":
+                    return {"error": "BLAST job ncbiblast-abc ended with status TIMEOUT", "hits": []}
+                return {"hits": [hit], "count": 1, "source": "EBI BLAST", "database": input["database"]}
+
+        monkeypatch.setattr(pipeline_v2, "BlastTool", _FakeBlastTool)
+        result = asyncio_run(pipeline_v2._run_ebi_blast_fallback(
+            PROTEIN_SEQ, "blastp", "nr", "protein", 10,
+        ))
+        assert result is not None
+        assert calls == ["uniprotkb", "uniprotkb_swissprot"]
+        assert result["count"] == 1
+        assert result["database"] == "nr"  # reports the requested db, not EBI's
+        assert result["_degraded_from"] == "uniprotkb"
+        assert result["top_hit"]["accession"] == "Q8LP17"
+
+    def test_ebi_empty_then_ncbi_success(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        async def fake_run_blast_with_retry(*args, **kwargs):
+            return {"raw": SAMPLE_XML, "rid": "RID-X"}
+
+        # EBI returns no hits → NCBI fallback must produce the NCBI-shaped result
+        monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
+        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool([]))
+        result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
+        assert result["source"] == "ncbi"
+        assert result["count"] == 1
+        assert result["query_sequence_type"] == "protein"
+        assert result["database"] == "swissprot"
+        assert result["top_hit"]["accession"] == "P12345"
+        assert result["top_hit"]["evalue"] == 1e-5
+        assert result["hits"][0]["hit_alignment"] == "AAAAA--"
+        assert result["hits"][0]["query_alignment"] == "AAAAA--"
+        assert result["hits"][0]["midline"] == "AAAAA  "
+
+    def test_both_providers_fail_returns_error(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        async def fake_run_blast_with_retry(*args, **kwargs):
+            return {"error": "BLAST STUCK after polling (attempt 3/3): Job stuck in WAITING for 188.75s"}
+
+        monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
+        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool([]))
+        result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
+        assert result["error"]
+        assert "STUCK" in result["error"]
+        assert result["count"] == 0
+        assert result["hits"] == []
+
+    def test_ebi_fallback_skips_unmapped_database(self):
+        from app.routers.pipeline_v2 import _run_ebi_blast_fallback
+
+        result = asyncio_run(_run_ebi_blast_fallback(PROTEIN_SEQ, "blastp", "no_such_db", "protein", 10))
+        assert result is None
+
+
+class TestStandaloneBlastRouting:
+    def test_blastp_restores_comprehensive_protein_pipeline(self):
+        from app.routers.pipelines import _effective_pipeline_type
+
+        assert _effective_pipeline_type("blast", "blastp") == "protein_analysis"
+        assert _effective_pipeline_type("protein_analysis", "blastp") == "protein_analysis"
+
+    def test_non_blastp_programs_remain_search_only(self):
+        from app.routers.pipelines import _effective_pipeline_type
+
+        for program in ("blastn", "blastx", "tblastn", "tblastx"):
+            assert _effective_pipeline_type("blast", program) == "blast"
+
+
+class TestBlastCoverageSemantics:
+    def test_query_coverage_unions_overlapping_hsps_without_double_counting(self):
+        from app.routers.pipeline_v2 import _blast_query_coverage_pct
+
+        hit = {"hsps": [
+            {"query_from": 1, "query_to": 30},
+            {"query_from": 21, "query_to": 50},
+            {"query_from": 70, "query_to": 80},
+        ]}
+        assert _blast_query_coverage_pct(hit, 100) == 61.0
+
+    def test_query_coverage_uses_query_span_not_alignment_length(self):
+        from app.routers.pipeline_v2 import _blast_query_coverage_pct
+
+        hit = {
+            "query_from": 21,
+            "query_to": 70,
+            "alignment_length": 80,  # includes alignment columns not query span
+        }
+        assert _blast_query_coverage_pct(hit, 100) == 50.0
+
+    def test_query_coverage_is_bounded_to_100(self):
+        from app.routers.pipeline_v2 import _blast_query_coverage_pct
+
+        inconsistent_provider_payload = {
+            "query_from": 1,
+            "query_to": 152,
+            "alignment_length": 152,
+        }
+        assert _blast_query_coverage_pct(inconsistent_provider_payload, 70) == 100.0
+
+
+class TestEbiToolSubmit:
+    async def test_stype_mapping(self, monkeypatch):
+        from app.tools.blast import BlastTool
+
+        captured = {}
+
+        class FakeResp:
+            # EMBL-EBI REST /run returns the job identifier as plain text.
+            text = "abc"
+
+            def raise_for_status(self):
+                pass
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def post(self, url, **kwargs):
+                captured["data"] = kwargs["data"]
+                return FakeResp()
+
+        monkeypatch.setattr("app.tools.blast.httpx.AsyncClient", lambda **kw: FakeClient())
+        tool = BlastTool()
+        await tool._submit("ATGCATGCATGC", "blastx", "nr")
+        assert captured["data"]["stype"] == "dna"  # blastx translates a nucleotide query
+        await tool._submit("MKTAYIAKQRQISFVKSHFSRQDIL", "tblastn", "nt")
+        assert captured["data"]["stype"] == "protein"  # tblastn translates the nucleotide target
+
+
+def asyncio_run(coro):
+    import asyncio
+    return asyncio.run(coro)
+
+
+class TestUnreasonableRtoeBails:
+    """Regression: when NCBI reports an enormous RTOE (overloaded), run_blast_with_retry
+    must return an error immediately so the caller's EBI fallback can run — it must NOT
+    `continue` into sync mode, which blocks 300s x3 and stalls the pipeline for ~15 min."""
+
+    async def _huge_rtoe_submit(self, *args, **kwargs):
+        return {"rid": "RID9", "estimated_seconds": 2300}
+
+    def test_huge_rtoe_returns_error_without_polling(self, monkeypatch, fake_clock):
+        monkeypatch.setattr(ncbi_blast, "submit_blast", self._huge_rtoe_submit)
+        called = {"submit_sync": False, "check": False}
+
+        async def fake_sync(*a, **k):
+            called["submit_sync"] = True
+            return {"error": "should never be used"}
+
+        async def fake_check(*a, **k):
+            called["check"] = True
+            return {"status": "READY", "rid": "x"}
+
+        monkeypatch.setattr(ncbi_blast, "submit_blast_sync", fake_sync)
+        monkeypatch.setattr(ncbi_blast, "check_status_until_ready", fake_check)
+
+        result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
+        assert "error" in result, result
+        assert "2300" in result["error"], result["error"]
+        assert not called["submit_sync"], "sync mode must not be attempted on huge RTOE"
+        assert not called["check"], "must not poll after bailing on huge RTOE"
+
+    def test_reasonable_rtoe_still_polls(self, monkeypatch, fake_clock):
+        async def good_submit(self, *args, **kwargs):
+            return {"rid": "RID10", "estimated_seconds": 5}
+
+        async def ready(*args, **kwargs):
+            return {"status": "READY", "raw": "Status=READY", "rid": args[0]}
+
+        async def fetch(rid, fmt="XML"):
+            return {"raw": "Status=READY", "rid": rid}
+
+        monkeypatch.setattr(ncbi_blast, "submit_blast", good_submit)
+        monkeypatch.setattr(ncbi_blast, "check_status_until_ready", ready)
+        monkeypatch.setattr(ncbi_blast, "fetch_results", fetch)
+
+        result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
+        assert "error" not in result, result
+        assert result["rid"] == "RID10"
+
+    def test_low_remaining_budget_does_not_crash(self, monkeypatch, fake_clock):
+        """Regression: the per-attempt budget guard used an invalid f-string format
+        ({remaining:.0fs}) that raised ValueError and failed the whole job instead
+        of returning a readable error. It must return a clean error dict."""
+        import time as _time
+
+        wall = {"t": 0.0}
+        real_monotonic = _time.monotonic
+
+        def monkey_monotonic():
+            return wall["t"]
+
+        class _FakeSub:
+            async def __call__(self, *a, **k):
+                # advance the wall clock so the remaining budget is < 30s
+                wall["t"] = 900.0
+                return {"rid": "RID11", "estimated_seconds": 5}
+
+        async def never_poll(*a, **k):
+            raise AssertionError("must not poll when budget is exhausted")
+
+        monkeypatch.setattr(_time, "monotonic", monkey_monotonic)
+        monkeypatch.setattr(ncbi_blast, "submit_blast", _FakeSub())
+        monkeypatch.setattr(ncbi_blast, "check_status_until_ready", never_poll)
+
+        try:
+            result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
+            assert "error" in result, result
+        finally:
+            _time.monotonic = real_monotonic
+
+
+class TestEbiParseHits:
+    """EBI BLAST JSON nests HSPs under 'hit_hsps' and returns identity/positive
+    already as percentages. Regression: the old parser read 'hsps' (always empty),
+    so every EBI hit rendered with zero score / identity / coverage."""
+
+    def _sample(self):
+        return [{
+            "hit_num": 1,
+            "hit_id": "CRAM_CRAAB",
+            "hit_acc": "P01542",
+            "hit_desc": "Crambin OS=Crambe hispanica subsp. abyssinica OX=3721 GN=THI2 PE=1 SV=2",
+            "hit_uni_de": "Crambin",
+            "hit_os": "Crambe hispanica subsp. abyssinica",
+            "hit_len": 46,
+            "hit_hsps": [{
+                "hsp_num": 1,
+                "hsp_score": 113,
+                "hsp_bit_score": 48.1,
+                "hsp_expect": 2.7e-09,
+                "hsp_align_len": 20,
+                "hsp_identity": 100.0,
+                "hsp_positive": 100.0,
+                "hsp_gaps": 0,
+                "hsp_query_from": 1,
+                "hsp_query_to": 20,
+                "hsp_hit_from": 1,
+                "hsp_hit_to": 20,
+                "hsp_qseq": "TTCCPSIVARSNFNVCRLPG",
+                "hsp_hseq": "TTCCPSIVARSNFNVCRLPG",
+                "hsp_mseq": "TTCCPSIVARSNFNVCRLPG",
+            }],
+        }]
+
+    def test_parses_real_ebi_schema(self):
+        from app.tools.blast import BlastTool
+        hits = BlastTool()._parse_hits(self._sample(), max_hits=5)
+        assert len(hits) == 1
+        hit = hits[0]
+        assert hit["accession"] == "P01542"
+        assert hit["description"] == "Crambin"
+        assert hit["organism"] == "Crambe hispanica subsp. abyssinica"
+        assert hit["bit_score"] == 48.1
+        assert hit["score"] == 113
+        assert hit["identity_pct"] == 100.0  # already a percentage in EBI output
+        assert hit["positive"] == 100.0
+        assert hit["alignment_length"] == 20
+        assert hit["query_coverage_pct"] == 0  # recomputed in _build_blast_result
+        assert hit["query_alignment"] == "TTCCPSIVARSNFNVCRLPG"
+        assert hit["hit_alignment"] == "TTCCPSIVARSNFNVCRLPG"
+        assert hit["midline"] == "TTCCPSIVARSNFNVCRLPG"
+        assert hit["query_from"] == 1
+        assert hit["hit_to"] == 20
+
+    def test_missing_hsps_does_not_crash(self):
+        from app.tools.blast import BlastTool
+        hits = BlastTool()._parse_hits([{"hit_acc": "X1", "hit_desc": "no hsp"}], max_hits=5)
+        assert hits[0]["accession"] == "X1"
+        assert hits[0]["bit_score"] == 0
+        assert hits[0]["identity_pct"] == 0
+
+
+class TestBlastDownstreamFeatureRestoration:
+    """Regression coverage for BLAST -> MSA/tree -> structure feature chain."""
+
+    @pytest.mark.asyncio
+    async def test_local_mafft_alignment_also_emits_real_tree(self, monkeypatch):
+        from app.routers import pipeline_v2
+        from app.tools import mafft_local
+
+        query = "MKTAYIAKQRQISFVKSHFSRQDI"
+        seqs = {
+            "P11111": "MKTAYIAKQRQISFVKSHFSRQDV",
+            "P22222": "MKTAYIAKQRQISFVKSHFTRQDI",
+            "P33333": "MKTAYIAKQREISFVKSHFSRQDI",
+        }
+
+        class FakeUniprotTool:
+            async def run(self, input):
+                accession = input["accession"]
+                return {"accession": accession, "sequence": seqs[accession]}
+
+        def fake_mafft(fasta, strategy="auto", threads=1, timeout=300):
+            # The input records are equal length in this fixture, so returning
+            # them unchanged is a valid aligned FASTA for testing tree wiring.
+            return {
+                "aln_fasta": fasta,
+                "method": "mafft-local",
+                "strategy": strategy,
+                "threads": threads,
+                "tool_version": "test",
+            }
+
+        monkeypatch.setattr(pipeline_v2, "UniprotTool", FakeUniprotTool)
+        monkeypatch.setattr(mafft_local, "run_local_mafft", fake_mafft)
+
+        hits = [
+            {"accession": accession, "hit_alignment": sequence}
+            for accession, sequence in seqs.items()
+        ]
+        result = await pipeline_v2._run_msa(query, hits, "global")
+
+        assert result["aln_fasta"]
+        assert result["method"] == "mafft-local"
+        assert result["phylotree_method"] == "upgma-pdistance"
+        assert result["phylotree"].endswith(";")
+        assert "query" in result["phylotree"]
+        for accession in seqs:
+            assert accession in result["phylotree"]
+
+    @pytest.mark.asyncio
+    async def test_structure_falls_back_to_experimental_pdb(self, monkeypatch):
+        from app.routers import pipeline_v2
+
+        async def no_alphafold(context):
+            return {
+                "uniprot_accession": "P11111",
+                "structure_available": False,
+                "message": "No AlphaFold prediction",
+            }
+
+        async def experimental(uniprot_data, accession):
+            assert uniprot_data["pdb_ids"] == ["1ABC"]
+            assert accession == "P11111"
+            return {
+                "uniprot_accession": accession,
+                "structure_available": True,
+                "source": "rcsb_pdb",
+                "structure_type": "experimental",
+                "pdb_id": "1ABC",
+                "pdb_url": "https://files.rcsb.org/download/1ABC.pdb",
+                "pdb_text": "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 20.00           C",
+            }
+
+        monkeypatch.setattr(pipeline_v2, "_run_alphafold", no_alphafold)
+        monkeypatch.setattr(pipeline_v2, "_fetch_experimental_pdb", experimental)
+
+        context = {
+            "uniprot": {
+                "accession": "P11111",
+                "resolved_uniprot": True,
+                "pdb_ids": ["1ABC"],
+            }
+        }
+        result = await pipeline_v2._run_alphafold_or_esmfold(
+            context, PROTEIN_SEQ, "P11111", True
+        )
+
+        assert result["structure_available"] is True
+        assert result["source"] == "rcsb_pdb"
+        assert result["structure_type"] == "experimental"
+        assert result["pdb_id"] == "1ABC"
+
+    @pytest.mark.asyncio
+    async def test_structure_uses_esmfold_only_after_reference_sources_fail(self, monkeypatch):
+        from app.routers import pipeline_v2
+        from app.services import de_novo
+
+        async def no_alphafold(context):
+            return {"structure_available": False, "message": "missing"}
+
+        async def no_pdb(uniprot_data, accession):
+            return None
+
+        async def predicted(sequence):
+            assert sequence == PROTEIN_SEQ
+            return {
+                "structure_available": True,
+                "pdb_text": "ATOM      1  CA  ALA A   1       0.000   0.000   0.000  1.00 88.00           C",
+                "mean_plddt": 88.0,
+            }
+
+        monkeypatch.setattr(pipeline_v2, "_run_alphafold", no_alphafold)
+        monkeypatch.setattr(pipeline_v2, "_fetch_experimental_pdb", no_pdb)
+        monkeypatch.setattr(de_novo, "esmfold_structure", predicted)
+
+        context = {
+            "uniprot": {
+                "accession": "P11111",
+                "resolved_uniprot": True,
+                "pdb_ids": [],
+            }
+        }
+        result = await pipeline_v2._run_alphafold_or_esmfold(
+            context, PROTEIN_SEQ, "P11111", True
+        )
+
+        assert result["structure_available"] is True
+        assert result["source"] == "esmfold"
+        assert result["structure_type"] == "predicted"
+        assert result["uniprot_accession"] == "P11111"
+
+
+class TestBlastStructureAnalysisRestoration:
+    """BLAST downstream structure panels must operate on carried evidence honestly."""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("identifier", ["AAAA.invalid", "AAAA?x=1", "../A", "A" * 100])
+    async def test_remote_structure_identifiers_reject_url_metacharacters(self, identifier):
+        from fastapi import HTTPException
+        from app.routers.structure_analysis import ramachandran, secondary_structure
+
+        for endpoint in (ramachandran, secondary_structure):
+            with pytest.raises(HTTPException) as exc:
+                await endpoint(identifier)
+            assert exc.value.status_code == 422
+
+    def test_secondary_structure_accepts_raw_sequence_and_is_labelled_heuristic(self):
+        from app.routers.structure_analysis import _predict_secondary_structure
+
+        result = _predict_secondary_structure(PROTEIN_SEQ, "BLAST query")
+        assert result["method"] == "Chou-Fasman propensity heuristic"
+        assert result["evidence_class"] == "heuristic"
+        assert result["source"] == "BLAST query"
+        assert len(result["residues"]) == len(PROTEIN_SEQ)
+        assert {row.ss for row in result["residues"]} <= {"H", "E", "C"}
+
+    def test_ramachandran_basin_labels_are_descriptive_not_quality_outliers(self):
+        from app.routers.structure_analysis import classify_rama
+
+        assert classify_rama(-63, -43) == "alpha"
+        assert classify_rama(-120, 125) == "beta"
+        assert classify_rama(60, 40) == "left_handed"
+        assert classify_rama(170, -170) == "other"
+        assert "outlier" not in {
+            classify_rama(-63, -43),
+            classify_rama(-120, 125),
+            classify_rama(60, 40),
+            classify_rama(170, -170),
+        }
+
+    def test_ramachandran_calculates_angles_from_inline_carried_structure(self):
+        from app.routers.structure_analysis import _ramachandran_points
+
+        pdb = """\
+ATOM      1  N   ALA A   1      17.047  14.099   3.625  1.00  0.00           N
+ATOM      2  CA  ALA A   1      16.967  12.784   4.338  1.00  0.00           C
+ATOM      3  C   ALA A   1      15.685  12.755   5.133  1.00  0.00           C
+ATOM      4  O   ALA A   1      15.268  13.825   5.594  1.00  0.00           O
+ATOM      5  CB  ALA A   1      18.170  12.703   5.337  1.00  0.00           C
+ATOM      6  N   ALA A   2      15.115  11.555   5.265  1.00  0.00           N
+ATOM      7  CA  ALA A   2      13.856  11.469   6.066  1.00  0.00           C
+ATOM      8  C   ALA A   2      14.164  10.785   7.379  1.00  0.00           C
+ATOM      9  O   ALA A   2      14.993   9.862   7.443  1.00  0.00           O
+ATOM     10  CB  ALA A   2      12.732  10.711   5.261  1.00  0.00           C
+ATOM     11  N   ALA A   3      13.550  10.300   8.450  1.00  0.00           N
+ATOM     12  CA  ALA A   3      13.700   9.600   9.700  1.00  0.00           C
+ATOM     13  C   ALA A   3      12.500   9.800  10.600  1.00  0.00           C
+ATOM     14  O   ALA A   3      11.400   9.350  10.300  1.00  0.00           O
+ATOM     15  CB  ALA A   3      15.000   9.900  10.400  1.00  0.00           C
+TER      16      ALA A   3
+END
+"""
+        points = _ramachandran_points(pdb, "A")
+        assert points
+        assert any(point.resnum == 2 for point in points)
+        assert all(-180.0 <= point.phi <= 180.0 for point in points)
+        assert all(-180.0 <= point.psi <= 180.0 for point in points)

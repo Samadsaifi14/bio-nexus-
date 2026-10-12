@@ -1,0 +1,33 @@
+{
+  "status": "PASS_WITH_WARNINGS",
+  "comparison": "b vs a",
+  "replicate_counts": {
+    "a": 4,
+    "b": 4
+  },
+  "biological_replication_note": "Sample-row counts are reported here; independence must follow the declared experimental unit. Technical repeats are not biological replicates.",
+  "experimental_unit_column": "experimental_unit",
+  "experimental_unit_status": "REPEATED_AND_MODELLED",
+  "covariates": [
+    "experimental_unit"
+  ],
+  "technical_covariates_detected": [
+    "batch"
+  ],
+  "technical_covariates_in_model": [],
+  "confounded_columns": [],
+  "design": "~experimental_unit + condition",
+  "design_rank": 5,
+  "design_columns": 5,
+  "design_full_rank": true,
+  "min_samples_requested": 4,
+  "min_samples_effective": 4,
+  "library_size_min": 13745,
+  "library_size_max": 14752,
+  "library_size_fold_range": 1.0732630047,
+  "warnings": [
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design.",
+    "Recorded technical variable(s) not included in the statistical model: batch. Review PCA and study design before deciding whether adjustment is required."
+  ],
+  "size_factor_library_correlation": 0.82397562988
+}

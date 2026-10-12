@@ -1,0 +1,61 @@
+{
+  "schema": "bionexus-blast-parser-reference/v1",
+  "origin": "synthetic-structural",
+  "capture_metadata": {},
+  "program": "blastp",
+  "database": "swissprot (frozen at capture)",
+  "blast_output_version": "BLASTP 2.16.0+",
+  "query": {
+    "length": 147
+  },
+  "source_xml": "synthetic_structure.xml",
+  "source_xml_sha256": "5503a376ccc8fc2db4c0290574d31fcb87e511eb448b8d30fd814bc057d08f9e",
+  "hits": [
+    {
+      "accession": "P68871",
+      "id": "sp|P68871|HBB_HUMAN",
+      "description": "Hemoglobin subunit beta",
+      "organism": "Homo sapiens",
+      "length": 147,
+      "score": 739,
+      "bit_score": 290.1,
+      "evalue_raw": "1e-83",
+      "evalue": 1e-83,
+      "identity": 147,
+      "identity_pct": 100.0,
+      "positive": 147,
+      "gaps": 0,
+      "alignment_length": 147,
+      "query_from": 1,
+      "query_to": 147,
+      "hit_from": 1,
+      "hit_to": 147,
+      "query_alignment": "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH",
+      "hit_alignment": "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH",
+      "midline": "|"
+    },
+    {
+      "accession": "P02070",
+      "id": "sp|P02070|HBB_BOVIN",
+      "description": "Hemoglobin subunit beta",
+      "organism": "Bos taurus",
+      "length": 145,
+      "score": 716,
+      "bit_score": 280.5,
+      "evalue_raw": "1e-79",
+      "evalue": 1e-79,
+      "identity": 140,
+      "identity_pct": 95.2,
+      "positive": 144,
+      "gaps": 2,
+      "alignment_length": 147,
+      "query_from": 1,
+      "query_to": 147,
+      "hit_from": 1,
+      "hit_to": 145,
+      "query_alignment": "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH",
+      "hit_alignment": "MLTAEEKAAVTSLWSKMNVEEAGGEALGRLLVVYPWTQRFFESFGDLSTADAVMNNPKVKAHGKKVLDSFSNGMKHLDDLKGTFAALSELHCDKLHVDPENFKLLGNVLVVVLARHFGKEFTPVLQADFQKVVAGVANALAHRYH",
+      "midline": "|"
+    }
+  ]
+}

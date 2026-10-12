@@ -1,0 +1,38 @@
+{
+  "name": "protein_controls",
+  "version": 1,
+  "type": "curated",
+  "date": "2026-01-15",
+  "category": "protein",
+  "description": "Curated positive/negative control proteins for BLAST and interpretation engines.",
+  "citation": "UniProt curated annotations (2026_01 release); verified manually for BioNexus demos.",
+  "records": [
+    {
+      "id": "control-p53-P04637",
+      "type": "positive_control",
+      "label": "Tumor suppressor p53 (P04637), DNA-binding core",
+      "gene": "TP53",
+      "organism": "Homo sapiens",
+      "sequence": "SSSVPSQKTYQGSYGFRLGFLHSGTAKSVTCTYSPALNKMFCQLAKTCPVQLWVDSTPPPGTRVRAMAIYKQSQHMTEVVRRCPHHERCSDSDGLAPPQHLIRVEGNLRVEYLDDRNTFRHSVVVPYEPPEVGSDCTTIHYNYMCNSSCMGGMNRRPILTIITLEDSSGNLLGRNSFEVRVCACPGRDRRTEEENLRKKGEPHHELPPGSTKRALPNNTSSSPQPKKKPLDGEYFTLQIRGRERFEMFRELNEALELKDAQAGKEPGGSRAHSSHLKSKKGQSTSRHKKLMFKTEGPDSD",
+      "summary": "True p53 core-domain sequence; blast should recover known p53 hits and match annotation 'tumor protein p53'."
+    },
+    {
+      "id": "control-gfp-Aequorea",
+      "type": "negative_control",
+      "label": "Green fluorescent protein (GFP), Aequorea victoria",
+      "gene": "gfp",
+      "organism": "Aequorea victoria",
+      "sequence": "MSKGEELFTGVVPILVELDGDVNGHKFSVSGEGEGDATYGKLTLKFICTTGKLPVPWPTLVTTFSYGVQCFSRYPDHMKQHDFFKSAMPEGYVQERTIFFKDDGNYKTRAEVKFEGDTLVNRIELKGIDFKEDGNILGHKLEYNYNSHNVYIMADKQKNGIKVNFKIRHNIEDGSVQLADHYQQNTPIGDGPVLLPDNHYLSTQSALSKDPNEKRDHMVLLEFVTAAGITHGMDELYK",
+      "summary": "Established non-pathological control; blast of this sequence should not be annotated as a disease-associated tumor suppressor."
+    },
+    {
+      "id": "control-hemoglobin-HBB",
+      "type": "positive_control",
+      "label": "Hemoglobin subunit beta (HBB), wild-type reference",
+      "gene": "HBB",
+      "organism": "Homo sapiens",
+      "sequence": "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH",
+      "summary": "Reference human beta-globin; sequencing/alignment control for the variant pipelines."
+    }
+  ]
+}

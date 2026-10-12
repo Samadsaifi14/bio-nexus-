@@ -1,0 +1,28 @@
+{
+  "status": "PASS_WITH_WARNINGS",
+  "comparison": "b vs a",
+  "replicate_counts": {
+    "a": 4,
+    "b": 4
+  },
+  "biological_replication_note": "Sample-row counts are reported here; independence must follow the declared experimental unit. Technical repeats are not biological replicates.",
+  "experimental_unit_column": "experimental_unit",
+  "experimental_unit_status": "UNIQUE",
+  "covariates": [],
+  "technical_covariates_detected": [],
+  "technical_covariates_in_model": [],
+  "confounded_columns": [],
+  "design": "~condition",
+  "design_rank": 2,
+  "design_columns": 2,
+  "design_full_rank": true,
+  "min_samples_requested": 4,
+  "min_samples_effective": 4,
+  "library_size_min": 13518,
+  "library_size_max": 22689,
+  "library_size_fold_range": 1.6784287617,
+  "warnings": [
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design."
+  ],
+  "size_factor_library_correlation": 0.96388252625
+}

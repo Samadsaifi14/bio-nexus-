@@ -1,0 +1,15 @@
+{
+  "status": "NEEDS_ORGANISM",
+  "message": "Choose the documented organism. Human/mouse use local GO; other species can use a species-matched GMT. Sample groups cannot be inferred from gene identifiers.",
+  "organism": "auto",
+  "database": "GO",
+  "method": "One-sided hypergeometric ORA; BH across all term-direction tests",
+  "method_key": "ora",
+  "R_version": "R version 4.3.3 (2024-02-29)",
+  "alias_fallback": true,
+  "min_term_size": 10,
+  "max_term_size": 500,
+  "alpha": 0.05,
+  "background": "DESeq2 non-missing adjusted p-values; uniquely mapped, annotated genes",
+  "recovery_options": ["Review organism and ID type", "Enable unique symbol-alias recovery", "Supply a species-matched GMT and optional ID mapping"]
+}

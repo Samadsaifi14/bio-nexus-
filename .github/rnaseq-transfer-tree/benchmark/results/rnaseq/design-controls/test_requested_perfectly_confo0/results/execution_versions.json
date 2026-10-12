@@ -1,0 +1,10 @@
+{
+  "R": "4.3.3",
+  "packages": {
+    "DESeq2": "1.42.0",
+    "ComplexHeatmap": "2.18.0",
+    "ggplot2": "3.4.4",
+    "jsonlite": "1.8.8",
+    "circlize": "0.4.15"
+  }
+}

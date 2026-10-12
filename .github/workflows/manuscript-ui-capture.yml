@@ -58,6 +58,12 @@ jobs:
               try {
                 const nav = await blast.goto(b.url,{waitUntil:'domcontentloaded',timeout:60000});
                 await blast.waitForTimeout(2000);
+                const tutorialSkip = blast.getByRole('button',{name:'Skip tutorial'});
+                if(await tutorialSkip.isVisible().catch(()=>false)){
+                  await tutorialSkip.click({timeout:10000});
+                  await blast.locator('.scrim').waitFor({state:'hidden',timeout:10000});
+                  b.onboarding='dismissed';
+                } else {b.onboarding='not-shown';}
                 b.http_status = nav?.status() ?? null;
                 await blast.screenshot({path:path.join(out,'blast-before.png'),fullPage:true});
                 await blast.getByRole('button',{name:'Load p53 (human)'}).click({timeout:15000});

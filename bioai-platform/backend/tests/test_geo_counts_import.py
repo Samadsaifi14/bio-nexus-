@@ -245,3 +245,42 @@ def test_geo_analysis_rejects_unmodelled_varying_batch(monkeypatch):
                      for i, column in enumerate(matrix["columns"], 1)])
     with pytest.raises(Exception, match="varying technical variables.*batch"):
         asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))
+
+
+def test_geo_preview_suggests_unambiguous_replicated_groups_and_sample_ids(monkeypatch):
+    series = {"accession": "GSE336901", "samples": [
+        {"accession": f"GSM{i}", "title": f"replicate {i}",
+         "characteristics": {"treatment": "healthy" if i < 3 else "SALS"}}
+        for i in range(1, 5)], "design": "healthy vs SALS"}
+    matrix = {
+        "columns": ["GSM1", "GSM2", "GSM3", "GSM4"],
+        "matched_samples": ["GSM1", "GSM2", "GSM3", "GSM4"],
+        "library_sizes": [100, 110, 120, 130],
+        "sample_mapping": [{"status": "matched"}] * 4,
+        "genes": 2, "annotation_columns": [], "sha256": "abc",
+        "input_provenance": {"classification": "raw_integer_counts"},
+        "inspection_warnings": [],
+    }
+
+    async def fake_series(client, accession):
+        return series
+
+    async def fake_matrix(client, detail, filename):
+        return matrix, "https://ftp.ncbi.nlm.nih.gov/counts.tsv.gz"
+
+    monkeypatch.setattr(geo_search, "fetch_series", fake_series)
+    monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
+
+    async def run():
+        selection = geo_search.MatrixSelection(accession="GSE336901", filename="counts.tsv.gz")
+        return await geo_search.preview_geo_matrix(selection)
+
+    result = asyncio.run(run())
+    assert result["group_suggestion"] == {
+        "characteristic": "treatment", "levels": ["healthy", "SALS"],
+        "counts": {"healthy": 2, "SALS": 2}, "source": "GEO sample characteristics",
+    }
+    assert [column["suggested_condition"] for column in result["columns"]] == [
+        "healthy", "healthy", "SALS", "SALS"]
+    assert [column["experimental_unit_suggestion"] for column in result["columns"]] == [
+        "GSM1", "GSM2", "GSM3", "GSM4"]

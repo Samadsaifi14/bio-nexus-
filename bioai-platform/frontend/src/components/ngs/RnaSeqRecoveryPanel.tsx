@@ -6,6 +6,23 @@ import { parseExpressionResult, type RnaSeqExpressionResult, type RnaSeqArtifact
 
 type Job = { job_id: string; state: string; phase: string; error?: string; result?: { run_id: string; checkpoint_sha256?: string; artifacts: RnaSeqArtifact[] } };
 
+function inferTwoGroups(samples: string[]): { groups: string[]; counts: Record<string, number> } | null {
+  const stripped = samples.map(sample => sample.trim().replace(/[._-]?\d+$/, '').replace(/[._-]+$/, ''));
+  let prefix = stripped[0] ?? '';
+  for (const value of stripped.slice(1)) {
+    let size = 0;
+    while (size < prefix.length && size < value.length && prefix[size].toLowerCase() === value[size].toLowerCase()) size++;
+    prefix = prefix.slice(0, size);
+  }
+  if (!/[._-]$/.test(prefix)) prefix = prefix.slice(0, Math.max(prefix.lastIndexOf('_'), prefix.lastIndexOf('-'), prefix.lastIndexOf('.')) + 1);
+  const groups = stripped.map(value => value.slice(prefix.length).trim().toLowerCase());
+  const levels = [...new Set(groups)];
+  if (levels.length !== 2 || groups.some(group => !group)) return null;
+  const counts = Object.fromEntries(levels.map(level => [level, groups.filter(group => group === level).length]));
+  if (Object.values(counts).some(count => count < 2)) return null;
+  return { groups, counts };
+}
+
 export function recoveryError(error: unknown): string {
   const detail = (error as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail;
   if (typeof detail === 'string') return detail;
@@ -65,6 +82,7 @@ export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: R
   const [kind, setKind] = useState('raw_counts');
   const [data, setData] = useState<File | null>(null);
   const [metadata, setMetadata] = useState<File | null>(null);
+  const [metadataAutoInfo, setMetadataAutoInfo] = useState('');
   const [tx2gene, setTx2gene] = useState<File | null>(null);
   const [members, setMembers] = useState<{ name: string; count_issue?: string; salmon_candidate: boolean }[]>([]);
   const [matrixMember, setMatrixMember] = useState('');
@@ -94,6 +112,33 @@ export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: R
   const [capabilities, setCapabilities] = useState<{ counts?: { available: boolean; missing: string[] }; salmon?: { available: boolean; missing: string[] } } | null>(null);
   useEffect(() => { longApi.get('/api/ngs/v2/rnaseq/recovery/capabilities').then(response => setCapabilities(response.data)).catch(caught => setError(recoveryError(caught))); }, []);
   const inputClass = 'mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-sm';
+  async function buildMetadataFromHeader(file: File | null) {
+    setMetadataAutoInfo('');
+    if (kind !== 'raw_counts' || !file || !/\.(?:tsv|txt|csv)$/i.test(file.name)) return;
+    try {
+      const firstLine = (await file.slice(0, 256 * 1024).text()).split(/\r?\n/, 1)[0] ?? '';
+      const delimiter = file.name.toLowerCase().endsWith('.csv') ? ',' : '\t';
+      const header = delimiter === '\t' ? firstLine.split('\t') : Array.from(firstLine.matchAll(/(?:^|,)(?:"((?:[^"]|"")*)"|([^,]*))/g), match => (match[1] ?? match[2] ?? '').replaceAll('""', '"'));
+      const samples = header.slice(1).map(value => value.trim());
+      if (samples.length < 4 || samples.some(value => !value) || new Set(samples).size !== samples.length) {
+        setMetadataAutoInfo('Add reviewed metadata; the matrix header is not a unique set of sample columns.');
+        return;
+      }
+      const inference = inferTwoGroups(samples);
+      if (!inference) {
+        setMetadataAutoInfo('The sample names do not encode one clear two-group comparison. Add reviewed metadata to choose the groups explicitly.');
+        return;
+      }
+      const rows = ['sample\tcondition\texperimental_unit', ...samples.map((sample, index) => `${sample}\t${inference.groups[index]}\t${sample}`)];
+      setMetadata(new File([rows.join('\n') + '\n'], `${file.name}.metadata.tsv`, { type: 'text/tab-separated-values' }));
+      setReference(inference.groups[0]);
+      setTest(inference.groups.find(group => group !== inference.groups[0]) ?? '');
+      setReviewed(false);
+      setMetadataAutoInfo(`Drafted metadata from ${samples.length} actual matrix columns (${Object.entries(inference.counts).map(([group, count]) => `${group}: ${count}`).join(', ')}). Confirm group labels and verify that each row is an independent biological unit before running.`);
+    } catch {
+      setMetadataAutoInfo('Could not read the matrix header. Add a reviewed metadata TSV.');
+    }
+  }
   function invalidateSourceReview() {
     setReviewed(false); setCompatibilityReviewed(false); setOriginClass('unknown_origin');
   }
@@ -115,7 +160,10 @@ export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: R
   async function inspect() {
     if (!data) return;
     setBusy(true); setError('');
-    try { const form = new FormData(); form.append('archive', data); const response = await longApi.post('/api/ngs/v2/rnaseq/recovery/inspect', form); setMembers(response.data.members); }
+    try { const form = new FormData(); form.append('archive', data); const response = await longApi.post('/api/ngs/v2/rnaseq/recovery/inspect', form); const found = response.data.members ?? [];
+      setMembers(found);
+      const matrices = found.filter((member: { count_issue?: string }) => !member.count_issue);
+      if (matrices.length === 1) setMatrixMember(matrices[0].name); }
     catch (caught) { setError(recoveryError(caught)); } finally { setBusy(false); }
   }
   async function submit(production = false) {
@@ -158,12 +206,13 @@ export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: R
       <button type="button" disabled={busy || !geoSelected.length} onClick={inspectGeo} className="btn-secondary">Retrieve and inspect selected files</button>
       {geoChecksums && <p className="text-xs">Sources retrieved and checksummed. Select the matrix or map each sample file below. Files are fetched again and checked for changes on submission.</p>}
     </details>
-    <label className="block text-xs">Input type<select value={kind} onChange={event => { setKind(event.target.value); setMapping({}); setOriginClass('unknown_origin'); setReviewed(false); setCompatibilityReviewed(false); }} className={inputClass}><option value="raw_counts">Raw gene counts</option><option value="salmon">Salmon quant.sf + matching transcript annotation</option></select></label>
+    <label className="block text-xs">Input type<select value={kind} onChange={event => { setKind(event.target.value); setMapping({}); setMetadata(null); setMetadataAutoInfo(''); setOriginClass('unknown_origin'); setReviewed(false); setCompatibilityReviewed(false); }} className={inputClass}><option value="raw_counts">Raw gene counts</option><option value="salmon">Salmon quant.sf + matching transcript annotation</option></select></label>
     <div className="grid gap-4 md:grid-cols-2">
-      <label className="text-xs">Count matrix or ZIP/TAR archive (60 MB maximum)<input type="file" onChange={event => { invalidateSourceReview(); setData(event.target.files?.[0] ?? null); setGeoChecksums(null); setMembers([]); setMapping({}); setMatrixMember(''); }} className={inputClass} /></label>
-      <label className="text-xs">Reviewed metadata TSV: sample, condition, experimental_unit; optional covariates<input type="file" accept=".tsv,.txt" onChange={event => { setMetadata(event.target.files?.[0] ?? null); setReviewed(false); }} className={inputClass} /></label>
+      <label className="text-xs">Count matrix or ZIP/TAR archive (60 MB maximum)<input type="file" onChange={event => { const file = event.target.files?.[0] ?? null; invalidateSourceReview(); setData(file); setMetadata(null); setMetadataAutoInfo(''); setGeoChecksums(null); setMembers([]); setMapping({}); setMatrixMember(''); void buildMetadataFromHeader(file); }} className={inputClass} /></label>
+      <label className="text-xs">Reviewed metadata TSV: sample, condition, experimental_unit; optional covariates<input type="file" accept=".tsv,.txt" onChange={event => { const file = event.target.files?.[0] ?? null; setMetadata(file); setMetadataAutoInfo(file ? 'Using the metadata file you selected.' : ''); setReviewed(false); }} className={inputClass} /></label>
       {kind === 'salmon' && <label className="text-xs">Matching tx2gene TSV (transcript and gene columns)<input type="file" accept=".tsv,.txt" onChange={event => { setTx2gene(event.target.files?.[0] ?? null); setReviewed(false); }} className={inputClass} /></label>}
     </div>
+    {metadataAutoInfo && <p className="rounded border border-accent-cyan/20 bg-accent-cyan/5 p-3 text-xs leading-5 text-text-secondary">{metadataAutoInfo}</p>}
     <a className="text-xs text-accent-cyan" download="metadata.tsv" href={'data:text/tab-separated-values;charset=utf-8,' + encodeURIComponent('sample\tcondition\texperimental_unit\ncontrol1\tcontrol\tunit1\ncontrol2\tcontrol\tunit2\ntest1\ttest\tunit3\ntest2\ttest\tunit4\n')}>Download metadata example</a>
     <button type="button" disabled={!data || busy} onClick={inspect} className="btn-secondary">Inspect archive members</button>
     {members.length > 0 && <>

@@ -36,6 +36,7 @@ import { setPrefill } from '@/lib/cross-link';
 import { downloadText } from '@/lib/export-utils';
 import { JobGraph } from '@/components/pipeline/JobGraph';
 import { branchFromJob } from '@/lib/api';
+import { runBlastPipeline, type BlastProgram } from '@/lib/blastApi';
 
 const STEP_ORDER = ['blast', 'uniprot', 'msa', 'phylo', 'domains', 'pathway_enrichment', 'alphafold', 'interpret'];
 
@@ -56,8 +57,9 @@ export default function JobPage() {
   const [loading, setLoading] = useState(true);
   const [pollError, setPollError] = useState<string | null>(null);
   const [timedOut, setTimedOut] = useState(false);
+  const [retrying, setRetrying] = useState(false);
   const [activeAnalysisTab, setActiveAnalysisTab] = useState<string | null>(null);
-  const startRef = useRef(Date.now());
+  const startRef = useRef(0);
 
   // Full-length subject sequences from the MSA (headers may carry a `_aln`
   // suffix or a versioned accession), used by BLAST "Dot plot vs query" links
@@ -76,6 +78,38 @@ export default function JobPage() {
     });
     return map;
   }, [job?.context_json?.msa?.aln_fasta]);
+
+  async function retryBlast() {
+    if (!job) return;
+    const context = job.context_json as (typeof job.context_json & {
+      database?: string; program?: BlastProgram; max_hits?: number; query_accession?: string;
+      fast_mode?: boolean; requested_pipeline_type?: string;
+    });
+    const sequence = context?.sequence || context?.query?.sequence;
+    if (!sequence) {
+      router.push('/analyze/blast');
+      return;
+    }
+    if (!context?.program) {
+      setPrefill(router, 'blast_sequence', sequence, '/analyze/blast');
+      return;
+    }
+    setRetrying(true);
+    try {
+      const retry = await runBlastPipeline({
+        sequence,
+        database: context.database || 'nr',
+        program: context.program,
+        maxHits: context.max_hits ?? 100,
+        queryAccession: context.query_accession,
+        fastMode: context.fast_mode ?? false,
+      });
+      router.replace(`/jobs/${retry.job_id}`);
+    } catch (caught) {
+      toast.error(extractErrorMessage(caught, 'Could not retry BLAST. Please start a new search.'));
+      setRetrying(false);
+    }
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -220,12 +254,10 @@ export default function JobPage() {
 
   if (job.status === 'failed') {
     const errorMsg = job.error_message || job.error || 'An unknown error occurred';
-    const failedStepMatch = errorMsg.match(/Pipeline failed at (\w+):/);
-    const failedStep = failedStepMatch ? failedStepMatch[1] : null;
     const isTimeout = errorMsg.toLowerCase().includes('timed out') || errorMsg.toLowerCase().includes('timeout');
-    const isNcbiError = errorMsg.toLowerCase().includes('ncbi') || errorMsg.toLowerCase().includes('blast');
+    const context = job.context_json as (typeof job.context_json & { program?: string; requested_pipeline_type?: string });
+    const isBlastJob = !!(context?.program || context?.requested_pipeline_type === 'blast');
     const isParseError = errorMsg.toLowerCase().includes('parse');
-    const isUniProtError = errorMsg.toLowerCase().includes('uniprot') || errorMsg.toLowerCase().includes('mapping');
     return (
       <div className="max-w-xl mx-auto py-12">
         <div className="glass-card p-8 text-center border border-error/20">
@@ -240,11 +272,6 @@ export default function JobPage() {
                 External servers are slow right now. Wait a moment and try again.
               </p>
             )}
-            {isNcbiError && (
-              <p className="text-sm text-accent-amber bg-accent-amber/5 rounded-lg p-3 border border-accent-amber/20">
-                The BLAST service returned an error. This is usually temporary — please try again.
-              </p>
-            )}
             {isParseError && (
               <p className="text-sm text-accent-amber bg-accent-amber/5 rounded-lg p-3 border border-accent-amber/20">
                 We couldn&apos;t read the results from the BLAST service. The data may have been in an unexpected format.
@@ -255,12 +282,19 @@ export default function JobPage() {
             <CriticalButton onClick={() => router.push('/analyze')}>
               New Analysis
             </CriticalButton>
-            <button
-              onClick={() => window.location.reload()}
-              className="glass-card px-6 py-2.5 text-sm text-text-secondary hover:bg-surface-2 transition"
-            >
-              Retry
-            </button>
+            {isBlastJob ? (
+              <button
+                onClick={retryBlast}
+                disabled={retrying}
+                className="glass-card px-6 py-2.5 text-sm text-text-secondary hover:bg-surface-2 transition disabled:opacity-50"
+              >
+                {retrying ? 'Submitting…' : 'Retry BLAST'}
+              </button>
+            ) : (
+              <button onClick={() => window.location.reload()} className="glass-card px-6 py-2.5 text-sm text-text-secondary hover:bg-surface-2 transition">
+                Refresh status
+              </button>
+            )}
           </div>
         </div>
       </div>

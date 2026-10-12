@@ -194,25 +194,24 @@ class TestPipelineBlastFallback:
         assert result["_degraded_from"] == "uniprotkb"
         assert result["top_hit"]["accession"] == "Q8LP17"
 
-    def test_ebi_empty_then_ncbi_success(self, monkeypatch):
+    def test_completed_ebi_search_with_zero_hits_is_not_a_provider_failure(self, monkeypatch):
         from app.routers import pipeline_v2
 
+        called = {"ncbi": False}
         async def fake_run_blast_with_retry(*args, **kwargs):
+            called["ncbi"] = True
             return {"raw": SAMPLE_XML, "rid": "RID-X"}
 
-        # EBI returns no hits → NCBI fallback must produce the NCBI-shaped result
+        # An actual completed zero-hit search is a valid result and must not be
+        # turned into an external-provider error by an unnecessary NCBI retry.
         monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
         monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool([]))
         result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
-        assert result["source"] == "ncbi"
-        assert result["count"] == 1
-        assert result["query_sequence_type"] == "protein"
-        assert result["database"] == "swissprot"
-        assert result["top_hit"]["accession"] == "P12345"
-        assert result["top_hit"]["evalue"] == 1e-5
-        assert result["hits"][0]["hit_alignment"] == "AAAAA--"
-        assert result["hits"][0]["query_alignment"] == "AAAAA--"
-        assert result["hits"][0]["midline"] == "AAAAA  "
+        assert result["source"] == "ebi"
+        assert result["search_complete"] is True
+        assert result["count"] == 0
+        assert result["hits"] == []
+        assert called["ncbi"] is False
 
     def test_both_providers_fail_returns_error(self, monkeypatch):
         from app.routers import pipeline_v2
@@ -221,10 +220,15 @@ class TestPipelineBlastFallback:
             return {"error": "BLAST STUCK after polling (attempt 3/3): Job stuck in WAITING for 188.75s"}
 
         monkeypatch.setattr(pipeline_v2.ncbi_blast, "run_blast_with_retry", fake_run_blast_with_retry)
-        monkeypatch.setattr(pipeline_v2, "BlastTool", self._fake_ebi_tool([]))
+        class _FailedBlastTool:
+            async def run_uncached(self, input):
+                return {"error": "EBI BLAST job ended with status TIMEOUT", "hits": []}
+
+        monkeypatch.setattr(pipeline_v2, "BlastTool", _FailedBlastTool)
         result = asyncio_run(pipeline_v2._run_blast(PROTEIN_SEQ))
         assert result["error"]
         assert "STUCK" in result["error"]
+        assert "EBI BLAST job ended with status TIMEOUT" in result["error"]
         assert result["count"] == 0
         assert result["hits"] == []
 
@@ -314,6 +318,43 @@ class TestEbiToolSubmit:
         assert captured["data"]["stype"] == "dna"  # blastx translates a nucleotide query
         await tool._submit("MKTAYIAKQRQISFVKSHFSRQDIL", "tblastn", "nt")
         assert captured["data"]["stype"] == "protein"  # tblastn translates the nucleotide target
+
+    async def test_transient_submit_failures_retry_then_return_job_id(self, monkeypatch):
+        import httpx
+        from app.tools.blast import BlastTool
+
+        calls = {"count": 0}
+
+        class FakeResp:
+            text = "job-after-retry"
+
+            def raise_for_status(self):
+                pass
+
+        class FakeClient:
+            def __init__(self, **kwargs):
+                pass
+
+            async def __aenter__(self):
+                return self
+
+            async def __aexit__(self, *args):
+                pass
+
+            async def post(self, url, **kwargs):
+                calls["count"] += 1
+                if calls["count"] < 3:
+                    raise httpx.ConnectError("temporary provider outage")
+                return FakeResp()
+
+        async def no_wait(_seconds):
+            return None
+
+        monkeypatch.setattr("app.tools.blast.httpx.AsyncClient", lambda **kw: FakeClient())
+        monkeypatch.setattr("app.tools.blast.asyncio.sleep", no_wait)
+        result = await BlastTool()._submit("MEEPQSDPSVEPPL", "blastp", "uniprotkb_swissprot")
+        assert result == "job-after-retry"
+        assert calls["count"] == 3
 
 
 def asyncio_run(coro):

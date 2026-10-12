@@ -23,6 +23,7 @@ from app.services.auth import require_user_id
 router = APIRouter(prefix="/api/ngs/v2/geo", tags=["geo-discovery"])
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 TECHNICAL_KEY = re.compile(r"(^|[ _-])(batch|run|lane|plate|operator|site|processing[ _-]?day|extraction[ _-]?batch|kit[ _-]?lot|flow[ _-]?cell)([ _-]|$)", re.I)
+CONDITION_KEYS = {"condition", "treatment", "group", "disease", "disease status", "phenotype", "clinical status", "case control", "diagnosis", "genotype"}
 
 
 class MatrixSelection(BaseModel):
@@ -70,16 +71,53 @@ async def preview_geo_matrix(selection: MatrixSelection):
     except GeoCountsError as exc:
         raise _bad_geo(exc) from exc
     samples = {sample["accession"]: sample for sample in series["samples"]}
+    mapped_gsms = [gsm for gsm in matrix["matched_samples"] if gsm]
+    mapped_samples = [samples[gsm] for gsm in mapped_gsms]
+    candidates: dict[str, list[str]] = {}
+    if len(mapped_samples) == len(matrix["columns"]):
+        keys_by_sample = [
+            {key.strip().casefold() for key in sample.get("characteristics", {})
+             if key.strip().casefold() in CONDITION_KEYS}
+            for sample in mapped_samples
+        ]
+        characteristic_keys = set.intersection(*keys_by_sample) if keys_by_sample else set()
+        for key in sorted(characteristic_keys):
+            values = [next((value for name, value in sample.get("characteristics", {}).items()
+                            if name.strip().casefold() == key), "").strip()
+                      for sample in mapped_samples]
+            levels = set(values)
+            if "" not in levels and len(levels) == 2 and min(values.count(level) for level in levels) >= 2:
+                candidates[key] = values
+    # Suggest only a single unambiguous replicated two-level GEO factor.
+    distinct_assignments = {tuple(values) for values in candidates.values()}
+    selected_key = next((key for key in sorted(candidates) if tuple(candidates[key]) in distinct_assignments), None) if len(distinct_assignments) == 1 and candidates else None
+    suggested_values = candidates[selected_key] if selected_key else [""] * len(matrix["columns"])
+    group_suggestion = None
+    if selected_key:
+        levels = list(dict.fromkeys(suggested_values))
+        group_suggestion = {
+            "characteristic": selected_key,
+            "levels": levels,
+            "counts": {level: suggested_values.count(level) for level in levels},
+            "source": "GEO sample characteristics",
+        }
+    samples_for_ui = [
+        {**sample, "suggested_condition": sample.get("characteristics", {}).get(selected_key) if selected_key else None}
+        for sample in series["samples"]
+    ]
     columns = []
     for index, (column, gsm, total) in enumerate(zip(matrix["columns"], matrix["matched_samples"], matrix["library_sizes"])):
         sample = samples.get(gsm or "", {})
         columns.append({"column": column, "gsm": gsm, "title": sample.get("title"),
                         "characteristics": sample.get("characteristics", {}), "library_size": total,
-                        "mapping": matrix["sample_mapping"][index]})
+                        "mapping": matrix["sample_mapping"][index],
+                        "suggested_condition": suggested_values[index] or None,
+                        "experimental_unit_suggestion": gsm or None})
     return {"accession": series["accession"], "filename": selection.filename, "source_url": source,
             "source_sha256": matrix["sha256"], "genes": matrix["genes"], "annotation_columns": matrix["annotation_columns"],
-            "columns": columns, "samples": series["samples"], "design": series["design"],
-            "input_provenance": matrix["input_provenance"], "inspection_warnings": matrix["inspection_warnings"]}
+            "columns": columns, "samples": samples_for_ui, "design": series["design"],
+            "input_provenance": matrix["input_provenance"], "inspection_warnings": matrix["inspection_warnings"],
+            "group_suggestion": group_suggestion}
 
 
 @router.get("/series/{accession}/recovery")

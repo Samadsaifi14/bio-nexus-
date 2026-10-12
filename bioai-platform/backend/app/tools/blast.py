@@ -95,22 +95,43 @@ class BlastTool(BaseTool):
             raise ValueError(f"Unsupported BLAST program for EBI submission: {program}")
         stype = stype_by_program[program]
 
-        async with httpx.AsyncClient(timeout=45) as client:
-            resp = await client.post(
-                f"{settings.EBI_BASE_URL}/run",
-                data={
-                    "email": settings.NCBI_EMAIL,
-                    "sequence": sequence,
-                    "program": program,
-                    "database": database,
-                    "stype": stype,
-                },
-            )
-            resp.raise_for_status()
-            job_id = resp.text.strip()
-            if not job_id or " " in job_id or "\n" in job_id:
-                raise RuntimeError("EBI BLAST did not return a valid job identifier")
-            return job_id
+        last_error: Exception | None = None
+        for attempt in range(3):
+            try:
+                async with httpx.AsyncClient(timeout=45) as client:
+                    resp = await client.post(
+                        f"{settings.EBI_BASE_URL}/run",
+                        data={
+                            "email": settings.NCBI_EMAIL,
+                            "sequence": sequence,
+                            "program": program,
+                            "database": database,
+                            "stype": stype,
+                        },
+                    )
+                    resp.raise_for_status()
+                job_id = resp.text.strip()
+                if not job_id or " " in job_id or "\n" in job_id:
+                    raise RuntimeError("EBI BLAST did not return a valid job identifier")
+                return job_id
+            except (httpx.TimeoutException, httpx.NetworkError, httpx.RemoteProtocolError, httpx.HTTPStatusError) as exc:
+                last_error = exc
+                status = exc.response.status_code if isinstance(exc, httpx.HTTPStatusError) else None
+                transient = status is None or status == 429 or status >= 500
+                if not transient or attempt == 2:
+                    break
+                delay = 2 ** attempt
+                logger.warning("EBI BLAST submit failed transiently (attempt %d/3, status=%s); retrying in %ds",
+                               attempt + 1, status or "network", delay)
+                await asyncio.sleep(delay)
+        status = last_error.response.status_code if isinstance(last_error, httpx.HTTPStatusError) else None
+        if status is not None:
+            detail = f"HTTP {status}"
+        elif last_error:
+            detail = type(last_error).__name__
+        else:
+            detail = "unknown provider error"
+        raise RuntimeError(f"EBI BLAST submission failed after bounded retries ({detail})") from last_error
 
     async def _poll(self, job_id: str, max_poll_time: int) -> str:
         start = asyncio.get_running_loop().time()

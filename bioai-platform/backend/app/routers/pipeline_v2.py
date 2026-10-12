@@ -855,15 +855,20 @@ async def _run_ebi_blast_fallback(
         return None
     result = await _run_ebi_once(sequence, program, ebi_database, max_hits)
     degraded_from = None
-    if result.get("error") and ebi_database != "uniprotkb_swissprot":
+    protein_target = program in {"blastp", "blastx"}
+    if result.get("error") and protein_target and ebi_database != "uniprotkb_swissprot":
         logger.warning("EBI %s failed (%s) — retrying with uniprotkb_swissprot", ebi_database, result["error"])
         retry = await _run_ebi_once(sequence, program, "uniprotkb_swissprot", max_hits)
-        if not retry.get("error") and retry.get("hits"):
+        if not retry.get("error"):
             result = retry
             degraded_from = ebi_database
-    if result.get("error") or not result.get("hits"):
-        logger.warning("EBI BLAST fallback returned no hits: %s", result.get("error", "empty"))
-        return None
+    if result.get("error"):
+        logger.warning("EBI BLAST failed: %s", result["error"])
+        return {"error": str(result["error"]), "search_complete": False, "provider": "ebi"}
+    if not isinstance(result.get("hits"), list):
+        return {"error": "EBI BLAST returned an invalid hits payload", "search_complete": False, "provider": "ebi"}
+    if not result["hits"]:
+        logger.info("EBI BLAST completed successfully with zero hits (%s)", ebi_database)
     query_length = len("".join(sequence.replace("\n", "").replace(" ", "").split("-")))
     payload = _build_blast_result(
         result["hits"],
@@ -895,7 +900,7 @@ async def _run_ebi_once(sequence: str, program: str, database: str, max_hits: in
         })
     except Exception as e:
         logger.warning("EBI BLAST failed (%s): %s", database, e)
-        return {"error": str(e)}
+        return {"error": str(e).strip() or f"EBI BLAST request failed ({type(e).__name__})"}
 
 
 async def _run_blast(
@@ -933,7 +938,8 @@ async def _run_blast(
     # the pipeline consumes directly. NCBI chronically stalls (long WAITING
     # even with an API key), so run EBI FIRST and fall back to NCBI.
     ebi_result = await _run_ebi_blast_fallback(sequence, program, database, seq_type, max_hits)
-    if ebi_result is not None:
+    ebi_error: str | None = None
+    if ebi_result is not None and ebi_result.get("search_complete") is True:
         ebi_result["parameters"] = {"program": program, "requested_database": database, "max_hits": max_hits, "fast_mode": fast_mode}
         if status_callback:
             try:
@@ -941,6 +947,8 @@ async def _run_blast(
             except Exception:
                 pass
         return ebi_result
+    elif ebi_result is not None:
+        ebi_error = str(ebi_result.get("error") or "EBI BLAST did not complete")
 
     # EBI unavailable for this database or failed — try NCBI before failing.
     ncbi_error: str | None = None
@@ -984,12 +992,18 @@ async def _run_blast(
     else:
         ncbi_error = results["error"]
 
-    logger.warning("EBI BLAST unavailable and NCBI failed (%s)", ncbi_error)
+    logger.warning("BLAST providers failed (EBI=%s; NCBI=%s)", ebi_error or "not used", ncbi_error)
     return {
-        "error": ncbi_error or "BLAST failed via EBI and NCBI",
+        "error": "BLAST search did not complete. " + "; ".join(
+            part for part in (
+                f"EBI: {ebi_error}" if ebi_error else "",
+                f"NCBI: {ncbi_error}" if ncbi_error else "NCBI did not return a completed search",
+            ) if part
+        ),
         "count": 0,
         "hits": [],
         "search_complete": False,
+        "provider_errors": {key: value for key, value in {"ebi": ebi_error, "ncbi": ncbi_error}.items() if value},
     }
 
 

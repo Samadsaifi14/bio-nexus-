@@ -41,7 +41,12 @@ def _get_client() -> httpx.AsyncClient:
 def _public_error(exc: Exception) -> str:
     text = str(exc).lower()
     if "blast" in text or "ncbi" in text or "ebi" in text:
-        return "BLAST could not complete with the external sequence-search providers. Please retry the analysis."
+        # Preserve bounded provider/status details so users can distinguish a
+        # temporary outage from a rejected request or a response-format error.
+        detail = " ".join(str(exc).split())[:360]
+        if detail:
+            return f"BLAST search failed: {detail}"
+        return "BLAST search failed at an external provider. Retry the search in a moment."
     if "timeout" in text or "timed out" in text:
         return "The analysis took longer than expected. Please retry in a few minutes."
     if "uniprot" in text or "mapping" in text:

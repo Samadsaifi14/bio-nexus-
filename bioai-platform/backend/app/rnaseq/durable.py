@@ -71,7 +71,8 @@ def readiness(salmon: bool = False) -> dict:
 
 
 def enqueue(user: str, counts: Path, metadata: Path, params: ExpressionParameters,
-            source: dict, *, input_kind: str = "raw_counts", extras: dict[str, bytes] | None = None) -> dict:
+            source: dict, *, input_kind: str = "raw_counts", extras: dict[str, bytes] | None = None,
+            full_analysis: bool = False) -> dict:
     status = readiness(input_kind == "salmon")
     if not status["available"]:
         raise RnaSeqExpressionError("Durable execution unavailable: " + ", ".join(status["missing"]))
@@ -104,8 +105,8 @@ def enqueue(user: str, counts: Path, metadata: Path, params: ExpressionParameter
         (folder / "owner.txt").write_text(user)
         (folder / "owner.txt").chmod(0o600)
         with db() as connection:
-            connection.execute("INSERT INTO jobs (id,owner,state,phase,payload,created,updated) VALUES (?,?, 'QUEUED','qc',?,?,?)",
-                               (job_id, owner_key(user), json.dumps(payload), now, now))
+            connection.execute("INSERT INTO jobs (id,owner,state,phase,payload,created,updated) VALUES (?,?, 'QUEUED',?,?,?,?)",
+                               (job_id, owner_key(user), "full" if full_analysis else "qc", json.dumps(payload), now, now))
     except Exception:
         shutil.rmtree(folder)
         raise
@@ -187,7 +188,8 @@ def run_job(job: dict) -> None:
         for name, digest in payload["checksums"].items():
             if sha256_file(folder / name) != digest:
                 raise RnaSeqExpressionError("Retained input checksum mismatch")
-        checkpoint = folder / (f"qc_{job['lease']}.rds" if job["phase"] == "qc" else payload["qc_review"]["checkpoint_file"])
+        checkpoint = (folder / payload["qc_review"]["checkpoint_file"] if job["phase"] == "infer"
+                      else folder / f"qc_{job['lease']}.rds" if job["phase"] == "qc" else None)
         if job["phase"] == "infer" and sha256_file(checkpoint) != payload["qc_review"]["checkpoint_sha256"]:
             raise RnaSeqExpressionError("Reviewed QC checkpoint checksum mismatch")
         result = execute_expression_analysis(user_id=(folder / "owner.txt").read_text(),

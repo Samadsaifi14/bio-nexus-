@@ -12,10 +12,11 @@ from pydantic import BaseModel, Field
 from starlette.concurrency import run_in_threadpool
 from starlette.responses import Response
 
-from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, execute_expression_analysis
+from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, execute_expression_analysis, expression_readiness
 from app.rnaseq.input_contract import CountOrigin
 from app.rnaseq import durable
 from app.rnaseq.geo_counts import GeoCountsError, fetch_matrix, fetch_series
+from app.rnaseq.geo_automatic import prepare
 from app.rnaseq.geo_recovery import recovery_bundle
 from app.rnaseq.study_scope import classify_rnaseq_study_scope
 from app.services.auth import require_user_id
@@ -47,6 +48,83 @@ class GeoAnalysisRequest(MatrixSelection):
     lfc_threshold: float = 1.0
     min_count: int = 10
     min_samples: int = 0
+
+
+class AutomaticSelection(BaseModel):
+    accession: str
+    filename: str | None = None
+    group_key: str | None = None
+    source_sha256: str | None = None
+    source_record_sha256: str | None = None
+
+
+async def _prepare_automatic(selection: AutomaticSelection):
+    async with httpx.AsyncClient(timeout=45) as client:
+        series = await fetch_series(client, selection.accession)
+        if series.get('workflow_issue'):
+            raise GeoCountsError(series['workflow_issue'])
+        candidates = [f for f in series['files'] if f.get('analysis_eligible') and f.get('scope', 'series') == 'series']
+        if not selection.filename:
+            raw = [f for f in candidates if re.search(r'raw[._ -]*(?:gene[._ -]*)?counts?', f['name'], re.I)]
+            selected = raw if raw else candidates
+            if len(selected) != 1:
+                return {'status': 'choose_matrix' if selected else 'no_counts', 'accession': series['accession'],
+                        'title': series['title'], 'files': selected,
+                        'message': 'Choose the count matrix for your comparison.' if selected else 'GEO has no supported deposited count matrix for this study. Open advanced recovery to inspect archives or raw sequencing reads.'}, None
+            filename = selected[0]['name']
+        else:
+            filename = selection.filename
+            if filename not in {f['name'] for f in candidates}:
+                raise GeoCountsError('Choose a deposited Series count matrix from this study.')
+        matrix, source = await fetch_matrix(client, series, filename)
+    result = prepare(series, matrix, filename, source, selection.group_key)
+    return {**result, 'filename': filename, 'title': series['title']}, matrix
+
+
+@router.post('/prepare')
+async def prepare_geo_analysis(selection: AutomaticSelection):
+    try:
+        prepared, _ = await _prepare_automatic(selection)
+        return prepared
+    except GeoCountsError as exc:
+        raise _bad_geo(exc) from exc
+
+
+@router.post('/run')
+async def run_geo_analysis(selection: AutomaticSelection, user_id: str = Depends(require_user_id)):
+    try:
+        prepared, matrix = await _prepare_automatic(selection)
+        if prepared['status'] != 'ready':
+            raise GeoCountsError('Load the study and choose the indicated comparison before running.')
+        if not selection.source_sha256 or not selection.source_record_sha256 or selection.source_sha256 != prepared['source_sha256'] or selection.source_record_sha256 != prepared['source_record_sha256']:
+            raise GeoCountsError('The GEO source or sample information changed. Load the study again before running.')
+        params = ExpressionParameters(organism=prepared['organism'], reference_level=prepared['reference_level'], test_level=prepared['test_level'],
+                                      covariates=tuple(prepared['covariates']), min_samples=0)
+        with tempfile.TemporaryDirectory(prefix='bionexus-geo-auto-') as folder:
+            counts, metadata = Path(folder) / 'counts.tsv', Path(folder) / 'metadata.tsv'
+            with counts.open('w', newline='') as handle:
+                writer = csv.writer(handle, delimiter='\t', lineterminator='\n')
+                writer.writerow(['gene', *[row['sample'] for row in prepared['metadata']]])
+                writer.writerows(matrix['rows'])
+            with metadata.open('w', newline='') as handle:
+                writer = csv.DictWriter(handle, fieldnames=list(prepared['metadata'][0]), delimiter='\t', lineterminator='\n')
+                writer.writeheader(); writer.writerows(prepared['metadata'])
+            source = {**prepared['source'], 'accession': prepared['accession'], 'source_sha256': prepared['source_sha256'],
+                      'source_record_sha256': prepared['source_record_sha256'], 'group_key': prepared['group_key'],
+                      'execution_policy': 'user_requested_complete_analysis_with_R_design_and_QC_checks'}
+            if (await run_in_threadpool(durable.readiness))['available']:
+                return await run_in_threadpool(durable.enqueue, user=user_id, counts=counts, metadata=metadata,
+                                              params=params, source=source, full_analysis=True)
+            readiness = await run_in_threadpool(expression_readiness)
+            if not readiness['available']:
+                raise RnaSeqExpressionError('R analysis unavailable: ' + ', '.join(readiness['missing']))
+            result = await run_in_threadpool(execute_expression_analysis, user_id=user_id, counts_path=counts,
+                metadata_path=metadata, params=params, source_label='GEO-automatic', source_metadata=source, stage='full')
+            return {'state': 'SUCCEEDED', 'result': result, 'execution_mode': 'hosted_R'}
+    except GeoCountsError as exc:
+        raise _bad_geo(exc) from exc
+    except RnaSeqExpressionError as exc:
+        raise HTTPException(503 if 'unavailable' in str(exc).lower() else 422, str(exc)) from exc
 
 
 def _bad_geo(exc: GeoCountsError) -> HTTPException:
@@ -102,7 +180,7 @@ async def preview_geo_matrix(selection: MatrixSelection):
             "source": "GEO sample characteristics",
         }
     samples_for_ui = [
-        {**sample, "suggested_condition": sample.get("characteristics", {}).get(selected_key) if selected_key else None}
+        {**sample, "suggested_condition": sample.get("characteristics", {}).get(selected_key)} if selected_key else dict(sample)
         for sample in series["samples"]
     ]
     columns = []

@@ -153,7 +153,10 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
 
       </details>
 
-      <RnaSeqRecoveryPanel onResult={setResult} />
+      <details className="rounded-xl border border-glass-border p-5">
+        <summary className="cursor-pointer text-sm">Advanced: upload counts, review a complex design or recover missing counts</summary>
+        <RnaSeqRecoveryPanel onResult={setResult} />
+      </details>
 
       {error && <div className="rounded-xl border border-error/25 bg-error/10 p-4 text-sm text-error"><Warning className="mr-2 inline h-4 w-4" />{error}</div>}
 

@@ -59,6 +59,7 @@ jobs:
             tests/test_ngs_lecture_contracts.py \
             tests/test_geo_counts_import.py \
             tests/test_geo_search.py \
+            tests/test_geo_automatic.py \
             tests/test_geo_recovery.py \
             tests/test_rnaseq_durable_recovery.py \
             tests/test_rnaseq_expression_contract.py \

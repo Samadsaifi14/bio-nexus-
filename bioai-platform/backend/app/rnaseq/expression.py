@@ -143,14 +143,14 @@ def _package_readiness(rscript: str, salmon: bool) -> list[str]:
         completed = subprocess.run([rscript, "-e", code], capture_output=True, text=True, timeout=30)
         if completed.returncode:
             return ["R package preflight failed"]
-        return completed.stdout.splitlines()
+        return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
     except (OSError, subprocess.TimeoutExpired):
         return ["R package preflight unavailable"]
 
 
 def expression_readiness(salmon: bool = False) -> dict:
     rscript = shutil.which(os.environ.get("BIONEXUS_RSCRIPT", "Rscript"))
-    missing = _package_readiness(rscript, salmon) if rscript else ["Rscript"]
+    missing = list(_package_readiness(rscript, salmon)) if rscript else ["Rscript"]
     from app.config import settings
     if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
         missing = [*missing, "private artifact storage configuration"]

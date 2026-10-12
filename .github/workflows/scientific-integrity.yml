@@ -90,6 +90,7 @@ jobs:
           tests/test_ngs_execution_evidence.py
           tests/test_geo_counts_import.py
           tests/test_geo_search.py
+          tests/test_geo_automatic.py
           tests/test_alignment_pairwise.py
 
   ngs-integrity:

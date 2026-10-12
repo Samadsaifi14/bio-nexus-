@@ -151,6 +151,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
         "read_projects": sorted(set(re.findall(r"\b(?:SRP\d+|PRJ[END][AB]\d+)\b", " ".join(_soft_lines(series_text, "Series_relation"))))),
         "title": next(iter(_soft_lines(series_text, "Series_title")), ""),
         "design": next(iter(_soft_lines(series_text, "Series_overall_design")), ""),
+        "processing_methods": list(dict.fromkeys(_soft_lines(sample_text, "Sample_data_processing"))),
         "samples": [{"accession": sample.accession, "title": sample.title, "characteristics": sample.characteristics} for sample in samples],
         "files": files,
     }

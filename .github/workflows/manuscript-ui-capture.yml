@@ -68,8 +68,21 @@ jobs:
                 await blast.screenshot({path:path.join(out,'blast-confirmation.png'),fullPage:true});
                 const buttons = await blast.getByRole('button').allTextContents();
                 b.confirmation_buttons=buttons.slice(-12);
-                // Do not submit until the confirmation control is identified reliably.
-                b.success = true;
+                await blast.getByRole('button',{name:'Run Analysis'}).click({timeout:15000});
+                b.stage='submitted';
+                try { await blast.waitForURL(/\\/jobs\\//,{timeout:90000}); } catch {}
+                await blast.waitForTimeout(8000);
+                b.final_url=blast.url();
+                b.pipeline_responses=responses;
+                b.job_id=(blast.url().match(/\\/jobs\\/([^/?#]+)/)||[])[1]||null;
+                await blast.screenshot({path:path.join(out,'blast-after-submit.png'),fullPage:true});
+                b.success=Boolean(b.job_id)&&responses.some(x=>x.status>=200&&x.status<300);
+                b.stage=b.success?'job-created':'submission-failed';
+                if(b.success){
+                  await blast.waitForTimeout(20000);
+                  b.result_excerpt=(await blast.locator('body').innerText()).slice(0,2500);
+                  await blast.screenshot({path:path.join(out,'blast-job-progress.png'),fullPage:true});
+                }
               } catch(e) {
                 b.success=false;b.error=String(e);
                 try{await blast.screenshot({path:path.join(out,'blast-failure.png'),fullPage:true})}catch{}

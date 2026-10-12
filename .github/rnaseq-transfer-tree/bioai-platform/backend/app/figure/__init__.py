@@ -1,1 +1,0 @@
-"""Figure Engine (Component 8) — publication-grade SVG figures."""

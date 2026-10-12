@@ -38,6 +38,11 @@ input_kind <- Sys.getenv("BIONEXUS_EXPRESSION_INPUT", "raw_counts")
 checkpoint <- Sys.getenv("BIONEXUS_EXPRESSION_CHECKPOINT", "")
 if (!stage %in% c("full", "qc", "infer")) stop("Invalid expression stage")
 dir.create(outdir, recursive = TRUE, showWarnings = FALSE)
+packages_used <- c("DESeq2", "ComplexHeatmap", "ggplot2", "jsonlite", "circlize")
+if (input_kind == "salmon") packages_used <- c(packages_used, "tximport")
+write(toJSON(list(R = as.character(getRversion()), packages = setNames(as.list(vapply(packages_used, function(p) as.character(packageVersion(p)), character(1))), packages_used)), auto_unbox = TRUE, pretty = TRUE), file.path(outdir, "execution_versions.json"))
+capture.output(sessionInfo(), file = file.path(outdir, "sessionInfo.txt"))
+
 
 safe_name <- function(x) grepl("^[A-Za-z][A-Za-z0-9_.]*$", x)
 if (!safe_name(condition_col)) stop("condition column has unsupported characters")
@@ -140,6 +145,12 @@ if (length(experimental_unit_col) > 0) {
       "declare the unit/block in the design when scientifically appropriate."
     ))
   }
+  independent_counts <- vapply(comparison_levels, function(level) length(unique(units[as.character(meta[[condition_col]]) == level])), integer(1))
+  if (any(independent_counts < 2)) stop("Each compared condition requires at least two independent experimental units")
+  if (length(repeated_units) > 0 && anyDuplicated(data.frame(unit = units, condition = as.character(meta[[condition_col]])))) {
+    stop("Repeated observations of the same experimental unit within a condition require technical-replicate aggregation or an appropriate repeated-measures model; a fixed unit effect alone is insufficient")
+  }
+  if (experimental_unit_col %in% covariates) meta[[experimental_unit_col]] <- factor(units)
   experimental_unit_status <- if (length(repeated_units) > 0) "REPEATED_AND_MODELLED" else "UNIQUE"
 }
 
@@ -158,10 +169,11 @@ is_nested_in_condition <- function(term) {
 
 confounded_columns <- technical_covariates_detected[vapply(technical_covariates_detected, is_nested_in_condition, logical(1))]
 if (length(confounded_columns) > 0) {
-  stop(paste0(
-    "condition is confounded with recorded technical variable(s): ",
+  design_warnings <- c(design_warnings, paste0(
+    "Recorded technical variable(s) nested within condition: ",
     paste(confounded_columns, collapse = ", "),
-    ". Every observed level of the technical variable occurs in only one condition, so the biological and technical effects cannot be separated."
+    ". A condition-only model does not separate these technical effects from biology. ",
+    "Review the study design before inference; including a perfectly confounded term will fail the model-rank check."
   ))
 }
 not_modelled <- setdiff(technical_covariates_detected, covariates)
@@ -178,6 +190,7 @@ if (length(not_modelled) > 0) {
 
 design_terms <- unique(c(covariates, condition_col))
 design_formula <- as.formula(paste("~", paste(design_terms, collapse = " + ")))
+if (anyNA(meta[, design_terms, drop = FALSE])) stop("Missing values in requested model terms")
 design_matrix <- model.matrix(design_formula, data = meta)
 design_rank <- qr(design_matrix)$rank
 design_columns <- ncol(design_matrix)

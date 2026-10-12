@@ -1,3 +1,0 @@
-# Benchmark inputs and expected outputs are byte-hashed across operating systems.
-benchmark/fixtures/** text eol=lf
-benchmark/ngs-portability/** text eol=lf

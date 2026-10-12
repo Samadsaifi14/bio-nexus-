@@ -190,7 +190,7 @@ def test_geo_analysis_handoff_uses_reviewed_groups_and_gene_ids(monkeypatch, aut
     assignments = [geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", experimental_unit=f"unit{i}", condition="sensitive" if i < 3 else "resistant")
                    for i, column in enumerate(matrix["columns"], 1)]
     request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
-        origin={"normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
+        origin={"classification":"deposited_raw_counts", "source_uri":"GEO: source methods", "normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
         source_sha256=matrix["sha256"], assignments=assignments, reference_level="sensitive", test_level="resistant")
     result = asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))
     assert result["state"] == "QUEUED"
@@ -214,7 +214,7 @@ def test_geo_analysis_rejects_changed_source_and_duplicate_sample(monkeypatch):
     assignments = [geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", experimental_unit=f"unit{i}", condition="sensitive" if i < 3 else "resistant")
                    for i, column in enumerate(matrix["columns"], 1)]
     request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
-        origin={"normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
+        origin={"classification":"deposited_raw_counts", "source_uri":"GEO: source methods", "normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
         source_sha256="0" * 64, assignments=assignments, reference_level="sensitive", test_level="resistant")
     with pytest.raises(Exception, match="source changed"):
         asyncio.run(geo_search.analyze_geo_matrix(request, user_id="researcher"))
@@ -238,7 +238,7 @@ def test_geo_analysis_rejects_unmodelled_varying_batch(monkeypatch):
     monkeypatch.setattr(geo_search, "fetch_series", fake_series)
     monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
     request = geo_search.GeoAnalysisRequest(accession="GSE336901", filename="counts.csv.gz",
-        origin={"normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
+        origin={"classification":"deposited_raw_counts", "source_uri":"GEO: source methods", "normalization":"none", "evidence":"source methods raw counts", "method":"featureCounts", "annotation":"GTF release", "reviewed":True},
         source_sha256=matrix["sha256"], reference_level="sensitive", test_level="resistant",
         assignments=[geo_search.SampleAssignment(column=column, gsm=f"GSM{i}", experimental_unit=f"unit{i}",
                      condition="sensitive" if i < 3 else "resistant")

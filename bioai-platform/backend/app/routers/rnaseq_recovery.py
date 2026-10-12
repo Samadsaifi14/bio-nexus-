@@ -13,7 +13,7 @@ from pydantic import BaseModel
 from starlette.concurrency import run_in_threadpool
 
 from app.rnaseq import durable
-from app.rnaseq.count_recovery import MAX_BYTES, archive_members, assemble_counts, safe_member
+from app.rnaseq.count_recovery import MAX_BYTES, archive_members, assemble_counts, review_compatibility, safe_member
 from app.rnaseq.geo_counts import GeoCountsError, parse_matrix, count_file_issue
 from app.rnaseq.input_contract import CountOrigin
 from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError
@@ -117,6 +117,7 @@ async def submit(
     data: UploadFile = File(...), metadata: UploadFile = File(...),
     origin: str = Form(...), parameters: str = Form(...),
     mapping: str = Form("{}"), matrix_member: str = Form(""),
+    compatibility: str = Form("{}"),
     tx2gene: UploadFile | None = File(None), user: str = Depends(require_user_id),
 ):
     try:
@@ -140,7 +141,7 @@ async def submit(
                 counts, extras = prepare_salmon(files, selected, mapping_path.read_bytes())
                 source["file_to_sample"] = selected
             elif selected:
-                counts, audit = assemble_counts(files, selected); source.update(audit)
+                counts, audit = assemble_counts(files, selected, json.loads(compatibility)); source.update(audit)
             else:
                 member = matrix_member or name
                 if member not in files:
@@ -160,7 +161,7 @@ async def submit(
 @router.post("/geo/submit")
 async def submit_geo(source_selection: str = Form(...), origin: str = Form(...), parameters: str = Form(...),
     metadata: UploadFile = File(...), source_sha256: str = Form(...), mapping: str = Form("{}"),
-    matrix_member: str = Form(""), user: str = Depends(require_user_id)):
+    matrix_member: str = Form(""), compatibility: str = Form("{}"), user: str = Depends(require_user_id)):
     try:
         selection = GeoRecoverySelection.model_validate_json(source_selection)
         evidence = CountOrigin.model_validate_json(origin)
@@ -175,11 +176,16 @@ async def submit_geo(source_selection: str = Form(...), origin: str = Form(...),
         if not isinstance(selected, dict) or any(not isinstance(k, str) or not isinstance(v, str) for k, v in selected.items()):
             raise GeoCountsError("File-to-sample mapping must be a string object")
         if selected:
+            compatibility_record = review_compatibility(selected, json.loads(compatibility))
             renamed = {f"sample_{index}_" + name.rsplit("::", 1)[-1].rsplit("/", 1)[-1]: files[name]
                        for index, name in enumerate(selected) if name in files}
             renamed_mapping = {f"sample_{index}_" + name.rsplit("::", 1)[-1].rsplit("/", 1)[-1]: sample
                                for index, (name, sample) in enumerate(selected.items())}
-            counts, audit = assemble_counts(renamed, renamed_mapping)
+            renamed_review = {"reviewed": True, "files": {
+                f"sample_{index}_" + name.rsplit("::", 1)[-1].rsplit("/", 1)[-1]: compatibility_record["files"][name]
+                for index, name in enumerate(selected)}}
+            counts, audit = assemble_counts(renamed, renamed_mapping, renamed_review)
+            audit["compatibility"] = compatibility_record
             source.update(audit); source["reviewed_source_mapping"] = selected
         else:
             if matrix_member not in files:

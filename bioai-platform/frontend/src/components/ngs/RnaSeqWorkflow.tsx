@@ -14,7 +14,7 @@ type GeoSample = { accession: string; title: string; characteristics: Record<str
 type SeriesDetail = { read_projects?: string[]; organisms?: string[]; experiment_types?: string[]; workflow_issue?: string | null; accession: string; title: string; design: string; samples: GeoSample[]; files: { name: string; url: string; analysis_eligible?: boolean; analysis_issue?: string | null }[] };
 type ColumnMapping = { status: 'matched' | 'ambiguous' | 'unmatched' | 'duplicate_sample'; method: string; candidates: string[] };
 type CountColumn = { mapping?: ColumnMapping; column: string; gsm: string | null; title: string | null; characteristics: Record<string, string>; library_size: number };
-type MatrixPreview = { accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
+type MatrixPreview = { input_provenance: { classification: string }; inspection_warnings: string[]; accession: string; filename: string; source_url: string; source_sha256: string; genes: number; annotation_columns: string[]; columns: CountColumn[]; samples: GeoSample[]; design: string };
 type Assignment = { column: string; gsm: string; condition: string; experimental_unit: string };
 
 function message(caught: unknown): string {
@@ -41,6 +41,7 @@ export default function RnaSeqWorkflow() {
   const [error, setError] = useState<string | null>(null);
   const [jobId, setJobId] = useState('');
   const [originEvidence, setOriginEvidence] = useState('');
+  const [originClass, setOriginClass] = useState('unknown_origin');
   const [countMethod, setCountMethod] = useState('');
   const [annotation, setAnnotation] = useState('');
   const [searched, setSearched] = useState(false);
@@ -67,7 +68,7 @@ export default function RnaSeqWorkflow() {
 
   async function inspectMatrix(filename: string) {
     if (!series) return;
-    setBusy('preview'); setError(null); setPreview(null); setAnalysis(null); setJobId(''); setReviewed(false);
+    setBusy('preview'); setError(null); setPreview(null); setAnalysis(null); setJobId(''); setReviewed(false); setOriginClass('unknown_origin');
     try {
       const response = await longApi.post<MatrixPreview>('/api/ngs/v2/geo/preview', { accession: series.accession, filename });
       const next = response.data;
@@ -116,7 +117,7 @@ export default function RnaSeqWorkflow() {
     try {
       const response = await longApi.post<{ job_id: string }>('/api/ngs/v2/geo/analyze', {
         accession: preview.accession, filename: preview.filename, source_sha256: preview.source_sha256,
-        origin: { kind: 'raw_counts', normalization: 'none', evidence: originEvidence, method: countMethod, annotation, reviewed },
+        origin: { classification: originClass, source_uri: preview.source_url, kind: 'raw_counts', normalization: 'none', evidence: originEvidence, method: countMethod, annotation, reviewed },
         assignments, reference_level: reference, test_level: test, min_count: 10, min_samples: 0, lfc_threshold: 1,
       });
       setJobId(response.data.job_id);
@@ -174,6 +175,9 @@ export default function RnaSeqWorkflow() {
       <div className="flex items-center gap-3"><span className="font-mono text-accent-cyan">03</span><h2 className="text-base font-semibold text-text-primary">Review sample mapping and comparison</h2></div>
       <p className="mt-2 text-xs leading-5 text-text-secondary">{preview.genes.toLocaleString()} genes · {preview.columns.length} count columns · {preview.annotation_columns.length ? `excluded annotation column(s): ${preview.annotation_columns.join(', ')}` : 'no annotation columns excluded'}. Non-negative integer values and unique gene identifiers passed format validation; confirm from the GEO record that these are raw counts.</p>
       <p className="mt-1 break-all font-mono text-[10px] text-text-muted">Source SHA-256: {preview.source_sha256}</p>
+      <p className="mt-2 text-xs text-text-muted">Input provenance: {preview.input_provenance.classification.replaceAll('_', ' ')}. Inspection does not establish eligibility for differential expression.</p>
+      {preview.inspection_warnings.map(warning => <p key={warning} role="status" className="mt-1 text-xs text-warn">{warning}</p>)}
+      <label className="mt-3 block text-xs">Reviewed source classification<select value={originClass} onChange={event => { setOriginClass(event.target.value); setReviewed(false); }} className="scientific-select mt-1"><option value="unknown_origin">Unknown origin — inspection only</option><option value="deposited_raw_counts">Deposited raw counts — supported by source methods</option><option value="verified_count_estimates">Count estimates — use quantifier import</option><option value="normalized_expression">Normalized expression — inspection only</option></select></label>
       {preview.columns.some(column => !column.gsm) && <p role="status" className="mt-3 text-xs leading-5 text-warn">Some columns could not be mapped uniquely. Review the source sample identifiers and use the GEO sample dropdown for each unresolved column. Analysis requires a different GEO sample for every column.</p>}
       <div className="mt-4 overflow-x-auto rounded-lg border border-glass-border"><table className="w-full text-xs"><thead className="bg-surface-1 text-text-muted"><tr><th className="px-3 py-2 text-left">Count column</th><th className="px-3 py-2 text-left">GEO sample</th><th className="px-3 py-2 text-left">Condition</th><th className="px-3 py-2 text-left">Biological unit</th><th className="px-3 py-2 text-right">Library counts</th></tr></thead><tbody className="divide-y divide-glass-border">{preview.columns.map((column, index) => <tr key={column.column}><td className="max-w-[300px] break-all px-3 py-2 font-mono text-text-secondary">{column.column}{!column.gsm && <p className="mt-1 font-sans text-[10px] leading-4 text-warn">{column.mapping?.status === 'ambiguous' ? 'Ambiguous identifiers' : column.mapping?.status === 'duplicate_sample' ? 'Multiple columns match the same sample' : 'No unique identifier match'}{Boolean(column.mapping?.candidates.length) && ` · Candidates: ${column.mapping?.candidates.join(', ')}`}. Select a sample manually.</p>}</td><td className="px-3 py-2"><select aria-label={`GEO sample for ${column.column}`} value={assignments[index]?.gsm ?? ''} onChange={event => { const sample = preview.samples.find(item => item.accession === event.target.value); assign(index, { gsm: event.target.value, condition: sample?.characteristics.treatment ?? sample?.characteristics.condition ?? assignments[index]?.condition ?? '' }); }} className="scientific-select min-w-[190px]"><option value="">Select sample</option>{preview.samples.map(sample => <option key={sample.accession} value={sample.accession}>{sample.accession} · {sample.title}</option>)}</select><p className="mt-1 max-w-sm text-[10px] leading-4 text-text-muted">{Object.entries(preview.samples.find(item => item.accession === assignments[index]?.gsm)?.characteristics ?? {}).map(([key, value]) => `${key}: ${value}`).join(' · ') || 'No characteristics recorded'}</p></td><td className="px-3 py-2"><input aria-label={`Condition for ${column.column}`} value={assignments[index]?.condition ?? ''} onChange={event => assign(index, { condition: event.target.value })} className="w-32 rounded border border-glass-border bg-surface-1 px-2 py-2 text-xs text-text-primary" /></td><td className="px-3 py-2"><input aria-label={`Biological unit for ${column.column}`} value={assignments[index]?.experimental_unit ?? ''} onChange={event => assign(index, { experimental_unit: event.target.value })} placeholder="Reviewed unit ID" className="scientific-select" /></td><td className="px-3 py-2 text-right font-mono text-text-secondary">{column.library_size.toLocaleString()}</td></tr>)}</tbody></table></div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2"><label className="text-xs text-text-muted">Reference group<input value={reference} onChange={event => { setReviewed(false); setReference(event.target.value); }} className="mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-text-primary" /></label><label className="text-xs text-text-muted">Test group<input value={test} onChange={event => { setReviewed(false); setTest(event.target.value); }} className="mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-text-primary" /></label></div>
@@ -188,7 +192,7 @@ export default function RnaSeqWorkflow() {
       <p className="mt-2 text-xs text-text-muted">GSM accessions identify deposited samples, not independent biological units. Count origin is analyst attestation; integer formatting is not independent validation.</p>
       <label className="mt-4 flex items-center gap-2 text-xs text-text-secondary"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} /> I reviewed the GEO source, sample identities, biological units, group assignments and recorded batch variables</label>
       {(!mapped || !groupsValid) && <p className="mt-2 text-xs text-warn">Map each column to a different GEO sample and assign at least two samples to each of the two groups.</p>}
-      <button type="button" disabled={!mapped || !groupsValid || !reviewed || originEvidence.length < 10 || countMethod.length < 2 || annotation.length < 2 || !!busy || varyingTechnical.length > 0} onClick={runAnalysis} className="mt-4 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2.5 text-xs font-semibold text-accent-cyan disabled:opacity-40">{busy === 'analysis' ? 'Submitting QC…' : 'Generate PCA and QC for review'}</button>
+      <button type="button" disabled={originClass !== 'deposited_raw_counts' || !mapped || !groupsValid || !reviewed || originEvidence.length < 10 || countMethod.length < 2 || annotation.length < 2 || !!busy || varyingTechnical.length > 0} onClick={runAnalysis} className="mt-4 rounded-lg border border-accent-cyan/30 bg-accent-cyan/10 px-4 py-2.5 text-xs font-semibold text-accent-cyan disabled:opacity-40">{busy === 'analysis' ? 'Submitting QC…' : 'Generate PCA and QC for review'}</button>
     </section>}
 
     {error && <div role="alert" className="rounded-lg border border-error/25 bg-error/10 p-4 text-sm text-error">{error}</div>}

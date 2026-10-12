@@ -103,11 +103,43 @@ def sample_counts(payload: bytes, filename: str) -> dict[str, int]:
         raise GeoCountsError("Invalid per-sample count text.") from exc
 
 
-def assemble_counts(files: dict[str, bytes], mapping: dict[str, str]) -> tuple[bytes, dict]:
-    if len(mapping) < 4 or len(set(mapping.values())) != len(mapping) or any(not name.strip() for name in mapping.values()):
-        raise GeoCountsError("Map at least four files to distinct, named biological samples.")
+COMPATIBILITY_FIELDS = ("reference", "annotation", "counting_method", "strandedness", "feature_definition")
+
+
+def review_compatibility(mapping: dict[str, str], review: dict | None) -> dict:
+    """Require reviewed, per-file method identities before assembling counts."""
+    if not isinstance(review, dict) or review.get("reviewed") is not True:
+        raise GeoCountsError("Review source compatibility before combining independently generated count files.")
+    records = review.get("files")
+    if not isinstance(records, dict) or set(records) != set(mapping):
+        raise GeoCountsError("Compatibility records must identify every selected count file exactly once.")
+    common = None
+    for name, sample in mapping.items():
+        record = records[name]
+        if not isinstance(record, dict) or record.get("sample") != sample:
+            raise GeoCountsError("Compatibility sample-to-file mapping does not match the selected files.")
+        values = {}
+        for field in COMPATIBILITY_FIELDS:
+            value = record.get(field)
+            if not isinstance(value, str) or not value.strip() or value.strip().casefold() in {"unknown", "unspecified", "not_declared"}:
+                raise GeoCountsError(f"Count file {name} needs a recorded {field}.")
+            values[field] = value.strip()
+        if values["strandedness"] not in {"unstranded", "forward", "reverse"}:
+            raise GeoCountsError("Strandedness must be unstranded, forward or reverse.")
+        if common is not None and values != common:
+            differing = [field for field in COMPATIBILITY_FIELDS if values[field] != common[field]]
+            raise GeoCountsError("Count sources use incompatible " + ", ".join(differing) + "; re-quantify with a common procedure before assembly.")
+        common = values
+    return {"reviewed": True, "status": "ANALYST_ATTESTED_COMPATIBLE", "common": common,
+            "files": records, "independently_verified": False}
+
+
+def assemble_counts(files: dict[str, bytes], mapping: dict[str, str], compatibility: dict | None = None) -> tuple[bytes, dict]:
+    if not mapping or len(set(mapping.values())) != len(mapping) or any(not name.strip() for name in mapping.values()):
+        raise GeoCountsError("Map count files to distinct, named biological samples.")
     if not set(mapping) <= set(files):
         raise GeoCountsError("Selected count file is absent.")
+    compatibility_record = review_compatibility(mapping, compatibility)
     tables = [(name, sample_counts(files[name], name)) for name in mapping]
     genes = list(tables[0][1])
     if any(set(table) != set(genes) for _, table in tables):
@@ -120,4 +152,5 @@ def assemble_counts(files: dict[str, bytes], mapping: dict[str, str]) -> tuple[b
     if len(body) > MAX_BYTES:
         raise GeoCountsError("Assembled matrix exceeds 60 MB")
     return body, {"assembly": "exact_gene_set", "missing_value_policy": "reject",
-        "file_to_sample": mapping, "member_sha256": {name: hashlib.sha256(files[name]).hexdigest() for name in mapping}}
+        "file_to_sample": mapping, "compatibility": compatibility_record,
+        "member_sha256": {name: hashlib.sha256(files[name]).hexdigest() for name in mapping}}

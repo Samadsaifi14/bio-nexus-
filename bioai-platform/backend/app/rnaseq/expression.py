@@ -15,7 +15,10 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.services.supabase import get_supabase
+def get_supabase():
+    # Local numerical controls do not need storage or storage credentials.
+    from app.services.supabase import get_supabase as connected_client
+    return connected_client()
 
 BUCKET = "rnaseq-artifacts"
 MAX_COUNTS_BYTES = 60 * 1024 * 1024
@@ -157,7 +160,10 @@ def expression_readiness(salmon: bool = False) -> dict:
 
 def validate_artifacts(outdir: Path, summary: dict, stage: str) -> None:
     required = {"analysis_summary.json", "pca.svg", "pca_coordinates.tsv", "sample_distance_heatmap.svg",
-                "sample_distance_matrix.tsv", "design_audit.json", "normalized_counts.tsv", "size_factors.tsv"}
+                "sample_distance_matrix.tsv", "design_audit.json", "normalized_counts.tsv", "size_factors.tsv",
+                "execution_versions.json", "sessionInfo.txt"}
+    if summary.get("input_kind") == "salmon":
+        required.add("normalization_factors.tsv")
     if stage != "qc":
         required |= {"ma_plot.svg", "volcano.svg", "volcano_plot_data.tsv", "deseq2_all_results.tsv",
                      "deseq2_significant.tsv", "dispersion_plot.svg", "dds_fitted.rds"}
@@ -197,6 +203,8 @@ def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: Express
         completed = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=timeout_seconds, check=False)
     except subprocess.TimeoutExpired as exc:
         raise RnaSeqExpressionError(f"DESeq2 execution exceeded {timeout_seconds} seconds.") from exc
+    (outdir / "R_stdout.log").write_text(completed.stdout or "", encoding="utf-8")
+    (outdir / "R_stderr.log").write_text(completed.stderr or "", encoding="utf-8")
     if completed.returncode != 0:
         lines = (completed.stderr or completed.stdout or "DESeq2 failed").strip().splitlines()
         errors = [i for i, line in enumerate(lines) if line.startswith("Error")]
@@ -252,6 +260,8 @@ def execute_expression_analysis(
             "source_label": source_label,
             "source_metadata": source_metadata or {},
             "counts_sha256": counts_sha256,
+            "analysis_script_sha256": sha256_file(R_SCRIPT),
+            "runtime_versions": json.loads((outdir / "execution_versions.json").read_text()),
             "metadata_sha256": metadata_sha256,
             "organism": params.organism,
             "condition_column": params.condition_column,

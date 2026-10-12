@@ -96,6 +96,8 @@ def build_production_plan(request: NgsProductionPlanRequest) -> dict[str, Any]:
             "start_step": request.start_step,
         },
         "state": "PLANNED" if ready else "BLOCKED",
+        "evidence_class": "workflow_plan",
+        "sequencing_execution_verified": False,
         "ready_to_launch": ready,
         "blockers": blockers,
         "warnings": warnings,

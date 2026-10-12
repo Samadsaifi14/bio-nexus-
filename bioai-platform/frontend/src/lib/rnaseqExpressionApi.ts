@@ -70,7 +70,7 @@ export type RnaSeqExpressionResult = {
 
 export type RnaSeqExpressionUpload = {
   counts: File;
-  countOrigin: { kind: 'raw_counts'; normalization: 'none'; evidence: string; method: string; annotation: string; reviewed: boolean };
+  countOrigin: { classification: 'deposited_raw_counts'; source_uri: string; kind: 'raw_counts'; normalization: 'none'; evidence: string; method: string; annotation: string; reviewed: boolean };
   metadata: File;
   conditionColumn: string;
   referenceLevel: string;

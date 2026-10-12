@@ -78,7 +78,8 @@ async def preview_geo_matrix(selection: MatrixSelection):
                         "mapping": matrix["sample_mapping"][index]})
     return {"accession": series["accession"], "filename": selection.filename, "source_url": source,
             "source_sha256": matrix["sha256"], "genes": matrix["genes"], "annotation_columns": matrix["annotation_columns"],
-            "columns": columns, "samples": series["samples"], "design": series["design"]}
+            "columns": columns, "samples": series["samples"], "design": series["design"],
+            "input_provenance": matrix["input_provenance"], "inspection_warnings": matrix["inspection_warnings"]}
 
 
 @router.get("/series/{accession}/recovery")

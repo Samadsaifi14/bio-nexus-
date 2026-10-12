@@ -1,2 +1,0 @@
-Production redeploy trigger for Bio Nexus frontend.
-Commit generated after MD v2 runtime fix to ensure the frontend-root Git integration detects the main branch change.

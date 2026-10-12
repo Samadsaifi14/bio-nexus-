@@ -224,13 +224,13 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
     delimiter = "," if ".csv" in filename.lower() else "\t"
     reader = csv.reader(io.StringIO(text), delimiter=delimiter)
     header = next(reader, None)
-    if not header or len(header) < 3 or len(set(header)) != len(header):
-        raise GeoCountsError("The matrix needs a unique gene column and at least two unique sample columns.")
+    if not header or len(header) < 2 or len(set(header)) != len(header):
+        raise GeoCountsError("The matrix needs a unique gene column and at least one unique sample column.")
     if not header[0].strip() or header[0].strip().lower() in {"", "index"}:
         raise GeoCountsError("The first column must identify each gene.")
     sample_indices = [i for i, name in enumerate(header[1:], 1) if not _is_annotation_column(name)]
-    if len(sample_indices) < 4:
-        raise GeoCountsError("At least four sample count columns are needed for two replicated groups.")
+    if not sample_indices:
+        raise GeoCountsError("At least one sample count column is required for inspection.")
     sample_columns = [header[i] for i in sample_indices]
     if any(not name.strip() for name in sample_columns):
         raise GeoCountsError("Sample count columns must be named.")
@@ -261,8 +261,8 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
             sums[index] += number
             values.append(value)
         rows.append([gene, *values])
-    if len(rows) < 2 or any(total == 0 for total in sums):
-        raise GeoCountsError("The matrix has too few genes or an all-zero sample library.")
+    if not rows:
+        raise GeoCountsError("The matrix contains no gene observations.")
     mappings = [_column_match(name, samples) for name in sample_columns]
     seen_samples: set[str] = set()
     duplicates: set[str] = set()
@@ -280,6 +280,10 @@ def parse_matrix(payload: bytes, filename: str, samples: list[dict]) -> dict:
         "columns": sample_columns,
         "matched_samples": matches,
         "sample_mapping": mappings,
+        "input_provenance": {"classification": "unknown_origin", "format_valid": True,
+                             "independently_verified": False,
+                             "reason": "Integer format does not establish raw-count origin; review supporting source documentation before analysis."},
+        "inspection_warnings": ["All-zero sample library: " + name for name, total in zip(sample_columns, sums) if total == 0],
         "genes": len(rows),
         "library_sizes": sums,
         "annotation_columns": [name for name in header[1:] if _is_annotation_column(name)],

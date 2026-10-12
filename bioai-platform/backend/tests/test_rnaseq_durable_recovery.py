@@ -26,16 +26,20 @@ def archive(files):
     return stream.getvalue()
 
 
+def compatibility(mapping):
+    return {"reviewed": True, "files": {name: {"sample": sample, "reference": "GRCh38", "annotation": "GENCODE v44", "counting_method": "featureCounts 2.0.6", "strandedness": "reverse", "feature_definition": "gene-level exon union; unique paired fragments"} for name, sample in mapping.items()}}
+
+
 def test_safe_archive_and_exact_gene_assembly():
     files = {f"s{i}.tsv": f"gene\tcount\ng1\t{i+1}\ng2\t{i+2}\n".encode() for i in range(4)}
     recovered = archive_members(archive(files), "counts.zip")
-    counts, audit = assemble_counts(recovered, {name: f"sample{i}" for i, name in enumerate(files)})
+    counts, audit = assemble_counts(recovered, {name: f"sample{i}" for i, name in enumerate(files)}, compatibility({name: f"sample{i}" for i, name in enumerate(files)}))
     assert counts.decode().splitlines() == ["gene\tsample0\tsample1\tsample2\tsample3", "g1\t1\t2\t3\t4", "g2\t2\t3\t4\t5"]
     assert audit["missing_value_policy"] == "reject"
     assert set(audit["member_sha256"]) == set(files)
     files["s3.tsv"] = b"gene\tcount\ng1\t4\ng3\t5\n"
     with pytest.raises(GeoCountsError, match="Gene sets differ"):
-        assemble_counts(files, {name: name for name in files})
+        assemble_counts(files, {name: name for name in files}, compatibility({name: name for name in files}))
 
 
 @pytest.mark.parametrize("name", ["../escape.tsv", "/absolute.tsv", "C:\\data.tsv"])
@@ -47,7 +51,7 @@ def test_archive_traversal_rejected(name):
 def test_integer_normalized_values_require_origin_review():
     with pytest.raises(RnaSeqExpressionError, match="origin"):
         CountOrigin(evidence="Original study methods", method="FPKM", annotation="release 1", normalization="normalized", reviewed=True).check()
-    record = CountOrigin(evidence="Original study raw count methods", method="featureCounts", annotation="release 1", normalization="none", reviewed=True).check()
+    record = CountOrigin(classification="deposited_raw_counts", source_uri="GEO: source methods", evidence="Original study raw count methods", method="featureCounts", annotation="release 1", normalization="none", reviewed=True).check()
     assert record["count_origin_status"] == "ANALYST_ATTESTED"
     assert record["independently_verified"] is False
 
@@ -138,7 +142,7 @@ def test_http_submission_preserves_reviewed_origin_and_units(monkeypatch):
     monkeypatch.setattr(rnaseq_recovery, "submit_prepared", submit)
     matrix = b"gene\ts1\ts2\ts3\ts4\ng1\t2\t3\t4\t5\ng2\t5\t6\t7\t8\n"
     metadata = b"sample\tcondition\texperimental_unit\ns1\ta\tu1\ns2\ta\tu2\ns3\tb\tu3\ns4\tb\tu4\n"
-    origin = {"kind":"raw_counts", "normalization":"none", "evidence":"GEO source raw count methods", "method":"featureCounts", "annotation":"release 1", "reviewed":True}
+    origin = {"classification":"deposited_raw_counts", "source_uri":"GEO: source methods", "kind":"raw_counts", "normalization":"none", "evidence":"GEO source raw count methods", "method":"featureCounts", "annotation":"release 1", "reviewed":True}
     client = TestClient(app)
     response = client.post("/api/ngs/v2/rnaseq/recovery/submit", data={"origin":json.dumps(origin), "parameters":json.dumps({"reference_level":"a","test_level":"b"})}, files={"data":("counts.tsv",matrix),"metadata":("meta.tsv",metadata)})
     assert response.status_code == 200, response.text
@@ -174,6 +178,6 @@ def test_geo_source_change_blocks_assembly(monkeypatch):
     monkeypatch.setattr(rnaseq_recovery, "geo_files", fetch)
     with pytest.raises(Exception, match="changed since inspection"):
         asyncio.run(rnaseq_recovery.submit_geo(source_selection=json.dumps({"accession":"GSE1","filenames":["counts.zip"]}),
-            origin=json.dumps({"normalization":"none","evidence":"raw count methods","method":"featureCounts","annotation":"release1","reviewed":True}),
+            origin=json.dumps({"classification":"deposited_raw_counts","source_uri":"GEO: source methods","normalization":"none","evidence":"raw count methods","method":"featureCounts","annotation":"release1","reviewed":True}),
             parameters="{}", metadata=UploadFile(filename="meta.tsv",file=io.BytesIO(b"x")), source_sha256=json.dumps({"counts.zip":"old"}),
             mapping="{}", matrix_member="", user="alice"))

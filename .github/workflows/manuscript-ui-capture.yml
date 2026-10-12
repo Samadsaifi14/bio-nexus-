@@ -74,6 +74,30 @@ jobs:
                 b.success=false;b.error=String(e);
                 try{await blast.screenshot({path:path.join(out,'blast-failure.png'),fullPage:true})}catch{}
               } finally {report.blast=b;await blast.close()}
+
+              // Broad feature inventory: capture every public analysis route independently.
+              report.features = [];
+              const routes = [
+                'blast','ngs','docking','md','msa','phylo','domains','primers',
+                'alignment','structure','pathway','enrichment','admet','function',
+                'interactions','rnaseq','geo','sequencing','protein'
+              ];
+              for(const feature of routes){
+                const tab = await browser.newPage({viewport:{width:1440,height:900}});
+                const entry = {feature,url:new URL('/analyze/'+feature,url).toString()};
+                try{
+                  const nav = await tab.goto(entry.url,{waitUntil:'domcontentloaded',timeout:25000});
+                  await tab.waitForTimeout(800);
+                  entry.status=nav?.status()??null;
+                  entry.final_url=tab.url();
+                  entry.title=await tab.title();
+                  entry.headings=(await tab.locator('h1,h2').allTextContents()).slice(0,12);
+                  entry.body_excerpt=(await tab.locator('body').innerText()).slice(0,500);
+                  entry.available=entry.status===200 && !/404|not found/i.test(entry.headings.join(' '));
+                  await tab.screenshot({path:path.join(out,'feature-'+feature+'.png'),fullPage:true,animations:'disabled'});
+                }catch(e){entry.error=String(e);entry.available=false}
+                finally{report.features.push(entry);await tab.close()}
+              }
               report.capture_success = true;
             } catch (e) {
               report.capture_success = false; report.error = String(e);

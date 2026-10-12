@@ -70,11 +70,11 @@ jobs:
                 b.confirmation_buttons=buttons.slice(-12);
                 await blast.getByRole('button',{name:'Run Analysis'}).click({timeout:15000});
                 b.stage='submitted';
-                try { await blast.waitForURL(/\\/jobs\\//,{timeout:90000}); } catch {}
+                try { await blast.waitForURL(u=>u.pathname.includes('/jobs/'),{timeout:90000}); } catch {}
                 await blast.waitForTimeout(8000);
                 b.final_url=blast.url();
                 b.pipeline_responses=responses;
-                b.job_id=(blast.url().match(/\\/jobs\\/([^/?#]+)/)||[])[1]||null;
+                b.job_id=(blast.url().match(new RegExp('/jobs/([^/?#]+)'))||[])[1]||null;
                 await blast.screenshot({path:path.join(out,'blast-after-submit.png'),fullPage:true});
                 b.success=Boolean(b.job_id)&&responses.some(x=>x.status>=200&&x.status<300);
                 b.stage=b.success?'job-created':'submission-failed';

@@ -189,3 +189,4 @@ async def process_job(job_id: str) -> None:
 
 def dispatch_job(job_id: str) -> None:
     asyncio.ensure_future(process_job(job_id))
+

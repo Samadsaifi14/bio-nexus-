@@ -93,6 +93,35 @@ def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
         "sensitive", "sensitive", "resistant", "resistant"]
 
 
+def test_geo_preview_suggests_unambiguous_replicated_groups_and_sample_ids(monkeypatch):
+    series = {"accession": "GSE336901", "samples": [
+        {"accession": f"GSM{i}", "title": f"replicate {i}",
+         "characteristics": {"treatment": "healthy" if i < 3 else "SALS"}}
+        for i in range(1, 5)], "design": "healthy vs SALS"}
+    matrix = {"columns": ["GSM1", "GSM2", "GSM3", "GSM4"], "matched_samples": ["GSM1", "GSM2", "GSM3", "GSM4"],
+              "library_sizes": [100, 110, 120, 130], "genes": 2, "annotation_columns": [], "sha256": "abc", "rows": []}
+
+    async def fake_series(client, accession):
+        return series
+
+    async def fake_matrix(client, detail, filename):
+        return matrix, "https://ftp.ncbi.nlm.nih.gov/counts.tsv.gz"
+
+    monkeypatch.setattr(geo_search, "fetch_series", fake_series)
+    monkeypatch.setattr(geo_search, "fetch_matrix", fake_matrix)
+
+    async def run():
+        return await geo_search.preview_geo_matrix(geo_search.MatrixSelection(accession="GSE336901", filename="counts.tsv.gz"))
+
+    result = asyncio.run(run())
+    assert result["group_suggestion"] == {
+        "characteristic": "treatment", "levels": ["healthy", "SALS"],
+        "counts": {"healthy": 2, "SALS": 2}, "source": "GEO sample characteristics",
+    }
+    assert [column["suggested_condition"] for column in result["columns"]] == ["healthy", "healthy", "SALS", "SALS"]
+    assert [column["experimental_unit_suggestion"] for column in result["columns"]] == ["GSM1", "GSM2", "GSM3", "GSM4"]
+
+
 def test_geo_series_marks_fpkm_supplement_as_unavailable(monkeypatch):
     def respond(request):
         if request.url.params["targ"] == "self":
@@ -284,3 +313,4 @@ def test_geo_preview_suggests_unambiguous_replicated_groups_and_sample_ids(monke
         "healthy", "healthy", "SALS", "SALS"]
     assert [column["experimental_unit_suggestion"] for column in result["columns"]] == [
         "GSM1", "GSM2", "GSM3", "GSM4"]
+

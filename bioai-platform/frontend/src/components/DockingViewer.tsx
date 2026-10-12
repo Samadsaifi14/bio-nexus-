@@ -13,6 +13,7 @@ interface DockingViewerProps {
   pdbUrl?: string;
   pdbUrlFormat?: 'pdb' | 'cif';
   interactions?: DockingInteraction;
+  pocketResidues?: Array<{ chain: string; residue_number: number | string; residue_name: string }>;
   height?: number | string;
   backgroundColor?: string;
   chains?: Array<{ id: string; residue_count: number }>;
@@ -86,6 +87,7 @@ export function DockingViewer({
   pdbUrl,
   pdbUrlFormat,
   interactions,
+  pocketResidues = [],
   height = 480,
   backgroundColor,
   chains = [],
@@ -257,6 +259,21 @@ export function DockingViewer({
       // Best-effort viewer enhancement; the tabular fingerprint remains available.
     }
   }, [interactions]);
+
+  const focusDetectedPocket = useCallback(async () => {
+    const viewer = viewerRef.current?.viewerInstance;
+    if (!viewer || !pocketResidues.length) return;
+    const residues = pocketResidues.map(residue => ({
+      auth_asym_id: residue.chain,
+      auth_seq_id: Number(residue.residue_number),
+    }));
+    try {
+      await viewer.visual.select({ data: residues, keepRepresentations: true });
+      await viewer.visual.focus(residues);
+    } catch {
+      // Pocket lining residue identifiers remain available in the result table.
+    }
+  }, [pocketResidues]);
 
   const handleScreenshot = useCallback(() => {
     const canvas = viewerRef.current?.querySelector('canvas');
@@ -463,9 +480,14 @@ export function DockingViewer({
           </select>
         )}
 
+        {pocketResidues.length > 0 && (
+          <button type="button" onClick={focusDetectedPocket} disabled={status !== 'ready'} className="rounded border border-hud-line/10 px-2 py-1 text-[10px] text-hud-text/60 hover:bg-hud/5 hover:text-hud-text disabled:opacity-40">
+            Focus detected pocket
+          </button>
+        )}
         {interactions && (
           <button type="button" onClick={focusContacts} disabled={status !== 'ready'} className="rounded border border-hud-line/10 px-2 py-1 text-[10px] text-hud-text/60 hover:bg-hud/5 hover:text-hud-text disabled:opacity-40">
-            Focus pocket
+            Focus contacts
           </button>
         )}
 

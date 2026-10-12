@@ -698,3 +698,4 @@ END
         assert any(point.resnum == 2 for point in points)
         assert all(-180.0 <= point.phi <= 180.0 for point in points)
         assert all(-180.0 <= point.psi <= 180.0 for point in points)
+

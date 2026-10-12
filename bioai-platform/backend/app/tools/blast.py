@@ -259,3 +259,4 @@ class BlastTool(BaseTool):
                 "hsps": hsps if isinstance(hsps, list) else [],
             })
         return parsed
+

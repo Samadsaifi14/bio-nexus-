@@ -150,7 +150,7 @@ def _engines_manifest(obabel_version: str, rdkit_version: str, vina_version: str
             "role": "receptor_prep",
             "engine": "Open Babel",
             "version": obabel_version,
-            "note": "Rigid receptor — crystal protonation kept, Gasteiger charges (prepare_receptor4-style)",
+            "note": "Rigid PDB-to-PDBQT conversion with Gasteiger charges requested; protonation state not validated",
         },
         {
             "role": "ligand_3d",
@@ -230,7 +230,8 @@ def _run_docking_sync(job_id: str, payload: dict):
             validate_url(pdb_url)  # SSRF guard even in worker
             try:
                 # URL passed the SSRF allowlist (validate_url) above
-                pdb_text = urllib.request.urlopen(pdb_url, timeout=30)  # nosemgrep.read().decode("utf-8", errors="replace")
+                with urllib.request.urlopen(pdb_url, timeout=30) as response:  # nosemgrep
+                    pdb_text = response.read().decode("utf-8", errors="replace")
             except Exception:
                 pass
         if not pdb_text and pdb_id:
@@ -268,23 +269,45 @@ def _run_docking_sync(job_id: str, payload: dict):
         #    Centroid is blind docking — labelled as such in the result so
         #    consumers know affinities from it are low-confidence.
         grid_source = "user"
+        pocket_candidates: list[dict] = []
+        selected_pocket_rank: int | None = None
         grid_center = payload.get("grid_center")
         grid_size = payload.get("grid_size", [20.0, 20.0, 20.0])
+        pocket_grid = compute_pocket_grid(protein_pdb)
+        if pocket_grid:
+            pocket_candidates = pocket_grid.get("candidates", [])
         if not grid_center or all(v == 0 for v in grid_center):
-            pocket_grid = compute_pocket_grid(protein_pdb)
             if pocket_grid:
                 grid_center = pocket_grid["center"]
                 grid_size = pocket_grid["size"]
                 grid_source = "pocket"
+                selected_pocket_rank = pocket_grid.get("selected_rank")
             else:
                 grid_center = compute_grid_center(protein_pdb)
                 grid_source = "centroid"
 
         # 4. Prepare receptor
         protein_pdbqt = pdb_to_pdbqt_receptor(protein_pdb)
+        receptor_atom_lines = [line for line in protein_pdb.splitlines() if line.startswith("ATOM")]
+        receptor_pdbqt_atom_lines = [line for line in protein_pdbqt.splitlines() if line.startswith(("ATOM", "HETATM"))]
+        receptor_input_hydrogens = sum(1 for line in receptor_atom_lines if line[76:78].strip().upper() == "H")
+        receptor_pdbqt_hydrogens = sum(
+            1 for line in receptor_pdbqt_atom_lines
+            if (line[76:78].strip().upper() if len(line) >= 78 else line.split()[-1].upper()).startswith("H")
+        )
+        receptor_prep_evidence = {
+            "input_protein_atom_records": len(receptor_atom_lines),
+            "input_explicit_hydrogen_records": receptor_input_hydrogens,
+            "prepared_pdbqt_atom_records": len(receptor_pdbqt_atom_lines),
+            "prepared_pdbqt_hydrogen_atom_types": receptor_pdbqt_hydrogens,
+            "input_water_records_excluded": sum(1 for line in pdb_text.splitlines() if line.startswith("HETATM") and line[17:20].strip().upper() in {"HOH", "WAT", "H2O"}),
+            "input_other_hetero_records_excluded": sum(1 for line in pdb_text.splitlines() if line.startswith("HETATM") and line[17:20].strip().upper() not in {"HOH", "WAT", "H2O"}),
+            "caveat": "Record counts document the conversion input/output only; protonation, tautomer state, missing atoms, and biological assembly were not validated.",
+        }
 
         # 5. Prepare ligand
         lig_pdbqt = smiles_to_pdbqt(smiles)
+        ligand_pdbqt_atom_count = sum(1 for line in lig_pdbqt.splitlines() if line.startswith(("ATOM", "HETATM")))
 
         # 6. Run AutoDock Vina — fixed seed for reproducibility,
         #    publication-grade exhaustiveness default.
@@ -300,12 +323,31 @@ def _run_docking_sync(job_id: str, payload: dict):
         )
 
         # 7. Compute interaction summary for best pose
-        interactions = _compute_interactions(
-            protein_pdb, vina_result["ligand_pdb"]
-        )
-        pose_interactions = _summarize_pose_interactions(
-            protein_pdb, vina_result.get("result_sdf", "")
-        )
+        interaction_analysis = {"status": "COMPUTED", "method": "distance and geometry thresholds; per-contact evidence is listed by interaction type", "limitations": "Geometric contact screening is not an energy calculation or experimental validation."}
+        try:
+            interactions = _compute_interactions(protein_pdb, vina_result["ligand_pdb"])
+            pose_interactions = _summarize_pose_interactions(
+                protein_pdb, vina_result.get("result_pdbqt", "")
+            )
+        except Exception as e:
+            interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
+            pose_interactions = []
+            interaction_analysis = {"status": "UNAVAILABLE", "reason": type(e).__name__, "limitations": "Interaction calculation failed; empty lists are not evidence of no contacts."}
+
+        try:
+            from app.services.docking_pose_analytics import cluster_poses, water_mediated_interactions
+            pose_analytics = {
+                "pose_clustering": cluster_poses(vina_result.get("result_pdbqt", "")),
+                "water_mediated_interactions": water_mediated_interactions(
+                    pdb_text, vina_result.get("result_pdbqt", "")
+                ),
+                "scientific_boundary": {
+                    "pose_rmsd": "Atom-order coordinate-frame RMSD; not symmetry-corrected and not a crystallographic accuracy measurement.",
+                    "water_bridges": "Distance-based geometric screen; not a hydrogen-bond energy or occupancy calculation.",
+                },
+            }
+        except Exception as e:
+            pose_analytics = {"status": "UNAVAILABLE", "reason": type(e).__name__}
 
         # 8. CNN rescoring with Gnina (optional, graceful fallback)
         cnn_rescoring = None
@@ -314,7 +356,7 @@ def _run_docking_sync(job_id: str, payload: dict):
             from app.tools.gnina_rescore import rescore_with_gnina
             cnn_rescoring = rescore_with_gnina(
                 receptor_pdb=protein_pdb,
-                vina_output_pdbqt=vina_result.get("result_sdf", ""),
+                vina_output_pdbqt=vina_result.get("result_pdbqt", ""),
             )
             gnina_available = cnn_rescoring is not None
         except Exception as e:
@@ -365,15 +407,23 @@ def _run_docking_sync(job_id: str, payload: dict):
             "vina_exhaustiveness": (vina_result.get("vina_meta") or {}).get("exhaustiveness"),
             "vina_num_modes": int(payload.get("num_modes", 9) or 9),
             "grid_source": grid_source,
+            "pocket_candidates": pocket_candidates,
+            "selected_pocket_rank": selected_pocket_rank,
             "grid_source_label": grid_source_labels.get(grid_source, grid_source),
             "engines": engines,
-            "receptor_prep": "rigid receptor — crystal protonation kept, Gasteiger charges (Open Babel, prepare_receptor4-style)",
+            "receptor_prep": "Rigid protein ATOM records converted from PDB to PDBQT with Open Babel and Gasteiger charge assignment requested. Protonation is not experimentally verified; waters and other HETATM records are excluded from the receptor input.",
+            "receptor_prep_evidence": receptor_prep_evidence,
             "ligand_prep": "3D structure via NCI CACTUS; PDBQT via Open Babel with MMFF94s minimization when available",
+            "ligand_prep_evidence": {"input_smiles": smiles, "prepared_pdbqt_atom_records": ligand_pdbqt_atom_count, "protonation": "Open Babel pH 7.4 option requested during ligand PDBQT conversion; not experimentally validated"},
             "interactions": interactions,
+            "interaction_analysis": interaction_analysis,
             "pose_interactions": pose_interactions,
+            "pose_analytics": pose_analytics,
             "cnn_rescoring": cnn_rescoring,
             "ligand_pdb": vina_result.get("ligand_pdb", ""),
+            "result_pdbqt": vina_result.get("result_pdbqt", ""),
             "result_sdf": vina_result.get("result_sdf", ""),
+            "sdf_export_error": vina_result.get("sdf_export_error"),
             "receptor_pdb": protein_pdb,
         }
 
@@ -955,18 +1005,37 @@ def _load_docking_result(job_id: str, user_id: str) -> dict:
 
 @router.get("/result/{job_id}/ligand.sdf")
 async def get_docking_ligand_sdf(job_id: str, user_id: str = Depends(require_user_id)):
-    """Ligand-only SDF of the docked poses (techspec §2)."""
+    """Download the docked poses as a validated multi-record SDF."""
     data = _load_docking_result(job_id, user_id)
     sdf = data.get("result_sdf", "")
-    if not sdf:
-        raise HTTPException(
-            status_code=404,
-            detail="No SDF stored for this job (older runs predate SDF persistence — re-run the docking job)",
-        )
+    if "$$$$" not in sdf or not re.search(r"V\d{4}", sdf):
+        pdbqt = data.get("result_pdbqt") or sdf
+        if not pdbqt:
+            raise HTTPException(status_code=404, detail="No docked ligand structure is stored for this job")
+        try:
+            from app.tools.docking import pdbqt_to_sdf
+            sdf = pdbqt_to_sdf(pdbqt)
+        except Exception as e:
+            logger.exception("Could not create SDF export for docking job %s", job_id)
+            raise HTTPException(status_code=422, detail=f"Could not convert the stored poses to SDF: {type(e).__name__}") from e
     return PlainTextResponse(
         sdf,
         media_type="chemical/x-mdl-molfile",
         headers={"Content-Disposition": f'attachment; filename="docked_{job_id[:8]}.sdf"'},
+    )
+
+
+@router.get("/result/{job_id}/ligand.pdbqt")
+async def get_docking_ligand_pdbqt(job_id: str, user_id: str = Depends(require_user_id)):
+    """Download the original AutoDock Vina multi-pose PDBQT output."""
+    data = _load_docking_result(job_id, user_id)
+    pdbqt = data.get("result_pdbqt", "")
+    if not pdbqt:
+        raise HTTPException(status_code=404, detail="No Vina PDBQT output is stored for this job")
+    return PlainTextResponse(
+        pdbqt,
+        media_type="chemical/x-pdbqt",
+        headers={"Content-Disposition": f'attachment; filename="docked_{job_id[:8]}.pdbqt"'},
     )
 
 

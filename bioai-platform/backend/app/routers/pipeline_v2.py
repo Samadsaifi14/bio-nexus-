@@ -1576,3 +1576,4 @@ async def _run_interpret(context: dict) -> dict:
         "query_confidence": context.get("query", {}).get("confidence", "identified"),
     }
     return await interpret_text("protein_analysis", prompt_context)
+

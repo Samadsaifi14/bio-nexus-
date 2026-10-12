@@ -24,7 +24,10 @@ from app.services.auth import require_user_id
 router = APIRouter(prefix="/api/ngs/v2/geo", tags=["geo-discovery"])
 BASE = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils"
 TECHNICAL_KEY = re.compile(r"(^|[ _-])(batch|run|lane|plate|operator|site|processing[ _-]?day|extraction[ _-]?batch|kit[ _-]?lot|flow[ _-]?cell)([ _-]|$)", re.I)
-CONDITION_KEYS = {"condition", "treatment", "group", "disease", "disease status", "phenotype", "clinical status", "case control", "diagnosis", "genotype"}
+CONDITION_KEYS = {
+    "condition", "treatment", "group", "disease", "disease status", "phenotype",
+    "clinical status", "case control", "diagnosis", "genotype",
+}
 
 
 class MatrixSelection(BaseModel):
@@ -166,7 +169,9 @@ async def preview_geo_matrix(selection: MatrixSelection):
             levels = set(values)
             if "" not in levels and len(levels) == 2 and min(values.count(level) for level in levels) >= 2:
                 candidates[key] = values
-    # Suggest only a single unambiguous replicated two-level GEO factor.
+    # Suggest a factor only when GEO provides one unambiguous, replicated,
+    # two-level comparison. If multiple recorded factors disagree, ask the
+    # analyst to choose instead of guessing which scientific question to test.
     distinct_assignments = {tuple(values) for values in candidates.values()}
     selected_key = next((key for key in sorted(candidates) if tuple(candidates[key]) in distinct_assignments), None) if len(distinct_assignments) == 1 and candidates else None
     suggested_values = candidates[selected_key] if selected_key else [""] * len(matrix["columns"])
@@ -180,7 +185,9 @@ async def preview_geo_matrix(selection: MatrixSelection):
             "source": "GEO sample characteristics",
         }
     samples_for_ui = [
-        {**sample, "suggested_condition": sample.get("characteristics", {}).get(selected_key)} if selected_key else dict(sample)
+        {**sample,
+         "suggested_condition": sample.get("characteristics", {}).get(selected_key)
+         if selected_key else None}
         for sample in series["samples"]
     ]
     columns = []
@@ -190,6 +197,7 @@ async def preview_geo_matrix(selection: MatrixSelection):
                         "characteristics": sample.get("characteristics", {}), "library_size": total,
                         "mapping": matrix["sample_mapping"][index],
                         "suggested_condition": suggested_values[index] or None,
+                        "condition_evidence": f"GEO {selected_key}: {suggested_values[index]}" if selected_key else None,
                         "experimental_unit_suggestion": gsm or None})
     return {"accession": series["accession"], "filename": selection.filename, "source_url": source,
             "source_sha256": matrix["sha256"], "genes": matrix["genes"], "annotation_columns": matrix["annotation_columns"],
@@ -311,3 +319,4 @@ async def search_geo(q: str = Query(min_length=2, max_length=120)):
             "url": f"https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc={accession}",
         })
     return {"query": query, "results": results}
+

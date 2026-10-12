@@ -624,6 +624,23 @@ export type DockingPoseInteractions = {
   salt_bridges: number;
 };
 
+export type DockingPocketCandidate = {
+  rank: number;
+  center: number[];
+  size: number[];
+  atom_count: number;
+  residues: string[];
+  residue_ids: Array<{ chain: string; residue_number: number | string; residue_name: string }>;
+  score?: number;
+  druggability_score?: number;
+  volume?: number;
+  area?: number;
+  total_sasa?: number;
+  polar_sasa?: number;
+  apolar_sasa?: number;
+  number_of_alpha_spheres?: number;
+};
+
 export type DockingResult = {
   job_id: string;
   status: string;
@@ -653,10 +670,25 @@ export type DockingResult = {
     vina_num_modes?: number | null;
     grid_source?: string;
     receptor_prep?: string;
+    receptor_prep_evidence?: {
+      input_protein_atom_records: number;
+      input_explicit_hydrogen_records: number;
+      prepared_pdbqt_atom_records: number;
+      prepared_pdbqt_hydrogen_atom_types: number;
+      input_water_records_excluded: number;
+      input_other_hetero_records_excluded: number;
+    };
     ligand_prep?: string;
+    ligand_prep_evidence?: { prepared_pdbqt_atom_records: number; protonation: string };
     from_cache?: boolean;
     interactions?: DockingInteraction;
+    interaction_analysis?: { status: 'COMPUTED' | 'UNAVAILABLE'; method?: string; reason?: string; limitations?: string };
     pose_interactions?: DockingPoseInteractions[];
+    pose_analytics?: Record<string, unknown>;
+    pocket_candidates?: DockingPocketCandidate[];
+    selected_pocket_rank?: number | null;
+    result_pdbqt?: string;
+    result_sdf?: string;
     ligand_pdb?: string;
   };
   error?: string;

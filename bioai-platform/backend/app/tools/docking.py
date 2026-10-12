@@ -180,16 +180,18 @@ def compute_grid_center(pdb_text: str) -> list[float]:
     return [sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)]
 
 
-def compute_pocket_grid(pdb_text: str, padding: float = 8.0,
-                        min_size: float = 20.0, max_size: float = 70.0
+def compute_pocket_grid(pdb_text: str, padding: float = 4.0,
+                        min_size: float = 16.0, max_size: float = 32.0
                         ) -> Optional[dict]:
-    """Detect pockets with fpocket and build a docking grid around pocket #1.
+    """Detect fpocket candidates and build a restrained grid around pocket #1.
 
     Docking at the protein centroid is blind docking — for anything larger
     than a small protein the box lands in empty space and affinities are
     meaningless. fpocket ranks pockets by score; pocket 1 is its best hit.
 
-    Returns {"center": [x,y,z], "size": [sx,sy,sz]} or None on any failure.
+    Pocket scores/volumes are parsed only when fpocket actually reports them.
+    Coordinates, residues and grid dimensions are computed from each pocket's
+    ``*_atm.pdb`` file; no missing descriptors are synthesized.
     """
     compute_grid_center(pdb_text)  # Reject invalid receptors before pocket lookup.
     from app.tools.structure_prep import FPOCKET_BIN
@@ -202,35 +204,89 @@ def compute_pocket_grid(pdb_text: str, padding: float = 8.0,
         with open(in_path, "w") as f:
             f.write(pdb_text)
         try:
-            subprocess.run(
+            completed = subprocess.run(
                 [FPOCKET_BIN, "-f", in_path],
                 capture_output=True, text=True, timeout=180,
             )
         except Exception:
             return None
+        if completed.returncode != 0:
+            return None
 
         pocket_dir = os.path.join(tmp, "receptor_out", "pockets")
         if not os.path.isdir(pocket_dir):
             return None
-        best = os.path.join(pocket_dir, "pocket1_atm.pdb")
-        if not os.path.isfile(best):
+        info_candidates = (
+            os.path.join(tmp, "receptor_out", "info", "infos.txt"),
+            os.path.join(tmp, "receptor_out", "infos.txt"),
+            os.path.join(tmp, "receptor_info.txt"),
+        )
+        info_path = next((path for path in info_candidates if os.path.isfile(path)), "")
+        info_text = Path(info_path).read_text(errors="replace") if os.path.isfile(info_path) else ""
+        descriptors = _parse_fpocket_descriptors(info_text)
+        candidates = []
+        for pocket_path in sorted(
+            (p for p in os.listdir(pocket_dir) if re.fullmatch(r"pocket\d+_atm\.pdb", p)),
+            key=lambda p: int(re.search(r"pocket(\d+)", p).group(1)),
+        ):
+            rank = int(re.search(r"pocket(\d+)", pocket_path).group(1))
+            coords = []
+            residues: set[str] = set()
+            residue_ids: dict[tuple[str, str], dict] = {}
+            with open(os.path.join(pocket_dir, pocket_path)) as f:
+                for line in f:
+                    a = _pdb_atom_coord(line)
+                    if a:
+                        coords.append((a[2], a[3], a[4]))
+                        if line.startswith(("ATOM", "HETATM")):
+                            chain, seq, resname = line[21:22].strip(), line[22:26].strip(), line[17:20].strip()
+                            residues.add(f"{resname}{seq}:{chain or '_'}")
+                            residue_ids[(chain, seq)] = {"chain": chain, "residue_number": int(seq) if seq.isdigit() else seq, "residue_name": resname}
+            if len(coords) < 5:
+                continue
+            center = [sum(c[i] for c in coords) / len(coords) for i in range(3)]
+            size = [round(min(max(max(c[i] for c in coords) - min(c[i] for c in coords) + 2 * padding, min_size), max_size), 3) for i in range(3)]
+            candidates.append({
+                "rank": rank,
+                "center": [round(c, 3) for c in center],
+                "size": size,
+                "atom_count": len(coords),
+                "residues": sorted(residues),
+                "residue_ids": list(residue_ids.values()),
+                **descriptors.get(rank, {}),
+            })
+        if not candidates:
             return None
+        best = candidates[0]
+        return {"center": best["center"], "size": best["size"], "selected_rank": best["rank"], "candidates": candidates}
 
-        coords = []
-        with open(best) as f:
-            for line in f:
-                a = _pdb_atom_coord(line)
-                if a:
-                    coords.append((a[2], a[3], a[4]))
-        if len(coords) < 5:
-            return None
 
-        center = [sum(c[i] for c in coords) / len(coords) for i in range(3)]
-        size = []
-        for i in range(3):
-            span = max(c[i] for c in coords) - min(c[i] for c in coords)
-            size.append(round(min(max(span + 2 * padding, min_size), max_size), 3))
-        return {"center": [round(c, 3) for c in center], "size": size}
+_FPOCKET_DESCRIPTOR_RE = re.compile(r"^\s*(Pocket Score|Score|Druggability Score|Number of alpha spheres|Total SASA|Polar SASA|Apolar SASA|Surface Area|Area|Volume|Mean local hydrophobic density|Mean alpha sphere solvent accessibility|Mean alpha sphere radius|Mean alpha sphere hydrophobicity)\s*:\s*([-+\d.eE]+)", re.I)
+
+
+def _parse_fpocket_descriptors(info_text: str) -> dict[int, dict]:
+    """Parse numeric descriptors from fpocket's receptor_info.txt when present."""
+    result: dict[int, dict] = {}
+    rank: int | None = None
+    for line in info_text.splitlines():
+        pocket = re.match(r"\s*Pocket\s+(\d+)\s*:?", line, re.I)
+        if pocket:
+            rank = int(pocket.group(1))
+            result.setdefault(rank, {})
+            continue
+        match = _FPOCKET_DESCRIPTOR_RE.match(line)
+        if rank is not None and match:
+            key = re.sub(r"[^a-z0-9]+", "_", match.group(1).lower()).strip("_")
+            if key == "pocket_score":
+                key = "score"
+            elif key in {"area", "surface_area"}:
+                key = "area"
+            try:
+                value = float(match.group(2))
+                result[rank][key] = int(value) if key == "number_of_alpha_spheres" and value.is_integer() else value
+            except ValueError:
+                continue
+    return result
 
 
 # ---------------------------------------------------------------------------
@@ -324,9 +380,9 @@ def _sdf_to_pdbqt(sdf_path: str) -> str:
 def pdb_to_pdbqt_receptor(pdb_text: str) -> str:
     """Convert a plain PDB receptor to PDBQT (rigid, for Vina).
 
-    Mirrors the classic prepare_receptor4.py workflow: keep the crystal
-    hydrogen/protonation state and assign Gasteiger charges — Open Babel's
-    pH-based re-protonation can flip side-chain tautomers in the site.
+    Uses Open Babel to write a rigid receptor and requests Gasteiger charges.
+    This conversion does not validate physiological protonation or tautomer
+    states; the input atom records determine what evidence can be retained.
     """
     in_path = None
     out_path = None
@@ -531,6 +587,14 @@ def run_vina(
         vina_log = result.stdout
         parsed = parse_vina_log(vina_log)
         poses = _parse_vina_poses(output_pdbqt, vina_log)
+        try:
+            output_sdf = pdbqt_to_sdf(output_pdbqt, poses)
+            sdf_export_error = None
+        except Exception as exc:
+            # A failed secondary export must not discard a successful docking
+            # run. Keep the original PDBQT and let the export endpoint retry.
+            output_sdf = ""
+            sdf_export_error = type(exc).__name__
         ligand_pdb = _extract_ligand_pdb(output_pdbqt)
 
         best_affinity = None
@@ -545,8 +609,62 @@ def run_vina(
             "vina_version": parsed.get("vina_version", ""),
             "vina_meta": parsed,
             "ligand_pdb": ligand_pdb,
-            "result_sdf": output_pdbqt,
+            "result_pdbqt": output_pdbqt,
+            "result_sdf": output_sdf,
+            "sdf_export_error": sdf_export_error,
         }
+
+
+def pdbqt_to_sdf(pdbqt_text: str, pose_metadata: list[dict] | None = None) -> str:
+    """Convert every Vina PDBQT pose to a real, ordered multi-record SDF."""
+    if not pdbqt_text.strip():
+        raise ValueError("Cannot convert empty Vina output to SDF")
+    obabel = _ensure_obabel()
+    models: list[list[str]] = []
+    current: list[str] | None = None
+    for line in pdbqt_text.splitlines():
+        if line.startswith("MODEL"):
+            current = []
+        elif line.startswith("ENDMDL"):
+            if current is not None:
+                models.append(current)
+            current = None
+        elif current is not None:
+            current.append(line)
+    if current is not None:
+        models.append(current)
+    if not models:
+        models = [pdbqt_text.splitlines()]
+
+    sdf_blocks: list[str] = []
+    with tempfile.TemporaryDirectory() as tmp:
+        for index, model in enumerate(models, start=1):
+            src = os.path.join(tmp, f"pose_{index}.pdbqt")
+            dst = os.path.join(tmp, f"pose_{index}.sdf")
+            Path(src).write_text("\n".join(model) + "\n")
+            result = subprocess.run(
+                [obabel, src, "-O", dst], capture_output=True, text=True, timeout=120,
+            )
+            if result.returncode != 0 or not os.path.isfile(dst):
+                raise RuntimeError(f"Open Babel failed converting pose {index} to SDF: {(result.stderr or result.stdout)[:1000]}")
+            block = Path(dst).read_text(errors="replace").strip()
+            if block.count("$$$$") != 1 or not re.search(r"V\d{4}", block):
+                raise RuntimeError(f"Open Babel did not produce exactly one valid SDF record for pose {index}")
+            metadata = pose_metadata[index - 1] if pose_metadata and index <= len(pose_metadata) else {}
+            fields = {
+                "VINA_MODE": metadata.get("model", index),
+                "VINA_SCORE_KCAL_PER_MOL": metadata.get("affinity"),
+                "RMSD_LOWER_BOUND_FROM_BEST_MODE_ANGSTROM": metadata.get("rmsd_lb"),
+                "RMSD_UPPER_BOUND_FROM_BEST_MODE_ANGSTROM": metadata.get("rmsd_ub"),
+            }
+            if any(value is not None for key, value in fields.items() if key != "VINA_MODE"):
+                body = block.rsplit("$$$$", 1)[0].rstrip()
+                for key, value in fields.items():
+                    if value is not None:
+                        body += f"\n>  <{key}>\n{value}\n"
+                block = body + "\n$$$$"
+            sdf_blocks.append(block)
+    return "\n".join(sdf_blocks) + "\n"
 
 
 def _parse_vina_poses(output_pdbqt: str, vina_log: str) -> list[dict]:
@@ -632,3 +750,4 @@ def _pdbqt_line_to_pdb(pdbqt_line: str) -> str:
         f"{chain}{res_seq:>4s}    "
         f"{x:8.3f}{y:8.3f}{z:8.3f}  1.00  0.00           "
     )
+

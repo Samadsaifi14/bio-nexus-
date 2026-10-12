@@ -1,16 +1,308 @@
 {
   "schema_version": 1,
-  "published_at": "2026-10-12T09:21:54.973Z",
+  "published_at": "2026-10-12T09:29:28.583Z",
   "repository": "Samadsaifi14/bio-nexus-",
-  "run_id": 38229365681,
+  "run_id": 38229651049,
   "run_attempt": "1",
-  "run_url": "https://github.com/Samadsaifi14/bio-nexus-/actions/runs/38229365681",
-  "commit_sha": "098fbd0de5685e317a2252acba3d5993739fbedd",
+  "run_url": "https://github.com/Samadsaifi14/bio-nexus-/actions/runs/38229651049",
+  "commit_sha": "046db6ac2673d9612da993e918b1e3ec348a2dd6",
   "artifact_name": "manuscript-ui-evidence",
   "artifact_retention_days": 30,
   "manifest": {
-    "error": "Manifest unavailable",
-    "reason": "Error: ENOENT: no such file or directory, open 'manuscript-evidence/manifest.json'"
+    "url": "https://bio-nexus-ebon.vercel.app/",
+    "commit": "046db6ac2673d9612da993e918b1e3ec348a2dd6",
+    "recorded_at": "2026-10-12T09:28:40.944Z",
+    "kind": "UI_ONLY_NOT_SCIENTIFIC_VALIDATION",
+    "http_status": 200,
+    "final_url": "https://bio-nexus-ebon.vercel.app/",
+    "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+    "heading": [
+      "Biology,in perspective."
+    ],
+    "blast": {
+      "url": "https://bio-nexus-ebon.vercel.app/analyze/blast",
+      "stage": "navigation",
+      "http_status": 200,
+      "success": false,
+      "error": "TimeoutError: locator.click: Timeout 15000ms exceeded.\nCall log:\n  - waiting for getByRole('button', { name: 'Load p53 (human)' })\n    - locator resolved to <button type=\"button\" class=\"text-sm text-accent-cyan hover:text-accent-cyan/80 underline\">…</button>\n  - attempting click action\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"scrim fixed inset-0 z-[200] flex items-center justify-center\">…</div> intercepts pointer events\n    - retrying click action\n    - waiting 20ms\n    2 × waiting for element to be visible, enabled and stable\n      - element is visible, enabled and stable\n      - scrolling into view if needed\n      - done scrolling\n      - <div class=\"scrim fixed inset-0 z-[200] flex items-center justify-center\">…</div> intercepts pointer events\n    - retrying click action\n      - waiting 100ms\n    29 × waiting for element to be visible, enabled and stable\n       - element is visible, enabled and stable\n       - scrolling into view if needed\n       - done scrolling\n       - <div class=\"scrim fixed inset-0 z-[200] flex items-center justify-center\">…</div> intercepts pointer events\n     - retrying click action\n       - waiting 500ms\n"
+    },
+    "features": [
+      {
+        "feature": "blast",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/blast",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/blast",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Enter your sequence",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\n✓\nChoose\n2\nInput\n3\nConfirm\nEnter your sequence\n\nPaste a protein, DNA, or RNA sequence, or fetch it by accession number.\n\nPaste Sequence\nFetch By Accession\nLoad p53 (human)\nLoad Insulin (human)\nFast mode i",
+        "available": true
+      },
+      {
+        "feature": "ngs",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/ngs",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/ngs",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "RNA-seq analysis",
+          "Find a GEO Series",
+          "Recover counts or import quantifications",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nRNA-seq analysis\n\nFind published raw gene counts, check the samples and groups, then run DESeq2 and inspect the figures.\n\nThis path begins with a published gene count matrix. It does not reprocess SRA FAS",
+        "available": true
+      },
+      {
+        "feature": "docking",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/docking",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/docking",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Molecular Docking",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nExplore the molecular perspective.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nMolecular Docking\n\nDock a small molecule (SMILES) into a protein structure (PDB ID) using AutoDock Vina. CPU-based, runs entirely on our server. Expect 1–5 min for completion.\n\nPDB ID\nExamples:\n1TIM\n4HH",
+        "available": true
+      },
+      {
+        "feature": "md",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/md",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/md",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "MD Simulation",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nExplore the molecular perspective.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nMD Simulation\n\nImplicit solvent molecular dynamics using OpenMM/BioPython. Multiple force fields (AMBER14, ff14SB, ff15ipq, ff19SB, amberfb15, CHARMM36) with OBC1/OBC2/GBN2 generalized Born solvent mode",
+        "available": true
+      },
+      {
+        "feature": "msa",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/msa",
+        "status": 404,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/msa",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "404",
+          "This page could not be found."
+        ],
+        "body_excerpt": "404\nThis page could not be found.",
+        "available": false
+      },
+      {
+        "feature": "phylo",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/phylo",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/phylo",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Phylogenetic Analysis",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nPhylogenetic Analysis\n\nAlignment-aware evolutionary inference with inspectable tree, support settings, raw Newick and run provenance.\n\nTest datasets\nGlobins · 5 proteins\nPrimate mtDNA · 4 sequences\nPROTEI",
+        "available": true
+      },
+      {
+        "feature": "domains",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/domains",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/domains",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Domain & Motif Analysis",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nDomain & Motif Analysis\n\nComprehensive protein feature analysis powered by InterPro and UniProtKB. Visualize domain architecture, functional sites, post-translational modifications, structural motifs, var",
+        "available": true
+      },
+      {
+        "feature": "primers",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/primers",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/primers",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Primer Design",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nPrimer Design\n\nSearch NCBI for a gene, retrieve its mRNA/CDS, and design PCR primers with Primer3 — with hairpin/dimer QC and in-silico PCR verification.\n\nPrimer Design (Primer3)\n\nSearch NCBI for a gene, ",
+        "available": true
+      },
+      {
+        "feature": "alignment",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/alignment",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/alignment",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Multiple Sequence Alignment",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nMultiple Sequence Alignment\n\nAlign two or more protein or DNA sequences with a choice of EBI methods.\n\nProtein\nDNA\nClustal Omega\nMUSCLE\nKalign\nMAFFT\nT-Coffee\nLoad sample p53 (human vs mouse)\nAlign\nWelcome",
+        "available": true
+      },
+      {
+        "feature": "structure",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/structure",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/structure",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Structure Viewer",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nExplore the molecular perspective.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nStructure Viewer\n\nFetch 3D structures from PDB or AlphaFold by PDB ID or UniProt accession.\n\nFetch\n1TIM (triosephosphate isomerase)\n4HHB (hemoglobin)\nP04637 (p53, UniProt)\nWelcome to Bio Nexus\n\nStep 1 o",
+        "available": true
+      },
+      {
+        "feature": "pathway",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/pathway",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/pathway",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Pathway Analysis",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nPathway Analysis\n\nMap your genes or proteins to biological pathways from Reactome and KEGG, or run pathway enrichment analysis.\n\nReactome\nKEGG\nEnrichment\nSearch\nTP53 (p53)\nBRCA1\nEGFR\nWelcome to Bio Nexus\n",
+        "available": true
+      },
+      {
+        "feature": "enrichment",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/enrichment",
+        "status": 404,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/enrichment",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "404",
+          "This page could not be found."
+        ],
+        "body_excerpt": "404\nThis page could not be found.",
+        "available": false
+      },
+      {
+        "feature": "admet",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/admet",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/admet",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "ADMET Analysis",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nExplore the molecular perspective.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nADMET Analysis\n\nComprehensive molecular descriptor computation: 50+ properties, ADMET predictions, drug-likeness filters, structural alerts.\n\nSearch compound by name (PubChem)\n\nType a name — results res",
+        "available": true
+      },
+      {
+        "feature": "function",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/function",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/function",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Function Evidence",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nFunction Evidence\n\nInterProScan → InterPro2GO evidence mapping for a PDB-derived protein sequence. Support counts are evidence counts, not probabilities.\n\nPDB ID\nMap Function Evidence\nWelcome to Bio Nexus",
+        "available": true
+      },
+      {
+        "feature": "interactions",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/interactions",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/interactions",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Protein-Protein Interactions",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nExplore the molecular perspective.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nProtein-Protein Interactions\n\nExplore interaction partners from the STRING database.\n\nFind Partners\nExamples:\nTP53\nBRCA1\nEGFR\nTNF\nINS\nWelcome to Bio Nexus\n\nStep 1 of 5\n\nBio Nexus is your all-in-one bioi",
+        "available": true
+      },
+      {
+        "feature": "rnaseq",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/rnaseq",
+        "status": 404,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/rnaseq",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "404",
+          "This page could not be found."
+        ],
+        "body_excerpt": "404\nThis page could not be found.",
+        "available": false
+      },
+      {
+        "feature": "geo",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/geo",
+        "status": 404,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/geo",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "404",
+          "This page could not be found."
+        ],
+        "body_excerpt": "404\nThis page could not be found.",
+        "available": false
+      },
+      {
+        "feature": "sequencing",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/sequencing",
+        "status": 200,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/sequencing",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "Sequencing Pipeline",
+          "Welcome to Bio Nexus"
+        ],
+        "body_excerpt": "B\nBioNexus\n\nWORKSPACE\n\nDashboard\nAnalyze\nRetrieve\nJobs\nHistory\nLearn\nSettings\n\nSign out\n\nRESEARCH WORKSPACE\n\nBIONEXUS / ANALYZE\n\nMethods\n\nNew analysis\n\nFollow your biological question.\n\nInput, method and interpretation in one research workspace.\nThe research journey\nChoose a different operation\nSequencing Pipeline\n\nRaw FASTQ → QC → alignment → variant calling → report. Supports viral/bacterial genomes (cpu-basic tier).\n\nFASTQ URL\nExample:\nDemo (synthetic reads)\nReference Genome\nSars Cov 2\nLambda",
+        "available": true
+      },
+      {
+        "feature": "protein",
+        "url": "https://bio-nexus-ebon.vercel.app/analyze/protein",
+        "status": 404,
+        "final_url": "https://bio-nexus-ebon.vercel.app/analyze/protein",
+        "title": "Bio Nexus — Bioinformatics analysis with traceable scientific evidence",
+        "headings": [
+          "404",
+          "This page could not be found."
+        ],
+        "body_excerpt": "404\nThis page could not be found.",
+        "available": false
+      }
+    ],
+    "capture_success": true,
+    "files": {
+      "blast-before.png": "1db8dc5262b216d71073178044e12facdb4c2c3346437fb52db6a853ecf6a898",
+      "blast-failure.png": "72dc1286c2ee349e667948127049ea93704f9ece11f19da0d1812dac96a63eef",
+      "feature-admet.png": "f4fa158b9c255584a94ea589200d0292c7a50aeb1eab78691b939a76d8c746b1",
+      "feature-alignment.png": "8b149a3fe185a38eb1bb8ebe935284dd468cc4c2add0b5887e4f32afae6056fc",
+      "feature-blast.png": "5d0767767c33f81283e271d0a46ef5bbcf29aad32b601d1eef8efb78d9090f09",
+      "feature-docking.png": "56ae5ae983772c2d6535783ab79124a39e77ecdf572e99e8359d71bad482ee5d",
+      "feature-domains.png": "63422a0a50789bd8542639544293165d309a2cf473651c48a9ac3ee6bad609ed",
+      "feature-enrichment.png": "9e0cd74064973917d38294d84659ac64b79704f8ec3bc90b2aeb65189d8723e3",
+      "feature-function.png": "904a7495bfff93145ca27243be510260f0147d5c6df4611a2fd6f0d6f858ec27",
+      "feature-geo.png": "9e0cd74064973917d38294d84659ac64b79704f8ec3bc90b2aeb65189d8723e3",
+      "feature-interactions.png": "b0439249028793b2629927b74ee1de1d10e6160efa01e4c6dadd8aebb0c05695",
+      "feature-md.png": "c9139779239c9b6aef8d564436adb7cc2df29657732d7cd3ec52d6880de9d6ed",
+      "feature-msa.png": "9e0cd74064973917d38294d84659ac64b79704f8ec3bc90b2aeb65189d8723e3",
+      "feature-ngs.png": "c0a284cac4a97cb465581a4739c654bfbb95b634f96f82ebf025c8b30054b786",
+      "feature-pathway.png": "10ce58944e1ca5946308730bb4d87f30968417734d32ab2ba28e3449bee6654a",
+      "feature-phylo.png": "70823f95527e0982d0b0be53c01c227519fdd0062f5a5ded3000b0a81def9fa4",
+      "feature-primers.png": "e2b87d3c2b03aa2e755ac397b9a7b94171ae7d4f8b783e3bc659a1435530fd74",
+      "feature-protein.png": "9e0cd74064973917d38294d84659ac64b79704f8ec3bc90b2aeb65189d8723e3",
+      "feature-rnaseq.png": "9e0cd74064973917d38294d84659ac64b79704f8ec3bc90b2aeb65189d8723e3",
+      "feature-sequencing.png": "71471b4c1232ea043d40db32ff75deb5e884c5b7042c81666301be46f97dfe33",
+      "feature-structure.png": "94a5f2704a897264bb4ce1abc3bfedd394ff6c4f36fceffe0f1438f78879ba60",
+      "homepage.html": "e66d85e3bb7d64bbc98a53797a8e9566dc94efd1a59c656e85fbff693a11b5d2",
+      "homepage.png": "a92223fadab5a37186f2b50c7ca6fb33961d3917daba81ad7c2cf11b1db67586"
+    }
   },
   "disclaimer": "Browser capture and job creation are not independent scientific validation."
 }

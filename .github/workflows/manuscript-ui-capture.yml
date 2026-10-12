@@ -1,0 +1,78 @@
+name: Manuscript UI evidence capture
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/manuscript-ui-capture.yml'
+permissions:
+  contents: read
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Install browser runner
+        run: |
+          mkdir -p /tmp/bionexus-capture
+          cd /tmp/bionexus-capture
+          npm init -y
+          npm install --no-audit --no-fund playwright@1.56.1
+          npx playwright install --with-deps chromium
+      - name: Capture deployed public UI
+        env:
+          TARGET_URL: https://bio-nexus-ebon.vercel.app/
+          GITHUB_SHA: ${{ github.sha }}
+        run: |
+          mkdir -p manuscript-evidence
+          cat > /tmp/bionexus-capture/capture.cjs <<'JS'
+          const { chromium } = require('playwright');
+          const fs = require('fs');
+          const crypto = require('crypto');
+          const path = require('path');
+          (async () => {
+            const out = path.resolve(process.cwd(), 'manuscript-evidence');
+            fs.mkdirSync(out, {recursive: true});
+            const browser = await chromium.launch({headless: true});
+            const page = await browser.newPage({viewport:{width:1440,height:900},deviceScaleFactor:2});
+            const url = process.env.TARGET_URL;
+            const report = {url,commit:process.env.GITHUB_SHA,recorded_at:new Date().toISOString(),kind:'UI_ONLY_NOT_SCIENTIFIC_VALIDATION'};
+            try {
+              const response = await page.goto(url,{waitUntil:'domcontentloaded',timeout:60000});
+              await page.waitForTimeout(3500);
+              report.http_status = response?.status() ?? null;
+              report.final_url = page.url();
+              report.title = await page.title();
+              report.heading = await page.locator('h1').allTextContents();
+              await page.screenshot({path:path.join(out,'homepage.png'),fullPage:true,animations:'disabled'});
+              fs.writeFileSync(path.join(out,'homepage.html'),await page.content());
+              report.capture_success = true;
+            } catch (e) {
+              report.capture_success = false; report.error = String(e);
+              try { await page.screenshot({path:path.join(out,'failure.png'),fullPage:true}); } catch {}
+            } finally {
+              await browser.close();
+              report.files = {};
+              for(const name of fs.readdirSync(out)){
+                const file=path.join(out,name);
+                if(fs.statSync(file).isFile()) report.files[name]=crypto.createHash('sha256').update(fs.readFileSync(file)).digest('hex');
+              }
+              fs.writeFileSync(path.join(out,'manifest.json'),JSON.stringify(report,null,2));
+              console.log(JSON.stringify(report,null,2));
+            }
+            if(!report.capture_success || (report.http_status||0)>=400)process.exitCode=1;
+          })().catch(e=>{console.error(e);process.exitCode=1});
+          JS
+          node /tmp/bionexus-capture/capture.cjs
+      - name: Upload screenshots and manifest even on failure
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: manuscript-ui-evidence
+          path: manuscript-evidence/
+          if-no-files-found: warn
+          retention-days: 30

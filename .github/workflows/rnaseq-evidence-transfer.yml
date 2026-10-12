@@ -1,0 +1,41 @@
+name: Transfer retained RNA-seq Git objects
+on:
+  push:
+    branches: [main]
+    paths: ['.github/rnaseq-transfer/**']
+permissions:
+  contents: write
+jobs:
+  transfer:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+        with:
+          fetch-depth: 0
+          ref: main
+      - name: Verify and import retained evidence
+        shell: bash
+        run: |
+          set -euo pipefail
+          python - <<'PY'
+          import hashlib,json,os,pathlib
+          p=pathlib.Path('.github/rnaseq-transfer')
+          m=json.loads((p/'manifest.json').read_text())
+          data=b''
+          for c in m['chunks']:
+              chunk=(p/c['name']).read_bytes()
+              assert len(chunk)==c['size']
+              assert hashlib.sha256(chunk).hexdigest()==c['sha256']
+              data+=chunk
+          assert hashlib.sha256(data).hexdigest()==m['sha256']
+          (pathlib.Path(os.environ['RUNNER_TEMP'])/'rnaseq.bundle').write_bytes(data)
+          PY
+          git bundle verify "$RUNNER_TEMP/rnaseq.bundle"
+          git bundle unbundle "$RUNNER_TEMP/rnaseq.bundle"
+          test "$(git rev-parse 67c4adf554d05af68b6d30cedba16c5575a3c1a0^{tree})" = 4594731970bd5da53a7ab9bbc3f8dcb5bd9bd852
+          git read-tree --prefix=.github/rnaseq-transfer-tree/ 4594731970bd5da53a7ab9bbc3f8dcb5bd9bd852
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m "Transfer verified RNA-seq Git objects"
+          git push origin HEAD:main

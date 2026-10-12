@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "published_at": "2026-10-12T09:21:54.973Z",
+  "repository": "Samadsaifi14/bio-nexus-",
+  "run_id": 38229365681,
+  "run_attempt": "1",
+  "run_url": "https://github.com/Samadsaifi14/bio-nexus-/actions/runs/38229365681",
+  "commit_sha": "098fbd0de5685e317a2252acba3d5993739fbedd",
+  "artifact_name": "manuscript-ui-evidence",
+  "artifact_retention_days": 30,
+  "manifest": {
+    "error": "Manifest unavailable",
+    "reason": "Error: ENOENT: no such file or directory, open 'manuscript-evidence/manifest.json'"
+  },
+  "disclaimer": "Browser capture and job creation are not independent scientific validation."
+}

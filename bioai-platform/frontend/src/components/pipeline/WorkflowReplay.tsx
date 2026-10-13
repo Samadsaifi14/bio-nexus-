@@ -2,12 +2,15 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
-import { exportWorkflowRecipe, replayWorkflow, validateWorkflowRecipe, runWorkflowRecipe } from '@/lib/api';
+import { exportWorkflowRecipe, replayWorkflow, validateWorkflowRecipe, runWorkflowRecipe, runWorkflowCollection, WorkflowCollectionItem } from '@/lib/api';
 
 export function WorkflowReplay({ jobId }: { jobId: string }) {
   const [sequence, setSequence] = useState('');
+  const [collection, setCollection] = useState('');
+  const [collectionItems, setCollectionItems] = useState<WorkflowCollectionItem[]>([]);
   const [busy, setBusy] = useState(false);
   const [plan, setPlan] = useState<Record<string, unknown> | null>(null);
+  const collectionSubmission = useRef<{ fingerprint: string; id: string } | null>(null);
   const router = useRouter();
   const busyRef = useRef(false);
   const planRevision = useRef(0);
@@ -17,8 +20,12 @@ export function WorkflowReplay({ jobId }: { jobId: string }) {
     planRevision.current += 1;
     setPlan(null);
     setSequence('');
+    setCollection('');
+    setCollectionItems([]);
+    collectionSubmission.current = null;
     return () => { planRevision.current += 1; };
   }, [jobId]);
+  useEffect(() => { collectionSubmission.current = null; }, [plan]);
   async function perform(action: () => Promise<void>) {
     if (busyRef.current) return;
     busyRef.current = true;
@@ -67,5 +74,24 @@ export function WorkflowReplay({ jobId }: { jobId: string }) {
       if (activeJob.current !== jobId) return;
       toast.success('Workflow queued'); router.push(`/jobs/${result.job_id}`);
     })} className="text-sm px-3 py-2 border border-border rounded disabled:opacity-50">{busy ? 'Working…' : 'Queue replay with original configuration'}</button>
+    <div className="border-t border-border pt-3 space-y-2">
+      <h3 className="font-medium">Run a protein collection</h3>
+      <p className="text-sm text-text-secondary">Export this workflow or validate a recipe first, then provide 1–10 protein FASTA records with unique identifiers. Each creates a private queued job and uses one daily analysis. Queued status does not mean analysis is complete.</p>
+      <label htmlFor="workflow-collection" className="block text-sm">Protein multi-FASTA</label>
+      <textarea id="workflow-collection" disabled={busy} value={collection} onChange={event => { collectionSubmission.current = null; setCollection(event.target.value); setCollectionItems([]); }} rows={5} className="w-full border border-border rounded p-2 bg-transparent" />
+      <button disabled={busy || !plan || !collection.trim()} onClick={() => perform(async () => {
+        if (!plan) return;
+        const fingerprint = JSON.stringify({ recipe: plan.recipe, collection });
+        if (collectionSubmission.current?.fingerprint !== fingerprint) collectionSubmission.current = { fingerprint, id: crypto.randomUUID() };
+        const result = await runWorkflowCollection(plan.recipe, collection, collectionSubmission.current.id);
+        if (activeJob.current !== jobId) return;
+        setCollectionItems(result.items);
+
+        toast.success('Collection submission returned; inspect each item');
+      })} className="text-sm px-3 py-2 border border-border rounded disabled:opacity-50">Queue collection with validated recipe</button>
+      {collectionItems.length > 0 && <ul className="text-sm space-y-1" aria-live="polite">{collectionItems.map(item => <li key={item.identifier}>
+        {item.identifier}: {item.status} {item.job_id && <a className="underline" href={`/jobs/${encodeURIComponent(item.job_id)}`}>Open job</a>} {item.error}
+      </li>)}</ul>}
+    </div>
   </section>;
 }

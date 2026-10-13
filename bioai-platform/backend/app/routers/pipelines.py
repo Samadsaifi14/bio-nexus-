@@ -1,5 +1,7 @@
 from datetime import datetime, timezone
 import uuid
+import hashlib
+import json
 
 from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
@@ -57,7 +59,7 @@ async def run_pipeline(
     return _create_pipeline_job(req, user_id)
 
 
-def _create_pipeline_job(req: PipelineRunRequest, user_id: str, parent_job_id: str | None = None):
+def _create_pipeline_job(req: PipelineRunRequest, user_id: str, parent_job_id: str | None = None, *, job_id: str | None = None, collection_metadata: dict | None = None):
     if req.pipeline_type not in {"protein_analysis", "blast"}:
         raise HTTPException(status_code=400, detail="Unsupported pipeline type")
     if req.workflow_recipe and req.pipeline_type != "protein_analysis":
@@ -77,7 +79,7 @@ def _create_pipeline_job(req: PipelineRunRequest, user_id: str, parent_job_id: s
             raise HTTPException(status_code=400, detail="Protein workflow recipes require an unambiguous protein sequence")
     clean = "".join(c for c in seq if c.isalpha())
 
-    job_id = str(uuid.uuid4())
+    job_id = job_id or str(uuid.uuid4())
     supabase = get_supabase()
     effective_pipeline_type = _effective_pipeline_type(req.pipeline_type, req.program)
 
@@ -91,6 +93,7 @@ def _create_pipeline_job(req: PipelineRunRequest, user_id: str, parent_job_id: s
         "pipeline_type": effective_pipeline_type,
         "steps_completed": [],
         "context_json": {
+            **(collection_metadata or {}),
             "sequence": clean,
             "length": len(clean),
             "fast_mode": req.fast_mode,
@@ -129,3 +132,76 @@ async def get_pipeline_definition_endpoint(pipeline_type: str):
 async def validate_workflow_recipe(recipe: WorkflowRecipe, user_id: str = Depends(require_user_id)):
     """Validate a portable recipe without creating a job or launching providers."""
     return recipe_plan(recipe)
+
+
+class WorkflowCollectionRequest(BaseModel):
+    fasta: str = Field(max_length=110000)
+    recipe: WorkflowRecipe
+    submission_id: uuid.UUID
+
+
+@router.post('/collections/run')
+async def run_workflow_collection(request: Request, req: WorkflowCollectionRequest,
+                                  user_id: str = Depends(require_user_id)):
+    """Queue private per-record jobs after whole-collection and capacity validation."""
+    from app.services.workflow_collections import validate_protein_collection
+    from app.config import settings
+    try:
+        records = validate_protein_collection(req.fasta)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    collection_id = str(req.submission_id)
+    collection_digest = hashlib.sha256(json.dumps({'records': records, 'recipe': req.recipe.model_dump()}, sort_keys=True, separators=(',', ':')).encode()).hexdigest()
+    client = get_supabase()
+    try:
+        existing = client.table('jobs').select('id,status,context_json').eq('user_id', user_id).eq('context_json->>collection_id', collection_id).execute().data or []
+    except Exception as exc:
+        raise HTTPException(status_code=503, detail='Unable to verify collection retry state; no new jobs queued') from exc
+    if any(row.get('context_json', {}).get('collection_sha256') != collection_digest for row in existing):
+        raise HTTPException(status_code=409, detail='Submission ID already belongs to different collection content or recipe')
+    by_id = {row['id']: row for row in existing}
+    for record in records:
+        record['job_id'] = str(uuid.uuid5(uuid.NAMESPACE_URL, f'bionexus:collection:{user_id}:{collection_id}:{record["identifier"]}'))
+    new_count = sum(record['job_id'] not in by_id for record in records)
+    # Capacity counts use the verified owner. Retry-only requests consume no new capacity.
+    if new_count:
+        today = datetime.now(timezone.utc).date().isoformat()
+        try:
+            used = 0
+            pipeline_used = 0
+            for table in ('jobs', 'docking_jobs', 'sequencing_jobs', 'ngs_jobs'):
+                response = client.table(table).select('id', count='exact').eq('user_id', user_id).gte('created_at', today + 'T00:00:00').execute()
+                if response.count is None:
+                    raise ValueError('Missing quota count')
+                used += response.count
+                if table == 'jobs':
+                    pipeline_used = response.count
+        except Exception as exc:
+            raise HTTPException(status_code=503, detail='Unable to verify account capacity; no new collection jobs queued') from exc
+        if pipeline_used + new_count > 10 or used + new_count > settings.DAILY_LIMIT:
+            raise HTTPException(status_code=429, detail='Collection exceeds remaining daily account or pipeline capacity')
+    items = []
+    for record in records:
+        job_id = record['job_id']
+        if job_id in by_id:
+            items.append({'identifier': record['identifier'], 'job_id': job_id, 'status': by_id[job_id]['status'], 'reused': True})
+            continue
+        metadata = {'collection_id': collection_id, 'collection_identifier': record['identifier'],
+                    'collection_sha256': collection_digest, 'input_sha256': hashlib.sha256(record['sequence'].encode()).hexdigest()}
+        try:
+            result = _create_pipeline_job(PipelineRunRequest(sequence=record['sequence'], workflow_recipe=req.recipe), user_id, job_id=job_id, collection_metadata=metadata)
+            items.append({'identifier': record['identifier'], **result, 'reused': False})
+        except Exception:
+            # A concurrent identical request may have won the primary-key insert.
+            try:
+                rows = client.table('jobs').select('id,status,context_json').eq('id', job_id).eq('user_id', user_id).execute().data or []
+                if rows and all(rows[0].get('context_json', {}).get(key) == value for key, value in metadata.items()):
+                    items.append({'identifier': record['identifier'], 'job_id': job_id, 'status': rows[0]['status'], 'reused': True})
+                    continue
+            except Exception:
+                pass
+            items.append({'identifier': record['identifier'], 'job_id': None, 'status': 'submission_failed', 'error': 'Queue submission unconfirmed; retry this same submission ID to reconcile'})
+    failures = sum(item['status'] == 'submission_failed' for item in items)
+    status = 'failed' if failures == len(items) else 'partial' if failures else 'submitted'
+    return {'items': items, 'total': len(items), 'collection_id': collection_id, 'collection_sha256': collection_digest,
+            'format': 'bionexus-protein-collection', 'status': status}

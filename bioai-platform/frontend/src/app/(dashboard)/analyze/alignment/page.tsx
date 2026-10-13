@@ -1,6 +1,7 @@
 'use client';
 
 import { useState } from 'react';
+import AlignmentTrimPanel from '@/components/alignment/AlignmentTrimPanel';
 import { motion } from 'framer-motion';
 import { CircleNotch as LoaderCircle } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
@@ -161,6 +162,7 @@ export default function AlignmentPage() {
           </motion.div>
         );
       })()}
+      <AlignmentTrimPanel />
     </div>
   );
 }

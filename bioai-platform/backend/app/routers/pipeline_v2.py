@@ -97,8 +97,24 @@ def _persist_v2_final(job_id: str, status: str, context: dict, error: str | None
     if error:
         payload["error"] = error
     try:
-        get_supabase().table("jobs").update(payload).eq("id", job_id).execute()
+        client = get_supabase()
+        # Queue submission identity/configuration survives scientific finalization.
+        # Never merge prior scientific results into a newly computed result.
+        rows = client.table("jobs").select("user_id,context_json").eq("id", job_id).execute().data or []
+        owner = rows[0].get("user_id") if rows else None
+        stored = rows[0].get("context_json") if rows else {}
+        preserved_keys = ("collection_id", "collection_identifier", "collection_sha256", "input_sha256",
+                          "fast_mode", "database", "program", "max_hits", "query_accession",
+                          "workflow_steps", "alignment_mode")
+        metadata = {key: stored[key] for key in preserved_keys if isinstance(stored, dict) and key in stored}
+        payload["context_json"] = {**context, **metadata}
+        update = client.table("jobs").update(payload).eq("id", job_id)
+        if owner is not None:
+            update = update.eq("user_id", owner)
+        update.execute()
     except Exception as e:
+        # Failed metadata reads must not erase submission provenance. Let durable
+        # worker status/artifact handling continue without erasing the prior context.
         logger.warning("Could not update v2 job %s to Supabase: %s", job_id, e)
     _mirror(job_id)
 

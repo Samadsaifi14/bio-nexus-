@@ -367,3 +367,26 @@ async def annotated_genbank_endpoint(req: AnnotatedSequenceRequest):
         )
     except SequenceUtilitiesError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+class AlignmentTrimRequest(BaseModel):
+    fasta: str = Field(..., min_length=1, max_length=2000000)
+    molecule: Literal['dna', 'rna', 'protein'] = 'protein'
+    mode: Literal['all_gap', 'any_gap', 'gap_percent'] = 'all_gap'
+    gap_percent: float = Field(50, gt=0, le=100, allow_inf_nan=False)
+
+
+@router.post('/alignment-trim')
+async def alignment_trim_endpoint(req: AlignmentTrimRequest):
+    from app.tools.alignment_trim import trim_alignment
+    try:
+        result = trim_alignment(req.fasta, req.molecule, req.mode, req.gap_percent)
+        return build_scientific_result(
+            status='VALID', method='Deterministic aligned-FASTA column filtering',
+            engine='BioNexus alignment-column filter', engine_version='1.0',
+            input_payload=req.model_dump(), parameters={'molecule': req.molecule, 'mode': req.mode, 'gap_percent': req.gap_percent if req.mode == 'gap_percent' else None},
+            results=result, evidence_class='Deterministic computation',
+            validation={'equal_width_checked': True, 'unique_ids_checked': True, 'realignment_performed': False, 'biological_inference_validated': False},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

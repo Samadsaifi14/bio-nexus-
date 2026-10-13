@@ -182,6 +182,21 @@ Full build history and what's shipped in each phase lives in `IMPLEMENTATION_LOG
 - Enzyme definitions identify Biopython and its installed version. Ambiguous DNA is rejected rather than interpreted as a definite site.
 - The UI uses backend site/cut/fragment evidence, allows enzyme and topology selection and exports JSON. It claims an in-silico restriction map, not experimental digestion, cloning simulation or SnapGene/Geneious equivalence.
 
+### Protein collection acceptance criteria (October 2026)
+
+- Validate all multi-FASTA records before any queue write: unique bounded identifiers, 1–10 canonical protein records, explicit molecule checks and sequence bounds.
+- Authenticate every submission and retain private owner-scoped jobs in the existing durable queue; enforce per-account daily capacity before queueing.
+- Return per-record queued or submission-failed evidence; never describe queued jobs as completed. UI prevents repeated clicks while a request is pending.
+- A stable submission UUID and deterministic owner/item job IDs reconcile retries without duplicate insertion; collection and input hashes are persisted in job context, and changed-content retries are rejected. Capacity preflight applies only to new items; cross-request quota reservation remains non-atomic.
+- Preserve single-run recipe/replay behavior. This is a BioNexus collection feature, without Galaxy format compatibility or reconstruction claims.
+
+### Alignment-column filtering acceptance criteria (October 2026)
+
+- Independent deterministic filtering accepts aligned FASTA with unique IDs, equal widths and explicit canonical DNA/RNA/protein alphabets plus hyphen gaps.
+- Default removes only all-gap columns; any-gap and percentage modes explicitly disclose residue deletion. Empty outputs fail.
+- Export preserved headers, trimmed FASTA, 1-based kept/dropped position maps, residue deletion counts and input/output SHA-256. No new alignment or competitor parity claim.
+- UI keeps original alignment results intact and exports backend evidence only.
+
 ## 7. Weekly Rhythm
 
 ```

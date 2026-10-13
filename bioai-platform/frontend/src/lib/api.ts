@@ -2066,3 +2066,19 @@ export async function runWorkflowRecipe(recipe: unknown, sequence: string): Prom
   const res = await api.post('/api/pipelines/run', { sequence, pipeline_type: 'protein_analysis', workflow_recipe: recipe });
   return res.data;
 }
+
+export interface WorkflowCollectionItem { identifier: string; job_id: string | null; status: string; error?: string }
+export async function runWorkflowCollection(recipe: unknown, fasta: string, submissionId: string): Promise<{ items: WorkflowCollectionItem[]; total: number }> {
+  const res = await api.post('/api/pipelines/collections/run', { recipe, fasta, submission_id: submissionId });
+  return res.data;
+}
+
+export interface AlignmentTrimResult {
+  trimmed_fasta: string;
+  mask: { kept_columns: number[]; dropped_columns: number[]; input_width: number; output_width: number; record_count: number; residues_removed: number; input_sha256: string; output_sha256: string; coordinate_convention: string };
+  warning: string;
+}
+export async function trimAlignmentColumns(fasta: string, molecule: 'dna' | 'rna' | 'protein', mode: 'all_gap' | 'any_gap' | 'gap_percent', gap_percent: number) {
+  const { data } = await longApi.post<{ results: AlignmentTrimResult }>('/api/seq-tools/alignment-trim', { fasta, molecule, mode, gap_percent });
+  return data;
+}

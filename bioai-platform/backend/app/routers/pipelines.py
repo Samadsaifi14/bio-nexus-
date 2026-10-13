@@ -5,6 +5,7 @@ from fastapi import APIRouter, HTTPException, Depends, Request
 from pydantic import BaseModel, Field
 
 from app.services.validators import validate_fasta
+from app.services.workflow_templates import WorkflowRecipe, recipe_plan
 from app.pipeline.definitions.protein_analysis import get_pipeline_definition
 from app.services.supabase import get_supabase
 from app.services.auth import require_user_id
@@ -21,6 +22,7 @@ class PipelineRunRequest(BaseModel):
     max_hits: int = Field(default=100, ge=1, le=100)
     query_accession: str = ""
     fast_mode: bool = False
+    workflow_recipe: WorkflowRecipe | None = None
 
 
 def _effective_pipeline_type(requested: str, program: str) -> str:
@@ -52,11 +54,27 @@ async def run_pipeline(
     characters so list/history surfaces cannot accidentally reveal biological input.
     Explicit sharing remains available through the share-token endpoint.
     """
+    return _create_pipeline_job(req, user_id)
+
+
+def _create_pipeline_job(req: PipelineRunRequest, user_id: str, parent_job_id: str | None = None):
+    if req.pipeline_type not in {"protein_analysis", "blast"}:
+        raise HTTPException(status_code=400, detail="Unsupported pipeline type")
+    if req.workflow_recipe and req.pipeline_type != "protein_analysis":
+        raise HTTPException(status_code=400, detail="Workflow recipes require protein_analysis")
+    if req.workflow_recipe:
+        recipe = req.workflow_recipe
+        req.database, req.program, req.max_hits = recipe.database, recipe.program, recipe.max_hits
+        req.fast_mode, req.query_accession = recipe.fast_mode, recipe.query_accession
     validation = validate_fasta(req.sequence, "blast")
     if not validation.valid:
         raise HTTPException(status_code=400, detail=validation.error)
 
     seq = str(validation.sequences[0].seq).upper()
+    if req.workflow_recipe:
+        from app.services.sequence_utils import detect_sequence_type
+        if detect_sequence_type(seq) != "protein":
+            raise HTTPException(status_code=400, detail="Protein workflow recipes require an unambiguous protein sequence")
     clean = "".join(c for c in seq if c.isalpha())
 
     job_id = str(uuid.uuid4())
@@ -65,6 +83,7 @@ async def run_pipeline(
 
     supabase.table("jobs").insert({
         "id": job_id,
+        "parent_job_id": parent_job_id,
         "user_id": user_id,
         "tool": "pipeline",
         "query_preview": f"sequence_length:{len(clean)}",
@@ -81,6 +100,8 @@ async def run_pipeline(
             "effective_pipeline_type": effective_pipeline_type,
             "max_hits": req.max_hits,
             "query_accession": req.query_accession,
+            "workflow_steps": req.workflow_recipe.steps if req.workflow_recipe else None,
+            "alignment_mode": req.workflow_recipe.alignment_mode if req.workflow_recipe else "global",
         },
         "progress_pct": 0,
         "created_at": datetime.now(timezone.utc).isoformat(),
@@ -102,3 +123,9 @@ async def get_pipeline_definition_endpoint(pipeline_type: str):
     if pipeline_type == "protein_analysis":
         return get_pipeline_definition()
     raise HTTPException(status_code=404, detail=f"Unknown pipeline: {pipeline_type}")
+
+
+@router.post("/recipes/validate")
+async def validate_workflow_recipe(recipe: WorkflowRecipe, user_id: str = Depends(require_user_id)):
+    """Validate a portable recipe without creating a job or launching providers."""
+    return recipe_plan(recipe)

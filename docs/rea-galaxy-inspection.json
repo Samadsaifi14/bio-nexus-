@@ -1,0 +1,928 @@
+{
+  "status": "PARTIAL_NOT_COMPLETE",
+  "rea_version": "6.4.0",
+  "target": "https://usegalaxy.org/static/dist/analysis.bundled.js",
+  "retrieved_at": "2026-10-13",
+  "artifact_sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+  "artifact_bytes": 7036751,
+  "operation": "analyze_javascript_application",
+  "partial_observation": {
+    "evidence_id": "ev_3786b9a59fcbb1b1b93a29e80d9a725e17a478f1368a1d22d6d707ca66a6e660",
+    "subject": {
+      "name": "galaxy-shipped",
+      "digest": {
+        "sha256": "369791681aec15188d9042866513dc0586a44a129d145a7f7b83b21b81c5114d"
+      },
+      "format": "directory",
+      "architecture": null,
+      "local_path": "/workspace/scratch/7dc85e3dd5c7/galaxy-shipped"
+    },
+    "provider": {
+      "id": "rea-javascript-application",
+      "name": "REA JavaScript application analyzer",
+      "version": "1"
+    },
+    "analysis_profile": null,
+    "predicate_type": "rea.javascript-application-analysis",
+    "operation": "analyze_javascript_application",
+    "parameters": {
+      "format": "auto",
+      "integrity_policy": "fail"
+    },
+    "raw_result": null,
+    "normalized_result": {
+      "input_path": "/workspace/scratch/7dc85e3dd5c7/galaxy-shipped",
+      "format": "directory",
+      "root_artifact_sha256": "369791681aec15188d9042866513dc0586a44a129d145a7f7b83b21b81c5114d",
+      "inventory_manifest_id": "agm_1070a7f96b55517828c59c2f91130aad7c3ddc33461bff5d6f9b17fabb12c688",
+      "inventory_graph_sha256": "1a170ff0ef845c3172b4dcb4e0928132aeb14b8ae2cce446ec6b37b0b3a9ffc1",
+      "integrity_contradictions": [],
+      "graph": {
+        "schema": "JavaScriptApplicationGraph",
+        "root_node_ids": [
+          "jag_node_278593e6e00f1e6e908a97cb32d57b2b31afe992de9a1d8967a00df114b3fb71"
+        ],
+        "nodes": [
+          {
+            "node_id": "jag_node_278593e6e00f1e6e908a97cb32d57b2b31afe992de9a1d8967a00df114b3fb71",
+            "kind": "artifact",
+            "identity": {
+              "strategy": "content-digest",
+              "stability": "global-exact",
+              "sha256": "369791681aec15188d9042866513dc0586a44a129d145a7f7b83b21b81c5114d"
+            },
+            "observations": [
+              {
+                "label": "artifact root",
+                "source_map_reference": null,
+                "properties": {
+                  "format": "directory",
+                  "bytes": 0,
+                  "inventory_manifest_id": "agm_1070a7f96b55517828c59c2f91130aad7c3ddc33461bff5d6f9b17fabb12c688",
+                  "inventory_graph_sha256": "1a170ff0ef845c3172b4dcb4e0928132aeb14b8ae2cce446ec6b37b0b3a9ffc1",
+                  "inventory_artifact_id": "art_5eafea67952c1ba2f43921a24278ff5b7ee7725e83a5c3203c1e59593cfebb47"
+                },
+                "evidence": {
+                  "authority": "artifact-bytes",
+                  "state": "observed",
+                  "confidence": "exact",
+                  "artifact": {
+                    "available": true,
+                    "artifact_id": "art_369791681aec15188d9042866513dc0586a44a129d145a7f7b83b21b81c5114d",
+                    "sha256": "369791681aec15188d9042866513dc0586a44a129d145a7f7b83b21b81c5114d"
+                  },
+                  "location": {
+                    "available": true,
+                    "value": {
+                      "kind": "artifact-path",
+                      "path": "artifact-root"
+                    }
+                  },
+                  "extractor": {
+                    "name": "rea-javascript-artifact-reconstruction",
+                    "version": "1",
+                    "operation": "inventory-root",
+                    "executable_sha256": null
+                  },
+                  "coverage": {
+                    "status": "complete",
+                    "truncated": false,
+                    "omitted_count": 0,
+                    "limits": []
+                  },
+                  "limitations": [
+                    "artifact-root is a path-independent alias; the application result retains the canonical local input path."
+                  ],
+                  "evidence_ids": []
+                },
+                "observation_id": "jag_observation_a03fe38365d4c9fc1a9922f486bcb9cbe6a62a26f28c13e45b9d905f478e24f0",
+                "identifier_strategy": {
+                  "strategy": "semantic-content-sha256",
+                  "stability": "observation-exact"
+                }
+              }
+            ]
+          },
+          {
+            "node_id": "jag_node_88c871a49ce026ee59ea43373047789761ff101900f5b520d8151a7bb5491b44",
+            "kind": "unknown",
+            "identity": {
+              "strategy": "artifact-local-key",
+              "stability": "artifact-version",
+              "artifact_sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+              "namespace": "static-parse-scope",
+              "key": "analyze-javascript-source:analysis.bundled.js"
+            },
+            "observations": [
+              {
+                "label": "analysis.bundled.js parse scope",
+                "source_map_reference": null,
+                "properties": {
+                  "path": "analysis.bundled.js",
+                  "operation": "analyze-javascript-source",
+                  "limitation": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+                  "analysis_failure": {
+                    "code": "capability_unavailable",
+                    "category": "unsupported_provider",
+                    "message": "Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+                    "retryable": false,
+                    "remediation": {
+                      "action": "Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+                    },
+                    "details": {
+                      "provider_id": "process-ownership",
+                      "operation": "prepare_owned_process",
+                      "reason": "Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+                    }
+                  }
+                },
+                "evidence": {
+                  "authority": "ast-static-analysis",
+                  "state": "unavailable",
+                  "confidence": "unknown",
+                  "artifact": {
+                    "available": true,
+                    "artifact_id": "art_541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+                    "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+                  },
+                  "location": {
+                    "available": true,
+                    "value": {
+                      "kind": "artifact-path",
+                      "path": "analysis.bundled.js"
+                    }
+                  },
+                  "extractor": {
+                    "name": "rea-javascript-artifact-reconstruction",
+                    "version": "1",
+                    "operation": "analyze-javascript-source",
+                    "executable_sha256": null
+                  },
+                  "coverage": {
+                    "status": "partial",
+                    "truncated": false,
+                    "omitted_count": null,
+                    "limits": []
+                  },
+                  "limitations": [
+                    "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+                  ],
+                  "evidence_ids": []
+                },
+                "observation_id": "jag_observation_ec17c9eab76f02a8b1285fb80468ac7285e7884e1a61ff79394711029bc5e3c0",
+                "identifier_strategy": {
+                  "strategy": "semantic-content-sha256",
+                  "stability": "observation-exact"
+                }
+              }
+            ]
+          },
+          {
+            "node_id": "jag_node_bfaa9da26c69bd3d08f08732951f834ba406930b9602069ff580b0860c802e30",
+            "kind": "javascript-asset",
+            "identity": {
+              "strategy": "content-digest",
+              "stability": "global-exact",
+              "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+            },
+            "observations": [
+              {
+                "label": "analysis.bundled.js",
+                "source_map_reference": null,
+                "properties": {
+                  "path": "analysis.bundled.js",
+                  "bytes": 7036751,
+                  "inventory_artifact_id": "art_8d8c3c78365e9dce4216fb68aa71072b9c90c03d54cae37c596b973f150bb865",
+                  "unpacked": false,
+                  "file_kind": "javascript",
+                  "text_status": "included",
+                  "parse_status": null,
+                  "json_parse_status": null,
+                  "json_top_level_keys": [],
+                  "omitted_json_top_level_keys": 0,
+                  "vendor_markers": []
+                },
+                "evidence": {
+                  "authority": "artifact-bytes",
+                  "state": "observed",
+                  "confidence": "exact",
+                  "artifact": {
+                    "available": true,
+                    "artifact_id": "art_541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+                    "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+                  },
+                  "location": {
+                    "available": true,
+                    "value": {
+                      "kind": "artifact-path",
+                      "path": "analysis.bundled.js"
+                    }
+                  },
+                  "extractor": {
+                    "name": "rea-javascript-artifact-reconstruction",
+                    "version": "1",
+                    "operation": "inventory-relevant-file",
+                    "executable_sha256": null
+                  },
+                  "coverage": {
+                    "status": "complete",
+                    "truncated": false,
+                    "omitted_count": 0,
+                    "limits": []
+                  },
+                  "limitations": [],
+                  "evidence_ids": []
+                },
+                "observation_id": "jag_observation_046e501e8541dddc840f23d0c4c79550027839f0cce3885ed964691bf706a833",
+                "identifier_strategy": {
+                  "strategy": "semantic-content-sha256",
+                  "stability": "observation-exact"
+                }
+              }
+            ]
+          }
+        ],
+        "edges": [
+          {
+            "source_node_id": "jag_node_278593e6e00f1e6e908a97cb32d57b2b31afe992de9a1d8967a00df114b3fb71",
+            "target_node_id": "jag_node_bfaa9da26c69bd3d08f08732951f834ba406930b9602069ff580b0860c802e30",
+            "relation": "contains",
+            "properties": {
+              "path": "analysis.bundled.js"
+            },
+            "evidence": {
+              "authority": "artifact-bytes",
+              "state": "observed",
+              "confidence": "exact",
+              "artifact": {
+                "available": true,
+                "artifact_id": "art_541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+                "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+              },
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              },
+              "extractor": {
+                "name": "rea-javascript-artifact-reconstruction",
+                "version": "1",
+                "operation": "inventory-file",
+                "executable_sha256": null
+              },
+              "coverage": {
+                "status": "complete",
+                "truncated": false,
+                "omitted_count": 0,
+                "limits": []
+              },
+              "limitations": [],
+              "evidence_ids": []
+            },
+            "edge_id": "jag_edge_533a6abe7d860802508a736a751f3a806a0c5f73d9b2cd4f31e8365de3e5b09f",
+            "identifier_strategy": {
+              "strategy": "semantic-content-sha256",
+              "stability": "relationship-exact"
+            }
+          },
+          {
+            "source_node_id": "jag_node_bfaa9da26c69bd3d08f08732951f834ba406930b9602069ff580b0860c802e30",
+            "target_node_id": "jag_node_88c871a49ce026ee59ea43373047789761ff101900f5b520d8151a7bb5491b44",
+            "relation": "contains",
+            "properties": {
+              "scope": "unavailable-static-analysis"
+            },
+            "evidence": {
+              "authority": "artifact-bytes",
+              "state": "observed",
+              "confidence": "exact",
+              "artifact": {
+                "available": true,
+                "artifact_id": "art_541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+                "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+              },
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              },
+              "extractor": {
+                "name": "rea-javascript-artifact-reconstruction",
+                "version": "1",
+                "operation": "associate-unavailable-parse-scope",
+                "executable_sha256": null
+              },
+              "coverage": {
+                "status": "complete",
+                "truncated": false,
+                "omitted_count": 0,
+                "limits": []
+              },
+              "limitations": [],
+              "evidence_ids": []
+            },
+            "edge_id": "jag_edge_5e17d1ce15dbdbd57c3b753aaaea1420d04a667049edc9042d33825e7340a732",
+            "identifier_strategy": {
+              "strategy": "semantic-content-sha256",
+              "stability": "relationship-exact"
+            }
+          }
+        ],
+        "coverage": {
+          "status": "partial",
+          "truncated": false,
+          "omitted_count": null,
+          "limits": []
+        },
+        "limitations": [
+          "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+          "Graph coverage is incomplete; unavailable facts remain explicit and must not be read as absence.",
+          "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+          "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+          "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+          "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code.",
+          "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+        ],
+        "graph_id": "jag_cefa7114c4c102594e722c1a32c2eb09f290a5cfc3e621806c1ea1fa502c9326"
+      },
+      "summary": {
+        "browser_windows": 0,
+        "explicit_web_preferences": 0,
+        "preload_entrypoints": 0,
+        "context_bridge_apis": 0,
+        "exposed_api_members": 0,
+        "ipc": {
+          "operations": 0,
+          "literal_channels": 0,
+          "dynamic_channel_operations": 0,
+          "renderer_transmissions": 0,
+          "renderer_listeners": 0,
+          "main_handlers": 0,
+          "paired_renderer_transmissions": 0,
+          "ambiguous_renderer_transmissions": 0,
+          "unpaired_literal_renderer_transmissions": 0
+        },
+        "sender_validation_observations": 0,
+        "utility_processes": 0,
+        "resolved_utility_entrypoints": 0,
+        "native_addon_bindings": 0,
+        "resolved_native_addon_bindings": 0
+      },
+      "statistics": {
+        "relevant_files": 1,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 7036751,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 0,
+        "visited_ast_nodes": 0,
+        "findings": 0,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "limitations": [
+        "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+        "Graph coverage is incomplete; unavailable facts remain explicit and must not be read as absence.",
+        "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+        "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+        "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+        "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code.",
+        "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+      ],
+      "semantic_graph": {
+        "schema": "JavaScriptSemanticRelationGraph",
+        "root_artifact_sha256": "369791681aec15188d9042866513dc0586a44a129d145a7f7b83b21b81c5114d",
+        "application_graph_id": "jag_cefa7114c4c102594e722c1a32c2eb09f290a5cfc3e621806c1ea1fa502c9326",
+        "root_node_ids": [
+          "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7"
+        ],
+        "evidence_contexts": [
+          {
+            "authority": "ast-static-analysis",
+            "state": "observed",
+            "confidence": "exact",
+            "artifact": {
+              "available": true,
+              "artifact_id": "art_541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+              "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+            },
+            "extractor": {
+              "name": "rea-javascript-semantic-analysis",
+              "version": "1",
+              "operation": "analyze_javascript_application",
+              "executable_sha256": null
+            },
+            "coverage": {
+              "status": "complete",
+              "truncated": false,
+              "omitted_count": 0,
+              "limits": []
+            },
+            "limitations": [],
+            "evidence_ids": [],
+            "context_id": "jsrg_evidence_45a341b6dcaa6b9ac713dd7308d5915a52eaa6213b70e20aa18ae2ae31bef964"
+          },
+          {
+            "authority": "unknown",
+            "state": "unknown",
+            "confidence": "unknown",
+            "artifact": {
+              "available": true,
+              "artifact_id": "art_541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+              "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+            },
+            "extractor": {
+              "name": "rea-javascript-semantic-analysis",
+              "version": "1",
+              "operation": "analyze_javascript_application",
+              "executable_sha256": null
+            },
+            "coverage": {
+              "status": "partial",
+              "truncated": false,
+              "omitted_count": null,
+              "limits": []
+            },
+            "limitations": [
+              "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+            ],
+            "evidence_ids": [],
+            "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f"
+          }
+        ],
+        "nodes": [
+          {
+            "kind": "module",
+            "identity": {
+              "artifact_sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+              "module_path": "analysis.bundled.js",
+              "source_range": null,
+              "role_key": "module"
+            },
+            "function_node_id": null,
+            "application_node_ids": [
+              "jag_node_88c871a49ce026ee59ea43373047789761ff101900f5b520d8151a7bb5491b44",
+              "jag_node_bfaa9da26c69bd3d08f08732951f834ba406930b9602069ff580b0860c802e30"
+            ],
+            "label": "analysis.bundled.js",
+            "properties": {},
+            "evidence": {
+              "context_id": "jsrg_evidence_45a341b6dcaa6b9ac713dd7308d5915a52eaa6213b70e20aa18ae2ae31bef964",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7"
+          }
+        ],
+        "relations": [],
+        "fingerprints": [],
+        "unknowns": [
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "resource-lifecycle",
+            "relation_kinds": [
+              "acquires",
+              "releases"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_171303835ae75ea03709261dff2a973b6fec8f1f77cc7b5d8cfe3581985557d6"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "configuration",
+            "relation_kinds": [
+              "defaults",
+              "overrides",
+              "reads-argv",
+              "reads-config",
+              "reads-environment"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_2400bb5386d49489fd9ec28dfa88113934e319a9f0d0bd23be916c6491214512"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "data-flow",
+            "relation_kinds": [
+              "aliases",
+              "defines",
+              "reads",
+              "writes"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_25c9b4143833b779960b7b39072c1cba941fc67689ae5ab329e09838f66a1065"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "timer",
+            "relation_kinds": [
+              "cancels-timer",
+              "schedules-timer"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_58b97b2108f77163729b6a96d79d42a4c628082986105cdedc3d7e04dc442b14"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "closure",
+            "relation_kinds": [
+              "captures"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_5de4e206f58abb235f0e065ebb627fd18fe643ffd93ef3a7dd562623836b19d1"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "request",
+            "relation_kinds": [
+              "constructs-request",
+              "consumed-by",
+              "supplies-request-field"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_829a698bd7525fd8dd7771c519e9a92a3078070be856b93a0727520a7838ea55"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "boundary",
+            "relation_kinds": [
+              "coerces",
+              "parses",
+              "validates"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_880216246e439a6abd3f4c71960d43822a29f53ce0e1f238253c86c645d6338c"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "child-process",
+            "relation_kinds": [
+              "connects-stdio",
+              "forwards-signal",
+              "listens-error",
+              "listens-exit",
+              "spawns",
+              "supplies-argv",
+              "supplies-env"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_88f045e45173a0e57fd0d93ff488986f961b491da9d6abdce950a1ac6d7b10c6"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "object-flow",
+            "relation_kinds": [
+              "destructures",
+              "reads-property",
+              "spreads",
+              "writes-property"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_afbf0d704254e1dbf1ec97e6295b4bffc7e590c2ac8c6880d147e10a8102c161"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "promise-ownership",
+            "relation_kinds": [
+              "aggregates",
+              "awaits",
+              "chains",
+              "creates-promise",
+              "detaches-task",
+              "owns",
+              "returns-task"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_dff9bf8cb0de612ce0978860cead4ad12ab5c277d3784fe9fefc41e76cf9a82a"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "call-flow",
+            "relation_kinds": [
+              "argument-to-parameter",
+              "calls",
+              "returns-to-call"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_f49bb4ee872a25942ee137a10406091f92cc115853dde59df031084d6555b026"
+          },
+          {
+            "node_id": "jsrg_node_8347bfb918385f613b23ea62fe2669174dfd1dbb2644784fd0dc227d5a67a5b7",
+            "family": "event",
+            "relation_kinds": [
+              "dispatches-candidate",
+              "registers-listener",
+              "removes-listener"
+            ],
+            "reason": "incomplete-module",
+            "detail": "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+            "candidate_node_ids": [],
+            "evidence": {
+              "context_id": "jsrg_evidence_9bcd14277dd7453dbf54805cec76ae1fa0fe6791479b4fc0acadc386e35deb1f",
+              "location": {
+                "available": true,
+                "value": {
+                  "kind": "artifact-path",
+                  "path": "analysis.bundled.js"
+                }
+              }
+            },
+            "unknown_id": "jsrg_unknown_f51d56770a3647b7834b1c3637a1f24315a619b8ffe190c1ef3672ee883d3825"
+          }
+        ],
+        "coverage": {
+          "status": "partial",
+          "truncated": false,
+          "omitted_nodes": null,
+          "omitted_relations": null,
+          "limits": [],
+          "families": [
+            {
+              "family": "boundary",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_880216246e439a6abd3f4c71960d43822a29f53ce0e1f238253c86c645d6338c"
+              ]
+            },
+            {
+              "family": "call-flow",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_f49bb4ee872a25942ee137a10406091f92cc115853dde59df031084d6555b026"
+              ]
+            },
+            {
+              "family": "child-process",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_88f045e45173a0e57fd0d93ff488986f961b491da9d6abdce950a1ac6d7b10c6"
+              ]
+            },
+            {
+              "family": "closure",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_5de4e206f58abb235f0e065ebb627fd18fe643ffd93ef3a7dd562623836b19d1"
+              ]
+            },
+            {
+              "family": "configuration",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_2400bb5386d49489fd9ec28dfa88113934e319a9f0d0bd23be916c6491214512"
+              ]
+            },
+            {
+              "family": "data-flow",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_25c9b4143833b779960b7b39072c1cba941fc67689ae5ab329e09838f66a1065"
+              ]
+            },
+            {
+              "family": "event",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_f51d56770a3647b7834b1c3637a1f24315a619b8ffe190c1ef3672ee883d3825"
+              ]
+            },
+            {
+              "family": "object-flow",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_afbf0d704254e1dbf1ec97e6295b4bffc7e590c2ac8c6880d147e10a8102c161"
+              ]
+            },
+            {
+              "family": "promise-ownership",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_dff9bf8cb0de612ce0978860cead4ad12ab5c277d3784fe9fefc41e76cf9a82a"
+              ]
+            },
+            {
+              "family": "request",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_829a698bd7525fd8dd7771c519e9a92a3078070be856b93a0727520a7838ea55"
+              ]
+            },
+            {
+              "family": "resource-lifecycle",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_171303835ae75ea03709261dff2a973b6fec8f1f77cc7b5d8cfe3581985557d6"
+              ]
+            },
+            {
+              "family": "timer",
+              "status": "partial",
+              "retained_relations": 0,
+              "omitted_relations": null,
+              "unknown_ids": [
+                "jsrg_unknown_58b97b2108f77163729b6a96d79d42a4c628082986105cdedc3d7e04dc442b14"
+              ]
+            }
+          ]
+        },
+        "limitations": [
+          "Boundary extraction covers unshadowed JSON/global coercions plus parse and validation method candidates.",
+          "Child-process extraction covers asynchronous node:child_process creation, literal argv/env/stdio options, exit/error listeners, and kill signals.",
+          "Configuration extraction covers process.env, process.argv, node:fs reads, and direct logical defaults.",
+          "Event extraction covers EventEmitter-style literal registrations, removals, and dispatch candidates; dynamic names remain unknown.",
+          "Function fingerprints are static candidates; equal digests can remain ambiguous and do not prove behavioral equivalence.",
+          "Local data flow does not claim control-flow-sensitive reaching definitions or arbitrary dynamic property resolution.",
+          "Promise ownership covers explicit unshadowed Promise construction, static factories, aggregation, chaining, and await syntax only.",
+          "Request extraction covers fetch, WebSocket, node:http/node:https construction, direct option fields, and exact local response consumers.",
+          "Resource extraction covers built-in filesystem/network acquisition and exact local close/destroy/end handles.",
+          "The semantic graph contains static syntax observations and conservative relationship candidates; it does not claim runtime execution.",
+          "Timer extraction covers global or node:timers scheduling and exact local-handle cancellation."
+        ],
+        "graph_id": "jsrg_a847b28b86ef9f66fd4a005220689444c68c5564948d6ba3431ee20988314a45"
+      }
+    },
+    "confidence": "derived",
+    "authority": "shipped-artifact",
+    "environment": null,
+    "limitations": [
+      "CommonJS and ESM binding relationships were recovered from inert syntax and resolved only within the inventoried artifact container.",
+      "Graph coverage is incomplete; unavailable facts remain explicit and must not be read as absence.",
+      "JavaScript and HTML were parsed as inert text; bundle bootstrap code was never executed.",
+      "Static imports, entrypoints, workers, endpoints, and storage relationships do not prove runtime execution.",
+      "Static paths and relationships may remain unresolved when expressions are dynamic or obfuscated.",
+      "Webpack/Rspack factories were recovered from AST literals; REA did not invoke push handlers or bundle bootstrap code.",
+      "analysis.bundled.js: Provider process-ownership cannot execute prepare_owned_process: Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n"
+    ],
+    "locations": [
+      {
+        "kind": "artifact-path",
+        "path": "artifact-root"
+      }
+    ],
+    "evidence_links": []
+  },
+  "blocker": "Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+  "boundary": "Downloaded shipped Galaxy frontend bundle. REA inventory retained, semantic parsing blocked. No runtime, authenticated workflow execution or competitor equivalence established."
+}

@@ -109,3 +109,41 @@ class TestToolInterpretResilience:
         result = await tool_interpreter.interpret_tool_result("not_a_tool", {"x": 1})
 
         assert result is None
+
+    async def test_invented_number_rejected_then_grounded_retry_accepted(self, monkeypatch):
+        _candidate(monkeypatch)
+        calls = []
+        async def fake_acompletion(**kwargs):
+            calls.append(kwargs)
+            value = "42" if len(calls) == 1 else "3"
+            return _Resp(json.dumps({"headline": "Recorded hits", "summary": f"There are {value} hits.", "findings": [], "caveats": []}))
+        _monkeypatch_acompletion(monkeypatch, fake_acompletion)
+        result = await tool_interpreter.interpret_tool_result("blast", {"count": 3})
+        assert result["summary"] == "There are 3 hits."
+        assert result["grounding"]["status"] == "numeric_fidelity_passed"
+        assert len(result["grounding"]["evidence_sha256"]) == 64
+        assert len(calls) == 2
+
+    async def test_number_in_omitted_result_field_is_not_evidence(self, monkeypatch):
+        _candidate(monkeypatch)
+        async def fake_acompletion(**kwargs):
+            return _Resp(json.dumps({"headline": "Hits", "summary": "There are 98765 hits.", "findings": [], "caveats": []}))
+        _monkeypatch_acompletion(monkeypatch, fake_acompletion)
+        result = {f"key_{chr(65+i)}": "available" for i in range(15)}
+        result["omitted"] = 98765
+        assert await tool_interpreter.interpret_tool_result("blast", result) is None
+
+    async def test_invalid_list_schema_not_coerced_into_letters(self, monkeypatch):
+        _candidate(monkeypatch)
+        async def fake_acompletion(**kwargs):
+            return _Resp(json.dumps({"headline": "Hits", "summary": "Recorded hits.", "findings": "fake list", "caveats": []}))
+        _monkeypatch_acompletion(monkeypatch, fake_acompletion)
+        assert await tool_interpreter.interpret_tool_result("blast", {"count": 3}) is None
+
+    async def test_failed_or_empty_result_never_calls_provider(self, monkeypatch):
+        _candidate(monkeypatch)
+        async def fake_acompletion(**kwargs):
+            raise AssertionError("Unavailable results must not be interpreted")
+        _monkeypatch_acompletion(monkeypatch, fake_acompletion)
+        for payload in ({}, {"status": "failed"}, {"status": "running"}):
+            assert await tool_interpreter.interpret_tool_result("blast", payload) is None

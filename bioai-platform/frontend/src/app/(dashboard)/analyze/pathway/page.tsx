@@ -8,13 +8,14 @@ import { searchPathways, searchKEGGPathways, runEnrichment } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import type { PathwayResult, KEGGPathwayResult, EnrichmentResult } from '@/lib/api';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
+import CustomGeneSetEnrichment from '@/components/results/CustomGeneSetEnrichment';
 import PathwayDiagram from '@/components/results/PathwayDiagram';
 import { BackButton, PageHeader, ClaySegmented, CriticalButton, FlatInput, FlatTextarea } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
 import { downloadJson, downloadTsv } from '@/lib/export-utils';
 
-type Tab = 'reactome' | 'kegg' | 'enrichment';
+type Tab = 'reactome' | 'kegg' | 'enrichment' | 'custom';
 
 const fmtExp = (v: number | null | undefined): string =>
   v != null && isFinite(v) ? v.toExponential(2) : '—';
@@ -105,12 +106,13 @@ export default function PathwayPage() {
           { value: 'reactome', label: 'Reactome' },
           { value: 'kegg', label: 'KEGG' },
           { value: 'enrichment', label: 'Enrichment' },
+          { value: 'custom', label: 'Custom background' },
         ]}
         value={tab}
         onChange={(t) => { setTab(t); setError(null); }}
       />
 
-      {tab !== 'enrichment' && (
+      {(tab === 'reactome' || tab === 'kegg') && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
           <div className="flex gap-3">
             <FlatInput
@@ -150,6 +152,8 @@ export default function PathwayPage() {
           </CriticalButton>
         </motion.div>
       )}
+
+      {tab === 'custom' && <CustomGeneSetEnrichment />}
 
       {error && <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20"><p className="text-sm text-error">{error}</p></motion.div>}
 

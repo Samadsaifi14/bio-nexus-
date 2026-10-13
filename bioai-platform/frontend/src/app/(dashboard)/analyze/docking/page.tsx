@@ -577,16 +577,18 @@ export default function DockingPage() {
               ) : (() => {
                 const analytics = result.result?.pose_analytics as {
                   pose_clustering?: { cluster_count?: number; cutoff_angstrom?: number; clusters?: Array<{ cluster: number; models: number[]; size: number }> };
-                  water_mediated_interactions?: { status?: string; water_count?: number; bridge_count?: number; bridges?: Array<{ water: number; protein: string; water_ligand_distance_angstrom: number; water_protein_distance_angstrom: number }> };
+                  water_mediated_interactions?: { status?: string; water_count?: number; bridge_count?: number; poses?: Array<{ model: number; bridge_count: number; protein_contacts: string[] }>; bridges?: Array<{ model: number; water: number; protein: string; water_ligand_distance_angstrom: number; water_protein_distance_angstrom: number }> };
                 };
                 return <div className="mt-2 space-y-3 text-xs text-text-secondary">
-                  <div><p>Pose clusters at {analytics.pose_clustering?.cutoff_angstrom ?? 2} Å atom-order RMSD: {analytics.pose_clustering?.cluster_count ?? '—'}</p>
+                  <div><p>Pose clusters at {analytics.pose_clustering?.cutoff_angstrom ?? 2} Å heavy-atom atom-order RMSD: {analytics.pose_clustering?.cluster_count ?? '—'}</p>
                     <p className="mt-1 text-text-muted">{analytics.pose_clustering?.clusters?.map(cluster => `Cluster ${cluster.cluster}: modes ${cluster.models.join(', ')}`).join(' · ')}</p>
                   </div>
                   <div><p>Crystallographic water screen: {analytics.water_mediated_interactions?.status ?? 'unavailable'} · {analytics.water_mediated_interactions?.water_count ?? 0} waters · {analytics.water_mediated_interactions?.bridge_count ?? 0} geometric bridges</p>
-                    {!!analytics.water_mediated_interactions?.bridges?.length && <p className="mt-1 text-text-muted">{analytics.water_mediated_interactions.bridges.slice(0, 8).map(bridge => `water ${bridge.water} → ${bridge.protein} (${bridge.water_ligand_distance_angstrom.toFixed(2)}/${bridge.water_protein_distance_angstrom.toFixed(2)} Å)`).join(' · ')}</p>}
+                    {!!analytics.water_mediated_interactions?.bridges?.length && <p className="mt-1 text-text-muted">{analytics.water_mediated_interactions.bridges.slice(0, 8).map(bridge => `mode ${bridge.model ?? 1}: water ${bridge.water} → ${bridge.protein} (${bridge.water_ligand_distance_angstrom.toFixed(2)}/${bridge.water_protein_distance_angstrom.toFixed(2)} Å)`).join(' · ')}</p>}
                   </div>
-                  <p className="text-[11px] text-text-muted">Clustering uses non-symmetry-corrected atom-order RMSD. Water bridges are distance-only evidence, not energetics or occupancy. Neither is experimental validation.</p>
+                  {!!analytics.water_mediated_interactions?.poses?.length && <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th className="py-1">Pose</th><th>Water bridges</th><th>Protein contact fingerprint</th></tr></thead><tbody>{analytics.water_mediated_interactions.poses.map(pose => <tr key={pose.model}><td className="py-1">{pose.model}</td><td>{pose.bridge_count}</td><td>{pose.protein_contacts.join(', ') || 'No geometric bridge observed'}</td></tr>)}</tbody></table></div>}
+                  <button type="button" className="btn-secondary text-xs" onClick={() => downloadText(JSON.stringify(result.result?.pose_analytics, null, 2), 'docking_pose_evidence.json')}>Download pose evidence JSON</button>
+                  <p className="text-[11px] text-text-muted">Clustering uses non-symmetry-corrected heavy-atom atom-order RMSD; hydrogens are excluded. Water bridges are distance-only evidence, not energetics or occupancy. Neither is experimental validation.</p>
                 </div>;
               })()}
             </div>

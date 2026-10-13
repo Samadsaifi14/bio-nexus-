@@ -1,4 +1,4 @@
-﻿"""
+"""
 In-memory pipeline v2 — runs BLAST → UniProt → MSA → Phylo → Domains → Interpretation
 in a background thread. Uses a thread-safe dict for job storage.
 """
@@ -310,6 +310,8 @@ async def run_pipeline(
     fast_mode: bool = False,
     blast_params: dict | None = None,
     job_id: str | None = None,
+    steps: list[str] | None = None,
+    alignment_mode: str = "global",
 ) -> dict:
     """Public async entry point for the pipeline (used by pipeline_worker).
 
@@ -323,7 +325,8 @@ async def run_pipeline(
     else:
         external_job_id = f"worker-{uuid.uuid4().hex[:12]}"
     job_key = job_id or external_job_id
-    requested = list(STEP_ORDER)
+    from app.services.workflow_templates import WorkflowRecipe
+    requested = WorkflowRecipe(steps=list(STEP_ORDER) if steps is None else steps, alignment_mode=alignment_mode).steps
     steps_dict = {s: {"status": "pending", "progress": 0, "data": None, "error": None} for s in STEP_ORDER}
 
     with _jobs_lock:
@@ -347,11 +350,12 @@ async def run_pipeline(
             status_callback=status_callback,
             fast_mode=fast_mode,
             blast_params=blast_params,
+            alignment_mode=alignment_mode,
         )
     finally:
-        job = _get_job(job_id)
+        job = _get_job(job_key)
         with _jobs_lock:
-            _jobs.pop(job_id, None)
+            _jobs.pop(job_key, None)
 
     if job and job.get("status") == "failed":
         raise RuntimeError(job.get("error", "Pipeline failed"))

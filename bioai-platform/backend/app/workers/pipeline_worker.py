@@ -165,6 +165,8 @@ async def process_job(job_id: str) -> None:
                 fast_mode=fast_mode,
                 blast_params=blast_params,
                 job_id=job_id,
+                steps=ctx.get("workflow_steps") if isinstance(ctx, dict) else None,
+                alignment_mode=ctx.get("alignment_mode", "global") if isinstance(ctx, dict) else "global",
             )
 
         done_at = datetime.datetime.utcnow().isoformat()

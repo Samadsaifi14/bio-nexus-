@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { longApi } from '@/lib/api';
 import { parseExpressionResult, type RnaSeqExpressionResult, type RnaSeqArtifact } from '@/lib/rnaseqExpressionApi';
 
-type Job = { job_id: string; state: string; phase: string; error?: string; result?: { run_id: string; checkpoint_sha256?: string; artifacts: RnaSeqArtifact[] } };
+type Job = { job_id: string; state: string; phase: string; attempts?: number; max_attempts?: number; can_cancel?: boolean; lease_stale?: boolean; error?: string; result?: { run_id: string; checkpoint_sha256?: string; artifacts: RnaSeqArtifact[] } };
 
 function inferTwoGroups(samples: string[]): { groups: string[]; counts: Record<string, number> } | null {
   const stripped = samples.map(sample => sample.trim().replace(/[._-]?\d+$/, '').replace(/[._-]+$/, ''));
@@ -44,7 +44,7 @@ export function DurableJobReview({ jobId, onResult }: { jobId: string; onResult:
         if (!next || typeof next.state !== 'string') throw new Error('Invalid job response');
         setJob(next); setError('');
         if (next.state === 'SUCCEEDED' && next.result) { onResult(parseExpressionResult(next.result)); terminal = true; }
-        if (next.state === 'FAILED') terminal = true;
+        if (['FAILED', 'CANCELLED'].includes(next.state)) terminal = true;
       } catch (caught) { if (active) setError(recoveryError(caught)); }
     };
     void refresh(); const timer = window.setInterval(refresh, 5000);
@@ -58,10 +58,21 @@ export function DurableJobReview({ jobId, onResult }: { jobId: string; onResult:
       setJob(current => current ? { ...current, state: 'QUEUED', phase: 'infer' } : current);
     } catch (caught) { setError(recoveryError(caught)); }
   }
+  async function cancel() {
+    try {
+      await longApi.post(`/api/ngs/v2/rnaseq/recovery/jobs/${encodeURIComponent(jobId)}/cancel`);
+      setJob(current => current ? { ...current, state: 'CANCELLED', can_cancel: false } : current);
+      setError('');
+    } catch (caught) { setError(recoveryError(caught)); }
+  }
   return <section className="data-card space-y-3 p-5" aria-live="polite">
     <h3 className="font-semibold">Retained analysis · {job?.state ?? 'Loading'}</h3>
     <p className="break-all font-mono text-xs">Job: {jobId}</p>
     <p className="text-xs text-text-muted">Keep this ID to resume after closing the browser. Inputs and the reviewed checkpoint are retained privately on the configured worker volume.</p>
+    {job?.attempts !== undefined && <p className="text-xs">Execution attempts: {job.attempts} / {job.max_attempts ?? 3}</p>}
+    {job?.lease_stale && <p role="status" className="text-warn text-sm">The worker heartbeat has expired. A live worker must recover this job before analysis can continue.</p>}
+    {job?.can_cancel && <button type="button" onClick={cancel} className="btn-secondary">Cancel retained analysis</button>}
+    {job?.state === 'RUNNING' && <p className="text-xs text-text-muted">This analysis is running. Process termination is unavailable; cancellation is supported while queued or awaiting QC review.</p>}
     {job?.error && <p role="alert" className="text-error">{job.error}</p>}
     {error && <p role="alert" className="text-error">{error}</p>}
     {job?.state === 'QC_REVIEW' && <>
@@ -104,6 +115,17 @@ export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: R
   const [reviewed, setReviewed] = useState(false);
   const [jobId, setJobId] = useState('');
   const [resume, setResume] = useState('');
+  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
+  const [loadingJobs, setLoadingJobs] = useState(false);
+  async function loadSavedJobs() {
+    setLoadingJobs(true);
+    try {
+      const response = await longApi.get<{ jobs: Job[] }>('/api/ngs/v2/rnaseq/recovery/jobs?limit=50');
+      if (!Array.isArray(response.data.jobs)) throw new Error('Invalid retained job list');
+      setSavedJobs(response.data.jobs); setError('');
+    } catch (caught) { setError(recoveryError(caught)); }
+    finally { setLoadingJobs(false); }
+  }
   const [productionId, setProductionId] = useState('');
   const [productionMapping, setProductionMapping] = useState('');
   const [readQc, setReadQc] = useState(false);
@@ -249,6 +271,8 @@ export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: R
       <button type="button" disabled={busy || !reviewed || !originReady || !readQc || !metadata || !tx2gene || !readiness?.available} onClick={() => submit(true)} className="btn-primary disabled:opacity-40">Import quantifications and generate QC</button>
     </details>}
     <div className="flex gap-2"><input value={resume} onChange={event => setResume(event.target.value)} placeholder="Resume a saved analysis job ID" aria-label="Saved analysis job ID" className={inputClass} /><button type="button" onClick={() => setJobId(resume.trim())} disabled={!resume.trim()} className="btn-secondary">Resume</button></div>
+    <button type="button" onClick={loadSavedJobs} disabled={loadingJobs} className="btn-secondary">{loadingJobs ? 'Loading retained analyses…' : 'Load my retained analyses'}</button>
+    {savedJobs.length > 0 && <ul className="space-y-2">{savedJobs.map(item => <li key={item.job_id} className="flex flex-wrap items-center gap-3 text-xs"><span className="break-all">{item.job_id} · {item.state} · {item.phase}</span><button type="button" onClick={() => setJobId(item.job_id)} className="btn-secondary">Open analysis</button></li>)}</ul>}
     {error && <p role="alert" className="text-error">{error}</p>}
     {jobId && <DurableJobReview jobId={jobId} onResult={onResult} />}
   </section>;

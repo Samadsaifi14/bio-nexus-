@@ -334,3 +334,36 @@ async def restriction_map_endpoint(req: RestrictionMapRequest):
         )
     except SequenceUtilitiesError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+class DNAAnnotation(BaseModel):
+    label: str = Field(..., min_length=1, max_length=100)
+    start: int = Field(..., ge=1)
+    end: int = Field(..., ge=1)
+    strand: Literal[-1, 1] = 1
+    type: Literal['misc_feature', 'gene', 'promoter', 'rep_origin', 'primer_bind'] = 'misc_feature'
+
+
+class AnnotatedSequenceRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, max_length=500000)
+    name: str = 'BioNexus_DNA'
+    circular: bool = False
+    features: list[DNAAnnotation] = Field(default_factory=list, max_length=200)
+    enzymes: list[str] = Field(default_factory=list, max_length=13)
+
+
+@router.post('/annotated-genbank')
+async def annotated_genbank_endpoint(req: AnnotatedSequenceRequest):
+    from app.tools.annotated_sequence import export_genbank
+    try:
+        result = export_genbank(req.sequence, req.name, req.circular, [f.model_dump() for f in req.features], req.enzymes)
+        return build_scientific_result(
+            status='VALID', method='User annotation and GenBank sequence exchange',
+            engine='Biopython SeqIO / BioNexus coordinate validation', engine_version=Bio.__version__,
+            input_payload=req.model_dump(), parameters={'name': req.name, 'circular': req.circular, 'enzymes': req.enzymes},
+            results=result, evidence_class='Deterministic computation',
+            validation={'annotation_coordinates_checked': True, 'biological_annotations_validated': False},
+            citations=[{'label': 'Biopython SeqIO', 'url': 'https://biopython.org/wiki/SeqIO'}],
+        )
+    except SequenceUtilitiesError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

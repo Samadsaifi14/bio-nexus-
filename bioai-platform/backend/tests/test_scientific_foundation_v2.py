@@ -39,6 +39,12 @@ def test_evidence_policy_accepts_recorded_numeric_claim():
     assert claim["evidence_class"]==EvidenceClass.DETERMINISTIC.value
 
 
+def test_evidence_policy_rejects_missing_empty_or_partial_support():
+    for context in ({}, {"blast": None}, {"blast": {}}, {"blast": []}, {"blast": ""}):
+        assert not classify_claim(sentence="A match was found.", evidence_sections=["blast"], context=context)["admitted"]
+    assert not classify_claim(sentence="A match was found.", evidence_sections=["blast", "domains"], context={"blast": {"hits": 3}})["admitted"]
+
+
 def test_bootstrap_is_seed_reproducible_and_reports_n():
     a=bootstrap_ci([1,2,3,4,5],n_boot=250,seed=7)
     b=bootstrap_ci([1,2,3,4,5],n_boot=250,seed=7)

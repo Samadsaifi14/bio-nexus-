@@ -79,7 +79,9 @@ def test_fpocket_grid_uses_real_candidate_files_and_reports_metadata(tmp_path, m
         return SimpleNamespace(returncode=0, stdout="", stderr="")
 
     monkeypatch.setattr(docking.subprocess, "run", fake_fpocket)
-    result = docking.compute_pocket_grid("ATOM\n")
+    result = docking.compute_pocket_grid(
+        "ATOM      1  CA  GLY A   1       1.000   0.000   0.000  1.00 20.00           C\n"
+    )
 
     assert result["selected_rank"] == 1
     assert result["candidates"][0]["score"] == 12.5

@@ -1,12 +1,12 @@
 """Randomized/property tests for the sequence-utilities toolkit against Biopython.
 
 Each metric is cross-checked on many seeded random inputs so the shared backend
-sequence library provably matches the reference implementation (Biopython):
+sequence library matches on the tested inputs against the reference implementation (Biopython):
 
   * reverse complement (IUPAC-aware, ambiguous letters)
   * transcription (DNA -> RNA copy)
   * GC content
-  * six-frame translation (frames 1-3 forward, 4-6 reverse)
+  * six-frame translation (frames +1/+2/+3 forward, -1/-2/-3 reverse)
   * ssDNA / protein molecular weight conventions
   * strict invalid-character position reporting
 """
@@ -18,7 +18,7 @@ from Bio.Seq import Seq
 from Bio.SeqUtils import molecular_weight
 from Bio.SeqUtils.ProtParam import ProteinAnalysis
 
-from app.tools.sequence_utilities import _nucleotide_mw, analyze_sequence
+from app.tools.sequence_utilities import SequenceUtilitiesError, _nucleotide_mw, analyze_sequence
 
 pytestmark = pytest.mark.filterwarnings("ignore::Bio.BiopythonWarning")  # partial codon in random len
 
@@ -87,17 +87,19 @@ class TestSixFrameTranslation:
             frames = analyze_sequence(s, seq_type="dna")["translation"]["frames"]
             assert frames["1"] == str(Seq(s).translate())
 
-    def test_fourth_frame_is_reverse_strand_translation(self):
+    def test_negative_first_frame_is_reverse_strand_translation(self):
         for _ in range(30):
             s = rand_seq(DNA)
             frames = analyze_sequence(s, seq_type="dna")["translation"]["frames"]
             rc = str(Seq(s).reverse_complement())
-            assert frames["4"] == str(Seq(rc).translate())
+            assert frames["-1"] == str(Seq(rc).translate())
 
     def test_all_six_frames_present(self):
         res = analyze_sequence("ATGCATTAACGTGCATGACCGTTACGAATGGC", seq_type="dna")
-        assert set(res["translation"]["frames"].keys()) == {"1", "2", "3", "4", "5", "6"}
-        assert res["translation"]["best"]["strand"] in ("forward", "reverse")
+        assert set(res["translation"]["frames"].keys()) == {"1", "2", "3", "-1", "-2", "-3"}
+        assert res["translation"]["best"]["strand"] in ("+", "-")
+        best = res["translation"]["best"]
+        assert best["strand"] == ("+" if best["frame"] > 0 else "-")
 
     def test_best_orf_coordinates_match_sequence_length(self):
         for _ in range(20):
@@ -123,20 +125,21 @@ class TestMolecularWeight:
 
 
 class TestStrictInvalidCharacters:
-    def test_positions_reported_in_alpha_body(self):
-        # Z and X are not valid IUPAC-DNA letters; they sit at alpha-body
-        # positions 4 and 5 of "ATGZXCATG".
-        res = analyze_sequence("ATGZXCATG", seq_type="dna")
-        assert res["length"] == len("ATGZXCATG") - 2
-        issue = [i for i in res["issues"] if "Ignored invalid characters" in i]
-        assert issue, res["issues"]
-        assert "Z@position 4" in issue[0]
-        assert "X@position 5" in issue[0]
+    @pytest.mark.parametrize("sequence,character,position", [
+        ("ATGZXCATG", "Z", 4),
+        ("ATGAXCATG", "X", 5),
+        (">example\nATGZXC\nATG", "Z", 4),
+    ])
+    def test_invalid_dna_rejected_with_body_position(self, sequence, character, position):
+        # Reject the first invalid symbol without silently dropping bases.
+        # FASTA headers and whitespace do not count toward body coordinates.
+        with pytest.raises(SequenceUtilitiesError) as exc:
+            analyze_sequence(sequence, seq_type="dna")
+        assert f"character {character!r} at position {position}" in str(exc.value)
+        assert "not valid DNA" in str(exc.value)
 
-    def test_mixed_rna_dna_reported_and_positions(self):
-        # For RNA, T is not a valid base (only U); it is dropped with positions.
-        res = analyze_sequence("AUCGT", seq_type="rna")
-        issue = [i for i in res["issues"] if "Ignored invalid characters" in i]
-        assert issue
-        assert "T@position 5" in issue[0]
-        assert res["length"] == 4
+    def test_mixed_rna_dna_rejected_with_position(self):
+        with pytest.raises(SequenceUtilitiesError) as exc:
+            analyze_sequence("AUCGT", seq_type="rna")
+        assert "character 'T' at position 5" in str(exc.value)
+        assert "not valid RNA" in str(exc.value)

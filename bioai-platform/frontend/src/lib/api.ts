@@ -2047,3 +2047,22 @@ export async function getWorkflowEvidenceManifest(jobId: string): Promise<Record
   const res = await api.get(`/api/experiments/${encodeURIComponent(jobId)}/workflow-manifest`);
   return res.data;
 }
+
+
+export async function exportWorkflowRecipe(jobId: string): Promise<Record<string, unknown>> {
+  const res = await api.get(`/api/experiments/${encodeURIComponent(jobId)}/workflow-recipe`);
+  return res.data;
+}
+export async function validateWorkflowRecipe(recipe: unknown): Promise<Record<string, unknown>> {
+  const res = await api.post('/api/pipelines/recipes/validate', recipe);
+  return res.data;
+}
+export async function replayWorkflow(jobId: string, sequence: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post(`/api/experiments/${encodeURIComponent(jobId)}/replay`, { sequence });
+  return res.data;
+}
+
+export async function runWorkflowRecipe(recipe: unknown, sequence: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/pipelines/run', { sequence, pipeline_type: 'protein_analysis', workflow_recipe: recipe });
+  return res.data;
+}

@@ -19,6 +19,7 @@ export function RestrictionMapPanel({ sequence }: { sequence: string }) {
   const [evidence, setEvidence] = useState<unknown>(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [annotations, setAnnotations] = useState('[]');
   const inputKey = JSON.stringify({ sequence, enzymes: selected, circular });
   const latestInput = useRef(inputKey);
   latestInput.current = inputKey;
@@ -33,6 +34,19 @@ export function RestrictionMapPanel({ sequence }: { sequence: string }) {
     } catch (err) { if (latestInput.current === submittedInput) setError(extractErrorMessage(err, 'Restriction map failed')); }
     finally { setBusy(false); }
   }
+  async function exportAnnotated() {
+    const submittedInput = inputKey;
+    setBusy(true); setError('');
+    try {
+      const features = JSON.parse(annotations);
+      if (!Array.isArray(features)) throw new Error('Annotations must be a JSON array');
+      const { data } = await longApi.post('/api/seq-tools/annotated-genbank', { sequence, name: 'BioNexus_DNA', circular, features, enzymes: selected });
+      if (latestInput.current !== submittedInput) return;
+      const url = URL.createObjectURL(new Blob([data.results.genbank], { type: 'text/plain' }));
+      const anchor = document.createElement('a'); anchor.href = url; anchor.download = data.results.filename; anchor.click(); URL.revokeObjectURL(url);
+    } catch (err) { setError(extractErrorMessage(err, 'Annotated GenBank export failed')); }
+    finally { setBusy(false); }
+  }
   function download() {
     const url = URL.createObjectURL(new Blob([JSON.stringify(evidence, null, 2)], { type: 'application/json' }));
     const anchor = document.createElement('a'); anchor.href = url; anchor.download = 'restriction-map-evidence.json'; anchor.click(); URL.revokeObjectURL(url);
@@ -43,6 +57,12 @@ export function RestrictionMapPanel({ sequence }: { sequence: string }) {
     <label className="flex gap-2 text-sm"><input type="checkbox" checked={circular} onChange={e => setCircular(e.target.checked)} />Circular DNA / plasmid</label>
     <fieldset className="flex flex-wrap gap-3"><legend className="text-xs text-text-muted mb-2">Supported enzymes</legend>{ENZYMES.map(name => <label key={name} className="flex gap-1 text-xs"><input type="checkbox" checked={selected.includes(name)} onChange={e => setSelected(e.target.checked ? [...selected, name] : selected.filter(n => n !== name))} />{name}</label>)}</fieldset>
     <button className="px-3 py-2 rounded border border-glass-border text-sm" disabled={busy || !sequence.trim() || !selected.length} onClick={run}>{busy ? 'Mapping…' : 'Build restriction map'}</button>
+    <details className="space-y-3"><summary className="text-sm cursor-pointer">Annotate and export DNA to GenBank</summary>
+      <p className="text-xs text-text-muted">User annotations use 1-based inclusive coordinates. On circular DNA, start greater than end spans the origin. Labels are unverified; exports include selected restriction sites.</p>
+      <label className="block text-sm">Annotation JSON<textarea className="block w-full border border-glass-border rounded p-2 bg-transparent font-mono text-xs" rows={5} value={annotations} onChange={e => setAnnotations(e.target.value)} /></label>
+      <p className="text-xs text-text-muted">Example: {JSON.stringify([{ label: 'promoter', start: 1, end: 6, strand: 1, type: 'promoter' }])}. Types: misc_feature, gene, promoter, rep_origin, primer_bind. Strand: 1 or -1.</p>
+      <button className="text-sm underline" disabled={busy || !sequence.trim()} onClick={exportAnnotated}>Download annotated GenBank (.gb)</button>
+    </details>
     {error && <p role="alert" className="text-sm text-error">{error}</p>}
     {result && <div className="space-y-3">
       <p className="text-sm">{result.length} bp · {result.topology} input · {result.sites.length} recognition sites · {result.product_topology} products</p>

@@ -181,3 +181,39 @@ def test_geo_source_change_blocks_assembly(monkeypatch):
             origin=json.dumps({"classification":"deposited_raw_counts","source_uri":"GEO: source methods","normalization":"none","evidence":"raw count methods","method":"featureCounts","annotation":"release1","reviewed":True}),
             parameters="{}", metadata=UploadFile(filename="meta.tsv",file=io.BytesIO(b"x")), source_sha256=json.dumps({"counts.zip":"old"}),
             mapping="{}", matrix_member="", user="alice"))
+
+
+def test_monitoring_is_owner_scoped_and_bounded(queue):
+    assert durable.list_jobs("bob")["jobs"] == []
+    record = durable.list_jobs("alice")["jobs"][0]
+    assert record["job_id"] == queue and record["can_cancel"] is True
+    assert "payload" not in record and "owner" not in record
+    with pytest.raises(RnaSeqExpressionError, match="limit"):
+        durable.list_jobs("alice", 101)
+    durable.claim("worker")
+    with durable.db() as connection:
+        connection.execute("UPDATE jobs SET heartbeat=? WHERE id=?", (time.time() - 1000, queue))
+    observed = durable.status(queue, "alice")
+    assert observed["lease_stale"] is True and observed["can_cancel"] is False
+
+
+def test_cancel_is_owner_scoped_idempotent_and_unclaimable(queue):
+    with pytest.raises(FileNotFoundError):
+        durable.cancel(queue, "bob")
+    assert durable.cancel(queue, "alice")["state"] == "CANCELLED"
+    assert durable.cancel(queue, "alice")["state"] == "CANCELLED"
+    assert durable.claim("worker") is None
+
+
+def test_running_cancel_never_claims_process_termination(queue):
+    durable.claim("worker")
+    with pytest.raises(RnaSeqExpressionError, match="termination is unavailable"):
+        durable.cancel(queue, "alice")
+    assert durable.status(queue, "alice")["state"] == "RUNNING"
+
+
+def test_monitoring_and_cancel_http_require_authentication():
+    app = FastAPI(); app.include_router(rnaseq_recovery.router)
+    client = TestClient(app)
+    assert client.get("/api/ngs/v2/rnaseq/recovery/jobs").status_code == 401
+    assert client.post("/api/ngs/v2/rnaseq/recovery/jobs/nope/cancel").status_code == 401

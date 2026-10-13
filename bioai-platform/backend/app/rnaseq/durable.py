@@ -130,7 +130,44 @@ def status(job_id: str, user: str) -> dict:
         if digest:
             result["checkpoint_sha256"] = digest
     return {"job_id": job_id, "state": row["state"], "phase": row["phase"],
-            "attempts": row["attempts"], "error": row["error"], "result": result}
+            "attempts": row["attempts"], "error": row["error"], "result": result,
+            **_monitor(row)}
+
+
+def _monitor(row) -> dict:
+    age = max(0.0, time.time() - row["heartbeat"]) if row["heartbeat"] else None
+    return {"created_at": row["created"], "updated_at": row["updated"],
+            "heartbeat_age_seconds": age if row["state"] == "RUNNING" else None,
+            "lease_stale": row["state"] == "RUNNING" and (age is None or age > LEASE_SECONDS),
+            "max_attempts": MAX_ATTEMPTS,
+            "can_cancel": row["state"] in {"QUEUED", "QC_REVIEW"}}
+
+
+def list_jobs(user: str, limit: int = 50) -> dict:
+    """Bounded owner-scoped monitoring without loading scientific artifacts."""
+    if not 1 <= limit <= 100:
+        raise RnaSeqExpressionError("Job list limit must be between 1 and 100")
+    with db() as connection:
+        rows = connection.execute("SELECT * FROM jobs WHERE owner=? ORDER BY created DESC, id LIMIT ?",
+                                  (owner_key(user), limit)).fetchall()
+    return {"jobs": [{"job_id": row["id"], "state": row["state"], "phase": row["phase"],
+                      "attempts": row["attempts"], "error": row["error"], **_monitor(row)} for row in rows]}
+
+
+def cancel(job_id: str, user: str) -> dict:
+    """Cancel only work that has no running process; serialize against claims."""
+    with db() as connection:
+        connection.execute("BEGIN IMMEDIATE")
+        row = _owned(connection, job_id, user)
+        if row["state"] == "CANCELLED":
+            connection.commit()
+            return {"job_id": job_id, "state": "CANCELLED"}
+        if row["state"] not in {"QUEUED", "QC_REVIEW"}:
+            raise RnaSeqExpressionError("Only queued jobs or jobs awaiting QC review can be cancelled; running process termination is unavailable")
+        connection.execute("UPDATE jobs SET state='CANCELLED', updated=?, lease=NULL WHERE id=?",
+                           (time.time(), job_id))
+        connection.commit()
+    return {"job_id": job_id, "state": "CANCELLED"}
 
 
 def approve(job_id: str, user: str, checkpoint_sha256: str) -> dict:

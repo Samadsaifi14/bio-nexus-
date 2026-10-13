@@ -16,6 +16,7 @@ import { ConfidenceBadge } from '@/components/results/ConfidenceBadge';
 import { FinalReport } from '@/components/results/FinalReport';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
+import { WorkflowReplay } from '@/components/pipeline/WorkflowReplay';
 import { getJob, createShareLink, getWorkflowEvidenceManifest } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { buildShareUrl, buildShareMessage, buildShareDetails, type ShareDetails } from '@/lib/share';
@@ -378,6 +379,8 @@ export default function JobPage() {
           Export evidence JSON
         </CriticalButton>
       </motion.div>
+
+      <WorkflowReplay jobId={jobId} />
 
       <motion.div variants={fadeUp} className="glass-card p-4">
         <JobGraph

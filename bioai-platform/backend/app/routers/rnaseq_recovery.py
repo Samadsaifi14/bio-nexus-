@@ -217,6 +217,24 @@ class QcApproval(BaseModel):
     checkpoint_sha256: str
 
 
+@router.get("/jobs")
+def jobs(limit: int = 50, user: str = Depends(require_user_id)):
+    try:
+        return durable.list_jobs(user, limit)
+    except RnaSeqExpressionError as exc:
+        raise failure(exc) from exc
+
+
+@router.post("/jobs/{job_id}/cancel")
+def cancel_job(job_id: str, user: str = Depends(require_user_id)):
+    try:
+        return durable.cancel(job_id, user)
+    except FileNotFoundError as exc:
+        raise HTTPException(404, "Job not found") from exc
+    except RnaSeqExpressionError as exc:
+        raise failure(exc) from exc
+
+
 @router.get("/jobs/{job_id}")
 def job_status(job_id: str, user: str = Depends(require_user_id)):
     try:

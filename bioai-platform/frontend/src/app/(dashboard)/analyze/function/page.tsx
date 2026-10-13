@@ -192,7 +192,8 @@ export default function FunctionPage() {
                       <div><span className="text-sm font-medium text-text-primary">{go.name}</span><span className="ml-2 font-mono text-xs text-text-muted">{go.go_id}</span></div>
                       <span className="text-xs text-text-secondary">{go.support_count} InterPro entr{go.support_count === 1 ? "y" : "ies"} · {go.supporting_domain_hits} hit{go.supporting_domain_hits === 1 ? "" : "s"}</span>
                     </div>
-                    <div className="mt-2 flex flex-wrap gap-1.5">{go.supporting_interpro_entries.map((entry) => <span key={entry} className="rounded bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-text-secondary">{entry}</span>)}</div>
+                    <div className="mt-2 flex flex-wrap gap-1.5">{go.supporting_interpro_entries.map((entry) => <a key={entry} href={`https://www.ebi.ac.uk/interpro/entry/InterPro/${entry}/`} target="_blank" rel="noreferrer" className="rounded bg-surface-2 px-2 py-0.5 font-mono text-[11px] text-accent-cyan hover:underline">{entry}</a>)}</div>
+                    {go.evidence_code && <p className="mt-2 text-xs text-text-secondary">{go.evidence_code} · Inferred from electronic annotation · {go.evidence_reference} · <a href={`https://amigo.geneontology.org/amigo/term/${go.go_id}`} target="_blank" rel="noreferrer" className="text-accent-cyan hover:underline">View GO term</a></p>}
                     <p className="mt-2 text-[11px] text-text-muted">{go.confidence_note}</p>
                   </div>
                 ))}

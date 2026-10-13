@@ -134,6 +134,7 @@ def _normalize_interpro_json(data) -> dict:
                     "end": int(loc.get("end", 0)),
                     "score": loc.get("score"),
                     "_signature_accession": sig.get("accession", ""),
+                    "go_terms": entry.get("goXRefs", []),
                 })
 
     domains.sort(key=lambda d: d["start"])

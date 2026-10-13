@@ -7,6 +7,52 @@ import pytest
 from app.tools import function_predict as fp
 
 
+def test_completed_scan_reuses_go_evidence_without_network(monkeypatch):
+    from app.services.de_novo import _normalize_interpro_json
+
+    def unexpected_lookup(_accession):
+        pytest.fail("GO mappings already exist in the completed scan")
+
+    monkeypatch.setattr(fp, "_fetch_interpro_go_terms", unexpected_lookup)
+    scan = _normalize_interpro_json({"results": [{"matches": [{
+        "signature": {"accession": "PF00001", "entry": {
+            "accession": "IPR000001", "name": "Example",
+            "goXRefs": [{"id": "GO:0003674", "name": "molecular function",
+                         "category": "MOLECULAR_FUNCTION"}],
+        }},
+        "locations": [{"start": 1, "end": 10}, {"start": 20, "end": 30}],
+    }]}]})
+    scan["status"] = "complete"
+    result = fp.prediction_from_result(scan, "A" * 30)
+    term = result["go_terms"][0]
+    assert result["status"] == "inferred"
+    assert term["namespace"] == "MF"
+    assert term["support_count"] == 1
+    assert term["supporting_domain_hits"] == 2
+    assert term["evidence_code"] == "IEA"
+    assert term["evidence_reference"] == "GO_REF:0000002"
+    assert term["confidence"] is None
+
+
+def test_member_database_signature_is_not_an_interpro_mapping(monkeypatch):
+    monkeypatch.setattr(fp, "_fetch_interpro_go_terms", lambda _: pytest.fail("Invalid entry lookup"))
+    assert fp._interpro_to_go([{"accession": "PF00001"}]) == []
+
+
+def test_mapping_lookup_failure_is_included_in_prediction_provenance(monkeypatch):
+    def failed_lookup(_accession):
+        fp._record_retrieval_failure("InterPro mapping service unavailable")
+        return []
+
+    monkeypatch.setattr(fp, "_fetch_interpro_go_terms", failed_lookup)
+    result = fp.prediction_from_result({"status": "complete", "domains": [
+        {"accession": "IPR000001", "start": 1, "end": 10}
+    ]}, "A" * 10)
+    assert result["status"] == "evidence_unavailable"
+    assert result["provenance"]["retrieval_is_live"] is False
+    assert "InterPro mapping service unavailable" in result["provenance"]["retrieval_failures"]
+
+
 def test_interpro_go_terms_do_not_report_uncalibrated_probability(monkeypatch):
     hits = [
         {"accession": "IPR000001", "name": "A", "database": "InterPro", "start": 1, "end": 20},

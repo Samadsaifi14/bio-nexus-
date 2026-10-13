@@ -565,6 +565,14 @@ export default function CastpPage() {
                           </div>
                         </div>
 
+                        {result.method === 'fpocket' && (
+                          <div className="mt-3 text-xs text-text-secondary">
+                            <span className="text-text-muted">fpocket druggability score: </span>
+                            <span className="font-mono text-text-primary">{pocket.druggability_score != null && Number.isFinite(pocket.druggability_score) ? pocket.druggability_score.toFixed(3) : 'Unavailable'}</span>
+                            <p className="mt-1 text-[11px] text-text-muted">Engine score for prioritizing pockets; it does not establish binding affinity or clinical suitability.</p>
+                          </div>
+                        )}
+
                         {pocket.chain_spans.length > 0 && (
                           <div className="flex flex-wrap gap-1 mt-3">
                             {pocket.chain_spans.map((s) => (

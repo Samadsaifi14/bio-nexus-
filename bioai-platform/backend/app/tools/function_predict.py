@@ -23,6 +23,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import urllib.request
 
 logger = logging.getLogger(__name__)
@@ -234,20 +235,35 @@ def _fetch_interpro_go_terms(accession: str) -> list[dict]:
 def _interpro_to_go(hits: list[dict]) -> list[dict]:
     """Aggregate InterPro2GO mappings while preserving evidence provenance."""
     accessions: dict[str, int] = {}
+    embedded_terms: dict[str, list[dict]] = {}
     for hit in hits:
         accession = hit.get("accession")
-        if accession:
+        if accession and accession.startswith("IPR"):
             accessions[accession] = accessions.get(accession, 0) + 1
+            if hit.get("go_terms"):
+                embedded_terms.setdefault(accession, []).extend(hit["go_terms"])
 
     aggregated: dict[str, dict] = {}
     for accession, hit_count in accessions.items():
-        for go in _fetch_interpro_go_terms(accession):
+        mappings = embedded_terms.get(accession) or _fetch_interpro_go_terms(accession)
+        seen_terms: set[str] = set()
+        for go in mappings:
+            if not isinstance(go, dict) or not re.fullmatch(r"GO:\d{7}", go.get("id", "")):
+                continue
+            if go["id"] in seen_terms:
+                continue
+            seen_terms.add(go["id"])
+            category = go.get("category", "")
+            namespace = {
+                "MOLECULAR_FUNCTION": "MF", "BIOLOGICAL_PROCESS": "BP",
+                "CELLULAR_COMPONENT": "CC", "F": "MF", "P": "BP", "C": "CC",
+            }.get(category, category)
             record = aggregated.setdefault(
                 go["id"],
                 {
                     "go_id": go["id"],
-                    "name": go["name"],
-                    "namespace": go["category"],
+                    "name": go.get("name", ""),
+                    "namespace": namespace,
                     "supporting_interpro_entries": [],
                     "supporting_domain_hits": 0,
                 },
@@ -264,6 +280,9 @@ def _interpro_to_go(hits: list[dict]) -> list[dict]:
             "supporting_interpro_entries": entries,
             "support_count": len(entries),
             "evidence_type": "interpro2go_mapping",
+            "evidence_code": "IEA",
+            "evidence_reference": "GO_REF:0000002",
+            "term_url": f"https://amigo.geneontology.org/amigo/term/{record['go_id']}",
             "source": "InterPro",
             "source_url": "https://www.ebi.ac.uk/interpro/",
             "confidence": None,
@@ -344,6 +363,7 @@ def _hits_from_scan(scan: dict) -> list[dict]:
             "start": domain.get("start", 0),
             "end": domain.get("end", 0),
             "score": domain.get("score"),
+            "go_terms": domain.get("go_terms", []),
         })
     hits.sort(key=lambda hit: (hit.get("start", 0), hit.get("end", 0)))
     return hits
@@ -356,6 +376,7 @@ def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
     retrieval_failures += [f for f in _RETRIEVAL_FAILURES if f not in retrieval_failures]
 
     go_terms = _interpro_to_go(domain_hits) if domain_hits else []
+    retrieval_failures += [f for f in _RETRIEVAL_FAILURES if f not in retrieval_failures]
 
     if go_terms:
         status = "inferred"
@@ -418,7 +439,11 @@ def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
                 "RCSB PDB" if pdb_id.lower() != "de_novo" else "user-submitted sequence"
             ),
             "domain_source": "InterProScan",
-            "go_mapping_source": "InterPro2GO via InterPro API",
+            "go_mapping_source": (
+                "InterPro2GO via InterProScan result and InterPro API fallback"
+                if any(hit.get("go_terms") for hit in domain_hits)
+                else "InterPro2GO via InterPro API"
+            ),
             "retrieval_is_live": not retrieval_failures,
             "retrieval_failures": retrieval_failures,
         },

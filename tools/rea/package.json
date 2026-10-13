@@ -2,6 +2,10 @@
   "name": "bionexus-rea-tooling",
   "private": true,
   "scripts": {
+    "check-environment": "node check-environment.mjs",
+    "test": "node --test check-environment.test.mjs",
+    "preanalyze": "node check-environment.mjs",
+    "analyze": "rea analyze-javascript-application",
     "plan": "rea setup --client codex --dry-run --json",
     "setup": "rea setup --client codex --yes --json",
     "doctor": "rea doctor --client codex --json",

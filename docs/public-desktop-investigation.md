@@ -33,3 +33,7 @@ These are independent implementations of bounded feature mechanisms identified i
 112 selected tests passed across collection validation/retries/finalization, workflow replay/manifests, alignment filtering, sequence tools, restriction maps and annotated exports. Frontend TypeScript and the local production build passed. An HTTP smoke check of the locally served alignment page confirmed that the filtering panel was rendered. No authenticated competitor execution, live Supabase queue execution or browser interaction QA is claimed.
 
 Deterministic IDs prevent duplicate jobs for the same owner/submission/member. Daily-capacity checks are not an atomic reservation across distinct concurrent requests; deployment-scale quota enforcement still requires database coordination. Existing migrations are sufficient for stored collection metadata; the matching backend must be deployed for the new endpoints. Full competitor reconstruction and commercial parity remain incomplete.
+
+## Runtime follow-up
+
+The original local process-ownership failure was subsequently resolved in a compatible VM. [Verified runtime evidence](rea-compatible-environment/README.md) separates successful parsing from retained static unknowns and the remaining Galaxy semantic heap limit. Earlier blocked records above describe the initial local pass.

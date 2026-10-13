@@ -344,5 +344,15 @@
       "status": "ACCOUNT_REQUIRED",
       "source": "https://www.schrodinger.com/release-download/"
     }
-  ]
+  ],
+  "compatible_environment_followup": {
+    "status": "PROCESS_IDENTITY_BLOCKER_RESOLVED_IN_COMPATIBLE_VM",
+    "report": "rea-compatible-environment/runtime-report.json",
+    "local_failure_still_present": true,
+    "public_entry_parsing_verified": [
+      "terra",
+      "galaxy"
+    ],
+    "galaxy_semantic_heap_limit_remaining": true
+  }
 }

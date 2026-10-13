@@ -57,3 +57,7 @@ Sources and details: [capability audit](competitor-capability-audit.md), [workfl
 ## Public-then-desktop investigation increment
 
 See [public-desktop-investigation.md](public-desktop-investigation.md) and [REA artifact evidence](rea-public-desktop-evidence.json). Actual public app bundles and three official desktop packages were acquired and inventoried. Added idempotent protein collection submission and independent alignment-column filtering with mask/checksum exports. 112 selected tests passed, the local frontend build/TypeScript passed, and an HTTP server-rendered alignment-page smoke check confirmed the filter panel was present. Full semantic reconstruction remains blocked by the REA process-ownership prerequisite; no commercial parity or live backend deployment is claimed.
+
+## Compatible REA runtime follow-up
+
+The local PID/procfs mismatch was diagnosed and resolved by selecting a compatible isolated VM, while retaining REA process safeguards. Real Terra entry parsing and semantic graph production succeeded; Galaxy syntax parsing succeeded but its semantic stage still exhausted a 5-GiB heap. See [verified runtime, evidence and remaining limits](rea-compatible-environment/README.md). A fail-closed preflight and four tests are included under `tools/rea`. Both temporary VMs were stopped.

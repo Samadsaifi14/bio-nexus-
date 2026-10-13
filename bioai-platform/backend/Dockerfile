@@ -103,8 +103,8 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN python -c "import cairosvg; from PIL import Image; print('figure export renderer ready')"
 
-# primer3-py is optional — skip silently if it fails
-RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-py skipped (optional)"
+# Primer3 is required by design and nearest-neighbour thermodynamic QC.
+RUN pip install --no-cache-dir "primer3-py==2.3.1"
 
 COPY . .
 

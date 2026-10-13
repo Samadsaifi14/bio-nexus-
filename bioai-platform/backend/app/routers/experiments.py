@@ -16,9 +16,11 @@ from app.services.experiment import (
     get_experiment,
     get_experiment_by_id,
     persist_archive,
+    provenance_for_experiment,
     search_experiments,
 )
 from app.services.provenance import trace_for_job
+from app.services.workflow_manifest import build_workflow_manifest
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
@@ -96,6 +98,16 @@ async def get_experiment_by_job(job_id: str, user_id: str = Depends(require_user
 async def get_provenance(job_id: str, user_id: str = Depends(require_user_id)):
     exp = _owned_experiment_for_job(job_id, user_id)
     return trace_for_job(job_id, exp["experiment_id"])
+
+
+@router.get("/{job_id}/workflow-manifest")
+async def export_workflow_manifest(job_id: str, user_id: str = Depends(require_user_id)):
+    """Export recorded workflow evidence for an owned experiment; never execute."""
+    exp = _owned_experiment_for_job(job_id, user_id)
+    provenance = exp.get("provenance")
+    if provenance is None:
+        provenance = provenance_for_experiment(exp["experiment_id"])
+    return build_workflow_manifest(exp, provenance)
 
 
 @router.get("/{job_id}/archive")

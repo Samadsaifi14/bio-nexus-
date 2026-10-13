@@ -1,0 +1,11 @@
+{
+  "name": "bionexus-rea-tooling",
+  "private": true,
+  "scripts": {
+    "plan": "rea setup --client codex --dry-run --json",
+    "setup": "rea setup --client codex --yes --json",
+    "doctor": "rea doctor --client codex --json",
+    "rea": "rea"
+  },
+  "devDependencies": { "rea-agents": "6.4.0" }
+}

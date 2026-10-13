@@ -252,8 +252,11 @@ export type PrimerSearchResponse = {
 
 export type PrimerStructure = {
   dg: number;
-  stem_length: number;
-  stem: string;
+  structure_found: boolean;
+  structure: string;
+  tm_c: number;
+  stem_length?: number;
+  stem?: string;
   loop?: string;
   involves_a3?: boolean;
   involves_b3?: boolean;
@@ -265,7 +268,9 @@ export type PrimerQC = {
   sequence: string;
   length: number;
   gc: number;
-  tm_50mM: number;
+  tm_50mM: number | null;
+  tm_c: number;
+  conditions: { mv_conc: number; dv_conc: number; dntp_conc: number; dna_conc: number; temp_c: number };
   hairpin: PrimerStructure;
   self_dimer: PrimerStructure;
 };
@@ -1604,13 +1609,13 @@ export async function getMDStatus(jobId: string): Promise<{ job_id: string; stat
 }
 
 // ---------------------------------------------------------------------------
-// Function Prediction (DeepFRI-inspired)
+// Function hints (InterProScan and InterPro2GO evidence)
 // ---------------------------------------------------------------------------
 
 export type FunctionPredictionResult = {
   pdb_id: string;
   sequence_length: number;
-  go_terms: { go_id: string; name: string; namespace: string; confidence: number }[];
+  go_terms: { go_id: string; name: string; namespace: string; confidence: number | null }[];
   ec_numbers: { number: string; confidence: number }[];
   saliency: number[];
   composition?: { aa: string; fractions: Record<string, number> };
@@ -1699,12 +1704,12 @@ export interface CastpActiveSiteResidue {
 
 export interface CastpPocket {
   id: number;
-  area_sa: number;
-  volume_sa: number;
+  area_sa: number | null;
+  volume_sa: number | null;
   num_residues: number;
   residues: string[];
-  centroid: number[];
-  radius: number;
+  centroid: number[] | null;
+  radius: number | null;
   residue_details: CastpPocketResidue[];
   gap_ranges: CastpPocketGap[];
   chain_spans: CastpChainSpan[];
@@ -1713,7 +1718,7 @@ export interface CastpPocket {
 
 export interface CastpResult {
   pdb_id: string;
-  probe_radius: number;
+  probe_radius: number | null;
   total_residues: number;
   pockets: CastpPocket[];
   method?: string;
@@ -1732,17 +1737,22 @@ export interface CastpResult {
   contacts?: IntramolecularContacts;
 }
 
-export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {
-  const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
-  // The endpoint wraps its payload in a scientific-result envelope; the pockets,
-  // pdb_id and structure live under `results` (set on both the success and the
-  // failed path). Returning the envelope made every field read as undefined.
-  return (res.data?.results ?? res.data) as CastpResult;
+export type PocketMethod = 'fpocket' | 'sasa_heuristic';
+
+function unwrapPocketResult(data: Record<string, unknown>): CastpResult {
+  return { ...(data.results as object ?? data), method: data.method as string,
+    status: data.status as string, fallback_used: data.fallback_used as boolean,
+    error: ((data.validation as Record<string, unknown>)?.reason as string) } as CastpResult;
 }
 
-export async function runCastpSequence(sequence: string, probeRadius = 1.4): Promise<CastpResult> {
-  const res = await longApi.post('/api/castp/analyze', { sequence, probe_radius: probeRadius });
-  return res.data;
+export async function runCastp(pdbId: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {
+  const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius, method });
+  return unwrapPocketResult(res.data);
+}
+
+export async function runCastpSequence(sequence: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {
+  const res = await longApi.post('/api/castp/analyze', { sequence, probe_radius: probeRadius, method });
+  return unwrapPocketResult(res.data);
 }
 
 // ─── SWISS-MODEL ────────────────────────────────────────────────────────────
@@ -1870,7 +1880,7 @@ export interface StructurePrepResult {
     chains: string[];
     total_residues: number;
   } | null;
-  fpocket_pockets: { id: number; druggability_score: number; volume: number; area: number; score: number; num_residues: number }[];
+  fpocket_pockets: { id: number; druggability_score: number | null; volume: number | null; area: number | null; score: number | null; num_residues: number }[];
   castp_pockets: { id: number; area_sa: number; volume_sa: number }[];
   fpocket_engine?: 'fpocket' | 'sasa_concave_packing_fallback' | string;
   fpocket_engine_note?: string;
@@ -2029,5 +2039,11 @@ export async function getToolCards(): Promise<ToolCard[]> {
 
 export async function getToolCard(toolId: string): Promise<ToolCard> {
   const res = await api.get(`/api/tools/${toolId}`);
+  return res.data;
+}
+
+/** Stored scientific workflow evidence; export does not execute or translate tools. */
+export async function getWorkflowEvidenceManifest(jobId: string): Promise<Record<string, unknown>> {
+  const res = await api.get(`/api/experiments/${encodeURIComponent(jobId)}/workflow-manifest`);
   return res.data;
 }

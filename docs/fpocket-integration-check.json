@@ -1,0 +1,26 @@
+{
+  "fixture": "fpocket tag 4.2.3 upstream data/sample/1UYD.pdb",
+  "upstream_commit": "4bb0d8447f62fee77e2c3c29f54b5fcaf5e2c066",
+  "input_sha256": "923e978e1d570f854d0d5f96d515f70d6fdac25216de586fe8c97a266e803b0c",
+  "binary_sha256": "cc8022e849166026dc83a36cbce746b9400b87d1b92e3ee746fb5a1263991ab3",
+  "status": "VALID",
+  "method": "fpocket",
+  "reported_engine_version": "4.0",
+  "pocket_count": 13,
+  "first_pocket": {
+    "score": 0.664,
+    "druggability_score": 0.855,
+    "area_sa": 214.924,
+    "volume_sa": 1458.052,
+    "alpha_spheres": 143,
+    "method_metrics": {
+      "fpocket_total_sasa": 214.924,
+      "fpocket_volume": 1458.052,
+      "fpocket_score": 0.664,
+      "fpocket_druggability_score": 0.855,
+      "fpocket_alpha_spheres": 143
+    }
+  },
+  "fallback_used": false,
+  "boundary": "Executed native-engine smoke check, not pocket benchmark accuracy or commercial parity. Upstream tag and executable-reported version are recorded separately."
+}

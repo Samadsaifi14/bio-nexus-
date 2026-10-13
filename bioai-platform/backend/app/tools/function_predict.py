@@ -236,7 +236,7 @@ def _interpro_to_go(hits: list[dict]) -> list[dict]:
     accessions: dict[str, int] = {}
     for hit in hits:
         accession = hit.get("accession")
-        if accession:
+        if accession and accession.startswith("IPR"):
             accessions[accession] = accessions.get(accession, 0) + 1
 
     aggregated: dict[str, dict] = {}
@@ -356,6 +356,8 @@ def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
     retrieval_failures += [f for f in _RETRIEVAL_FAILURES if f not in retrieval_failures]
 
     go_terms = _interpro_to_go(domain_hits) if domain_hits else []
+    # Mapping calls can fail after the scan succeeds. Preserve those failures too.
+    retrieval_failures += [f for f in _RETRIEVAL_FAILURES if f not in retrieval_failures]
 
     if go_terms:
         status = "inferred"

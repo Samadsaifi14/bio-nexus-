@@ -33,6 +33,6 @@ def test_multiplex_reports_tm_spread_and_heuristic_boundary():
         {"id": "b", "left_seq": "GATCGATAGATCGATAGATC", "right_seq": "CTAGCTACCTAGCTACCTAG", "left_tm": 61.0, "right_tm": 61.5},
     ])
     assert result["pair_count"] == 2
-    assert result["tm_spread_c"] == 1.5
+    assert result["tm_spread_c"] > 1.5  # submitted Tm values cannot override recalculation
     assert result["evidence_class"] == "Heuristic"
     assert "empirical multiplex PCR" in result["limitation"]

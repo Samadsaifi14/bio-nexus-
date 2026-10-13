@@ -1,0 +1,10 @@
+{
+  "status": "PARTIAL_NOT_COMPLETE",
+  "rea_version": "6.4.0",
+  "operation": "analyze_javascript_application",
+  "evidence_id": "ev_ef6698ef4e4e1ba941be9d3d879e1eecf62e72732fbf8efbf51e56eb4a28444e",
+  "artifact_sha256": "d440e1ab00d498b1469a3573f998814cf9bffd0f86412817bf45f7e89a8ebf50",
+  "artifact": "frontend/.next/static; build preceding restriction workspace addition",
+  "blocker": "Linux process ownership inspection requires a procps-compatible ps on REA's PATH before launching a child: Command failed: ps -axo pid=,ppid=,pgid=,uid=,stat=,command=\nfatal library error, lookup self\n",
+  "boundary": "Inventory evidence only; source parsing was interrupted and no runtime behavior or competitor equivalence was established."
+}

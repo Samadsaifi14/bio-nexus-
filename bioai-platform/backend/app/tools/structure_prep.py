@@ -263,11 +263,13 @@ def run_fpocket(pdb_text: str, probe_radius: float = 1.4) -> FpocketResult:
 
         try:
             result = subprocess.run(
-                [FPOCKET_BIN, "-f", str(in_path), "-r", str(probe_radius)],
+                [FPOCKET_BIN, "-f", str(in_path)],
                 capture_output=True,
                 text=True,
                 timeout=60,
             )
+            if result.returncode != 0:
+                return FpocketResult(raw_output=result.stdout + result.stderr, status="error")
             fpocket_out = Path(tmpdir) / "input_out"
             return _parse_fpocket_output(fpocket_out, result.stdout + result.stderr)
         except subprocess.TimeoutExpired:
@@ -278,61 +280,15 @@ def run_fpocket(pdb_text: str, probe_radius: float = 1.4) -> FpocketResult:
 
 def _parse_fpocket_output(out_dir: Path, raw_output: str) -> FpocketResult:
     """Parse fpocket output directory for pocket information."""
-    result = FpocketResult(raw_output=raw_output)
-
-    info_file = out_dir / "info" / "infos.txt"
-    if not info_file.exists():
-        return result
-
-    try:
-        text = info_file.read_text()
-        pockets = []
-        current_pocket: dict[str, Any] = {}
-
-        for line in text.splitlines():
-            line = line.strip()
-            if line.startswith("Pocket"):
-                if current_pocket:
-                    pockets.append(current_pocket)
-                pocket_id_match = re.search(r"Pocket\s+(\d+)", line)
-                current_pocket = {
-                    "id": int(pocket_id_match.group(1)) if pocket_id_match else len(pockets) + 1,
-                    "druggability_score": 0.0,
-                    "volume": 0.0,
-                    "area": 0.0,
-                    "score": 0.0,
-                    "num_residues": 0,
-                }
-            elif "Druggability Score" in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current_pocket["druggability_score"] = float(m.group(1))
-            elif "Volume" in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current_pocket["volume"] = float(m.group(1))
-            elif "Area" in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current_pocket["area"] = float(m.group(1))
-            elif "Score" in line and "Drug" not in line:
-                m = re.search(r":\s*([\d.]+)", line)
-                if m:
-                    current_pocket["score"] = float(m.group(1))
-            elif "Number of residues" in line:
-                m = re.search(r":\s*(\d+)", line)
-                if m:
-                    current_pocket["num_residues"] = int(m.group(1))
-
-        if current_pocket:
-            pockets.append(current_pocket)
-
-        result.pockets = pockets
-        result.pocket_count = len(pockets)
-    except Exception as e:
-        logger.warning("Failed to parse fpocket output: %s", e)
-
-    return result
+    from app.tools.castp import _parse_fpocket
+    parsed = _parse_fpocket(out_dir, "custom", 1.4)
+    pockets = [{"id": p["id"], "druggability_score": p.get("druggability_score"),
+                "volume": p.get("volume_sa"), "area": p.get("area_sa"),
+                "score": p.get("score"), "num_residues": p["num_residues"]}
+               for p in parsed.get("pockets", [])]
+    return FpocketResult(pocket_count=len(pockets), pockets=pockets,
+                         raw_output=raw_output,
+                         status="complete" if parsed["status"] == "VALID" else "error")
 
 
 # ── Step 4b: SASA concave-packing fallback (no fpocket / scipy needed) ──────

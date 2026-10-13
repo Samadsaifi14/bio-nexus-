@@ -73,13 +73,14 @@ class TestAnalyzeSequence:
         tr = res["translation"]
         assert tr is not None
         assert tr["frames"]["1"] == "MH*RA*"
-        assert set(tr["frames"].keys()) == {"1", "2", "3", "4", "5", "6"}
-        # Best ORF is now genome-wide (six frames): the reverse strand's frame 4
+        assert set(tr["frames"].keys()) == {"1", "2", "3", "-1", "-2", "-3"}
+        # Best ORF is now genome-wide (six frames): the reverse strand's frame -1
         # carries MHVNA (5 aa), longer than the forward MH (which stops early).
-        assert tr["best"]["frame"] == 4
-        assert tr["best"]["strand"] == "reverse"
+        assert tr["best"]["frame"] == -1
+        assert tr["best"]["strand"] == "-"
         assert tr["best"]["protein"] == "MHVNA"
-        assert tr["best"]["start"] == 16
+        assert tr["best"]["start"] == 2
+        assert tr["best"]["end"] == 16
 
     def test_protein_mw_and_composition(self):
         res = analyze_sequence("MEEPQSDPSVEP", seq_type="protein")

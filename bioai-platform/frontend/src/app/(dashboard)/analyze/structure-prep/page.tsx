@@ -353,7 +353,7 @@ export default function StructurePrepPage() {
                         <th className="pb-1 font-medium">#</th>
                         <th className="pb-1 font-medium">Druggability</th>
                         <th className="pb-1 font-medium">Volume (³)</th>
-                        <th className="pb-1 font-medium">Area (²)</th>
+                        <th className="pb-1 font-medium">fpocket total SASA (Å²)</th>
                         <th className="pb-1 font-medium">Residues</th>
                       </tr>
                     </thead>
@@ -361,9 +361,9 @@ export default function StructurePrepPage() {
                       {result.fpocket_pockets.map((p) => (
                         <tr key={p.id} className="border-b border-glass-border/50">
                           <td className="py-1 text-accent-cyan font-mono">{p.id}</td>
-                          <td className="py-1 font-mono">{p.druggability_score.toFixed(3)}</td>
-                          <td className="py-1">{p.volume.toFixed(1)}</td>
-                          <td className="py-1">{p.area.toFixed(1)}</td>
+                          <td className="py-1 font-mono">{p.druggability_score?.toFixed(3) ?? 'Unavailable'}</td>
+                          <td className="py-1">{p.volume?.toFixed(1) ?? 'Unavailable'}</td>
+                          <td className="py-1">{p.area?.toFixed(1) ?? 'Unavailable'}</td>
                           <td className="py-1">{p.num_residues}</td>
                         </tr>
                       ))}

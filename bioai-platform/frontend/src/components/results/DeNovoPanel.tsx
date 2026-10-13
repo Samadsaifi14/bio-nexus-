@@ -37,8 +37,8 @@ export function DeNovoPanel({ data }: DeNovoPanelProps) {
             De novo sequence analysis
           </h3>
           <p className="text-sm text-text-secondary mt-1">
-            No homolog was found in reference databases — the annotations below are computed
-            directly from your sequence.
+            No reference annotation was selected. Composition is measured directly from your
+            sequence; function hints require separately retrieved domain evidence.
           </p>
         </div>
       </div>
@@ -72,7 +72,7 @@ export function DeNovoPanel({ data }: DeNovoPanelProps) {
           <h4 className="text-xs font-semibold text-text-muted uppercase tracking-wider mb-2">Function hints</h4>
           <div className="flex flex-wrap gap-1.5 mb-2">
             {hints.go_terms!.slice(0, 12).map((go, i) => (
-              <span key={i} className="text-xs bg-accent-purple/10 text-accent-purple px-2 py-0.5 rounded font-mono">{go}</span>
+              <span key={i} className="text-xs bg-accent-purple/10 text-accent-purple px-2 py-0.5 rounded font-mono">{typeof go === 'string' ? go : `${go.go_id}: ${go.name}`}</span>
             ))}
           </div>
           {hints._note && (
@@ -84,9 +84,16 @@ export function DeNovoPanel({ data }: DeNovoPanelProps) {
         </div>
       )}
 
+      {hints.status && hints.status !== 'inferred' && (
+        <p className="text-xs text-text-muted mt-4" role="status">
+          {hints.note || hints._note || `Function evidence: ${hints.status.replaceAll('_', ' ')}`}
+        </p>
+      )}
+
       <p className="text-xs text-text-muted mt-4 pt-4 border-t border-glass-border leading-relaxed">
-        These are heuristic predictions on raw sequence composition — not database annotations.
-        Treat them as hypotheses for experimental follow-up.
+        Sequence composition is descriptive and does not establish protein function. Function hints
+        use InterProScan domain matches and InterPro2GO mappings when available; they are
+        computational inferences with no calibrated probability or experimental validation.
       </p>
     </motion.div>
   );

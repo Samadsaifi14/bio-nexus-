@@ -16,7 +16,7 @@ import { ConfidenceBadge } from '@/components/results/ConfidenceBadge';
 import { FinalReport } from '@/components/results/FinalReport';
 import { AlphaFoldViewer } from '@/components/AlphaFoldViewer';
 import { PathwayEnrichment } from '@/components/results/PathwayEnrichment';
-import { getJob, createShareLink } from '@/lib/api';
+import { getJob, createShareLink, getWorkflowEvidenceManifest } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { buildShareUrl, buildShareMessage, buildShareDetails, type ShareDetails } from '@/lib/share';
 import { ShareDialog } from '@/components/share/ShareDialog';
@@ -33,7 +33,7 @@ import { RamachandranPlot } from '@/components/structure/RamachandranPlot';
 import { StructureComparison } from '@/components/structure/StructureComparison';
 import { BackButton, CriticalButton } from '@/components/ui';
 import { setPrefill } from '@/lib/cross-link';
-import { downloadText } from '@/lib/export-utils';
+import { downloadText, downloadJson } from '@/lib/export-utils';
 import { JobGraph } from '@/components/pipeline/JobGraph';
 import { branchFromJob } from '@/lib/api';
 import { runBlastPipeline, type BlastProgram } from '@/lib/blastApi';
@@ -50,6 +50,7 @@ export default function JobPage() {
   const router = useRouter();
   const jobId = params.jobId as string;
   const [job, setJob] = useState<JobStatus | null>(null);
+  const [exportingWorkflow, setExportingWorkflow] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [shareCreating, setShareCreating] = useState(false);
   const [shareLink, setShareLink] = useState('');
@@ -350,6 +351,31 @@ export default function JobPage() {
         >
           {shareCreating ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <ShareNetwork className="w-4 h-4" />}
           Share
+        </CriticalButton>
+      </motion.div>
+
+      <motion.div variants={fadeUp} className="glass-card p-4 flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <h2 className="font-semibold text-text-primary">Workflow evidence</h2>
+          <p className="text-sm text-text-secondary">Download recorded methods, parameters, versions, dependencies and missing provenance. This file does not launch a workflow.</p>
+        </div>
+        <CriticalButton
+          disabled={exportingWorkflow}
+          onClick={async () => {
+            setExportingWorkflow(true);
+            try {
+              const manifest = await getWorkflowEvidenceManifest(jobId);
+              downloadJson(manifest, `workflow-evidence-${jobId.slice(0, 8)}.json`);
+            } catch (err) {
+              toast.error(extractErrorMessage(err, 'Workflow evidence is unavailable for this job.'));
+            } finally {
+              setExportingWorkflow(false);
+            }
+          }}
+          className="flex items-center gap-2"
+        >
+          {exportingWorkflow ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+          Export evidence JSON
         </CriticalButton>
       </motion.div>
 

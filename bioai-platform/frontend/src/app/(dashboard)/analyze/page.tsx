@@ -27,7 +27,7 @@ const groups: Group[] = [
   { title: 'Structural Biology', description: 'Structure retrieval, validation, pockets and simulation with explicit QC states.', items: [
     { id: 'structure', name: 'Structure Analysis', description: 'PDB structures with 3D visualization and structural quality context.', icon: Dna },
     { id: 'structure-prep', name: 'Structure Preparation', description: 'Broken-chain detection, repair, cleanup and pocket preparation workflow.', icon: Wrench },
-    { id: 'castp', name: 'Pocket Analysis', description: 'CASTp-style cavity and solvent-accessible pocket characterization.', icon: Funnel },
+    { id: 'castp', name: 'Pocket Analysis', description: 'fpocket detection or explicitly selected exploratory SASA hints.', icon: Funnel },
     { id: 'compare', name: 'Structure Compare', description: 'Structural similarity and comparative geometry.', icon: Shuffle },
     { id: 'predict-structure', name: 'Structure Prediction', description: 'Sequence-to-structure prediction with confidence-aware output.', icon: Rocket },
     { id: 'swissmodel', name: 'SWISS-MODEL', description: 'Homology-model and experimental-structure retrieval.', icon: HouseLine },

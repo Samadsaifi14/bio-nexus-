@@ -74,10 +74,10 @@ class ChainHealthResult(BaseModel):
 
 class FpocketPocket(BaseModel):
     id: int
-    druggability_score: float
-    volume: float
-    area: float
-    score: float
+    druggability_score: float | None = None
+    volume: float | None = None
+    area: float | None = None
+    score: float | None = None
     num_residues: int
 
 
@@ -408,27 +408,11 @@ async def _run_pipeline(job_id: str, body: PipelineRequest) -> None:
         result_fields["fpocket_pockets"] = fpocket_result.pockets
         result_fields["fpocket_engine"] = "fpocket"
         op("pocket_detection", "fpocket 2.0", fpocket_result.status,
-           f"{fpocket_result.pocket_count} pockets, probe radius {body.probe_radius}",
+           f"{fpocket_result.pocket_count} pockets; native alpha-sphere settings",
            t0=t0)
-        # Honest no-false-zero guard: when the local fpocket binary is missing,
-        # it errors, or it reports no pockets, fall back to a numpy-only concave-
-        # packing detector so a real protein never shows "0 pockets" as truth.
-        if not fpocket_result.pockets:
-            t0 = time.perf_counter()
-            sasa_pockets = await asyncio.to_thread(
-                run_sasa_pockets, cleaned, body.probe_radius,
-            )
-            result_fields["fpocket_pockets"] = sasa_pockets
-            # Record which engine actually produced the numbers so the UI never
-            # labels fallback output as fpocket output.
-            result_fields["fpocket_engine"] = "sasa_concave_packing_fallback"
-            result_fields["fpocket_engine_note"] = (
-                f"fpocket returned '{fpocket_result.status}' with no pockets; the listed "
-                "pockets come from the BioNexus SASA concave-packing fallback, not fpocket."
-            )
-            op("pocket_detection", "BioNexus SASA concave-packing (numpy)", "complete",
-               f"fpocket returned {fpocket_result.status} with no pockets; fallback found {len(sasa_pockets)}",
-               t0=t0)
+        # Never replace a missing/failed fpocket result with heuristic values.
+        if fpocket_result.status in {"unavailable", "error"}:
+            result_fields["fpocket_engine_note"] = "fpocket did not execute successfully; no heuristic was substituted."
         _update_job(
             supabase, job_id,
             fpocket_status=fpocket_result.status,

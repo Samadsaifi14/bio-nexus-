@@ -311,3 +311,26 @@ async def analyze_alignment_insights(req: AlignmentInsightsRequest):
         return alignment_insights(req.aligned_sequences, req.reference_index, req.variants)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+class RestrictionMapRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, max_length=500000)
+    enzymes: list[str] = Field(default_factory=lambda: ["EcoRI", "BamHI", "HindIII"], min_length=1, max_length=13)
+    circular: bool = False
+
+
+@router.post("/restriction-map")
+async def restriction_map_endpoint(req: RestrictionMapRequest):
+    from app.tools.restriction_map import restriction_map
+    try:
+        mapped = restriction_map(req.sequence, req.enzymes, req.circular)
+        return build_scientific_result(
+            status="VALID", method="Exact DNA restriction-site and complete-digest map",
+            engine="BioNexus restriction map / Biopython enzyme definitions", engine_version=Bio.__version__,
+            input_payload=req.model_dump(), parameters={"enzymes": req.enzymes, "circular": req.circular},
+            results=mapped, evidence_class="Deterministic computation",
+            validation={"fragment_length_conservation": mapped["fragment_total"] == mapped["length"], "experimental_digestion_validated": False},
+            citations=[{"label": "Biopython Bio.Restriction", "url": mapped["provenance"]["source_url"]}],
+        )
+    except SequenceUtilitiesError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

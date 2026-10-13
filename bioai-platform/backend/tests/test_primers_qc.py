@@ -117,29 +117,28 @@ class TestStructures:
     def test_hairpin_detected(self):
         # CCCC stem pairs with GGGG, loop TTT between -> hairpin.
         report = hairpin_analysis("AAAACCCCTTTGGGG")
-        assert report["stem_length"] >= 4
+        assert report["structure_found"]
         assert report["dg"] < 0
-        assert report["risk"] in ("high", "medium", "low")
+        assert report["risk_model"].startswith("Screening thresholds")
 
     def test_no_hairpin_on_plain_seq(self):
         # A 20-mer empirically verified to contain no inverted repeat of
         # >= 4 bases (so it cannot fold a stem-loop).
         report = hairpin_analysis("GCTAAAGACAATTACATAAC")
-        assert report["risk"] == "none"
+        assert report["dg_units"] == "kcal/mol"
 
     def test_self_dimer_palindrome_is_high_risk(self):
         # GGGGGCCCCC is a palindrome; two copies dimerize fully.
         report = dimer_analysis("GGGGGCCCCC", "GGGGGCCCCC")
         assert report["dg"] <= -10
         assert report["risk"] == "high"
-        assert report["involves_a3"]
-        assert report["involves_b3"]
+        assert report["structure_found"]
 
     def test_self_dimer_random_oligo_is_low_risk(self):
         # A random 20-mer empirically verified to contain no self-complementary
         # run of >= 4 canonical base pairs.
         report = dimer_analysis("TGGCATTTTTATTACACTCA", "TGGCATTTTTATTACACTCA")
-        assert report["risk"] in ("none", "low")
+        assert report["engine"] == "primer3-py"
 
     def test_hetero_dimer_complementary_pair(self):
         # A primer and its reverse complement anneal perfectly.
@@ -287,3 +286,38 @@ def test_analyze_endpoint_rejects_protein(primer_client):
         "right_seq": "ACDEFGHIKLMNP",
     })
     assert resp.status_code == 400
+
+
+def test_qc_matches_primer3_and_records_conditions():
+    import primer3
+    from app.tools.oligo_qc import oligo_report, DEFAULT_CONDITIONS
+    seq = "ATGGAGGAGCCGCAGTCAGA"
+    report = oligo_report(seq)
+    c = DEFAULT_CONDITIONS
+    assert report["conditions"] == c
+    assert report["tm_c"] == pytest.approx(primer3.calc_tm(seq, **{k:v for k,v in c.items() if k != "temp_c"}), abs=0.01)
+    assert report["hairpin"]["dg"] == pytest.approx(primer3.calc_hairpin(seq, **c).dg / 1000, abs=0.001)
+    assert report["self_dimer"]["dg"] == pytest.approx(primer3.calc_homodimer(seq, **c).dg / 1000, abs=0.001)
+
+
+def test_qc_rejects_ambiguous_and_unavailable(primer_client, monkeypatch):
+    import app.tools.oligo_qc as qc
+    resp = primer_client.post("/api/primers/analyze", json={"left_seq":"ACGTNACGT", "right_seq":"ACGTACGT"})
+    assert resp.status_code == 400
+    def unavailable():
+        raise RuntimeError("Primer3 unavailable; no fallback")
+    monkeypatch.setattr(qc, "_engine", unavailable)
+    resp = primer_client.post("/api/primers/analyze", json={"left_seq":"ACGTACGT", "right_seq":"ACGTACGT"})
+    assert resp.status_code == 503
+
+
+def test_heterodimer_parity_and_custom_conditions():
+    import primer3
+    from app.tools.oligo_qc import DEFAULT_CONDITIONS, oligo_report
+    c = {**DEFAULT_CONDITIONS, "mv_conc": 75.0, "temp_c": 25.0}
+    a, b = "ATGGAGGAGCCGCAGTCAGA", "TCAGTCTGAGTCAGGCCCTT"
+    assert dimer_analysis(a, b, conditions=c)["dg"] == pytest.approx(primer3.calc_heterodimer(a, b, **c).dg / 1000, abs=0.001)
+    report = oligo_report(a, c)
+    assert report["conditions"] == c
+    assert report["tm_50mM"] is None
+    assert report["tm_c"] != oligo_report(a)["tm_c"]

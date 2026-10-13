@@ -8,6 +8,7 @@ import { analyzeSequence } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
+import { RestrictionMapPanel } from '@/components/sequences/RestrictionMapPanel';
 import { SequenceUtilitiesView } from '@/components/sequences/SequenceUtilitiesView';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import type { SequenceUtilitiesResult } from '@/types/pipeline';
@@ -104,6 +105,8 @@ export default function SequenceUtilitiesPage() {
             {loading ? 'Analyzing...' : 'Analyze sequence'}
           </CriticalButton>
         </div>
+
+        <RestrictionMapPanel sequence={sequence} />
 
         {error && (
           <div className="rounded-lg bg-error/10 border border-error/30 px-4 py-3 text-sm text-error">

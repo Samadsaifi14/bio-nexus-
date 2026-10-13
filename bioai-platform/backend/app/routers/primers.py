@@ -23,7 +23,16 @@ except ImportError:
     PRIMER3_VERSION = "unavailable"
 
 
+class ThermodynamicConditions(BaseModel):
+    mv_conc: float = Field(50.0, ge=0, le=1000)
+    dv_conc: float = Field(1.5, ge=0, le=100)
+    dntp_conc: float = Field(0.6, ge=0, le=100)
+    dna_conc: float = Field(50.0, gt=0, le=100000)
+    temp_c: float = Field(37.0, ge=-20, le=100)
+
+
 class PrimerRequest(BaseModel):
+    conditions: ThermodynamicConditions = Field(default_factory=ThermodynamicConditions)
     sequence: str
     product_size_min: int = Field(default=100, ge=50)
     product_size_max: int = Field(default=500, le=2000)
@@ -50,6 +59,7 @@ class PrimerPair(BaseModel):
 
 
 class PrimerDesignParameters(BaseModel):
+    conditions: ThermodynamicConditions
     product_size_min: int
     product_size_max: int
     opt_tm: float
@@ -91,6 +101,12 @@ async def design_primers(req: PrimerRequest):
         "PRIMER_PRODUCT_SIZE_RANGE": [[req.product_size_min, req.product_size_max]],
         "PRIMER_NUM_RETURN": req.num_return,
         "PRIMER_EXPLAIN_FLAG": 1,
+        "PRIMER_SALT_MONOVALENT": req.conditions.mv_conc,
+        "PRIMER_SALT_DIVALENT": req.conditions.dv_conc,
+        "PRIMER_DNTP_CONC": req.conditions.dntp_conc,
+        "PRIMER_DNA_CONC": req.conditions.dna_conc,
+        "PRIMER_TM_FORMULA": 1,
+        "PRIMER_SALT_CORRECTIONS": 1,
     }
     try:
         result = primer3.bindings.design_primers(seq_args, global_args)
@@ -126,9 +142,9 @@ async def design_primers(req: PrimerRequest):
         engine_version=PRIMER3_VERSION,
         input_sha256=sha256_hex(seq),
         output_sha256=sha256_hex(canonical.encode("utf-8")),
-        thermodynamics="Primer3 nearest-neighbor melting-temperature model (Primer3 defaults; salt/dNTP conditions not overridden by this endpoint)",
+        thermodynamics="Primer3 nearest-neighbor melting-temperature model (explicit conditions recorded in parameters)",
         parameters=PrimerDesignParameters(
-            product_size_min=req.product_size_min, product_size_max=req.product_size_max,
+            conditions=req.conditions, product_size_min=req.product_size_min, product_size_max=req.product_size_max,
             opt_tm=req.opt_tm, num_return=req.num_return, gc_min=req.gc_min, gc_max=req.gc_max,
         ),
         specificity={
@@ -226,6 +242,7 @@ async def search_primer_targets(req: PrimerSearchRequest):
 
 
 class PrimerAnalyzeRequest(BaseModel):
+    conditions: ThermodynamicConditions = Field(default_factory=ThermodynamicConditions)
     left_seq: str = Field(..., min_length=5)
     right_seq: str = Field(..., min_length=5)
     template: Optional[str] = None
@@ -243,7 +260,13 @@ async def analyze_primer(req: PrimerAnalyzeRequest):
         raise HTTPException(400, "Primers must be DNA (A/T/G/C/N only).")
     if len(left) < 5 or len(right) < 5:
         raise HTTPException(400, "Primers must be at least 5 bases.")
-    qc = {"left": oligo_report(left), "right": oligo_report(right), "hetero_dimer": dimer_analysis(left, right)}
+    try:
+        c = req.conditions.model_dump()
+        qc = {"left": oligo_report(left, c), "right": oligo_report(right, c), "hetero_dimer": dimer_analysis(left, right, conditions=c)}
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(400, str(exc)) from exc
     response: dict[str, Any] = {"qc": qc}
     template_scope = None
     if req.template:
@@ -279,6 +302,7 @@ async def analyze_primer(req: PrimerAnalyzeRequest):
 
 
 class MultiplexRequest(BaseModel):
+    conditions: ThermodynamicConditions = Field(default_factory=ThermodynamicConditions)
     pairs: list[dict[str, Any]] = Field(..., min_length=2)
     max_tm_spread_c: float = Field(3.0, ge=0.5, le=10.0)
 
@@ -287,6 +311,8 @@ class MultiplexRequest(BaseModel):
 async def analyze_multiplex(req: MultiplexRequest):
     """Screen multiple primer pairs for Tm spread and cross-primer dimers."""
     try:
-        return multiplex_compatibility(req.pairs, req.max_tm_spread_c)
+        return multiplex_compatibility(req.pairs, req.max_tm_spread_c, req.conditions.model_dump())
+    except RuntimeError as exc:
+        raise HTTPException(503, str(exc)) from exc
     except ValueError as exc:
         raise HTTPException(400, str(exc)) from exc

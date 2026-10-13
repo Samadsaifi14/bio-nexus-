@@ -8,6 +8,9 @@ export type FunctionGoEvidence = {
   supporting_domain_hits: number;
   support_count: number;
   evidence_type: 'interpro2go_mapping' | string;
+  evidence_code?: string;
+  evidence_reference?: string;
+  term_url?: string;
   source: string;
   source_url?: string;
   confidence: null;

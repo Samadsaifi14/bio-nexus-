@@ -1704,6 +1704,8 @@ export interface CastpActiveSiteResidue {
 
 export interface CastpPocket {
   id: number;
+  druggability_score?: number | null;
+  score?: number | null;
   area_sa: number | null;
   volume_sa: number | null;
   num_residues: number;

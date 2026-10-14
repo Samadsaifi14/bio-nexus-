@@ -48,6 +48,9 @@ async def lifespan(app):
     try:
         yield
     finally:
+        expression_worker = getattr(app.state, 'expression_worker', None)
+        if expression_worker:
+            expression_worker[0].set()
         _CONTINUOUS_PAPERS_STOP.set()
 
 
@@ -240,6 +243,10 @@ async def _startup_services():
         logger.info("In-process durable worker started")
     else:
         logger.info("In-process durable worker disabled")
+    if os.environ.get('RUN_EXPRESSION_WORKER', 'false').strip().lower() in ('1','true','yes'):
+        from app.rnaseq.durable import start_expression_worker
+        app.state.expression_worker = start_expression_worker()
+        logger.info('Expression queue worker explicitly enabled')
 
 
 @app.get("/health")

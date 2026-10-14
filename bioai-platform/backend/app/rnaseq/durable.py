@@ -7,6 +7,8 @@ Use one shared local volume (not NFS) for API and worker containers.
 from __future__ import annotations
 
 import hashlib
+import functools
+import logging
 import json
 import os
 import shutil
@@ -274,14 +276,19 @@ def run_job(job: dict) -> None:
                            (state, json.dumps(result) if result else None, error, time.time(), job["id"], job["lease"]))
 
 
-def main() -> None:
+def main(stop: threading.Event | None = None) -> None:
     os.umask(0o077)
     worker_id = str(uuid.uuid4())
-    while True:
-        tick(worker_id)
-        job = claim(worker_id)
+    stop = stop or threading.Event()
+    while not stop.is_set():
+        try:
+            tick(worker_id)
+            job = claim(worker_id)
+        except Exception:
+            logging.getLogger(__name__).warning('Expression queue unavailable; retrying without claiming work')
+            stop.wait(5); continue
         if not job:
-            time.sleep(3); continue
+            stop.wait(3); continue
         done = threading.Event()
         def heartbeat():
             while not done.wait(10):
@@ -289,8 +296,43 @@ def main() -> None:
         thread = threading.Thread(target=heartbeat, daemon=True); thread.start()
         try:
             run_job(job)
+        except Exception:
+            logging.getLogger(__name__).exception('Expression job interrupted; remote lease will recover')
         finally:
             done.set(); thread.join()
+
+
+def storage_backend() -> str:
+    selected = os.environ.get('BIONEXUS_EXPRESSION_BACKEND', 'auto').strip().lower()
+    if selected not in {'auto', 'local', 'supabase'}:
+        raise RnaSeqExpressionError('Choose auto, local or supabase expression storage backend')
+    if selected == 'auto':
+        if os.environ.get('BIONEXUS_EXPRESSION_ROOT'):
+            return 'local'
+        from app.config import settings
+        return 'supabase' if settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY else 'local'
+    return selected
+
+
+def _dispatch(local):
+    @functools.wraps(local)
+    def call(*args, **kwargs):
+        if storage_backend() == 'supabase':
+            from app.rnaseq import remote_queue
+            return getattr(remote_queue, local.__name__)(*args, **kwargs)
+        return local(*args, **kwargs)
+    return call
+
+
+for _operation in ('readiness','enqueue','status','list_jobs','cancel','approve','claim','tick','run_job'):
+    globals()[_operation] = _dispatch(globals()[_operation])
+
+
+def start_expression_worker() -> tuple[threading.Event, threading.Thread]:
+    stop = threading.Event()
+    thread = threading.Thread(target=main, args=(stop,), name='rnaseq-expression-worker', daemon=True)
+    thread.start()
+    return stop, thread
 
 
 if __name__ == "__main__":

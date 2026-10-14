@@ -133,4 +133,5 @@ RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser
 
 EXPOSE 7860
+ENV BIONEXUS_EXPRESSION_BACKEND=auto RUN_EXPRESSION_WORKER=true
 CMD ["sh", "-c", "python -c 'import openmm; print(\"OpenMM\", openmm.__version__)' && uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-7860}"]

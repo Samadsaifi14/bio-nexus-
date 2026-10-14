@@ -38,3 +38,20 @@ Successful parsing resolves the process blocker. It does not establish complete 
 `runtime-report.json` records the observed host checks, input hashes, parent evidence identities, raw-parent hashes and remaining limits. `fixture-evidence.json` retains the complete generated fixture evidence. `terra-summary-evidence.json` and `galaxy-summary-evidence.json` are REA-generated authenticated summary views linked to their parent evidence. Their summary-view completeness is separate from the parent semantic coverage. Full public-app parent records were processed in the temporary VM and are not retained in this repository.
 
 Sources: [REA installation](https://github.com/morluto/rea/blob/main/docs/installation.md), [REA application workflow](https://github.com/morluto/rea/blob/main/.agents/skills/reverse-engineer-anything/references/javascript-applications.md), [Vercel Sandbox](https://vercel.com/docs/sandbox).
+
+## Focused Galaxy recovery (2026-10-14)
+
+A fresh compatible Node 22.22.2 VM ran REA 6.4.0 against Galaxy's original `ToolsListTable-BYfBwm4v.js`, referenced by the same entry bundle (entry hash unchanged). This avoids the monolithic semantic heap limit by selecting a separately shipped chunk; no source was rewritten and bootstrap code was not executed.
+
+The 36,348-byte input parsed with zero failures (11,071 AST nodes). REA retained 6,944 semantic nodes and 10,354 relationships without resource truncation. Its semantic coverage remains `unknown`, with 2,362 static unknowns. Dependencies, backend execution and whole-application feature parity remain outside this scope. The full entry's heap limit remains unresolved.
+
+Run in the compatible VM, retaining output to a file:
+
+```sh
+mkdir -p focused
+curl -fsSL https://usegalaxy.org/static/dist/ToolsListTable-BYfBwm4v.js -o focused/ToolsListTable-BYfBwm4v.js
+sha256sum focused/ToolsListTable-BYfBwm4v.js
+rea analyze-javascript-application focused --analysis-timeout-ms 90000 --max-heap-mb 2048 --format json --full-output > focused-evidence.json
+```
+
+Compare the input hash with `galaxy-tools-runtime-report.json`; changed public artifacts require a new evidence identity. Use REA's `inspect-analysis-view` with `{source: {kind: "inline", evidence: <complete data Evidence>}, view: {kind: "summary"}}` to create a compact authenticated view without rerunning analysis. `galaxy-tools-summary-evidence.json` retains that view. The temporary VM was stopped after exporting it.

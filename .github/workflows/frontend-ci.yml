@@ -37,5 +37,7 @@ jobs:
         run: npm run typecheck
       - name: RNA-seq plot evidence contract
         run: npm run test:rnaseq-plots
+      - name: Interpretation streaming and evidence contract
+        run: npm run test:interpretation
       - name: Production build
         run: npm run build

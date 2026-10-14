@@ -19,6 +19,7 @@ import { CriticalButton } from '@/components/ui';
 import { EnrichmentRecovery } from './EnrichmentRecovery';
 import { RnaSeqResultTables } from './RnaSeqResultTables';
 import { RnaSeqInteractivePlot } from './RnaSeqInteractivePlot';
+import { RnaSeqInterpretation } from './RnaSeqInterpretation';
 import {
   runCerSalsDemo,
   type RnaSeqArtifact,
@@ -231,6 +232,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
             </div>
           </div>
 
+          <RnaSeqInterpretation key={displayedResult.run_id + ':interpretation'} result={displayedResult} />
           <RnaSeqResultTables key={displayedResult.run_id} result={displayedResult} />
 
           <div className="space-y-4">

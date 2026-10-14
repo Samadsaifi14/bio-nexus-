@@ -47,6 +47,8 @@ jobs:
             tests/test_page_capture_synthesis.py \
             tests/test_publication_engine.py \
             tests/test_interpret_engine.py \
+            tests/test_tool_interpreter.py \
+            tests/test_interpret_stream_grounding.py \
             tests/test_evidence_engine.py \
             tests/test_figure_engine.py \
             tests/test_lifespan_worker.py \

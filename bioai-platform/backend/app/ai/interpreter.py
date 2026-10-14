@@ -1,5 +1,6 @@
 import asyncio
 import json
+import hashlib
 import logging
 import re
 from typing import AsyncGenerator
@@ -90,6 +91,21 @@ def _friendly_error(error: BaseException) -> str:
     return f"AI interpretation failed: {text}"
 
 
+def _numeric_grounding(text: str, context: dict) -> dict:
+    """Check numeric presence only; this does not establish biological truth."""
+    from app.services.evidence_policy import numbers
+    evidence = json.dumps(context, sort_keys=True, separators=(",", ":"), default=str)
+    unsupported = set(numbers(text)) - set(numbers(evidence))
+    if unsupported:
+        raise ValueError("AI explanation contained numeric claims absent from the recorded evidence.")
+    return {
+        "status": "numeric_fidelity_passed",
+        "evidence_sha256": hashlib.sha256(evidence.encode()).hexdigest(),
+        "evidence_class": "AI-generated interpretation",
+        "limitations": ["Numeric presence does not verify units, attribution, citations, causality or biological correctness."],
+    }
+
+
 async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[str, None]:
     acompletion = _get_acompletion()
     if acompletion is None:
@@ -118,11 +134,18 @@ async def interpret_stream(pipeline_type: str, context: dict) -> AsyncGenerator[
                     timeout=25,
                     api_key=candidate["api_key"],
                 )
+                # Do not expose an incomplete provider reply or mix it with a
+                # backup reply. Admit the complete explanation only after its gate.
+                parts = []
                 async for chunk in response:
                     if chunk.choices and chunk.choices[0].delta.content:
-                        yield _chunk_event(chunk.choices[0].delta.content)
-
-                yield _done_event({"model": candidate["model"], "pipeline_type": pipeline_type})
+                        parts.append(chunk.choices[0].delta.content)
+                text = "".join(parts)
+                if not text.strip():
+                    raise ValueError("AI provider returned an empty explanation.")
+                grounding = _numeric_grounding(text, context)
+                yield _chunk_event(text)
+                yield _done_event({"model": candidate["model"], "pipeline_type": pipeline_type, "grounding": grounding})
                 return
             except Exception as e:
                 last_error = e
@@ -173,7 +196,7 @@ async def interpret_text(pipeline_type: str, context: dict) -> dict:
                 )
                 text = response.choices[0].message.content if response.choices else ""
                 if text:
-                    return {"interpretation": text}
+                    return {"interpretation": text, "grounding": _numeric_grounding(text, context)}
             except Exception as e:
                 last_error = e
                 logger.warning("LLM provider %s attempt %d failed: %s", candidate["name"], attempt + 1, e)

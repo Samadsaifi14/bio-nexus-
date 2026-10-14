@@ -61,10 +61,12 @@ _TOOL_PROMPTS: dict[str, str] = {
         "concerns about data quality. 2-4 sentences max."
     ),
     "md": (
-        "You are a computational biophysicist. A molecular dynamics simulation "
-        "just completed. Summarize the simulation parameters, energy minimization "
-        "result, key structural observations, and whether the simulation converged. "
-        "2-3 sentences max."
+        "You are a computational biophysicist. Explain the recorded engine, "
+        "simulation duration and computed observables. State convergence only "
+        "when an explicit convergence diagnostic is present; a short or stable "
+        "RMSD trace alone does not establish convergence. A simulation does not "
+        "establish experimental binding, efficacy or a biological mechanism. "
+        "Use only reported results. 2-3 sentences max."
     ),
     "phylo": (
         "You are an evolutionary biologist. A phylogenetic analysis just completed. "
@@ -78,9 +80,11 @@ _TOOL_PROMPTS: dict[str, str] = {
         "2-3 sentences max."
     ),
     "admet": (
-        "You are a medicinal chemist. An ADMET property prediction just completed. "
-        "Summarize absorption, distribution, metabolism, excretion, and toxicity "
-        "profiles. Flag any Lipinski violations or red flags for drug-likeness. "
+        "You are a medicinal chemist. Separate recorded physicochemical descriptors "
+        "and rule-based alerts from predictions made by actually executed ADMET "
+        "models. Discuss absorption, metabolism or toxicity only for endpoints "
+        "reported by a named model; preserve applicability-domain limitations. "
+        "Descriptors and alerts do not establish measured ADMET or clinical safety. "
         "2-3 sentences max."
     ),
     "primers": (
@@ -206,6 +210,12 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
     except Exception:
         return None
 
+    system_prompt += (" Use only the recorded method identity and evidence class. "
+                      "Missing values mean not reported, never zero. Do not infer "
+                      "experimental validation, causality or clinical suitability "
+                      "from computation. Qualitative biological statements must "
+                      "remain hypotheses unless supported by recorded evidence. "
+                      "Do not invent citations or links.")
     result_text = _summarize_result(result)
 
     user_prompt = (

@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { Brain, CircleNotch as Loader2, Dna, MagnifyingGlass as Search } from '@phosphor-icons/react';
 import type { AssembledContext } from '@/types/pipeline';
-import type { StreamEvent } from '@/types/results';
+import { readInterpretationEvents, safeInterpretationHref } from '@/lib/interpretationStream';
 import { interpretStream } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { fadeUp, fadeIn, cardHover } from '@/lib/animations';
@@ -23,16 +23,6 @@ function isRetryNotice(text: string): boolean {
   return /retrying .+ in ~\d+s/i.test(text) || /unavailable, trying next/i.test(text);
 }
 
-function addCitationLinks(text: string): string {
-  return text.replace(
-    /\b([A-Z][0-9][A-Z0-9]{3,})\b/g,
-    (match) => {
-      if (match.length < 5 || /^[A-Z]{5,}$/.test(match)) return match;
-      return `[${match}](https://www.ncbi.nlm.nih.gov/protein/${match})`;
-    }
-  );
-}
-
 function renderInlineMarkdown(text: string): React.ReactNode {
   const parts: React.ReactNode[] = [];
   const regex = /\[([^\]]+)\]\(([^)]+)\)/g;
@@ -40,8 +30,14 @@ function renderInlineMarkdown(text: string): React.ReactNode {
   let match: RegExpExecArray | null;
   while ((match = regex.exec(text)) !== null) {
     if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
+    const href = safeInterpretationHref(match[2]);
+    if (!href) {
+      parts.push(match[1]);
+      lastIndex = regex.lastIndex;
+      continue;
+    }
     parts.push(
-      <a key={match.index} href={match[2]} target="_blank" rel="noopener noreferrer" className="text-accent-cyan hover:text-accent-cyan underline">{match[1]}</a>
+      <a key={match.index} href={href} target="_blank" rel="noopener noreferrer" className="text-accent-cyan hover:text-accent-cyan underline">{match[1]}</a>
     );
     lastIndex = regex.lastIndex;
   }
@@ -50,8 +46,7 @@ function renderInlineMarkdown(text: string): React.ReactNode {
 }
 
 function renderMarkdown(text: string) {
-  const linked = addCitationLinks(text);
-  const lines = linked.split('\n');
+  const lines = text.split('\n');
   const elements: React.ReactNode[] = [];
   let listItems: React.ReactNode[] = [];
   const flushList = () => {
@@ -96,6 +91,8 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
   const [retry, setRetry] = useState<number | null>(null);
   const abortRef = useRef<AbortController | null>(null);
 
+  useEffect(() => () => abortRef.current?.abort(), []);
+
   // Countdown while the provider is backing off — ticks only during a live stream.
   useEffect(() => {
     if (retry === null || retry <= 1) return;
@@ -107,6 +104,8 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
     if (loading) return;
     if (abortRef.current) abortRef.current.abort();
 
+    const controller = new AbortController();
+    abortRef.current = controller;
     setLoading(true);
     setText('');
     setModel('');
@@ -115,57 +114,46 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
     setRetry(null);
 
     try {
-      const response = await interpretStream({ pipeline_type: pipelineType, context });
-
-      if (!response.ok) throw new Error('Failed to start interpretation');
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
+      const response = await interpretStream({ pipeline_type: pipelineType, context }, controller.signal);
+      if (!response.ok) throw new Error('Failed to start interpretation (' + response.status + ')');
       let accumulated = '';
-
-      if (reader) {
-        while (true) {
-          const { done, value } = await reader.read();
-          if (done) break;
-          const chunk = decoder.decode(value, { stream: true });
-          for (const line of chunk.split('\n')) {
-            if (line.startsWith('data: ')) {
-              try {
-                const payload: StreamEvent = JSON.parse(line.slice(6));
-                if (payload.chunk) {
-                  accumulated += payload.chunk;
-                  setText(accumulated);
-                }
-                if (payload.done) {
-                  setModel(payload.meta?.model || '');
-                }
-                if (payload.notice) {
-                  const delay = rateLimitDelay(payload.notice);
-                  if (delay !== null || isRetryNotice(payload.notice)) {
-                    setRetry(delay ?? 30);
-                  } else {
-                    setNotice(payload.notice);
-                  }
-                }
-                if (payload.error) {
-                  const delay = rateLimitDelay(payload.error);
-                  if (delay !== null) setRetry(delay);
-                  const msg = payload.error.includes('organization_restricted')
-                    ? 'AI interpretation is temporarily unavailable due to a provider restriction. Please try again later.'
-                    : payload.error;
-                  setError(msg);
-                }
-              } catch {}
-            }
-          }
+      let completed = false;
+      for await (const payload of readInterpretationEvents(response, controller.signal)) {
+        if (abortRef.current !== controller) return;
+        if (payload.chunk) {
+          accumulated += payload.chunk;
+          setText(accumulated);
+        }
+        if (payload.notice) {
+          const delay = rateLimitDelay(payload.notice);
+          if (delay !== null || isRetryNotice(payload.notice)) setRetry(delay ?? 30);
+          else setNotice(payload.notice);
+        }
+        if (payload.error) {
+          const delay = rateLimitDelay(payload.error);
+          if (delay !== null) setRetry(delay);
+          throw new Error(payload.error.includes('organization_restricted')
+            ? 'AI interpretation is temporarily unavailable due to a provider restriction. Please try again later.'
+            : payload.error);
+        }
+        if (payload.done) {
+          completed = true;
+          setModel(payload.meta?.model || '');
+          break;
         }
       }
+      if (!completed) throw new Error('Interpretation ended before completion. Please retry.');
+
     } catch (err: unknown) {
-      if (!(err instanceof Error) || err.name !== 'AbortError') {
-        setError(extractErrorMessage(err, 'Interpretation failed'));
-      }
+      if (abortRef.current !== controller) return;
+      setText('');
+      setModel('');
+      setError(controller.signal.aborted ? 'Interpretation stopped.' : extractErrorMessage(err, 'Interpretation failed'));
     } finally {
-      setLoading(false);
+      if (abortRef.current === controller) {
+        abortRef.current = null;
+        setLoading(false);
+      }
     }
   }, [context, pipelineType, loading]);
 
@@ -177,7 +165,7 @@ export function AIInterpretation({ context, pipelineType }: AIInterpretationProp
           <h2 className="font-semibold text-text-primary">AI Interpretation</h2>
           {model && model !== 'fallback-static' && (
             <span className="text-xs bg-accent-cyan/10 text-accent-cyan px-2 py-0.5 rounded-full font-medium">
-              Llama 3.3 70B
+              {model}
             </span>
           )}
         </div>

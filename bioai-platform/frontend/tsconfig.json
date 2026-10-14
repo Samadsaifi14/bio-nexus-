@@ -24,9 +24,6 @@
     "paths": {
       "@/*": [
         "./src/*"
-      ],
-      "@/features/docking-validation": [
-        "../src/features/docking-validation"
       ]
     },
     "target": "ES2017"

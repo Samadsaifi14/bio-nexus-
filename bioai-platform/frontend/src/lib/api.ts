@@ -105,7 +105,7 @@ export async function createShareLink(jobId: string): Promise<{ token: string; u
 export async function interpretStream(payload: {
   pipeline_type: string;
   context: unknown;
-}): Promise<Response> {
+}, signal?: AbortSignal): Promise<Response> {
   const supabase = getSupabase();
   const { data: { session } } = await supabase.auth.getSession();
   const headers: Record<string, string> = { 'Content-Type': 'application/json' };
@@ -114,6 +114,7 @@ export async function interpretStream(payload: {
   }
   const res = await fetch(apiUrl('/api/ai/interpret/stream'), {
     method: 'POST',
+    signal,
     headers,
     body: JSON.stringify(payload),
   });

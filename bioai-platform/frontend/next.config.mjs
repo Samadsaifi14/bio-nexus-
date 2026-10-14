@@ -32,12 +32,6 @@ const nextConfig = {
   turbopack: {
     root: import.meta.dirname,
   },
-  moduleNameMapper: {
-    '^@/components/(.*)$': '<Components>/src/$1',
-    '^@/features/(.*)$': '<Components>/features/$1',
-    '^@/lib/(.*)$': '<Components>/lib/$1',
-    '^@/(.*)$': '<rootDir>/$1',
-  },
   async rewrites() {
     // Production must never proxy API calls to localhost. A newly-created
     // Vercel project may not yet have NEXT_PUBLIC_API_URL configured, so use

@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
     "test:rnaseq-plots": "node scripts/check-rnaseq-plot-data.mjs",
-    "analyze": "next experimental-analyze --output"
+    "analyze": "next experimental-analyze --output",
+    "test:interpretation": "node scripts/check-interpretation.mjs"
   },
   "dependencies": {
     "@phosphor-icons/react": "^2.1.10",

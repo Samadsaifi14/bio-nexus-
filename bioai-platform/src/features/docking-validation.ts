@@ -1,4 +1,9 @@
 /**
+ * Disabled scientific prototype, retained for code-history reference.
+ * APK/code inventory is not molecular evidence. Its scientific entry point
+ * fails closed; this module must not be imported into browser analysis pages.
+ */
+/**
  * Docking Validation Feature using REA Reverse Engineering
  * 
  * This module implements docking validation, interaction fingerprints,
@@ -12,7 +17,7 @@
  * Feature Priority: HIGHEST (Priority 1 from feature list)
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -21,9 +26,8 @@ import * as path from 'path';
  * Runs `rea <command> <positional_args> ...` and returns parsed JSON result
  */
 function runReaCommand(command: string, args: string[]): Promise<any> {
-  const fullCmd = 'rea ' + command + ' ' + args.join(' ');
   try {
-    const output = execSync(fullCmd, { 
+    const output = execFileSync('rea', [command, ...args], { 
       encoding: 'utf8',
       timeout: 120000,
       maxBuffer: 10 * 1024 * 1024
@@ -102,135 +106,10 @@ export interface DockingValidationResult {
  * @returns Docking validation result with pocket detection and auto-box parameters
  */
 export async function runDockingValidation(apkPath: string): Promise<DockingValidationResult> {
-  // Validate input
-  if (!apkPath || !fs.existsSync(apkPath)) {
-    throw new Error('APK file not found: ' + apkPath);
-  }
-
-  const extension = path.extname(apkPath).toLowerCase();
-  if (extension !== '.apk') {
-    console.warn('Warning: File ' + apkPath + ' does not have .apk extension');
-  }
-
-  console.log('Running docking validation on: ' + apkPath);
-  console.log('REA Command: rea inspect-android-package <apk-path>');
-
-  // Step 1: Inspect the APK declarations without execution
-  console.log('Step 1/5: Inspecting APK declarations...');
-  const inspectResult = await runReaCommand('inspect-android-package', [apkPath]);
-
-  if (inspectResult.code === 'COMMAND_NOT_FOUND' || inspectResult.code === 'UNKNOWN') {
-    console.warn('APK inspection command not available or target not supported');
-    return createFallbackResult(apkPath, 'inspect-android-package unavailable');
-  }
-
-  if (inspectResult.code === 'capability_unavailable') {
-    console.warn('APK inspection unavailable for this target type');
-    return createFallbackResult(apkPath, 'capability_unavailable');
-  }
-
-  if (inspectResult.code !== 'success' && inspectResult.code !== undefined) {
-    console.warn('APK inspection returned code: ' + inspectResult.code);
-    return createFallbackResult(apkPath, 'inspection_failed_' + inspectResult.code);
-  }
-
-  console.log('Step 2/5: Searching for docking-related classes...');
-
-  // Step 2: Search for docking-related classes/pockets
-  const classSearch = await runReaCommand('search-android-classes', [apkPath, 'pocket|binding|site|dock']);
-
-  console.log('Step 3/5: Inspecting docking-related methods...');
-
-  // Step 3: Inspect methods related to docking
-  let dockingMethods: any[] = [];
-  
-  // Get evidence ID from inspect result for later graph project
-  const evidenceId = inspectResult.evidence_id || inspectResult.evidenceId || '';
-  
-  if (classSearch && classSearch.classes && classSearch.classes.length > 0) {
-    // Inspect first few classes related to docking
-    const dockingClasses = classSearch.classes.slice(0, 3);
-    for (const className of dockingClasses) {
-      const methodResult = await runReaCommand('inspect-android-method', [apkPath, className]);
-      if (methodResult && methodResult.methods) {
-        dockingMethods = dockingMethods.concat(methodResult.methods);
-      }
-    }
-  }
-
-  console.log('Step 4/5: Tracing references to docking pockets...');
-
-  // Step 4: Trace references to docking pockets
-  let traceResults: any[] = [];
-  if (dockingMethods.length > 0) {
-    // Trace references from the first docking method
-    const firstMethod = dockingMethods[0];
-    if (firstMethod && firstMethod.evidence_id) {
-      const trace = await runReaCommand('trace-android-references', [
-        apkPath,
-        '--class ' + firstMethod.className,
-        '--method ' + firstMethod.name
-      ]);
-      traceResults = trace.references || trace.reference_links || [];
-    }
-  }
-
-  console.log('Step 5/5: Building application graph...');
-
-  // Step 5: Build application graph from APK inventory
-  let graphResult: any = { success: true };
-  if (evidenceId) {
-    graphResult = await runReaCommand('project-android-application-graph', [
-      '[{"evidence_id":"' + evidenceId + '","subject":"apk","provider":"hopper","analysis_profile":"complete","predicate_type":"inspect","operation":"inspect_android_package","parameters":{},"raw_result":{},\"normalized_result\":{},\"confidence\":\"observed\",\"authority\":\"shipped-artifact\",\"environment\":[],\"limitations\":[],\"relationship_coverage\":[],\"locations\":[],\"evidence_links\":[]}]'
-    ]);
-  }
-
-  // Step 6: Extract pocket detection and interaction fingerprints
-  const pocketDetections = extractPocketDetections(
-    inspectResult,
-    classSearch,
-    dockingMethods,
-    traceResults
+  void apkPath;
+  throw new Error(
+    'APK inspection cannot validate molecular docking, detect structural pockets, compute interactions or define a docking box. Use the structure-based docking workflow with recorded molecular coordinates.'
   );
-
-  const interactionFingerprint = computeInteractionFingerprint(
-    pocketDetections,
-    traceResults
-  );
-
-  const autoBox = computeAutoBoxParameters(pocketDetections);
-
-  const confidenceScore = computeConfidenceScore(
-    pocketDetections,
-    interactionFingerprint,
-    autoBox
-  );
-
-  const limitations = identifyLimitations(
-    inspectResult,
-    classSearch,
-    dockingMethods,
-    traceResults
-  );
-
-  const rawReeaOutput = {
-    inspect: inspectResult,
-    classSearch,
-    dockingMethods,
-    traceResults,
-    graphResult
-  };
-
-  return {
-    success: true,
-    pocketDetections,
-    interactionFingerprint,
-    autoBox,
-    confidenceScore,
-    evidenceIds: extractEvidenceIds(inspectResult),
-    limitations,
-    rawReeaOutput
-  };
 }
 
 /**

@@ -6,8 +6,6 @@ import { CircleNotch as LoaderCircle, TestTube as FlaskConical, CheckCircle, XCi
 import { fadeUp } from '@/lib/animations';
 import { runDocking, getDockingStatus } from '@/lib/api';
 import type { DockingResult } from '@/lib/api';
-import type { DockingValidationResult, PocketDetection, InteractionFingerprint, AutoBoxParameters } from '@/features/docking-validation';
-import { runDockingValidation } from '@/features/docking-validation';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { DockingViewer } from '@/components/DockingViewer';
 import { StructureExportMenu } from '@/components/StructureExportMenu';
@@ -185,8 +183,6 @@ export default function DockingPage() {
   const [jobId, setJobId] = useState<string | null>(null);
   const audit = useAuditTrail();
   const [result, setResult] = useState<DockingResult | null>(null);
-  const [validationResult, setValidationResult] = useState<DockingValidationResult | null>(null);
-  const [apkPath, setApkPath] = useState<string>('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [polling, setPolling] = useState(false);
@@ -219,7 +215,6 @@ export default function DockingPage() {
     setError(null);
     setResult(null);
     setJobId(null);
-    setValidationResult(null); // Reset validation result
     try {
       const { job_id } = await runDocking(
         pdbId.trim().toUpperCase(),
@@ -230,17 +225,6 @@ export default function DockingPage() {
       setJobId(job_id);
       setPolling(true);
       audit.emitSuccess('docking_run', 'AutoDock Vina', inputSummary, `job_id:${job_id}`);
-      
-      // Also run docking validation if APK path is provided
-      if (apkPath.trim()) {
-        try {
-          const validation = await runDockingValidation(apkPath);
-          setValidationResult(validation);
-        } catch (valErr) {
-          // Validation failure doesn't block docking start
-          setValidationResult(null);
-        }
-      }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : 'Failed to start docking';
       audit.emitFailed('docking_run', 'AutoDock Vina', inputSummary, errMsg);
@@ -351,20 +335,6 @@ export default function DockingPage() {
         )}
 
         <div>
-          <label className="block text-sm font-medium text-text-primary mb-1.5">APK Path (for docking validation)</label>
-          <FlatInput
-            type="text"
-            value={apkPath}
-            onChange={(e) => { setApkPath(e.target.value); setValidationResult(null); }}
-            placeholder="e.g. /path/to/target.apk"
-            className="w-full px-4 py-3 rounded-xl text-sm font-mono"
-          />
-          <div className="flex gap-2 mt-2 text-xs text-text-muted">
-            <span>REA inspect-android-package will analyze this APK for pocket detection</span>
-          </div>
-        </div>
-
-        <div>
           <label className="block text-sm font-medium text-text-primary mb-1.5">Ligand SMILES</label>
           <FlatInput
             type="text"
@@ -430,80 +400,6 @@ export default function DockingPage() {
 
           {(result.status === 'complete' || result.status === 'completed') && result.result && (
             <AIResultSummary toolName="docking" result={result.result as unknown as Record<string, unknown>} />
-          )}
-
-          {validationResult && (
-            <div className="data-card p-5 mt-4">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Docking Validation</h3>
-
-              {(validationResult.pocketDetections && validationResult.pocketDetections.length > 0 && validationResult.pocketDetections[0].confidence > 0) && (
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-text-muted">Pocket Detected</p>
-                    <p className="text-text-primary font-mono">
-                      {validationResult.pocketDetections[0].is_pocket ? 'Yes' : 'No'} — {validationResult.pocketDetections[0].residue_count} residues
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Confidence</p>
-                    <p className={`text-lg font-bold font-mono ${validationResult.pocketDetections[0].confidence >= 0.8 ? 'text-good' : validationResult.pocketDetections[0].confidence >= 0.5 ? 'text-warn' : 'text-error'}`}>
-                      {validationResult.pocketDetections[0].confidence.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {(validationResult.interactionFingerprint && validationResult.interactionFingerprint.total_interactions > 0) && (
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-text-muted">Total Interactions</p>
-                    <p className="text-lg font-bold text-text-primary font-mono">
-                      {validationResult.interactionFingerprint.total_interactions}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Hydrogen Bonds</p>
-                    <p className="text-lg font-bold text-accent-cyan font-mono">
-                      {validationResult.interactionFingerprint.hbond_count}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {(validationResult.autoBox && validationResult.autoBox.centerX !== undefined) && (
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  <div>
-                    <p className="text-xs text-text-muted">Box Center</p>
-                    <p className="text-text-primary font-mono">
-                      {validationResult.autoBox.centerX.toFixed(2)}, {validationResult.autoBox.centerY.toFixed(2)}, {validationResult.autoBox.centerZ.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Box Size</p>
-                    <p className="text-text-primary font-mono">
-                      {validationResult.autoBox.sizeX}Å × {validationResult.autoBox.sizeY}Å × {validationResult.autoBox.sizeZ}Å
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {(validationResult.confidenceScore != null) && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-text-muted">Overall Confidence</p>
-                    <p className={`text-lg font-bold font-mono ${validationResult.confidenceScore >= 0.8 ? 'text-good' : validationResult.confidenceScore >= 0.5 ? 'text-warn' : 'text-error'}`}>
-                      {validationResult.confidenceScore.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Confidence Tier</p>
-                    <p className="text-sm text-text-muted">
-                      {validationResult.confidenceScore >= 0.8 ? 'High' : validationResult.confidenceScore >= 0.5 ? 'Medium' : 'Low'}
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
           )}
 
           {result.result?.poses && result.result.poses.length > 0 && (
@@ -742,72 +638,9 @@ export default function DockingPage() {
             </div>
           )}
 
-{result.result?.vina_log && (
+          {result.result?.vina_log && (
             <VinaLog log={result.result.vina_log} />
           )}
-
-          {(apkPath.trim() || validationResult) && (
-            <div className="data-card p-5 mt-4">
-              <h3 className="text-sm font-semibold text-text-primary mb-3">Docking Validation</h3>
-
-              {validationResult && (
-                <div className="grid grid-cols-2 gap-4 mb-4">
-                  {validationResult.pocketDetections && validationResult.pocketDetections.length > 0 && (
-                    <div>
-                      <p className="text-xs text-text-muted">Pockets Detected</p>
-                      <p className="text-text-primary font-mono">
-                        {validationResult.pocketDetections.length}
-                      </p>
-                    </div>
-                  )}
-
-                  {validationResult.interactionFingerprint && (
-                    <div>
-                      <p className="text-xs text-text-muted">Interactions</p>
-                      <p className="text-lg font-bold text-text-primary font-mono">
-                        {validationResult.interactionFingerprint.hydrogenBondDonors + validationResult.interactionFingerprint.hydrogenBondAcceptors + validationResult.interactionFingerprint.hydrophobicContacts + (validationResult.interactionFingerprint.piStacking ? 1 : 0) + validationResult.interactionFingerprint.saltBridges + validationResult.interactionFingerprint.vanDerWaalsContacts}
-                      </p>
-                    </div>
-                  )}
-                </div>
-              )}
-
-              {validationResult && (
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <p className="text-xs text-text-muted">Confidence Score</p>
-                    <p className={`text-lg font-bold font-mono ${validationResult.confidenceScore >= 0.8 ? 'text-good' : validationResult.confidenceScore >= 0.5 ? 'text-warn' : 'text-error'}`}>
-                      {validationResult.confidenceScore}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Limitations</p>
-                    <p className="text-xs text-text-muted whitespace-pre-wrap">
-                      {validationResult.limitations?.[0] || 'No limitations recorded'}
-                    </p>
-                  </div>
-                </div>
-              )}
-
-              {validationResult && validationResult.autoBox && (
-                <div className="grid grid-cols-2 gap-4 mt-4">
-                  <div>
-                    <p className="text-xs text-text-muted">Auto-Box Center</p>
-                    <p className="text-text-primary font-mono">
-                      X: {validationResult.autoBox.centerX.toFixed(2)}, Y: {validationResult.autoBox.centerY.toFixed(2)}, Z: {validationResult.autoBox.centerZ.toFixed(2)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs text-text-muted">Auto-Box Size</p>
-                    <p className="text-text-primary font-mono">
-                      {validationResult.autoBox.sizeX}Å × {validationResult.autoBox.sizeY}Å × {validationResult.autoBox.sizeZ}Å (padding: {validationResult.autoBox.padding}Å)
-                    </p>
-                  </div>
-                </div>
-              )}
-            </div>
-          )}
-
         </motion.div>
       )}
     </div>

@@ -81,10 +81,13 @@ jobs:
       - name: Install local RNA-seq statistical and annotation runtime
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-tximport r-bioc-limma r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db
+          sudo apt-get install -y --no-install-recommends r-base-core r-bioc-deseq2 r-bioc-tximport r-bioc-limma r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db r-cran-bh r-cran-rcpp r-cran-data.table r-cran-cowplot r-cran-fastmatch build-essential
           sudo Rscript -e 'BiocManager::install("org.Mm.eg.db", ask = FALSE, update = FALSE); stopifnot(requireNamespace("org.Mm.eg.db", quietly = TRUE))'
+          sudo Rscript -e 'BiocManager::install("fgsea", ask = FALSE, update = FALSE); stopifnot(requireNamespace("fgsea", quietly = TRUE))'
       - name: Known-answer GO statistics and real identifier mapping
         run: Rscript tests/test_go_enrichment.R
+      - name: Preranked GSEA numerical parity and universe checks
+        run: Rscript tests/test_preranked_gsea.R
       - name: Known-answer expression recovery scripts
         run: Rscript tests/test_expression_recovery.R
       - name: Execute the ten-stage SALS regression fixture
@@ -94,5 +97,5 @@ jobs:
           Rscript -e 's <- jsonlite::fromJSON("/tmp/rnaseq-smoke/analysis_summary.json"); stopifnot(s$samples == 18, s$genes_input == 221, s$enrichment$background_genes > 0, s$enrichment$status %in% c("SUCCEEDED", "NO_SIGNIFICANT_TERMS", "NO_TESTABLE_TERMS")); for (f in c("pca.svg", "sample_distance_heatmap.svg", "volcano.svg", "expression_heatmap.svg", "deseq2_all_results.tsv", "go_enrichment_all.tsv", "go_gene_mapping.tsv", "go_background.tsv", "go_annotation_metadata.json")) stopifnot(file.exists(file.path("/tmp/rnaseq-smoke", f)))'
       - name: Numerical QC checkpoint and tximport integration
         run: |
-          python -m pip install pytest numpy supabase python-dotenv
-          PYTHONPATH=. python -m pytest tests/test_rnaseq_recovery_r.py -q
+          python -m pip install pytest numpy supabase python-dotenv fastapi httpx 'pydantic[email]' python-multipart
+          PYTHONPATH=. python -m pytest tests/test_rnaseq_recovery_r.py tests/test_rnaseq_exploration.py -q

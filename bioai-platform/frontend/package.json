@@ -8,6 +8,7 @@
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
+    "test:rnaseq-plots": "node scripts/check-rnaseq-plot-data.mjs",
     "analyze": "next experimental-analyze --output"
   },
   "dependencies": {

@@ -6,11 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openbabel libgl1 libgomp1 libopenblas-dev \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools \
-    r-base-core r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db r-bioc-deseq2 r-bioc-tximport r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
+    r-base-core r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db r-bioc-deseq2 r-bioc-tximport r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize \
+    r-cran-bh r-cran-rcpp r-cran-data.table r-cran-cowplot r-cran-fastmatch && \
     rm -rf /var/lib/apt/lists/*
 
 # Mouse annotations are absent from Debian/Ubuntu apt repositories.
 RUN Rscript -e 'BiocManager::install("org.Mm.eg.db", ask = FALSE, update = FALSE); stopifnot(requireNamespace("org.Mm.eg.db", quietly = TRUE))'
+RUN Rscript -e 'BiocManager::install("fgsea", ask = FALSE, update = FALSE); stopifnot(requireNamespace("fgsea", quietly = TRUE))'
 
 # Verify the deterministic RNA-seq statistical runtime at image-build time.
 RUN Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)}); cat("DESeq2", as.character(packageVersion("DESeq2")), "ComplexHeatmap", as.character(packageVersion("ComplexHeatmap")), "\n")'
@@ -109,6 +111,7 @@ RUN pip install --no-cache-dir "primer3-py==2.3.1"
 COPY . .
 
 RUN Rscript tests/test_go_enrichment.R
+RUN Rscript tests/test_preranked_gsea.R
 
 # Exercise the bundled R analysis and figure export during every backend build.
 # The 221-gene SALS subset is a regression fixture, not a biological result.

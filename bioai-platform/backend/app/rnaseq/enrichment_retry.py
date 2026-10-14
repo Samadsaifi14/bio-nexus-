@@ -9,6 +9,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import zipfile
 from dataclasses import asdict, dataclass
 from pathlib import Path
 
@@ -30,8 +31,8 @@ class EnrichmentOptions:
     def validate(self, has_gmt: bool = False, has_mapping: bool = False) -> None:
         if self.database not in {"GO", "GO:BP", "GO:MF", "GO:CC", "CUSTOM"}:
             raise ex.RnaSeqExpressionError("Choose a GO database or custom GMT.")
-        if self.method not in {"ora", "ranked_wilcoxon"}:
-            raise ex.RnaSeqExpressionError("Choose ORA or ranked Wilcoxon enrichment.")
+        if self.method not in {"ora", "ranked_wilcoxon", "gsea"}:
+            raise ex.RnaSeqExpressionError("Choose ORA, ranked Wilcoxon or preranked GSEA enrichment.")
         if self.id_type not in {"auto", "SYMBOL", "ENSEMBL", "ENSEMBLTRANS", "ENTREZID"}:
             raise ex.RnaSeqExpressionError("Unsupported identifier type.")
         for value in (self.organism, self.database_label, self.namespace):
@@ -73,6 +74,8 @@ def _execute(results: Path, options: Path, out: Path) -> dict:
                              capture_output=True, text=True, timeout=600, check=False)
     except subprocess.TimeoutExpired as exc:
         raise ex.RnaSeqExpressionError("Enrichment exceeded the 600-second limit.") from exc
+    (out / "enrichment_stdout.log").write_text(run.stdout or "", encoding="utf-8")
+    (out / "enrichment_stderr.log").write_text(run.stderr or "", encoding="utf-8")
     if run.returncode:
         lines = (run.stderr or run.stdout).strip().splitlines()
         detail = next((line for line in reversed(lines) if line != "Execution halted"), "R enrichment failed")
@@ -100,6 +103,7 @@ def rerun_enrichment(*, user_id: str, run_id: str, options: EnrichmentOptions,
                       "run_id": new_id, "parent_run_id": run_id,
                       "enrichment_options": asdict(options), "enrichment_source_sha256": hashlib.sha256(data).hexdigest(),
                       "enrichment_execution": "Local R; no gene lists sent to external services"}
+        provenance["enrichment_script_sha256"] = ex.sha256_file(Path(__file__).with_name("go_enrichment.R"))
         for name, path in (("enrichment_gene_sets.gmt", gmt), ("enrichment_id_mapping.tsv", mapping)):
             if path:
                 if path.stat().st_size > MAX_ANNOTATION_BYTES:
@@ -109,9 +113,24 @@ def rerun_enrichment(*, user_id: str, run_id: str, options: EnrichmentOptions,
         summary = {**parent["summary"], "enrichment": enrichment}
         (out / "analysis_summary.json").write_text(json.dumps(summary, indent=2))
         (out / "provenance.json").write_text(json.dumps(provenance, indent=2))
+        (out / "methods.txt").write_text(
+            f"Functional enrichment reused DESeq2 results from run {run_id} "
+            f"(SHA-256: {hashlib.sha256(data).hexdigest()}); expression models were not refitted. "
+            f"Method: {enrichment.get('method', options.method)}. Database: {options.database}; "
+            f"organism: {enrichment.get('organism', options.organism)}. "
+            f"Status: {enrichment.get('status', 'not recorded')}. "
+            f"BH significance threshold: {parent['summary']['alpha']}. "
+            f"Parameters: {json.dumps(enrichment.get('gsea_parameters', {}), sort_keys=True)}. "
+            "Mapping, annotation releases and original expression evidence remain in the linked parent record.\n")
+        with zipfile.ZipFile(out / "enrichment_bundle.zip", "w", compression=zipfile.ZIP_DEFLATED) as archive:
+            for path in sorted(out.iterdir()):
+                if path.name != "enrichment_bundle.zip": archive.write(path, path.name)
+            archive.writestr("deseq2_all_results.tsv", data)
+            for name in ("go_enrichment.R", "enrichment_retry.R"):
+                archive.write(Path(__file__).with_name(name), "code/" + name)
         retained = []
         for item in parent["artifacts"]:
-            if item["name"].startswith(("go_", "enrichment_")) or item["name"] in {"analysis_summary.json", "provenance.json"}:
+            if item["name"].startswith(("go_", "enrichment_")) or item["name"] in {"analysis_summary.json", "provenance.json", "methods.txt", "reproducibility_bundle.zip"}:
                 continue
             retained.append({**{k: v for k, v in item.items() if k != "url"}, "source_run_id": item.get("source_run_id", run_id)})
         prefix = f"{ex._safe_user_key(user_id)}/{new_id}"

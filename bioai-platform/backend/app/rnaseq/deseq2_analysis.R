@@ -209,6 +209,7 @@ library_size_fold_range <- max(library_sizes) / min(library_sizes)
 library_size_df <- data.frame(
   sample = names(library_sizes),
   total_counts = as.numeric(library_sizes),
+  detected_genes = as.integer(colSums(counts > 0)),
   condition = as.character(meta[names(library_sizes), condition_col]),
   row.names = NULL
 )
@@ -277,7 +278,8 @@ write.table(data.frame(gene = rownames(normalized), normalized, check.names = FA
 # vst() is fast for ordinary whole-transcriptome matrices but requires enough rows
 # for its trend subsampling. varianceStabilizingTransformation() is the exact
 # DESeq2 transform and is robust for small deterministic validation subsets.
-vsd <- if (nrow(dds) >= 1000) {
+vst_method <- if (sum(rowMeans(normalized) > 5) >= 1000) "vst" else "varianceStabilizingTransformation"
+vsd <- if (vst_method == "vst") {
   vst(dds, blind = TRUE)
 } else {
   varianceStabilizingTransformation(dds, blind = TRUE)
@@ -285,6 +287,8 @@ vsd <- if (nrow(dds) >= 1000) {
 pca <- plotPCA(vsd, intgroup = condition_col, returnData = TRUE)
 percent_var <- round(100 * attr(pca, "percentVar"), 3)
 pca_out <- data.frame(sample = rownames(pca), pca, row.names = NULL, check.names = FALSE)
+# Retain the actual model metadata for interactive batch/subject colouring.
+for (term in setdiff(names(meta), names(pca_out))) pca_out[[term]] <- meta[rownames(pca), term]
 write.table(pca_out, file.path(outdir, "pca_coordinates.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 
 sample_dists <- as.matrix(dist(t(assay(vsd))))
@@ -313,7 +317,9 @@ if (stage == "qc") {
   plot_svg_pdf_png("sample_distance_heatmap", 8, 7, function() draw(Heatmap(sample_dists, name = "VST distance")))
   summary <- list(stage = "qc", genes_input = genes_input, genes_kept = genes_kept, samples = ncol(dds),
     design = paste(deparse(design_formula), collapse = ""), input_kind = input_kind,
+    min_count = min_count, min_samples = min_samples,
     pca_percent_variance = list(PC1 = percent_var[[1]], PC2 = percent_var[[2]]),
+    vst_method = vst_method,
     design_warnings = as.list(design_warnings), inference_performed = FALSE)
   write(toJSON(summary, auto_unbox = TRUE, pretty = TRUE, null = "null"), file.path(outdir, "analysis_summary.json"))
   quit(save = "no", status = 0)
@@ -486,6 +492,7 @@ summary <- list(
   up = sum(deg_df$log2FoldChange > 0),
   down = sum(deg_df$log2FoldChange < 0),
   pca_percent_variance = list(PC1 = percent_var[[1]], PC2 = percent_var[[2]]),
+  vst_method = vst_method,
   size_factor_min = min(size_factors),
   size_factor_max = max(size_factors),
   lfc_shrinkage = shrink_status,

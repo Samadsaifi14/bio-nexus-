@@ -76,5 +76,6 @@ def test_ambiguous_preview_still_exposes_manual_choices(monkeypatch):
     assert result["columns"][0]["gsm"] is None
     assert result["columns"][0]["mapping"]["status"] == "ambiguous"
     assert result["columns"][0]["mapping"]["candidates"] == ["GSM1", "GSM10", "GSM2", "GSM3"]
-    assert result["samples"] == samples
+    assert [{key: row[key] for key in ("accession", "title")} for row in result["samples"]] == samples
+    assert all(row["suggested_condition"] is None for row in result["samples"])
     assert result["columns"][1]["gsm"] == "GSM10"

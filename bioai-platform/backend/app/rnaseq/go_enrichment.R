@@ -99,15 +99,40 @@ ranked_gene_sets <- function(scores, term_genes, terms, alpha) {
   result[order(result$padj, result$go_id, result$direction), , drop = FALSE]
 }
 
+preranked_gsea <- function(scores, term_genes, terms, alpha) {
+  empty <- data.frame(direction = character(), go_id = character(), term = character(), ontology = character(),
+    term_size = integer(), universe_size = integer(), ES = numeric(), NES = numeric(), log2err = numeric(),
+    pvalue = numeric(), padj = numeric(), genes = character(), significant = logical())
+  if (length(scores) < 2L) return(empty)
+  if (any(!is.finite(scores)) || anyDuplicated(names(scores)) || any(!nzchar(names(scores)))) stop("GSEA requires unique named finite statistics.")
+  if (length(unique(scores)) < 2L) stop("GSEA cannot rank a constant statistic vector.")
+  scores <- scores[order(-scores, names(scores))]
+  sizes <- vapply(term_genes, function(x) length(intersect(unique(x), names(scores))), integer(1))
+  pathways <- term_genes[sizes >= 10L & sizes <= 500L & sizes < length(scores)]
+  if (!length(pathways)) return(empty)
+  set.seed(1729)
+  fit <- as.data.frame(fgsea::fgseaMultilevel(pathways = pathways, stats = scores, minSize = 10L,
+    maxSize = 500L, eps = 1e-10, sampleSize = 101L, nPermSimple = 1000L, nproc = 1L,
+    scoreType = "std", gseaParam = 1))
+  result <- data.frame(direction = ifelse(is.na(fit$NES), "UNRESOLVED", ifelse(fit$NES >= 0, "UP", "DOWN")),
+    go_id = fit$pathway, term = terms$TERM[match(fit$pathway, terms$GOID)],
+    ontology = terms$ONTOLOGY[match(fit$pathway, terms$GOID)], term_size = fit$size,
+    universe_size = length(scores), ES = fit$ES, NES = fit$NES, log2err = fit$log2err,
+    pvalue = fit$pval, padj = p.adjust(fit$pval, "BH"),
+    genes = vapply(fit$leadingEdge, function(x) paste(x, collapse = ";"), character(1)))
+  result$significant <- !is.na(result$padj) & result$padj < alpha
+  result[order(result$padj, result$go_id, na.last = TRUE), , drop = FALSE]
+}
+
 run_go_enrichment <- function(res_df, organism, outdir, alpha, plot_fun, database = "GO", method = "ora",
     id_type = "auto", aliases = TRUE, gmt_path = "", mapping_path = "", database_label = "", namespace = "") {
   if (!database %in% c("GO", "GO:BP", "GO:MF", "GO:CC", "CUSTOM")) stop("Unsupported gene-set database.")
-  if (!method %in% c("ora", "ranked_wilcoxon")) stop("Unsupported enrichment method.")
+  if (!method %in% c("ora", "ranked_wilcoxon", "gsea")) stop("Unsupported enrichment method.")
   status <- list(status = "NOT_RUN", message = "", organism = organism, database = database,
-    method = if (method == "ora") "One-sided hypergeometric ORA; BH across all term-direction tests" else
+    method = if (method == "gsea") "fgsea multilevel preranked GSEA on signed Wald statistics; BH across gene sets" else if (method == "ora") "One-sided hypergeometric ORA; BH across all term-direction tests" else
       "Competitive Wilcoxon rank-sum on signed Wald statistics; asymptotic tie correction; BH across all term-direction tests",
     method_key = method, R_version = R.version.string, alias_fallback = aliases, min_term_size = 10L, max_term_size = 500L, alpha = alpha,
-    background = if (method == "ora") "DESeq2 non-missing adjusted p-values; uniquely mapped, annotated genes" else
+    background = if (method == "gsea") "DESeq2 non-missing p-values and finite Wald statistics; all uniquely mapped genes, including genes outside gene sets; duplicate targets use median statistic" else if (method == "ora") "DESeq2 non-missing adjusted p-values; uniquely mapped, annotated genes" else
       "DESeq2 non-missing p-values and finite Wald statistics; uniquely mapped, annotated genes; duplicate targets use median statistic",
     recovery_options = c("Review organism and ID type", "Enable unique symbol-alias recovery", "Supply a species-matched GMT and optional ID mapping"))
   finish <- function() {
@@ -115,7 +140,14 @@ run_go_enrichment <- function(res_df, organism, outdir, alpha, plot_fun, databas
   }
   required <- c("gene", "padj", "direction")
   if (!all(required %in% names(res_df))) stop("Saved results are missing gene, padj or direction columns.")
-  if (method == "ranked_wilcoxon" && !all(c("stat", "pvalue") %in% names(res_df))) stop("This saved run has no Wald statistics for ranked testing.")
+  if (method != "ora" && !all(c("stat", "pvalue") %in% names(res_df))) stop("This saved run has no Wald statistics for ranked testing.")
+  if (method == "gsea") {
+    if (!requireNamespace("fgsea", quietly = TRUE)) {
+      status$status <- "UNAVAILABLE"; status$message <- "Preranked GSEA requires fgsea in the worker runtime. No substitute test was executed."; return(finish())
+    }
+    status$fgsea_version <- as.character(packageVersion("fgsea"))
+    status$gsea_parameters <- list(seed = 1729L, sampleSize = 101L, nPermSimple = 1000L, eps = 1e-10, nproc = 1L, scoreType = "std", gseaParam = 1)
+  }
   eligible <- if (method == "ora") !is.na(res_df$padj) else !is.na(res_df$pvalue) & is.finite(res_df$stat)
   ids <- as.character(res_df$gene)
   if (database == "CUSTOM") {
@@ -166,7 +198,8 @@ run_go_enrichment <- function(res_df, organism, outdir, alpha, plot_fun, databas
   }
   mapped <- audit$entrez_id
   annotated <- unique(unlist(term_genes, use.names = FALSE))
-  universe <- intersect(unique(mapped[eligible & !is.na(mapped)]), annotated)
+  universe <- unique(mapped[eligible & !is.na(mapped)])
+  if (method != "gsea") universe <- intersect(universe, annotated)
   audit$de_eligible <- eligible; audit$direction <- res_df$direction
   audit$in_background <- eligible & !is.na(mapped) & mapped %in% universe
   # Generic target_id disambiguates custom namespaces; legacy Entrez column retained for old consumers.
@@ -179,7 +212,7 @@ run_go_enrichment <- function(res_df, organism, outdir, alpha, plot_fun, databas
   status$aliases_recovered <- sum(eligible & audit$mapping_route == "ALIAS" & !is.na(mapped))
   status$background_genes <- length(universe)
   status$mapping_coverage <- if (sum(eligible)) sum(eligible & !is.na(mapped)) / sum(eligible) else 0
-  status$annotation_coverage <- if (sum(eligible)) sum(audit$in_background) / sum(eligible) else 0
+  status$annotation_coverage <- if (sum(eligible)) sum(eligible & !is.na(mapped) & mapped %in% annotated) / sum(eligible) else 0
   status$coverage_warning <- if (status$annotation_coverage < 0.5) "Fewer than half of eligible rows are in the annotated background. Review identifiers and database coverage before interpreting results." else ""
   if (database == "CUSTOM") write(jsonlite::toJSON(status$annotation_versions, pretty = TRUE), file.path(outdir, "go_annotation_metadata.json"))
   if (method == "ora") {
@@ -192,18 +225,28 @@ run_go_enrichment <- function(res_df, organism, outdir, alpha, plot_fun, databas
     scores <- tapply(res_df$stat[audit$in_background], mapped[audit$in_background], median)
     scores <- setNames(as.numeric(scores), names(scores))
     write.table(data.frame(gene_id = names(scores), wald_statistic = scores), file.path(outdir, "go_ranked_statistics.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
-    result <- ranked_gene_sets(scores, term_genes, terms, alpha)
-    status$interpretation_note <- "Exploratory competitive rank-sum test, not GSEA. Gene correlation is not modeled; BH values are conditional on this test's assumptions."
+    if (method == "gsea") {
+      status$tied_statistics <- sum(duplicated(scores))
+      result <- preranked_gsea(scores, term_genes, terms, alpha)
+      status$unresolved_terms <- sum(is.na(result$pvalue))
+      status$pvalue_floor_terms <- sum(!is.na(result$pvalue) & result$pvalue <= 1e-10)
+      status$interpretation_note <- "Preranked gene-set enrichment, not sample-label permutation. Positive NES enriches toward the test condition; negative NES toward the reference. Gene correlation is not modeled. Ties use deterministic gene-ID ordering; duplicate targets use median Wald statistics. Missing estimates remain unresolved. P-values at 1e-10 reach the configured estimation floor."
+    } else {
+      result <- ranked_gene_sets(scores, term_genes, terms, alpha)
+      status$interpretation_note <- "Exploratory competitive rank-sum test, not GSEA. Gene correlation is not modeled; BH values are conditional on this test's assumptions."
+    }
   }
   write.table(result, file.path(outdir, "go_enrichment_all.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
   significant <- result[result$significant, , drop = FALSE]
   write.table(significant, file.path(outdir, "go_enrichment_significant.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
   status$terms_tested <- nrow(result); status$significant_terms <- nrow(significant)
   status$status <- if (!length(universe)) "NO_MAPPED_BACKGROUND" else if (!nrow(result)) "NO_TESTABLE_TERMS" else if (!nrow(significant)) "NO_SIGNIFICANT_TERMS" else "SUCCEEDED"
+  if (method == "gsea" && nrow(result) && all(is.na(result$pvalue))) status$status <- "UNRESOLVED_ESTIMATES"
   status$message <- switch(status$status, SUCCEEDED = "Significant terms found. Review mapping coverage, database scope and sample QC before interpretation.",
     NO_SIGNIFICANT_TERMS = "No terms passed BH correction. A null result is valid; alternative methods are sensitivity analyses, not a search for significance.",
     NO_TESTABLE_TERMS = "No eligible gene sets met the 10–500 background-gene limits, or no DEGs passed the declared cutoffs. A ranked analysis is available without a DEG cutoff.",
     NO_MAPPED_BACKGROUND = "No eligible genes matched this annotation set. Review ID type, organism, aliases or supply a matching GMT and ID mapping.")
+  if (status$status == "UNRESOLVED_ESTIMATES") status$message <- "GSEA could not estimate p-values for any tested term. This is unresolved computation, not a finding of no enrichment. Review the ranked statistics and retained execution warnings."
   if (nrow(significant)) {
     top <- head(significant, 20L); top$label <- make.unique(paste(top$direction, top$go_id, top$term, sep = " · "))
     top$label <- factor(top$label, levels = rev(top$label))

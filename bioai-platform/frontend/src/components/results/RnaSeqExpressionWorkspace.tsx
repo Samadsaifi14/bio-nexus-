@@ -18,6 +18,7 @@ import RnaSeqRecoveryPanel from '@/components/ngs/RnaSeqRecoveryPanel';
 import { CriticalButton } from '@/components/ui';
 import { EnrichmentRecovery } from './EnrichmentRecovery';
 import { RnaSeqResultTables } from './RnaSeqResultTables';
+import { RnaSeqInteractivePlot } from './RnaSeqInteractivePlot';
 import {
   runCerSalsDemo,
   type RnaSeqArtifact,
@@ -224,6 +225,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
             <div className="flex items-center gap-2"><ChartScatter className="text-accent-cyan" /><h3 className="text-sm font-semibold text-text-primary">QC before differential testing</h3></div>
             <p className="text-xs leading-5 text-text-muted">R computes these QC matrices before fitting the DESeq2 model. For recovered inputs, inference follows explicit checkpoint approval. Inspect outliers, batch patterns and sample identity before interpreting the gene calls.</p>
             <div className="grid gap-4 xl:grid-cols-2">
+              {pcaData && <RnaSeqInteractivePlot key={`${displayedResult.run_id}:pca`} artifact={pcaData} kind="pca" condition={summary.condition_column} variance={summary.pca_percent_variance} />}
               <FigureCard title="PCA on variance-stabilized counts" subtitle="Sample-level QC generated in R with DESeq2 VST. Inspect grouping and outliers before interpreting differential expression." image={pca} data={pcaData} onExpand={setExpanded} />
               <FigureCard title="Sample-to-sample distance" subtitle="ComplexHeatmap generated from the exact VST distance matrix. The downloadable TSV is the matrix plotted here." image={distance} data={distanceData} onExpand={setExpanded} />
             </div>
@@ -234,6 +236,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
           <div className="space-y-4">
             <div className="flex items-center gap-2"><ChartScatter className="text-accent-cyan" /><h3 className="text-sm font-semibold text-text-primary">Differential expression evidence</h3></div>
             <div className="grid gap-4 xl:grid-cols-2">
+              {artifact(displayedResult, 'volcano_plot_data.tsv') && <RnaSeqInteractivePlot key={`${displayedResult.run_id}:volcano`} artifact={artifact(displayedResult, 'volcano_plot_data.tsv')!} kind="volcano" condition={summary.condition_column} alpha={summary.alpha} lfc={summary.lfc_threshold} />}
               <FigureCard title="DESeq2 MA plot" subtitle="Effect size versus mean abundance from the fitted negative-binomial model. Dashed lines mark the declared fold-change threshold." image={ma} data={resultsTable} onExpand={setExpanded} />
               <FigureCard title="Volcano plot" subtitle="log2 fold change versus adjusted-p-value evidence. Calls use the predeclared padj and fold-change criteria shown above." image={volcano} data={artifact(displayedResult, 'volcano_plot_data.tsv') ?? resultsTable} onExpand={setExpanded} />
               <FigureCard title="Dispersion fit" subtitle="DESeq2 gene-wise dispersion estimates and the fitted mean-dispersion trend. Check this model diagnostic alongside the gene calls." image={dispersion} onExpand={setExpanded} />
@@ -262,7 +265,7 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
               <Metric label="Term tests" value={String(enrichment.terms_tested ?? '—')} />
               <Metric label="Significant terms" value={String(enrichment.significant_terms ?? '—')} />
             </div>}
-            {enrichmentPlot && <FigureCard title="Functional enrichment" subtitle="Top 20 significant term-direction tests ranked by BH adjusted p-value. Full results, mapping audit, background and annotation release metadata are in the reproducibility bundle." image={enrichmentPlot} data={enrichmentTable} onExpand={setExpanded} />}
+            {enrichmentPlot && <FigureCard title="Functional enrichment" subtitle="Top 20 significant tests ranked by BH adjusted p-value. Full results, mapping audit, background and annotation release metadata are retained with the run." image={enrichmentPlot} data={enrichmentTable} onExpand={setExpanded} />}
             {enrichmentTable && <a href={enrichmentTable.url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-2 text-xs text-accent-cyan"><DownloadSimple /> Download significant terms</a>}
           </div>
 
@@ -271,6 +274,10 @@ export function RnaSeqExpressionWorkspace({ externalResult }: { externalResult?:
           }} />
 
           <div className="rounded-xl border border-glass-border bg-surface-0 p-4">
+            <div className="mb-3 flex flex-wrap gap-4 text-xs text-accent-cyan">
+              {artifact(displayedResult, 'reproducibility_bundle.zip') && <a href={artifact(displayedResult, 'reproducibility_bundle.zip')!.url} target="_blank" rel="noreferrer"><DownloadSimple className="mr-1 inline" /> Download complete run ZIP</a>}
+              {artifact(displayedResult, 'methods.txt') && <a href={artifact(displayedResult, 'methods.txt')!.url} target="_blank" rel="noreferrer"><DownloadSimple className="mr-1 inline" /> Download methods paragraph</a>}
+            </div>
             <div className="flex flex-wrap items-start justify-between gap-3"><div><h3 className="text-sm font-semibold text-text-primary">Complete reproducibility bundle</h3><p className="mt-1 text-[11px] leading-5 text-text-muted">Normalized counts, size factors, PCA coordinates, distance matrix, all-gene results, significant-gene table, plotted heatmap matrix, gene-selection evidence, SVG/PDF/300-dpi PNG figures and provenance.</p></div>{displayedResult.manifest_url && <a href={displayedResult.manifest_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1.5 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-[10px] text-text-secondary"><DownloadSimple /> Manifest</a>}</div>
             <div className="mt-4 grid gap-2 md:grid-cols-2 xl:grid-cols-3">{displayedResult.artifacts.map(item => <button type="button" key={item.name} onClick={() => downloadRemote(item)} className="flex items-center justify-between gap-3 rounded-lg border border-glass-border bg-surface-1 px-3 py-2 text-left text-[10px] text-text-secondary"><span className="truncate font-mono">{item.name}</span><span className="shrink-0 text-text-muted">{number(item.bytes / 1024)} KB</span></button>)}</div>
           </div>

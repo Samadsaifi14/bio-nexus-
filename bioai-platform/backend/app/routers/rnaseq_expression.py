@@ -101,7 +101,7 @@ def expression_capabilities():
             ),
         },
         "enrichment": {"databases": ["GO", "GO:BP", "GO:MF", "GO:CC", "CUSTOM"],
-            "methods": ["ora", "ranked_wilcoxon"], "custom_gmt": True, "saved_run_retry": True},
+            "methods": ["ora", "ranked_wilcoxon", "gsea"], "custom_gmt": True, "saved_run_retry": True},
         "privacy": "Reviewed inputs and QC checkpoints are retained privately on the persistent worker volume. Derived artifacts are stored in a private per-user bucket.",
     }
 

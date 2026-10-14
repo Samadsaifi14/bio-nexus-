@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from functools import lru_cache
 import hashlib
+import csv
+import io
 import json
 import mimetypes
 import os
@@ -11,6 +13,7 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -118,6 +121,65 @@ def _artifact_entry(filename: str, data: bytes) -> dict[str, Any]:
         "bytes": len(data),
         "sha256": hashlib.sha256(data).hexdigest(),
     }
+
+
+def methods_text(provenance: dict, summary: dict, stage: str) -> str:
+    """Describe only the numerical operations represented by this run."""
+    versions = provenance.get("runtime_versions", {})
+    packages = versions.get("packages", {})
+    source = provenance.get("source_label", "uploaded count matrix")
+    normalization = "Salmon/tximport gene-length offsets" if summary.get("input_kind") == "salmon" else "DESeq2 median-of-ratios size factors"
+    text = (
+        f"RNA-seq analysis used {source} (input SHA-256: {provenance['counts_sha256']}) "
+        f"and sample metadata (SHA-256: {provenance['metadata_sha256']}). "
+        f"The analysis used R {versions.get('R', 'not recorded')} and DESeq2 {packages.get('DESeq2', 'not recorded')}. "
+        f"The design was {summary.get('design', 'not recorded')}. Genes were retained with at least "
+        f"{provenance['min_count']} counts in at least {summary.get('min_samples', provenance['min_samples'])} samples. "
+        f"Normalization used {normalization}. PCA and sample distances used the blind variance-stabilizing "
+        f"transformation ({summary.get('vst_method', 'DESeq2 VST')}). "
+    )
+    if stage == "qc":
+        return text + "This run stopped at QC; differential-expression testing was not performed.\n"
+    text += (
+        f"A negative-binomial model and Wald test compared {provenance['test_level']} with "
+        f"{provenance['reference_level']} as reference. Calls required Benjamini-Hochberg adjusted p-value "
+        f"< {provenance['alpha']} and absolute unshrunk log2 fold change > {provenance['lfc_threshold']}. "
+        f"Fold-change shrinkage status was {summary.get('lfc_shrinkage', 'not recorded')}. "
+    )
+    enrichment = summary.get("enrichment", {})
+    text += f"Functional enrichment status: {enrichment.get('status', 'not recorded')}. "
+    if enrichment.get("method"):
+        text += f"Recorded method: {enrichment['method']}. "
+    return text + "These methods describe computation; count origin and biological independence require source evidence.\n"
+
+
+def write_reproducibility_bundle(outdir: Path, counts_path: Path, metadata_path: Path, provenance: dict, tx2gene_path: Path | None = None) -> None:
+    """Keep inputs, exact R code, outputs and a checksum index together."""
+    target = outdir / "reproducibility_bundle.zip"
+    entries = {p.name: p for p in outdir.iterdir() if p.is_file() and p != target}
+    entries.update({"inputs/counts.tsv": counts_path, "inputs/metadata.tsv": metadata_path,
+                    "code/deseq2_analysis.R": R_SCRIPT, "code/go_enrichment.R": R_SCRIPT.with_name("go_enrichment.R")})
+    portable_manifest = None
+    if provenance.get("input_kind") == "salmon":
+        if not tx2gene_path:
+            raise RnaSeqExpressionError("Salmon bundle requires its transcript-to-gene mapping")
+        entries["inputs/tx2gene.tsv"] = tx2gene_path
+        portable_manifest = io.StringIO()
+        writer = csv.writer(portable_manifest, delimiter="\t", lineterminator="\n")
+        writer.writerow(["sample", "quant_file"])
+        with counts_path.open() as handle:
+            for row in csv.DictReader(handle, delimiter="\t"):
+                name = "inputs/quant/" + hashlib.sha256(row["sample"].encode()).hexdigest() + "/quant.sf"
+                entries[name] = Path(row["quant_file"])
+                writer.writerow([row["sample"], name])
+    index = {"run_id": provenance["run_id"], "files": {name: {"sha256": sha256_file(path), "bytes": path.stat().st_size} for name, path in entries.items()}}
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, path in sorted(entries.items()):
+            archive.write(path, name)
+        archive.writestr("artifact_index.json", json.dumps(index, indent=2))
+        if portable_manifest is not None:
+            archive.writestr("portable_quant_manifest.tsv", portable_manifest.getvalue())
+            archive.writestr("SALMON_README.txt", "inputs/counts.tsv preserves the original manifest bytes. portable_quant_manifest.tsv points to the bundled quant.sf files relative to the ZIP extraction directory. inputs/tx2gene.tsv preserves the annotation mapping.\n")
 
 
 def _hydrate_manifest(manifest: dict[str, Any], prefix: str) -> dict[str, Any]:
@@ -261,6 +323,7 @@ def execute_expression_analysis(
             "source_metadata": source_metadata or {},
             "counts_sha256": counts_sha256,
             "analysis_script_sha256": sha256_file(R_SCRIPT),
+            "enrichment_script_sha256": sha256_file(R_SCRIPT.with_name("go_enrichment.R")),
             "runtime_versions": json.loads((outdir / "execution_versions.json").read_text()),
             "metadata_sha256": metadata_sha256,
             "organism": params.organism,
@@ -285,6 +348,8 @@ def execute_expression_analysis(
             "artifacts": [],
         }
         (outdir / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
+        (outdir / "methods.txt").write_text(methods_text(provenance, summary, stage), encoding="utf-8")
+        write_reproducibility_bundle(outdir, counts_path, metadata_path, provenance, tx2gene_path)
 
         _ensure_bucket()
         prefix = f"{_safe_user_key(user_id)}/{run_id}"

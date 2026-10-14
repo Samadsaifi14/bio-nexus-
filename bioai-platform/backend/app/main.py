@@ -1,5 +1,6 @@
 import logging
 import os
+from pathlib import Path
 import threading
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
@@ -244,7 +245,14 @@ async def _startup_services():
 @app.get("/health")
 async def health():
     """Minimal public liveness response."""
-    return {"status": "ok", "version": "0.2.0"}
+    result = {"status": "ok", "version": "0.2.0"}
+    try:
+        revision = Path(__file__).with_name(".source-revision").read_text().strip()
+    except OSError:
+        revision = ""
+    if len(revision) == 40 and all(char in "0123456789abcdef" for char in revision):
+        result["source_revision"] = revision
+    return result
 
 
 @app.exception_handler(Exception)

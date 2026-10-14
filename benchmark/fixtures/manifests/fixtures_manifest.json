@@ -47,8 +47,8 @@
       "bytes": 4281
     },
     "cheminformatics/descriptor_parity/run_descriptor_parity.py": {
-      "sha256": "9875f7fbaf245c536c7a0c052f659710a841b3eb01f13cf17168edc099c6953f",
-      "bytes": 6488
+      "sha256": "24de877272cd60c4bd76a6023635970a4825557abadb5314326a5bb9822d2c2e",
+      "bytes": 6478
     },
     "cheminformatics/drug_likeness/drug_likeness.json": {
       "sha256": "12b5684d5009de0c00cf458ae5ee1c8a0f4ab8f01e78246f77622d8996cf7d7d",
@@ -71,16 +71,48 @@
       "bytes": 2658
     },
     "docking/README.md": {
-      "sha256": "e7cd506fcd0cb716ca441465cb97722f6a42b8dca28c247d9a48a7499ae3d510",
-      "bytes": 1363
+      "sha256": "4a1ec3c8387b8954b4958e67efd9feba528c8b00d955b197ee21d442fc03f097",
+      "bytes": 1906
     },
     "docking/redock_panel.json": {
-      "sha256": "759e5005676d524aaaae3e044d94146b861eab58cb2fda0312888d92dcf78703",
-      "bytes": 4003
+      "sha256": "7f6b30ecf43d858c8fd5e086ee985a5241a3580e75ae5b8c5dc86aaf35493246",
+      "bytes": 4047
     },
     "docking/run_redock_panel.py": {
-      "sha256": "8d81890bde23f9098aaabf8ce8315d005d47c3f86db80c2de1d343e5fe0c041a",
-      "bytes": 10672
+      "sha256": "12a3263f9baf4f331d4d962386d86e239d21b5a44410ca1be904426c1ac4cd6a",
+      "bytes": 15498
+    },
+    "ngs/README.md": {
+      "sha256": "7668b0bebe0014be656a197644eb3b9289cf9083acc6e379a973047b03c28cc8",
+      "bytes": 1978
+    },
+    "ngs/verify_sarek_execution.py": {
+      "sha256": "9d345f69372862617d1ffa28db4f597bbb407ac570b5f0000444740abbd40734",
+      "bytes": 1701
+    },
+    "rnaseq/full_matrix/README.md": {
+      "sha256": "7e54039a4025b2c407ce42ec85a0509bc352017a676fbc40da6a3a77eed6a80e",
+      "bytes": 1943
+    },
+    "rnaseq/full_matrix/counts.tsv": {
+      "sha256": "b7a9736672a6cebfdeea78dd151f5c764b058537cac09aeb0256cbfb7123dc08",
+      "bytes": 1673353
+    },
+    "rnaseq/full_matrix/independent_reference.R": {
+      "sha256": "db3a23aa1d84dbbba44b709afecac0be8a4f18601dbe73f6120e81aa108f7417",
+      "bytes": 2474
+    },
+    "rnaseq/full_matrix/metadata.tsv": {
+      "sha256": "f0f34000434ce864529308cd09d1d980f75802887f22aeac4f090fd1e5f9ad52",
+      "bytes": 336
+    },
+    "rnaseq/full_matrix/run_regression.py": {
+      "sha256": "a328244a7c50cf9f3a7c2f091387a21b7d48c57de5869789d9858f7f5caf0f16",
+      "bytes": 6406
+    },
+    "rnaseq/full_matrix/runtime-lock.json": {
+      "sha256": "7f531474afeff131aa7de0086fdcbc6d98ea59eea4841dedf78d48d5e4e3e67e",
+      "bytes": 224
     },
     "sequence/README.md": {
       "sha256": "3fab39ccf23dd9b12a36fd6fe1d74ae32c50bf661ca82174cbd08e5a7c65b3f2",

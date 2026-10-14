@@ -137,7 +137,7 @@ def main() -> int:
     parse_permille = round(1000 * n_parse_expectation_match / len(ref["molecules"]))
 
     passed = (
-        (not drift or True)
+        not drift
         and n_compared > 0
         and state_permille == 1000
         and parse_permille == 1000

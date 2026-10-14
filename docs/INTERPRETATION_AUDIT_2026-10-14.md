@@ -34,3 +34,17 @@ While this audit was in progress, commits through 12c7d9dfcaddd4258e55dcf227306b
 That path is excluded from the molecular result workspace. The exported scientific prototype entry point now fails closed with an explanation; the original structural docking page is retained. The prototype source remains for history, but code inventory cannot be interpreted as protein-ligand geometry, interaction measurements, molecular confidence or redocking validation. Its shell helper also uses argument-vector execution rather than concatenated shell input. The invalid Next.js moduleNameMapper configuration and external prototype alias are removed.
 
 This repair does not establish new docking accuracy or paid-tool parity; those require recorded structure/pose evidence and the declared redocking benchmark.
+
+## Expanded verification findings
+
+The selected backend gate passed 332 tests at `9a270589`, including tool interpretation and provider-stream grounding. Frontend interpretation/plot contracts, lint, type checking, production build, RNA-seq R parity, security, BBS-2 selected gates and deploy passed.
+
+The first full audit collected 1,537 tests, then stopped after a live NCBI timeout. It exposed fixture-manifest omissions and RDKit version differences. Subsequent audits use recoverable Unix signal timeouts and run the slow BLAST file last, retaining JUnit reports. A full-suite green result is still required; selected gates do not establish it.
+
+Standalone descriptor diagnostics at `d9182d3` reported 139/149 exact molecular descriptor matches, parse expectation agreement 1000/1000, live RDKit 2026.09.1 versus reference 2022.09.5. Ten molecules differed (acceptor counts, ring counts, or canonical SMILES). The pinned expected descriptors remain unchanged. The runner now rejects version drift explicitly rather than allowing it through an always-true expression.
+
+The manifest refresh covers reviewed, intentional docking/NGS/full-matrix RNA-seq additions and the stricter descriptor gate; it does not revise scientific expected values or acceptance thresholds.
+
+Deployment now embeds the Git source revision in the backend image and requires the public health endpoint to report that exact revision. The first stronger check verified deployed revision `a4ff0a86`; a healthy old process no longer satisfies deployment verification.
+
+Remaining limits: full audit failures must be resolved and external runtime-dependent capabilities executed. The disconnected workspace prevents fresh interactive browser and authenticated workflow verification. No claim that all 25 competitor-roadmap capabilities are complete or validated is justified.

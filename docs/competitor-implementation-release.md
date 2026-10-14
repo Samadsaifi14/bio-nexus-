@@ -61,3 +61,9 @@ See [public-desktop-investigation.md](public-desktop-investigation.md) and [REA 
 ## Compatible REA runtime follow-up
 
 The local PID/procfs mismatch was diagnosed and resolved by selecting a compatible isolated VM, while retaining REA process safeguards. Real Terra entry parsing and semantic graph production succeeded; Galaxy syntax parsing succeeded but its semantic stage still exhausted a 5-GiB heap. See [verified runtime, evidence and remaining limits](rea-compatible-environment/README.md). A fail-closed preflight and four tests are included under `tools/rea`. Both temporary VMs were stopped.
+
+## Exact primer-binding implementation (2026-10-14)
+
+Closed the P1 primer-binding/amplicon-map gap with exact full-length binding on both strands, linear/circular geometry, origin-crossing sites and products, primer 3′ coordinates, bounded product-size filtering, sequence hashes, scientific evidence export and automatic mapped-primer GenBank export. Controls are available in the sequence workspace alongside restriction maps; changing inputs invalidates stale results. The engine uses the existing open-source Biopython dependency.
+
+44 selected backend tests passed. Frontend TypeScript and the local production build passed; the generated sequence page contains the new controls. The first build attempt rejected an external node_modules symlink; copying cached dependencies into this checkout resolved that environment issue. Browser interaction QA and deployed backend execution were not performed. No mismatch/degenerate-primer search, genome-wide specificity, PCR validation, cloning simulation or full competitor parity is claimed. See [method and boundaries](primer-binding-map.md).

@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { longApi } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
+import { PrimerBindingPanel } from './PrimerBindingPanel';
 
 const ENZYMES = ['EcoRI', 'BamHI', 'HindIII', 'SalI', 'XbaI', 'XhoI', 'NotI', 'KpnI', 'SmaI', 'PstI', 'SacI', 'BsaI', 'BsmBI'];
 type MapResult = {
@@ -57,6 +58,7 @@ export function RestrictionMapPanel({ sequence }: { sequence: string }) {
     <label className="flex gap-2 text-sm"><input type="checkbox" checked={circular} onChange={e => setCircular(e.target.checked)} />Circular DNA / plasmid</label>
     <fieldset className="flex flex-wrap gap-3"><legend className="text-xs text-text-muted mb-2">Supported enzymes</legend>{ENZYMES.map(name => <label key={name} className="flex gap-1 text-xs"><input type="checkbox" checked={selected.includes(name)} onChange={e => setSelected(e.target.checked ? [...selected, name] : selected.filter(n => n !== name))} />{name}</label>)}</fieldset>
     <button className="px-3 py-2 rounded border border-glass-border text-sm" disabled={busy || !sequence.trim() || !selected.length} onClick={run}>{busy ? 'Mapping…' : 'Build restriction map'}</button>
+    <PrimerBindingPanel sequence={sequence} circular={circular} />
     <details className="space-y-3"><summary className="text-sm cursor-pointer">Annotate and export DNA to GenBank</summary>
       <p className="text-xs text-text-muted">User annotations use 1-based inclusive coordinates. On circular DNA, start greater than end spans the origin. Labels are unverified; exports include selected restriction sites.</p>
       <label className="block text-sm">Annotation JSON<textarea className="block w-full border border-glass-border rounded p-2 bg-transparent font-mono text-xs" rows={5} value={annotations} onChange={e => setAnnotations(e.target.value)} /></label>

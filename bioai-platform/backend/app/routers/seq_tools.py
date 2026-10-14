@@ -344,6 +344,32 @@ class DNAAnnotation(BaseModel):
     type: Literal['misc_feature', 'gene', 'promoter', 'rep_origin', 'primer_bind'] = 'misc_feature'
 
 
+class PrimerBindingRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, max_length=500000)
+    forward: str = Field(..., min_length=4, max_length=1000)
+    reverse: str = Field(..., min_length=4, max_length=1000)
+    circular: bool = False
+    min_product: int = Field(1, ge=1, le=200000)
+    max_product: int = Field(200000, ge=1, le=200000)
+
+
+@router.post('/primer-binding-map')
+async def primer_binding_endpoint(req: PrimerBindingRequest):
+    from app.tools.primer_binding import primer_binding_map
+    try:
+        mapped = primer_binding_map(**req.model_dump())
+        return build_scientific_result(
+            status='VALID', method='Exact primer binding and bounded amplicon geometry',
+            engine='BioNexus exact matching / Biopython reverse complement', engine_version=Bio.__version__,
+            input_payload=req.model_dump(), parameters={'circular': req.circular, 'min_product': req.min_product, 'max_product': req.max_product},
+            results=mapped, evidence_class='Deterministic computation',
+            validation={'exact_match_only': True, 'experimental_amplification_validated': False, 'genome_specificity_validated': False},
+            citations=[{'label': 'Biopython Seq', 'url': 'https://biopython.org/wiki/Seq'}],
+        )
+    except SequenceUtilitiesError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
 class AnnotatedSequenceRequest(BaseModel):
     sequence: str = Field(..., min_length=1, max_length=500000)
     name: str = 'BioNexus_DNA'

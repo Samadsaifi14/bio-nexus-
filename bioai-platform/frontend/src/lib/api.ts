@@ -682,6 +682,9 @@ export async function getDockingStatus(jobId: string): Promise<DockingResult> {
   return res.data;
 }
 
+export type { DockingValidationResult, PocketDetection, InteractionFingerprint, AutoBoxParameters } from '@/features/docking-validation';
+export { runDockingValidation } from '@/features/docking-validation';
+
 export function getDockingPdbUrl(jobId: string): string {
   return apiUrl(`/api/docking/result/${jobId}/pdb`);
 }

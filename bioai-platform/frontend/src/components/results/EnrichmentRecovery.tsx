@@ -30,7 +30,7 @@ export function EnrichmentRecovery({ result, onResult }: { result: RnaSeqExpress
       setError(typeof detail === 'string' ? detail : caught instanceof Error ? caught.message : 'Enrichment could not complete.');
     } finally { setBusy(false); }
   };
-  return <details className="rounded-lg border border-glass-border p-4" open={!!e && ['NEEDS_ORGANISM', 'NO_MAPPED_BACKGROUND', 'UNAVAILABLE', 'ID_SPECIES_MISMATCH', 'UNRESOLVED_ESTIMATES', 'ERROR'].includes(e.status)}>
+  return <details id="rnaseq-enrichment-options" className="rounded-lg border border-glass-border p-4" open={!!e && ['NEEDS_ORGANISM', 'NO_MAPPED_BACKGROUND', 'UNAVAILABLE', 'ID_SPECIES_MISMATCH', 'UNRESOLVED_ESTIMATES', 'ERROR'].includes(e.status)}>
     <summary className="cursor-pointer text-sm font-medium text-text-primary">Recovery and alternative analyses</summary>
     <p className="mt-3 text-xs leading-5 text-text-secondary">Rerun enrichment from this saved DESeq2 result. Each choice creates a new record with the original results linked, the selected method and annotation files retained. No gene lists are sent to another service.</p>
     <div className="mt-4 grid gap-4 sm:grid-cols-2">

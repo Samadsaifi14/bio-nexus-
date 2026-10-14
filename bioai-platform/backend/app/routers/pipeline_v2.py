@@ -82,6 +82,25 @@ def _is_real_uuid(job_id: str) -> bool:
         return False
 
 
+def _persist_blast_preview(job_id: str, context: dict) -> None:
+    """Publish completed search evidence without declaring downstream work done."""
+    if not _is_real_uuid(job_id):
+        return
+    try:
+        client = get_supabase()
+        rows = client.table("jobs").select("user_id,context_json").eq("id", job_id).execute().data or []
+        if not rows:
+            return
+        stored = rows[0].get("context_json") or {}
+        if isinstance(stored, str):
+            import json
+            stored = json.loads(stored)
+        preview = {**(stored if isinstance(stored, dict) else {}), **context}
+        client.table("jobs").update({"context_json": preview}).eq("id", job_id).eq("user_id", rows[0]["user_id"]).execute()
+    except Exception:
+        logger.warning("Could not persist early BLAST results for %s", job_id)
+
+
 def _persist_v2_final(job_id: str, status: str, context: dict, error: str | None = None):
     """Update the persisted wizard job row with the final status + full context."""
     if not _is_real_uuid(job_id):
@@ -515,6 +534,8 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _failed_step = "blast"
                 _failed_error = result.get("error", "BLAST completed without usable hits")
         context["blast"] = result
+        if not provider_failed:
+            await asyncio.to_thread(_persist_blast_preview, job_id, context)
 
     if denovo_mode:
         context["query"]["confidence"] = "de_novo"

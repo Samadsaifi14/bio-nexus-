@@ -59,6 +59,7 @@ class AutomaticSelection(BaseModel):
     group_key: str | None = None
     source_sha256: str | None = None
     source_record_sha256: str | None = None
+    require_durable: bool = False
 
 
 async def _prepare_automatic(selection: AutomaticSelection):
@@ -96,6 +97,10 @@ async def prepare_geo_analysis(selection: AutomaticSelection):
 @router.post('/run')
 async def run_geo_analysis(selection: AutomaticSelection, user_id: str = Depends(require_user_id)):
     try:
+        if selection.require_durable:
+            queue_status = await run_in_threadpool(durable.readiness)
+            if not queue_status['available']:
+                raise RnaSeqExpressionError('Live queued analysis unavailable: ' + ', '.join(queue_status['missing']))
         prepared, matrix = await _prepare_automatic(selection)
         if prepared['status'] != 'ready':
             raise GeoCountsError('Load the study and choose the indicated comparison before running.')

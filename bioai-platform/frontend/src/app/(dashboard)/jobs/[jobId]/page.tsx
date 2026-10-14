@@ -194,7 +194,12 @@ export default function JobPage() {
 
   if (isActive) {
     return (
-      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="max-w-xl mx-auto py-12">
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="max-w-5xl mx-auto py-12">
+        {job.context_json?.blast && <section className="data-card p-5 mb-6 space-y-3">
+          <h2 className="text-lg font-semibold">BLAST results</h2>
+          <p className="text-sm text-text-secondary">The similarity search has finished. Annotation, alignment, domain and structure evidence continue loading independently below.</p>
+          <BlastPanel hits={job.context_json.blast.hits ?? []} count={job.context_json.blast.count ?? 0} source={job.context_json.blast.source ?? 'BLAST'} />
+        </section>}
         <div className="glass-card p-8 text-center">
           {pollError ? (
             <div className="mb-6">

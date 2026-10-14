@@ -131,7 +131,29 @@ def status(job_id: str, user: str) -> dict:
             result["checkpoint_sha256"] = digest
     return {"job_id": job_id, "state": row["state"], "phase": row["phase"],
             "attempts": row["attempts"], "error": row["error"], "result": result,
+            "progress": read_progress(root() / job_id / f"progress_{row['attempts']}.jsonl"),
             **_monitor(row)}
+
+
+def read_progress(path: Path) -> list[dict]:
+    """Only complete, bounded engine events from the current attempt are public."""
+    if not path.is_file():
+        return []
+    events = []
+    with path.open("rb") as stream:
+        body = stream.read(65536)
+    for line in body.splitlines(keepends=True):
+        if not line.endswith(b"\n"):
+            continue
+        try:
+            event = json.loads(line)
+            if (isinstance(event, dict) and type(event.get("step")) is int
+                    and 1 <= event["step"] <= 10
+                    and event.get("status") in {"running", "complete", "unavailable", "failed"}):
+                events.append({"step": event["step"], "status": event["status"]})
+        except (ValueError, UnicodeDecodeError):
+            continue
+    return events[-64:]
 
 
 def _monitor(row) -> dict:
@@ -234,7 +256,8 @@ def run_job(job: dict) -> None:
             params=ExpressionParameters(**payload["params"]), source_label="reviewed-recovery",
             source_metadata={**payload["source"], "input_checksums": payload["checksums"], "qc_review": payload.get("qc_review")},
             stage=job["phase"], checkpoint_path=checkpoint, input_kind=payload["input_kind"],
-            tx2gene_path=folder / "tx2gene.tsv" if payload["input_kind"] == "salmon" else None)
+            tx2gene_path=folder / "tx2gene.tsv" if payload["input_kind"] == "salmon" else None,
+            progress_path=folder / f"progress_{job['attempts'] + 1}.jsonl")
         if job["phase"] == "qc":
             result["checkpoint_sha256"] = sha256_file(checkpoint)
             result["checkpoint_file"] = checkpoint.name

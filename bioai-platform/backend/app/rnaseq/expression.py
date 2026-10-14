@@ -236,7 +236,7 @@ def validate_artifacts(outdir: Path, summary: dict, stage: str) -> None:
         raise RnaSeqExpressionError("Required output artifacts missing: " + ", ".join(missing))
 
 
-def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600, *, stage: str = "full", checkpoint_path: Path | None = None, input_kind: str = "raw_counts", tx2gene_path: Path | None = None) -> dict[str, Any]:
+def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600, *, stage: str = "full", checkpoint_path: Path | None = None, input_kind: str = "raw_counts", tx2gene_path: Path | None = None, progress_path: Path | None = None) -> dict[str, Any]:
     rscript = shutil.which(os.environ.get("BIONEXUS_RSCRIPT", "Rscript"))
     if not rscript:
         raise RnaSeqExpressionError("Rscript is not installed in the backend runtime; DESeq2 execution is unavailable.")
@@ -261,7 +261,8 @@ def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: Express
     ]
     try:
         environment = dict(os.environ, BIONEXUS_EXPRESSION_STAGE=stage, BIONEXUS_EXPRESSION_INPUT=input_kind,
-                           BIONEXUS_EXPRESSION_CHECKPOINT=str(checkpoint_path or ""), BIONEXUS_TX2GENE=str(tx2gene_path or ""))
+                           BIONEXUS_EXPRESSION_CHECKPOINT=str(checkpoint_path or ""), BIONEXUS_TX2GENE=str(tx2gene_path or ""),
+                           BIONEXUS_EXPRESSION_PROGRESS=str(progress_path or ""))
         completed = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=timeout_seconds, check=False)
     except subprocess.TimeoutExpired as exc:
         raise RnaSeqExpressionError(f"DESeq2 execution exceeded {timeout_seconds} seconds.") from exc
@@ -294,6 +295,7 @@ def execute_expression_analysis(
     checkpoint_path: Path | None = None,
     input_kind: str = "raw_counts",
     tx2gene_path: Path | None = None,
+    progress_path: Path | None = None,
 ) -> dict[str, Any]:
     params.validate()
     if counts_path.stat().st_size > MAX_COUNTS_BYTES:
@@ -314,7 +316,8 @@ def execute_expression_analysis(
         outdir = Path(tmp) / "results"
         outdir.mkdir(parents=True, exist_ok=True)
         summary = _run_r(counts_path, metadata_path, outdir, params, stage=stage, checkpoint_path=checkpoint_path,
-                         input_kind=input_kind, tx2gene_path=tx2gene_path)
+                         input_kind=input_kind, tx2gene_path=tx2gene_path,
+                         **({"progress_path": progress_path} if progress_path else {}))
         validate_artifacts(outdir, summary, stage)
 
         provenance = {

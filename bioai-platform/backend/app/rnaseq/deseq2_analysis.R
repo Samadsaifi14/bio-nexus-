@@ -54,6 +54,11 @@ if (nzchar(covariates_raw)) {
   if (any(!vapply(covariates, safe_name, logical(1)))) stop("covariate name has unsupported characters")
 }
 
+progress_path <- Sys.getenv("BIONEXUS_EXPRESSION_PROGRESS", "")
+progress <- function(step, status) {
+  if (nzchar(progress_path)) cat(toJSON(list(step = as.integer(step), status = status), auto_unbox = TRUE), "\n", file = progress_path, append = TRUE, sep = "")
+}
+progress(1, "running")
 txi <- NULL
 if (input_kind == "salmon") {
   suppressPackageStartupMessages(library(tximport))
@@ -85,6 +90,8 @@ if (input_kind == "salmon") {
 }
 if (anyDuplicated(colnames(counts)) > 0) stop("count matrix contains duplicate sample names")
 
+progress(1, "complete")
+progress(2, "running")
 meta <- read.delim(metadata_path, check.names = FALSE, stringsAsFactors = FALSE)
 if (!("sample" %in% names(meta))) stop("metadata must contain a 'sample' column")
 if (!(condition_col %in% names(meta))) stop(paste0("metadata is missing condition column '", condition_col, "'"))
@@ -241,17 +248,23 @@ design_audit <- list(
 if (length(design_warnings) == 0) design_audit$status <- "PASS"
 write(toJSON(design_audit, auto_unbox = TRUE, pretty = TRUE, null = "null", digits = 10), file.path(outdir, "design_audit.json"))
 
+progress(2, "complete")
+progress(3, "running")
 dds <- if (is.null(txi)) {
   DESeqDataSetFromMatrix(countData = counts, colData = meta, design = design_formula)
 } else {
   DESeqDataSetFromTximport(txi, colData = meta, design = design_formula)
 }
+progress(3, "complete")
+progress(4, "running")
 genes_input <- nrow(dds)
 keep <- rowSums(counts(dds) >= min_count) >= min_samples
 dds <- dds[keep, ]
 genes_kept <- nrow(dds)
 if (genes_kept < 2) stop("pre-filtering retained fewer than two genes")
 
+progress(4, "complete")
+progress(5, "running")
 dds <- estimateSizeFactors(dds)
 normalized <- counts(dds, normalized = TRUE)
 size_factors <- sizeFactors(dds)
@@ -275,6 +288,8 @@ size_factor_df <- data.frame(sample = names(size_factors), size_factor = as.nume
 write.table(size_factor_df, file.path(outdir, "size_factors.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 write.table(data.frame(gene = rownames(normalized), normalized, check.names = FALSE), file.path(outdir, "normalized_counts.tsv"), sep = "\t", quote = FALSE, row.names = FALSE)
 
+progress(5, "complete")
+progress(6, "running")
 # vst() is fast for ordinary whole-transcriptome matrices but requires enough rows
 # for its trend subsampling. varianceStabilizingTransformation() is the exact
 # DESeq2 transform and is robust for small deterministic validation subsets.
@@ -325,6 +340,8 @@ if (stage == "qc") {
   quit(save = "no", status = 0)
 }
 
+progress(6, "complete")
+progress(7, "running")
 dds <- DESeq(dds)
 res <- results(dds, contrast = c(condition_col, test_level, reference_level), alpha = alpha)
 res_df <- as.data.frame(res)
@@ -358,6 +375,8 @@ write.table(res_df, file.path(outdir, "deseq2_all_results.tsv"), sep = "\t", quo
 write.table(deg_df, file.path(outdir, "deseq2_significant.tsv"), sep = "\t", quote = FALSE, row.names = FALSE, na = "")
 
 
+progress(7, "complete")
+progress(8, "running")
 pca$.condition <- pca[[condition_col]]
 pca_plot <- ggplot(pca, aes(x = PC1, y = PC2, label = name, shape = .condition)) +
   geom_point(size = 3.2) +
@@ -399,6 +418,8 @@ volcano_plot <- ggplot(volcano_df, aes(x = log2FoldChange, y = minus_log10_padj,
   theme_minimal(base_size = 11) + theme(legend.position = "bottom")
 plot_svg_pdf_png("volcano", 8, 6, function() print(volcano_plot))
 
+progress(8, "complete")
+progress(9, "running")
 heatmap_written <- FALSE
 heatmap_basis <- "none"
 heatmap_gene_count <- 0L
@@ -445,6 +466,8 @@ if (length(selected_genes) >= 2) {
   heatmap_written <- TRUE
 }
 
+progress(9, if (heatmap_written) "complete" else "unavailable")
+progress(10, "running")
 script_arg <- grep("^--file=", commandArgs(), value = TRUE)[[1]]
 source(file.path(dirname(sub("^--file=", "", script_arg)), "go_enrichment.R"))
 enrichment <- tryCatch(
@@ -458,6 +481,7 @@ enrichment <- tryCatch(
 )
 
 saveRDS(dds, file.path(outdir, "dds_fitted.rds"))
+progress(10, if (enrichment$status == "SUCCEEDED") "complete" else "unavailable")
 summary <- list(
   input_kind = input_kind,
   normalization_method = if (is.null(txi)) "median_of_ratios" else "tximport_length_offsets",

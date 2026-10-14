@@ -5,6 +5,7 @@ on:
     branches:
       - main
     paths:
+      - 'benchmark/**'
       - 'bioai-platform/backend/**'
       - 'bioai-platform/frontend/**'
       - '.github/workflows/full-feature-audit.yml'

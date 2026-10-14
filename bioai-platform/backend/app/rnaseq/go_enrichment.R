@@ -33,6 +33,20 @@ go_ora <- function(sets, universe, term_genes, terms, alpha) {
 # one-to-many mappings remain unresolved rather than selecting the first match.
 resolve_gene_ids <- function(ids, db, id_type = "auto", aliases = TRUE) {
   lookup <- trimws(ids)
+  normalization <- rep("unchanged", length(ids))
+  # GEO/StringTie headers may retain an assembly locus plus the deposited
+  # annotation. Use only one explicitly supplied suffix; never derive a symbol
+  # from an unannotated MSTRG locus or choose among multiple candidates.
+  source_symbol <- grepl("^MSTRG\\.[0-9]+\\|[A-Za-z][A-Za-z0-9_.-]*$", lookup)
+  if (id_type %in% c("auto", "SYMBOL")) {
+    lookup[source_symbol] <- sub("^MSTRG\\.[0-9]+\\|", "", lookup[source_symbol])
+    normalization[source_symbol] <- "source-declared symbol suffix; not independently sequence-validated"
+  }
+  source_ensembl <- grepl("^ENS[A-Z]*[GT][0-9]+(\\.[0-9]+)?\\|[^|]+$", lookup)
+  if (id_type %in% c("auto", "ENSEMBL", "ENSEMBLTRANS")) {
+    lookup[source_ensembl] <- sub("\\|.*$", "", lookup[source_ensembl])
+    normalization[source_ensembl] <- "source Ensembl prefix; appended label unused"
+  }
   is_ens <- grepl("^ENS[A-Z]*[GT][0-9]+(\\.[0-9]+)?$", lookup)
   lookup[is_ens] <- sub("\\.[0-9]+$", "", lookup[is_ens])
   types <- if (id_type == "auto") ifelse(grepl("^ENS[A-Z]*G[0-9]+$", lookup), "ENSEMBL",
@@ -53,7 +67,8 @@ resolve_gene_ids <- function(ids, db, id_type = "auto", aliases = TRUE) {
   }
   for (type in unique(types)) query(which(types == type), type)
   if (aliases) query(which(types == "SYMBOL" & state == "unmapped"), "ALIAS")
-  data.frame(gene = ids, lookup_id = lookup, entrez_id = mapped, mapping_status = state, mapping_route = route)
+  data.frame(gene = ids, lookup_id = lookup, entrez_id = mapped, mapping_status = state, mapping_route = route,
+             identifier_normalization = normalization)
 }
 
 read_gene_sets <- function(path) {

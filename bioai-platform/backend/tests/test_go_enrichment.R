@@ -38,6 +38,14 @@ cat("GO enrichment statistical and mapping tests passed\n")
 db <- get("org.Hs.eg.db", envir = asNamespace("org.Hs.eg.db"))
 mixed <- resolve_gene_ids(c("TP53", "7157", "ENSG00000141510.18", "not_a_gene"), db)
 stopifnot(all(mixed$entrez_id[1:3] == "7157"), is.na(mixed$entrez_id[4]))
+composite <- resolve_gene_ids(c("MSTRG.11999|TP53", "ENSG00000141510.18|TP53", "MSTRG.31429",
+  "MSTRG.1|TP53|BRCA1", "MSTRG.2|NOT_A_REAL_GENE"), db)
+stopifnot(all(composite$entrez_id[1:2] == "7157"), all(is.na(composite$entrez_id[3:5])),
+  composite$gene[1] == "MSTRG.11999|TP53", composite$lookup_id[1] == "TP53",
+  grepl("source-declared", composite$identifier_normalization[1]),
+  grepl("source Ensembl prefix", composite$identifier_normalization[2]))
+explicit_ensembl <- resolve_gene_ids("MSTRG.11999|TP53", db, id_type="ENSEMBL")
+stopifnot(is.na(explicit_ensembl$entrez_id), explicit_ensembl$lookup_id == "MSTRG.11999|TP53")
 a <- AnnotationDbi::select(db, keys = "7157", keytype = "ENTREZID", columns = "ALIAS")
 alias_candidates <- setdiff(a$ALIAS, AnnotationDbi::keys(db, keytype = "SYMBOL"))
 recovered <- resolve_gene_ids(alias_candidates, db)

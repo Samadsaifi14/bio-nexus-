@@ -59,6 +59,15 @@ RUN if [ "$INSTALL_GNINA" = "0" ]; then \
         echo "gnina: installed and a CPU OpenCL device is available"; \
     fi
 
+# DIAMOND remains a separate GPL-3.0 executable, with exact release/archive identity.
+RUN wget -q https://github.com/bbuchfink/diamond/releases/download/v2.1.18/diamond-linux64.tar.gz -O /tmp/diamond.tar.gz && \
+    echo "ea308218464c0a5580dbf202de9ab1c5a190780f73d06afbc3f523b2845af9de  /tmp/diamond.tar.gz" | sha256sum -c - && \
+    tar xzf /tmp/diamond.tar.gz -C /usr/local/bin --no-same-owner && \
+    rm /tmp/diamond.tar.gz && diamond version
+# Keep corresponding source beside the dependency for image redistribution.
+RUN mkdir -p /usr/share/doc/diamond && \
+    wget -q https://github.com/bbuchfink/diamond/archive/refs/tags/v2.1.18.tar.gz -O /usr/share/doc/diamond/diamond-2.1.18-source.tar.gz
+
 # MAFFT (local MSA) — portable Linux package, faster and more reliable than remote EBI endpoints.
 # mafft.bat resolves its helpers from `dirname $0`, so a symlink makes it look for
 # /usr/local/bin/mafftdir and fail (exit 127) — hence the exec wrapper, not a symlink.
@@ -109,6 +118,7 @@ RUN python -c "import cairosvg; from PIL import Image; print('figure export rend
 RUN pip install --no-cache-dir "primer3-py==2.3.1"
 
 COPY . .
+RUN cp licenses/DIAMOND-GPL-3.0.txt /usr/share/doc/diamond/LICENSE
 
 RUN Rscript tests/test_go_enrichment.R
 RUN Rscript tests/test_preranked_gsea.R

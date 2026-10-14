@@ -1,6 +1,7 @@
 import logging
 from typing import Any
 
+from starlette.concurrency import run_in_threadpool
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 
@@ -28,6 +29,8 @@ class PairwiseAlignRequest(BaseModel):
     matrix: str = Field("blosum62", description="blosum62 or pam250")
     open_gap_score: float = Field(-10, description="Gap-open penalty")
     extend_gap_score: float = Field(-1, description="Gap-extension penalty")
+    permutations: int = Field(0, ge=0, le=999, description="Optional subject-shuffle score test; 0 disables it")
+    random_seed: int = Field(2026, ge=0, le=2**32-1)
     source: str = Field("auto", description="auto|ncbi|uniprot")
 
 
@@ -60,6 +63,7 @@ class PairwiseAlignResponse(BaseModel):
     query_length: int
     hit_length: int
     hit_source: str
+    significance: dict[str, Any] | None = None
 
 
 @router.post("/pairwise", response_model=PairwiseAlignResponse)
@@ -90,6 +94,12 @@ async def run_pairwise(req: PairwiseAlignRequest):
         hit_source = hit.get("source", "")
 
     try:
+        significance = None
+        if req.permutations:
+            from app.tools.alignment_significance import alignment_score_test
+            significance = await run_in_threadpool(alignment_score_test, query_seq, hit_seq,
+                mode=req.mode, matrix=req.matrix, open_gap_score=req.open_gap_score,
+                extend_gap_score=req.extend_gap_score, permutations=req.permutations, seed=req.random_seed)
         result = pairwise_align(
             seq_a=query_seq,
             seq_b=hit_seq,
@@ -101,6 +111,7 @@ async def run_pairwise(req: PairwiseAlignRequest):
     except PairwiseAlignError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
 
+    result["significance"] = significance
     result["hit_source"] = hit_source
     return result
 

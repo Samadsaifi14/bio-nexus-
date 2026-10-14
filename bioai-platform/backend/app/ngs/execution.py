@@ -266,6 +266,9 @@ def _artifact_groups(workflow: str, files: list[str]) -> dict[str, list[str]]:
             "multiqc": multiqc,
             "alignment": [path for path, value in lower.items() if value.endswith((".bam", ".cram", ".bai", ".crai", ".csi"))],
             "quantification": [path for path, value in lower.items() if any(token in value for token in ("salmon", "rsem", "featurecounts", "gene_counts", "transcript_counts", "gene_tpm", "transcript_tpm"))],
+            "count_candidates": [path for path, value in lower.items() if value.endswith(("gene_counts.tsv", "transcript_counts.tsv", "readspergene.out.tab"))],
+            "normalized_expression": [path for path, value in lower.items() if value.endswith(("gene_tpm.tsv", "transcript_tpm.tsv"))],
+            "scaled_count_estimates": [path for path, value in lower.items() if value.endswith(("gene_counts_scaled.tsv", "gene_counts_length_scaled.tsv"))],
             "expression_qc": [path for path, value in lower.items() if any(token in value for token in ("deseq2", "rseqc", "qualimap", "pca", "heatmap"))],
             "provenance": provenance,
         }
@@ -303,7 +306,7 @@ def artifact_manifest(run_id: str, user_id: str) -> dict[str, Any]:
             files = [str(path) for path in root.rglob("*") if path.is_file()]
 
     groups = _artifact_groups(record["workflow"], files)
-    missing = [name for name, evidence in groups.items() if not evidence]
+    missing = [name for name, evidence in groups.items() if not evidence and name not in {"normalized_expression", "scaled_count_estimates"}]
     return {
         "run_id": run_id, "workflow": record["workflow"], "revision": record["revision"],
         "source": outdir, "observed_file_count": len(files), "groups": groups,

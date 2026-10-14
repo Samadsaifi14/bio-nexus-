@@ -351,6 +351,17 @@ def production_run_status(run_id: str, user_id: str = Depends(require_user_id)):
         raise HTTPException(status_code=404, detail="production run not found") from exc
 
 
+@router.get("/production/runs/{run_id}/execution-monitor")
+def production_execution_monitor(run_id: str, user_id: str = Depends(require_user_id)):
+    from app.ngs.nextflow_trace import observe_trace
+    try:
+        record = get_run(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="production run not found") from exc
+    return {"run_id": run_id, "workflow": record["workflow"], "revision": record["revision"],
+            "execution_state": record["state"], "process_evidence": observe_trace(record["outdir"])}
+
+
 @router.get("/production/runs/{run_id}/artifacts")
 def production_run_artifacts(run_id: str, user_id: str = Depends(require_user_id)):
     try:

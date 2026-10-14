@@ -13,6 +13,7 @@ import { motion } from 'framer-motion';
 import { fadeUp } from '@/lib/animations';
 import { BackButton, CriticalButton, ClaySegmented, ClayToggle, FlatTextarea, FlatInput } from '@/components/ui';
 import { stripFastaHeader, cleanSequence, detectSequenceType, PROTEIN_CODES } from '@/lib/sequence-utils';
+import { LocalSimilarityPanel } from '@/components/results/LocalSimilarityPanel';
 import { consumeParam } from '@/lib/cross-link';
 
 const SAMPLES = [
@@ -299,6 +300,12 @@ export default function BlastWizardPage() {
               )}
             </motion.div>
           )}
+
+          <LocalSimilarityPanel
+            query={inputMode === 'accession' && accessionResult ? `>${accessionResult.accession}\n${accessionResult.sequence}` : rawInput}
+            exampleReference={SAMPLES.map(sample => sample.seq).join('\n')}
+            protein={detectedType === 'protein'}
+          />
 
           {proteinTargetSearch ? (
             <div className="glass p-4 border border-accent-cyan/20">

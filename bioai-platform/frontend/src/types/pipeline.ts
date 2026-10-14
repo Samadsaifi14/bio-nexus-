@@ -242,6 +242,7 @@ export interface BlastHitSummary {
 }
 
 export interface PairwiseAlignResult {
+  significance?: { p_value: number; permutations: number; seed: number; observed_score: number; interpretation: string } | null;
   mode: 'global' | 'local';
   matrix: string;
   open_gap_score: number;

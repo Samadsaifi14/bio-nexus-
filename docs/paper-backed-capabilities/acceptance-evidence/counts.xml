@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.182" timestamp="2026-10-14T11:42:48.075071+05:00" hostname="88d2d99b51af"><testcase classname="tests.test_paper_backed_engines" name="test_counts_are_not_satisfied_by_tpm_or_scaled_estimates" time="0.001" /></testsuite></testsuites>

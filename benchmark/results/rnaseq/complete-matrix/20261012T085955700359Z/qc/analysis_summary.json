@@ -1,0 +1,14 @@
+{
+  "stage": "qc",
+  "genes_input": 22085,
+  "genes_kept": 20169,
+  "samples": 18,
+  "design": "~condition",
+  "input_kind": "raw_counts",
+  "pca_percent_variance": {
+    "PC1": 15.317,
+    "PC2": 10.551
+  },
+  "design_warnings": [],
+  "inference_performed": false
+}

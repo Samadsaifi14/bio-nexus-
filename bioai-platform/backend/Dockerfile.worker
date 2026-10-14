@@ -8,6 +8,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     rm -rf /var/lib/apt/lists/*
 
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
+    echo "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644  /usr/local/bin/vina" | sha256sum -c - && \
     chmod +x /usr/local/bin/vina
 
 # Gnina (CNN-based rescoring) — OFF BY DEFAULT, and the reason is not image size.

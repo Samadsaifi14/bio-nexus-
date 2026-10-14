@@ -25,10 +25,7 @@ const SMILES_EXAMPLES = [
 ];
 
 function affinityColor(affinity: number | null): string {
-  if (affinity === null) return 'text-text-muted';
-  if (affinity <= -8) return 'text-good';
-  if (affinity <= -5) return 'text-warn';
-  return 'text-text-muted';
+  return affinity === null ? 'text-text-muted' : 'text-text-primary';
 }
 
 function VinaLog({ log }: { log: string }) {
@@ -133,9 +130,9 @@ function VinaLog({ log }: { log: string }) {
                 <thead>
                   <tr className="text-text-muted uppercase text-[10px]">
                     <th className="text-left py-1 pr-4">Mode</th>
-                    <th className="text-left py-1 pr-4">Affinity (kcal/mol)</th>
-                    <th className="text-left py-1 pr-4">RMSD l.b. (Å)</th>
-                    <th className="text-left py-1">RMSD u.b. (Å)</th>
+                    <th className="text-left py-1 pr-4">Vina score (kcal/mol)</th>
+                    <th className="text-left py-1 pr-4">RMSD lower bound from best mode (Å)</th>
+                    <th className="text-left py-1">RMSD upper bound from best mode (Å)</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
@@ -412,7 +409,7 @@ export default function DockingPage() {
           {(result.status === 'complete' || result.status === 'completed') && (
             <ResultsReadyBanner
               title="Docking complete"
-              subtitle={bestPose?.affinity != null ? `Best pose: ${bestPose.affinity.toFixed(2)} kcal/mol · ${result.result?.num_poses ?? ''} poses` : `${result.result?.num_poses ?? ''} poses generated`}
+              subtitle={bestPose?.affinity != null ? `Top Vina score: ${bestPose.affinity.toFixed(2)} kcal/mol · ${result.result?.num_poses ?? ''} poses` : `${result.result?.num_poses ?? ''} poses generated`}
             />
           )}
           <div className="data-card p-5">
@@ -515,7 +512,7 @@ export default function DockingPage() {
 
               <div className="grid grid-cols-2 gap-4 mb-4">
                 <div className="p-3 rounded-xl bg-surface-1">
-                  <p className="text-xs text-text-muted">Best Affinity</p>
+                  <p className="text-xs text-text-muted">Best Vina score · computational estimate</p>
                   <p className={`text-lg font-bold font-mono ${affinityColor(bestPose?.affinity ?? null)}`}>
                     {bestPose?.affinity?.toFixed(2) ?? '—'} <span className="text-xs font-normal">kcal/mol</span>
                   </p>
@@ -568,10 +565,10 @@ export default function DockingPage() {
                     <tr className="text-xs text-text-muted uppercase border-b border-glass-border">
                       <th className="text-left py-2 pr-4">Pose</th>
                       <th className="text-left py-2 pr-4">Atoms</th>
-                      <th className="text-left py-2 pr-4">H</th>
-                      <th className="text-left py-2 pr-4">Affinity (kcal/mol)</th>
-                      <th className="text-left py-2 pr-4">RMSD l.b. (Å)</th>
-                      <th className="text-left py-2 pr-4">RMSD u.b. (Å)</th>
+                      <th className="text-left py-2 pr-4" title="Vina uses a united-atom scoring model; this counts hydrogen records present in its returned pose file.">H records in PDBQT</th>
+                      <th className="text-left py-2 pr-4" title="AutoDock Vina scoring estimate. Lower scores are more favorable within this scoring function; this is not experimental binding affinity.">Vina score (kcal/mol)</th>
+                      <th className="text-left py-2 pr-4" title="RMSD lower bound relative to Vina's best-ranked pose, not an experimental reference.">RMSD lower bound¹ (Å)</th>
+                      <th className="text-left py-2 pr-4" title="RMSD upper bound relative to Vina's best-ranked pose, not an experimental reference.">RMSD upper bound¹ (Å)</th>
                       <th className="text-left py-2">Interactions</th>
                     </tr>
                   </thead>
@@ -593,7 +590,7 @@ export default function DockingPage() {
                             {pose.rmsd_ub != null ? pose.rmsd_ub.toFixed(2) : '—'}
                           </td>
                           <td className="py-2 font-mono text-xs text-text-muted">
-                            {pi ? `${pi.hbonds}H / ${pi.hydrophobic}HP / ${pi.pi_stacking}π` : '—'}
+                            {pi ? `${pi.hbonds} H-bond / ${pi.hydrophobic} hydrophobic / ${pi.pi_stacking} π / ${pi.salt_bridges} salt` : '—'}
                           </td>
                         </tr>
                       );
@@ -601,11 +598,12 @@ export default function DockingPage() {
                   </tbody>
                 </table>
               </div>
+              <p className="mt-2 text-[11px] text-text-muted">¹ RMSD values compare each mode to Vina’s best mode. They are not redocking accuracy against a crystal ligand.</p>
             </div>
           )}
 
           {result.result?.interactions && (
-            <InteractionPanel interactions={result.result.interactions} />
+            <InteractionPanel interactions={result.result.interactions} analysis={result.result.interaction_analysis} />
           )}
 
           {result.result?.box_center && (
@@ -625,6 +623,30 @@ export default function DockingPage() {
                   </p>
                 </div>
               </div>
+
+              {result.result.pocket_candidates && result.result.pocket_candidates.length > 0 && (
+                <div className="mt-4 border-t border-glass-border pt-4">
+                  <h4 className="text-xs font-semibold text-text-primary">fpocket candidates</h4>
+                  <p className="mt-1 text-[11px] text-text-muted">Pocket lining residues and reported fpocket descriptors. Missing descriptors were not available in the tool output.</p>
+                  <div className="mt-2 space-y-2">
+                    {result.result.pocket_candidates.slice(0, 8).map((pocket) => (
+                      <div key={pocket.rank} className="rounded-lg border border-glass-border bg-surface-1 p-3 text-xs">
+                        <div className="flex flex-wrap gap-x-4 gap-y-1 font-mono text-text-secondary">
+                          <span>Pocket {pocket.rank}{pocket.rank === result.result?.selected_pocket_rank ? ' · selected for grid' : ''}</span>
+                          <span>{pocket.atom_count} atoms</span>
+                          {pocket.score != null && <span>Score {pocket.score.toFixed(2)}</span>}
+                          {pocket.druggability_score != null && <span>Druggability {pocket.druggability_score.toFixed(3)}</span>}
+                          {pocket.volume != null && <span>Volume {pocket.volume.toFixed(1)} Å³</span>}
+                          {pocket.area != null && <span>Area {pocket.area.toFixed(1)} Å²</span>}
+                          {pocket.total_sasa != null && <span>Total SASA {pocket.total_sasa.toFixed(1)} Å²</span>}
+                          {pocket.number_of_alpha_spheres != null && <span>{pocket.number_of_alpha_spheres} alpha spheres</span>}
+                        </div>
+                        <p className="mt-1 text-text-muted">{pocket.residues.length ? pocket.residues.join(', ') : 'No lining residue identifiers returned'}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {(result.result.vina_version || result.result.vina_exhaustiveness != null || result.result.vina_seed != null) && (
                 <div className="grid grid-cols-3 gap-4 mt-4 pt-4 border-t border-glass-border text-sm">
@@ -651,6 +673,31 @@ export default function DockingPage() {
             </div>
           )}
 
+          {result.result?.pose_analytics && (
+            <div className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary">Pose clustering & crystallographic waters</h3>
+              {'status' in result.result.pose_analytics && result.result.pose_analytics.status === 'UNAVAILABLE' ? (
+                <p className="mt-2 text-xs text-text-muted">Pose analytics unavailable for this run.</p>
+              ) : (() => {
+                const analytics = result.result?.pose_analytics as {
+                  pose_clustering?: { cluster_count?: number; cutoff_angstrom?: number; clusters?: Array<{ cluster: number; models: number[]; size: number }> };
+                  water_mediated_interactions?: { status?: string; water_count?: number; bridge_count?: number; poses?: Array<{ model: number; bridge_count: number; protein_contacts: string[] }>; bridges?: Array<{ model: number; water: number; protein: string; water_ligand_distance_angstrom: number; water_protein_distance_angstrom: number }> };
+                };
+                return <div className="mt-2 space-y-3 text-xs text-text-secondary">
+                  <div><p>Pose clusters at {analytics.pose_clustering?.cutoff_angstrom ?? 2} Å heavy-atom atom-order RMSD: {analytics.pose_clustering?.cluster_count ?? '—'}</p>
+                    <p className="mt-1 text-text-muted">{analytics.pose_clustering?.clusters?.map(cluster => `Cluster ${cluster.cluster}: modes ${cluster.models.join(', ')}`).join(' · ')}</p>
+                  </div>
+                  <div><p>Crystallographic water screen: {analytics.water_mediated_interactions?.status ?? 'unavailable'} · {analytics.water_mediated_interactions?.water_count ?? 0} waters · {analytics.water_mediated_interactions?.bridge_count ?? 0} geometric bridges</p>
+                    {!!analytics.water_mediated_interactions?.bridges?.length && <p className="mt-1 text-text-muted">{analytics.water_mediated_interactions.bridges.slice(0, 8).map(bridge => `mode ${bridge.model ?? 1}: water ${bridge.water} → ${bridge.protein} (${bridge.water_ligand_distance_angstrom.toFixed(2)}/${bridge.water_protein_distance_angstrom.toFixed(2)} Å)`).join(' · ')}</p>}
+                  </div>
+                  {!!analytics.water_mediated_interactions?.poses?.length && <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr><th className="py-1">Pose</th><th>Water bridges</th><th>Protein contact fingerprint</th></tr></thead><tbody>{analytics.water_mediated_interactions.poses.map(pose => <tr key={pose.model}><td className="py-1">{pose.model}</td><td>{pose.bridge_count}</td><td>{pose.protein_contacts.join(', ') || 'No geometric bridge observed'}</td></tr>)}</tbody></table></div>}
+                  <button type="button" className="btn-secondary text-xs" onClick={() => downloadText(JSON.stringify(result.result?.pose_analytics, null, 2), 'docking_pose_evidence.json')}>Download pose evidence JSON</button>
+                  <p className="text-[11px] text-text-muted">Clustering uses non-symmetry-corrected heavy-atom atom-order RMSD; hydrogens are excluded. Water bridges are distance-only evidence, not energetics or occupancy. Neither is experimental validation.</p>
+                </div>;
+              })()}
+            </div>
+          )}
+
           {(result.result?.vina_num_modes != null || result.result?.grid_source) && (
             <div className="data-card p-5">
               <h3 className="text-sm font-semibold text-text-primary mb-3">Docking Configuration</h3>
@@ -672,6 +719,8 @@ export default function DockingPage() {
                 <div className="mt-3 pt-3 border-t border-glass-border text-xs text-text-muted space-y-1">
                   {result.result?.receptor_prep && <p>Receptor: {result.result?.receptor_prep}</p>}
                   {result.result?.ligand_prep && <p>Ligand: {result.result?.ligand_prep}</p>}
+                  {result.result?.receptor_prep_evidence && <p>Observed receptor records: {result.result.receptor_prep_evidence.input_protein_atom_records} protein atoms → {result.result.receptor_prep_evidence.prepared_pdbqt_atom_records} PDBQT atoms; {result.result.receptor_prep_evidence.input_explicit_hydrogen_records} explicit input H, {result.result.receptor_prep_evidence.prepared_pdbqt_hydrogen_atom_types} prepared PDBQT H types; {result.result.receptor_prep_evidence.input_water_records_excluded} waters and {result.result.receptor_prep_evidence.input_other_hetero_records_excluded} other hetero records excluded.</p>}
+                  {result.result?.ligand_prep_evidence && <p>Observed ligand output: {result.result.ligand_prep_evidence.prepared_pdbqt_atom_records} PDBQT atom records. {result.result.ligand_prep_evidence.protonation}.</p>}
                 </div>
               )}
             </div>
@@ -686,10 +735,10 @@ export default function DockingPage() {
               {jobId && (
                 <div className="mb-3 flex items-center gap-2 text-xs text-text-muted">
                   <StructureExportMenu dockingJobId={jobId} />
-                  <span>Complex PDB (receptor + docked ligand) and ligand-only SDF</span>
+                  <span>Complex PDB, ligand SDF, and original Vina PDBQT</span>
                 </div>
               )}
-              <DockingViewer pdbId={result.result.pdb_id} ligandPdb={bestLigandPdb} interactions={result.result.interactions} />
+              <DockingViewer pdbId={result.result.pdb_id} ligandPdb={bestLigandPdb} interactions={result.result.interactions} pocketResidues={(result.result.pocket_candidates?.find(pocket => pocket.rank === result.result?.selected_pocket_rank) ?? result.result.pocket_candidates?.[0])?.residue_ids} />
             </div>
           )}
 

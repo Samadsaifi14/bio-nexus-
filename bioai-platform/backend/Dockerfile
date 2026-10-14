@@ -6,8 +6,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     openbabel libgl1 libgomp1 libopenblas-dev \
     libcairo2 libpango-1.0-0 libpangocairo-1.0-0 \
     libxml2 libxslt1.1 samtools \
-    r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize && \
+    r-base-core r-bioc-org.hs.eg.db r-cran-biocmanager r-bioc-go.db r-bioc-deseq2 r-bioc-tximport r-bioc-complexheatmap r-cran-ggplot2 r-cran-jsonlite r-cran-circlize \
+    r-cran-bh r-cran-rcpp r-cran-data.table r-cran-cowplot r-cran-fastmatch && \
     rm -rf /var/lib/apt/lists/*
+
+# Mouse annotations are absent from Debian/Ubuntu apt repositories.
+RUN Rscript -e 'BiocManager::install("org.Mm.eg.db", ask = FALSE, update = FALSE); stopifnot(requireNamespace("org.Mm.eg.db", quietly = TRUE))'
+RUN Rscript -e 'BiocManager::install("fgsea", ask = FALSE, update = FALSE); stopifnot(requireNamespace("fgsea", quietly = TRUE))'
 
 # Verify the deterministic RNA-seq statistical runtime at image-build time.
 RUN Rscript -e 'suppressPackageStartupMessages({library(DESeq2); library(ComplexHeatmap); library(ggplot2); library(jsonlite); library(circlize)}); cat("DESeq2", as.character(packageVersion("DESeq2")), "ComplexHeatmap", as.character(packageVersion("ComplexHeatmap")), "\n")'
@@ -92,6 +97,7 @@ RUN wget -q https://github.com/iqtree/iqtree2/releases/download/v2.3.6/iqtree-2.
 
 # Download pre-compiled AutoDock Vina binary from GitHub releases
 RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.2.7/vina_1.2.7_linux_x86_64" -O /usr/local/bin/vina && \
+    echo "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644  /usr/local/bin/vina" | sha256sum -c - && \
     chmod +x /usr/local/bin/vina
 
 WORKDIR /app
@@ -99,10 +105,29 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 RUN python -c "import cairosvg; from PIL import Image; print('figure export renderer ready')"
 
-# primer3-py is optional — skip silently if it fails
-RUN pip install --no-cache-dir "primer3-py>=2.0.3" 2>/dev/null || echo "primer3-py skipped (optional)"
+# Primer3 is required by design and nearest-neighbour thermodynamic QC.
+RUN pip install --no-cache-dir "primer3-py==2.3.1"
 
 COPY . .
+
+RUN Rscript tests/test_go_enrichment.R
+RUN Rscript tests/test_preranked_gsea.R
+
+# Exercise the bundled R analysis and figure export during every backend build.
+# The 221-gene SALS subset is a regression fixture, not a biological result.
+RUN mkdir -p /tmp/rnaseq-smoke && \
+    Rscript app/rnaseq/deseq2_analysis.R \
+      app/data/rnaseq/Cer_SALS_every100_validation_subset.tsv \
+      app/data/rnaseq/Cer_SALS_metadata.tsv \
+      /tmp/rnaseq-smoke condition healthy SALS "" 0.05 1 10 8:40 human && \
+    test -s /tmp/rnaseq-smoke/go_enrichment_all.tsv && \
+    test -s /tmp/rnaseq-smoke/go_gene_mapping.tsv && \
+    test -s /tmp/rnaseq-smoke/analysis_summary.json && \
+    test -s /tmp/rnaseq-smoke/pca.svg && \
+    test -s /tmp/rnaseq-smoke/dispersion_plot.svg && \
+    test -s /tmp/rnaseq-smoke/volcano.svg && \
+    test -s /tmp/rnaseq-smoke/deseq2_all_results.tsv && \
+    rm -rf /tmp/rnaseq-smoke
 
 RUN useradd -m -u 1000 appuser && chown -R appuser:appuser /app
 USER appuser

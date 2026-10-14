@@ -141,19 +141,19 @@ const topics: Record<string, TopicData> = {
       },
       {
         heading: 'GO terms and evidence',
-        content: 'Each GO annotation is a term (e.g. GO:0005515 "protein binding") linked to a source of evidence. Curated evidence codes (IDA, IMP, TAS, IC) come from experiments and direct curator review, while computational codes (IEA, ISS) are inferred electronically or from sequence similarity. Predictions from deep-learning models are computational evidence: useful for hypothesis generation, but never a substitute for experimental validation. Bio Nexus flags the method behind every predicted term (e.g. "heuristic composition") so its weight is clear.',
+        content: 'Each GO annotation is a term (e.g. GO:0005515 "protein binding") linked to a source of evidence. Curated evidence codes (IDA, IMP, TAS, IC) come from experiments and direct curator review, while computational codes (IEA, ISS) are inferred electronically or from sequence similarity. Predictions from deep-learning models are computational evidence: useful for hypothesis generation, but never a substitute for experimental validation. Bio Nexus labels its function hints as InterPro2GO mapping inferences and keeps composition measurements separate from function evidence.',
       },
       {
         heading: 'Confidence scores',
-        content: 'Bio Nexus assigns each predicted GO term a confidence from 0 to 1 based on how strong the underlying compositional signal is. Confidence above 0.8 is labeled High, 0.6–0.8 Medium, and below 0.6 Low (treated as tentative). These are model confidences, not statistical significance — treat low-confidence predictions as leads to test, not conclusions.',
+        content: 'Bio Nexus reports supporting InterPro entries and domain hits for each mapped GO term. These counts describe retrieved evidence; they are not calibrated probabilities or statistical significance. When retrieval fails or finds no usable mapping, the result explicitly reports unavailable or insufficient evidence rather than inventing a function from composition.',
       },
       {
         heading: 'EC numbers',
-        content: 'EC (Enzyme Commission) numbers classify enzymes by the reaction they catalyze, e.g. EC 2.7.1.1 (hexokinase, a transferase). The hierarchy is: class (1 oxidoreductases, 2 transferases, 3 hydrolases, 4 lyases, 5 isomerases, 6 ligases) → subclass → sub-subclass → serial number. The current heuristic model does not predict EC numbers; enzyme classification is out of scope until a full model is deployed.',
+        content: 'EC (Enzyme Commission) numbers classify enzymes by the reaction they catalyze, e.g. EC 2.7.1.1 (hexokinase, a transferase). The hierarchy is: class (1 oxidoreductases, 2 transferases, 3 hydrolases, 4 lyases, 5 isomerases, 6 ligases) → subclass → sub-subclass → serial number. The current InterPro2GO function module does not predict EC numbers; enzyme classification requires a separately validated method.',
       },
       {
         heading: 'DeepFRI and graph models',
-        content: 'DeepFRI (Deep Functional Residue Identification) is a state-of-the-art graph convolutional network that predicts GO terms and EC numbers directly from protein structures, using the protein contact map as a graph and its sequence as node features. It substantially outperforms sequence-only methods and even annotates functions that sequence homology cannot detect. Bio Nexus ships a lightweight, composition-based approximation inspired by DeepFRI; deploying the full DeepFRI weights is the planned production upgrade.',
+        content: 'DeepFRI (Deep Functional Residue Identification) is a state-of-the-art graph convolutional network that predicts GO terms and EC numbers directly from protein structures, using the protein contact map as a graph and its sequence as node features. Bio Nexus does not execute DeepFRI or claim equivalent inference. Its implemented function hints use InterProScan and InterPro2GO mapping evidence, with sequence composition shown only as a descriptive measurement.',
       },
     ],
   },

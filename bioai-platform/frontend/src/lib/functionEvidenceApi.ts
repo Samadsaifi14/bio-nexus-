@@ -29,7 +29,7 @@ export type FunctionDomainHit = {
 export type FunctionEvidenceResult = {
   pdb_id: string;
   sequence_length: number;
-  status: 'inferred' | 'insufficient_evidence' | string;
+  status: 'inferred' | 'insufficient_evidence' | 'evidence_unavailable' | 'running' | string;
   go_terms: FunctionGoEvidence[];
   ec_numbers: never[];
   ec_scope_note: string;
@@ -45,6 +45,7 @@ export type FunctionEvidenceResult = {
     domain_source: string;
     go_mapping_source: string;
     retrieval_is_live: boolean;
+    retrieval_failures?: string[];
   };
   note: string;
 };

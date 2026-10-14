@@ -1,4 +1,4 @@
-﻿"""
+"""
 In-memory pipeline v2 — runs BLAST → UniProt → MSA → Phylo → Domains → Interpretation
 in a background thread. Uses a thread-safe dict for job storage.
 """
@@ -82,6 +82,25 @@ def _is_real_uuid(job_id: str) -> bool:
         return False
 
 
+def _persist_blast_preview(job_id: str, context: dict) -> None:
+    """Publish completed search evidence without declaring downstream work done."""
+    if not _is_real_uuid(job_id):
+        return
+    try:
+        client = get_supabase()
+        rows = client.table("jobs").select("user_id,context_json").eq("id", job_id).execute().data or []
+        if not rows:
+            return
+        stored = rows[0].get("context_json") or {}
+        if isinstance(stored, str):
+            import json
+            stored = json.loads(stored)
+        preview = {**(stored if isinstance(stored, dict) else {}), **context}
+        client.table("jobs").update({"context_json": preview}).eq("id", job_id).eq("user_id", rows[0]["user_id"]).execute()
+    except Exception:
+        logger.warning("Could not persist early BLAST results for %s", job_id)
+
+
 def _persist_v2_final(job_id: str, status: str, context: dict, error: str | None = None):
     """Update the persisted wizard job row with the final status + full context."""
     if not _is_real_uuid(job_id):
@@ -97,8 +116,24 @@ def _persist_v2_final(job_id: str, status: str, context: dict, error: str | None
     if error:
         payload["error"] = error
     try:
-        get_supabase().table("jobs").update(payload).eq("id", job_id).execute()
+        client = get_supabase()
+        # Queue submission identity/configuration survives scientific finalization.
+        # Never merge prior scientific results into a newly computed result.
+        rows = client.table("jobs").select("user_id,context_json").eq("id", job_id).execute().data or []
+        owner = rows[0].get("user_id") if rows else None
+        stored = rows[0].get("context_json") if rows else {}
+        preserved_keys = ("collection_id", "collection_identifier", "collection_sha256", "input_sha256",
+                          "fast_mode", "database", "program", "max_hits", "query_accession",
+                          "workflow_steps", "alignment_mode")
+        metadata = {key: stored[key] for key in preserved_keys if isinstance(stored, dict) and key in stored}
+        payload["context_json"] = {**context, **metadata}
+        update = client.table("jobs").update(payload).eq("id", job_id)
+        if owner is not None:
+            update = update.eq("user_id", owner)
+        update.execute()
     except Exception as e:
+        # Failed metadata reads must not erase submission provenance. Let durable
+        # worker status/artifact handling continue without erasing the prior context.
         logger.warning("Could not update v2 job %s to Supabase: %s", job_id, e)
     _mirror(job_id)
 
@@ -310,6 +345,8 @@ async def run_pipeline(
     fast_mode: bool = False,
     blast_params: dict | None = None,
     job_id: str | None = None,
+    steps: list[str] | None = None,
+    alignment_mode: str = "global",
 ) -> dict:
     """Public async entry point for the pipeline (used by pipeline_worker).
 
@@ -323,7 +360,8 @@ async def run_pipeline(
     else:
         external_job_id = f"worker-{uuid.uuid4().hex[:12]}"
     job_key = job_id or external_job_id
-    requested = list(STEP_ORDER)
+    from app.services.workflow_templates import WorkflowRecipe
+    requested = WorkflowRecipe(steps=list(STEP_ORDER) if steps is None else steps, alignment_mode=alignment_mode).steps
     steps_dict = {s: {"status": "pending", "progress": 0, "data": None, "error": None} for s in STEP_ORDER}
 
     with _jobs_lock:
@@ -347,11 +385,12 @@ async def run_pipeline(
             status_callback=status_callback,
             fast_mode=fast_mode,
             blast_params=blast_params,
+            alignment_mode=alignment_mode,
         )
     finally:
-        job = _get_job(job_id)
+        job = _get_job(job_key)
         with _jobs_lock:
-            _jobs.pop(job_id, None)
+            _jobs.pop(job_key, None)
 
     if job and job.get("status") == "failed":
         raise RuntimeError(job.get("error", "Pipeline failed"))
@@ -495,6 +534,8 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 _failed_step = "blast"
                 _failed_error = result.get("error", "BLAST completed without usable hits")
         context["blast"] = result
+        if not provider_failed:
+            await asyncio.to_thread(_persist_blast_preview, job_id, context)
 
     if denovo_mode:
         context["query"]["confidence"] = "de_novo"
@@ -855,15 +896,20 @@ async def _run_ebi_blast_fallback(
         return None
     result = await _run_ebi_once(sequence, program, ebi_database, max_hits)
     degraded_from = None
-    if result.get("error") and ebi_database != "uniprotkb_swissprot":
+    protein_target = program in {"blastp", "blastx"}
+    if result.get("error") and protein_target and ebi_database != "uniprotkb_swissprot":
         logger.warning("EBI %s failed (%s) — retrying with uniprotkb_swissprot", ebi_database, result["error"])
         retry = await _run_ebi_once(sequence, program, "uniprotkb_swissprot", max_hits)
-        if not retry.get("error") and retry.get("hits"):
+        if not retry.get("error"):
             result = retry
             degraded_from = ebi_database
-    if result.get("error") or not result.get("hits"):
-        logger.warning("EBI BLAST fallback returned no hits: %s", result.get("error", "empty"))
-        return None
+    if result.get("error"):
+        logger.warning("EBI BLAST failed: %s", result["error"])
+        return {"error": str(result["error"]), "search_complete": False, "provider": "ebi"}
+    if not isinstance(result.get("hits"), list):
+        return {"error": "EBI BLAST returned an invalid hits payload", "search_complete": False, "provider": "ebi"}
+    if not result["hits"]:
+        logger.info("EBI BLAST completed successfully with zero hits (%s)", ebi_database)
     query_length = len("".join(sequence.replace("\n", "").replace(" ", "").split("-")))
     payload = _build_blast_result(
         result["hits"],
@@ -895,7 +941,7 @@ async def _run_ebi_once(sequence: str, program: str, database: str, max_hits: in
         })
     except Exception as e:
         logger.warning("EBI BLAST failed (%s): %s", database, e)
-        return {"error": str(e)}
+        return {"error": str(e).strip() or f"EBI BLAST request failed ({type(e).__name__})"}
 
 
 async def _run_blast(
@@ -933,7 +979,8 @@ async def _run_blast(
     # the pipeline consumes directly. NCBI chronically stalls (long WAITING
     # even with an API key), so run EBI FIRST and fall back to NCBI.
     ebi_result = await _run_ebi_blast_fallback(sequence, program, database, seq_type, max_hits)
-    if ebi_result is not None:
+    ebi_error: str | None = None
+    if ebi_result is not None and ebi_result.get("search_complete") is True:
         ebi_result["parameters"] = {"program": program, "requested_database": database, "max_hits": max_hits, "fast_mode": fast_mode}
         if status_callback:
             try:
@@ -941,6 +988,8 @@ async def _run_blast(
             except Exception:
                 pass
         return ebi_result
+    elif ebi_result is not None:
+        ebi_error = str(ebi_result.get("error") or "EBI BLAST did not complete")
 
     # EBI unavailable for this database or failed — try NCBI before failing.
     ncbi_error: str | None = None
@@ -984,12 +1033,18 @@ async def _run_blast(
     else:
         ncbi_error = results["error"]
 
-    logger.warning("EBI BLAST unavailable and NCBI failed (%s)", ncbi_error)
+    logger.warning("BLAST providers failed (EBI=%s; NCBI=%s)", ebi_error or "not used", ncbi_error)
     return {
-        "error": ncbi_error or "BLAST failed via EBI and NCBI",
+        "error": "BLAST search did not complete. " + "; ".join(
+            part for part in (
+                f"EBI: {ebi_error}" if ebi_error else "",
+                f"NCBI: {ncbi_error}" if ncbi_error else "NCBI did not return a completed search",
+            ) if part
+        ),
         "count": 0,
         "hits": [],
         "search_complete": False,
+        "provider_errors": {key: value for key, value in {"ebi": ebi_error, "ncbi": ncbi_error}.items() if value},
     }
 
 
@@ -1562,3 +1617,4 @@ async def _run_interpret(context: dict) -> dict:
         "query_confidence": context.get("query", {}).get("confidence", "identified"),
     }
     return await interpret_text("protein_analysis", prompt_context)
+

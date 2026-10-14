@@ -314,10 +314,10 @@
       "bbs2_benchmarks": ["DOCK-REDOCK"],
       "states": ["implemented", "unit_tested", "integration_tested", "regression_gated"],
       "publication_required_state": "validated + regression_gated",
-      "last_verified": "2026-09-06",
+      "last_verified": "2026-10-12",
       "external_ground_truth": "Multi-complex co-crystal panel (>=10 curated complexes across ligands/pockets), frozen receptor/ligand preparation, symmetry-aware heavy-atom RMSD distribution; success criteria predeclared.",
-      "evidence_artifacts": ["bioai-platform/backend/tests/test_docking_redock_benchmark.py", "benchmark/fixtures/docking/redock_panel.json", "benchmark/fixtures/docking/run_redock_panel.py", "benchmark/results/docking/redock/latest.json"],
-      "notes": "Multi-complex panel (10 complexes, 4 essential) + honest runner added 2026-09-06, CI-gated. NOT YET EXECUTED: requires Vina/OpenBabel/fpocket (Docker down); runner writes an explicit not_executed/requires_external record and never fabricates a pass. Earlier single 1IEP redocking failed at ligand sanitisation — unresolved validation. external benchmarking not claimed until the panel actually passes."
+      "evidence_artifacts": ["bioai-platform/backend/tests/test_docking_redock_benchmark.py", "benchmark/fixtures/docking/redock_panel.json", "benchmark/fixtures/docking/run_redock_panel.py", "benchmark/results/docking/redock/latest.json", "benchmark/results/docking/canonical/latest.json", ".github/workflows/docking-redock-evidence.yml"],
+      "notes": "Executed 2026-10-12 with verified Vina 1.2.7, fpocket source 4.2.3, Open Babel and RDKit. Canonical 1STP-BTN control PASSED: top-pose symmetry-aware heavy-atom RMSD in the receptor frame (CalcRMS, no ligand alignment) = 0.8285105612 A, predeclared threshold <=2.0 A. Retained source, prepared inputs, Vina log/output, top-pose chemistry and SHA-256 manifest. Full panel FAILED: 1/10; nine entries did not contain their declared ligand, so panel validation remains unclaimed and fixtures require curation. This single control does not support general docking accuracy, affinity accuracy or screening-enrichment claims. Earlier 1IEP fixture remains retired/blocked."
     },
     {
       "feature_id": "MD-SIM",

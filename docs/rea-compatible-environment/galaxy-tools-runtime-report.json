@@ -1,0 +1,39 @@
+{
+  "date": "2026-10-14",
+  "strategy": "Analyze an original shipped lazy chunk referenced by the unchanged Galaxy entry; do not split or rewrite source.",
+  "source_url": "https://usegalaxy.org/static/dist/ToolsListTable-BYfBwm4v.js",
+  "source_sha256": "e97bee3e48e25e30e8d217d2ac552160dc67d61fbfaa12373f6032b19d6e410e",
+  "entry_sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8",
+  "environment": {
+    "node": "22.22.2",
+    "rea": "6.4.0",
+    "pid": 24,
+    "proc_self_pid": 24,
+    "vcpus": 4,
+    "memory_mib": 8192,
+    "worker_heap_mib": 2048,
+    "timeout_ms": 90000,
+    "session_stopped": true
+  },
+  "parent_evidence_id": "ev_9b48a88ae0237da1157563aaa324212d1431e2c90a2af95ca8280321de561b9a",
+  "parent_file_sha256": "e83845df7363db0ab86be6286f745874874b58060595926fcf3448f4fdcb07e5",
+  "parent_file_bytes": 14634231,
+  "statistics": {
+    "source_bytes": 36348,
+    "ast_nodes": 11071,
+    "parse_failures": 0,
+    "semantic_nodes": 6944,
+    "semantic_relations": 10354,
+    "static_unknowns": 2362
+  },
+  "semantic_coverage": {
+    "status": "unknown",
+    "truncated": false
+  },
+  "limitations": [
+    "Only the original tool-list chunk was inventoried; imported dependencies and backend behavior are outside scope.",
+    "The full 7-MB entry remains heap-limited. This focused success does not establish whole-application recovery or feature parity.",
+    "Only the authenticated REA summary view is retained; full parent evidence was processed in the temporary VM and its hash is recorded.",
+    "Larger v3/v4 sandbox creation requests returned 400 without a specific validation message; no resource-limit cause is asserted."
+  ]
+}

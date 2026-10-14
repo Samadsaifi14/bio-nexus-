@@ -53,11 +53,11 @@ const config: Config = {
           salt:        'rgb(var(--interaction-salt) / <alpha-value>)',
         },
         // Static cool hairlines — legible on both dark and light canvases.
-        glass: 'rgba(100,110,180,0.07)',
-        'glass-hover': 'rgba(100,110,180,0.13)',
+        glass: 'rgb(var(--bg-surface-0) / <alpha-value>)',
+        'glass-hover': 'rgb(var(--bg-surface-1) / <alpha-value>)',
         'glass-border': 'rgb(var(--glass-border) / var(--glass-border-a))',
-        'glass-border-soft': 'rgba(148,163,184,0.07)',
-        'glass-border-bright': 'rgba(74,222,128,0.2)',
+        'glass-border-soft': 'rgb(var(--glass-border) / 0.2)',
+        'glass-border-bright': 'rgb(var(--accent-cyan) / 0.4)',
         // 3D-viewer / canvas scene background + floating HUD chrome.
         viewer: 'rgb(var(--viewer-bg) / <alpha-value>)',
         hud: 'rgb(var(--hud-chip-bg) / <alpha-value>)',
@@ -71,10 +71,10 @@ const config: Config = {
         },
       },
       fontFamily: {
-        display: ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
-        body:    ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
-        mono:    ['var(--font-geist-mono)', 'ui-monospace', 'monospace'],
-        sans:    ['var(--font-geist-sans)', 'system-ui', 'sans-serif'],
+        display: ['Palatino Linotype', 'Palatino', 'Georgia', 'serif'],
+        body:    ['Trebuchet MS', 'Segoe UI', 'Arial', 'sans-serif'],
+        mono:    ['SFMono-Regular', 'Consolas', 'Liberation Mono', 'monospace'],
+        sans:    ['Trebuchet MS', 'Segoe UI', 'Arial', 'sans-serif'],
       },
       boxShadow: {
         'glow-cyan':   'var(--shadow-glow-cyan)',
@@ -92,14 +92,10 @@ const config: Config = {
         'float-sm':  'var(--shadow-float-sm)',
       },
       backgroundImage: {
-        'grid-subtle':
-          'linear-gradient(rgba(100,110,255,0.05) 1px, transparent 1px), linear-gradient(90deg, rgba(100,110,255,0.05) 1px, transparent 1px)',
-        'radial-vignette':
-          'radial-gradient(ellipse 80% 80% at 50% 50%, transparent 25%, var(--vignette-mid) 70%, var(--vignette-edge) 100%)',
-        'gradient-cyan-purple':
-          'linear-gradient(135deg, #4ADE80 0%, #60A5FA 100%)',
-        'gradient-surface':
-          'linear-gradient(180deg, rgb(var(--bg-surface-0)) 0%, rgb(var(--bg-void)) 100%)',
+        'grid-subtle': 'none',
+        'radial-vignette': 'none',
+        'gradient-cyan-purple': 'rgb(var(--accent-cyan))',
+        'gradient-surface': 'rgb(var(--bg-surface-0))',
       },
       backgroundSize: {
         grid: '50px 50px',
@@ -155,9 +151,10 @@ const config: Config = {
         content: '1280px',
       },
       borderRadius: {
-        '2xl': '1rem',
-        '3xl': '1.25rem',
-        '4xl': '1.5rem',
+        xl: '8px',
+        '2xl': '8px',
+        '3xl': '8px',
+        '4xl': '8px',
       },
       transitionTimingFunction: {
         'spring':    'cubic-bezier(0.25, 0.1, 0.25, 1)',

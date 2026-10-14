@@ -16,7 +16,9 @@ IMPORTANT — honesty rule: this runner NEVER fabricates results.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
+import math
 import os
 import re
 import shutil
@@ -24,7 +26,7 @@ import subprocess
 import sys
 import tempfile
 import time
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 import httpx
@@ -43,12 +45,19 @@ def _tools_available() -> tuple[bool, list[str]]:
     for name, label in (("obabel", "obabel"), ("fpocket", "fpocket")):
         if not shutil.which(name):
             missing.append(label)
+    try:
+        import rdkit
+    except ImportError:
+        missing.append("rdkit")
     return (not missing), missing
 
 
 def _vina_bin() -> str | None:
     from app.tools import docking as dock
-    return dock._get_vina_binary() if hasattr(dock, "_get_vina_binary") else None
+    try:
+        return dock._ensure_vina()
+    except (RuntimeError, OSError):
+        return None
 
 
 def _fetch_pdb(pdb_id: str) -> str:
@@ -62,6 +71,7 @@ def _fetch_pdb(pdb_id: str) -> str:
 
 def _split_ligand_receptor(pdb_text: str, lig_resname: str):
     ref_lines, prot_lines, seen_model = [], [], False
+    ligand_key = None
     for line in pdb_text.splitlines():
         rec = line[:6].strip()
         if rec == "MODEL":
@@ -79,7 +89,11 @@ def _split_ligand_receptor(pdb_text: str, lig_resname: str):
             prot_lines.append(line)
         elif rec == "HETATM" and len(line) >= 18 and line[17:20].strip() == lig_resname:
             if not (len(line) > 16 and line[16] not in (" ", "A")):
-                ref_lines.append(line)
+                key = line[21:27]
+                if ligand_key is None:
+                    ligand_key = key
+                if key == ligand_key:
+                    ref_lines.append(line)
     return "\n".join(prot_lines), ref_lines
 
 
@@ -88,53 +102,60 @@ def _heavy_centroid(lig_lines) -> list[float]:
         return name.lstrip()[0] != "H"
     coords = [[float(l[30:38]), float(l[38:46]), float(l[46:54])]
               for l in lig_lines if is_heavy(l[12:16])]
-    return [sum(c[i] for c in coords) / len(coords) for i in range(3)] if coords else [0.0, 0.0, 0.0]
+    if not coords:
+        raise ValueError("Crystal ligand contains no heavy-atom coordinates")
+    if not all(math.isfinite(v) for xyz in coords for v in xyz):
+        raise ValueError("Crystal ligand coordinates must be finite")
+    return [sum(c[i] for c in coords) / len(coords) for i in range(3)]
 
 
-def _extract_sdf_models(sdf_text: str) -> dict[int, str]:
-    """Split a multi-`$$$$`/MODEL SDF into per-model SDF blocks (1-indexed)."""
-    from rdkit import Chem
+def _extract_pdbqt_models(pdbqt_text: str) -> dict[int, str]:
+    """Vina result_sdf currently contains PDBQT, not an SDF molecule."""
     blocks = {}
-    # If MODEL delimiters present, chunk on those; otherwise chunk on $$$$.
-    if "MODEL" in sdf_text and "ENDMDL" in sdf_text:
-        cur = None
-        for line in sdf_text.splitlines():
-            if line.startswith("MODEL"):
-                cur = int(line.split()[1]); blocks[cur] = []
-            elif line.startswith("ENDMDL"):
-                cur = None
-            elif cur is not None:
-                blocks[cur].append(line)
-        return {k: "\n".join(v) for k, v in blocks.items()}
-    for i, block in enumerate(sdf_text.split("$$$$")):
-        b = block.strip()
-        if b:
-            blocks[i + 1] = b
-    return blocks
+    cur = None
+    for line in pdbqt_text.splitlines():
+        if line.startswith("MODEL"):
+            cur = int(line.split()[1]); blocks[cur] = []
+        elif line.startswith("ENDMDL"):
+            cur = None
+        elif cur is not None:
+            blocks[cur].append(line)
+    return {k: "\n".join(v) + "\n" for k, v in blocks.items()}
 
 
-def _rmsd_vs_crystal(pose_sdf_block: str, ref_mol) -> float | None:
-    """Symmetry-aware heavy-atom RMSD between a Vina pose and the crystal ligand.
+def _restore_pose_chemistry(pose_sdf_block: str, ref_mol):
+    """Restore the known ligand graph after PDBQT merges nonpolar hydrogens.
 
-    Both are RDKit mols with real element/bond information, so
-    symmetry_aware_pose_rmsd (RDKit GetBestRMS) relaxes atom numbering and
-    handles symmetric groups correctly. Returns None when the pose cannot be
-    parsed or heavy-atom counts differ (honest skip, never a fabricated pass).
+    Bond/charge information comes from the prepared ligand reference, never
+    from its coordinates. The docked heavy-atom coordinates remain unchanged.
     """
     from rdkit import Chem
-    from app.benchmarking.docking_redock import symmetry_aware_pose_rmsd
+    from rdkit.Chem import AllChem
 
     pose = Chem.MolFromMolBlock(pose_sdf_block, removeHs=False, sanitize=True)
     if pose is None:
-        return None
+        raise ValueError("Could not parse docked pose SDF")
     ref_h = Chem.RemoveHs(Chem.Mol(ref_mol))
     pose_h = Chem.RemoveHs(pose)
     if ref_h.GetNumAtoms() != pose_h.GetNumAtoms():
-        return None
-    try:
-        return symmetry_aware_pose_rmsd(Chem.Mol(ref_mol), pose)
-    except Exception:
-        return None
+        raise ValueError("Reference/predicted heavy-atom counts differ")
+    restored = AllChem.AssignBondOrdersFromTemplate(ref_h, pose_h)
+    for atom in restored.GetAtoms():
+        atom.SetNumRadicalElectrons(0)
+        atom.SetNoImplicit(False)
+    Chem.SanitizeMol(restored)
+    return restored
+
+
+def _rmsd_vs_crystal(pose_sdf_block: str, ref_mol) -> float:
+    """Symmetry-aware heavy-atom RMSD between a Vina pose and the crystal ligand.
+
+    Both are RDKit mols with real element/bond information, so
+    symmetry_aware_pose_rmsd (RDKit CalcRMS) relaxes atom numbering and
+    handles symmetric groups correctly. Invalid chemistry fails explicitly.
+    """
+    from app.benchmarking.docking_redock import symmetry_aware_pose_rmsd
+    return symmetry_aware_pose_rmsd(ref_mol, _restore_pose_chemistry(pose_sdf_block, ref_mol))
 
 
 def main() -> int:
@@ -142,15 +163,25 @@ def main() -> int:
     parser.add_argument("--panel", type=Path, default=FIXTURE_DIR / "redock_panel.json")
     parser.add_argument("--outdir", type=Path, default=REPO / "benchmark" / "results" / "docking" / "redock")
     parser.add_argument("--runtime-out", type=Path)
+    parser.add_argument("--canonical", action="store_true", help="Run only the predeclared 1STP-BTN control")
     args = parser.parse_args()
 
     panel = json.loads(args.panel.read_text(encoding="utf-8"))
     criteria = panel["predeclared_success_criteria"]
+    if args.canonical:
+        from app.benchmarking.docking_redock import canonical_redocking_fixture
+        fixture = canonical_redocking_fixture()
+        panel["complexes"] = [cx for cx in panel["complexes"] if cx["pdb"] == fixture["pdb_id"]
+                              and cx["ligand_resname"] == fixture["ligand_resname"]]
+        if len(panel["complexes"]) != 1:
+            raise ValueError("Canonical control must match exactly one panel entry")
+        criteria = {**criteria, "panel_pass_threshold_frac": 1.0,
+                    "note": "Canonical 1STP-BTN control: top pose RMSD <= 2.0 A; no panel-wide validation claim."}
 
     available, missing = _tools_available()
     if not available:
         record = {
-            "benchmark": "bionexus-redock-panel/v1",
+            "benchmark": "BBS1-DOCK-1STP-BTN" if args.canonical else "bionexus-redock-panel/v1",
             "status": "not_executed",
             "reason": "requires_external",
             "missing_tools": missing,
@@ -166,6 +197,13 @@ def main() -> int:
 
     results = []
     passes = 0
+    run_id = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S%fZ")
+    from rdkit import rdBase
+    tool_versions = {"python": sys.version.split()[0], "rdkit": rdBase.rdkitVersion,
+                     "openbabel": subprocess.run(["obabel", "-V"], capture_output=True,
+                                                 text=True, timeout=30).stdout.strip(),
+                     "vina_binary_sha256": hashlib.sha256(Path(_vina_bin()).read_bytes()).hexdigest(),
+                     "fpocket_binary_sha256": hashlib.sha256(Path(shutil.which("fpocket")).read_bytes()).hexdigest()}
     for cx in panel["complexes"]:
         t0 = time.time()
         entry = {"id": cx["id"], "pdb": cx["pdb"], "ligand_resname": cx["ligand_resname"],
@@ -178,7 +216,7 @@ def main() -> int:
                 raise RuntimeError("no receptor/ligand lines parsed")
             ref_center = _heavy_centroid(ref_lines)
 
-            from app.tools.docking import compute_pocket_grid, run_vina
+            from app.tools.docking import compute_pocket_grid, pdb_to_pdbqt_receptor, run_vina
             grid = compute_pocket_grid(receptor_pdb)
             if not grid:
                 raise RuntimeError("fpocket found no pocket")
@@ -186,6 +224,10 @@ def main() -> int:
             if offset >= 8.0:
                 raise RuntimeError(f"grid does not cover site (offset {offset:.1f} A)")
 
+            artifact_dir = args.outdir / "artifacts" / run_id / cx["id"]
+            artifact_dir.mkdir(parents=True, exist_ok=True)
+            entry["artifact_directory"] = str(artifact_dir.relative_to(args.outdir))
+            (artifact_dir / "source.pdb").write_text(pdb_text, encoding="utf-8")
             with tempfile.TemporaryDirectory() as tmp:
                 lig_pdb = os.path.join(tmp, "lig.pdb")
                 lig_pdbqt = os.path.join(tmp, "lig.pdbqt")
@@ -207,21 +249,45 @@ def main() -> int:
                 ref_mol = Chem.MolFromMolBlock(Path(ref_sdf).read_text(encoding="utf-8"), removeHs=False, sanitize=True)
                 if ref_mol is None:
                     raise RuntimeError("could not parse reference ligand SDF")
+                for name in ("lig.pdb", "lig.pdbqt", "lig_ref.sdf"):
+                    shutil.copyfile(Path(tmp) / name, artifact_dir / name)
 
-            result = run_vina(receptor_pdb, ligand_pdbqt, grid_center=grid["center"],
+            receptor_pdbqt = pdb_to_pdbqt_receptor(receptor_pdb)
+            (artifact_dir / "receptor.pdbqt").write_text(receptor_pdbqt, encoding="utf-8")
+            result = run_vina(receptor_pdbqt, ligand_pdbqt, grid_center=grid["center"],
                               grid_size=grid["size"], exhaustiveness=32, num_modes=9, seed=42)
 
-            # Parse each pose as a separate SDF block for RMSD (atom/bond-aware).
-            pose_blocks = _extract_sdf_models(result["result_sdf"])
+            (artifact_dir / "vina_output.pdbqt").write_text(result["result_sdf"], encoding="utf-8")
+            (artifact_dir / "vina.log").write_text(result["vina_log"], encoding="utf-8")
+            pose_blocks = _extract_pdbqt_models(result["result_sdf"])
             top_rmsd = None
             if 1 in pose_blocks:
-                top_rmsd = _rmsd_vs_crystal(pose_blocks[1], ref_mol)
+                pose_path = artifact_dir / "top_pose.pdbqt"
+                sdf_path = artifact_dir / "top_pose.sdf"
+                pose_path.write_text(pose_blocks[1], encoding="utf-8")
+                conversion = subprocess.run(["obabel", str(pose_path), "-O", str(sdf_path)],
+                                            capture_output=True, text=True, timeout=120)
+                if conversion.returncode != 0 or not sdf_path.is_file():
+                    raise RuntimeError(f"Pose SDF conversion failed: {conversion.stderr[:300]}")
+                top_rmsd = _rmsd_vs_crystal(sdf_path.read_text(encoding="utf-8"), ref_mol)
+                restored = _restore_pose_chemistry(sdf_path.read_text(encoding="utf-8"), ref_mol)
+                (artifact_dir / "top_pose_chemical_graph.sdf").write_text(
+                    Chem.MolToMolBlock(restored) + "\n$$$$\n", encoding="utf-8")
 
+            entry["grid"] = grid
+            entry["site_offset_angstrom"] = offset
+            entry["vina_version"] = result["vina_version"]
+            entry["seed"] = 42
+            entry["exhaustiveness"] = 32
+            entry["metric"] = "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)"
+            entry["artifact_sha256"] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
+                                         for p in artifact_dir.iterdir() if p.is_file()}
             entry["runtime_s"] = round(time.time() - t0, 2)
             entry["top_pose_rmsd_angstrom"] = top_rmsd
             entry["n_pose_models"] = len(pose_blocks)
             entry["affinity_kcal_mol"] = result.get("affinity")
-            entry["passed"] = top_rmsd is not None and top_rmsd < criteria["per_complex_rmsd_threshold_angstrom"]
+            threshold = criteria["per_complex_rmsd_threshold_angstrom"]
+            entry["passed"] = top_rmsd is not None and (top_rmsd <= threshold if args.canonical else top_rmsd < threshold)
             if entry["passed"]:
                 passes += 1
         except Exception as exc:  # per-complex failure
@@ -236,7 +302,14 @@ def main() -> int:
                 and (not criteria["essential_top_pose_success"] or essential_pass))
 
     record = {
-        "benchmark": "bionexus-redock-panel/v1",
+        "benchmark": "BBS1-DOCK-1STP-BTN" if args.canonical else "bionexus-redock-panel/v1",
+        "run_id": run_id,
+        "tool_versions": tool_versions,
+        "code_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in (
+            "benchmark/fixtures/docking/run_redock_panel.py",
+            "bioai-platform/backend/app/tools/docking.py",
+            "bioai-platform/backend/app/benchmarking/docking_redock.py")},
+        "executed_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": "passed" if panel_ok else "failed",
         "recorded": date.today().isoformat(),
         "n_complexes": len(results),
@@ -249,6 +322,7 @@ def main() -> int:
     }
     args.outdir.mkdir(parents=True, exist_ok=True)
     (args.outdir / "latest.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="")
+    (args.outdir / f"{run_id}.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
     print(f"REDOCK PANEL {record['status']}: {passes}/{len(results)} complexes < 2.0 A RMSD")
     return 0 if panel_ok else 1
 

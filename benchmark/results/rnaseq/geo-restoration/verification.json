@@ -1,0 +1,193 @@
+{
+  "status": "PASSED",
+  "source": "GEO GSE336901 downloaded record and supplement",
+  "genes_input": 42000,
+  "genes_kept": 14343,
+  "samples": 10,
+  "groups": [
+    {
+      "name": "resistant",
+      "samples": 5
+    },
+    {
+      "name": "sensitive",
+      "samples": 5
+    }
+  ],
+  "design": "~condition",
+  "source_sha256": "4f93f02c417da5e1d1a1fd04021f4c687d71c53b1225787ddcfa542a690e7628",
+  "source_record_sha256": "72cae1ab08d41ea3318bd849f26766595e3e4065fc87795df3d4fcaa19e8f2a3",
+  "outputs_sha256": {
+    "ma_plot.pdf": "b36c89fc46a8a17c71dd8d027d4f50929f7c8a57be5d1f76b15d41b27271c985",
+    "pca.pdf": "bfab3fb2b92c0ed4171167c2804be9f4ce6346f912b28699b26199c4fa20ea6b",
+    "dispersion_plot.pdf": "2cb8899850f0338d6ca86f97ddbb1a572a332de42e951f176e8ff055c8358910",
+    "heatmap_exclusions.tsv": "c646f4226ce665649536f96e719ef276b6f776a30396a0b95052bb0d51356cf1",
+    "dispersion_plot.svg": "174ebd976ea2485e0d8272dd217c7e82786605fec77787a5eae706ec429cb652",
+    "size_factors.tsv": "02b42a7b6441be126363f89ca3cd5f4951929833a153eb77e754fe3b8fd6adfe",
+    "analysis_summary.json": "c52ba9469bc0893e5c0d01f508971f4e6ac3635319c803c50248c94d36bed902",
+    "go_enrichment_summary.json": "81da7aa758921b80b7f06f725ffc0e14d7c70f46e74650d424b1941118ced3c4",
+    "normalized_counts.tsv": "eaccb3448ee9dd0b1b3419218e611a913118e879d840dca713663bdd0bb1cd24",
+    "design_audit.json": "93d9db37b948935bbbf4b3a41ebb514745ed99fa2c175525111bedabebdf3d1f",
+    "heatmap_gene_selection.tsv": "ebfb5d1dc019f3f14a4f8728d9000b8dae869487b803e33d970c118479227343",
+    "ma_plot.png": "5555339f2c1ad0d6db73d148931daffc116fbc37cf9899d20e85d74810c5c58e",
+    "dds_fitted.rds": "eef452458eedf8cd55930d6f11707408ecb9f7fe81ab6cfae014e1ff5e5e552a",
+    "ma_plot.svg": "aefd8ac96d333b7cbad3748fd954ca8b9a5e233753ce75d29ebb9745a3de9410",
+    "dispersion_plot.png": "f355868bcaf8167a36578aa7c03a0e69290a33acd2a2b41d5b01e57c25a326ad",
+    "execution_versions.json": "8064ef6bee67990180c13c8c2cb929e33a922c953781544c1830e6dd89c47654",
+    "sample_distance_heatmap.png": "0e77b8ae10a736981dced08d6604ae7920459011a5ad6bd79304996554e0245a",
+    "volcano_plot_data.tsv": "ec16739b6afaafee1109dbd285197ef2cf9d29b62bdf979dcd32e74aaab80272",
+    "expression_heatmap.pdf": "755433b9b66038a7668f22aa701ece3b1a9859bbff2ee1b22fb68e8627c6e69f",
+    "heatmap_matrix_zscore.tsv": "86f9e73fee6c4ed8029788a4e5eb3df745e609777b9d8ab1c1fc1c3dc8495fcb",
+    "library_sizes.tsv": "457b4443d12409bc3fcb7ad087c826f07dd3d66949386ed402ecb2f920ccbf0a",
+    "pca_coordinates.tsv": "602c4cc32843324082458f77fadeb5cdf8a41fb131fe8e88512d4bb81f744107",
+    "volcano.png": "2fada819d2e6e4c80ce754991573640d3d665213b09f4ce65151e3da2cbb36ae",
+    "pca.png": "82ee142e4b14a0b6db1c71c411b6773a7f2e3a49e21e411bc7bd38dab0e9a10c",
+    "deseq2_significant.tsv": "59aae7f703a77c20dfecf1c0ce8c26e767119110d0500b0b64185e948e679027",
+    "volcano.pdf": "96e00d38a00b2689cc698bf18df5759bc497577e764241ea308d7b6565598db1",
+    "expression_heatmap.png": "2f2aa630f7e77923319ada8c4911db22fc35065ed02cae5ec51251c79451f7f6",
+    "deseq2_all_results.tsv": "35a407fab662d0e3b7367dd92dabcbe8de309fc46691d873f613c512701abf86",
+    "volcano.svg": "fce6432eec9d5493806d9ef3ac0ef049984396b65cd5d75f442126e72f8fd956",
+    "sample_distance_matrix.tsv": "c7012e5263b767bddb17d304cbd69eef4057611941d2d825a6708da410bddcd7",
+    "sessionInfo.txt": "924e7281dfe2f3141842d86871e16d7d63a594e711c41849ed0bb92944a10412",
+    "R_stdout.log": "6e8848b0e204de75d107bbada4f66e1e5080c6a6c439fc78e34987d79b7e635b",
+    "R_stderr.log": "de7ffbd974c854e01b5b82c55518ade09bdb9ac6cf66b133623ef12854c80357",
+    "sample_distance_heatmap.pdf": "45b593cb3329e7591f0bb2870cc852befb274e2a36960427663bf554c8116e1f",
+    "expression_heatmap.svg": "d2efc9d8f5286c5da3e22c9e117d810d512a9c6d6d19e8aba8d5c3aa985f247a",
+    "pca.svg": "fe9587488cd176b67a613cd3324fe4b5edc50ae29bf2110af0651975b0701b90",
+    "sample_distance_heatmap.svg": "afaec6c003e86181db10653701dadff58b919673c2970c549b3ebaad5b0fee69"
+  },
+  "enrichment_status": "UNAVAILABLE",
+  "enrichment_limitation": "Local annotations are unavailable. Supply a versioned GMT to run locally with exact IDs.",
+  "statistical_validation": "required full-stage R artifacts validated; not independent biological validation",
+  "contract_tests_passed": 87,
+  "full_matrix_reference_regression": {
+    "status": "PASSED",
+    "run_id": "20261012T105234237658Z",
+    "runtime_versions": {
+      "R": "4.3.3",
+      "packages": {
+        "DESeq2": "1.42.0",
+        "ggplot2": "3.4.4"
+      }
+    },
+    "comparisons": {
+      "deseq2_all_results.tsv": {
+        "rows": 20169,
+        "fields": [
+          "baseMean",
+          "log2FoldChange",
+          "lfcSE",
+          "stat",
+          "pvalue",
+          "padj",
+          "significant"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      },
+      "size_factors.tsv": {
+        "rows": 18,
+        "fields": [
+          "size_factor"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      },
+      "normalized_counts.tsv": {
+        "rows": 20169,
+        "fields": [
+          "Cer_healthy1",
+          "Cer_healthy2",
+          "Cer_healthy3",
+          "Cer_healthy4",
+          "Cer_healthy5",
+          "Cer_healthy6",
+          "Cer_healthy7",
+          "Cer_healthy8",
+          "Cer_SALS1",
+          "Cer_SALS2",
+          "Cer_SALS3",
+          "Cer_SALS4",
+          "Cer_SALS5",
+          "Cer_SALS6",
+          "Cer_SALS7",
+          "Cer_SALS8",
+          "Cer_SALS9",
+          "Cer_SALS10"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      },
+      "pca_coordinates.tsv": {
+        "rows": 18,
+        "fields": [
+          "PC1",
+          "PC2"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      },
+      "sample_distance_matrix.tsv": {
+        "rows": 18,
+        "fields": [
+          "Cer_healthy1",
+          "Cer_healthy2",
+          "Cer_healthy3",
+          "Cer_healthy4",
+          "Cer_healthy5",
+          "Cer_healthy6",
+          "Cer_healthy7",
+          "Cer_healthy8",
+          "Cer_SALS1",
+          "Cer_SALS2",
+          "Cer_SALS3",
+          "Cer_SALS4",
+          "Cer_SALS5",
+          "Cer_SALS6",
+          "Cer_SALS7",
+          "Cer_SALS8",
+          "Cer_SALS9",
+          "Cer_SALS10"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      },
+      "volcano_plot_data.tsv": {
+        "rows": 20169,
+        "fields": [
+          "log2FoldChange",
+          "padj",
+          "minus_log10_padj",
+          "significant"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      },
+      "heatmap_matrix_zscore.tsv": {
+        "rows": 5,
+        "fields": [
+          "Cer_healthy1",
+          "Cer_healthy2",
+          "Cer_healthy3",
+          "Cer_healthy4",
+          "Cer_healthy5",
+          "Cer_healthy6",
+          "Cer_healthy7",
+          "Cer_healthy8",
+          "Cer_SALS1",
+          "Cer_SALS2",
+          "Cer_SALS3",
+          "Cer_SALS4",
+          "Cer_SALS5",
+          "Cer_SALS6",
+          "Cer_SALS7",
+          "Cer_SALS8",
+          "Cer_SALS9",
+          "Cer_SALS10"
+        ],
+        "maximum_absolute_difference": 0.0,
+        "tolerance": 1e-07
+      }
+    }
+  }
+}

@@ -1,0 +1,70 @@
+{
+  "input_kind": "raw_counts",
+  "normalization_method": "median_of_ratios",
+  "enrichment": {
+    "status": "NEEDS_ORGANISM",
+    "message": "Choose the documented organism. Human/mouse use local GO; other species can use a species-matched GMT. Sample groups cannot be inferred from gene identifiers.",
+    "organism": "auto",
+    "database": "GO",
+    "method": "One-sided hypergeometric ORA; BH across all term-direction tests",
+    "method_key": "ora",
+    "R_version": "R version 4.3.3 (2024-02-29)",
+    "alias_fallback": true,
+    "min_term_size": 10,
+    "max_term_size": 500,
+    "alpha": 0.05,
+    "background": "DESeq2 non-missing adjusted p-values; uniquely mapped, annotated genes",
+    "recovery_options": ["Review organism and ID type", "Enable unique symbol-alias recovery", "Supply a species-matched GMT and optional ID mapping"]
+  },
+  "genes_input": 160,
+  "genes_kept": 160,
+  "genes_removed": 0,
+  "samples": 8,
+  "reference_level": "a",
+  "test_level": "b",
+  "condition_column": "condition",
+  "covariates": [],
+  "design": "~condition",
+  "min_count": 10,
+  "min_samples_requested": 4,
+  "min_samples": 4,
+  "replicate_counts": {
+    "a": 4,
+    "b": 4
+  },
+  "design_full_rank": true,
+  "design_rank": 2,
+  "design_columns": 2,
+  "design_warnings": [
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design."
+  ],
+  "experimental_unit_status": "UNIQUE",
+  "technical_covariates_detected": [],
+  "technical_covariates_in_model": [],
+  "library_size_min": 13478,
+  "library_size_max": 22649,
+  "library_size_fold_range": 1.6804422021,
+  "size_factor_library_correlation": 0.96642759506,
+  "alpha": 0.05,
+  "lfc_threshold": 1,
+  "significant": 31,
+  "up": 30,
+  "down": 1,
+  "pca_percent_variance": {
+    "PC1": 32.651,
+    "PC2": 16.235
+  },
+  "size_factor_min": 0.91790357541,
+  "size_factor_max": 1.1622902561,
+  "lfc_shrinkage": "normal",
+  "expression_heatmap_generated": true,
+  "expression_heatmap_basis": "significant_DE_genes",
+  "expression_heatmap_genes": 31,
+  "package_versions": {
+    "R": "R version 4.3.3 (2024-02-29)",
+    "DESeq2": "1.42.0",
+    "ComplexHeatmap": "2.18.0",
+    "ggplot2": "3.4.4",
+    "circlize": "0.4.15"
+  }
+}

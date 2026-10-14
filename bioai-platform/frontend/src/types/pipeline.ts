@@ -312,7 +312,7 @@ export interface UniprotSummary {
   /** Tier-6 de novo annotation bundle (stored in the uniprot slot when no homolog was identified) */
   _de_novo?: boolean;
   composition?: Record<string, unknown> & { sequence_type?: string };
-  function_hints?: { go_terms?: string[]; _note?: string; source?: string };
+  function_hints?: { go_terms?: Array<string | { go_id: string; name: string; namespace?: string; evidence_type?: string }>; status?: string; note?: string; _note?: string; source?: string };
 }
 
 export type QueryConfidence = 'identified' | 'homolog' | 'de_novo';

@@ -20,6 +20,7 @@ import { downloadTsv } from '@/lib/export-utils';
 
 interface InteractionPanelProps {
   interactions: DockingInteraction;
+  analysis?: { status: 'COMPUTED' | 'UNAVAILABLE'; method?: string; reason?: string; limitations?: string };
   onHighlight?: (coords: [number, number, number] | null) => void;
 }
 
@@ -268,7 +269,7 @@ function Section({ title, icon, count, color, collapsed, onToggle, children }: {
   );
 }
 
-export function InteractionPanel({ interactions, onHighlight }: InteractionPanelProps) {
+export function InteractionPanel({ interactions, analysis, onHighlight }: InteractionPanelProps) {
   const rows = useMemo<ContactRow[]>(() => [
     ...interactions.hbonds.map(item => ({ kind: 'H-bond' as const, residue: `${item.protein_residue}${item.protein_residue_seq}`, chain: item.protein_chain, distance: item.distance })),
     ...interactions.hydrophobic.map(item => ({ kind: 'Hydrophobic' as const, residue: `${item.protein_residue}${item.protein_residue_seq}`, chain: item.protein_chain, distance: item.distance })),
@@ -277,8 +278,6 @@ export function InteractionPanel({ interactions, onHighlight }: InteractionPanel
   ], [interactions]);
 
   const total = rows.length;
-  if (!total) return null;
-
   const meanDistance = safeMean(rows.map(row => row.distance).filter(Number.isFinite));
   const uniqueResidues = new Set(rows.map(row => `${row.residue}:${row.chain}`)).size;
 
@@ -300,6 +299,16 @@ export function InteractionPanel({ interactions, onHighlight }: InteractionPanel
         </div>
         <button onClick={exportInteractions} title="Download interactions as TSV" className="ml-auto flex items-center gap-1.5 rounded border border-glass-border bg-surface-1 px-2 py-1 text-xs text-text-secondary transition-colors hover:text-accent-cyan"><Download className="w-3.5 h-3.5" /> TSV</button>
       </div>
+
+      {analysis?.status === 'UNAVAILABLE' ? (
+        <div className="mb-4 rounded-lg border border-accent-amber/30 bg-accent-amber/5 p-3 text-xs text-text-secondary">
+          Interaction analysis could not be completed{analysis.reason ? ` (${analysis.reason})` : ''}. Empty contact lists do not mean no interactions were found.
+        </div>
+      ) : total === 0 ? (
+        <div className="mb-4 rounded-lg border border-glass-border bg-surface-1 p-3 text-xs text-text-secondary">
+          Analysis completed; no contacts met the configured geometric criteria for this pose. This does not rule out binding or other interaction types.
+        </div>
+      ) : null}
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
         <div className="rounded-xl border border-glass-border bg-surface-1 p-3"><p className="text-[11px] uppercase tracking-wide text-text-muted">Detected contacts</p><p className="mt-1 font-mono text-xl font-semibold text-text-primary">{total}</p></div>

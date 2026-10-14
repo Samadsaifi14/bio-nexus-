@@ -71,60 +71,19 @@ async def _analyze_pockets(pdb_text: str, pdb_id: str, probe_radius: float, meth
     if method_key in {"fpocket", "f_pocket"}:
         fpocket = FPOCKET_BIN if Path(FPOCKET_BIN).exists() else (shutil.which("fpocket") or "")
         if not fpocket or not Path(fpocket).exists():
-            if not _parse_pdb_chains(pdb_text)["chains"]:
-                result = _empty_result(
-                    pdb_id,
-                    probe_radius,
-                    method="fpocket",
-                    status="FAILED",
-                    engine_version="unavailable",
-                    evidence_class="Unsupported/insufficient evidence",
-                    reason="fpocket executable is unavailable; no heuristic was substituted",
-                )
-                _attach_structure_summary(pdb_text, result)
-                return result
-            methods_tried = [{"method": "fpocket", "status": "unavailable"}]
-            try:
-                loop = asyncio.get_running_loop()
-                result = await loop.run_in_executor(None, _analyze_pockets_sasa_sync, pdb_text, pdb_id, probe_radius)
-            except Exception as exc:
-                error = f"{type(exc).__name__}: {exc}"
-                methods_tried.append({"method": "sasa_heuristic", "status": "crashed"})
-                result = _empty_result(
-                    pdb_id,
-                    probe_radius,
-                    method="none",
-                    status="FAILED",
-                    engine_version="fpocket unavailable; sasa_heuristic crashed",
-                    evidence_class="Unsupported/insufficient evidence",
-                    reason=error,
-                )
-                result["methods_tried"] = methods_tried
-                result["fallback_used"] = True
-                result["fallback_method"] = "sasa_heuristic"
-                result["error"] = str(exc)
-                _attach_structure_summary(pdb_text, result)
-                return result
-            heuristic_status = "ran_no_pockets" if not result.get("pockets") else "ran_with_pockets"
-            methods_tried.append({"method": "sasa_heuristic", "status": heuristic_status})
-            result["method"] = "sasa_heuristic"
-            result["engine"] = "BioNexus exploratory SASA heuristic"
-            result["status"] = "DEGRADED"
-            result["methods_tried"] = methods_tried
-            result["fallback_used"] = True
-            result["fallback_method"] = "sasa_heuristic"
-            result["note"] = (
-                "CASTp architecture: fpocket is unavailable in this deployment, so the "
-                "analysis fell back to the BioNexus exploratory SASA heuristic. All "
-                "values are attributed to sasa_heuristic; no fpocket or CASTp values "
-                "were substituted."
+            result = _empty_result(
+                pdb_id, probe_radius, method="fpocket", status="FAILED",
+                engine_version="unavailable", evidence_class="Unsupported/insufficient evidence",
+                reason="fpocket executable is unavailable; no heuristic substitution was performed. Select the exploratory SASA heuristic explicitly to run that method.",
             )
+            result["methods_tried"] = [{"method": "fpocket", "status": "unavailable"}]
             _attach_structure_summary(pdb_text, result)
             return result
         loop = asyncio.get_running_loop()
         result = await loop.run_in_executor(None, _run_fpocket_analysis, fpocket, pdb_text, pdb_id, probe_radius)
         result.setdefault("fallback_used", False)
-        result["methods_tried"] = [{"method": "fpocket", "status": "ok"}]
+        result["methods_tried"] = [{"method": "fpocket", "status": "ok" if result.get("status", "VALID") == "VALID" else "failed"}]
+        _attach_structure_summary(pdb_text, result)
         return result
 
     if method_key in {"heuristic", "sasa", "sasa_heuristic", "bionexus_heuristic"}:
@@ -140,9 +99,10 @@ def _fpocket_version(fpocket_bin: str) -> str:
     for args in ([fpocket_bin, "-v"], [fpocket_bin, "--version"]):
         try:
             completed = subprocess.run(args, capture_output=True, text=True, timeout=10)
-            text = (completed.stdout or completed.stderr or "").strip()
-            if text:
-                return text.splitlines()[0][:120]
+            text = re.sub(r"\x1b\[[0-9;]*m", "", (completed.stdout or "") + "\n" + (completed.stderr or ""))
+            match = re.search(r"\bfpocket\s+(?:version\s+)?(\d+(?:\.\d+)+(?:[-+][\w.]+)?)", text, re.IGNORECASE)
+            if match:
+                return match.group(1)
         except Exception:
             continue
     return "unknown"
@@ -155,7 +115,7 @@ def _run_fpocket_analysis(fpocket_bin: str, pdb_text: str, pdb_id: str, probe_ra
         input_path.write_text(pdb_text, encoding="utf-8")
         try:
             completed = subprocess.run(
-                [fpocket_bin, "-f", str(input_path), "-r", str(probe_radius)],
+                [fpocket_bin, "-f", str(input_path)],
                 capture_output=True,
                 text=True,
                 timeout=60,
@@ -219,24 +179,24 @@ def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float, version: str
                 "alpha_spheres": None,
                 "num_residues": 0,
                 "residues": [],
-                "centroid": [0.0, 0.0, 0.0],
+                "centroid": None,
             }
             continue
         if current is None:
             continue
-        lower = line.lower()
+        descriptor = line.split(":", 1)[0].strip().lower()
         value = _extract_number(line)
         if value is None:
             continue
-        if "druggability score" in lower:
+        if descriptor == "druggability score":
             current["druggability_score"] = value
-        elif "pocket score" in lower or ("score" in lower and "druggability" not in lower):
+        elif descriptor in {"score", "pocket score"}:
             current["score"] = value
-        elif "volume" in lower:
+        elif descriptor == "volume":
             current["volume"] = value
-        elif "surface area" in lower or "area" in lower:
+        elif descriptor in {"total sasa", "surface area", "area"}:
             current["area"] = value
-        elif "alpha sphere" in lower:
+        elif descriptor in {"number of alpha spheres", "alpha spheres"}:
             current["alpha_spheres"] = int(round(value))
     if current:
         pockets.append(current)
@@ -259,19 +219,21 @@ def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float, version: str
     public_pockets: list[dict[str, Any]] = []
     for pocket in pockets:
         volume = pocket.get("volume")
-        radius = round((3 * volume / (4 * math.pi)) ** (1 / 3), 2) if isinstance(volume, (int, float)) and volume > 0 else 0.0
+        radius = round((3 * volume / (4 * math.pi)) ** (1 / 3), 2) if isinstance(volume, (int, float)) and volume > 0 else None
         public_pockets.append({
             "id": pocket["id"],
-            "area_sa": round(float(pocket["area"]), 3) if pocket.get("area") is not None else 0.0,
-            "volume_sa": round(float(volume), 3) if volume is not None else 0.0,
+            "area_sa": round(float(pocket["area"]), 3) if pocket.get("area") is not None else None,
+            "volume_sa": round(float(volume), 3) if volume is not None else None,
             "score": pocket.get("score"),
             "druggability_score": pocket.get("druggability_score"),
             "alpha_spheres": pocket.get("alpha_spheres"),
             "num_residues": int(pocket.get("num_residues") or 0),
             "residues": pocket.get("residues", []),
-            "centroid": [round(float(value), 3) for value in pocket.get("centroid", [0.0, 0.0, 0.0])],
+            "centroid": [round(float(value), 3) for value in pocket["centroid"]] if pocket.get("centroid") else None,
             "radius": radius,
             "method_metrics": {
+                "fpocket_total_sasa": pocket.get("area"),
+                "fpocket_volume": pocket.get("volume"),
                 "fpocket_score": pocket.get("score"),
                 "fpocket_druggability_score": pocket.get("druggability_score"),
                 "fpocket_alpha_spheres": pocket.get("alpha_spheres"),
@@ -287,7 +249,8 @@ def _parse_fpocket(out_dir: Path, pdb_id: str, probe_radius: float, version: str
         "evidence_class": "Deterministic computation",
         "validation": {"source": "fpocket native output", "castp_values_substituted": False},
         "pdb_id": pdb_id,
-        "probe_radius": probe_radius,
+        "probe_radius": None,
+        "requested_probe_radius": probe_radius,
         "total_residues": 0,
         "pockets": public_pockets,
     }

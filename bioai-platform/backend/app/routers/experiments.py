@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.services.auth import require_user_id
@@ -16,9 +16,13 @@ from app.services.experiment import (
     get_experiment,
     get_experiment_by_id,
     persist_archive,
+    provenance_for_experiment,
     search_experiments,
 )
 from app.services.provenance import trace_for_job
+from app.services.workflow_manifest import build_workflow_manifest
+from app.services.workflow_templates import recipe_from_experiment, recipe_plan
+from app.services.validators import validate_fasta
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/experiments", tags=["experiments"])
@@ -98,6 +102,16 @@ async def get_provenance(job_id: str, user_id: str = Depends(require_user_id)):
     return trace_for_job(job_id, exp["experiment_id"])
 
 
+@router.get("/{job_id}/workflow-manifest")
+async def export_workflow_manifest(job_id: str, user_id: str = Depends(require_user_id)):
+    """Export recorded workflow evidence for an owned experiment; never execute."""
+    exp = _owned_experiment_for_job(job_id, user_id)
+    provenance = exp.get("provenance")
+    if provenance is None:
+        provenance = provenance_for_experiment(exp["experiment_id"])
+    return build_workflow_manifest(exp, provenance)
+
+
 @router.get("/{job_id}/archive")
 async def get_archive(
     job_id: str,
@@ -162,3 +176,37 @@ async def debug_trace():
 async def debug_fingerprint():
     # Sequence input must never be placed in a URL query string.
     raise HTTPException(status_code=404, detail="Debug experiment endpoints are disabled")
+
+
+class ReplayExperimentRequest(BaseModel):
+    sequence: str = Field(..., min_length=6, max_length=1000000)
+
+
+@router.get("/{job_id}/workflow-recipe")
+async def export_workflow_recipe(job_id: str, user_id: str = Depends(require_user_id)):
+    source = _owned_experiment_for_job(job_id, user_id)
+    try:
+        return recipe_plan(recipe_from_experiment(source))
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+
+
+@router.post("/{job_id}/replay")
+async def replay_workflow(job_id: str, payload: ReplayExperimentRequest, request: Request,
+                          user_id: str = Depends(require_user_id)):
+    """Create a new owned job using recorded configuration and verified original input."""
+    source = _owned_experiment_for_job(job_id, user_id)
+    validation = validate_fasta(payload.sequence, "blast")
+    if not validation.valid:
+        raise HTTPException(status_code=400, detail=validation.error)
+    sequence = str(validation.sequences[0].seq).upper()
+    if build_fingerprint(sequence, {})['input_hash'] != source.get('input_hash'):
+        raise HTTPException(status_code=409, detail='Replay input does not match the source checksum')
+    try:
+        recipe = recipe_from_experiment(source)
+    except ValueError as exc:
+        raise HTTPException(status_code=409, detail=str(exc)) from exc
+    from app.routers.pipelines import PipelineRunRequest, _create_pipeline_job
+    result = _create_pipeline_job(PipelineRunRequest(sequence=sequence, workflow_recipe=recipe), user_id, parent_job_id=job_id)
+    return {**result, 'source_job_id': job_id, 'source_experiment_id': source['experiment_id'],
+            'statement': 'New execution queued with recorded configuration. Provider/database identity may differ.'}

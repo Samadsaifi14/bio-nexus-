@@ -42,7 +42,7 @@ import { setPrefill } from '@/lib/cross-link';
 const WORKFLOW_STEPS = [
   'Select protein',
   'Search structure in PDB',
-  'Open CASTp',
+  'Open pocket analysis',
   'Enter PDB ID / Submit structure',
   'Run pocket & cavity analysis',
   'Obtain pockets (1, 2, 3...)',
@@ -278,6 +278,7 @@ function PocketLining({ pocket, activeSites }: { pocket: CastpPocket; activeSite
 export default function CastpPage() {
   const router = useRouter();
   const [identifier, setIdentifier] = useState('');
+  const [method, setMethod] = useState<'fpocket' | 'sasa_heuristic'>('fpocket');
   const [probeRadius, setProbeRadius] = useState(1.4);
   const [result, setResult] = useState<CastpResult | null>(null);
   const [loading, setLoading] = useState(false);
@@ -291,23 +292,24 @@ export default function CastpPage() {
   const handleAnalyze = async () => {
     if (!identifier.trim()) return;
     const label = identifier.trim().toUpperCase();
-    audit.emitStarted('castp_analyze', 'CASTp', label);
+    audit.emitStarted('castp_analyze', 'Pocket analysis', label);
     setLoading(true);
     setError(null);
     setResult(null);
     setSelectedPocket(null);
     try {
-      const res = await runCastp(identifier.trim(), probeRadius);
+      const res = await runCastp(identifier.trim(), probeRadius, method);
+      if (res.status === 'FAILED') throw new Error(res.error || 'Selected pocket method failed');
       setResult(res);
       setViewerUrl(undefined);
       if (res.structure_pdb) {
         const blob = new Blob([res.structure_pdb], { type: 'text/plain' });
         setViewerUrl(URL.createObjectURL(blob));
       }
-      audit.emitSuccess('castp_analyze', 'CASTp', label, `${res.pockets.length} pockets`);
+      audit.emitSuccess('castp_analyze', 'Pocket analysis', label, `${res.pockets.length} pockets`);
     } catch (err: unknown) {
       const msg = extractErrorMessage(err, 'Analysis failed');
-      audit.emitFailed('castp_analyze', 'CASTp', label, msg);
+      audit.emitFailed('castp_analyze', 'Pocket analysis', label, msg);
       setError(msg);
     } finally {
       setLoading(false);
@@ -315,6 +317,7 @@ export default function CastpPage() {
   };
 
   const handleUseForDocking = (pocket: CastpPocket) => {
+    if (!pocket.centroid || pocket.centroid.length !== 3) return;
     setDocking(true);
     // Pass the PDB and the selected pocket centroid as the Vina box center.
     setPrefill(router, 'docking_pdb_id', identifier.trim().toUpperCase(), '/analyze/docking');
@@ -329,8 +332,8 @@ export default function CastpPage() {
     <div className="max-w-4xl">
       <BackButton />
       <PageHeader
-        title="CASTp Pocket & Cavity Analysis"
-        subtitle="Resolves any identifier — PDB ID, UniProt accession, gene name, or raw sequence — through PDB search, UniProt mapping, and ESMFold modeling, then runs fpocket pocket detection (BioNexus SASA heuristic when fpocket is unavailable)."
+        title="Pocket & Cavity Analysis"
+        subtitle="Resolves any identifier — PDB ID, UniProt accession, gene name, or raw sequence — through PDB search, UniProt mapping, and ESMFold modeling, then runs the selected method. fpocket and the exploratory SASA heuristic are separate methods; CASTp is not executed here."
       />
 
       {/* Workflow stepper */}
@@ -371,11 +374,19 @@ export default function CastpPage() {
         </div>
 
         <div className="mt-4">
+          <label className="block text-xs text-text-muted mb-2" htmlFor="pocket-method">Pocket method</label>
+          <select id="pocket-method" value={method} onChange={(e) => { setMethod(e.target.value as 'fpocket' | 'sasa_heuristic'); setResult(null); }} className="w-full bg-surface-1 rounded p-2 mb-3">
+            <option value="fpocket">fpocket (requires installed engine)</option>
+            <option value="sasa_heuristic">BioNexus SASA hint (exploratory heuristic)</option>
+          </select>
+          {method === 'fpocket' && <p className="text-xs text-text-muted mb-2">fpocket uses native alpha-sphere settings. The solvent probe below applies only to the SASA heuristic.</p>}
+
           <label className="block text-xs text-text-muted mb-2">
             Probe radius: {probeRadius.toFixed(1)} Å
           </label>
           <input
             type="range"
+            disabled={method === 'fpocket'}
             min={0.5}
             max={5.0}
             step={0.1}
@@ -456,12 +467,12 @@ export default function CastpPage() {
                     : 'Uploaded structure'}
                 </span>
               )}
-              {(result.method === 'fpocket' || result.method === 'sasa_heuristic') && (
+              {(result.method === 'fpocket' || result.method === 'BioNexus exploratory SASA heuristic') && (
                 <span className={`ml-2 px-1.5 py-0.5 rounded text-[10px] ${
                   result.method === 'fpocket'
                     ? 'bg-good/10 text-good'
                     : 'bg-accent-amber/10 text-accent-amber'
-                }`} title={result.method === 'sasa_heuristic' ? 'fpocket unavailable — computed via Shrake-Rupley SASA + clustering (approximate)' : 'fpocket pocket detection'}>
+                }`} title={result.method === 'BioNexus exploratory SASA heuristic' ? 'Explicitly selected Shrake-Rupley SASA + clustering hint (approximate)' : 'fpocket pocket detection'}>
                   {result.method === 'fpocket' ? 'fpocket' : 'SASA heuristic'}
                 </span>
               )}
@@ -512,7 +523,7 @@ export default function CastpPage() {
             </div>
 
             {result.pockets.length === 0 ? (
-              <p className="text-sm text-text-muted">No significant pockets detected with this probe radius.</p>
+              <p className="text-sm text-text-muted">The selected method reported no candidate pockets.</p>
             ) : (
               <div className="space-y-4">
                 {result.pockets.map((pocket) => {
@@ -548,12 +559,12 @@ export default function CastpPage() {
 
                         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3 text-xs">
                           <div>
-                            <div className="text-text-muted text-[10px] uppercase">Area (Å²)</div>
-                            <div className="font-mono text-text-primary mt-0.5">{pocket.area_sa.toLocaleString()}</div>
+                            <div className="text-text-muted text-[10px] uppercase">{result.method === 'fpocket' ? 'fpocket total SASA (Å²)' : 'Lining SASA estimate (Å²)'}</div>
+                            <div className="font-mono text-text-primary mt-0.5">{pocket.area_sa?.toLocaleString() ?? 'Unavailable'}</div>
                           </div>
                           <div>
-                            <div className="text-text-muted text-[10px] uppercase">Volume (Å³)</div>
-                            <div className="font-mono text-text-primary mt-0.5">{pocket.volume_sa.toLocaleString()}</div>
+                            <div className="text-text-muted text-[10px] uppercase">{result.method === 'fpocket' ? 'fpocket volume (Å³)' : 'Bounding sphere estimate (Å³)'}</div>
+                            <div className="font-mono text-text-primary mt-0.5">{pocket.volume_sa?.toLocaleString() ?? 'Unavailable'}</div>
                           </div>
                           <div>
                             <div className="text-text-muted text-[10px] uppercase">Lining residues</div>
@@ -561,7 +572,7 @@ export default function CastpPage() {
                           </div>
                           <div>
                             <div className="text-text-muted text-[10px] uppercase">Radius (Å)</div>
-                            <div className="font-mono text-text-primary mt-0.5">{pocket.radius.toFixed(1)}</div>
+                            <div className="font-mono text-text-primary mt-0.5">{pocket.radius?.toFixed(1) ?? 'Unavailable'}</div>
                           </div>
                         </div>
 

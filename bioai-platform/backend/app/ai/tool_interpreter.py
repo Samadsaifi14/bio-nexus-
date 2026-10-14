@@ -8,6 +8,7 @@ LLM is unavailable or the call fails (never blocks the pipeline).
 from __future__ import annotations
 
 import json
+import hashlib
 import logging
 from typing import Any
 
@@ -18,9 +19,9 @@ logger = logging.getLogger(__name__)
 _TOOL_PROMPTS: dict[str, str] = {
     "docking": (
         "You are a computational chemistry expert. A molecular docking run just "
-        "completed using AutoDock Vina. Summarize: binding affinity of the best pose, "
+        "completed. Use the recorded engine identity. Summarize: docking score of the best pose, "
         "pose cluster quality, key protein-ligand interactions (H-bonds, hydrophobic, "
-        "pi-stacking), and whether the affinity suggests a promising lead. "
+        "pi-stacking) only when computed in the result. Docking scores do not establish experimental affinity or efficacy. "
         "Be specific with numbers (kcal/mol, distances). 2-4 sentences max."
     ),
     "structure_prep": (
@@ -88,9 +89,9 @@ _TOOL_PROMPTS: dict[str, str] = {
         "whether the primers look suitable for PCR. 2-3 sentences max."
     ),
     "castp": (
-        "You are a structural bioinformatician. A CASTp pocket analysis just "
+        "You are a structural bioinformatician. A pocket analysis just "
         "completed. Summarize the number of pockets found, their sizes (by atom "
-        "count), and what functional sites they may correspond to. 2-3 sentences max."
+        "count). Name the recorded method; do not call fpocket or SASA clustering CASTp. Pocket geometry alone does not establish function. 2-3 sentences max."
     ),
     "swissmodel": (
         "You are a structural biologist. A homology modeling job just completed "
@@ -98,9 +99,7 @@ _TOOL_PROMPTS: dict[str, str] = {
         "QMEANDiscore, and model quality. 2-3 sentences max."
     ),
     "structure_predict": (
-        "You are a structural biologist. An AlphaFold structure prediction just "
-        "completed. Summarize the pLDDT confidence, structure availability, and "
-        "what regions are well-predicted vs disordered. 2-3 sentences max."
+        "You are a structural biologist. A structure result is available. Distinguish database retrieval from newly executed prediction using the recorded method. Summarize reported pLDDT and availability. Low confidence alone does not establish disorder. 2-3 sentences max."
     ),
     "blast": (
         "You are a bioinformatician. A BLAST search just completed. Summarize how "
@@ -197,6 +196,8 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
     system_prompt = _TOOL_PROMPTS.get(tool_name)
     if not system_prompt:
         return None
+    if not result or result.get("status") in {"failed", "error", "unavailable", "pending", "queued", "running"}:
+        return None
 
     try:
         from app.ai.llm_client import llm_client
@@ -267,12 +268,27 @@ async def interpret_tool_result(tool_name: str, result: dict) -> dict | None:
                         text = text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
 
                     parsed = json.loads(text)
-                    return {
-                        "headline": str(parsed.get("headline", "")),
-                        "summary": str(parsed.get("summary", "")),
-                        "findings": [str(f) for f in (parsed.get("findings") or [])],
-                        "caveats": [str(c) for c in (parsed.get("caveats") or [])],
+                    if not isinstance(parsed, dict) or not all(isinstance(parsed.get(k), str) for k in ("headline", "summary")) or not all(isinstance(parsed.get(k), list) and all(isinstance(v, str) for v in parsed[k]) for k in ("findings", "caveats")):
+                        last_error = "invalid interpretation schema"
+                        continue
+                    from app.services.evidence_policy import numbers
+                    explanation = {k: parsed[k] for k in ("headline", "summary", "findings", "caveats")}
+                    # Check exactly the evidence the model saw, not omitted result
+                    # fields. This checks numeric fidelity, not semantic truth.
+                    unsupported = sorted(set(numbers(json.dumps(explanation))) - set(numbers(result_text)))
+                    if unsupported:
+                        last_error = "unsupported numeric claims"
+                        continue
+                    digest = hashlib.sha256(json.dumps(result, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+                    explanation["grounding"] = {
+                        "status": "numeric_fidelity_passed",
+                        "evidence_sha256": digest,
+                        "tool": tool_name,
+                        "model": candidate["model"],
+                        "evidence_class": "AI-generated interpretation",
+                        "limitations": ["Numeric presence does not verify units, attribution, causality or biological conclusions."],
                     }
+                    return explanation
                 except json.JSONDecodeError:
                     # Model returned prose/markdown instead of JSON — treat as a
                     # failed attempt and let retry/backup providers take over.

@@ -1,0 +1,2 @@
+Error: design matrix is not full rank (rank 2 of 3). The requested condition/covariates are linearly dependent or confounded, so DESeq2 cannot identify the requested effect.
+Execution halted

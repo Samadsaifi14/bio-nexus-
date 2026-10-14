@@ -230,6 +230,9 @@ def rna_seq_preview_stages() -> list[StageContract]:
 
 
 def build_dag(assay: str) -> Pipeline:
+    from app.ngs.assays import SMALL_RNA_PATTERN, SMALL_RNA_GUIDANCE
+    if SMALL_RNA_PATTERN.search(assay):
+        raise ValueError(SMALL_RNA_GUIDANCE)
     assay_l = assay.lower()
     if assay_l in ("wgs", "wes"):
         pipe = Pipeline(name=f"{assay}-germline", version="0.2.0")

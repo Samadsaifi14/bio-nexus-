@@ -3,9 +3,9 @@
    effects on data-heavy screens while keeping the existing theme tokens intact. */
 
 :root {
-  --scientific-radius: 12px;
+  --scientific-radius: 8px;
   --scientific-control-height: 40px;
-  --scientific-rule: rgb(var(--glass-border) / 0.14);
+  --scientific-rule: rgb(var(--glass-border) / var(--glass-border-a));
 }
 
 body {
@@ -38,7 +38,8 @@ main {
   box-shadow: var(--data-card-shadow) !important;
 }
 
-.data-card:hover {
+a.data-card:hover,
+button.data-card:hover {
   border-color: var(--data-card-border-hover) !important;
 }
 
@@ -91,7 +92,7 @@ main {
   padding: 6px 12px;
   background: rgb(var(--bg-surface-1));
   color: rgb(var(--text-muted));
-  font-family: var(--font-geist-mono), ui-monospace, monospace;
+  font-family: ui-monospace, Consolas, monospace;
   font-size: 11px;
   letter-spacing: .06em;
 }

@@ -57,13 +57,14 @@ def evidence_text(context: dict, sections: list[str]) -> str:
 
 
 def classify_claim(*, sentence: str, evidence_sections: list[str], context: dict) -> dict:
-    if not evidence_sections:
+    missing_sections = [s for s in evidence_sections if s not in context or context[s] is None or context[s] == {} or context[s] == [] or context[s] == ""]
+    if not evidence_sections or missing_sections:
         return {
             "evidence_class": EvidenceClass.UNSUPPORTED.value,
             "admitted": False,
             "numeric_claims": numbers(sentence),
             "unsupported_numeric_claims": numbers(sentence),
-            "reason": "no recorded evidence node supports this statement",
+            "reason": "missing or empty supporting evidence: " + ", ".join(missing_sections) if missing_sections else "no recorded evidence node supports this statement",
         }
 
     ev_numbers = set(numbers(evidence_text(context, evidence_sections)))

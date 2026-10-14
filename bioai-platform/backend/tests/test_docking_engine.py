@@ -1,6 +1,7 @@
 """Docking Engine (Component 12) unit tests — no DB, no binary deps."""
 
 import sys
+import pytest
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -89,3 +90,12 @@ def test_figure_svg_valid():
 
 def test_validate_empty_degrades():
     assert not docking_engine.validate(docking_engine.parse(None)).valid
+
+
+@pytest.mark.parametrize("field,value", [("box_center", None), ("box_size", None),
+    ("box_center", {"x": float("nan"), "y": 0, "z": 0}),
+    ("box_size", {"x": float("inf"), "y": 20, "z": 20})])
+def test_missing_or_nonfinite_grid_fails(field, value):
+    raw = {**DOCK_OK, field: value}
+    report = docking_engine.validate(docking_engine.parse(raw))
+    assert any(c["name"] == "grid_box_valid" and not c["passed"] for c in report.checks)

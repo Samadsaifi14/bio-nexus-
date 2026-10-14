@@ -15,7 +15,7 @@ interface PageHeaderProps {
 
 export function PageHeader({ title, subtitle, actions, className = '' }: PageHeaderProps) {
   return (
-    <header className={`mb-8 flex flex-wrap items-start justify-between gap-3 ${className}`}>
+    <header className={`bn-tool-heading mb-8 flex flex-wrap items-start justify-between gap-3 ${className}`}>
       <div>
         <h1 className="text-2xl font-bold text-text-primary">{title}</h1>
         {subtitle && <p className="mt-1 text-sm text-text-secondary">{subtitle}</p>}

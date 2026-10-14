@@ -1,0 +1,358 @@
+{
+  "inspected_at_utc": "2026-10-13T19:13:34.638848+00:00",
+  "rea_version": "6.4.0",
+  "sequence": "Public application acquisition and inventory first, desktop package inventory second",
+  "public": [
+    {
+      "name": "galaxy",
+      "url": "https://usegalaxy.org",
+      "status": 200,
+      "scripts": [
+        {
+          "url": "https://usegalaxy.org/static/dist/analysis.bundled.js",
+          "bytes": 7036751,
+          "sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+        }
+      ],
+      "rea_inventory_evidence": "ev_78ae494d5b78eab7e780a545267dc5369caec9e0cc10507c71c091df71018f0b",
+      "coverage": "Single public bundle inventory, not semantic reconstruction"
+    },
+    {
+      "name": "terra",
+      "url": "https://app.terra.bio",
+      "final_url": "https://app.terra.bio",
+      "status": 200,
+      "html_sha256": "e33b19381c5d1be500d36267129c7dc2007fc5677514e49bd79858a52212a48f",
+      "scripts": [
+        {
+          "url": "https://app.terra.bio/assets/index-B0iiWytN.js",
+          "status": 200,
+          "bytes": 14499,
+          "encoding": "gzip",
+          "wire_sha256": "1f464882c279dd7aea92139303bc334f25a90f964efba5ff5f7080ae7b5c9ab9",
+          "sha256": "df887159122eff165dcef948baae1a1cfe2296d07b22bfc876ff295ed8bf0096",
+          "decoded_bytes": 33258
+        },
+        {
+          "url": "https://app.terra.bio/assets/appLoader-BmRO7n65.js",
+          "sha256": "bd5dc0116761189bc5b57d8863a887b442039a058cc9e38db6839441314227a6",
+          "decoded_bytes": 2756909
+        }
+      ],
+      "rea_inventory_evidence": "ev_bdce2908d93e45465a49913867ae644b6aa518c6d7adca92b24f419bdbd67438",
+      "rea_inventory_limit": "identity/inventory only; not semantic recovery",
+      "coverage": "public app entry and selected bundles, no runtime"
+    },
+    {
+      "name": "seqera",
+      "url": "https://cloud.seqera.io",
+      "final_url": "https://cloud.seqera.io",
+      "status": 200,
+      "html_sha256": "e93128e8d7b13161027a32c1b0a376493afd1f84318b21a76c5e262df397ff8e",
+      "scripts": [
+        {
+          "url": "https://cloud.seqera.io/polyfills-E6E2N2MU.js",
+          "status": 200,
+          "bytes": 34630,
+          "sha256": "48c31e794f09e064d7a9f3f644d6f6a4f492b498480a22a5466d94e2e575c00c"
+        },
+        {
+          "url": "https://cloud.seqera.io/scripts-YXKG5LXK.js",
+          "status": 200,
+          "bytes": 636517,
+          "sha256": "53961ce07f3255ca16013f48debadf8733a90c1debffbc7b587d8db9d0710c91"
+        },
+        {
+          "url": "https://cloud.seqera.io/main-MGPD7M3G.js",
+          "status": 200,
+          "bytes": 354670,
+          "sha256": "ad95bb55a2f4fa582dbfc68fedcd4dec7eed02bf0c073d82fc2ee157a44aadf2"
+        }
+      ],
+      "rea_inventory_evidence": "ev_f34986fb3af50f139bbda00478aac2fbf3f54a2e8090495856ed8c5fd2af1fc2",
+      "rea_inventory_limit": "identity/inventory only; not semantic recovery",
+      "coverage": "public app entry and selected bundles, no runtime"
+    },
+    {
+      "name": "benchling",
+      "url": "https://benchling.com",
+      "final_url": "https://www.benchling.com/",
+      "status": 200,
+      "html_sha256": "404b624986459196bf3cf80248364bbb81e17392122da5e11ad5324f2f159d9e",
+      "scripts": [
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/fd9d1056-f8d91e5b36f83a04.js",
+          "status": 200,
+          "bytes": 172837,
+          "sha256": "865cad64a44a0c49b5bdadd6c3e9a9a363f6943fb9a70efc1b6292ebab67276f"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/2117-8ae27c77ac557665.js",
+          "status": 200,
+          "bytes": 133165,
+          "sha256": "fca8bfc076f84eab4f24b290edc08a76ed80e00afa69e3998f11f66626129b28"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/main-app-be3d940aef6bd3eb.js",
+          "status": 200,
+          "bytes": 471,
+          "sha256": "ca0c226669d64c1c4b0a4d3c2c714e2af35687dd972ab0f9c8171a38fe2ac0d4"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/2223-c7374c087841769a.js",
+          "status": 200,
+          "bytes": 7399,
+          "sha256": "d4e0ef94339292842b40e9b7a0c7a9758b24981554ef6c7d2ca483b6ac272f5b"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/app/layout-a4f5b433ae858b9e.js",
+          "status": 200,
+          "bytes": 633,
+          "sha256": "22f6f76f6b10d7e8dbd4c271fdc27915b14a5e49cf3af227aab23cebd3676600"
+        },
+        {
+          "url": "https://transcend-cdn.com/cm/54015a1d-a0da-4d87-ba52-cf7af8084ef6/airgap.js",
+          "status": 200,
+          "bytes": 137460,
+          "sha256": "aee04c178f909962c36e5d102c6a53e881794ab963a95a56138f0ba1258b45c6"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/2626716e-b496a3b36b79551a.js",
+          "status": 200,
+          "bytes": 778206,
+          "sha256": "037e141c203ce25bb9282709e6fe3b0e9a4cebcc84c80b6f8fa52d0841331e47"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/e6b68d76-befb66ed8fdafce7.js",
+          "status": 200,
+          "bytes": 425621,
+          "sha256": "e6606b0d5374739ec195a5130009fcfc09b4d87b4f5715d46977a6cbc9e08d37"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/13b76428-8bc6f891f726115d.js",
+          "status": 200,
+          "bytes": 58276,
+          "sha256": "b87c37e85631c66c26695694cb510488b3250dbbcfb3d4ee5861ed8dc902d0a3"
+        },
+        {
+          "url": "https://www.benchling.com/_next/static/chunks/2958-140b82e20f084730.js",
+          "status": 200,
+          "bytes": 632012,
+          "sha256": "702985ea844cc4bc4372730f5b5c526b5a924d414dc6946db5adfea8e199bf6e"
+        }
+      ],
+      "coverage": "marketing landing only; application uninspected"
+    },
+    {
+      "name": "latch",
+      "url": "https://console.latch.bio",
+      "final_url": "https://console.latch.bio",
+      "status": 200,
+      "html_sha256": "3e6714cece4cc9bbd0e5b90481e44422a57d23127901924a24a842370b6c97a9",
+      "scripts": [
+        {
+          "url": "https://console.latch.bio/assets/index-BKEvolwq.js",
+          "status": 200,
+          "bytes": 8421995,
+          "sha256": "b902f10381f2477dada8e7728563f444c0c92977dbb3aff4b92d2ab2705097c2"
+        }
+      ],
+      "rea_inventory_evidence": "ev_5b6005f4c73ee79131d10a6e3d4a5815e1075bd159a703c472605f7f51343f09",
+      "rea_inventory_limit": "identity/inventory only; not semantic recovery",
+      "coverage": "public app entry and selected bundles, no runtime"
+    },
+    {
+      "name": "basepair",
+      "url": "https://app.basepairtech.com",
+      "final_url": "https://app.basepairtech.com",
+      "status": 200,
+      "html_sha256": "73a8b96c118550c9846d068a67aef1972e2b253f015ef793e9226862c3a6368f",
+      "scripts": [
+        {
+          "url": "https://sdk.amazonaws.com/js/aws-sdk-2.2.43.min.js",
+          "status": 200,
+          "bytes": 607520,
+          "sha256": "ec7431c1f83452aaa9961d211bb2d78405b9b53acf5ec0a81a774e47f42c63ec"
+        },
+        {
+          "url": "https://cdn.jsdelivr.net/npm/igv@2.9.3/dist/igv.min.js",
+          "status": 200,
+          "bytes": 962111,
+          "sha256": "b8a860e7d2e4de77897a322a9b3bb66dddc361ebfb76bb5ef2e8fe2c4bb2c9ba"
+        },
+        {
+          "url": "https://calendly.com/assets/external/widget.js",
+          "status": 200,
+          "bytes": 11933,
+          "sha256": "2ab1c4e5467cc511e3980f656b62656c786241ac71692106fe58037a74337e39"
+        },
+        {
+          "url": "https://app.basepairtech.com/static/react-app/js/main.n8ZV4Eij.js",
+          "status": 200,
+          "bytes": 2901126,
+          "sha256": "f1bb1ec65f249ff8aa31a8237a8c3ac9b85c38238ed56ca37312bbb9fbd536fb"
+        }
+      ],
+      "rea_inventory_evidence": "ev_c87042847ff7065baf03720a3a3ce96a5ba22f73ff0d29df594138fac7e3cd76",
+      "rea_inventory_limit": "identity/inventory only; not semantic recovery",
+      "coverage": "public app entry and selected bundles, no runtime"
+    },
+    {
+      "name": "partek",
+      "url": "https://www.partek.com/partek-flow/",
+      "error": "HTTP Error 502: Bad Gateway",
+      "coverage": "HTTP 502, no app artifact"
+    },
+    {
+      "name": "dnanexus",
+      "url": "https://platform.dnanexus.com",
+      "scripts": [
+        {
+          "url": "https://platform.dnanexus.com/javascript/polyfills/progress-polyfill-1.1.min.js",
+          "status": 200,
+          "sha256": "bc409814a56b6070866fcd88a1a1d15e7873b8b1864b8dcc9ae4890ec426a424",
+          "wire_sha256": "bc409814a56b6070866fcd88a1a1d15e7873b8b1864b8dcc9ae4890ec426a424",
+          "bytes": 2675
+        },
+        {
+          "url": "https://platform.dnanexus.com/javascript/bootstrap.min.js",
+          "status": 200,
+          "sha256": "89f7d1070b4e2bec3446d6c954dca81ca3523670888a837780d681f6c5f37ba9",
+          "bytes": 7064
+        }
+      ],
+      "status": 200,
+      "final_url": "https://platform.dnanexus.com",
+      "html_sha256": "71fa63d9ea8c7741da51a8efe59d08f41957b9811deb4ee0fe87cd42fc7e7e84",
+      "rea_inventory_evidence": "ev_e33e2a2b11625686e0beed6c7a1dd31a9520c66a00139b63201332939c0ed586",
+      "rea_inventory_limit": "identity/inventory only; semantic engine unavailable",
+      "coverage": "bootstrap-only, main app lazy asset not fetched"
+    },
+    {
+      "name": "omicsbox",
+      "url": "https://omicsbox.biobam.com",
+      "scripts": [
+        {
+          "url": "https://www.googletagmanager.com/gtag/js?id=G-F1VK22H455",
+          "status": 200,
+          "sha256": "641a73efed5ddc4a56b1dfbcb8b4d6fad8fbf417ea28115d41e6ba660d1a7a16",
+          "wire_sha256": "641a73efed5ddc4a56b1dfbcb8b4d6fad8fbf417ea28115d41e6ba660d1a7a16",
+          "bytes": 533825
+        },
+        {
+          "url": "https://omicsbox.biobam.com/static/js/main.e61a0b7f.js",
+          "status": 200,
+          "sha256": "eb59e888ce8b7569ba697d3936154dc03599efd50a2c231048c2734a60de4dca",
+          "wire_sha256": "eb59e888ce8b7569ba697d3936154dc03599efd50a2c231048c2734a60de4dca",
+          "bytes": 4387404
+        }
+      ],
+      "status": 200,
+      "final_url": "https://omicsbox.biobam.com",
+      "html_sha256": "318bee1cc6e3ee79c0ad0e38097c43d7fa4f52a126db8bf70af49d2aadeb1794",
+      "rea_inventory_evidence": "ev_7633eb9131bc7018016b0fc3d9469f1d76acff730f58a0f2460a10eef5e88dd5",
+      "rea_inventory_limit": "identity/inventory only; semantic engine unavailable",
+      "coverage": "public entry bundle; no runtime/no backend"
+    }
+  ],
+  "desktop": [
+    {
+      "name": "geneious",
+      "installer_sha256": "6b82bdcf08a9755a00e404ea70743c7359ccee6a0f75a7b97450b614acba254b",
+      "archive_start": 45725,
+      "archive_end": 334734054,
+      "archive_sha256": "6abbb9afa079d7d110b0dfb7e95f1f30b2970a8c65aa561b27d7362a05733662",
+      "entries": 4402,
+      "extraction": "static ZIP byte carving; installer never executed",
+      "source": "https://assets.geneious.com/installers/geneious/release/Geneious_Prime_linux64_2026_1_2_with_jre.sh",
+      "application_executed": false,
+      "selected_archives": [
+        {
+          "artifact": "StripAlignmentColumnsPlugin.jar",
+          "sha256": "9c13d0ee70ac13c10afa57bc74b8496b016047930fdfc6c74ced7989fae43859",
+          "evidence_id": "ev_2f0beefb2ac49550688fd6fc1ed01ea5432753872e5d48446fc98bd783a5c80b",
+          "operation": "inspect_artifact",
+          "boundary": "Archive and class/member identity only; no recovered Java implementation or runtime behavior"
+        },
+        {
+          "artifact": "PrimerDesignPlugin.jar",
+          "sha256": "5d282fe6523146d46ed8b01e924107b9763089b3b5764c39250a3369175c8916",
+          "evidence_id": "ev_9ff360c4f55f399261000d04bbe036ed2ec052d843d7471f9bebcf51c2cb0fbb",
+          "operation": "inspect_artifact",
+          "boundary": "Archive and class/member identity only; no recovered Java implementation or runtime behavior"
+        }
+      ]
+    },
+    {
+      "name": "omicsbox",
+      "source": "https://resources.biobam.com/omicsbox/prod/installers/OmicsBox_unix_4_1_3.sh",
+      "installer_sha256": "8116330e12ae76a1348ff08b0f616aa2b504869e46c9705c8bb6f15da6ed793a",
+      "published_sha256_verified": true,
+      "installer_bytes": 637416543,
+      "archive_start": 19452,
+      "archive_end": 583807279,
+      "archive_sha256": "2ffc72c83eb22a52f35a9fbe8b1fd29d03bbed1788ef6f2d735d37b652b39873",
+      "entries": 1548,
+      "selected_jar": "com.biobam.blast2go.alignments.bowtie2.jar",
+      "boundary": "Static package identity only; never installed, activated or executed.",
+      "application_executed": false,
+      "selected_archives": [
+        {
+          "artifact": "com.biobam.blast2go.api.statistics.jar",
+          "sha256": "542908c2e66e177dd0d5f5036f9286f9d40929add44b8f98123934f70b29d552",
+          "evidence_id": "ev_278e9bd9dc6e4f8576d6fadaa2b310a3a0c3915d87d66dc4d1fe9351ae888f4e",
+          "operation": "inspect_artifact",
+          "boundary": "Archive and class/member identity only; no recovered Java implementation or runtime behavior"
+        }
+      ]
+    },
+    {
+      "name": "BIOVIA Discovery Studio 2025 Visualizer",
+      "source": "https://3ds-download-eu-west-1.s3.eu-west-1.amazonaws.com/public/BIOVIA/BIOVIA_DS2025Client.exe",
+      "installer_bytes": 477404000,
+      "installer_sha256": "09a95a14a67d3d808eaaa0a6eb77238f3ded2327085ce5d750d5f82096013053",
+      "application_executed": false,
+      "evidence_id": "ev_cd305906c9cfad99390d143320099ecfd7dc11996375f4f7128a287a5c836a8e",
+      "operation": "inspect_pe_resources",
+      "boundary": "Static PE installer resource identity only; application runtime and modeling algorithms remain uninspected"
+    }
+  ],
+  "semantic_analysis": {
+    "status": "BLOCKED",
+    "reason": "REA child-process ownership inspection: ps reports fatal library error, lookup self",
+    "safeguard_preserved": true
+  },
+  "implementation_evidence_boundary": "New BioNexus features are independently implemented from bounded observed capability identities, not copied proprietary code or validated behavioral reconstructions.",
+  "unacquired_desktop": [
+    {
+      "name": "CLC Genomics Workbench",
+      "status": "HTTP_403",
+      "source": "https://digitalinsights.qiagen.com/products/clc-genomics-workbench-direct-download/"
+    },
+    {
+      "name": "SnapGene",
+      "status": "REGISTRATION_OR_TRIAL_EMAIL_REQUIRED",
+      "source": "https://www.snapgene.com/support/downloads"
+    },
+    {
+      "name": "MOE",
+      "status": "DOWNLOAD_CODE_REQUIRED",
+      "source": "https://www.chemcomp.com/en/Download_Request.htm"
+    },
+    {
+      "name": "Schrodinger",
+      "status": "ACCOUNT_REQUIRED",
+      "source": "https://www.schrodinger.com/release-download/"
+    }
+  ],
+  "compatible_environment_followup": {
+    "status": "PROCESS_IDENTITY_BLOCKER_RESOLVED_IN_COMPATIBLE_VM",
+    "report": "rea-compatible-environment/runtime-report.json",
+    "local_failure_still_present": true,
+    "public_entry_parsing_verified": [
+      "terra",
+      "galaxy"
+    ],
+    "galaxy_semantic_heap_limit_remaining": true
+  }
+}

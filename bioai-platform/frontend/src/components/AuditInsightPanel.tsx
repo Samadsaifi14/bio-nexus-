@@ -7,9 +7,9 @@ import { apiUrl } from '@/lib/api';
 import type { AuditInsight } from '@/types/audit';
 
 const SEVERITY_CONFIG = {
-  info:     { border: 'border-accent-cyan/40',  bg: 'bg-accent-cyan/5',  icon: Info,          glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(74,222,128,0.08)' },
-  warning:  { border: 'border-yellow-500/40',   bg: 'bg-yellow-500/5',  icon: AlertTriangle,  glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(234,179,8,0.08)' },
-  critical: { border: 'border-error/40',      bg: 'bg-error-dim/5',     icon: AlertCircle,    glow: '0 1px 2px rgba(0,0,0,0.35), 0 10px 24px rgba(239,68,68,0.08)' },
+  info:     { tone: 'text-info', icon: Info },
+  warning:  { tone: 'text-warn', icon: AlertTriangle },
+  critical: { tone: 'text-error', icon: AlertCircle },
 } as const;
 
 export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
@@ -21,7 +21,7 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
     if (!sessionId) return;
     const poll = async () => {
       try {
-        const r = await fetch(`${apiUrl('/api/audit/insights')}?session=${sessionId}`);
+        const r = await fetch(`${apiUrl('/api/audit/insights')}?session=${encodeURIComponent(sessionId)}`);
         if (!r.ok) return;
         const data = await r.json();
         if (data.latest) {
@@ -61,20 +61,14 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 80, opacity: 0 }}
           transition={{ type: 'spring', damping: 28, stiffness: 260 }}
-          className={`fixed bottom-6 right-6 z-50 w-80 p-4 rounded-xl border-l-4 ${cfg.border} ${cfg.bg}`}
-          style={{
-            background: 'var(--glass-panel-bg)',
-            backdropFilter: 'blur(20px)',
-            boxShadow: `var(--shadow-float), ${cfg.glow}`,
-            border: '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
-          }}
+          className="fixed bottom-6 right-6 z-50 w-80 max-w-[calc(100vw-3rem)] rounded-xl border border-glass-border bg-surface-0 p-4"
         >
           <div className="flex items-start justify-between gap-2 mb-2">
             <div className="flex items-center gap-2">
-              <Icon size={14} className={cfg.border.replace('border-', 'text-').replace('/40', '')} />
+              <Icon size={16} className={cfg.tone} />
               <span className="text-xs font-semibold uppercase tracking-wider text-text-muted">AI Audit</span>
             </div>
-            <button onClick={handleClose} className="text-text-muted hover:text-text-primary transition-colors">
+            <button onClick={handleClose} aria-label="Dismiss audit insight" className="flex h-9 w-9 items-center justify-center text-text-muted hover:text-text-primary transition-colors">
               <X size={14} />
             </button>
           </div>
@@ -103,15 +97,10 @@ export function AuditInsightPanel({ sessionId }: { sessionId: string }) {
           exit={{ scale: 0 }}
           whileHover={{ scale: 1.05 }}
           onClick={() => { setOpen(true); setDismissed(false); }}
-          className="fixed bottom-6 right-6 z-50 flex items-center gap-2 px-3 py-2 rounded-full"
-          style={{
-            background: 'var(--glass-panel-bg)',
-            border: '1px solid rgb(var(--glass-border) / var(--glass-border-a))',
-            backdropFilter: 'blur(12px)',
-            boxShadow: cfg.glow,
-          }}
+          className="fixed bottom-6 right-6 z-50 flex min-h-11 items-center gap-2 rounded-lg border border-glass-border bg-surface-0 px-3 py-2"
+          aria-label="Open audit insight"
         >
-          <Icon size={13} className={cfg.border.replace('border-', 'text-').replace('/40', '')} />
+          <Icon size={15} className={cfg.tone} />
           <span className="text-xs font-medium text-text-primary">Audit</span>
           <ChevronUp size={11} className="text-text-muted" />
         </motion.button>

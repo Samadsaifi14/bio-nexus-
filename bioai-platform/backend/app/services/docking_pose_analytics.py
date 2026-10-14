@@ -6,6 +6,7 @@ ligands require an atom-mapping-aware RMSD method for benchmark claims.
 """
 from __future__ import annotations
 
+import hashlib
 import math
 from typing import Any
 
@@ -26,7 +27,9 @@ def _xyz(line: str) -> tuple[float, float, float] | None:
 
 def _element(line: str) -> str:
     if len(line) >= 78 and line[76:78].strip():
-        return line[76:78].strip().upper()
+        value = line[76:78].strip()
+        # AutoDock types are not element symbols (OA, NA, HD, A).
+        return {"OA": "O", "NA": "N", "SA": "S", "HD": "H", "HS": "H", "A": "C"}.get(value, value.upper())
     parts = line.split()
     atom = parts[2] if len(parts) > 2 else ""
     letters = "".join(c for c in atom if c.isalpha())
@@ -72,13 +75,14 @@ def pose_rmsd_matrix(pdbqt: str) -> dict:
     for left in models:
         row = []
         for right in models:
-            value = _rmsd(left["atoms"], right["atoms"])
+            value = _rmsd([a for a in left["atoms"] if a["element"] != "H"], [a for a in right["atoms"] if a["element"] != "H"])
             row.append(round(value, 4) if value is not None else None)
         matrix.append(row)
     return {
         "models": [m["model"] for m in models],
         "matrix_angstrom": matrix,
-        "method": "atom-order coordinate-frame RMSD",
+        "method": "heavy-atom atom-order coordinate-frame RMSD",
+        "hydrogens_excluded": True,
         "symmetry_corrected": False,
         "limitation": "This is not symmetry-corrected ligand RMSD; symmetric atom mappings can require a chemistry-aware benchmark implementation.",
     }
@@ -114,7 +118,7 @@ def cluster_poses(pdbqt: str, cutoff_angstrom: float = 2.0) -> dict:
         "cutoff_angstrom": cutoff_angstrom,
         "cluster_count": len(clusters),
         "clusters": [{"cluster": i + 1, "models": members, "size": len(members)} for i, members in enumerate(clusters)],
-        "clustering": "single-linkage on atom-order pose RMSD",
+        "clustering": "single-linkage on heavy-atom atom-order pose RMSD",
         "rmsd": rmsd,
     }
 
@@ -147,27 +151,46 @@ def water_mediated_interactions(pdb_text: str, ligand_pdbqt: str, cutoff_angstro
     if not models:
         return {"status": "UNAVAILABLE", "reason": "No Vina ligand model supplied", "bridges": []}
     protein, waters = _protein_and_waters(pdb_text)
+    provenance = {
+        "original_pdb_sha256": hashlib.sha256(pdb_text.encode("utf-8")).hexdigest(),
+        "ligand_pdbqt_sha256": hashlib.sha256(ligand_pdbqt.encode("utf-8")).hexdigest(),
+        "coordinate_frame": "input receptor frame; no superposition performed",
+    }
+    if not protein:
+        return {"status": "UNAVAILABLE", "reason": "No parseable protein polar atoms in original PDB", "bridges": [], "provenance": provenance}
     if not waters:
-        return {"status": "NOT_OBSERVED", "water_count": 0, "bridge_count": 0, "bridges": [], "method": "distance-based crystallographic-water bridge screen"}
-    ligand = [a for a in models[0]["atoms"] if a.get("element") in POLAR]
+        return {"status": "NOT_OBSERVED", "water_count": 0, "bridge_count": 0, "bridges": [], "pose_count": len(models), "poses": [{"model": m["model"], "bridge_count": 0, "protein_contacts": []} for m in models], "provenance": provenance, "method": "distance-based crystallographic-water bridge screen"}
     bridges = []
-    for w_idx, water in enumerate(waters, 1):
-        lig_hits = [(i, _distance(water["coord"], atom["coord"])) for i, atom in enumerate(ligand) if _distance(water["coord"], atom["coord"]) <= cutoff_angstrom]
-        if not lig_hits:
-            continue
-        prot_hits = [(atom, _distance(water["coord"], atom["coord"])) for atom in protein if _distance(water["coord"], atom["coord"]) <= cutoff_angstrom]
-        for lig_idx, lig_d in lig_hits:
-            for atom, prot_d in prot_hits:
-                bridges.append({
-                    "water": w_idx,
-                    "ligand_polar_atom_index": lig_idx + 1,
-                    "protein": f"{atom['chain']}:{atom['resname']}{atom['resnum']}:{atom['atom']}",
-                    "water_ligand_distance_angstrom": round(lig_d, 3),
-                    "water_protein_distance_angstrom": round(prot_d, 3),
-                })
+    pose_summaries = []
+    for model in models:
+        pose_bridges = []
+        # Preserve original atom index, including intervening nonpolar atoms.
+        ligand = [(i + 1, a) for i, a in enumerate(model["atoms"]) if a.get("element") in POLAR]
+        for w_idx, water in enumerate(waters, 1):
+            lig_hits = [(i, _distance(water["coord"], atom["coord"])) for i, atom in ligand if _distance(water["coord"], atom["coord"]) <= cutoff_angstrom]
+            if not lig_hits:
+                continue
+            prot_hits = [(atom, _distance(water["coord"], atom["coord"])) for atom in protein if _distance(water["coord"], atom["coord"]) <= cutoff_angstrom]
+            for lig_idx, lig_d in lig_hits:
+                for atom, prot_d in prot_hits:
+                    pose_bridges.append({
+                        "model": model["model"],
+                        "water": w_idx,
+                        "water_identity": f"{water['chain']}:{water['resname']}{water['resnum']}:{water['atom']}",
+                        "ligand_polar_atom_index": lig_idx,
+                        "protein": f"{atom['chain']}:{atom['resname']}{atom['resnum']}:{atom['atom']}",
+                        "water_ligand_distance_angstrom": round(lig_d, 3),
+                        "water_protein_distance_angstrom": round(prot_d, 3),
+                    })
+        bridges.extend(pose_bridges)
+        pose_summaries.append({"model": model["model"], "bridge_count": len(pose_bridges),
+                               "protein_contacts": sorted({b["protein"] for b in pose_bridges})})
     return {
         "status": "OBSERVED" if bridges else "NOT_OBSERVED",
         "water_count": len(waters),
+        "provenance": provenance,
+        "pose_count": len(models),
+        "poses": pose_summaries,
         "bridge_count": len(bridges),
         "bridges": bridges,
         "cutoff_angstrom": cutoff_angstrom,

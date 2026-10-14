@@ -240,3 +240,25 @@ def test_prediction_from_result_empty_scan_is_insufficient(monkeypatch):
     assert result["status"] == "insufficient_evidence"
     assert result["method"] == "interpro2go_no_evidence"
     assert result["provenance"]["retrieval_failures"] == []
+
+
+def test_mapping_lookup_failure_is_not_biological_absence(monkeypatch):
+    monkeypatch.setattr(fp, "_fetch_pdb_sequence", lambda _pdb: "ACDEFGHIK")
+    monkeypatch.setattr(fp, "_run_interproscan", lambda _seq: [{"accession": "IPR000001"}])
+
+    def failed_mapping(_accession):
+        fp._record_retrieval_failure("InterPro mapping service unavailable")
+        return []
+
+    monkeypatch.setattr(fp, "_fetch_interpro_go_terms", failed_mapping)
+    result = fp.predict_function("1abc")
+    assert result["status"] == "evidence_unavailable"
+    assert result["provenance"]["retrieval_is_live"] is False
+    assert result["go_terms"] == []
+
+
+def test_signature_only_match_is_not_queried_as_interpro_entry(monkeypatch):
+    queried = []
+    monkeypatch.setattr(fp, "_fetch_interpro_go_terms", lambda accession: queried.append(accession) or [])
+    assert fp._interpro_to_go([{"accession": "PF00001"}, {"accession": "IPR000001"}]) == []
+    assert queried == ["IPR000001"]

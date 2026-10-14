@@ -72,7 +72,7 @@ async def get_job(job_id: str, user_id: str = Depends(require_user_id)):
 
     # Hydrate from Storage if result was offloaded. Ownership has already been
     # established above; an unowned job never reaches artifact retrieval.
-    if job.get("storage_url") and not job.get("context_json", {}).get("blast"):
+    if job.get("storage_url") and job.get("status") in {"complete", "failed"}:
         from app.services.artifact_storage import download_json
         results = download_json(job["storage_url"])
         if results:

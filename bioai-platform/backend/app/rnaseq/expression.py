@@ -1,7 +1,10 @@
 """Authenticated DESeq2 execution and private artifact storage for RNA-seq count matrices."""
 from __future__ import annotations
 
+from functools import lru_cache
 import hashlib
+import csv
+import io
 import json
 import mimetypes
 import os
@@ -10,11 +13,15 @@ import shutil
 import subprocess
 import tempfile
 import uuid
+import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-from app.services.supabase import get_supabase
+def get_supabase():
+    # Local numerical controls do not need storage or storage credentials.
+    from app.services.supabase import get_supabase as connected_client
+    return connected_client()
 
 BUCKET = "rnaseq-artifacts"
 MAX_COUNTS_BYTES = 60 * 1024 * 1024
@@ -36,6 +43,7 @@ class RnaSeqExpressionError(RuntimeError):
 
 @dataclass(frozen=True)
 class ExpressionParameters:
+    organism: str = "auto"
     condition_column: str = "condition"
     reference_level: str = "healthy"
     test_level: str = "SALS"
@@ -47,6 +55,8 @@ class ExpressionParameters:
     top_heatmap_genes: int = 40
 
     def validate(self) -> None:
+        if self.organism not in {"auto", "human", "mouse"}:
+            raise RnaSeqExpressionError("Supported enrichment organisms: auto, human, mouse.")
         if not SAFE_NAME.fullmatch(self.condition_column):
             raise RnaSeqExpressionError("Condition column must use letters, numbers, underscore or dot and start with a letter.")
         for covariate in self.covariates:
@@ -113,16 +123,120 @@ def _artifact_entry(filename: str, data: bytes) -> dict[str, Any]:
     }
 
 
+def methods_text(provenance: dict, summary: dict, stage: str) -> str:
+    """Describe only the numerical operations represented by this run."""
+    versions = provenance.get("runtime_versions", {})
+    packages = versions.get("packages", {})
+    source = provenance.get("source_label", "uploaded count matrix")
+    normalization = "Salmon/tximport gene-length offsets" if summary.get("input_kind") == "salmon" else "DESeq2 median-of-ratios size factors"
+    text = (
+        f"RNA-seq analysis used {source} (input SHA-256: {provenance['counts_sha256']}) "
+        f"and sample metadata (SHA-256: {provenance['metadata_sha256']}). "
+        f"The analysis used R {versions.get('R', 'not recorded')} and DESeq2 {packages.get('DESeq2', 'not recorded')}. "
+        f"The design was {summary.get('design', 'not recorded')}. Genes were retained with at least "
+        f"{provenance['min_count']} counts in at least {summary.get('min_samples', provenance['min_samples'])} samples. "
+        f"Normalization used {normalization}. PCA and sample distances used the blind variance-stabilizing "
+        f"transformation ({summary.get('vst_method', 'DESeq2 VST')}). "
+    )
+    if stage == "qc":
+        return text + "This run stopped at QC; differential-expression testing was not performed.\n"
+    text += (
+        f"A negative-binomial model and Wald test compared {provenance['test_level']} with "
+        f"{provenance['reference_level']} as reference. Calls required Benjamini-Hochberg adjusted p-value "
+        f"< {provenance['alpha']} and absolute unshrunk log2 fold change > {provenance['lfc_threshold']}. "
+        f"Fold-change shrinkage status was {summary.get('lfc_shrinkage', 'not recorded')}. "
+    )
+    enrichment = summary.get("enrichment", {})
+    text += f"Functional enrichment status: {enrichment.get('status', 'not recorded')}. "
+    if enrichment.get("method"):
+        text += f"Recorded method: {enrichment['method']}. "
+    return text + "These methods describe computation; count origin and biological independence require source evidence.\n"
+
+
+def write_reproducibility_bundle(outdir: Path, counts_path: Path, metadata_path: Path, provenance: dict, tx2gene_path: Path | None = None) -> None:
+    """Keep inputs, exact R code, outputs and a checksum index together."""
+    target = outdir / "reproducibility_bundle.zip"
+    entries = {p.name: p for p in outdir.iterdir() if p.is_file() and p != target}
+    entries.update({"inputs/counts.tsv": counts_path, "inputs/metadata.tsv": metadata_path,
+                    "code/deseq2_analysis.R": R_SCRIPT, "code/go_enrichment.R": R_SCRIPT.with_name("go_enrichment.R")})
+    portable_manifest = None
+    if provenance.get("input_kind") == "salmon":
+        if not tx2gene_path:
+            raise RnaSeqExpressionError("Salmon bundle requires its transcript-to-gene mapping")
+        entries["inputs/tx2gene.tsv"] = tx2gene_path
+        portable_manifest = io.StringIO()
+        writer = csv.writer(portable_manifest, delimiter="\t", lineterminator="\n")
+        writer.writerow(["sample", "quant_file"])
+        with counts_path.open() as handle:
+            for row in csv.DictReader(handle, delimiter="\t"):
+                name = "inputs/quant/" + hashlib.sha256(row["sample"].encode()).hexdigest() + "/quant.sf"
+                entries[name] = Path(row["quant_file"])
+                writer.writerow([row["sample"], name])
+    index = {"run_id": provenance["run_id"], "files": {name: {"sha256": sha256_file(path), "bytes": path.stat().st_size} for name, path in entries.items()}}
+    with zipfile.ZipFile(target, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, path in sorted(entries.items()):
+            archive.write(path, name)
+        archive.writestr("artifact_index.json", json.dumps(index, indent=2))
+        if portable_manifest is not None:
+            archive.writestr("portable_quant_manifest.tsv", portable_manifest.getvalue())
+            archive.writestr("SALMON_README.txt", "inputs/counts.tsv preserves the original manifest bytes. portable_quant_manifest.tsv points to the bundled quant.sf files relative to the ZIP extraction directory. inputs/tx2gene.tsv preserves the annotation mapping.\n")
+
+
 def _hydrate_manifest(manifest: dict[str, Any], prefix: str) -> dict[str, Any]:
     """Attach short-lived owner access URLs without mutating stored provenance."""
     hydrated = json.loads(json.dumps(manifest))
     for artifact in hydrated.get("artifacts", []):
-        artifact["url"] = _signed_url(f"{prefix}/{artifact['name']}")
+        source_run = artifact.get("source_run_id")
+        source_prefix = prefix
+        if source_run:
+            if not re.fullmatch(r"[0-9a-fA-F-]{36}", source_run):
+                raise RnaSeqExpressionError("Invalid artifact source run.")
+            source_prefix = f"{prefix.rsplit('/', 1)[0]}/{source_run}"
+        artifact["url"] = _signed_url(f"{source_prefix}/{artifact['name']}")
     hydrated["manifest_url"] = _signed_url(f"{prefix}/manifest.json")
     return hydrated
 
 
-def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600) -> dict[str, Any]:
+@lru_cache(maxsize=8)
+def _package_readiness(rscript: str, salmon: bool) -> list[str]:
+    packages = ["DESeq2", "ComplexHeatmap", "ggplot2", "jsonlite", "circlize"] + (["tximport"] if salmon else [])
+    code = 'p <- c(' + ','.join(json.dumps(p) for p in packages) + '); cat(p[!vapply(p, requireNamespace, logical(1), quietly=TRUE)], sep="\\n")'
+    try:
+        completed = subprocess.run([rscript, "-e", code], capture_output=True, text=True, timeout=30)
+        if completed.returncode:
+            return ["R package preflight failed"]
+        return [line.strip() for line in completed.stdout.splitlines() if line.strip()]
+    except (OSError, subprocess.TimeoutExpired):
+        return ["R package preflight unavailable"]
+
+
+def expression_readiness(salmon: bool = False) -> dict:
+    rscript = shutil.which(os.environ.get("BIONEXUS_RSCRIPT", "Rscript"))
+    missing = list(_package_readiness(rscript, salmon)) if rscript else ["Rscript"]
+    from app.config import settings
+    if not settings.SUPABASE_URL or not settings.SUPABASE_SERVICE_ROLE_KEY:
+        missing = [*missing, "private artifact storage configuration"]
+    return {"available": not missing, "rscript_available": bool(rscript), "missing": missing,
+            "engine": "DESeq2", "quantifier_import": "Salmon/tximport" if salmon else None}
+
+
+def validate_artifacts(outdir: Path, summary: dict, stage: str) -> None:
+    required = {"analysis_summary.json", "pca.svg", "pca_coordinates.tsv", "sample_distance_heatmap.svg",
+                "sample_distance_matrix.tsv", "design_audit.json", "normalized_counts.tsv", "size_factors.tsv",
+                "execution_versions.json", "sessionInfo.txt"}
+    if summary.get("input_kind") == "salmon":
+        required.add("normalization_factors.tsv")
+    if stage != "qc":
+        required |= {"ma_plot.svg", "volcano.svg", "volcano_plot_data.tsv", "deseq2_all_results.tsv",
+                     "deseq2_significant.tsv", "dispersion_plot.svg", "dds_fitted.rds"}
+        if summary.get("expression_heatmap_generated"):
+            required |= {"expression_heatmap.svg", "heatmap_matrix_zscore.tsv", "heatmap_gene_selection.tsv"}
+    missing = sorted(name for name in required if not (outdir / name).is_file() or (outdir / name).stat().st_size == 0)
+    if missing:
+        raise RnaSeqExpressionError("Required output artifacts missing: " + ", ".join(missing))
+
+
+def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: ExpressionParameters, timeout_seconds: int = 600, *, stage: str = "full", checkpoint_path: Path | None = None, input_kind: str = "raw_counts", tx2gene_path: Path | None = None, progress_path: Path | None = None) -> dict[str, Any]:
     rscript = shutil.which(os.environ.get("BIONEXUS_RSCRIPT", "Rscript"))
     if not rscript:
         raise RnaSeqExpressionError("Rscript is not installed in the backend runtime; DESeq2 execution is unavailable.")
@@ -143,13 +257,21 @@ def _run_r(counts_path: Path, metadata_path: Path, outdir: Path, params: Express
         str(params.lfc_threshold),
         str(params.min_count),
         f"{params.min_samples}:{params.top_heatmap_genes}",
+        params.organism,
     ]
     try:
-        completed = subprocess.run(argv, capture_output=True, text=True, timeout=timeout_seconds, check=False)
+        environment = dict(os.environ, BIONEXUS_EXPRESSION_STAGE=stage, BIONEXUS_EXPRESSION_INPUT=input_kind,
+                           BIONEXUS_EXPRESSION_CHECKPOINT=str(checkpoint_path or ""), BIONEXUS_TX2GENE=str(tx2gene_path or ""),
+                           BIONEXUS_EXPRESSION_PROGRESS=str(progress_path or ""))
+        completed = subprocess.run(argv, env=environment, capture_output=True, text=True, timeout=timeout_seconds, check=False)
     except subprocess.TimeoutExpired as exc:
         raise RnaSeqExpressionError(f"DESeq2 execution exceeded {timeout_seconds} seconds.") from exc
+    (outdir / "R_stdout.log").write_text(completed.stdout or "", encoding="utf-8")
+    (outdir / "R_stderr.log").write_text(completed.stderr or "", encoding="utf-8")
     if completed.returncode != 0:
-        detail = (completed.stderr or completed.stdout or "DESeq2 failed").strip().splitlines()[-1]
+        lines = (completed.stderr or completed.stdout or "DESeq2 failed").strip().splitlines()
+        errors = [i for i, line in enumerate(lines) if line.startswith("Error")]
+        detail = " ".join(lines[errors[-1]:errors[-1] + 3]) if errors else " ".join(lines[-3:])
         raise RnaSeqExpressionError(f"DESeq2 execution failed: {detail[:500]}")
 
     summary_path = outdir / "analysis_summary.json"
@@ -168,6 +290,12 @@ def execute_expression_analysis(
     metadata_path: Path,
     params: ExpressionParameters,
     source_label: str,
+    source_metadata: dict[str, Any] | None = None,
+    stage: str = "full",
+    checkpoint_path: Path | None = None,
+    input_kind: str = "raw_counts",
+    tx2gene_path: Path | None = None,
+    progress_path: Path | None = None,
 ) -> dict[str, Any]:
     params.validate()
     if counts_path.stat().st_size > MAX_COUNTS_BYTES:
@@ -175,6 +303,11 @@ def execute_expression_analysis(
     if metadata_path.stat().st_size > MAX_METADATA_BYTES:
         raise RnaSeqExpressionError("Metadata file exceeds the 5 MB analysis limit.")
 
+    if stage not in {"full", "qc", "infer"} or input_kind not in {"raw_counts", "salmon"}:
+        raise RnaSeqExpressionError("Unsupported statistical stage or input kind")
+    if input_kind == "salmon" and (not tx2gene_path or not tx2gene_path.is_file()):
+        raise RnaSeqExpressionError("Salmon import requires an annotation-matched transcript mapping")
+    _ensure_bucket()
     run_id = str(uuid.uuid4())
     counts_sha256 = sha256_file(counts_path)
     metadata_sha256 = sha256_file(metadata_path)
@@ -182,13 +315,21 @@ def execute_expression_analysis(
     with tempfile.TemporaryDirectory(prefix="bionexus-rnaseq-") as tmp:
         outdir = Path(tmp) / "results"
         outdir.mkdir(parents=True, exist_ok=True)
-        summary = _run_r(counts_path, metadata_path, outdir, params)
+        summary = _run_r(counts_path, metadata_path, outdir, params, stage=stage, checkpoint_path=checkpoint_path,
+                         input_kind=input_kind, tx2gene_path=tx2gene_path,
+                         **({"progress_path": progress_path} if progress_path else {}))
+        validate_artifacts(outdir, summary, stage)
 
         provenance = {
             "run_id": run_id,
             "source_label": source_label,
+            "source_metadata": source_metadata or {},
             "counts_sha256": counts_sha256,
+            "analysis_script_sha256": sha256_file(R_SCRIPT),
+            "enrichment_script_sha256": sha256_file(R_SCRIPT.with_name("go_enrichment.R")),
+            "runtime_versions": json.loads((outdir / "execution_versions.json").read_text()),
             "metadata_sha256": metadata_sha256,
+            "organism": params.organism,
             "condition_column": params.condition_column,
             "reference_level": params.reference_level,
             "test_level": params.test_level,
@@ -199,16 +340,19 @@ def execute_expression_analysis(
             "min_samples": params.min_samples,
             "top_heatmap_genes": params.top_heatmap_genes,
             "execution": "Rscript + DESeq2 + ComplexHeatmap",
+            "stage": stage, "input_kind": input_kind,
             "claim_boundary": "Deterministic statistical output; biological interpretation and external validation remain separate.",
         }
         manifest = {
             "run_id": run_id,
-            "state": "SUCCEEDED",
+            "state": "QC_READY" if stage == "qc" else "SUCCEEDED",
             "summary": summary,
             "provenance": provenance,
             "artifacts": [],
         }
         (outdir / "provenance.json").write_text(json.dumps(provenance, indent=2), encoding="utf-8")
+        (outdir / "methods.txt").write_text(methods_text(provenance, summary, stage), encoding="utf-8")
+        write_reproducibility_bundle(outdir, counts_path, metadata_path, provenance, tx2gene_path)
 
         _ensure_bucket()
         prefix = f"{_safe_user_key(user_id)}/{run_id}"

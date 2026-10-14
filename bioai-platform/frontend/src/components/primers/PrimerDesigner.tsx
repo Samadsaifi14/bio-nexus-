@@ -51,13 +51,14 @@ function RiskCard({ title, structure }: { title: string; structure: PrimerStruct
         <span className="text-xs font-medium text-text-muted">{title}</span>
         <RiskBadge structure={structure} />
       </div>
-      {structure.stem_length > 0 ? (
+      <p className="text-xs text-text-muted mb-1">Primer3 prediction; risk is a screening rule.</p>
+      {structure.structure_found ? (
         <>
           <p className="text-xs text-text-secondary">
             &Delta;G <span className="text-text-primary font-mono">{structure.dg.toFixed(1)}</span> kcal/mol
-            &middot; stem <span className="text-text-primary font-mono">{structure.stem_length}</span> bp
+            &middot; structure Tm <span className="text-text-primary font-mono">{structure.tm_c.toFixed(1)}</span> °C
           </p>
-          <p className="text-xs font-mono text-text-secondary mt-1 break-all">{structure.stem}</p>
+          <p className="text-xs font-mono text-text-secondary mt-1 break-all">{structure.structure}</p>
           {"loop" in structure && structure.loop && (
             <p className="text-xs text-text-muted mt-0.5">loop: <span className="font-mono">{structure.loop}</span></p>
           )}
@@ -304,7 +305,7 @@ export function PrimerDesigner() {
                 {designMeta.engine} {designMeta.engine_version} &middot; {designMeta.thermodynamics}
               </p>
               <p className="text-[10px] leading-4 text-text-muted">
-                <span className="text-text-secondary font-medium">Tm values</span> are Primer3 nearest-neighbor calculated Tm (&deg;C), not IDT-style estimates from the QC step.
+                <span className="text-text-secondary font-medium">Tm values</span> are Primer3 nearest-neighbor calculated Tm (&deg;C), with reaction conditions recorded in the result. QC also uses Primer3 thermodynamics; risk labels are screening thresholds.
               </p>
               <p className="text-[10px] leading-4 text-text-muted">
                 <span className="text-text-secondary font-medium">Genome-wide specificity: {designMeta.specificity.genome_wide.status}</span> &mdash; {designMeta.specificity.genome_wide.reason}
@@ -445,6 +446,7 @@ export function PrimerDesigner() {
 
                   {analysis && (
                     <div className="space-y-3">
+                      <p className="text-xs text-text-secondary">QC conditions: monovalent salt {analysis.qc.left.conditions.mv_conc} mM; Mg²⁺ {analysis.qc.left.conditions.dv_conc} mM; dNTP {analysis.qc.left.conditions.dntp_conc} mM; oligo {analysis.qc.left.conditions.dna_conc} nM; ΔG at {analysis.qc.left.conditions.temp_c}°C. Forward Tm {analysis.qc.left.tm_c}°C; reverse Tm {analysis.qc.right.tm_c}°C.</p>
                       <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
                         <RiskCard title="Hairpin (forward)" structure={analysis.qc.left.hairpin} />
                         <RiskCard title="Self-dimer (forward)" structure={analysis.qc.left.self_dimer} />

@@ -220,3 +220,25 @@ async def pathway_enrichment_cross_validate(req: CrossValidationRequest):
         pass
 
     return result
+
+
+class GeneSetEnrichmentRequest(BaseModel):
+    identifiers: list[str] = Field(..., min_length=1, max_length=5000)
+    background: list[str] = Field(..., min_length=1, max_length=100000)
+    gene_sets: dict[str, list[str]]
+    source: str = Field(..., min_length=1)
+    release: str = Field(..., min_length=1)
+    organism: str = Field(..., min_length=1)
+    identifier_namespace: str = Field(..., min_length=1)
+
+
+@router.post('/enrichment/gene-sets')
+async def gene_set_enrichment(req: GeneSetEnrichmentRequest):
+    from fastapi.concurrency import run_in_threadpool
+    from app.services.gene_set_enrichment import enrich_gene_sets
+    try:
+        return await run_in_threadpool(enrich_gene_sets, req.identifiers, req.background, req.gene_sets,
+                                       source=req.source, release=req.release, organism=req.organism,
+                                       identifier_namespace=req.identifier_namespace)
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc

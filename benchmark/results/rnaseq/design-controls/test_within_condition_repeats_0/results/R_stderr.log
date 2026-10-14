@@ -1,0 +1,2 @@
+Error: Repeated observations of the same experimental unit within a condition require technical-replicate aggregation or an appropriate repeated-measures model; a fixed unit effect alone is insufficient
+Execution halted

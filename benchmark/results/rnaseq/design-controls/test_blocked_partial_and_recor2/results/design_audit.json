@@ -1,0 +1,34 @@
+{
+  "status": "PASS_WITH_WARNINGS",
+  "comparison": "b vs a",
+  "replicate_counts": {
+    "a": 4,
+    "b": 4
+  },
+  "biological_replication_note": "Sample-row counts are reported here; independence must follow the declared experimental unit. Technical repeats are not biological replicates.",
+  "experimental_unit_column": "experimental_unit",
+  "experimental_unit_status": "UNIQUE",
+  "covariates": [],
+  "technical_covariates_detected": [
+    "batch"
+  ],
+  "technical_covariates_in_model": [],
+  "confounded_columns": [
+    "batch"
+  ],
+  "design": "~condition",
+  "design_rank": 2,
+  "design_columns": 2,
+  "design_full_rank": true,
+  "min_samples_requested": 4,
+  "min_samples_effective": 4,
+  "library_size_min": 13745,
+  "library_size_max": 14752,
+  "library_size_fold_range": 1.0732630047,
+  "warnings": [
+    "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design.",
+    "Recorded technical variable(s) nested within condition: batch. A condition-only model does not separate these technical effects from biology. Review the study design before inference; including a perfectly confounded term will fail the model-rank check.",
+    "Recorded technical variable(s) not included in the statistical model: batch. Review PCA and study design before deciding whether adjustment is required."
+  ],
+  "size_factor_library_correlation": 0.82397562988
+}

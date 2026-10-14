@@ -217,6 +217,12 @@ async def analyze_pockets(body: CastpRequest):
         "structure_evidence": "experimental" if "experimental" in resolved["structure_source"].lower() else "computational" if "esmfold" in resolved["structure_source"].lower() else "uploaded",
     })
 
+    engine_parameters = {"requested_method": requested_method}
+    if requested_method == "fpocket":
+        engine_parameters["alpha_sphere_settings"] = "fpocket native defaults"
+    else:
+        engine_parameters["probe_radius_angstrom"] = body.probe_radius
+
     results = {
         "pdb_id": method_result.get("pdb_id", resolved["pdb_id"]),
         "probe_radius": method_result.get("probe_radius", body.probe_radius),
@@ -256,7 +262,7 @@ async def analyze_pockets(body: CastpRequest):
             engine_version=engine_version,
             input_payload=input_payload,
             reason=str(validation.get("reason") or f"{requested_method} failed"),
-            parameters={"probe_radius_angstrom": body.probe_radius, "requested_method": requested_method},
+            parameters=engine_parameters,
             validation=validation,
         )
         failed["results"] = results
@@ -268,7 +274,7 @@ async def analyze_pockets(body: CastpRequest):
         engine=str(method_result.get("method") or requested_method),
         engine_version=engine_version,
         input_payload=input_payload,
-        parameters={"probe_radius_angstrom": body.probe_radius, "requested_method": requested_method},
+        parameters=engine_parameters,
         fallback_used=bool(method_result.get("fallback_used", False)),
         fallback_method=method_result.get("fallback_method"),
         results=results,

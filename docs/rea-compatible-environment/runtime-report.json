@@ -1,0 +1,90 @@
+{
+  "status": "PROCESS_IDENTITY_BLOCKER_RESOLVED_IN_COMPATIBLE_VM",
+  "local_failure": {
+    "node_version": "24.19.0",
+    "pid": 2,
+    "proc_self_pid": 4925,
+    "proc_pid_path_missing": true,
+    "reason": "PID namespace differs from mounted procfs; REA cannot validate self ownership"
+  },
+  "compatible_vm": {
+    "image": "vercel/sandbox/universal@sha256:c77f7436b9bc0a8b01ef7b09dbcea2de6a18a9fe2aafa89996d2da193da72cf0",
+    "probe": {
+      "nodeVersion": "24.21.0",
+      "platform": "linux",
+      "pid": 941,
+      "nodeSupported": true,
+      "compatible": true,
+      "procSelfPid": 941,
+      "psReportsSelf": true
+    },
+    "rea_version": "6.4.0",
+    "vcpus": 4,
+    "memory_mib": 8192,
+    "persistent": false,
+    "timeout_ms": 600000,
+    "allowed_egress_domains": [
+      "registry.npmjs.org",
+      "usegalaxy.org",
+      "app.terra.bio"
+    ],
+    "process_safeguards_enabled": true,
+    "session_stopped": true
+  },
+  "fixture": {
+    "evidence_id": "ev_dbfb18a0f7816f684363f7583b072c1918246b33991d3f3895d8210893b718e8",
+    "scope": "Synthetic compatibility probe; no application runtime executed"
+  },
+  "analyses": [
+    {
+      "name": "terra",
+      "raw_sha256": "8b4fe91a9b061c7534896bf8bbddb3b89fd1bc1cd1aec6946a5f70a53b86cebe",
+      "evidence_id": "ev_ca57c0211ce4a1d849535107e3cb8860ddc74df49554dd99ecc7a6776bd68359",
+      "statistics": {
+        "relevant_files": 1,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 33258,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 1,
+        "visited_ast_nodes": 5729,
+        "findings": 15,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "coverage": {
+        "status": "unknown",
+        "truncated": false
+      },
+      "semantic_nodes": 3047,
+      "semantic_relations": 3960,
+      "unknowns": 784,
+      "source_sha256": "df887159122eff165dcef948baae1a1cfe2296d07b22bfc876ff295ed8bf0096"
+    },
+    {
+      "name": "galaxy",
+      "raw_sha256": "4b2d262612b271ce9c03867d9629159d2028933838ab198408e0a9330b8435da",
+      "evidence_id": "ev_bfaff7de609566673d5cb492d3a5d63d58bef935e289ede3f47c8eccb6ca2cb7",
+      "statistics": {
+        "relevant_files": 1,
+        "nested_asar_containers": 0,
+        "text_bytes_read": 7036751,
+        "invalid_utf8_files": 0,
+        "parsed_javascript_files": 1,
+        "visited_ast_nodes": 2212013,
+        "findings": 213,
+        "modules": 0,
+        "parse_failures": 0
+      },
+      "coverage": {
+        "status": "partial",
+        "truncated": true
+      },
+      "semantic_nodes": 1,
+      "semantic_relations": 0,
+      "unknowns": 12,
+      "source_sha256": "541c4367adefd055b58d83f45d7998bf4e029db2004612fcc6f9f2132327b6d8"
+    }
+  ],
+  "remaining_limit": "Galaxy semantic analysis exhausted both 2048-MiB and 5120-MiB worker heaps. Terra entry has static unknowns and omitted lazy dependencies; no behavioral equivalence asserted.",
+  "evidence_retention": "Full synthetic fixture and REA-generated summary views are retained. Full public-app parent records were processed in the temporary VM; their hashes are recorded, but those full records are not retained here."
+}

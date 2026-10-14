@@ -59,7 +59,7 @@ def snp_overlap(
     }
 
 
-def multiplex_compatibility(pairs: list[dict[str, Any]], max_tm_spread: float = 3.0) -> dict:
+def multiplex_compatibility(pairs: list[dict[str, Any]], max_tm_spread: float = 3.0, conditions=None) -> dict:
     """Screen primer pairs for multiplex use using Tm spread and cross-dimers.
 
     This is a deterministic screening heuristic. It does not model full PCR
@@ -73,8 +73,8 @@ def multiplex_compatibility(pairs: list[dict[str, Any]], max_tm_spread: float = 
         if not left or not right:
             raise ValueError(f"pair {idx} requires left_seq and right_seq")
         pid = str(pair.get("id") or f"pair-{idx+1}")
-        left_tm = float(pair.get("left_tm") or salt_adjusted_tm(left))
-        right_tm = float(pair.get("right_tm") or salt_adjusted_tm(right))
+        left_tm = salt_adjusted_tm(left, conditions=conditions)
+        right_tm = salt_adjusted_tm(right, conditions=conditions)
         normalized.append({"id": pid, "left_seq": left, "right_seq": right, "left_tm": left_tm, "right_tm": right_tm})
         all_primers.extend([(f"{pid}:left", left), (f"{pid}:right", right)])
 
@@ -85,7 +85,7 @@ def multiplex_compatibility(pairs: list[dict[str, Any]], max_tm_spread: float = 
     for (name_a, seq_a), (name_b, seq_b) in combinations(all_primers, 2):
         if name_a.split(":")[0] == name_b.split(":")[0]:
             continue
-        dimer = dimer_analysis(seq_a, seq_b)
+        dimer = dimer_analysis(seq_a, seq_b, conditions=conditions)
         risk = dimer.get("risk", "none")
         if risk in {"high", "medium"}:
             high_risk += 1
@@ -94,7 +94,8 @@ def multiplex_compatibility(pairs: list[dict[str, Any]], max_tm_spread: float = 
             "primer_b": name_b,
             "dg": dimer.get("dg"),
             "risk": risk,
-            "three_prime_involved": bool(dimer.get("involves_a3") or dimer.get("involves_b3")),
+            "structure": dimer.get("structure"),
+            "conditions": dimer.get("conditions"),
         })
 
     compatible = tm_spread <= max_tm_spread and high_risk == 0

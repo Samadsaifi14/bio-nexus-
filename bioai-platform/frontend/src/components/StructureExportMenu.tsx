@@ -83,6 +83,9 @@ export function StructureExportMenu({ identifier, dockingJobId }: StructureExpor
       { id: 'sdf', label: 'Ligand SDF', hint: 'docked poses only', run: async () => {
         await downloadFile(`/api/docking/result/${dockingJobId}/ligand.sdf`, `docked_${dockingJobId.slice(0, 8)}.sdf`);
       } },
+      { id: 'pdbqt', label: 'Vina poses (PDBQT)', hint: 'original scored multi-pose output', run: async () => {
+        await downloadFile(`/api/docking/result/${dockingJobId}/ligand.pdbqt`, `docked_${dockingJobId.slice(0, 8)}.pdbqt`);
+      } },
     );
   }
 

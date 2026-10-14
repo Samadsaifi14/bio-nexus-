@@ -311,3 +311,108 @@ async def analyze_alignment_insights(req: AlignmentInsightsRequest):
         return alignment_insights(req.aligned_sequences, req.reference_index, req.variants)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+
+
+class RestrictionMapRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, max_length=500000)
+    enzymes: list[str] = Field(default_factory=lambda: ["EcoRI", "BamHI", "HindIII"], min_length=1, max_length=13)
+    circular: bool = False
+
+
+@router.post("/restriction-map")
+async def restriction_map_endpoint(req: RestrictionMapRequest):
+    from app.tools.restriction_map import restriction_map
+    try:
+        mapped = restriction_map(req.sequence, req.enzymes, req.circular)
+        return build_scientific_result(
+            status="VALID", method="Exact DNA restriction-site and complete-digest map",
+            engine="BioNexus restriction map / Biopython enzyme definitions", engine_version=Bio.__version__,
+            input_payload=req.model_dump(), parameters={"enzymes": req.enzymes, "circular": req.circular},
+            results=mapped, evidence_class="Deterministic computation",
+            validation={"fragment_length_conservation": mapped["fragment_total"] == mapped["length"], "experimental_digestion_validated": False},
+            citations=[{"label": "Biopython Bio.Restriction", "url": mapped["provenance"]["source_url"]}],
+        )
+    except SequenceUtilitiesError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+class DNAAnnotation(BaseModel):
+    label: str = Field(..., min_length=1, max_length=100)
+    start: int = Field(..., ge=1)
+    end: int = Field(..., ge=1)
+    strand: Literal[-1, 1] = 1
+    type: Literal['misc_feature', 'gene', 'promoter', 'rep_origin', 'primer_bind'] = 'misc_feature'
+
+
+class PrimerBindingRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, max_length=500000)
+    forward: str = Field(..., min_length=4, max_length=1000)
+    reverse: str = Field(..., min_length=4, max_length=1000)
+    circular: bool = False
+    min_product: int = Field(1, ge=1, le=200000)
+    max_product: int = Field(200000, ge=1, le=200000)
+
+
+@router.post('/primer-binding-map')
+async def primer_binding_endpoint(req: PrimerBindingRequest):
+    from app.tools.primer_binding import primer_binding_map
+    try:
+        mapped = primer_binding_map(**req.model_dump())
+        return build_scientific_result(
+            status='VALID', method='Exact primer binding and bounded amplicon geometry',
+            engine='BioNexus exact matching / Biopython reverse complement', engine_version=Bio.__version__,
+            input_payload=req.model_dump(), parameters={'circular': req.circular, 'min_product': req.min_product, 'max_product': req.max_product},
+            results=mapped, evidence_class='Deterministic computation',
+            validation={'exact_match_only': True, 'experimental_amplification_validated': False, 'genome_specificity_validated': False},
+            citations=[{'label': 'Biopython Seq', 'url': 'https://biopython.org/wiki/Seq'}],
+        )
+    except SequenceUtilitiesError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+class AnnotatedSequenceRequest(BaseModel):
+    sequence: str = Field(..., min_length=1, max_length=500000)
+    name: str = 'BioNexus_DNA'
+    circular: bool = False
+    features: list[DNAAnnotation] = Field(default_factory=list, max_length=200)
+    enzymes: list[str] = Field(default_factory=list, max_length=13)
+
+
+@router.post('/annotated-genbank')
+async def annotated_genbank_endpoint(req: AnnotatedSequenceRequest):
+    from app.tools.annotated_sequence import export_genbank
+    try:
+        result = export_genbank(req.sequence, req.name, req.circular, [f.model_dump() for f in req.features], req.enzymes)
+        return build_scientific_result(
+            status='VALID', method='User annotation and GenBank sequence exchange',
+            engine='Biopython SeqIO / BioNexus coordinate validation', engine_version=Bio.__version__,
+            input_payload=req.model_dump(), parameters={'name': req.name, 'circular': req.circular, 'enzymes': req.enzymes},
+            results=result, evidence_class='Deterministic computation',
+            validation={'annotation_coordinates_checked': True, 'biological_annotations_validated': False},
+            citations=[{'label': 'Biopython SeqIO', 'url': 'https://biopython.org/wiki/SeqIO'}],
+        )
+    except SequenceUtilitiesError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+class AlignmentTrimRequest(BaseModel):
+    fasta: str = Field(..., min_length=1, max_length=2000000)
+    molecule: Literal['dna', 'rna', 'protein'] = 'protein'
+    mode: Literal['all_gap', 'any_gap', 'gap_percent'] = 'all_gap'
+    gap_percent: float = Field(50, gt=0, le=100, allow_inf_nan=False)
+
+
+@router.post('/alignment-trim')
+async def alignment_trim_endpoint(req: AlignmentTrimRequest):
+    from app.tools.alignment_trim import trim_alignment
+    try:
+        result = trim_alignment(req.fasta, req.molecule, req.mode, req.gap_percent)
+        return build_scientific_result(
+            status='VALID', method='Deterministic aligned-FASTA column filtering',
+            engine='BioNexus alignment-column filter', engine_version='1.0',
+            input_payload=req.model_dump(), parameters={'molecule': req.molecule, 'mode': req.mode, 'gap_percent': req.gap_percent if req.mode == 'gap_percent' else None},
+            results=result, evidence_class='Deterministic computation',
+            validation={'equal_width_checked': True, 'unique_ids_checked': True, 'realignment_performed': False, 'biological_inference_validated': False},
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))

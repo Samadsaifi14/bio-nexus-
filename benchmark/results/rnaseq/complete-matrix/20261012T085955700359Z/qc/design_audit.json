@@ -1,0 +1,26 @@
+{
+  "status": "PASS",
+  "comparison": "SALS vs healthy",
+  "replicate_counts": {
+    "healthy": 8,
+    "SALS": 10
+  },
+  "biological_replication_note": "Sample-row counts are reported here; independence must follow the declared experimental unit. Technical repeats are not biological replicates.",
+  "experimental_unit_column": null,
+  "experimental_unit_status": "NOT_DECLARED",
+  "covariates": [],
+  "technical_covariates_detected": [],
+  "technical_covariates_in_model": [],
+  "confounded_columns": [],
+  "design": "~condition",
+  "design_rank": 2,
+  "design_columns": 2,
+  "design_full_rank": true,
+  "min_samples_requested": 8,
+  "min_samples_effective": 8,
+  "library_size_min": 19932944,
+  "library_size_max": 39421430,
+  "library_size_fold_range": 1.9777023404,
+  "warnings": [],
+  "size_factor_library_correlation": 0.92780775352
+}

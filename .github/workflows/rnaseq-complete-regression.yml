@@ -1,0 +1,41 @@
+name: Complete RNA-seq numerical regression
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmark/fixtures/rnaseq/full_matrix/**'
+      - 'bioai-platform/backend/app/rnaseq/**'
+      - 'bioai-platform/backend/tests/test_rnaseq_designs_r.py'
+      - '.github/workflows/rnaseq-complete-regression.yml'
+permissions:
+  contents: read
+jobs:
+  complete-matrix-parity:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    env:
+      PYTHONPATH: bioai-platform/backend
+      OPENBLAS_NUM_THREADS: '1'
+      OMP_NUM_THREADS: '1'
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.12'
+      - name: Install pinned numerical core and recorded plotting dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends r-base-core=4.3.3-2build2 r-bioc-deseq2=1.42.0+dfsg-1 r-cran-ggplot2=3.4.4+dfsg-1 r-bioc-complexheatmap r-bioc-tximport r-cran-jsonlite r-cran-circlize
+          python -m pip install pytest numpy fastapi 'pydantic[email]' httpx python-dotenv python-multipart
+      - name: Exercise realistic experimental designs
+        run: python -m pytest bioai-platform/backend/tests/test_rnaseq_designs_r.py -q
+      - name: Run complete matrix against independent DESeq2 reference
+        run: python benchmark/fixtures/rnaseq/full_matrix/run_regression.py
+      - name: Retain inputs, independent outputs, plots, checkpoints and checksums
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: complete-rnaseq-parity-${{ github.sha }}
+          path: benchmark/results/rnaseq/complete-matrix/
+          if-no-files-found: error

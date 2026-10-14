@@ -10,9 +10,8 @@ the canonical primer design workflow):
   * In-silico PCR: where each primer binds in the template, expected amplicon
     length, and specificity (number of binding sites).
 
-These are heuristic approximations suitable for screening. A delta-G is
-estimated with a simple nearest-neighbour-style pair score so primers can be
-ranked; it is not a substitute for a full NN thermodynamics calculation.
+Tm and secondary structures use primer3-py thermodynamics with explicit
+reaction conditions. Risk thresholds remain screening rules, not PCR validation.
 """
 
 from __future__ import annotations
@@ -25,15 +24,6 @@ _COMP = {ord('A'): 'T', ord('T'): 'A', ord('G'): 'C', ord('C'): 'G',
          ord('N'): 'N', ord('U'): 'A',
          ord('a'): 't', ord('t'): 'a', ord('g'): 'c', ord('c'): 'g',
          ord('n'): 'n', ord('u'): 'a'}
-
-# Per-base-pair stacking energies (kcal/mol) for the complementary stem.
-# Only canonical Watson-Crick pairs count towards a stem; wobble pairs are
-# ignored so short weak "stems" don't turn every oligo into a dimer/hairpin.
-_PAIR_DG = {
-    ('A', 'T'): -1.0, ('T', 'A'): -1.0,
-    ('G', 'C'): -2.0, ('C', 'G'): -2.0,
-}
-
 
 def clean(seq: str) -> str:
     """Upper-case and strip whitespace (and any non-letter junk)."""
@@ -56,133 +46,69 @@ def gc_content(seq: str) -> float:
     return round((s.count("G") + s.count("C")) / len(s) * 100.0, 1)
 
 
-def _pair_energy(a: str, b: str) -> float:
-    return _PAIR_DG.get((a, b), _PAIR_DG.get((b, a), 0.0))
+DEFAULT_CONDITIONS = {"mv_conc": 50.0, "dv_conc": 1.5, "dntp_conc": 0.6, "dna_conc": 50.0, "temp_c": 37.0}
 
 
-def salt_adjusted_tm(seq: str, salt_mm: float = 50.0) -> float:
-    """IDT-style melting temperature.
+def _engine():
+    try:
+        import primer3
+        return primer3
+    except ImportError as exc:
+        raise RuntimeError("Primer3 thermodynamics unavailable; install primer3-py. No heuristic fallback is used.") from exc
 
-    Uses the classic NN-approximation formula Tm = 64.9 + 41*(nGC - 16.4)/N
-    (valid at ~50 mM monovalent salt) plus the SantaLucia salt correction.
-    """
+
+def _sequence(seq: str) -> str:
     s = clean(seq)
-    n = len(s)
-    if n < 1:
-        return 0.0
-    n_gc = s.count("G") + s.count("C")
-    tm = 64.9 + 41.0 * (n_gc - 16.4) / n
-    if salt_mm != 50.0:
-        tm += 16.6 * math.log10(max(salt_mm, 0.01) / 50.0)
-    return round(tm, 1)
+    if not s or set(s) - set("ACGT") or len(s) > 60:
+        raise ValueError("Thermodynamic QC requires 1–60 unambiguous DNA bases (A/C/G/T); ambiguous bases are not scored.")
+    return s
 
 
-def _risk_from_dg(dg: float) -> Tuple[str, str]:
-    if dg <= -7.0:
-        return "high", "Strongly stabilizing — high risk of mis-priming."
-    if dg <= -4.5:
-        return "medium", "Moderately stabilizing — keep an eye on it."
-    if dg <= -3.0:
-        return "low", "Weakly stabilizing — unlikely to matter in practice."
-    return "none", "No significant structure predicted."
+def _conditions(conditions=None):
+    values = {**DEFAULT_CONDITIONS, **(conditions or {})}
+    if set(values) != set(DEFAULT_CONDITIONS):
+        raise ValueError("Unknown thermodynamic condition")
+    if any(not math.isfinite(float(v)) or float(v) < 0 for k, v in values.items() if k != "temp_c"):
+        raise ValueError("Concentrations must be finite and non-negative")
+    if values["dna_conc"] <= 0 or not -20 <= values["temp_c"] <= 100:
+        raise ValueError("DNA concentration must be positive and temperature must be -20 to 100 C")
+    return values
 
 
-def hairpin_analysis(seq: str, min_stem: int = 4, min_loop: int = 3) -> Dict:
-    """Predict the strongest intra-molecular hairpin.
-
-    A hairpin forms when the strand folds so that one arm is the reverse
-    complement of the other arm, separated by a loop of at least `min_loop`
-    bases: seq[i:i+L] must equal reverse_complement(seq[j:j+L]). Returns
-    delta-G, stem length, stem sequence, loop sequence and a risk level.
-    """
-    s = clean(seq)
-    n = len(s)
-    best: Optional[Tuple[float, int, int, int]] = None  # (dg, stem_len, i, j)
-    for i in range(n):
-        for j in range(i + min_stem + min_loop, n):
-            # loop = j - (i + L) must stay >= min_loop
-            lmax = min(j - i - min_loop, n - j, 10)
-            if lmax < min_stem:
-                continue
-            for L in range(min_stem, lmax + 1):
-                dg = 0.0
-                ok = True
-                for k in range(L):
-                    e = _pair_energy(s[i + k], s[j + L - 1 - k])
-                    if e == 0.0:
-                        ok = False
-                        break
-                    dg += e
-                if ok and (best is None or dg < best[0]):
-                    best = (dg, L, i, j)
-
-    if best is None:
-        return {"dg": 5.0, "stem_length": 0, "stem": "", "loop": "",
-                "risk": "none", "note": "No hairpin structure predicted."}
-    dg, stem_len, i, j = best
-    stem = s[i:i + stem_len]
-    loop = s[i + stem_len:j]
-    risk, note = _risk_from_dg(dg)
-    return {
-        "dg": round(dg, 1),
-        "stem_length": stem_len,
-        "stem": stem,
-        "loop": loop,
-        "risk": risk,
-        "note": note,
-    }
+def salt_adjusted_tm(seq: str, salt_mm: float = 50.0, conditions=None) -> float:
+    """SantaLucia nearest-neighbour Tm from Primer3; concentrations in mM except DNA in nM."""
+    c = _conditions(conditions)
+    if conditions is None:
+        c["mv_conc"] = salt_mm
+    kwargs = {k: v for k, v in c.items() if k != "temp_c"}
+    return round(_engine().calc_tm(_sequence(seq), **kwargs, tm_method="santalucia", salt_corrections_method="santalucia"), 2)
 
 
-def dimer_analysis(a: str, b: str, min_stem: int = 4) -> Dict:
-    """Predict the strongest dimer between two primers.
+def _structure(result, conditions):
+    # Primer3 returns free energy in cal/mol. Public output uses kcal/mol.
+    dg = float(result.dg) / 1000.0
+    found = bool(result.structure_found)
+    risk = "none" if not found or dg > -3 else "low" if dg > -4.5 else "medium" if dg > -7 else "high"
+    return {"dg": round(dg, 3), "dg_units": "kcal/mol", "tm_c": float(result.tm),
+            "structure_found": found, "structure": getattr(result, "ascii_structure", "") or "",
+            "risk": risk, "risk_model": "Screening thresholds on predicted delta-G: low <= -3, medium <= -4.5, high <= -7 kcal/mol; not experimental PCR validation",
+            "conditions": conditions, "engine": "primer3-py", "engine_version": getattr(_engine(), "__version__", "unknown"),
+            "note": "Primer3 thermodynamic prediction; PCR efficiency and genome-wide specificity are not established."}
 
-    A dimer forms where primer `a` anneals antiparallel to primer `b`, i.e.
-    where a region of `a` is complementary to a region of reversed `b`. Reports
-    the most stabilizing complementary stem, whether the stem involves the 3'
-    end of either primer (extension-competent dimers are the dangerous ones
-    for PCR), and a risk level.
-    """
-    pa = clean(a)
-    rev_b = clean(b)[::-1]
-    n, m = len(pa), len(rev_b)
 
-    best: Optional[Tuple[float, int, int, int]] = None  # (dg, stem_len, i, j)
-    for i in range(n):
-        for j in range(m):
-            k = 0
-            dg = 0.0
-            while i + k < n and j + k < m:
-                e = _pair_energy(pa[i + k], rev_b[j + k])
-                if e == 0.0:
-                    break
-                dg += e
-                k += 1
-                if k >= 12:
-                    break
-            if k >= min_stem and (best is None or dg < best[0]):
-                best = (dg, k, i, j)
+def hairpin_analysis(seq: str, min_stem: int = 4, min_loop: int = 3, conditions=None) -> Dict:
+    """Primer3 hairpin thermodynamics (legacy stem arguments do not alter its model)."""
+    c = _conditions(conditions)
+    return _structure(_engine().calc_hairpin(_sequence(seq), **c, output_structure=True), c)
 
-    if best is None:
-        return {"dg": 5.0, "stem_length": 0, "stem": "", "involves_a3": False,
-                "involves_b3": False, "risk": "none",
-                "note": "No significant dimer predicted."}
-    dg, stem_len, i, j = best
-    stem = pa[i:i + stem_len]
-    a3 = (i + stem_len == n)  # stem reaches the 3' end of primer a
-    b3 = (j == 0)             # rev_b[0] complements b's 3' terminal base
-    risk, note = _risk_from_dg(dg)
-    if a3 or b3:
-        note = ("3' end involved — extension-competent, more likely to "
-                "interfere with PCR. ") + note
-    return {
-        "dg": round(dg, 1),
-        "stem_length": stem_len,
-        "stem": stem,
-        "involves_a3": a3,
-        "involves_b3": b3,
-        "risk": risk,
-        "note": note,
-    }
+
+def dimer_analysis(a: str, b: str, min_stem: int = 4, conditions=None) -> Dict:
+    """Primer3 homo/heterodimer thermodynamics, without invented stem coordinates."""
+    c = _conditions(conditions)
+    pa, pb = _sequence(a), _sequence(b)
+    engine = _engine()
+    result = engine.calc_homodimer(pa, **c, output_structure=True) if pa == pb else engine.calc_heterodimer(pa, pb, **c, output_structure=True)
+    return _structure(result, c)
 
 
 def find_binding_sites(template: str, primer: str) -> List[int]:
@@ -262,17 +188,13 @@ def in_silico_pcr(template: str, left: str, right: str,
     return result
 
 
-def oligo_report(seq: str) -> Dict:
-    """Full QC report for a single primer."""
-    s = clean(seq)
-    hp = hairpin_analysis(s)
-    sd = dimer_analysis(s, s)
-    return {
-        "sequence": s,
-        "length": len(s),
-        "gc": gc_content(s),
-        "tm_50mM": salt_adjusted_tm(s),
-        "tm_model": "IDT-style nearest-neighbor approximation (64.9 + 41*(nGC-16.4)/N) with SantaLucia salt correction at 50 mM; not a fully calibrated NN melt calculation",
-        "hairpin": hp,
-        "self_dimer": sd,
-    }
+def oligo_report(seq: str, conditions=None) -> Dict:
+    """Nearest-neighbour thermodynamic QC with fully recorded reaction conditions."""
+    s = _sequence(seq)
+    c = _conditions(conditions)
+    tm = salt_adjusted_tm(s, conditions=c)
+    return {"sequence": s, "length": len(s), "gc": gc_content(s), "tm_c": tm,
+            "tm_50mM": tm if c["mv_conc"] == 50 else None,
+            "tm_model": "Primer3 SantaLucia nearest-neighbor with SantaLucia salt correction",
+            "conditions": c, "concentration_units": {"mv_conc": "mM", "dv_conc": "mM", "dntp_conc": "mM", "dna_conc": "nM", "temp_c": "C"},
+            "hairpin": hairpin_analysis(s, conditions=c), "self_dimer": dimer_analysis(s, s, conditions=c)}

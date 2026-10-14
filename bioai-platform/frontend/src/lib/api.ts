@@ -252,8 +252,11 @@ export type PrimerSearchResponse = {
 
 export type PrimerStructure = {
   dg: number;
-  stem_length: number;
-  stem: string;
+  structure_found: boolean;
+  structure: string;
+  tm_c: number;
+  stem_length?: number;
+  stem?: string;
   loop?: string;
   involves_a3?: boolean;
   involves_b3?: boolean;
@@ -265,7 +268,9 @@ export type PrimerQC = {
   sequence: string;
   length: number;
   gc: number;
-  tm_50mM: number;
+  tm_50mM: number | null;
+  tm_c: number;
+  conditions: { mv_conc: number; dv_conc: number; dntp_conc: number; dna_conc: number; temp_c: number };
   hairpin: PrimerStructure;
   self_dimer: PrimerStructure;
 };
@@ -624,6 +629,23 @@ export type DockingPoseInteractions = {
   salt_bridges: number;
 };
 
+export type DockingPocketCandidate = {
+  rank: number;
+  center: number[];
+  size: number[];
+  atom_count: number;
+  residues: string[];
+  residue_ids: Array<{ chain: string; residue_number: number | string; residue_name: string }>;
+  score?: number;
+  druggability_score?: number;
+  volume?: number;
+  area?: number;
+  total_sasa?: number;
+  polar_sasa?: number;
+  apolar_sasa?: number;
+  number_of_alpha_spheres?: number;
+};
+
 export type DockingResult = {
   job_id: string;
   status: string;
@@ -653,10 +675,25 @@ export type DockingResult = {
     vina_num_modes?: number | null;
     grid_source?: string;
     receptor_prep?: string;
+    receptor_prep_evidence?: {
+      input_protein_atom_records: number;
+      input_explicit_hydrogen_records: number;
+      prepared_pdbqt_atom_records: number;
+      prepared_pdbqt_hydrogen_atom_types: number;
+      input_water_records_excluded: number;
+      input_other_hetero_records_excluded: number;
+    };
     ligand_prep?: string;
+    ligand_prep_evidence?: { prepared_pdbqt_atom_records: number; protonation: string };
     from_cache?: boolean;
     interactions?: DockingInteraction;
+    interaction_analysis?: { status: 'COMPUTED' | 'UNAVAILABLE'; method?: string; reason?: string; limitations?: string };
     pose_interactions?: DockingPoseInteractions[];
+    pose_analytics?: Record<string, unknown>;
+    pocket_candidates?: DockingPocketCandidate[];
+    selected_pocket_rank?: number | null;
+    result_pdbqt?: string;
+    result_sdf?: string;
     ligand_pdb?: string;
   };
   error?: string;
@@ -681,9 +718,6 @@ export async function getDockingStatus(jobId: string): Promise<DockingResult> {
   const res = await longApi.get(`/api/docking/status/${jobId}`);
   return res.data;
 }
-
-export type { DockingValidationResult, PocketDetection, InteractionFingerprint, AutoBoxParameters } from '@/features/docking-validation';
-export { runDockingValidation } from '@/features/docking-validation';
 
 export function getDockingPdbUrl(jobId: string): string {
   return apiUrl(`/api/docking/result/${jobId}/pdb`);
@@ -1575,13 +1609,13 @@ export async function getMDStatus(jobId: string): Promise<{ job_id: string; stat
 }
 
 // ---------------------------------------------------------------------------
-// Function Prediction (DeepFRI-inspired)
+// Function hints (InterProScan and InterPro2GO evidence)
 // ---------------------------------------------------------------------------
 
 export type FunctionPredictionResult = {
   pdb_id: string;
   sequence_length: number;
-  go_terms: { go_id: string; name: string; namespace: string; confidence: number }[];
+  go_terms: { go_id: string; name: string; namespace: string; confidence: number | null }[];
   ec_numbers: { number: string; confidence: number }[];
   saliency: number[];
   composition?: { aa: string; fractions: Record<string, number> };
@@ -1672,12 +1706,12 @@ export interface CastpPocket {
   id: number;
   druggability_score?: number | null;
   score?: number | null;
-  area_sa: number;
-  volume_sa: number;
+  area_sa: number | null;
+  volume_sa: number | null;
   num_residues: number;
   residues: string[];
-  centroid: number[];
-  radius: number;
+  centroid: number[] | null;
+  radius: number | null;
   residue_details: CastpPocketResidue[];
   gap_ranges: CastpPocketGap[];
   chain_spans: CastpChainSpan[];
@@ -1686,7 +1720,7 @@ export interface CastpPocket {
 
 export interface CastpResult {
   pdb_id: string;
-  probe_radius: number;
+  probe_radius: number | null;
   total_residues: number;
   pockets: CastpPocket[];
   method?: string;
@@ -1705,17 +1739,22 @@ export interface CastpResult {
   contacts?: IntramolecularContacts;
 }
 
-export async function runCastp(pdbId: string, probeRadius = 1.4): Promise<CastpResult> {
-  const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius });
-  // The endpoint wraps its payload in a scientific-result envelope; the pockets,
-  // pdb_id and structure live under `results` (set on both the success and the
-  // failed path). Returning the envelope made every field read as undefined.
-  return (res.data?.results ?? res.data) as CastpResult;
+export type PocketMethod = 'fpocket' | 'sasa_heuristic';
+
+function unwrapPocketResult(data: Record<string, unknown>): CastpResult {
+  return { ...(data.results as object ?? data), method: data.method as string,
+    status: data.status as string, fallback_used: data.fallback_used as boolean,
+    error: ((data.validation as Record<string, unknown>)?.reason as string) } as CastpResult;
 }
 
-export async function runCastpSequence(sequence: string, probeRadius = 1.4): Promise<CastpResult> {
-  const res = await longApi.post('/api/castp/analyze', { sequence, probe_radius: probeRadius });
-  return res.data;
+export async function runCastp(pdbId: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {
+  const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius, method });
+  return unwrapPocketResult(res.data);
+}
+
+export async function runCastpSequence(sequence: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {
+  const res = await longApi.post('/api/castp/analyze', { sequence, probe_radius: probeRadius, method });
+  return unwrapPocketResult(res.data);
 }
 
 // ─── SWISS-MODEL ────────────────────────────────────────────────────────────
@@ -1843,7 +1882,7 @@ export interface StructurePrepResult {
     chains: string[];
     total_residues: number;
   } | null;
-  fpocket_pockets: { id: number; druggability_score: number; volume: number; area: number; score: number; num_residues: number }[];
+  fpocket_pockets: { id: number; druggability_score: number | null; volume: number | null; area: number | null; score: number | null; num_residues: number }[];
   castp_pockets: { id: number; area_sa: number; volume_sa: number }[];
   fpocket_engine?: 'fpocket' | 'sasa_concave_packing_fallback' | string;
   fpocket_engine_note?: string;
@@ -2003,4 +2042,45 @@ export async function getToolCards(): Promise<ToolCard[]> {
 export async function getToolCard(toolId: string): Promise<ToolCard> {
   const res = await api.get(`/api/tools/${toolId}`);
   return res.data;
+}
+
+/** Stored scientific workflow evidence; export does not execute or translate tools. */
+export async function getWorkflowEvidenceManifest(jobId: string): Promise<Record<string, unknown>> {
+  const res = await api.get(`/api/experiments/${encodeURIComponent(jobId)}/workflow-manifest`);
+  return res.data;
+}
+
+
+export async function exportWorkflowRecipe(jobId: string): Promise<Record<string, unknown>> {
+  const res = await api.get(`/api/experiments/${encodeURIComponent(jobId)}/workflow-recipe`);
+  return res.data;
+}
+export async function validateWorkflowRecipe(recipe: unknown): Promise<Record<string, unknown>> {
+  const res = await api.post('/api/pipelines/recipes/validate', recipe);
+  return res.data;
+}
+export async function replayWorkflow(jobId: string, sequence: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post(`/api/experiments/${encodeURIComponent(jobId)}/replay`, { sequence });
+  return res.data;
+}
+
+export async function runWorkflowRecipe(recipe: unknown, sequence: string): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/pipelines/run', { sequence, pipeline_type: 'protein_analysis', workflow_recipe: recipe });
+  return res.data;
+}
+
+export interface WorkflowCollectionItem { identifier: string; job_id: string | null; status: string; error?: string }
+export async function runWorkflowCollection(recipe: unknown, fasta: string, submissionId: string): Promise<{ items: WorkflowCollectionItem[]; total: number }> {
+  const res = await api.post('/api/pipelines/collections/run', { recipe, fasta, submission_id: submissionId });
+  return res.data;
+}
+
+export interface AlignmentTrimResult {
+  trimmed_fasta: string;
+  mask: { kept_columns: number[]; dropped_columns: number[]; input_width: number; output_width: number; record_count: number; residues_removed: number; input_sha256: string; output_sha256: string; coordinate_convention: string };
+  warning: string;
+}
+export async function trimAlignmentColumns(fasta: string, molecule: 'dna' | 'rna' | 'protein', mode: 'all_gap' | 'any_gap' | 'gap_percent', gap_percent: number) {
+  const { data } = await longApi.post<{ results: AlignmentTrimResult }>('/api/seq-tools/alignment-trim', { fasta, molecule, mode, gap_percent });
+  return data;
 }

@@ -24,7 +24,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from app.config import settings
-from app.ngs.assays import AssayRouter
+from app.ngs.assays import AssayRouter, SMALL_RNA_PATTERN, SMALL_RNA_GUIDANCE
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
 from app.ngs.production import build_production_plan, evaluate_clinical_evidence
 from app.ngs.execution import artifact_manifest, executor_capabilities, get_run, submit_run
@@ -409,6 +409,8 @@ async def analyze(payload: AnalyzeRequest, user_id: Optional[str] = Depends(get_
     detection = _detection(payload, files=files)
     demo_assay = _DEMO_PROFILES[payload.demo_profile]["assay"] if payload.demo_profile else None
     assay = (payload.assay or demo_assay or detection["assay"] or "").upper()
+    if SMALL_RNA_PATTERN.search(assay) or detection["assay"] == "Small-RNA-seq":
+        raise HTTPException(status_code=422, detail=SMALL_RNA_GUIDANCE)
     if assay in ("RNA-SEQ", "RNASEQ", "RNA"):
         assay = "RNA-SEQ"
     if assay in ("UNKNOWN", ""):

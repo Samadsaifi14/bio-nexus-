@@ -57,9 +57,14 @@ jobs:
             tail -n 120 /tmp/bionexus-pytest-collection.txt
           fi
           exit "${status}"
+      - name: Diagnose fixture integrity and descriptor parity
+        continue-on-error: true
+        run: |
+          python -m pytest tests/test_bbs2_fixtures.py -vv --tb=long --timeout=90 --timeout-method=signal
       - name: Run every backend test with per-test hang guard
         run: |
-          python -m pytest --basetemp="$GITHUB_WORKSPACE/pytest-full-work" --junitxml="$RUNNER_TEMP/full-feature-audit.xml" -vv --disable-warnings --maxfail=20 --timeout=90 --timeout-method=thread
+          mapfile -t test_files < <(find tests -name 'test_*.py' ! -name 'test_blast_comprehensive.py' | sort)
+          python -m pytest "${test_files[@]}" tests/test_blast_comprehensive.py --basetemp="$GITHUB_WORKSPACE/pytest-full-work" --junitxml="$RUNNER_TEMP/full-feature-audit.xml" -vv --disable-warnings --timeout=90 --timeout-method=signal
       - name: Retain full-suite test report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02

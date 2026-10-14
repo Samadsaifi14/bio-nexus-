@@ -1,0 +1,58 @@
+{
+  "deployed_commit": "ce995197465f2599bef4c683562eddb119310586",
+  "backend_deployment": "verified healthy revision",
+  "frontend_deployment": "verified canonical Vercel deployment",
+  "storage": "private Supabase Storage with Postgres queue",
+  "readiness": {
+    "raw_counts": true,
+    "salmon": true,
+    "missing": []
+  },
+  "live_public_dataset": "GSE336901",
+  "live_state": "SUCCEEDED",
+  "attempts": 1,
+  "r_stages_complete": [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10
+  ],
+  "functional_enrichment": {
+    "state": "completed",
+    "eligible_rows": 14135,
+    "mapped_rows": 14104,
+    "annotated_background": 12409,
+    "terms_tested": 14258,
+    "significant_terms": 3,
+    "normalization": "Source-declared composite annotations audited; ambiguous rows excluded"
+  },
+  "samples": 10,
+  "genes_input": 42000,
+  "genes_tested": 14343,
+  "differential_genes": 124,
+  "up": 32,
+  "down": 92,
+  "figures_observed": [
+    "interactive PCA",
+    "PCA SVG",
+    "distance heatmap",
+    "interactive volcano",
+    "volcano SVG",
+    "MA SVG",
+    "expression heatmap",
+    "dispersion diagnostics"
+  ],
+  "interpretation_observed": "Evidence-linked explanation with comparison direction, normalization, differential counts and QC",
+  "local_regression_tests_passed": 30,
+  "database_claim_assertions": "passed and rolled back",
+  "anonymous_queue_access": false,
+  "browser_queue_access": false,
+  "signed_urls_retained_in_report": false,
+  "fresh_run_resume_id": "201f8dfd-50af-4b89-818c-a2922d306b44"
+}

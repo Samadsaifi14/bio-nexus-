@@ -1,0 +1,710 @@
+{
+  "schema_version": 1,
+  "source_files": [
+    "Pasted markdown.md",
+    "Pasted markdown(1).md"
+  ],
+  "platform_groups": [
+    "Galaxy",
+    "Geneious Prime",
+    "CLC Genomics Workbench",
+    "Benchling / SnapGene",
+    "OmicsBox",
+    "Latch / Basepair / Partek Flow",
+    "Schrodinger / MOE / Discovery Studio",
+    "Seqera / DNAnexus / Terra",
+    "General LLMs and bio-agents"
+  ],
+  "scope_policy": "Original roadmap is retained in full. Passing a subcapability does not mean full tool or vendor equivalence. All original capabilities must have executed non-skipped acceptance checks before scope_complete/main_release_allowed can be true.",
+  "requirements": [
+    {
+      "id": "tool-01",
+      "name": "RNA-seq",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "guided_qc",
+        "batch_effect_review",
+        "interactive_pca_volcano",
+        "ranked_gsea",
+        "nextflow_process_evidence",
+        "count_output_classification"
+      ],
+      "acceptance_checks": {
+        "guided_qc": null,
+        "batch_effect_review": null,
+        "interactive_pca_volcano": null,
+        "ranked_gsea": null,
+        "nextflow_process_evidence": "nextflow",
+        "count_output_classification": "counts"
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-02",
+      "name": "Consensus sequencing",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "variant_browser",
+        "variant_annotation",
+        "clinvar_lookup"
+      ],
+      "acceptance_checks": {
+        "variant_browser": null,
+        "variant_annotation": null,
+        "clinvar_lookup": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-03",
+      "name": "BLAST",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "local_diamond_custom_database",
+        "taxonomy_filters",
+        "annotated_hits",
+        "hit_to_msa"
+      ],
+      "acceptance_checks": {
+        "local_diamond_custom_database": "diamond",
+        "taxonomy_filters": null,
+        "annotated_hits": null,
+        "hit_to_msa": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-04",
+      "name": "Pairwise",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "uniprot_annotation_tracks",
+        "permutation_score_test"
+      ],
+      "acceptance_checks": {
+        "uniprot_annotation_tracks": null,
+        "permutation_score_test": "pairwise"
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-05",
+      "name": "MSA",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "manual_alignment_editing",
+        "column_trimming",
+        "consensus_conservation_tracks"
+      ],
+      "acceptance_checks": {
+        "manual_alignment_editing": null,
+        "column_trimming": null,
+        "consensus_conservation_tracks": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-06",
+      "name": "Phylogenetics",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "modelfinder",
+        "ultrafast_bootstrap",
+        "tree_annotation_rooting",
+        "newick_nexus_export"
+      ],
+      "acceptance_checks": {
+        "modelfinder": null,
+        "ultrafast_bootstrap": null,
+        "tree_annotation_rooting": null,
+        "newick_nexus_export": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-07",
+      "name": "Domains",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "msa_domain_overlays",
+        "homolog_domain_architecture"
+      ],
+      "acceptance_checks": {
+        "msa_domain_overlays": null,
+        "homolog_domain_architecture": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-08",
+      "name": "Motif scanner",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "de_novo_motif_discovery",
+        "elm_regex_library"
+      ],
+      "acceptance_checks": {
+        "de_novo_motif_discovery": null,
+        "elm_regex_library": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-09",
+      "name": "UniProt",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "variant_ptm_disease_tracks",
+        "linked_structure_pathway"
+      ],
+      "acceptance_checks": {
+        "variant_ptm_disease_tracks": null,
+        "linked_structure_pathway": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-10",
+      "name": "Sequence utilities",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "restriction_enzyme_library",
+        "orf_finder",
+        "circular_plasmid_view",
+        "codon_usage"
+      ],
+      "acceptance_checks": {
+        "restriction_enzyme_library": null,
+        "orf_finder": null,
+        "circular_plasmid_view": null,
+        "codon_usage": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-11",
+      "name": "Dot plot",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "genome_scale_paf_plot"
+      ],
+      "acceptance_checks": {
+        "genome_scale_paf_plot": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-12",
+      "name": "Structure analysis",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "wwpdb_validation",
+        "ramachandran_clash_rotamer_validation"
+      ],
+      "acceptance_checks": {
+        "wwpdb_validation": null,
+        "ramachandran_clash_rotamer_validation": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-13",
+      "name": "Structure prep",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "protonation_propka",
+        "missing_atoms",
+        "loop_rebuilding",
+        "water_ligand_controls"
+      ],
+      "acceptance_checks": {
+        "protonation_propka": null,
+        "missing_atoms": null,
+        "loop_rebuilding": null,
+        "water_ligand_controls": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-14",
+      "name": "Pocket analysis",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "p2rank_fpocket",
+        "published_druggability_descriptors"
+      ],
+      "acceptance_checks": {
+        "p2rank_fpocket": null,
+        "published_druggability_descriptors": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-15",
+      "name": "Structure compare",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "foldseek_us_align",
+        "binding_site_superposition",
+        "rmsd_export"
+      ],
+      "acceptance_checks": {
+        "foldseek_us_align": null,
+        "binding_site_superposition": null,
+        "rmsd_export": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-16",
+      "name": "Structure prediction",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "msa_supported_prediction",
+        "complex_ligand_prediction",
+        "pae_plots"
+      ],
+      "acceptance_checks": {
+        "msa_supported_prediction": null,
+        "complex_ligand_prediction": null,
+        "pae_plots": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-17",
+      "name": "SWISS-MODEL",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "template_selection_alignment",
+        "template_model_execution",
+        "model_quality"
+      ],
+      "acceptance_checks": {
+        "template_selection_alignment": null,
+        "template_model_execution": null,
+        "model_quality": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-18",
+      "name": "Molecular dynamics",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "guided_setup",
+        "trajectory_analysis",
+        "mm_gbsa",
+        "gpu_queue"
+      ],
+      "acceptance_checks": {
+        "guided_setup": null,
+        "trajectory_analysis": null,
+        "mm_gbsa": null,
+        "gpu_queue": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-19",
+      "name": "Function hints",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "interpro_go",
+        "blast_annotation_transfer",
+        "eggnog",
+        "evidence_codes"
+      ],
+      "acceptance_checks": {
+        "interpro_go": null,
+        "blast_annotation_transfer": null,
+        "eggnog": null,
+        "evidence_codes": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-20",
+      "name": "Docking",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "gnina_rescoring",
+        "redocking_panel",
+        "pharmacophore_constraints",
+        "ensemble_receptors",
+        "interaction_fingerprints",
+        "batch_screening"
+      ],
+      "acceptance_checks": {
+        "gnina_rescoring": null,
+        "redocking_panel": null,
+        "pharmacophore_constraints": null,
+        "ensemble_receptors": null,
+        "interaction_fingerprints": null,
+        "batch_screening": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-21",
+      "name": "ADMET",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "trained_admet_models",
+        "boiled_egg",
+        "structural_alerts",
+        "applicability_domain"
+      ],
+      "acceptance_checks": {
+        "trained_admet_models": null,
+        "boiled_egg": null,
+        "structural_alerts": null,
+        "applicability_domain": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-22",
+      "name": "Pathway analysis",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "database_breadth",
+        "ranked_gsea",
+        "enrichment_networks",
+        "published_causal_methods"
+      ],
+      "acceptance_checks": {
+        "database_breadth": null,
+        "ranked_gsea": null,
+        "enrichment_networks": null,
+        "published_causal_methods": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-23",
+      "name": "PPI",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "network_metrics",
+        "communities",
+        "multiple_evidence_sources",
+        "graphml_export",
+        "string_json_scale"
+      ],
+      "acceptance_checks": {
+        "network_metrics": null,
+        "communities": null,
+        "multiple_evidence_sources": null,
+        "graphml_export": null,
+        "string_json_scale": "ppi_scale"
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-24",
+      "name": "Primers",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "primer3_thermodynamics",
+        "genome_specificity"
+      ],
+      "acceptance_checks": {
+        "primer3_thermodynamics": null,
+        "genome_specificity": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "tool-25",
+      "name": "Utility tools",
+      "kind": "original_tool",
+      "required_capabilities": [
+        "format_converters",
+        "batch_sequence_operations",
+        "fasta_genbank_gff_validation"
+      ],
+      "acceptance_checks": {
+        "format_converters": null,
+        "batch_sequence_operations": null,
+        "fasta_genbank_gff_validation": null
+      },
+      "review_policy": "No completion inferred from source-code presence; unregistered capabilities remain UNVERIFIED."
+    },
+    {
+      "id": "candidate-crispr",
+      "name": "crispr",
+      "kind": "candidate",
+      "required_capabilities": [
+        "crispr"
+      ],
+      "acceptance_checks": {
+        "crispr": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-variant_effect_prediction",
+      "name": "variant effect prediction",
+      "kind": "candidate",
+      "required_capabilities": [
+        "variant_effect_prediction"
+      ],
+      "acceptance_checks": {
+        "variant_effect_prediction": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-virtual_screening",
+      "name": "virtual screening",
+      "kind": "candidate",
+      "required_capabilities": [
+        "virtual_screening"
+      ],
+      "acceptance_checks": {
+        "virtual_screening": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-pharmacophore_modeling",
+      "name": "pharmacophore modeling",
+      "kind": "candidate",
+      "required_capabilities": [
+        "pharmacophore_modeling"
+      ],
+      "acceptance_checks": {
+        "pharmacophore_modeling": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-protein_protein_docking",
+      "name": "protein protein docking",
+      "kind": "candidate",
+      "required_capabilities": [
+        "protein_protein_docking"
+      ],
+      "acceptance_checks": {
+        "protein_protein_docking": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-ortholog_comparative_genomics",
+      "name": "ortholog comparative genomics",
+      "kind": "candidate",
+      "required_capabilities": [
+        "ortholog_comparative_genomics"
+      ],
+      "acceptance_checks": {
+        "ortholog_comparative_genomics": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-metagenomics_16s",
+      "name": "metagenomics 16s",
+      "kind": "candidate",
+      "required_capabilities": [
+        "metagenomics_16s"
+      ],
+      "acceptance_checks": {
+        "metagenomics_16s": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-genome_annotation_viewer",
+      "name": "genome annotation viewer",
+      "kind": "candidate",
+      "required_capabilities": [
+        "genome_annotation_viewer"
+      ],
+      "acceptance_checks": {
+        "genome_annotation_viewer": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-single_cell_rnaseq",
+      "name": "single cell rnaseq",
+      "kind": "candidate",
+      "required_capabilities": [
+        "single_cell_rnaseq"
+      ],
+      "acceptance_checks": {
+        "single_cell_rnaseq": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "candidate-protein_design_stability",
+      "name": "protein design stability",
+      "kind": "candidate",
+      "required_capabilities": [
+        "protein_design_stability"
+      ],
+      "acceptance_checks": {
+        "protein_design_stability": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "integration-cross_tool_bridges",
+      "name": "cross tool bridges",
+      "kind": "integration",
+      "required_capabilities": [
+        "cross_tool_bridges"
+      ],
+      "acceptance_checks": {
+        "cross_tool_bridges": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "integration-common_run_record",
+      "name": "common run record",
+      "kind": "integration",
+      "required_capabilities": [
+        "common_run_record"
+      ],
+      "acceptance_checks": {
+        "common_run_record": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "integration-evidence_linked_ai",
+      "name": "evidence linked ai",
+      "kind": "integration",
+      "required_capabilities": [
+        "evidence_linked_ai"
+      ],
+      "acceptance_checks": {
+        "evidence_linked_ai": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "integration-container_plugin_architecture",
+      "name": "container plugin architecture",
+      "kind": "integration",
+      "required_capabilities": [
+        "container_plugin_architecture"
+      ],
+      "acceptance_checks": {
+        "container_plugin_architecture": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "integration-gpu_worker_queue",
+      "name": "gpu worker queue",
+      "kind": "integration",
+      "required_capabilities": [
+        "gpu_worker_queue"
+      ],
+      "acceptance_checks": {
+        "gpu_worker_queue": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "integration-benchmark_page",
+      "name": "benchmark page",
+      "kind": "integration",
+      "required_capabilities": [
+        "benchmark_page"
+      ],
+      "acceptance_checks": {
+        "benchmark_page": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "recommendation-swissadme_cb_dock_experience",
+      "name": "swissadme cb dock experience",
+      "kind": "recommendation",
+      "required_capabilities": [
+        "swissadme_cb_dock_experience"
+      ],
+      "acceptance_checks": {
+        "swissadme_cb_dock_experience": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "recommendation-pocket_structure_conservation",
+      "name": "pocket structure conservation",
+      "kind": "recommendation",
+      "required_capabilities": [
+        "pocket_structure_conservation"
+      ],
+      "acceptance_checks": {
+        "pocket_structure_conservation": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "recommendation-exploratory_rnaseq_plots",
+      "name": "exploratory rnaseq plots",
+      "kind": "recommendation",
+      "required_capabilities": [
+        "exploratory_rnaseq_plots"
+      ],
+      "acceptance_checks": {
+        "exploratory_rnaseq_plots": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "recommendation-remote_homology_fallback",
+      "name": "remote homology fallback",
+      "kind": "recommendation",
+      "required_capabilities": [
+        "remote_homology_fallback"
+      ],
+      "acceptance_checks": {
+        "remote_homology_fallback": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "recommendation-fast_accurate_presets",
+      "name": "fast accurate presets",
+      "kind": "recommendation",
+      "required_capabilities": [
+        "fast_accurate_presets"
+      ],
+      "acceptance_checks": {
+        "fast_accurate_presets": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "recommendation-reproducibility_methods",
+      "name": "reproducibility methods",
+      "kind": "recommendation",
+      "required_capabilities": [
+        "reproducibility_methods"
+      ],
+      "acceptance_checks": {
+        "reproducibility_methods": null
+      },
+      "review_policy": "Retained from original prompt; requires scoped method, license and scientific acceptance evidence."
+    },
+    {
+      "id": "extension-rocrate",
+      "name": "RO-Crate metadata/evidence export",
+      "kind": "paper_backed_extension",
+      "required_capabilities": [
+        "rocrate_evidence_export"
+      ],
+      "acceptance_checks": {
+        "rocrate_evidence_export": "rocrate"
+      }
+    }
+  ]
+}

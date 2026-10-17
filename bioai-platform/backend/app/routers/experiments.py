@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import APIRouter, Depends, HTTPException, Query, Request
+from fastapi import Response, APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel, Field
 
 from app.services.auth import require_user_id
@@ -100,6 +100,17 @@ async def get_experiment_by_job(job_id: str, user_id: str = Depends(require_user
 async def get_provenance(job_id: str, user_id: str = Depends(require_user_id)):
     exp = _owned_experiment_for_job(job_id, user_id)
     return trace_for_job(job_id, exp["experiment_id"])
+
+
+@router.get("/{job_id}/ro-crate")
+async def export_rocrate(job_id: str, user_id: str = Depends(require_user_id)):
+    from app.services.workflow_rocrate import build_workflow_rocrate
+    exp = _owned_experiment_for_job(job_id, user_id)
+    provenance = exp.get("provenance")
+    if provenance is None:
+        provenance = provenance_for_experiment(exp["experiment_id"])
+    body = build_workflow_rocrate(exp, provenance)
+    return Response(body, media_type="application/zip", headers={"Content-Disposition": 'attachment; filename="bionexus-ro-crate.zip"'})
 
 
 @router.get("/{job_id}/workflow-manifest")

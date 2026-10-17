@@ -1,4 +1,5 @@
 'use client';
+import { longApi } from '@/lib/api';
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
@@ -38,6 +39,12 @@ export function WorkflowReplay({ jobId }: { jobId: string }) {
     <h2 className="font-semibold text-text-primary">Replay a recorded workflow</h2>
     <p className="text-sm text-text-secondary">Export or validate a portable BioNexus recipe. Replay checks the original input checksum and queues a new private run using recorded steps and parameters. External databases may change; identical results are not guaranteed.</p>
     <div className="flex flex-wrap gap-3">
+      <button disabled={busy} onClick={() => perform(async () => {
+        const result = await longApi.get(`/api/experiments/${encodeURIComponent(jobId)}/ro-crate`, { responseType: 'blob' });
+        const url = URL.createObjectURL(result.data);
+        const anchor = document.createElement('a'); anchor.href = url; anchor.download = `bionexus-ro-crate-${jobId}.zip`; anchor.click(); URL.revokeObjectURL(url);
+      })} className="text-sm underline disabled:opacity-50">Export research evidence RO-Crate</button>
+
       <button disabled={busy} onClick={() => perform(async () => {
         const revision = ++planRevision.current;
         setPlan(null);

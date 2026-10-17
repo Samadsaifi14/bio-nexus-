@@ -25,7 +25,7 @@ REQUIRED_ARTIFACTS = [
     _artifact("multiqc", "Aggregated RNA-seq QC", ["multiqc/multiqc_report.html", "multiqc/multiqc_data/"]),
     _artifact("alignment", "Splice-aware alignment plus index where alignment is enabled", ["star_salmon/**/*.bam|star_rsem/**/*.bam|hisat2/**/*.bam|bowtie2_salmon/**/*.bam", "**/*.bai|**/*.csi"]),
     _artifact("quantification", "Gene/transcript abundance outputs", ["star_salmon/", "star_rsem/", "salmon/", "rsem/", "results/quantification/"]),
-    _artifact("counts", "Cross-sample gene/transcript matrices when generated", ["**/*gene_counts*.tsv|**/*transcript_counts*.tsv|**/*gene_tpm*.tsv|**/*transcript_tpm*.tsv"]),
+    _artifact("counts", "Unscaled gene/transcript count candidates; Salmon estimates require length-aware import", ["**/*gene_counts*.tsv|**/*transcript_counts*.tsv|**/ReadsPerGene.out.tab"]),
     _artifact("qc_expression", "Expression-level PCA/heatmap and assignment QC when emitted", ["deseq2/", "rseqc/", "qualimap/", "featurecounts/"]),
     _artifact("provenance", "Checksums and immutable workflow/reference identifiers", ["run_manifest.json", "checksums.sha256"]),
 ]

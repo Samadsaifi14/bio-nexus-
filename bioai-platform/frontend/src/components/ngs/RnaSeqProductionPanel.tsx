@@ -1,5 +1,6 @@
 'use client';
 
+import { ProductionTracePanel } from './ProductionTracePanel';
 import { useState } from 'react';
 import { longApi } from '@/lib/api';
 import { recoveryError } from './RnaSeqRecoveryPanel';
@@ -58,6 +59,7 @@ export default function RnaSeqProductionPanel() {
       <button type="button" disabled={busy || !reviewed || !plan.ready_to_launch} onClick={() => request(true)} className="btn-primary disabled:opacity-40">Submit to configured executor</button></>}
     <label className="block text-xs">Production run ID<input value={runId} onChange={event => setRunId(event.target.value)} className={inputClass} /></label>
     <button type="button" disabled={!runId || busy} onClick={refresh} className="btn-secondary">Refresh execution and artifact inventory</button>
+    <ProductionTracePanel runId={runId} />
     {status && <p className="text-sm">Execution: {status}. Successful execution still requires QC review before differential testing.</p>}
     {artifacts.length > 0 && <div className="text-xs"><p>Observed quantifications (select relative paths in the import form):</p>{artifacts.map(path => <p key={path} className="break-all font-mono">{path}</p>)}</div>}
     {error && <p role="alert" className="text-error">{error}</p>}

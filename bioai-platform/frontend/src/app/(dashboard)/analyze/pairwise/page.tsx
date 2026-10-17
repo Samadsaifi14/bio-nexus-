@@ -38,6 +38,7 @@ export default function PairwiseAlignPage() {
   const [seqB, setSeqB] = useState('');
   const [mode, setMode] = useState<AlignMode>(getStoredAlignMode);
   const [matrix, setMatrix] = useState<Matrix>('blosum62');
+  const [scoreTest, setScoreTest] = useState(false);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<PairwiseAlignResult | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -71,6 +72,8 @@ export default function PairwiseAlignPage() {
       const res = await runPairwiseAlignment({
         query_sequence: seqA,
         subject_sequence: seqB,
+        permutations: scoreTest ? 199 : 0,
+        random_seed: 2026,
         mode,
         matrix,
       });
@@ -179,6 +182,9 @@ export default function PairwiseAlignPage() {
           </div>
         </div>
 
+        <label className="flex items-start gap-2 text-sm"><input type="checkbox" checked={scoreTest} disabled={loading} onChange={event => { setScoreTest(event.target.checked); setResult(null); }} />
+          <span>Include an exploratory score test with 199 composition-preserving subject permutations.<span className="block text-xs text-text-muted">Adds computation; minimum P-value resolution is 0.005. This is not a BLAST E-value or a probability of homology.</span></span>
+        </label>
         <div className="flex justify-end">
           <CriticalButton onClick={handleRun} disabled={!canRun}>
             {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : null}
@@ -195,6 +201,7 @@ export default function PairwiseAlignPage() {
         {result && !loading && (
           <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="mt-8 space-y-4">
             <AIResultSummary toolName="pairwise_alignment" result={result as unknown as Record<string, unknown>} />
+            {result.significance && <section className="data-card p-4 space-y-2"><h3 className="font-medium">Exploratory alignment score test</h3><p className="text-sm">Monte Carlo P-value: {result.significance.p_value.toPrecision(3)} · {result.significance.permutations} permutations · seed {result.significance.seed}</p><p className="text-xs text-text-muted">{result.significance.interpretation}</p></section>}
             <PairwiseResultDisplay
               result={result}
               queryLabel="Sequence A"

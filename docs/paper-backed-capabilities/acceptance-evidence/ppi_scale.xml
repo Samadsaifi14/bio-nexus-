@@ -1,0 +1,1 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="0" skipped="0" tests="1" time="0.152" timestamp="2026-10-14T11:42:50.839949+05:00" hostname="88d2d99b51af"><testcase classname="tests.test_paper_backed_engines" name="test_string_json_scores_preserve_provider_scale" time="0.001" /></testsuite></testsuites>

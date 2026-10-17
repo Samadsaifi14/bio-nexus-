@@ -345,6 +345,8 @@ export async function runAlignment(sequence: string, stype: string = 'protein', 
 }
 
 export type PairwiseAlignOptions = {
+  permutations?: number;
+  random_seed?: number;
   hit_accession?: string;
   subject_sequence?: string;
   query_sequence?: string;
@@ -359,6 +361,8 @@ export async function runPairwiseAlignment(options: PairwiseAlignOptions): Promi
     subject_sequence: options.subject_sequence ?? '',
     query_sequence: options.query_sequence ?? '',
     query_accession: options.query_accession ?? '',
+    permutations: options.permutations ?? 0,
+    random_seed: options.random_seed ?? 2026,
     mode: options.mode ?? 'global',
     matrix: options.matrix ?? 'blosum62',
   });

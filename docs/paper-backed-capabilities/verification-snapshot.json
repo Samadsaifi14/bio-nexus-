@@ -1,0 +1,1012 @@
+{
+  "verified_at": "2026-10-14T06:42:52.013541+00:00",
+  "catalog_sha256": "4263a9fbf0ec3358f1c863e2fc3e77d6b03681deb013b2fb71a98858212c407c",
+  "checks": {
+    "nextflow": {
+      "state": "PASSED",
+      "returncode": 0,
+      "tests": 5,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "test_report": "acceptance-evidence/nextflow.xml",
+      "source_sha256": "6fdf53df148774dc4f019d080f4f995196754d339f66392b53928d891296269d"
+    },
+    "counts": {
+      "state": "PASSED",
+      "returncode": 0,
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "test_report": "acceptance-evidence/counts.xml",
+      "source_sha256": "6fdf53df148774dc4f019d080f4f995196754d339f66392b53928d891296269d"
+    },
+    "diamond": {
+      "state": "PASSED",
+      "returncode": 0,
+      "tests": 7,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "test_report": "acceptance-evidence/diamond.xml",
+      "source_sha256": "6fdf53df148774dc4f019d080f4f995196754d339f66392b53928d891296269d"
+    },
+    "pairwise": {
+      "state": "PASSED",
+      "returncode": 0,
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "test_report": "acceptance-evidence/pairwise.xml",
+      "source_sha256": "6fdf53df148774dc4f019d080f4f995196754d339f66392b53928d891296269d"
+    },
+    "ppi_scale": {
+      "state": "PASSED",
+      "returncode": 0,
+      "tests": 1,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "test_report": "acceptance-evidence/ppi_scale.xml",
+      "source_sha256": "6fdf53df148774dc4f019d080f4f995196754d339f66392b53928d891296269d"
+    },
+    "rocrate": {
+      "state": "PASSED",
+      "returncode": 0,
+      "tests": 2,
+      "failures": 0,
+      "errors": 0,
+      "skipped": 0,
+      "test_report": "acceptance-evidence/rocrate.xml",
+      "source_sha256": "6fdf53df148774dc4f019d080f4f995196754d339f66392b53928d891296269d"
+    }
+  },
+  "iterations": [
+    {
+      "check": "nextflow",
+      "state": "PASSED",
+      "remaining": 104
+    },
+    {
+      "check": "counts",
+      "state": "PASSED",
+      "remaining": 103
+    },
+    {
+      "check": "diamond",
+      "state": "PASSED",
+      "remaining": 102
+    },
+    {
+      "check": "pairwise",
+      "state": "PASSED",
+      "remaining": 101
+    },
+    {
+      "check": "ppi_scale",
+      "state": "PASSED",
+      "remaining": 100
+    },
+    {
+      "check": "rocrate",
+      "state": "PASSED",
+      "remaining": 99
+    }
+  ],
+  "requirements": [
+    {
+      "id": "tool-01",
+      "name": "RNA-seq",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "guided_qc",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "batch_effect_review",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "interactive_pca_volcano",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "ranked_gsea",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "nextflow_process_evidence",
+          "check": "nextflow",
+          "state": "PASSED"
+        },
+        {
+          "id": "count_output_classification",
+          "check": "counts",
+          "state": "PASSED"
+        }
+      ]
+    },
+    {
+      "id": "tool-02",
+      "name": "Consensus sequencing",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "variant_browser",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "variant_annotation",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "clinvar_lookup",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-03",
+      "name": "BLAST",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "local_diamond_custom_database",
+          "check": "diamond",
+          "state": "PASSED"
+        },
+        {
+          "id": "taxonomy_filters",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "annotated_hits",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "hit_to_msa",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-04",
+      "name": "Pairwise",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "uniprot_annotation_tracks",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "permutation_score_test",
+          "check": "pairwise",
+          "state": "PASSED"
+        }
+      ]
+    },
+    {
+      "id": "tool-05",
+      "name": "MSA",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "manual_alignment_editing",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "column_trimming",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "consensus_conservation_tracks",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-06",
+      "name": "Phylogenetics",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "modelfinder",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "ultrafast_bootstrap",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "tree_annotation_rooting",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "newick_nexus_export",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-07",
+      "name": "Domains",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "msa_domain_overlays",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "homolog_domain_architecture",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-08",
+      "name": "Motif scanner",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "de_novo_motif_discovery",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "elm_regex_library",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-09",
+      "name": "UniProt",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "variant_ptm_disease_tracks",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "linked_structure_pathway",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-10",
+      "name": "Sequence utilities",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "restriction_enzyme_library",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "orf_finder",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "circular_plasmid_view",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "codon_usage",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-11",
+      "name": "Dot plot",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "genome_scale_paf_plot",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-12",
+      "name": "Structure analysis",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "wwpdb_validation",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "ramachandran_clash_rotamer_validation",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-13",
+      "name": "Structure prep",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "protonation_propka",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "missing_atoms",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "loop_rebuilding",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "water_ligand_controls",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-14",
+      "name": "Pocket analysis",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "p2rank_fpocket",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "published_druggability_descriptors",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-15",
+      "name": "Structure compare",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "foldseek_us_align",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "binding_site_superposition",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "rmsd_export",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-16",
+      "name": "Structure prediction",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "msa_supported_prediction",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "complex_ligand_prediction",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "pae_plots",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-17",
+      "name": "SWISS-MODEL",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "template_selection_alignment",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "template_model_execution",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "model_quality",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-18",
+      "name": "Molecular dynamics",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "guided_setup",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "trajectory_analysis",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "mm_gbsa",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "gpu_queue",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-19",
+      "name": "Function hints",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "interpro_go",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "blast_annotation_transfer",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "eggnog",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "evidence_codes",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-20",
+      "name": "Docking",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "gnina_rescoring",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "redocking_panel",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "pharmacophore_constraints",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "ensemble_receptors",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "interaction_fingerprints",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "batch_screening",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-21",
+      "name": "ADMET",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "trained_admet_models",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "boiled_egg",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "structural_alerts",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "applicability_domain",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-22",
+      "name": "Pathway analysis",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "database_breadth",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "ranked_gsea",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "enrichment_networks",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "published_causal_methods",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-23",
+      "name": "PPI",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "network_metrics",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "communities",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "multiple_evidence_sources",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "graphml_export",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "string_json_scale",
+          "check": "ppi_scale",
+          "state": "PASSED"
+        }
+      ]
+    },
+    {
+      "id": "tool-24",
+      "name": "Primers",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "primer3_thermodynamics",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "genome_specificity",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "tool-25",
+      "name": "Utility tools",
+      "kind": "original_tool",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "format_converters",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "batch_sequence_operations",
+          "check": null,
+          "state": "UNVERIFIED"
+        },
+        {
+          "id": "fasta_genbank_gff_validation",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-crispr",
+      "name": "crispr",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "crispr",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-variant_effect_prediction",
+      "name": "variant effect prediction",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "variant_effect_prediction",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-virtual_screening",
+      "name": "virtual screening",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "virtual_screening",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-pharmacophore_modeling",
+      "name": "pharmacophore modeling",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "pharmacophore_modeling",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-protein_protein_docking",
+      "name": "protein protein docking",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "protein_protein_docking",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-ortholog_comparative_genomics",
+      "name": "ortholog comparative genomics",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "ortholog_comparative_genomics",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-metagenomics_16s",
+      "name": "metagenomics 16s",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "metagenomics_16s",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-genome_annotation_viewer",
+      "name": "genome annotation viewer",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "genome_annotation_viewer",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-single_cell_rnaseq",
+      "name": "single cell rnaseq",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "single_cell_rnaseq",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "candidate-protein_design_stability",
+      "name": "protein design stability",
+      "kind": "candidate",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "protein_design_stability",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "integration-cross_tool_bridges",
+      "name": "cross tool bridges",
+      "kind": "integration",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "cross_tool_bridges",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "integration-common_run_record",
+      "name": "common run record",
+      "kind": "integration",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "common_run_record",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "integration-evidence_linked_ai",
+      "name": "evidence linked ai",
+      "kind": "integration",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "evidence_linked_ai",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "integration-container_plugin_architecture",
+      "name": "container plugin architecture",
+      "kind": "integration",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "container_plugin_architecture",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "integration-gpu_worker_queue",
+      "name": "gpu worker queue",
+      "kind": "integration",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "gpu_worker_queue",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "integration-benchmark_page",
+      "name": "benchmark page",
+      "kind": "integration",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "benchmark_page",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "recommendation-swissadme_cb_dock_experience",
+      "name": "swissadme cb dock experience",
+      "kind": "recommendation",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "swissadme_cb_dock_experience",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "recommendation-pocket_structure_conservation",
+      "name": "pocket structure conservation",
+      "kind": "recommendation",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "pocket_structure_conservation",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "recommendation-exploratory_rnaseq_plots",
+      "name": "exploratory rnaseq plots",
+      "kind": "recommendation",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "exploratory_rnaseq_plots",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "recommendation-remote_homology_fallback",
+      "name": "remote homology fallback",
+      "kind": "recommendation",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "remote_homology_fallback",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "recommendation-fast_accurate_presets",
+      "name": "fast accurate presets",
+      "kind": "recommendation",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "fast_accurate_presets",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "recommendation-reproducibility_methods",
+      "name": "reproducibility methods",
+      "kind": "recommendation",
+      "complete": false,
+      "capabilities": [
+        {
+          "id": "reproducibility_methods",
+          "check": null,
+          "state": "UNVERIFIED"
+        }
+      ]
+    },
+    {
+      "id": "extension-rocrate",
+      "name": "RO-Crate metadata/evidence export",
+      "kind": "paper_backed_extension",
+      "complete": true,
+      "capabilities": [
+        {
+          "id": "rocrate_evidence_export",
+          "check": "rocrate",
+          "state": "PASSED"
+        }
+      ]
+    }
+  ],
+  "scope_complete": false,
+  "main_release_allowed": false,
+  "unverified_capabilities": 99
+}

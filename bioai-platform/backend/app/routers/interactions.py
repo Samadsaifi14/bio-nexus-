@@ -1,4 +1,5 @@
 import re
+import math
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -16,6 +17,19 @@ NETWORK_TYPES = {"functional", "physical"}
 def _sanitize_for_url(s: str) -> str:
     """Strip control characters that break URL construction."""
     return re.sub(r'[\x00-\x1f\x7f-\x9f]', '', s)
+
+
+def _json_score(value) -> float:
+    """STRING JSON returns scores on 0–1; the required_score input uses 0–1000."""
+    if value is None:
+        return 0.0
+    try:
+        score = float(value)
+    except (TypeError, ValueError) as exc:
+        raise HTTPException(502, 'STRING returned an invalid evidence score') from exc
+    if isinstance(value, bool) or not math.isfinite(score) or not 0 <= score <= 1:
+        raise HTTPException(502, 'STRING returned an evidence score outside its JSON 0–1 scale')
+    return score
 
 
 class Interaction(BaseModel):
@@ -71,14 +85,9 @@ async def get_interactions(
 
     interactions = []
     for item in data:
-        # STRING scores are 0-1000; normalize to 0-1 so thresholds and
-        # consumers treat them consistently across channels.
-        def norm(v):
-            try:
-                return min(1.0, max(0.0, float(v) / 1000.0))
-            except (TypeError, ValueError):
-                return 0.0
-
+        if 'score' not in item:
+            raise HTTPException(502, 'STRING did not return its combined evidence score')
+        norm = _json_score
         nscore = norm(item.get("nscore"))
         fscore = norm(item.get("fscore"))
         pscore = norm(item.get("pscore"))
@@ -113,10 +122,10 @@ async def get_interactions(
         "species": species,
         "network_type": network_type,
         "source": "STRING-DB interaction_partners API",
-        "score_scale": "0-1 (normalized from STRING's 0-1000 confidence)",
+        "score_scale": "0-1 as returned by STRING JSON",
         "score_derivations": [
-            "combined_score is STRING's combined confidence value, normalized from its native 0-1000 scale.",
-            "nscore/fscore/pscore/ascore/escore/dscore/tscore are STRING's per-channel evidence scores, normalized from 0-1000.",
+            "combined_score is STRING's combined confidence value on the JSON API's 0-1 scale.",
+            "nscore/fscore/pscore/ascore/escore/dscore/tscore retain STRING JSON's 0-1 evidence scale.",
             "physical_evidence_avg is a LOCAL Bio Nexus heuristic (mean of experimental + database channels), not a STRING-provided score.",
         ],
         "interactions": interactions,

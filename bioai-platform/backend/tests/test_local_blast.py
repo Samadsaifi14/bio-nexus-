@@ -108,7 +108,7 @@ def test_reference_download_resource_allowlist(monkeypatch, tmp_path):
     import runpy
     module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts" / "provision_local_blast.py"))
     opened = []
-    monkeypatch.setattr(module["urllib"].request, "urlopen",
+    monkeypatch.setattr(module["http"].client, "HTTPSConnection",
                         lambda *args, **kwargs: opened.append(args))
     for name in ("file:///etc/passwd", "../reldate.txt", "https://example.com", "unexpected"):
         with pytest.raises(ValueError, match="fixed official"):

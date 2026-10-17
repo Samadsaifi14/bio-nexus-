@@ -6,6 +6,10 @@ at sys.modules level so routers can import cleanly in a local test env.
 """
 
 import time
+import base64
+import hashlib
+import hmac
+import json
 import os
 import sys
 from unittest.mock import MagicMock
@@ -48,12 +52,18 @@ _SMOKE_JWT_SECRET = "bionexus-smoke-test-only-signing-key-never-use-in-productio
 
 
 def _make_test_jwt(user_id: str = "test-user-000") -> str:
-    import jwt
-    return jwt.encode(
-        {"sub": user_id, "exp": int(time.time()) + 3600},
-        _SMOKE_JWT_SECRET,
-        algorithm="HS256",
-    )
+    # Sign with the standard library so light CI jobs need no JWT package
+    # merely to collect unrelated tests. The application still verifies HS256.
+    def encode(value):
+        raw = json.dumps(value, separators=(",", ":")).encode()
+        return base64.urlsafe_b64encode(raw).rstrip(b"=").decode()
+    header = encode({"alg": "HS256", "typ": "JWT"})
+    payload = encode({"sub": user_id, "exp": int(time.time()) + 3600})
+    message = f"{header}.{payload}"
+    signature = hmac.new(_SMOKE_JWT_SECRET.encode(), message.encode(), hashlib.sha256).digest()
+    encoded_signature = base64.urlsafe_b64encode(signature).rstrip(b"=").decode()
+    return f"{message}.{encoded_signature}"
+
 
 
 TEST_JWT = _make_test_jwt()

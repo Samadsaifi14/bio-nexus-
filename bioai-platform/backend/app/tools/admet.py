@@ -685,6 +685,7 @@ def compute_descriptors(smiles: str) -> dict:
         "swissadme": swissadme,
         "_descriptor_conventions": {
             "hba": "RDKit Lipinski.NumHAcceptors",
+            "lipinski_n_o_count": "RDKit CalcNumLipinskiHBA (N+O atom count)",
             "hbd": "RDKit Lipinski.NumHDonors",
             "rotatable_bonds": "RDKit Lipinski.NumRotatableBonds",
             "tpsa": "RDKit TPSA (includeSandP=True)",
@@ -707,6 +708,7 @@ def compute_descriptors(smiles: str) -> dict:
         "tpsa": tpsa,
         "hbd": hbd,
         "hba": hba,
+        "lipinski_n_o_count": lipinski_n_o_count,
         "rotatable_bonds": rotatable,
         "qed_score": qed_score,
         "molar_refractivity": mr,

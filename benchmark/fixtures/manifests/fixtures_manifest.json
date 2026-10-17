@@ -34,6 +34,10 @@
       "sha256": "879de6667d82f878d6e31f37e106fcf1382be69a3bc0429010280298baab8c06",
       "bytes": 1441
     },
+    "cheminformatics/descriptor_parity/expected_descriptors.2026.09.1.json": {
+      "sha256": "10f8c9bb98d89bb6b76e560f0f8b54f382cf8a74a4fd7cd55a1bb5fc0e684555",
+      "bytes": 152725
+    },
     "cheminformatics/descriptor_parity/expected_descriptors.json": {
       "sha256": "2e0558eac0f260e1a7bde60d8a926ae8cab093a63d9d4e37ad6955c9ce9f79ca",
       "bytes": 152440
@@ -47,8 +51,8 @@
       "bytes": 4281
     },
     "cheminformatics/descriptor_parity/run_descriptor_parity.py": {
-      "sha256": "24de877272cd60c4bd76a6023635970a4825557abadb5314326a5bb9822d2c2e",
-      "bytes": 6478
+      "sha256": "18fe9738528bf501b3584b0e5dc47e02ae6d48222eb5fde9c4df1b0f94245673",
+      "bytes": 6652
     },
     "cheminformatics/drug_likeness/drug_likeness.json": {
       "sha256": "12b5684d5009de0c00cf458ae5ee1c8a0f4ab8f01e78246f77622d8996cf7d7d",

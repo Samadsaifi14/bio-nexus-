@@ -36,7 +36,7 @@ jobs:
           cache: pip
           cache-dependency-path: bioai-platform/backend/requirements.txt
       - run: pip install -r requirements.txt pytest-timeout pytest-asyncio
-      - run: python -m pytest tests/test_stats_engine.py tests/test_worker_claim.py tests/test_dashboard.py tests/test_de_novo_branch.py tests/test_blast_false_denovo_guard.py tests/test_interactions_contract.py tests/test_md_advanced_analysis.py tests/test_smoke_docking.py tests/test_smoke_function_predict.py tests/test_smoke_md.py tests/test_auth.py tests/test_tool_interpreter.py tests/test_interpret_stream_grounding.py -vv --timeout=60 --timeout-method=signal
+      - run: python -m pytest tests/test_stats_engine.py tests/test_worker_claim.py tests/test_dashboard.py tests/test_admet_definitions.py tests/test_smoke_admet.py tests/test_de_novo_branch.py tests/test_blast_false_denovo_guard.py tests/test_interactions_contract.py tests/test_md_advanced_analysis.py tests/test_smoke_docking.py tests/test_smoke_function_predict.py tests/test_smoke_md.py tests/test_auth.py tests/test_tool_interpreter.py tests/test_interpret_stream_grounding.py -vv --timeout=60 --timeout-method=signal
 
   fixture-diagnostics:
     name: Fixture integrity and pinned descriptor diagnostics

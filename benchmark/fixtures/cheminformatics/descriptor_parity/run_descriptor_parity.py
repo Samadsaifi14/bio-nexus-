@@ -94,8 +94,11 @@ def compare(expected, live):
 
 
 def main() -> int:
-    ref = json.loads((HERE / "expected_descriptors.json").read_text(encoding="utf-8"))
     live_rdkit = __import__("rdkit").__version__
+    reference_path = HERE / f"expected_descriptors.{live_rdkit}.json"
+    if not reference_path.is_file():
+        reference_path = HERE / "expected_descriptors.json"
+    ref = json.loads(reference_path.read_text(encoding="utf-8"))
     drift = live_rdkit != ref["rdkit_pin"]
 
     per_mol = []
@@ -150,7 +153,7 @@ def main() -> int:
         "fixture": ref["fixture"],
         "timestamp": _dt.datetime.now(_dt.timezone.utc).isoformat(timespec="seconds"),
         "live_environments": {"python": sys.version.split()[0], "rdkit": live_rdkit},
-        "reference_pin": {"rdkit": ref["rdkit_pin"]},
+        "reference_pin": {"rdkit": ref["rdkit_pin"], "file": reference_path.name},
         "version_drift_detected": drift,
         "n_molecules": len(ref["molecules"]),
         "n_compared": n_compared,

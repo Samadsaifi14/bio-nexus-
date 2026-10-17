@@ -225,11 +225,10 @@ def compute_descriptors(smiles: str) -> dict:
     # SwissADME TPSA uses the Ertl fragmental method including S and P.
     tpsa = round(Descriptors.TPSA(mol, includeSandP=True), 2)
     hbd = Lipinski.NumHDonors(mol)
-    # SwissADME "H-bond acceptors" = all N + O atoms (OpenBabel count).
-    # CalcNumLipinskiHBA is a pure N+O count; the plain NumHAcceptors /
-    # CalcNumHBA exclude e.g. ester carbonyl oxygens and would show 3 for
-    # aspirin instead of SwissADME's 4.
-    hba = rdMolDescriptors.CalcNumLipinskiHBA(mol)
+    # Chemical acceptors differ from Lipinski's simple N+O rule count.
+    # Preserve both definitions explicitly instead of labelling all N/O as HBA.
+    hba = Lipinski.NumHAcceptors(mol)
+    lipinski_n_o_count = rdMolDescriptors.CalcNumLipinskiHBA(mol)
     rotatable = Lipinski.NumRotatableBonds(mol)
     heavy_atoms = n_heavy
     formula = rdMolDescriptors.CalcMolFormula(mol)
@@ -303,8 +302,8 @@ def compute_descriptors(smiles: str) -> dict:
         lip_violations.append(f"LogP {logp} > 5")
     if hbd > 5:
         lip_violations.append(f"HBD {hbd} > 5")
-    if hba > 10:
-        lip_violations.append(f"HBA {hba} > 10")
+    if lipinski_n_o_count > 10:
+        lip_violations.append(f"Lipinski N+O count {lipinski_n_o_count} > 10")
     lipinski = {"pass": len(lip_violations) <= 1, "violations": lip_violations, "violation_count": len(lip_violations)}
 
     # ---- Veber rules ----
@@ -621,6 +620,7 @@ def compute_descriptors(smiles: str) -> dict:
             "fraction_csp3": round(fsp3, 2),
             "rotatable_bonds": rotatable,
             "hba": hba,
+        "lipinski_n_o_count": lipinski_n_o_count,
             "hbd": hbd,
             "tpsa": tpsa,
         },
@@ -684,7 +684,7 @@ def compute_descriptors(smiles: str) -> dict:
         "formula": formula,
         "swissadme": swissadme,
         "_descriptor_conventions": {
-            "hba": "RDKit CalcNumLipinskiHBA",
+            "hba": "RDKit Lipinski.NumHAcceptors",
             "hbd": "RDKit Lipinski.NumHDonors",
             "rotatable_bonds": "RDKit Lipinski.NumRotatableBonds",
             "tpsa": "RDKit TPSA (includeSandP=True)",

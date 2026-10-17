@@ -196,7 +196,7 @@ async def check_status_until_ready(
     return {"status": "TIMEOUT", "rid": rid}
 
 
-async def run_blast_with_retry(
+async def _run_blast_attempts(
     sequence: str,
     retries: int = 2,
     max_wait_seconds: int = 600,
@@ -305,3 +305,27 @@ async def run_blast_with_retry(
             await asyncio.sleep(5 * (attempt + 1))
 
     return {"error": last_error or "BLAST failed after all attempts"}
+
+
+async def run_blast_with_retry(
+    sequence: str,
+    retries: int = 2,
+    max_wait_seconds: int = 600,
+    **submit_kwargs,
+) -> dict:
+    """Enforce the advertised wall-clock budget across every HTTP phase.
+
+    Poll counters alone do not include HTTP retries or result downloads.
+    Cancellation of this enclosing task also cancels the active HTTP request.
+    """
+    poll_budget = min(max(int(max_wait_seconds), 60), 300)
+    hard_budget = poll_budget + 120
+    try:
+        return await asyncio.wait_for(
+            _run_blast_attempts(sequence, retries=retries,
+                                max_wait_seconds=poll_budget, **submit_kwargs),
+            timeout=hard_budget,
+        )
+    except asyncio.TimeoutError:
+        return {"error": f"BLAST hard deadline ({hard_budget}s) exceeded",
+                "status": "TIMEOUT", "search_complete": False}

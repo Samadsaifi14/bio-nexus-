@@ -102,3 +102,15 @@ def test_native_reference_does_not_claim_an_ncbi_page_was_queried(monkeypatch):
         "blast": {"source": "local-blast+", "top_hit": {"accession": "P68871"}}
     }, "test-user")
     assert captured == []
+
+
+def test_reference_download_resource_allowlist(monkeypatch, tmp_path):
+    import runpy
+    module = runpy.run_path(str(Path(__file__).resolve().parents[1] / "scripts" / "provision_local_blast.py"))
+    opened = []
+    monkeypatch.setattr(module["urllib"].request, "urlopen",
+                        lambda *args, **kwargs: opened.append(args))
+    for name in ("file:///etc/passwd", "../reldate.txt", "https://example.com", "unexpected"):
+        with pytest.raises(ValueError, match="fixed official"):
+            module["download"](name, tmp_path / "unused")
+    assert opened == []

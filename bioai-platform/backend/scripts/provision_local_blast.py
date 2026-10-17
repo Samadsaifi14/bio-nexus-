@@ -27,7 +27,19 @@ def digest(path):
 
 
 def download(name, target):
-    with urllib.request.urlopen(BASE + name, timeout=120) as source, target.open("wb") as out:
+    if name == "reldate.txt":
+        response = urllib.request.urlopen(
+            "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt",
+            timeout=120,
+        )
+    elif name == "uniprot_sprot.fasta.gz":
+        response = urllib.request.urlopen(
+            "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+            timeout=120,
+        )
+    else:
+        raise ValueError("Only the two fixed official Swiss-Prot resources may be downloaded")
+    with response as source, target.open("wb") as out:
         shutil.copyfileobj(source, out)
     return target
 

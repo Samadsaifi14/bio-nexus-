@@ -57,15 +57,35 @@
     },
     {
       "feature_id": "SEQ-BLAST",
-      "name": "BLAST sequence search (EBI/NCBI)",
+      "name": "BLAST sequence search (local BLAST+, EBI/NCBI)",
       "domain": "sequence",
-      "bbs2_benchmarks": ["SEQ-BLAST", "SEQ-PSIBLAST"],
-      "states": ["implemented", "unit_tested", "integration_tested", "regression_gated"],
+      "bbs2_benchmarks": [
+        "SEQ-BLAST",
+        "SEQ-PSIBLAST"
+      ],
+      "states": [
+        "implemented",
+        "unit_tested",
+        "integration_tested",
+        "regression_gated"
+      ],
       "publication_required_state": "unit_tested + integration_tested",
-      "last_verified": "2026-09-07",
+      "last_verified": "2026-10-17",
       "external_ground_truth": "Configured EMBL-EBI/NCBI endpoint with identical program/database settings; database release frozen where possible.",
-      "evidence_artifacts": ["bioai-platform/backend/tests/test_blast_comprehensive.py", "bioai-platform/backend/tests/test_blast_resilience.py", "bioai-platform/backend/tests/test_blast_engine.py", "bioai-platform/backend/tests/test_bbs2_fixtures.py", "benchmark/fixtures/sequence/blast_queries.json", "benchmark/fixtures/sequence/run_blast_recovery.py", "benchmark/results/sequence/blast/latest.json"],
-      "notes": "Multi-query accession-recovery benchmark added 2026-09-06 (8 curated queries, 2 essential, recovery in top-5 hits, threshold 0.8). Live harness run records PASS (7/8 queries, 0.875>=0.8; both essentials recovered) though EBI is flaky — transient Status=ERROR/ReadTimeout needed retries; infra finding: BlastTool._fetch_results 30s read timeout + EBI ETA variability. HUMAN_ACTB miss is a tie-ordering artifact, not a capability failure: top-5 hits are 100%-identical orthologs (P60707 possum, P60711 rat, P60713 sheep, Q4L0Y2 squirrel, Q5R6G0 orangutan). 2026-09-07 production finding + fix: the default protein database 'nr' maps to EBI uniprotkb, which exceeded the 180s poll budget, and NCBI's queue RTOE was 62192s (>90s threshold) — so default BLAST was a guaranteed timeout. Default changed to Swiss-Prot (blast_config DEFAULT_DATABASE) and _run_ebi_blast_fallback now degrades any failed comprehensive-DB search to uniprotkb_swissprot (recorded as _degraded_from) instead of failing. Live check with a 606-aa carotenoid-dioxygenase query (previously failing): 18.1s, 70 hits, top Q8LP17 e=4.8e-69. Persistent result snapshots live in benchmark/results/ (gitignored); SEQ-BLAST is regression-tested and harness-gated, and is only externally_benchmarked when a stable persisted pass record exists."
+      "evidence_artifacts": [
+        "bioai-platform/backend/tests/test_blast_comprehensive.py",
+        "bioai-platform/backend/tests/test_blast_resilience.py",
+        "bioai-platform/backend/tests/test_blast_engine.py",
+        "bioai-platform/backend/tests/test_bbs2_fixtures.py",
+        "benchmark/fixtures/sequence/blast_queries.json",
+        "benchmark/fixtures/sequence/run_blast_recovery.py",
+        "benchmark/results/sequence/blast/latest.json",
+        "benchmark/results/sequence/local_blast/2026-10-17-uniprot-2026_03.json",
+        "bioai-platform/backend/tests/test_local_blast.py",
+        "bioai-platform/backend/scripts/check_local_blast_reference.py",
+        ".github/workflows/full-feature-audit.yml"
+      ],
+      "notes": "2026-10-17: the production BlastTool and pipeline gained an explicitly scoped local BLAST+ route for Swiss-Prot protein searches. Executed native controls recovered 8/8 curated accessions within the predeclared top-5 criterion against all 575,748 canonical sequences of UniProt 2026_03, with both essential controls recovered. Seven actual-CLI tests passed. Inputs originate in the searched snapshot: these are accession-recovery positive controls, not novel-protein or homology-transfer accuracy validation. No externally_benchmarked/validated tier is added. Remote NCBI service availability remains a separate live integration condition. The immutable report, source/index hashes and retained CI XML outputs identify the executed reference; a workflow definition alone is not evidence."
     },
     {
       "feature_id": "SEQ-MSA",

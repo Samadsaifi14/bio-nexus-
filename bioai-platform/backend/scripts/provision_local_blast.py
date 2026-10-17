@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import urllib.request
+import http.client
 
 BASE = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/"
 
@@ -28,19 +28,21 @@ def digest(path):
 
 def download(name, target):
     if name == "reldate.txt":
-        response = urllib.request.urlopen(
-            "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt",
-            timeout=120,
-        )
+        resource = "/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt"
     elif name == "uniprot_sprot.fasta.gz":
-        response = urllib.request.urlopen(
-            "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
-            timeout=120,
-        )
+        resource = "/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
     else:
         raise ValueError("Only the two fixed official Swiss-Prot resources may be downloaded")
-    with response as source, target.open("wb") as out:
-        shutil.copyfileobj(source, out)
+    connection = http.client.HTTPSConnection("ftp.uniprot.org", timeout=120)
+    try:
+        connection.request("GET", resource)
+        with connection.getresponse() as source:
+            if source.status != 200:
+                raise RuntimeError(f"Official Swiss-Prot download returned HTTP {source.status}")
+            with target.open("wb") as out:
+                shutil.copyfileobj(source, out)
+    finally:
+        connection.close()
     return target
 
 

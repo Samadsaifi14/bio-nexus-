@@ -144,3 +144,29 @@ class TestClaimDirect:
         monkeypatch.setattr(httpx, "patch", _unused)
 
         assert worker._claim_direct("jobs", WORKER_ID) is None
+
+    def test_claim_respects_custom_retry_budget(self, monkeypatch):
+        _patch_settings(monkeypatch)
+        patches = []
+        monkeypatch.setattr(httpx, "get", lambda *a, **kw: _fake_response(200, [
+            {"id": "disabled", "attempts": 0, "max_attempts": 0},
+            {"id": "extended", "attempts": 4, "max_attempts": 5},
+        ]))
+        def patch(url, headers, json, timeout=None):
+            patches.append((url, json))
+            return _fake_response(200, [{"id": "extended", **json}])
+        monkeypatch.setattr(httpx, "patch", patch)
+        assert worker._claim_direct("jobs", WORKER_ID)["id"] == "extended"
+        assert len(patches) == 1
+        assert patches[0][1]["attempts"] == 5
+
+    def test_claim_race_moves_to_next_candidate(self, monkeypatch):
+        _patch_settings(monkeypatch)
+        monkeypatch.setattr(httpx, "get", lambda *a, **kw: _fake_response(200, [
+            {"id": "raced", "attempts": 0, "max_attempts": 3},
+            {"id": "available", "attempts": 0, "max_attempts": 3},
+        ]))
+        def patch(url, headers, json, timeout=None):
+            return _fake_response(200, [] if "id=eq.raced&" in url else [{"id": "available", **json}])
+        monkeypatch.setattr(httpx, "patch", patch)
+        assert worker._claim_direct("jobs", WORKER_ID)["id"] == "available"

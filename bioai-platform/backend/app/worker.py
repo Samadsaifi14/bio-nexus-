@@ -111,34 +111,41 @@ _TABLES_WITH_UPDATED_AT = {"docking_jobs", "sequencing_jobs", "ngs_jobs"}
 def _claim_direct(table: str, worker_id: str) -> dict | None:
     """Fallback: claim a queued job via direct Supabase queries (no RPC needed)."""
     import httpx
-    # 1. Find a queued job (order by id as fallback if created_at is missing)
-    url = f"{_base()}/rest/v1/{table}?status=eq.queued&attempts=lt.3&order=id.asc&limit=1&select=*"
+    # Compare each row's own retry budget; a fixed attempts<3 filter can
+    # strand jobs configured for more attempts or claim exhausted jobs.
+    url = f"{_base()}/rest/v1/{table}?status=eq.queued&order=id.asc&limit=5&select=*"
     resp = httpx.get(url, headers=_headers(), timeout=15)
     if resp.status_code != 200:
         logger.warning("Direct claim query failed for %s: %s %s", table, resp.status_code, resp.text[:200])
         return None
     rows = resp.json()
-    if not rows:
+    if not isinstance(rows, list):
         return None
-    job = rows[0]
-    # 2. Claim it with an atomic update (only if still queued)
-    now = datetime.now(timezone.utc).isoformat()
-    patch_url = f"{_base()}/rest/v1/{table}?id=eq.{job['id']}&status=eq.queued"
-    patch_body = {
-        "status": "running",
-        "claimed_at": now,
-        "claimed_by": worker_id,
-        "attempts": (job.get("attempts") or 0) + 1,
-    }
-    if table in _TABLES_WITH_UPDATED_AT:
-        patch_body["updated_at"] = now
-    resp = httpx.patch(patch_url, headers=_headers(), json=patch_body, timeout=15)
-    if resp.status_code != 200:
-        logger.warning("Direct claim PATCH failed for %s %s: %s %s", table, job["id"], resp.status_code, resp.text[:200])
-        return None
-    updated = resp.json()
-    if isinstance(updated, list) and updated:
-        return updated[0]
+    for job in rows:
+        try:
+            attempts = int(job.get("attempts") or 0)
+            maximum = int(job.get("max_attempts") if job.get("max_attempts") is not None else 3)
+        except (TypeError, ValueError):
+            continue
+        if not job.get("id") or attempts < 0 or attempts >= maximum:
+            continue
+        now = datetime.now(timezone.utc).isoformat()
+        patch_url = f"{_base()}/rest/v1/{table}?id=eq.{job['id']}&status=eq.queued"
+        patch_body = {
+            "status": "running",
+            "claimed_at": now,
+            "claimed_by": worker_id,
+            "attempts": attempts + 1,
+        }
+        if table in _TABLES_WITH_UPDATED_AT:
+            patch_body["updated_at"] = now
+        resp = httpx.patch(patch_url, headers=_headers(), json=patch_body, timeout=15)
+        if resp.status_code != 200:
+            logger.warning("Direct claim PATCH failed for %s %s: %s %s", table, job["id"], resp.status_code, resp.text[:200])
+            continue
+        updated = resp.json()
+        if isinstance(updated, list) and updated:
+            return updated[0]
     return None
 
 

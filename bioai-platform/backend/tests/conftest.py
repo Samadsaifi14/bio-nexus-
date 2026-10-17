@@ -5,8 +5,7 @@ Mocks heavy/unavailable dependencies (supabase, litellm, Bio, sentry, etc.)
 at sys.modules level so routers can import cleanly in a local test env.
 """
 
-import base64
-import json
+import time
 import os
 import sys
 from unittest.mock import MagicMock
@@ -45,10 +44,16 @@ for mod_name in _MOCK_MODULES:
 # ---------------------------------------------------------------------------
 # Minimal JWT helper
 # ---------------------------------------------------------------------------
+_SMOKE_JWT_SECRET = "bionexus-smoke-test-only-signing-key-never-use-in-production"
+
+
 def _make_test_jwt(user_id: str = "test-user-000") -> str:
-    header = base64.urlsafe_b64encode(json.dumps({"alg": "none", "typ": "JWT"}).encode()).rstrip(b"=").decode()
-    payload = base64.urlsafe_b64encode(json.dumps({"sub": user_id}).encode()).rstrip(b"=").decode()
-    return f"{header}.{payload}.sig"
+    import jwt
+    return jwt.encode(
+        {"sub": user_id, "exp": int(time.time()) + 3600},
+        _SMOKE_JWT_SECRET,
+        algorithm="HS256",
+    )
 
 
 TEST_JWT = _make_test_jwt()
@@ -57,9 +62,10 @@ TEST_JWT = _make_test_jwt()
 # ---------------------------------------------------------------------------
 # Lightweight test app — only imports the routers we actually test
 # ---------------------------------------------------------------------------
-@pytest.fixture(scope="session")
-def client():
+@pytest.fixture()
+def client(monkeypatch):
     """Build a minimal FastAPI app with only the 4 routers under test."""
+    monkeypatch.setenv("SUPABASE_JWT_SECRET", _SMOKE_JWT_SECRET)
     app = FastAPI(title="Bio Nexus Smoke Tests")
 
     from app.routers import admet, md, function_predict, docking

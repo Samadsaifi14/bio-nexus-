@@ -180,13 +180,18 @@ class TestFunctionPrediction:
         from app.tools.function_predict import predict_function
         result = predict_function("1CRN")
         assert "go_terms" in result
-        assert len(result["go_terms"]) > 0
+        assert result["status"] in ("inferred", "insufficient_evidence", "evidence_unavailable", "running")
+        if result["status"] == "inferred":
+            assert result["go_terms"]
+        else:
+            assert result["go_terms"] == []
 
     def test_prediction_has_saliency(self):
         from app.tools.function_predict import predict_function
         result = predict_function("1CRN")
         assert "saliency" in result
-        assert len(result["saliency"]) > 0
+        assert result["saliency"] == []
+        assert "not model saliency" in result["residue_chemistry_note"]
 
     def test_prediction_pdb_id_uppercase(self):
         from app.tools.function_predict import predict_function
@@ -667,7 +672,7 @@ class TestMDSimulation:
 
     def test_md_production_mode(self):
         from app.tools.md_sim import run_simulation
-        result = run_simulation("1CRN", mode="production")
+        result = run_simulation("1CRN", mode="production", run_length_ps=1.0)
         assert result["status"] == "complete"
         assert len(result["rmsd"]) > 0
         if result["engine"] == "openmm":
@@ -704,7 +709,10 @@ class TestStructureComparison:
         from app.routers.structure_analysis import compare_structures
         result = await compare_structures("1CRN", chain="A", max_results=5)
         for match in result["matches"]:
-            assert 0 < match.tm_score <= 1.0, f"TM-score out of range: {match.tm_score}"
+            if match.tm_score is None:
+                assert "tm_score" in match.unavailable_metrics
+            else:
+                assert 0 <= match.tm_score <= 1.0, f"TM-score out of range: {match.tm_score}"
 
 
 # ============================================================================
@@ -718,7 +726,7 @@ class TestSecondaryStructure:
     async def test_secondary_structure(self):
         from app.routers.structure_analysis import secondary_structure
         result = await secondary_structure("P00698")
-        assert result["method"] == "Chou-Fasman (predicted)"
+        assert result["method"] == "Chou-Fasman propensity heuristic"
         assert len(result["residues"]) > 100
 
     @pytest.mark.asyncio

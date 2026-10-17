@@ -6,10 +6,14 @@ import { apiUrl } from "@/lib/api";
 
 type StructureMatch = {
   pdb_id: string; chain: string; description: string;
-  tm_score: number; qTM?: number | null; tTM?: number | null;
-  rmsd: number; seq_identity: number; aligned_length: number;
+  tm_score: number | null; qTM?: number | null; tTM?: number | null;
+  rmsd: number | null; seq_identity: number | null; aligned_length: number | null;
   method?: string;
 };
+
+function metric(value: number | null | undefined, digits: number): string {
+  return value == null || !Number.isFinite(value) ? "N/A" : value.toFixed(digits);
+}
 
 export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; chain?: string }) {
   const audit = useAuditTrail();
@@ -64,7 +68,7 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
             className="btn-ghost text-xs px-2 py-1">Export PNG</button>
           <button onClick={() => downloadTsv(
             ["PDB", "Chain", "RMSD", "Seq ID%", "Aligned", "TM-score", "Mean qTM", "Description"],
-            matches.map(m => [m.pdb_id, m.chain, m.rmsd.toFixed(2), (m.seq_identity * 100).toFixed(1), String(m.aligned_length), m.tm_score.toFixed(3), m.qTM != null ? m.qTM.toFixed(3) : "N/A", m.description]),
+            matches.map(m => [m.pdb_id, m.chain, metric(m.rmsd, 2), metric(m.seq_identity == null ? null : m.seq_identity * 100, 1), m.aligned_length == null ? "N/A" : String(m.aligned_length), metric(m.tm_score, 3), m.qTM != null ? m.qTM.toFixed(3) : "N/A", m.description]),
             `compare-${pdbId}.tsv`
           )} className="btn-ghost text-xs px-2 py-1">Export TSV</button>
           <span className="text-text-muted text-xs">{matches.length} hits &middot; {meta.method || "Foldseek TM-align"} &middot; {meta.database || "PDB100"}</span>
@@ -83,12 +87,12 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
               <div
                 className="h-full rounded-full transition-all duration-700"
                 style={{
-                  width: `${m.tm_score * 100}%`,
-                  background: m.tm_score > 0.5 ? "#4ADE80" : m.tm_score > 0.3 ? "#FBBF24" : "#EF4444",
+                  width: `${(m.tm_score ?? 0) * 100}%`,
+                  background: m.tm_score == null ? "transparent" : m.tm_score > 0.5 ? "#4ADE80" : m.tm_score > 0.3 ? "#FBBF24" : "#EF4444",
                   opacity: 0.7,
                 }} />
             </div>
-            <span className="text-xs text-text-muted w-10 text-right">{m.tm_score.toFixed(3)}</span>
+            <span className="text-xs text-text-muted w-10 text-right">{metric(m.tm_score, 3)}</span>
           </div>
         ))}
       </div>
@@ -110,10 +114,10 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
                     className="text-accent-cyan font-mono hover:underline">{m.pdb_id}</a>
                 </td>
                 <td className="px-3 py-2 text-text-muted">{m.chain}</td>
-                <td className="px-3 py-2 text-text-muted">{m.rmsd.toFixed(2)}&Aring;</td>
-                <td className="px-3 py-2 text-text-muted">{(m.seq_identity * 100).toFixed(1)}%</td>
-                <td className="px-3 py-2 text-text-muted">{m.aligned_length} aa</td>
-                <td className="px-3 py-2 text-text-muted font-mono">{m.tm_score.toFixed(3)}</td>
+                <td className="px-3 py-2 text-text-muted">{metric(m.rmsd, 2)}&Aring;</td>
+                <td className="px-3 py-2 text-text-muted">{metric(m.seq_identity == null ? null : m.seq_identity * 100, 1)}%</td>
+                <td className="px-3 py-2 text-text-muted">{m.aligned_length == null ? "N/A" : `${m.aligned_length} aa`}</td>
+                <td className="px-3 py-2 text-text-muted font-mono">{metric(m.tm_score, 3)}</td>
                 <td className="px-3 py-2 text-text-muted font-mono">{m.qTM != null ? m.qTM.toFixed(3) : "&ndash;"}</td>
                 <td className="px-3 py-2 text-text-muted max-w-48 truncate">{m.description}</td>
               </tr>

@@ -8,7 +8,7 @@ import httpx
 import numpy as np
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional, Annotated
 from Bio.PDB import PDBParser, PPBuilder
 logger = logging.getLogger(__name__)
 
@@ -173,12 +173,13 @@ class StructureMatch(BaseModel):
     pdb_id: str
     chain: str
     description: str
-    tm_score: float
+    tm_score: Optional[float]
     qTM: Optional[float]
     tTM: Optional[float]
-    rmsd: float
-    seq_identity: float
-    aligned_length: int
+    rmsd: Optional[float]
+    seq_identity: Optional[float]
+    aligned_length: Optional[int]
+    unavailable_metrics: list[str] = []
     method: str = "Foldseek TM-align"
 
 def _extract_chain(pdb_text: str, chain_id: str) -> str:
@@ -201,8 +202,8 @@ def _extract_chain(pdb_text: str, chain_id: str) -> str:
     return "\n".join(lines)
 
 @router.get("/compare/{pdb_id}")
-async def compare_structures(pdb_id: str, chain: str = Query(default="A"),
-                              max_results: int = Query(default=10, le=50)):
+async def compare_structures(pdb_id: str, chain: Annotated[str, Query()] = "A",
+                              max_results: Annotated[int, Query(ge=1, le=50)] = 10):
     pdb_id = pdb_id.upper()
     try:
         return await _foldseek_search(pdb_id, chain, max_results)
@@ -323,37 +324,17 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
                     continue
                 seen.add(match_pdb)
 
-                seq_id = entry.get("seqId", 0)
+                seq_id_frac = _bounded_metric(entry.get("seqId"), 100.0)
+                qtm = _bounded_metric(entry.get("qTM"))
+                ttm = _bounded_metric(entry.get("tTM"))
+                tm_score = qtm if qtm is not None else ttm
+                aligned_length = entry.get("alnLen", entry.get("alnLength"))
                 try:
-                    seq_id_frac = float(seq_id) / 100.0
+                    aligned_length = int(aligned_length) if aligned_length is not None else None
+                    if aligned_length is not None and aligned_length < 1:
+                        aligned_length = None
                 except (TypeError, ValueError):
-                    seq_id_frac = 0.0
-                seq_id_frac = min(max(seq_id_frac, 0.0), 1.0)
-
-                # Foldseek TM-align mode returns qTM/tTM (0-1 query-/target-normalized
-                # TM-scores). `score` cannot be assumed to be TM-score*100, so prefer qTM.
-                qtm = entry.get("qTM")
-                ttm = entry.get("tTM")
-                try:
-                    qtm = min(max(float(qtm), 0.0), 1.0) if qtm is not None else None
-                except (TypeError, ValueError):
-                    qtm = None
-                try:
-                    ttm = min(max(float(ttm), 0.0), 1.0) if ttm is not None else None
-                except (TypeError, ValueError):
-                    ttm = None
-                if qtm is None and ttm is None:
-                    tm_score = 0.0
-                elif qtm is not None:
-                    tm_score = qtm
-                else:
-                    tm_score = ttm
-
-                aligned_length = entry.get("alnLen", entry.get("alnLength", 0))
-                try:
-                    aligned_length = int(aligned_length)
-                except (TypeError, ValueError):
-                    aligned_length = 0
+                    aligned_length = None
 
                 rmsd = _alignment_rmsd(
                     pdb_bytes, chain, entry.get("qAln", ""), entry.get("dbAln", ""),
@@ -364,12 +345,13 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
                     pdb_id=match_pdb,
                     chain=match_chain,
                     description=target,
-                    tm_score=round(1.0 * tm_score, 4),
+                    tm_score=round(tm_score, 4) if tm_score is not None else None,
                     qTM=round(qtm, 4) if qtm is not None else None,
                     tTM=round(ttm, 4) if ttm is not None else None,
-                    rmsd=round(rmsd, 2),
-                    seq_identity=round(seq_id_frac, 4),
+                    rmsd=round(rmsd, 2) if rmsd is not None else None,
+                    seq_identity=round(seq_id_frac, 4) if seq_id_frac is not None else None,
                     aligned_length=aligned_length,
+                    unavailable_metrics=[name for name, value in (("tm_score", tm_score), ("rmsd", rmsd), ("seq_identity", seq_id_frac), ("aligned_length", aligned_length)) if value is None],
                     method="Foldseek TM-align",
                 ))
                 if len(results) >= max_results:
@@ -380,13 +362,24 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     logger.info("foldseek parsed=%d results for %s", len(results), pdb_id)
     if not results:
         raise HTTPException(404, "No structurally similar proteins found")
-    results.sort(key=lambda x: x.tm_score, reverse=True)
+    results.sort(key=lambda x: (x.tm_score is not None, x.tm_score if x.tm_score is not None else -1), reverse=True)
     return {
         "query": f"{pdb_id}:{chain}",
         "method": "Foldseek TM-align",
         "database": "PDB100",
         "matches": results,
     }
+
+
+def _bounded_metric(value, maximum: float = 1.0) -> float | None:
+    """Preserve a supplied finite metric; missing/invalid values stay missing."""
+    if value is None:
+        return None
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return None
+    return number / maximum if math.isfinite(number) and 0 <= number <= maximum else None
 
 
 def _parse_pdb_id(raw: str) -> str:
@@ -477,12 +470,12 @@ def _query_cas(pdb_bytes: bytes, chain: str) -> np.ndarray:
 
 
 def _alignment_rmsd(pdb_bytes: bytes, chain: str, q_aln: str, db_aln: str,
-                    q_start_pos: int, tca: str) -> float:
+                    q_start_pos: int, tca: str) -> float | None:
     """Compute the Cα RMSD (Å) over the structurally aligned residues only."""
     tcoords = _parse_tca(tca)
     qcas = _query_cas(pdb_bytes, chain)
     if tcoords.shape[0] == 0:
-        return 0.0
+        return None
     pairs_q: list[np.ndarray] = []
     pairs_t: list[np.ndarray] = []
     q_idx = max(int(q_start_pos or 1) - 1, 0)
@@ -504,6 +497,6 @@ def _alignment_rmsd(pdb_bytes: bytes, chain: str, q_aln: str, db_aln: str,
         if q_coord is not None and t_coord is not None:
             pairs_q.append(q_coord)
             pairs_t.append(t_coord)
-    if not pairs_q:
-        return 0.0
+    if len(pairs_q) < 3:
+        return None
     return float(_kabsch_rmsd(np.array(pairs_q), np.array(pairs_t)))

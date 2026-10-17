@@ -7,6 +7,8 @@ computed statistic and an explicit limitation instead.
 from __future__ import annotations
 
 import math
+import csv
+import io
 import random
 from typing import Any
 
@@ -216,18 +218,36 @@ class StatsEngine(BaseEngine):
     def validate(self,result:EngineResult)->ValidationReport:
         checks=super().validate(result).checks; tests=result.evidence.get("tests") or []; analyses=result.evidence.get("analyses") or []; alpha=result.statistics.get("alpha")
         pvals=[t.get("p_value") for t in tests if t.get("p_value") is not None]
+        checks += [
+            {"name":"results_present","passed":bool(tests or analyses or result.evidence.get("anomalies")),"detail":"At least one recorded statistical result is required"},
+            {"name":"sample_sizes_sufficient","passed":all(t.get("n_a",0)>=2 and t.get("n_b",0)>=2 for t in tests),"detail":"Two-group inference requires at least two observations in each group"},
+        ]
         checks += [{"name":"alpha_bounded","passed":0<alpha<1,"detail":f"alpha={alpha}"},{"name":"p_values_in_unit_interval","passed":all(0<=p<=1 for p in pvals),"detail":f"{len(pvals)} p-values checked"},{"name":"framework_no_unknown_errors","passed":all("error" not in a for a in analyses),"detail":f"{len(analyses)} analyses"}]
         return ValidationReport(checks,self.name)
 
     def _export_csv(self,result:EngineResult)->str:
-        rows=["name,method,n,statistic,p_value,effect_size"]
-        for t in result.evidence.get("tests") or []: rows.append(f"{t.get('name','')},{t.get('method','')},{t.get('n','')},{t.get('statistic','')},{t.get('p_value','')},{t.get('effect_size','')}")
-        return "\n".join(rows)
+        output = io.StringIO(newline="")
+        writer = csv.writer(output, lineterminator="\n")
+        writer.writerow(["test","method","statistic","p_value","significant","effect_size","n_a","n_b"])
+        for test in result.evidence.get("tests") or []:
+            writer.writerow([test.get(field) for field in ("name","method","statistic","p_value","significant","effect_size","n_a","n_b")])
+        return output.getvalue().rstrip("\n")
+
 
     def figure(self,result:EngineResult)->str:
-        tests=result.evidence.get("tests") or []; rows=[(t.get("name",f"test{i}")[:16],-10*math.log10(max(float(t.get("p_value") or 1),1e-10))) for i,t in enumerate(tests)]
+        tests=result.evidence.get("tests") or []
+        rows=[]
+        for index, test in enumerate(tests):
+            p_value = test.get("p_value")
+            if p_value is None:
+                continue
+            p_value = float(p_value)
+            if not math.isfinite(p_value) or not 0 <= p_value <= 1:
+                continue
+            rows.append((str(test.get("name",f"test{index}"))[:16],-math.log10(max(p_value,1e-300))))
+
         body=bar_chart_panel(rows,x=30,y=70,w=480,h=260,value_label="-log10 p")
-        return '<svg xmlns="http://www.w3.org/2000/svg" width="540" height="400" viewBox="0 0 540 400"><rect width="540" height="400" fill="#fff"/><text x="30" y="32" font-size="14" font-weight="bold">Statistical significance</text>'+body+f'<text x="30" y="382" font-size="9">BioNexus Stats Engine v{self.version}</text></svg>'
+        return '<svg xmlns="http://www.w3.org/2000/svg" width="540" height="400" viewBox="0 0 540 400"><rect width="540" height="400" fill="#fff"/><text x="30" y="32" font-size="14" font-weight="bold">Statistical significance</text>'+body+'<text x="30" y="360" font-size="9">Missing p-values omitted; zero values capped at 300.</text>'+f'<text x="30" y="382" font-size="9">BioNexus Stats Engine v{self.version}</text></svg>'
 
 
 stats_engine=StatsEngine()

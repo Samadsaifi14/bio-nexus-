@@ -36,7 +36,8 @@ def test_welch_identical_groups_not_significant():
 
 def test_welch_insufficient_samples_flags():
     r = welch_t([1.0], [2.0, 3.0, 4.0])
-    assert math.isnan(r["statistic"])
+    assert r["statistic"] is None
+    assert r["p_value"] is None
     assert r["significant"] is False
 
 
@@ -72,7 +73,7 @@ def test_parse_run_and_validate_ok():
 
 def test_validate_fails_tiny_samples():
     result = stats_engine.parse({
-        "tests": [{"name": "small", "type": "welch_t", "group_a": [1, 2], "group_b": [3, 4]}],
+        "tests": [{"name": "small", "type": "welch_t", "group_a": [1], "group_b": [3, 4]}],
     })
     report = stats_engine.validate(result)
     names = {c["name"] for c in report.checks if not c["passed"]}
@@ -101,3 +102,34 @@ def test_export_csv_and_figure():
 
 def test_validate_empty_degrades():
     assert not stats_engine.validate(stats_engine.parse(None)).valid
+
+def test_significance_figure_uses_log_scale_without_imputing_missing(monkeypatch):
+    import importlib
+    module = importlib.import_module("app.engines.stats_engine")
+    recorded = []
+    def capture(rows, **kwargs):
+        recorded.extend(rows)
+        return ""
+    monkeypatch.setattr(module, "bar_chart_panel", capture)
+    result = stats_engine.parse(None)
+    result.evidence["tests"] = [
+        {"name": "ordinary", "p_value": 0.01},
+        {"name": "zero", "p_value": 0.0},
+        {"name": "missing", "p_value": None},
+        {"name": "invalid", "p_value": float("nan")},
+    ]
+    stats_engine.figure(result)
+    assert recorded == [("ordinary", 2.0), ("zero", 300.0)]
+
+
+def test_csv_quotes_names_and_preserves_missing_values():
+    import csv
+    import io
+    name = 'gene,"quoted"'
+    result = stats_engine.parse({"tests": [
+        {"name": name, "type": "welch_t", "group_a": [1], "group_b": [2, 3]}
+    ]})
+    rows = list(csv.DictReader(io.StringIO(stats_engine.export(result, "csv"))))
+    assert rows[0]["test"] == name
+    assert rows[0]["p_value"] == ""
+    assert rows[0]["statistic"] == ""

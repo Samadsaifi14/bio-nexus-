@@ -79,12 +79,12 @@
       "bytes": 1906
     },
     "docking/redock_panel.json": {
-      "sha256": "7f6b30ecf43d858c8fd5e086ee985a5241a3580e75ae5b8c5dc86aaf35493246",
-      "bytes": 4047
+      "sha256": "060d464d3ab9d7f97b71ddfee030f32961c794c0d7adb6ed1bbd55ce469de461",
+      "bytes": 5420
     },
     "docking/run_redock_panel.py": {
-      "sha256": "12a3263f9baf4f331d4d962386d86e239d21b5a44410ca1be904426c1ac4cd6a",
-      "bytes": 15498
+      "sha256": "356105dfec789fc8809324736687843103b7a47587295a2d110ce3d04a31772b",
+      "bytes": 16802
     },
     "ngs/README.md": {
       "sha256": "7668b0bebe0014be656a197644eb3b9289cf9083acc6e379a973047b03c28cc8",

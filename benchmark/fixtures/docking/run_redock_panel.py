@@ -211,7 +211,23 @@ def main() -> int:
         try:
             from rdkit import Chem
             pdb_text = _fetch_pdb(cx["pdb"])
+            artifact_dir = args.outdir / "artifacts" / run_id / cx["id"]
+            artifact_dir.mkdir(parents=True, exist_ok=True)
+            entry["artifact_directory"] = str(artifact_dir.relative_to(args.outdir))
+            (artifact_dir / "source.pdb").write_text(pdb_text, encoding="utf-8")
+            entry["source_url"] = f"{RCSB_DOWNLOAD_BASE}/{cx['pdb']}.pdb"
+            entry["observed_hetatm_resnames"] = sorted({
+                line[17:20].strip() for line in pdb_text.splitlines()
+                if line.startswith("HETATM") and len(line) >= 20
+            })
+            if cx["ligand_resname"] not in entry["observed_hetatm_resnames"]:
+                raise RuntimeError(
+                    f"Declared ligand {cx['ligand_resname']} absent from deposited structure; "
+                    f"observed {entry['observed_hetatm_resnames']}"
+                )
             receptor_pdb, ref_lines = _split_ligand_receptor(pdb_text, cx["ligand_resname"])
+            entry["selected_ligand_atom_records"] = len(ref_lines)
+            entry["selected_ligand_instance"] = ref_lines[0][21:27] if ref_lines else None
             if not ref_lines or not receptor_pdb.strip():
                 raise RuntimeError("no receptor/ligand lines parsed")
             ref_center = _heavy_centroid(ref_lines)
@@ -224,10 +240,6 @@ def main() -> int:
             if offset >= 8.0:
                 raise RuntimeError(f"grid does not cover site (offset {offset:.1f} A)")
 
-            artifact_dir = args.outdir / "artifacts" / run_id / cx["id"]
-            artifact_dir.mkdir(parents=True, exist_ok=True)
-            entry["artifact_directory"] = str(artifact_dir.relative_to(args.outdir))
-            (artifact_dir / "source.pdb").write_text(pdb_text, encoding="utf-8")
             with tempfile.TemporaryDirectory() as tmp:
                 lig_pdb = os.path.join(tmp, "lig.pdb")
                 lig_pdbqt = os.path.join(tmp, "lig.pdbqt")
@@ -293,6 +305,13 @@ def main() -> int:
         except Exception as exc:  # per-complex failure
             entry["passed"] = False
             entry["error"] = str(exc)
+        artifact_relative = entry.get("artifact_directory")
+        if artifact_relative:
+            entry["artifact_sha256"] = {
+                path.name: hashlib.sha256(path.read_bytes()).hexdigest()
+                for path in (args.outdir / artifact_relative).iterdir() if path.is_file()
+            }
+        entry["runtime_s"] = round(time.time() - t0, 2)
         results.append(entry)
 
     passed_frac = passes / len(results)
@@ -304,6 +323,8 @@ def main() -> int:
     record = {
         "benchmark": "BBS1-DOCK-1STP-BTN" if args.canonical else "bionexus-redock-panel/v1",
         "run_id": run_id,
+        "fixture_revision": panel.get("fixture_revision"),
+        "fixture_sha256": hashlib.sha256(args.panel.read_bytes()).hexdigest(),
         "tool_versions": tool_versions,
         "code_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in (
             "benchmark/fixtures/docking/run_redock_panel.py",
@@ -323,6 +344,7 @@ def main() -> int:
     args.outdir.mkdir(parents=True, exist_ok=True)
     (args.outdir / "latest.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8", newline="")
     (args.outdir / f"{run_id}.json").write_text(json.dumps(record, indent=2) + "\n", encoding="utf-8")
+    print("REDOCK_EVIDENCE=" + json.dumps(record, sort_keys=True))
     print(f"REDOCK PANEL {record['status']}: {passes}/{len(results)} complexes < 2.0 A RMSD")
     return 0 if panel_ok else 1
 

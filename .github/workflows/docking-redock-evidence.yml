@@ -1,15 +1,25 @@
-name: Canonical docking redocking evidence
+name: Docking pose-recovery evidence
 
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'benchmark/fixtures/docking/**'
+      - '.github/workflows/docking-redock-evidence.yml'
 
 permissions:
   contents: read
 
 jobs:
-  canonical-redock:
+  redock:
+    name: Redocking ${{ matrix.mode }}
     runs-on: ubuntu-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        mode: [canonical, panel]
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -17,20 +27,27 @@ jobs:
           python-version: '3.12'
       - name: Install benchmark dependencies
         run: python -m pip install rdkit==2026.9.1 openbabel-wheel==3.1.1.23 httpx fastapi 'pydantic[email]' python-dotenv
-      - name: Build production fpocket revision
+      - name: Build declared fpocket revision
         run: |
           git clone https://github.com/Discngine/fpocket.git /tmp/fpocket
           git -C /tmp/fpocket checkout 4bb0d8447f62fee77e2c3c29f54b5fcaf5e2c066
           make -C /tmp/fpocket CFLAGS='-O2 -g -std=gnu99 -DM_OS_LINUX -DMNO_MEM_DEBUG -Iplugins/include -Iplugins/LINUXAMD64/molfile -Isrc/qhull/src' QCFLAGS='-O -g -pg -ansi -Isrc/qhull/src'
           sudo make -C /tmp/fpocket install
-      - name: Run canonical control with checksum verified Vina
+      - name: Execute declared pose-recovery criteria
         env:
           PYTHONPATH: bioai-platform/backend
-        run: python benchmark/fixtures/docking/run_redock_panel.py --canonical --outdir benchmark/results/docking/canonical
-      - name: Retain result, structures, poses and logs
+          REDOCK_MODE: ${{ matrix.mode }}
+        run: |
+          if [ "$REDOCK_MODE" = canonical ]; then
+            python benchmark/fixtures/docking/run_redock_panel.py --canonical --outdir benchmark/results/docking/ci-canonical
+          else
+            python benchmark/fixtures/docking/run_redock_panel.py --outdir benchmark/results/docking/ci-panel
+          fi
+      - name: Retain result, source structures, poses and failure evidence
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: canonical-1stp-btn-${{ github.sha }}
-          path: benchmark/results/docking/canonical/
+          name: redock-${{ matrix.mode }}-${{ github.sha }}
+          path: benchmark/results/docking/ci-${{ matrix.mode }}/
           if-no-files-found: error
+          retention-days: 90

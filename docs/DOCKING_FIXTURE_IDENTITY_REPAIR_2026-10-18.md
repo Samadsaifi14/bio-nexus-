@@ -22,3 +22,5 @@ Acceptance criteria are unchanged: top pose symmetry-aware heavy-atom RMSD under
 The runner now records the observed deposited ligand inventory, chosen instance, fixture checksum and source PDB even when preparation or grid detection fails. All artifact bytes are fingerprinted for failed as well as passing cases. CI executes both the canonical control and the complete panel, retaining outputs on failure. A completed failed panel is not validation success.
 
 Limitations include discarded cofactors/heteroatoms in the original declared preparation policy, frozen receptors and crystallographic starting ligand coordinates. This is pose-reproduction evidence, not binding-affinity accuracy or blind-screening validation.
+
+The first executed canonical rerun exposed a second harness defect: it interpreted the modern real SDF export as native PDBQT and therefore counted zero models. The runner now consumes only `result_pdbqt`, cross-checks model count with `num_poses`, and archives SDF separately. A missing or inconsistent native artifact fails explicitly. Four regression cases protect the format boundary.

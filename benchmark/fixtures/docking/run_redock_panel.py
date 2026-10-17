@@ -110,7 +110,7 @@ def _heavy_centroid(lig_lines) -> list[float]:
 
 
 def _extract_pdbqt_models(pdbqt_text: str) -> dict[int, str]:
-    """Vina result_sdf currently contains PDBQT, not an SDF molecule."""
+    """Split the native result_pdbqt artifact; SDF is a separate export."""
     blocks = {}
     cur = None
     for line in pdbqt_text.splitlines():
@@ -121,6 +121,19 @@ def _extract_pdbqt_models(pdbqt_text: str) -> dict[int, str]:
         elif cur is not None:
             blocks[cur].append(line)
     return {k: "\n".join(v) + "\n" for k, v in blocks.items()}
+
+
+def _native_pose_output(result: dict) -> tuple[str, dict[int, str]]:
+    """Read only the native PDBQT contract, never reinterpret an SDF export."""
+    native = result.get("result_pdbqt")
+    if not isinstance(native, str) or not native.strip():
+        raise ValueError("Docking result is missing the native result_pdbqt artifact")
+    models = _extract_pdbqt_models(native)
+    if 1 not in models:
+        raise ValueError("Native docking output has no top model")
+    if len(models) != result.get("num_poses"):
+        raise ValueError("Native docking model count disagrees with reported num_poses")
+    return native, models
 
 
 def _restore_pose_chemistry(pose_sdf_block: str, ref_mol):
@@ -269,9 +282,11 @@ def main() -> int:
             result = run_vina(receptor_pdbqt, ligand_pdbqt, grid_center=grid["center"],
                               grid_size=grid["size"], exhaustiveness=32, num_modes=9, seed=42)
 
-            (artifact_dir / "vina_output.pdbqt").write_text(result["result_sdf"], encoding="utf-8")
+            native_pdbqt, pose_blocks = _native_pose_output(result)
+            (artifact_dir / "vina_output.pdbqt").write_text(native_pdbqt, encoding="utf-8")
+            if result.get("result_sdf"):
+                (artifact_dir / "vina_output.sdf").write_text(result["result_sdf"], encoding="utf-8")
             (artifact_dir / "vina.log").write_text(result["vina_log"], encoding="utf-8")
-            pose_blocks = _extract_pdbqt_models(result["result_sdf"])
             top_rmsd = None
             if 1 in pose_blocks:
                 pose_path = artifact_dir / "top_pose.pdbqt"

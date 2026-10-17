@@ -7,6 +7,7 @@ import subprocess
 
 import pytest
 from app.tools.blast_local import run_local_blast, _reference
+from app.config import settings
 
 pytestmark = pytest.mark.skipif(not shutil.which("makeblastdb") or not shutil.which("blastp"),
                                reason="requires real local NCBI BLAST+ executables")
@@ -26,7 +27,7 @@ def database(monkeypatch, tmp_path):
         "index_files": {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                         for p in tmp_path.glob("swissprot.*")}}
     (tmp_path / "manifest.json").write_text(json.dumps(manifest))
-    monkeypatch.setenv("BIONEXUS_BLAST_DB_ROOT", str(tmp_path))
+    monkeypatch.setattr(settings, "BIONEXUS_BLAST_DB_ROOT", str(tmp_path))
     _reference.cache_clear()
     return tmp_path
 
@@ -52,7 +53,7 @@ def test_local_database_never_substitutes_for_nr_or_nt(database):
 
 
 def test_missing_reference_is_unavailable_not_completed_zero(monkeypatch):
-    monkeypatch.delenv("BIONEXUS_BLAST_DB_ROOT", raising=False)
+    monkeypatch.setattr(settings, "BIONEXUS_BLAST_DB_ROOT", "")
     assert run_local_blast(SEQUENCE, "blastp", "swissprot") is None
 
 

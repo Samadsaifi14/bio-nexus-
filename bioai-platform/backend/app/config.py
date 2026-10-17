@@ -26,6 +26,8 @@ class Settings:
     SUPABASE_SERVICE_ROLE_KEY: str = _env_supabase_key or os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
     CELERY_BROKER_URL: str = os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/1")
     CELERY_RESULT_BACKEND: str = os.getenv("CELERY_RESULT_BACKEND", "redis://localhost:6379/2")
+    BIONEXUS_BLAST_DB_ROOT: str = os.getenv("BIONEXUS_BLAST_DB_ROOT", "")
+    BIONEXUS_BLAST_THREADS: str = os.getenv("BIONEXUS_BLAST_THREADS", "2")
     EBI_BASE_URL: str = "https://www.ebi.ac.uk/Tools/services/rest/ncbiblast"
     UNIPROT_BASE_URL: str = "https://rest.uniprot.org/uniprotkb"
     ALPHAFOLD_DB_URL: str = "https://alphafold.ebi.ac.uk/api/prediction"

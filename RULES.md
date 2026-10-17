@@ -317,7 +317,7 @@ params = {
 When an external service fails, follow these fallback chains:
 
 ```
-BLAST:       EMBL-EBI BLAST → NCBI BLAST → error (log both failures)
+BLAST:       local BLAST+ (only available exact-scope Swiss-Prot protein reference) → EMBL-EBI BLAST → NCBI BLAST → error (log provider failures)
 Sequence:    sequence_cache → NCBI Entrez → UniProt REST → error
 Pathways:    Reactome → WikiPathways → error (never fall back to KEGG if monetized)
 Structure:   structure_cache → RCSB PDB → error

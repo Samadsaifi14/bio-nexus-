@@ -7,7 +7,6 @@ from __future__ import annotations
 
 import hashlib
 import json
-import os
 from pathlib import Path
 import re
 import shutil
@@ -16,6 +15,7 @@ import tempfile
 from functools import lru_cache
 
 from app.integrations.ncbi.parser import parse_blast_xml
+from app.config import settings
 
 DATABASE_ALIASES = {"swissprot", "uniprotkb_swissprot"}
 
@@ -50,7 +50,7 @@ def run_local_blast(sequence: str, program: str, database: str, max_hits: int = 
                     timeout: int = 120) -> dict | None:
     if program != "blastp" or database not in DATABASE_ALIASES:
         return None
-    configured = os.environ.get("BIONEXUS_BLAST_DB_ROOT", "").strip()
+    configured = settings.BIONEXUS_BLAST_DB_ROOT.strip()
     executable = shutil.which("blastp")
     if not configured or not executable:
         return None
@@ -63,7 +63,7 @@ def run_local_blast(sequence: str, program: str, database: str, max_hits: int = 
         return {"error": "Local BLAST requires one protein sequence of 6-10000 residues",
                 "hits": [], "count": 0, "search_complete": False}
     maximum = max(1, min(int(max_hits), 100))
-    threads = max(1, min(int(os.environ.get("BIONEXUS_BLAST_THREADS", "2")), 4))
+    threads = max(1, min(int(settings.BIONEXUS_BLAST_THREADS), 4))
     task = "blastp-short" if len(query) < 30 else "blastp"
     with tempfile.TemporaryDirectory(prefix="bionexus-blast-") as temporary:
         fasta = Path(temporary) / "query.fasta"

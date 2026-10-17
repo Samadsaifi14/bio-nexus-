@@ -105,7 +105,8 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
 RUN apt-get update && apt-get install -y --no-install-recommends ncbi-blast+ && \
     rm -rf /var/lib/apt/lists/*
 COPY scripts/provision_local_blast.py /opt/bionexus/provision_local_blast.py
-RUN python /opt/bionexus/provision_local_blast.py /opt/bionexus/reference/swissprot
+RUN pip install --no-cache-dir 'requests>=2.32,<3' && \
+    python /opt/bionexus/provision_local_blast.py /opt/bionexus/reference/swissprot
 ENV BIONEXUS_BLAST_DB_ROOT=/opt/bionexus/reference/swissprot BIONEXUS_BLAST_THREADS=2
 
 WORKDIR /app

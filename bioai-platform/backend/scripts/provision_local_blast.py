@@ -13,7 +13,7 @@ from pathlib import Path
 import re
 import shutil
 import subprocess
-import http.client
+import requests
 
 BASE = "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/"
 
@@ -28,21 +28,23 @@ def digest(path):
 
 def download(name, target):
     if name == "reldate.txt":
-        resource = "/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt"
+        response = requests.get(
+            "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt",
+            stream=True, timeout=120, allow_redirects=False,
+        )
     elif name == "uniprot_sprot.fasta.gz":
-        resource = "/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
+        response = requests.get(
+            "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+            stream=True, timeout=120, allow_redirects=False,
+        )
     else:
         raise ValueError("Only the two fixed official Swiss-Prot resources may be downloaded")
-    connection = http.client.HTTPSConnection("ftp.uniprot.org", timeout=120)
-    try:
-        connection.request("GET", resource)
-        with connection.getresponse() as source:
-            if source.status != 200:
-                raise RuntimeError(f"Official Swiss-Prot download returned HTTP {source.status}")
-            with target.open("wb") as out:
-                shutil.copyfileobj(source, out)
-    finally:
-        connection.close()
+    with response as source:
+        if source.status_code != 200:
+            raise RuntimeError(f"Official Swiss-Prot download returned HTTP {source.status_code}")
+        with target.open("wb") as out:
+            for block in source.iter_content(chunk_size=1024 * 1024):
+                out.write(block)
     return target
 
 

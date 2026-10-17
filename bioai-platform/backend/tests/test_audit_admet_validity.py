@@ -25,18 +25,20 @@ def test_aspirin_known_answer_pubchem_2025_computed_properties():
     """Known-answer values from PubChem CID 2244.
 
     PubChem reports MW 180.16 g/mol, HBD 1, HBA 4 and TPSA 63.6 A^2.
-    HBA is method-dependent; BioNexus explicitly uses RDKit's Lipinski-HBA
-    convention for this field so the convention must be recorded in metadata.
+    HBA is method-dependent. Keep the PubChem/Lipinski N+O reference (4)
+    separate from RDKit chemical acceptors (3), with both methods recorded.
     """
     result = compute_descriptors(ASPIRIN)
     assert result["formula"] == "C9H8O4"
     assert result["molecular_weight"] == pytest.approx(180.16, abs=0.01)
     assert result["tpsa"] == pytest.approx(63.6, abs=0.1)
     assert result["hbd"] == 1
-    assert result["hba"] == 4
+    assert result["lipinski_n_o_count"] == 4
+    assert result["hba"] == 3
     assert result["heavy_atoms"] == 13
     conventions = result.get("_descriptor_conventions", {})
-    assert conventions.get("hba") == "RDKit CalcNumLipinskiHBA"
+    assert conventions.get("hba") == "RDKit Lipinski.NumHAcceptors"
+    assert "N+O atom count" in conventions["lipinski_n_o_count"]
     assert conventions.get("rotatable_bonds") == "RDKit Lipinski.NumRotatableBonds"
 
 
@@ -66,7 +68,8 @@ def test_random_core_descriptors_equal_explicit_rdkit_conventions():
         assert observed["logp"] == pytest.approx(round(Descriptors.MolLogP(mol), 2), abs=1e-12)
         assert observed["tpsa"] == pytest.approx(round(Descriptors.TPSA(mol, includeSandP=True), 2), abs=1e-12)
         assert observed["hbd"] == Lipinski.NumHDonors(mol)
-        assert observed["hba"] == rdMolDescriptors.CalcNumLipinskiHBA(mol)
+        assert observed["hba"] == Lipinski.NumHAcceptors(mol)
+        assert observed["lipinski_n_o_count"] == rdMolDescriptors.CalcNumLipinskiHBA(mol)
         assert observed["rotatable_bonds"] == Lipinski.NumRotatableBonds(mol)
         assert observed["heavy_atoms"] == mol.GetNumHeavyAtoms()
         assert observed["qed_score"] == pytest.approx(round(QED.qed(mol), 4), abs=1e-12)

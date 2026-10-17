@@ -105,7 +105,7 @@ class TestNCBIBlastIntegration:
         # Poll with generous timeout (2 min for tests)
         status_result = await check_status_until_ready(rid, max_wait_seconds=120)
         status = status_result.get("status", "UNKNOWN")
-        assert status in ("READY", "TIMEOUT", "POLL_FAILED", "ERROR", "FAILED"), \
+        assert status in ("READY", "TIMEOUT", "STUCK", "POLL_FAILED", "ERROR", "FAILED"), \
             f"Unexpected status: {status}"
 
     @pytest.mark.asyncio

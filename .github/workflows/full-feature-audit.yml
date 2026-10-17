@@ -15,6 +15,45 @@ permissions:
   contents: read
 
 jobs:
+  local-blast-reference:
+    name: Native BLAST and complete Swiss-Prot recovery
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      PYTHONPATH: bioai-platform/backend
+      BIONEXUS_BLAST_DB_ROOT: ${{ runner.temp }}/swissprot
+      SUPABASE_URL: https://example.supabase.co
+      SUPABASE_ANON_KEY: test-placeholder
+      SUPABASE_SERVICE_ROLE_KEY: test-placeholder
+      JWT_SECRET: test-placeholder
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: bioai-platform/backend/requirements.txt
+      - run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends ncbi-blast+
+          pip install -r bioai-platform/backend/requirements.txt pytest-asyncio pytest-timeout
+      - name: Verify the actual BLAST executable and local routing
+        run: |
+          blastp -version
+          makeblastdb -version
+          python -m pytest bioai-platform/backend/tests/test_local_blast.py -vv --timeout=60 --timeout-method=signal
+      - name: Provision and fingerprint the complete reference
+        run: python bioai-platform/backend/scripts/provision_local_blast.py "$BIONEXUS_BLAST_DB_ROOT"
+      - name: Execute production accession-recovery controls
+        run: python bioai-platform/backend/scripts/check_local_blast_reference.py "$BIONEXUS_BLAST_DB_ROOT" "$RUNNER_TEMP/local-blast-evidence" benchmark/fixtures/sequence/blast_queries.json
+      - name: Retain reference identity, queries and native outputs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: local-blast-reference-evidence
+          path: ${{ runner.temp }}/local-blast-evidence
+          if-no-files-found: warn
+
 
   statistics-interpretation:
     name: Statistics and interpretation regressions
@@ -36,7 +75,7 @@ jobs:
           cache: pip
           cache-dependency-path: bioai-platform/backend/requirements.txt
       - run: pip install -r requirements.txt pytest-timeout pytest-asyncio
-      - run: python -m pytest tests/test_stats_engine.py tests/test_worker_claim.py tests/test_dashboard.py tests/test_admet_definitions.py tests/test_smoke_admet.py tests/test_de_novo_branch.py tests/test_blast_false_denovo_guard.py tests/test_ncbi_wallclock_budget.py tests/test_interactions_contract.py tests/test_structure_metric_missingness.py tests/test_md_advanced_analysis.py tests/test_smoke_docking.py tests/test_smoke_function_predict.py tests/test_smoke_md.py tests/test_auth.py tests/test_tool_interpreter.py tests/test_interpret_stream_grounding.py -vv --timeout=60 --timeout-method=signal
+      - run: python -m pytest tests/test_stats_engine.py tests/test_worker_claim.py tests/test_dashboard.py tests/test_admet_definitions.py tests/test_audit_admet_validity.py tests/test_smoke_admet.py tests/test_de_novo_branch.py tests/test_blast_false_denovo_guard.py tests/test_ncbi_wallclock_budget.py tests/test_interactions_contract.py tests/test_structure_metric_missingness.py tests/test_md_advanced_analysis.py tests/test_smoke_docking.py tests/test_smoke_function_predict.py tests/test_smoke_md.py tests/test_auth.py tests/test_tool_interpreter.py tests/test_interpret_stream_grounding.py -vv --timeout=60 --timeout-method=signal
 
   fixture-diagnostics:
     name: Fixture integrity and pinned descriptor diagnostics

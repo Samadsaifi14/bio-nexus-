@@ -969,6 +969,24 @@ async def _run_blast(
     max_hits = max(5, min(max_hits, 100))
     query_accession = (blast_params.get("query_accession") or "").strip()
 
+    from app.tools.blast_local import run_local_blast
+    try:
+        local = await asyncio.to_thread(run_local_blast, sequence, program, database, max_hits)
+    except (OSError, ValueError, RuntimeError) as exc:
+        logger.warning("Local BLAST unavailable; trying external providers: %s", exc)
+        local = None
+    if local is not None and local.get("search_complete") is True:
+        payload = _build_blast_result(
+            local["hits"], source="local-blast+", database="swissprot",
+            program=program, seq_type=seq_type, query_accession=query_accession,
+            query_length=local.get("query_length", len(sequence)),
+        )
+        payload.update({key: value for key, value in local.items()
+                        if key not in {"hits", "count", "top_hit", "query_length"}})
+        if status_callback:
+            await status_callback("parsing")
+        return payload
+
     if status_callback:
         try:
             await status_callback("submitted_to_ncbi")

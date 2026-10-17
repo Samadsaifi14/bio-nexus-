@@ -100,6 +100,14 @@ RUN wget -q "https://github.com/ccsb-scripps/AutoDock-Vina/releases/download/v1.
     echo "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644  /usr/local/bin/vina" | sha256sum -c - && \
     chmod +x /usr/local/bin/vina
 
+# Local reference searches remain usable during external BLAST queue delays.
+# The provisioner retains the exact release and source/index checksums.
+RUN apt-get update && apt-get install -y --no-install-recommends ncbi-blast+ && \
+    rm -rf /var/lib/apt/lists/*
+COPY scripts/provision_local_blast.py /opt/bionexus/provision_local_blast.py
+RUN python /opt/bionexus/provision_local_blast.py /opt/bionexus/reference/swissprot
+ENV BIONEXUS_BLAST_DB_ROOT=/opt/bionexus/reference/swissprot BIONEXUS_BLAST_THREADS=2
+
 WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt

@@ -41,6 +41,14 @@ class BlastTool(BaseTool):
         if not sequence:
             return {"error": "BLAST query sequence is empty after normalization", "hits": [], "count": 0}
 
+        from app.tools.blast_local import run_local_blast
+        try:
+            local = await asyncio.to_thread(run_local_blast, sequence, program, database, max_hits)
+            if local is not None and local.get("search_complete") is True:
+                return local
+        except (OSError, ValueError, RuntimeError) as exc:
+            logger.warning("Local BLAST unavailable; trying the remote provider: %s", exc)
+
         job_id = await self._submit(sequence, program, database)
         poll_budget = self.LONG_QUERY_MAX_POLL_TIME if len(sequence) >= 500 else self.BASE_MAX_POLL_TIME
         status = await self._poll(job_id, poll_budget)

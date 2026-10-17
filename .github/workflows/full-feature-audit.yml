@@ -36,7 +36,7 @@ jobs:
           cache: pip
           cache-dependency-path: bioai-platform/backend/requirements.txt
       - run: pip install -r requirements.txt pytest-timeout pytest-asyncio
-      - run: python -m pytest tests/test_stats_engine.py tests/test_worker_claim.py tests/test_md_advanced_analysis.py tests/test_smoke_docking.py tests/test_smoke_function_predict.py tests/test_smoke_md.py tests/test_auth.py tests/test_tool_interpreter.py tests/test_interpret_stream_grounding.py -vv --timeout=60 --timeout-method=signal
+      - run: python -m pytest tests/test_stats_engine.py tests/test_worker_claim.py tests/test_dashboard.py tests/test_de_novo_branch.py tests/test_blast_false_denovo_guard.py tests/test_interactions_contract.py tests/test_md_advanced_analysis.py tests/test_smoke_docking.py tests/test_smoke_function_predict.py tests/test_smoke_md.py tests/test_auth.py tests/test_tool_interpreter.py tests/test_interpret_stream_grounding.py -vv --timeout=60 --timeout-method=signal
 
   fixture-diagnostics:
     name: Fixture integrity and pinned descriptor diagnostics
@@ -50,8 +50,32 @@ jobs:
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
         with:
           python-version: '3.11'
-      - run: pip install pytest rdkit
+      - run: pip install pytest rdkit==2026.9.1
       - run: python -m pytest tests/test_bbs2_fixtures.py::test_fixture_manifest_has_no_drift tests/test_bbs2_fixtures.py::test_descriptor_parity_passes tests/test_bbs2_fixtures.py::test_descriptor_parity_record_persisted -vv --tb=long --noconftest -o addopts=''
+
+  descriptor-migration-evidence:
+    name: Capture descriptor version migration evidence
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
+        with:
+          python-version: '3.11'
+      - run: pip install rdkit==2026.9.1
+      - run: |
+          python benchmark/fixtures/cheminformatics/descriptor_parity/run_descriptor_parity.py || test "$?" = 1
+          python - <<'PY'
+          import json
+          from pathlib import Path
+          path = Path("benchmark/results/cheminformatics/descriptor_parity/latest.json")
+          run = json.loads(path.read_text())
+          print("DESCRIPTOR_MIGRATION_EVIDENCE=" + json.dumps({
+              "runtime": run["live_environments"], "reference": run["reference_pin"],
+              "failures": run["failures"], "n_compared": run["n_compared"],
+              "n_matched": run["n_matched"], "parse_permille": run["parse_permille"],
+          }, sort_keys=True))
+          PY
 
   backend-full-suite:
     name: Backend full pytest suite

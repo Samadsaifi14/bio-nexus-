@@ -1,4 +1,6 @@
 import re
+import math
+from typing import Annotated
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
@@ -38,12 +40,9 @@ class Interaction(BaseModel):
 @router.get("/{gene_name}")
 async def get_interactions(
     gene_name: str,
-    species: int = Query(default=9606, description="NCBI taxon ID; 9606=human"),
-    limit: int = Query(default=15, ge=1, le=50),
-    network_type: str = Query(
-        default="functional",
-        description="'functional' (all evidence) or 'physical' (direct binding only)",
-    ),
+    species: Annotated[int, Query(description="NCBI taxon ID; 9606=human")] = 9606,
+    limit: Annotated[int, Query(ge=1, le=50)] = 15,
+    network_type: Annotated[str, Query(description="'functional' associations or 'physical' predicted physical interactions")] = "functional",
 ):
     gene_name = _sanitize_for_url(gene_name)
     network_type = network_type.lower()
@@ -71,13 +70,17 @@ async def get_interactions(
 
     interactions = []
     for item in data:
-        # STRING scores are 0-1000; normalize to 0-1 so thresholds and
-        # consumers treat them consistently across channels.
+        # STRING API scores are fractions; required_score query thresholds use
+        # 0-1000 units. Do not apply the query-threshold scale to returned data.
+        # Source: https://string-db.org/help/api/ (network Python example).
         def norm(v):
             try:
-                return min(1.0, max(0.0, float(v) / 1000.0))
-            except (TypeError, ValueError):
-                return 0.0
+                value = float(v)
+                if not math.isfinite(value) or not 0 <= value <= 1:
+                    raise ValueError("confidence outside native 0-1 range")
+                return value
+            except (TypeError, ValueError) as exc:
+                raise HTTPException(502, "STRING returned missing or invalid confidence scores") from exc
 
         nscore = norm(item.get("nscore"))
         fscore = norm(item.get("fscore"))
@@ -113,10 +116,10 @@ async def get_interactions(
         "species": species,
         "network_type": network_type,
         "source": "STRING-DB interaction_partners API",
-        "score_scale": "0-1 (normalized from STRING's 0-1000 confidence)",
+        "score_scale": "0-1 (native STRING API confidence)",
         "score_derivations": [
-            "combined_score is STRING's combined confidence value, normalized from its native 0-1000 scale.",
-            "nscore/fscore/pscore/ascore/escore/dscore/tscore are STRING's per-channel evidence scores, normalized from 0-1000.",
+            "combined_score is STRING's combined confidence value, preserved in its native API 0-1 scale.",
+            "nscore/fscore/pscore/ascore/escore/dscore/tscore are STRING's per-channel evidence scores, preserved in their native API 0-1 scale.",
             "physical_evidence_avg is a LOCAL Bio Nexus heuristic (mean of experimental + database channels), not a STRING-provided score.",
         ],
         "interactions": interactions,

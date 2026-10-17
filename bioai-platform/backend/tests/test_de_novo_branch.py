@@ -239,7 +239,7 @@ async def test_zero_hit_protein_run_completes_denovo(monkeypatch):
     job_id = "denovo-test-1"
 
     async def fake_blast(*a, **k):
-        return {"error": "No hits", "count": 0, "hits": [], "top_hit": None}
+        return {"search_complete": True, "count": 0, "hits": [], "top_hit": None}
 
     async def fake_ipro(sequence, email=""):
         return {"domains": [], "sequence_length": len(sequence), "source": "interproscan6", "status": "complete"}

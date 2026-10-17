@@ -1,68 +1,68 @@
-"""Scientific Dashboard (Component 15) unit tests — no DB, isolated custom dir."""
-
+"""Tenant-scoped dashboard regression tests; no live database."""
 import json
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
+import pytest
 import app.services.dashboard as dashboard
 from app.engines import ENGINES
 
 
-def test_summary_shape(monkeypatch, tmp_path):
-    monkeypatch.setattr(dashboard, "_count_supabase", lambda table: 2)
-    monkeypatch.setattr(dashboard, "CUSTOM_DIR", str(tmp_path))
-    s = dashboard.summary()
-    assert s["experiments"] == 2
-    assert s["benchmark_runs"] == 2
-    assert s["engines"] == len(ENGINES)
-    assert s["datasets_catalog"] >= 2
-    assert s["datasets_user"] == 0
+@pytest.fixture
+def custom_root(monkeypatch, tmp_path):
+    monkeypatch.setattr(dashboard, "CUSTOM_ROOT", tmp_path)
+    return tmp_path
+
+
+def test_summary_shape(monkeypatch, custom_root):
+    calls = []
+    def count(user_id):
+        calls.append(user_id)
+        return 2
+    monkeypatch.setattr(dashboard, "_count_owned_jobs", count)
+    summary = dashboard.summary("user-a")
+    assert summary["experiments"] == 2
+    assert summary["engines"] == len(ENGINES)
+    assert summary["datasets_catalog"] >= 2
+    assert summary["datasets_user"] == 0
+    assert summary["scope"] == "authenticated_user"
+    assert calls == ["user-a"]
 
 
 def test_engine_status_contracts():
     rows = dashboard.engine_status()
-    names = [r["name"] for r in rows]
-    for required in ("blast", "uniprot", "msa", "phylo", "domains", "alphafold",
-                     "pathway", "interpret", "evidence", "ngs", "docking", "md"):
-        assert required in names, required
-    for r in rows:
-        assert r["version"] and r["tool"] and r["export_formats"]
+    names = {row["name"] for row in rows}
+    assert {"blast", "uniprot", "msa", "phylo", "domains", "alphafold",
+            "pathway", "interpret", "evidence", "ngs", "docking", "md"} <= names
+    assert all(row["version"] and row["tool"] and row["export_formats"] for row in rows)
 
 
-def test_upload_custom_dataset(monkeypatch, tmp_path):
-    monkeypatch.setattr(dashboard, "CUSTOM_DIR", str(tmp_path))
-    entry = dashboard.upload_custom_dataset("My Cell Lines", "cancer", [{"id": "x", "value": 1}], "demo")
+def test_upload_custom_dataset(custom_root):
+    entry = dashboard.upload_custom_dataset("user-a", "My Cell Lines", "cancer", [{"id": "x", "value": 1}], "demo")
     assert entry["name"] == "my-cell-lines"
     assert entry["type"] == "user"
     assert entry["records_count"] == 1
-    stored = json.loads(Path(tmp_path, "my-cell-lines.json").read_text(encoding="utf-8"))
+    stored = json.loads((custom_root / "user-a" / "my-cell-lines.json").read_text())
     assert stored["records"] == [{"id": "x", "value": 1}]
-    listed = dashboard.list_custom_datasets()
-    assert len(listed) == 1
-    assert listed[0]["name"] == "my-cell-lines"
+    assert dashboard.list_custom_datasets("user-a") == [entry]
+    assert dashboard.list_custom_datasets("user-b") == []
 
 
-def test_upload_rejects_empty(monkeypatch, tmp_path):
-    monkeypatch.setattr(dashboard, "CUSTOM_DIR", str(tmp_path))
-    try:
-        dashboard.upload_custom_dataset("  ", "x", [{"a": 1}])
-        raised_name = False
-    except ValueError:
-        raised_name = True
-    assert raised_name
-    try:
-        dashboard.upload_custom_dataset("ok", "x", [])
-        raised_records = False
-    except ValueError:
-        raised_records = True
-    assert raised_records
+def test_upload_rejects_empty(custom_root):
+    with pytest.raises(ValueError):
+        dashboard.upload_custom_dataset("user-a", "  ", "x", [{"a": 1}])
+    with pytest.raises(ValueError):
+        dashboard.upload_custom_dataset("user-a", "ok", "x", [])
 
 
-def test_datasets_list_merges_catalog_and_user(monkeypatch, tmp_path):
-    monkeypatch.setattr(dashboard, "CUSTOM_DIR", str(tmp_path))
-    dashboard.upload_custom_dataset("Uploaded Set", "custom", [{"id": 1}], "")
-    out = dashboard.datasets_list()
-    assert out["count"] >= 3
-    assert any(d["type"] == "user" for d in out["user"])
+def test_datasets_list_merges_catalog_and_owned_user_data(custom_root):
+    dashboard.upload_custom_dataset("user-a", "Uploaded Set", "custom", [{"id": 1}])
+    result = dashboard.datasets_list("user-a")
+    assert result["count"] == len(result["catalog"]) + 1
+    assert result["user"][0]["type"] == "user"
+    assert dashboard.datasets_list("user-b")["user"] == []
+
+
+def test_same_dataset_name_does_not_cross_tenants(custom_root):
+    dashboard.upload_custom_dataset("user-a", "Same", "custom", [{"value": 1}])
+    dashboard.upload_custom_dataset("user-b", "Same", "custom", [{"value": 2}])
+    assert json.loads((custom_root / "user-a" / "same.json").read_text())["records"] == [{"value": 1}]
+    assert json.loads((custom_root / "user-b" / "same.json").read_text())["records"] == [{"value": 2}]

@@ -47,3 +47,25 @@ def test_free_energy_reports_limitation_for_insufficient_pca_dimensions():
     one_atom=[[[0.,0.,0.]],[[0.1,0.,0.]],[[0.2,0.,0.]]]
     result=analyze_trajectory(one_atom,pca_components=1)
     assert result["free_energy_landscape"]["available"] is False
+
+
+def test_seeded_rigid_rotations_preserve_coordinates_and_distances():
+    rng = np.random.default_rng(1701)
+    reference = rng.normal(size=(12, 3))
+    for _ in range(10):
+        rotation, _ = np.linalg.qr(rng.normal(size=(3, 3)))
+        if np.linalg.det(rotation) < 0:
+            rotation[:, 0] *= -1
+        moved = reference @ rotation + rng.normal(size=3) * 10
+        aligned = align_trajectory(np.stack([reference, moved]))
+        np.testing.assert_allclose(aligned[1], reference, atol=1e-12)
+        before = np.linalg.norm(moved[:, None] - moved[None, :], axis=-1)
+        after = np.linalg.norm(aligned[1, :, None] - aligned[1, None, :], axis=-1)
+        np.testing.assert_allclose(after, before, atol=1e-12)
+
+
+def test_alignment_does_not_reflect_a_chiral_structure():
+    reference = _rigid_body_frames()[0]
+    mirror = reference * np.array([-1., 1., 1.])
+    aligned = align_trajectory(np.stack([reference, mirror]))
+    assert np.sqrt(np.mean(np.sum((aligned[1] - reference) ** 2, axis=1))) > 0.1

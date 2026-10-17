@@ -26,7 +26,9 @@ def _kabsch(mobile:np.ndarray,reference:np.ndarray)->np.ndarray:
     m=mobile-mobile.mean(axis=0); r=reference-reference.mean(axis=0)
     h=m.T@r; u,s,vt=np.linalg.svd(h); d=np.linalg.det(vt.T@u.T)
     correction=np.eye(3); correction[2,2]=-1.0 if d<0 else 1.0
-    rot=vt.T@correction@u.T
+    # Coordinates are row vectors: H = mobile.T @ reference implies U D Vt.
+    # The transposed (column-vector) rotation doubles a rigid-body rotation.
+    rot=u@correction@vt
     return m@rot+reference.mean(axis=0)
 
 

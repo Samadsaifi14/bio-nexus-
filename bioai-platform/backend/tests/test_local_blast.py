@@ -91,3 +91,14 @@ async def test_pipeline_uses_local_route_and_preserves_reference(database, monke
     assert result["search_complete"] is True
     assert result["database_release"] == "test-fixture-1"
     assert result["hits"][0]["accession"] == "P68871"
+
+
+def test_native_reference_does_not_claim_an_ncbi_page_was_queried(monkeypatch):
+    from app.routers import pipeline_v2
+    captured = []
+    monkeypatch.setattr("app.services.page_capture.capture_bg",
+                        lambda *args, **kwargs: captured.append(args))
+    pipeline_v2._capture_run_sources("native-fixture", {
+        "blast": {"source": "local-blast+", "top_hit": {"accession": "P68871"}}
+    }, "test-user")
+    assert captured == []

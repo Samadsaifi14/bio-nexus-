@@ -725,7 +725,9 @@ def _capture_run_sources(job_id: str, context: dict, user_id: str | None):
 
     blast = context.get("blast") or {}
     top_hit = blast.get("top_hit")
-    if top_hit and top_hit.get("accession"):
+    # Native search evidence is its retained XML and reference manifest; it
+    # did not query an NCBI web page. Annotation steps capture their own pages.
+    if blast.get("source") != "local-blast+" and top_hit and top_hit.get("accession"):
         capture_bg(job_id, "ncbi", f"https://www.ncbi.nlm.nih.gov/protein/{top_hit['accession']}", user_id)
 
     uniprot = context.get("uniprot") or {}

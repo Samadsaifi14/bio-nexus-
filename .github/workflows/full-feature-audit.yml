@@ -9,6 +9,14 @@ on:
       - 'bioai-platform/backend/**'
       - 'bioai-platform/frontend/**'
       - '.github/workflows/full-feature-audit.yml'
+      - 'scripts/run_feature_audit.py'
+  pull_request:
+    paths:
+      - 'benchmark/**'
+      - 'bioai-platform/backend/**'
+      - 'bioai-platform/frontend/**'
+      - '.github/workflows/full-feature-audit.yml'
+      - 'scripts/run_feature_audit.py'
   workflow_dispatch:
 
 permissions:
@@ -26,6 +34,8 @@ jobs:
       SUPABASE_ANON_KEY: test-placeholder
       SUPABASE_SERVICE_ROLE_KEY: test-placeholder
       JWT_SECRET: test-placeholder
+      OPENMM_CPU_THREADS: '1'
+      OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
@@ -67,6 +77,8 @@ jobs:
       SUPABASE_ANON_KEY: test-placeholder
       SUPABASE_SERVICE_ROLE_KEY: test-placeholder
       JWT_SECRET: test-placeholder
+      OPENMM_CPU_THREADS: '1'
+      OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97
@@ -118,7 +130,7 @@ jobs:
 
   backend-full-suite:
     name: Backend full pytest suite
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     defaults:
       run:
@@ -130,6 +142,8 @@ jobs:
       SUPABASE_ANON_KEY: test-placeholder
       SUPABASE_SERVICE_ROLE_KEY: test-placeholder
       JWT_SECRET: test-placeholder
+      OPENMM_CPU_THREADS: '1'
+      OMP_NUM_THREADS: '1'
     steps:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7.0.0
@@ -140,7 +154,7 @@ jobs:
       - name: System packages
         run: |
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends build-essential curl jq
+          sudo apt-get install -y --no-install-recommends build-essential curl jq r-base-core r-bioc-deseq2 r-bioc-complexheatmap r-bioc-tximport r-cran-ggplot2 r-cran-jsonlite r-cran-circlize
       - name: Install backend dependencies
         run: |
           python -m pip install --upgrade pip
@@ -163,16 +177,16 @@ jobs:
         continue-on-error: true
         run: |
           python -m pytest tests/test_bbs2_fixtures.py -vv --tb=long --timeout=90 --timeout-method=signal
-      - name: Run every backend test with per-test hang guard
-        run: |
-          mapfile -t test_files < <(find tests -name 'test_*.py' ! -name 'test_blast_comprehensive.py' | sort)
-          python -m pytest "${test_files[@]}" tests/test_blast_comprehensive.py --basetemp="$GITHUB_WORKSPACE/pytest-full-work" --junitxml="$RUNNER_TEMP/full-feature-audit.xml" -vv --disable-warnings --timeout=90 --timeout-method=signal
+      - name: Run every backend module with independent deadlines and reports
+        run: python ../../scripts/run_feature_audit.py --outdir "$RUNNER_TEMP/full-feature-audit" --module-seconds 180
       - name: Retain full-suite test report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: full-feature-audit-tests
-          path: ${{ runner.temp }}/full-feature-audit.xml
+          path: |
+            ${{ runner.temp }}/full-feature-audit/
+            !${{ runner.temp }}/full-feature-audit/work/**
           if-no-files-found: warn
       - name: Validate benchmark and engine registry
         run: python scripts/ci_validate.py

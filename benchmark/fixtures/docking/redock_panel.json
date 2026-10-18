@@ -12,7 +12,7 @@
     "ligand": "crystal ligand HETATM -> obabel PDBQT with Gasteiger charges + pH 7.4 protonation (mirrors prod path)",
     "grid": "fpocket pocket #1, must cover the crystal binding site (<8.0 A offset), else per-complex fail",
     "engine": "AutoDock Vina (app.tools.docking.run_vina), exhaustiveness 32, num_modes 9, fixed seed",
-    "rmsd": "symmetry-aware heavy-atom RMSD via RDKit CalcRMS in the receptor frame without ligand alignment (app.benchmarking.docking_redock.symmetry_aware_pose_rmsd); reference and poses parsed from SDF with real elements/bonds; heavy-atom count mismatch => honest skip, never a pass"
+    "rmsd": "symmetry-aware heavy-atom RMSD via RDKit CalcRMS in the receptor frame without alignment; native Vina PDBQT serials mapped to the prepared reference graph using original input heavy-atom coordinates; ambiguous, missing or changed atoms fail closed. Pose SDF export validity is reported separately."
   },
   "data_sourcing_note": "Every complex is a real PDB co-crystal. PDB files are fetched on demand from the fixed https://files.rcsb.org/download origin (SSRF-safe) by the runner; no structure is stored in this fixture, so the fixture stays small and reproducible at run time.",
   "complexes": [

@@ -126,3 +126,11 @@ export function continueAnalysis(
   }
   router.push(target);
 }
+
+/** Private, one-shot dot-plot handoff; sequence content never enters the URL. */
+export function openDotPlot(
+  router: AppRouterInstance, sequenceA: string, sequenceB: string,
+  scoring = 'identity', self = false,
+) {
+  setPrefill(router, 'dotplot_input', JSON.stringify({ sequenceA, sequenceB, scoring, self }), '/analyze/dotplot');
+}

@@ -1,0 +1,40 @@
+============================= test session starts ==============================
+platform linux -- Python 3.12.14, pytest-9.1.1, pluggy-1.7.0
+rootdir: /workspace/scratch/fc753af303f8/bio-nexus/bioai-platform/backend
+configfile: pytest.ini
+plugins: timeout-2.4.0, anyio-4.15.1, asyncio-1.4.0
+timeout: 90.0s
+timeout method: signal
+timeout func_only: False
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collected 1557 items
+
+tests/test_admet_definitions.py ..                                       [  0%]
+tests/test_alignment_insights.py ....                                    [  0%]
+tests/test_alignment_pairwise.py ..................                      [  1%]
+tests/test_alignment_stats.py .........                                  [  2%]
+tests/test_alignment_trim.py ....................                        [  3%]
+tests/test_alphafold_pathway_engines.py .....................            [  4%]
+tests/test_annotated_sequence.py .......                                 [  5%]
+tests/test_audit_admet_validity.py ......                                [  5%]
+tests/test_audit_alignment_randomized.py .....                           [  5%]
+tests/test_audit_blast_offline.py .......                                [  6%]
+tests/test_audit_msa_randomized.py .........                             [  6%]
+tests/test_audit_phylo_randomized.py ..........                          [  7%]
+tests/test_audit_sequence_randomized.py .......                          [  8%]
+tests/test_audit_uniprot_cds.py ....                                     [  8%]
+tests/test_audit_uniprot_schema.py ...........                           [  8%]
+tests/test_auth.py .............                                         [  9%]
+tests/test_bbs2_fixtures.py ..............F....                          [ 11%]
+tests/test_benchmark_registry_wiring.py .                                [ 11%]
+tests/test_benchmarks_compare.py ..............                          [ 12%]
+tests/test_blast_config.py .................                             [ 13%]
+tests/test_blast_engine.py ..........                                    [ 13%]
+tests/test_blast_false_denovo_guard.py .                                 [ 13%]
+tests/test_blast_parser_fidelity.py ..                                   [ 13%]
+tests/test_blast_program_matrix.py .........                             [ 14%]
+tests/test_blast_resilience.py ..............................            [ 16%]
+tests/test_castp_provenance.py .........                                 [ 17%]
+tests/test_dashboard.py ......                                           [ 17%]
+tests/test_dataset_library.py ......                                     [ 17%]
+tests/test_de_novo_branch.py ...FFF

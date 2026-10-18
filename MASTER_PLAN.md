@@ -219,3 +219,7 @@ Sun        Plan next week — no coding
 
 *Bio Nexus Master Plan*
 *Pipeline engine · Student-first · India-built*
+
+### 2026-10-18 attached-audit repair scope
+
+Repair the observed PPI count/provenance and cross-tool copy defects, private sequence handoffs, stale ADMET results, heterogeneous descriptor charts, DNS-dependent mocked regressions and redocking pose-coordinate conversion. Make webpack the default verified build and isolate full-suite module execution, including an R-enabled CI runtime. Acceptance criteria are in the audit repair manifest in `FEATURE_VERIFICATION_CHECKLIST.md`. Retain original failures and report every remaining scientific gap; neither page loads nor passing regressions establish all-roadmap completion.

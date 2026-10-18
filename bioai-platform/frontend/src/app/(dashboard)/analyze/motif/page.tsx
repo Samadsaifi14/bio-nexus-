@@ -19,7 +19,7 @@ import { downloadText, downloadTsv } from '@/lib/export-utils';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
 import { BackButton, CriticalButton, ClaySegmented, FlatTextarea, PageHeader } from '@/components/ui';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
-import { consumeParam, getAnalysisHandoff, setPrefill } from '@/lib/cross-link';
+import { consumeParam, getAnalysisHandoff, setPrefill, openDotPlot } from '@/lib/cross-link';
 import { MotifTrack, MatchTable, SequenceHighlight, TRACK_COLORS } from '@/components/motifs/MotifTrack';
 import type { MotifLibraryHit, MotifLibraryPattern, MotifLibraryResult, MotifPatternScanResult } from '@/types/pipeline';
 
@@ -229,7 +229,7 @@ export default function MotifScannerPage() {
   };
 
   const goDotPlot = () => {
-    router.push(`/analyze/dotplot?seq_a=${encodeURIComponent(sequence.replace(/[^A-Za-z]/g, '').toUpperCase())}&self=1`);
+    openDotPlot(router, sequence, '', 'identity', true);
   };
 
   const groupedPresets = useMemo(() => {

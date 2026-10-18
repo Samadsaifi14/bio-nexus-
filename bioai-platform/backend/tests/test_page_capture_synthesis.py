@@ -7,6 +7,8 @@ import pytest
 from app.services.page_capture import extract_page_content, capture_page, _last_hit
 from app.services import final_synthesis as fs
 
+pytestmark = pytest.mark.usefixtures("public_upstream_dns")
+
 
 # ── HTML extraction (stdlib-only parser) ─────────────────────────────────────
 

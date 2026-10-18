@@ -1,0 +1,2201 @@
+[
+  {
+    "module": "test_admet_definitions.py",
+    "started_at": "2026-10-18T17:32:55.341398+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_admet_definitions.xml",
+    "log": "test_admet_definitions.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.17,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_alignment_insights.py",
+    "started_at": "2026-10-18T17:32:56.509373+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_alignment_insights.xml",
+    "log": "test_alignment_insights.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_alignment_pairwise.py",
+    "started_at": "2026-10-18T17:32:57.279326+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_alignment_pairwise.xml",
+    "log": "test_alignment_pairwise.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 18
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_alignment_stats.py",
+    "started_at": "2026-10-18T17:32:58.196233+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_alignment_stats.xml",
+    "log": "test_alignment_stats.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_alignment_trim.py",
+    "started_at": "2026-10-18T17:32:58.912725+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_alignment_trim.xml",
+    "log": "test_alignment_trim.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 20
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_alphafold_pathway_engines.py",
+    "started_at": "2026-10-18T17:32:59.829731+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_alphafold_pathway_engines.xml",
+    "log": "test_alphafold_pathway_engines.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 21
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_annotated_sequence.py",
+    "started_at": "2026-10-18T17:33:00.646841+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_annotated_sequence.xml",
+    "log": "test_annotated_sequence.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_admet_validity.py",
+    "started_at": "2026-10-18T17:33:01.563344+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_admet_validity.xml",
+    "log": "test_audit_admet_validity.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.27,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_alignment_randomized.py",
+    "started_at": "2026-10-18T17:33:02.833271+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_alignment_randomized.xml",
+    "log": "test_audit_alignment_randomized.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.02,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_blast_offline.py",
+    "started_at": "2026-10-18T17:33:03.851247+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_blast_offline.xml",
+    "log": "test_audit_blast_offline.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_msa_randomized.py",
+    "started_at": "2026-10-18T17:33:04.619878+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_msa_randomized.xml",
+    "log": "test_audit_msa_randomized.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_phylo_randomized.py",
+    "started_at": "2026-10-18T17:33:05.486791+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_phylo_randomized.xml",
+    "log": "test_audit_phylo_randomized.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_sequence_randomized.py",
+    "started_at": "2026-10-18T17:33:06.303644+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_sequence_randomized.xml",
+    "log": "test_audit_sequence_randomized.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_uniprot_cds.py",
+    "started_at": "2026-10-18T17:33:07.123948+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_uniprot_cds.xml",
+    "log": "test_audit_uniprot_cds.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_audit_uniprot_schema.py",
+    "started_at": "2026-10-18T17:33:07.890487+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_audit_uniprot_schema.xml",
+    "log": "test_audit_uniprot_schema.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 11
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_auth.py",
+    "started_at": "2026-10-18T17:33:08.556625+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_auth.xml",
+    "log": "test_auth.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_bbs2_fixtures.py",
+    "started_at": "2026-10-18T17:33:09.272846+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_bbs2_fixtures.xml",
+    "log": "test_bbs2_fixtures.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 2.07,
+    "counts": {
+      "passed": 19
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_benchmark_registry_wiring.py",
+    "started_at": "2026-10-18T17:33:11.343535+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_benchmark_registry_wiring.xml",
+    "log": "test_benchmark_registry_wiring.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 1
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_benchmarks_compare.py",
+    "started_at": "2026-10-18T17:33:12.060014+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_benchmarks_compare.xml",
+    "log": "test_benchmarks_compare.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 14
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_config.py",
+    "started_at": "2026-10-18T17:33:12.876962+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_config.xml",
+    "log": "test_blast_config.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 17
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_engine.py",
+    "started_at": "2026-10-18T17:33:13.693758+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_engine.xml",
+    "log": "test_blast_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_false_denovo_guard.py",
+    "started_at": "2026-10-18T17:33:14.460660+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_false_denovo_guard.xml",
+    "log": "test_blast_false_denovo_guard.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.97,
+    "counts": {
+      "passed": 1
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_parser_fidelity.py",
+    "started_at": "2026-10-18T17:33:15.427909+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_parser_fidelity.xml",
+    "log": "test_blast_parser_fidelity.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_program_matrix.py",
+    "started_at": "2026-10-18T17:33:16.197587+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_program_matrix.xml",
+    "log": "test_blast_program_matrix.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_resilience.py",
+    "started_at": "2026-10-18T17:33:16.915169+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_resilience.xml",
+    "log": "test_blast_resilience.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 30
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_castp_provenance.py",
+    "started_at": "2026-10-18T17:33:17.782246+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_castp_provenance.xml",
+    "log": "test_castp_provenance.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_dashboard.py",
+    "started_at": "2026-10-18T17:33:18.599000+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_dashboard.xml",
+    "log": "test_dashboard.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_dataset_library.py",
+    "started_at": "2026-10-18T17:33:19.315550+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_dataset_library.xml",
+    "log": "test_dataset_library.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_de_novo_branch.py",
+    "started_at": "2026-10-18T17:33:20.032273+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_de_novo_branch.xml",
+    "log": "test_de_novo_branch.log",
+    "deadline_exceeded": false,
+    "exit_code": -9,
+    "elapsed_seconds": 91.64,
+    "counts": {},
+    "problems": [],
+    "status": "FAILED"
+  },
+  {
+    "module": "test_docking_engine.py",
+    "started_at": "2026-10-18T17:34:51.675922+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_docking_engine.xml",
+    "log": "test_docking_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 14
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_docking_integrity.py",
+    "started_at": "2026-10-18T17:34:52.543952+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_docking_integrity.xml",
+    "log": "test_docking_integrity.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 18
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_docking_pose_analytics.py",
+    "started_at": "2026-10-18T17:34:53.313416+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_docking_pose_analytics.xml",
+    "log": "test_docking_pose_analytics.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_docking_quality_repairs.py",
+    "started_at": "2026-10-18T17:34:54.030226+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_docking_quality_repairs.xml",
+    "log": "test_docking_quality_repairs.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_docking_redock_benchmark.py",
+    "started_at": "2026-10-18T17:34:54.796965+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_docking_redock_benchmark.xml",
+    "log": "test_docking_redock_benchmark.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_domains_engine.py",
+    "started_at": "2026-10-18T17:34:55.513611+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_domains_engine.xml",
+    "log": "test_domains_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.62,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ebi_msa.py",
+    "started_at": "2026-10-18T17:34:56.130478+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ebi_msa.xml",
+    "log": "test_ebi_msa.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_enrichment_retry.py",
+    "started_at": "2026-10-18T17:34:56.897651+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_enrichment_retry.xml",
+    "log": "test_enrichment_retry.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_evidence_engine.py",
+    "started_at": "2026-10-18T17:34:57.714869+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_evidence_engine.xml",
+    "log": "test_evidence_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 12
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_evidence_graph_v3.py",
+    "started_at": "2026-10-18T17:34:58.381814+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_evidence_graph_v3.xml",
+    "log": "test_evidence_graph_v3.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_experiment_provenance.py",
+    "started_at": "2026-10-18T17:34:59.048445+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_experiment_provenance.xml",
+    "log": "test_experiment_provenance.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.97,
+    "counts": {
+      "passed": 24
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_export_stamping.py",
+    "started_at": "2026-10-18T17:35:00.015869+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_export_stamping.xml",
+    "log": "test_export_stamping.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_expression_remote_queue.py",
+    "started_at": "2026-10-18T17:35:00.782762+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_expression_remote_queue.xml",
+    "log": "test_expression_remote_queue.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_feature_validation.py",
+    "started_at": "2026-10-18T17:35:01.499791+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_feature_validation.xml",
+    "log": "test_feature_validation.log",
+    "deadline_exceeded": true,
+    "exit_code": -15,
+    "elapsed_seconds": 120.03,
+    "counts": {},
+    "problems": [],
+    "status": "TIMED_OUT"
+  },
+  {
+    "module": "test_figure_engine.py",
+    "started_at": "2026-10-18T17:37:01.535270+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_figure_engine.xml",
+    "log": "test_figure_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_figure_export.py",
+    "started_at": "2026-10-18T17:37:02.355546+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_figure_export.xml",
+    "log": "test_figure_export.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.28,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_function_hints_background.py",
+    "started_at": "2026-10-18T17:37:03.641261+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_function_hints_background.xml",
+    "log": "test_function_hints_background.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.83,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_function_research_grade.py",
+    "started_at": "2026-10-18T17:37:04.469912+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_function_research_grade.xml",
+    "log": "test_function_research_grade.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 16
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_fuzz_random.py",
+    "started_at": "2026-10-18T17:37:05.340045+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_fuzz_random.xml",
+    "log": "test_fuzz_random.log",
+    "deadline_exceeded": true,
+    "exit_code": -15,
+    "elapsed_seconds": 120.02,
+    "counts": {},
+    "problems": [],
+    "status": "TIMED_OUT"
+  },
+  {
+    "module": "test_gene_set_enrichment.py",
+    "started_at": "2026-10-18T17:39:05.357071+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_gene_set_enrichment.xml",
+    "log": "test_gene_set_enrichment.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_geo_automatic.py",
+    "started_at": "2026-10-18T17:39:06.073721+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_geo_automatic.xml",
+    "log": "test_geo_automatic.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_geo_counts_import.py",
+    "started_at": "2026-10-18T17:39:06.940757+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_geo_counts_import.xml",
+    "log": "test_geo_counts_import.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 14
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_geo_recovery.py",
+    "started_at": "2026-10-18T17:39:07.808170+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_geo_recovery.xml",
+    "log": "test_geo_recovery.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_geo_sample_matching.py",
+    "started_at": "2026-10-18T17:39:08.575121+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_geo_sample_matching.xml",
+    "log": "test_geo_sample_matching.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 18
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_geo_search.py",
+    "started_at": "2026-10-18T17:39:09.392947+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_geo_search.xml",
+    "log": "test_geo_search.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_hbb_case_study.py",
+    "started_at": "2026-10-18T17:39:10.310829+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_hbb_case_study.xml",
+    "log": "test_hbb_case_study.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_identifier_resolution.py",
+    "started_at": "2026-10-18T17:39:11.127993+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_identifier_resolution.xml",
+    "log": "test_identifier_resolution.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 3.88,
+    "counts": {
+      "passed": 30
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_interactions_contract.py",
+    "started_at": "2026-10-18T17:39:15.006603+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_interactions_contract.xml",
+    "log": "test_interactions_contract.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_interpret_engine.py",
+    "started_at": "2026-10-18T17:39:15.773527+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_interpret_engine.xml",
+    "log": "test_interpret_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_interpret_stream_grounding.py",
+    "started_at": "2026-10-18T17:39:16.490896+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_interpret_stream_grounding.xml",
+    "log": "test_interpret_stream_grounding.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_interpro_background_completion.py",
+    "started_at": "2026-10-18T17:39:17.207636+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_interpro_background_completion.xml",
+    "log": "test_interpro_background_completion.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_intramolecular_contacts.py",
+    "started_at": "2026-10-18T17:39:18.078236+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_intramolecular_contacts.xml",
+    "log": "test_intramolecular_contacts.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 15
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_job_state.py",
+    "started_at": "2026-10-18T17:39:18.995832+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_job_state.xml",
+    "log": "test_job_state.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_lifespan_worker.py",
+    "started_at": "2026-10-18T17:39:19.815776+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_lifespan_worker.xml",
+    "log": "test_lifespan_worker.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.07,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_live_analysis_progress.py",
+    "started_at": "2026-10-18T17:39:20.883983+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_live_analysis_progress.xml",
+    "log": "test_live_analysis_progress.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.22,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_local_blast.py",
+    "started_at": "2026-10-18T17:39:22.103192+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_local_blast.xml",
+    "log": "test_local_blast.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "skipped": 9
+    },
+    "problems": [
+      {
+        "test": "tests.test_local_blast::test_native_search_recovers_input_accession_and_actual_hsp",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_local_database_never_substitutes_for_nr_or_nt",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_missing_reference_is_unavailable_not_completed_zero",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_reference_corruption_fails_closed",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_invalid_sequence_is_not_a_completed_no_hit_search",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_production_tool_uses_local_route_without_remote_submission",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_pipeline_uses_local_route_and_preserves_reference",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_native_reference_does_not_claim_an_ncbi_page_was_queried",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      },
+      {
+        "test": "tests.test_local_blast::test_reference_download_resource_allowlist",
+        "outcome": "skipped",
+        "reason": "requires real local NCBI BLAST+ executables"
+      }
+    ],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_advanced_analysis.py",
+    "started_at": "2026-10-18T17:39:22.971556+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_advanced_analysis.xml",
+    "log": "test_md_advanced_analysis.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_config.py",
+    "started_at": "2026-10-18T17:39:23.742207+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_config.xml",
+    "log": "test_md_config.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 16.41,
+    "counts": {
+      "passed": 10,
+      "skipped": 1
+    },
+    "problems": [
+      {
+        "test": "tests.test_md_config.TestResolveCombo::test_unverified_combo_raises",
+        "outcome": "skipped",
+        "reason": "all force fields verified \u2014 nothing unverified to test"
+      }
+    ],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_convergence_statuses.py",
+    "started_at": "2026-10-18T17:39:40.158355+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_convergence_statuses.xml",
+    "log": "test_md_convergence_statuses.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_engine.py",
+    "started_at": "2026-10-18T17:39:40.875725+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_engine.xml",
+    "log": "test_md_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_sim_unit.py",
+    "started_at": "2026-10-18T17:39:41.542675+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_sim_unit.xml",
+    "log": "test_md_sim_unit.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 16.92,
+    "counts": {
+      "passed": 36
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_v2.py",
+    "started_at": "2026-10-18T17:39:58.460197+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_v2.xml",
+    "log": "test_md_v2.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 14.21,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_md_v2_sync_budget.py",
+    "started_at": "2026-10-18T17:40:12.669279+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_md_v2_sync_budget.xml",
+    "log": "test_md_v2_sync_budget.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.17,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_msa_engine.py",
+    "started_at": "2026-10-18T17:40:13.839509+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_msa_engine.xml",
+    "log": "test_msa_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.97,
+    "counts": {
+      "passed": 12
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ncbi_wallclock_budget.py",
+    "started_at": "2026-10-18T17:40:14.815385+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ncbi_wallclock_budget.xml",
+    "log": "test_ncbi_wallclock_budget.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_annotation_research_grade.py",
+    "started_at": "2026-10-18T17:40:15.633810+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_annotation_research_grade.xml",
+    "log": "test_ngs_annotation_research_grade.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_demo_downloads.py",
+    "started_at": "2026-10-18T17:40:16.452390+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_demo_downloads.xml",
+    "log": "test_ngs_demo_downloads.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_demo_readiness_regression.py",
+    "started_at": "2026-10-18T17:40:17.323918+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_demo_readiness_regression.xml",
+    "log": "test_ngs_demo_readiness_regression.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_engine.py",
+    "started_at": "2026-10-18T17:40:18.142766+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_engine.xml",
+    "log": "test_ngs_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_execution_evidence.py",
+    "started_at": "2026-10-18T17:40:18.910996+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_execution_evidence.xml",
+    "log": "test_ngs_execution_evidence.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 11
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_guided_pipeline.py",
+    "started_at": "2026-10-18T17:40:19.779140+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_guided_pipeline.xml",
+    "log": "test_ngs_guided_pipeline.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_lecture_contracts.py",
+    "started_at": "2026-10-18T17:40:20.446705+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_lecture_contracts.xml",
+    "log": "test_ngs_lecture_contracts.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 19
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_paired_preview.py",
+    "started_at": "2026-10-18T17:40:21.316368+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_paired_preview.xml",
+    "log": "test_ngs_paired_preview.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_platform.py",
+    "started_at": "2026-10-18T17:40:22.133973+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_platform.xml",
+    "log": "test_ngs_platform.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 77
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_production_execution.py",
+    "started_at": "2026-10-18T17:40:22.953189+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_production_execution.xml",
+    "log": "test_ngs_production_execution.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_security_boundaries.py",
+    "started_at": "2026-10-18T17:40:23.821558+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_security_boundaries.xml",
+    "log": "test_ngs_security_boundaries.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_ngs_v2_router.py",
+    "started_at": "2026-10-18T17:40:24.739669+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_ngs_v2_router.xml",
+    "log": "test_ngs_v2_router.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 2.92,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_page_capture_synthesis.py",
+    "started_at": "2026-10-18T17:40:27.663401+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_page_capture_synthesis.xml",
+    "log": "test_page_capture_synthesis.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_paper_artifacts.py",
+    "started_at": "2026-10-18T17:40:28.481185+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_paper_artifacts.xml",
+    "log": "test_paper_artifacts.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_pathway_enrichment_research_grade.py",
+    "started_at": "2026-10-18T17:40:29.298875+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_pathway_enrichment_research_grade.xml",
+    "log": "test_pathway_enrichment_research_grade.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_phylo_engine.py",
+    "started_at": "2026-10-18T17:40:30.067761+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_phylo_engine.xml",
+    "log": "test_phylo_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 12
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_phylo_insights.py",
+    "started_at": "2026-10-18T17:40:30.885400+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_phylo_insights.xml",
+    "log": "test_phylo_insights.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_phylo_ml_runner.py",
+    "started_at": "2026-10-18T17:40:31.653127+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_phylo_ml_runner.xml",
+    "log": "test_phylo_ml_runner.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_plugin_system.py",
+    "started_at": "2026-10-18T17:40:32.421062+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_plugin_system.xml",
+    "log": "test_plugin_system.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.97,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_pocket_detection.py",
+    "started_at": "2026-10-18T17:40:33.389214+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_pocket_detection.xml",
+    "log": "test_pocket_detection.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_primer_advanced.py",
+    "started_at": "2026-10-18T17:40:34.156919+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_primer_advanced.xml",
+    "log": "test_primer_advanced.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_primer_binding.py",
+    "started_at": "2026-10-18T17:40:34.874852+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_primer_binding.xml",
+    "log": "test_primer_binding.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_primers_qc.py",
+    "started_at": "2026-10-18T17:40:35.792728+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_primers_qc.xml",
+    "log": "test_primers_qc.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 21
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_protox.py",
+    "started_at": "2026-10-18T17:40:36.611489+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_protox.xml",
+    "log": "test_protox.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 14
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_publication_engine.py",
+    "started_at": "2026-10-18T17:40:37.328948+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_publication_engine.xml",
+    "log": "test_publication_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_redock_native_artifact.py",
+    "started_at": "2026-10-18T17:40:37.996229+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_redock_native_artifact.xml",
+    "log": "test_redock_native_artifact.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_redock_runner.py",
+    "started_at": "2026-10-18T17:40:38.713653+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_redock_runner.xml",
+    "log": "test_redock_runner.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_reproducibility.py",
+    "started_at": "2026-10-18T17:40:39.481747+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_reproducibility.xml",
+    "log": "test_reproducibility.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 7
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_restriction_map.py",
+    "started_at": "2026-10-18T17:40:40.299891+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_restriction_map.xml",
+    "log": "test_restriction_map.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_designs_r.py",
+    "started_at": "2026-10-18T17:40:41.218308+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_designs_r.xml",
+    "log": "test_rnaseq_designs_r.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "skipped": 7
+    },
+    "problems": [
+      {
+        "test": "tests.test_rnaseq_designs_r::test_blocked_partial_and_recorded_nested_designs[batches0-covariates0]",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      },
+      {
+        "test": "tests.test_rnaseq_designs_r::test_blocked_partial_and_recorded_nested_designs[batches1-covariates1]",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      },
+      {
+        "test": "tests.test_rnaseq_designs_r::test_blocked_partial_and_recorded_nested_designs[batches2-covariates2]",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      },
+      {
+        "test": "tests.test_rnaseq_designs_r::test_numeric_paired_subject_ids_are_categorical",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      },
+      {
+        "test": "tests.test_rnaseq_designs_r::test_requested_perfectly_confounded_batch_fails_rank",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      },
+      {
+        "test": "tests.test_rnaseq_designs_r::test_repeated_units_cannot_be_ignored",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      },
+      {
+        "test": "tests.test_rnaseq_designs_r::test_within_condition_repeats_need_aggregation_or_correlation_model",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is absent"
+      }
+    ],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_durable_recovery.py",
+    "started_at": "2026-10-18T17:40:41.936139+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_durable_recovery.xml",
+    "log": "test_rnaseq_durable_recovery.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 19
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_exploration.py",
+    "started_at": "2026-10-18T17:40:42.854555+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_exploration.xml",
+    "log": "test_rnaseq_exploration.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 3,
+      "skipped": 1
+    },
+    "problems": [
+      {
+        "test": "tests.test_rnaseq_exploration::test_large_low_abundance_matrix_uses_exact_vst_and_exports_batch_metadata",
+        "outcome": "skipped",
+        "reason": "R runtime absent"
+      }
+    ],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_expression_contract.py",
+    "started_at": "2026-10-18T17:40:43.521984+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_expression_contract.xml",
+    "log": "test_rnaseq_expression_contract.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_expression_source_boundary.py",
+    "started_at": "2026-10-18T17:40:44.189673+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_expression_source_boundary.xml",
+    "log": "test_rnaseq_expression_source_boundary.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 2
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_input_provenance.py",
+    "started_at": "2026-10-18T17:40:44.907671+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_input_provenance.xml",
+    "log": "test_rnaseq_input_provenance.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 19
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_production.py",
+    "started_at": "2026-10-18T17:40:45.625428+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_production.xml",
+    "log": "test_rnaseq_production.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_recovery_r.py",
+    "started_at": "2026-10-18T17:40:46.344193+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_recovery_r.xml",
+    "log": "test_rnaseq_recovery_r.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "skipped": 2
+    },
+    "problems": [
+      {
+        "test": "tests.test_rnaseq_recovery_r::test_qc_stops_before_testing_and_inference_matches_direct_deseq2",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is not installed"
+      },
+      {
+        "test": "tests.test_rnaseq_recovery_r::test_salmon_offsets_and_statistics_match_direct_tximport",
+        "outcome": "skipped",
+        "reason": "R scientific runtime is not installed"
+      }
+    ],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_rnaseq_regression_harness.py",
+    "started_at": "2026-10-18T17:40:47.011704+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_rnaseq_regression_harness.xml",
+    "log": "test_rnaseq_regression_harness.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_scanprosite.py",
+    "started_at": "2026-10-18T17:40:47.678944+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_scanprosite.xml",
+    "log": "test_scanprosite.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_scientific_contract.py",
+    "started_at": "2026-10-18T17:40:48.346043+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_scientific_contract.xml",
+    "log": "test_scientific_contract.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 14
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_scientific_foundation_v2.py",
+    "started_at": "2026-10-18T17:40:49.063808+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_scientific_foundation_v2.xml",
+    "log": "test_scientific_foundation_v2.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 11
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_scientific_hardening_p0.py",
+    "started_at": "2026-10-18T17:40:49.730992+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_scientific_hardening_p0.xml",
+    "log": "test_scientific_hardening_p0.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.47,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_scientific_result_consensus.py",
+    "started_at": "2026-10-18T17:40:51.200935+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_scientific_result_consensus.xml",
+    "log": "test_scientific_result_consensus.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_seq_tools.py",
+    "started_at": "2026-10-18T17:40:51.868798+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_seq_tools.xml",
+    "log": "test_seq_tools.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 48
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_sequence_utils_property.py",
+    "started_at": "2026-10-18T17:40:52.787597+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_sequence_utils_property.xml",
+    "log": "test_sequence_utils_property.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 16
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_sequencing_contract.py",
+    "started_at": "2026-10-18T17:40:53.606006+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_sequencing_contract.xml",
+    "log": "test_sequencing_contract.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_smoke_admet.py",
+    "started_at": "2026-10-18T17:40:54.376133+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_smoke_admet.xml",
+    "log": "test_smoke_admet.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 1.27,
+    "counts": {
+      "passed": 26
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_smoke_docking.py",
+    "started_at": "2026-10-18T17:40:55.646812+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_smoke_docking.xml",
+    "log": "test_smoke_docking.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.97,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_smoke_function_predict.py",
+    "started_at": "2026-10-18T17:40:56.615873+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_smoke_function_predict.xml",
+    "log": "test_smoke_function_predict.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.97,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_smoke_md.py",
+    "started_at": "2026-10-18T17:40:57.584536+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_smoke_md.xml",
+    "log": "test_smoke_md.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 15.51,
+    "counts": {
+      "passed": 10
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_stats_engine.py",
+    "started_at": "2026-10-18T17:41:13.100966+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_stats_engine.xml",
+    "log": "test_stats_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_structure_export.py",
+    "started_at": "2026-10-18T17:41:13.768282+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_structure_export.xml",
+    "log": "test_structure_export.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 13
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_structure_insights.py",
+    "started_at": "2026-10-18T17:41:14.435622+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_structure_insights.xml",
+    "log": "test_structure_insights.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_structure_metric_missingness.py",
+    "started_at": "2026-10-18T17:41:15.305109+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_structure_metric_missingness.xml",
+    "log": "test_structure_metric_missingness.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 3
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_structure_prep_validation.py",
+    "started_at": "2026-10-18T17:41:16.228741+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_structure_prep_validation.xml",
+    "log": "test_structure_prep_validation.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.84,
+    "counts": {
+      "passed": 25
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_tool_interpreter.py",
+    "started_at": "2026-10-18T17:41:17.067754+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_tool_interpreter.xml",
+    "log": "test_tool_interpreter.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.82,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_uniprot_engine.py",
+    "started_at": "2026-10-18T17:41:17.888912+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_uniprot_engine.xml",
+    "log": "test_uniprot_engine.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 9
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_uniprot_search.py",
+    "started_at": "2026-10-18T17:41:18.659304+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_uniprot_search.xml",
+    "log": "test_uniprot_search.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_validation_boundaries.py",
+    "started_at": "2026-10-18T17:41:19.527738+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_validation_boundaries.xml",
+    "log": "test_validation_boundaries.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_verification_matrix.py",
+    "started_at": "2026-10-18T17:41:20.195826+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_verification_matrix.xml",
+    "log": "test_verification_matrix.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.77,
+    "counts": {
+      "passed": 5
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_vina_log.py",
+    "started_at": "2026-10-18T17:41:20.963740+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_vina_log.xml",
+    "log": "test_vina_log.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.72,
+    "counts": {
+      "passed": 20
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_worker_claim.py",
+    "started_at": "2026-10-18T17:41:21.682195+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_worker_claim.xml",
+    "log": "test_worker_claim.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.67,
+    "counts": {
+      "passed": 8
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_workflow_collections.py",
+    "started_at": "2026-10-18T17:41:22.349608+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_workflow_collections.xml",
+    "log": "test_workflow_collections.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 19
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_workflow_manifest.py",
+    "started_at": "2026-10-18T17:41:23.217787+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_workflow_manifest.xml",
+    "log": "test_workflow_manifest.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.87,
+    "counts": {
+      "passed": 4
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_workflow_replay.py",
+    "started_at": "2026-10-18T17:41:24.086176+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_workflow_replay.xml",
+    "log": "test_workflow_replay.log",
+    "deadline_exceeded": false,
+    "exit_code": 0,
+    "elapsed_seconds": 0.92,
+    "counts": {
+      "passed": 6
+    },
+    "problems": [],
+    "status": "PASSED"
+  },
+  {
+    "module": "test_blast_comprehensive.py",
+    "started_at": "2026-10-18T17:41:25.012215+00:00",
+    "deadline_seconds": 120,
+    "junit": "test_blast_comprehensive.xml",
+    "log": "test_blast_comprehensive.log",
+    "deadline_exceeded": true,
+    "exit_code": -15,
+    "elapsed_seconds": 120.01,
+    "counts": {},
+    "problems": [],
+    "status": "TIMED_OUT"
+  }
+]

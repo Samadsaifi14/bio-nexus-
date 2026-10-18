@@ -160,6 +160,62 @@ def _restore_pose_chemistry(pose_sdf_block: str, ref_mol):
     return restored
 
 
+
+def _native_pose_molecule(pose_pdbqt: str, prepared_pdbqt: str, ref_mol):
+    """Transfer native pose coordinates onto the prepared reference graph.
+
+    Vina preserves input atom serials/types. Reference-to-input correspondence
+    is established by original heavy-atom coordinates, never by fitting the
+    docked pose to the crystal. Ambiguous or incomplete mappings fail closed.
+    Open Babel pose SDF bond perception is not used for this metric.
+    """
+    from rdkit import Chem
+    types = {"A": "C", "C": "C", "N": "N", "NA": "N", "NS": "N",
+             "O": "O", "OA": "O", "OS": "O", "S": "S", "SA": "S", "P": "P",
+             "F": "F", "Cl": "Cl", "Br": "Br", "I": "I", "H": "H", "HD": "H", "HS": "H"}
+
+    def atoms(block):
+        result = {}
+        for line in block.splitlines():
+            if not line.startswith(("ATOM", "HETATM")):
+                continue
+            serial = int(line[6:11])
+            atom_type = line.split()[-1]
+            element = types.get(atom_type)
+            if element is None or serial in result:
+                raise ValueError("Unknown atom type or duplicate native PDBQT serial")
+            xyz = tuple(float(line[start:start + 8]) for start in (30, 38, 46))
+            if not all(math.isfinite(v) for v in xyz):
+                raise ValueError("Nonfinite native PDBQT coordinates")
+            if element != "H":
+                result[serial] = (element, xyz)
+        return result
+
+    prepared, pose = atoms(prepared_pdbqt), atoms(pose_pdbqt)
+    ref = Chem.RemoveHs(Chem.Mol(ref_mol))
+    if set(prepared) != set(pose) or len(prepared) != ref.GetNumAtoms():
+        raise ValueError("Native pose/preparation/reference heavy-atom identities differ")
+    reference_coords = ref.GetConformer()
+    output = Chem.Conformer(ref.GetNumAtoms())
+    used = set()
+    for atom in ref.GetAtoms():
+        index = atom.GetIdx()
+        point = reference_coords.GetAtomPosition(index)
+        matches = [serial for serial, (element, xyz) in prepared.items()
+                   if element == atom.GetSymbol() and math.dist((point.x, point.y, point.z), xyz) <= 0.01]
+        if len(matches) != 1 or matches[0] in used:
+            raise ValueError("Ambiguous reference-to-prepared atom correspondence")
+        serial = matches[0]
+        if pose[serial][0] != atom.GetSymbol():
+            raise ValueError("Native pose changed an atom element")
+        used.add(serial)
+        output.SetAtomPosition(index, pose[serial][1])
+    ref.RemoveAllConformers()
+    ref.AddConformer(output)
+    Chem.SanitizeMol(ref)
+    return ref
+
+
 def _rmsd_vs_crystal(pose_sdf_block: str, ref_mol) -> float:
     """Symmetry-aware heavy-atom RMSD between a Vina pose and the crystal ligand.
 
@@ -294,10 +350,17 @@ def main() -> int:
                 pose_path.write_text(pose_blocks[1], encoding="utf-8")
                 conversion = subprocess.run(["obabel", str(pose_path), "-O", str(sdf_path)],
                                             capture_output=True, text=True, timeout=120)
+                entry["pose_sdf_export_valid"] = False
                 if conversion.returncode != 0 or not sdf_path.is_file():
-                    raise RuntimeError(f"Pose SDF conversion failed: {conversion.stderr[:300]}")
-                top_rmsd = _rmsd_vs_crystal(sdf_path.read_text(encoding="utf-8"), ref_mol)
-                restored = _restore_pose_chemistry(sdf_path.read_text(encoding="utf-8"), ref_mol)
+                    entry["pose_sdf_export_error"] = conversion.stderr[:300]
+                else:
+                    exported = Chem.MolFromMolBlock(sdf_path.read_text(encoding="utf-8"), sanitize=True)
+                    entry["pose_sdf_export_valid"] = exported is not None
+                    if exported is None:
+                        entry["pose_sdf_export_error"] = "Open Babel pose SDF failed chemical sanitization; retained as failed export evidence"
+                from app.benchmarking.docking_redock import symmetry_aware_pose_rmsd
+                restored = _native_pose_molecule(pose_blocks[1], ligand_pdbqt, ref_mol)
+                top_rmsd = symmetry_aware_pose_rmsd(ref_mol, restored)
                 (artifact_dir / "top_pose_chemical_graph.sdf").write_text(
                     Chem.MolToMolBlock(restored) + "\n$$$$\n", encoding="utf-8")
 
@@ -306,6 +369,7 @@ def main() -> int:
             entry["vina_version"] = result["vina_version"]
             entry["seed"] = 42
             entry["exhaustiveness"] = 32
+            entry["atom_correspondence"] = "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting"
             entry["metric"] = "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)"
             entry["artifact_sha256"] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                          for p in artifact_dir.iterdir() if p.is_file()}

@@ -122,7 +122,8 @@ async def get_interactions(
             "nscore/fscore/pscore/ascore/escore/dscore/tscore are STRING's per-channel evidence scores, preserved in their native API 0-1 scale.",
             "physical_evidence_avg is a LOCAL Bio Nexus heuristic (mean of experimental + database channels), not a STRING-provided score.",
         ],
-        "interactions": interactions,
+        "interaction_count": len(interactions),
+        "interactions": [item.model_dump() for item in interactions],
     }
 
     # AI interpretation (best-effort, never blocks)

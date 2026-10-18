@@ -185,3 +185,18 @@
 - [ ] Tool's job type is included in share-link support
 - [ ] Tool appears (or is deliberately excluded, and that's documented) in the pipeline wizard's 8-step chain
 - [ ] Tool has a Sentry-visible failure path, not a silent catch
+
+## 2026-10-18 audit repair manifest
+
+These repairs do not certify the remaining competitor roadmap. Evidence and unexecuted checks are recorded separately in `docs/verification/2026-10-18-repairs/REPORT.md`.
+
+| Area | Required output and behavior | Verification / boundary |
+|---|---|---|
+| PPI | Exact returned partner count; JSON-serializable per-partner scores; native STRING API 0–1 provenance in UI/export | Fixed-provider regression plus browser numeric gate; no biological truth claim |
+| Interpretation | Derived list counts accepted; invented small integers, sign changes and unreported percentage conversions flagged; AI output excluded from its own evidence | Frontend interpretation tests; numeric presence is not semantic validation |
+| Sequence handoff | Pairwise/BLAST/motif → dot plot keeps sequences in tab-local storage, consumes once, no sequence URL parameters; errors stay visible | Handoff regression and TypeScript/build checks; no fresh production browser capture claimed |
+| ADMET | Editing input, choosing a search result or example clears prior results; late responses cannot repopulate them | Request generation guard; production interaction verification remains required |
+| Result charts | Docking help restricted to docking; no inferred Min/Value chart for heterogeneous descriptor rows | Recognized x-axis requirement; exact values remain in tables/JSON |
+| Export/capture tests | Mocked HTTP tests use public DNS fixtures while actual SSRF validation remains active | Success/404/failure and private-IP rejection tests; not a live upstream availability claim |
+| Docking metric | Native serial correspondence transfers unchanged pose coordinates onto the reference graph; missing/ambiguous atoms fail; failed SDF exports remain labeled | Translation/corruption tests, executed controls and full fresh panel; unchanged RMSD/pass thresholds |
+| Audit execution | Every backend module attempted independently; skipped tests, nonzero exits and module deadlines preserved | Per-module JUnit/logs and 26-feature status; incomplete modules excluded from passes |

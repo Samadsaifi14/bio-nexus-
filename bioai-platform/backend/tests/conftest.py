@@ -146,3 +146,11 @@ def valid_smiles():
 @pytest.fixture
 def invalid_smiles():
     return "NOT_A_SMILES_12345"
+
+
+@pytest.fixture
+def public_upstream_dns(monkeypatch):
+    """Public DNS for explicitly opted-in HTTP-mocked tests; SSRF stays active."""
+    import socket
+    monkeypatch.setattr(socket, 'getaddrinfo', lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))])

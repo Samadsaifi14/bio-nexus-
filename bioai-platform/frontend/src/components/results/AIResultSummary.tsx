@@ -6,6 +6,7 @@ import { Brain, CircleNotch as Loader2, WarningCircle as AlertTriangle, CheckCir
 import { fadeUp, fadeIn } from '@/lib/animations';
 import { interpretToolResult, type AIInterpretation } from '@/lib/api';
 import { getExperimentEvidence, getClaimEvidence, type EvidenceGraph, type EvidenceClaimTrace } from '@/lib/scientific-api';
+import { checkNumericGrounding } from '@/lib/numericGrounding';
 import { ScientificDataViews } from '@/components/results/ScientificDataViews';
 
 interface AIResultSummaryProps {
@@ -16,18 +17,6 @@ interface AIResultSummaryProps {
   jobId?: string;
 }
 
-type NumericToken = { text: string; value: number };
-const SUPERS: Record<string, string> = { '⁰':'0','¹':'1','²':'2','³':'3','⁴':'4','⁵':'5','⁶':'6','⁷':'7','⁸':'8','⁹':'9','⁻':'-','⁺':'+' };
-
-function normalizeText(value: string) {
-  return value.replace(/[⁰¹²³⁴⁵⁶⁷⁸⁹⁻⁺]/g, ch => SUPERS[ch]).replace(/(\d)\s*,\s*(\d)/g, '$1$2').replace(/(\d+(?:\.\d+)?)\s*[×✕*]\s*10\s*\^?\s*(-?\d+)/g, '$1e$2');
-}
-function numericTokens(value: string): NumericToken[] {
-  return (normalizeText(value).match(/-?\d+(?:\.\d+)?(?:e[+-]?\d+)?%?/gi) ?? []).map(text => ({ text, value: Math.abs(parseFloat(text.replace(/%$/, ''))) }));
-}
-function nearlyEqual(a:number,b:number){ return Math.abs(a-b) <= 0.001*Math.max(Math.abs(a),Math.abs(b),1); }
-function isGrounded(value:number, sourceValues:NumericToken[]){ if(Number.isInteger(value)&&value>=0&&value<=5)return true; return sourceValues.some(s=>nearlyEqual(s.value,value)||nearlyEqual(s.value,value/100)||nearlyEqual(s.value,value*100)); }
-function checkNumericGrounding(interpretation:AIInterpretation,result:Record<string,unknown>){ const source=numericTokens(JSON.stringify(result)); const generated=[interpretation.headline,interpretation.summary,...interpretation.findings,...interpretation.caveats].join(' '); const ungrounded=numericTokens(generated).filter(t=>!isGrounded(t.value,source)).map(t=>t.text); return {grounded:ungrounded.length===0,ungrounded:[...new Set(ungrounded)].slice(0,5)}; }
 
 function TracePanel({ trace }: { trace: EvidenceClaimTrace }) {
   const ordered = trace.reviewer_path.flatMap(type => (trace.by_type[type] ?? []).map(node => ({ type, node })));

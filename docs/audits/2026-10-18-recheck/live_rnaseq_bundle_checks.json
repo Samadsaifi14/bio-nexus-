@@ -1,0 +1,292 @@
+{
+  "evidence_type": "fresh_production_GSE336901_run_bundle",
+  "archive_bytes": 17154654,
+  "archive_sha256": "8723e8245ef9ca4696b4876622471d4d57979c5ccfdd08c1c4a817ce599b00d9",
+  "archive_members": 52,
+  "checks": [
+    {
+      "check": "zip_crc",
+      "passed": true
+    },
+    {
+      "check": "all_indexed_sha256_and_sizes",
+      "passed": true,
+      "files_checked": 51,
+      "mismatches": []
+    },
+    {
+      "check": "input_shape_matches_summary",
+      "passed": true
+    },
+    {
+      "check": "prefilter_matches_summary",
+      "passed": true
+    },
+    {
+      "check": "normalized_counts_equal_raw_divided_by_size_factor",
+      "passed": true,
+      "maximum_absolute_difference": 3.4924596548080444e-10
+    },
+    {
+      "check": "significant_gene_selection",
+      "passed": true
+    },
+    {
+      "check": "direction_counts",
+      "passed": true
+    },
+    {
+      "check": "analysis_R_script_matches_tested_checkout",
+      "passed": true
+    }
+  ],
+  "figures": [
+    {
+      "file": "dispersion_plot.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "dispersion_plot.png",
+      "dimensions": [
+        2400,
+        1800
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "dispersion_plot.svg",
+      "parse": "XML_VALID"
+    },
+    {
+      "file": "expression_heatmap.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "expression_heatmap.png",
+      "dimensions": [
+        2700,
+        2640
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "expression_heatmap.svg",
+      "parse": "XML_VALID"
+    },
+    {
+      "file": "go_enrichment.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "go_enrichment.png",
+      "dimensions": [
+        3600,
+        2400
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "go_enrichment.svg",
+      "parse": "XML_VALID"
+    },
+    {
+      "file": "ma_plot.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "ma_plot.png",
+      "dimensions": [
+        2400,
+        1800
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "ma_plot.svg",
+      "parse": "XML_VALID"
+    },
+    {
+      "file": "pca.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "pca.png",
+      "dimensions": [
+        2400,
+        1800
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "pca.svg",
+      "parse": "XML_VALID"
+    },
+    {
+      "file": "sample_distance_heatmap.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "sample_distance_heatmap.png",
+      "dimensions": [
+        2400,
+        2100
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "sample_distance_heatmap.svg",
+      "parse": "XML_VALID"
+    },
+    {
+      "file": "volcano.pdf",
+      "parse": "PDF_HEADER_VALID_NOT_FULL_RENDER_CHECK"
+    },
+    {
+      "file": "volcano.png",
+      "dimensions": [
+        2400,
+        1800
+      ],
+      "dpi": [
+        299.9994,
+        299.9994
+      ],
+      "parse": "PNG_VALID"
+    },
+    {
+      "file": "volcano.svg",
+      "parse": "XML_VALID"
+    }
+  ],
+  "summary": {
+    "input_kind": "raw_counts",
+    "normalization_method": "median_of_ratios",
+    "enrichment": {
+      "status": "SUCCEEDED",
+      "message": "Significant terms found. Review mapping coverage, database scope and sample QC before interpretation.",
+      "organism": "human",
+      "database": "GO",
+      "method": "One-sided hypergeometric ORA; BH across all term-direction tests",
+      "method_key": "ora",
+      "R_version": "R version 4.2.2 Patched (2022-11-10 r83330)",
+      "alias_fallback": true,
+      "min_term_size": 10,
+      "max_term_size": 500,
+      "alpha": 0.05,
+      "background": "DESeq2 non-missing adjusted p-values; uniquely mapped, annotated genes",
+      "recovery_options": [
+        "Review organism and ID type",
+        "Enable unique symbol-alias recovery",
+        "Supply a species-matched GMT and optional ID mapping"
+      ],
+      "gene_id_type": "ALIAS+ENSEMBL+SYMBOL",
+      "annotation_versions": {
+        "orgDb": "3.16.0",
+        "GO_db": "3.16.0"
+      },
+      "genes_eligible": 14135,
+      "genes_uniquely_mapped": 14104,
+      "genes_unmapped": 11,
+      "genes_ambiguous": 20,
+      "aliases_recovered": 117,
+      "background_genes": 12409,
+      "mapping_coverage": 0.9978068624,
+      "annotation_coverage": 0.87866996816,
+      "coverage_warning": "",
+      "direction_conflicts": 0,
+      "terms_tested": 14258,
+      "significant_terms": 3
+    },
+    "genes_input": 42000,
+    "genes_kept": 14343,
+    "genes_removed": 27657,
+    "samples": 10,
+    "reference_level": "resistant",
+    "test_level": "sensitive",
+    "condition_column": "condition",
+    "covariates": [],
+    "design": "~condition",
+    "min_count": 10,
+    "min_samples_requested": 0,
+    "min_samples": 5,
+    "replicate_counts": {
+      "resistant": 5,
+      "sensitive": 5
+    },
+    "design_full_rank": true,
+    "design_rank": 2,
+    "design_columns": 2,
+    "design_warnings": [
+      "One or more compared groups has fewer than 6 sample rows. This is a power warning, not a universal invalidity rule; justify biological replication for the organism, variability, effect size and study design."
+    ],
+    "experimental_unit_status": "UNIQUE",
+    "technical_covariates_detected": [],
+    "technical_covariates_in_model": [],
+    "library_size_min": 45116,
+    "library_size_max": 12210825,
+    "library_size_fold_range": 270.6539808494,
+    "size_factor_library_correlation": 0.99945198347,
+    "alpha": 0.05,
+    "lfc_threshold": 1,
+    "significant": 124,
+    "up": 32,
+    "down": 92,
+    "pca_percent_variance": {
+      "PC1": 73.96,
+      "PC2": 8.587
+    },
+    "vst_method": "vst",
+    "size_factor_min": 0.045717121417,
+    "size_factor_max": 10.0320357453,
+    "lfc_shrinkage": "normal",
+    "expression_heatmap_generated": true,
+    "expression_heatmap_basis": "significant_DE_genes",
+    "expression_heatmap_genes": 40,
+    "package_versions": {
+      "R": "R version 4.2.2 Patched (2022-11-10 r83330)",
+      "DESeq2": "1.38.3",
+      "ComplexHeatmap": "2.14.0",
+      "ggplot2": "3.4.1",
+      "circlize": "0.4.15"
+    }
+  },
+  "limitations": [
+    "Artifact checks do not independently validate biological conclusions.",
+    "PDF checks establish format header only; not full-page visual validation.",
+    "Extreme library-depth spread and five samples per group require scientific review.",
+    "No signed storage URLs or private run identifiers are retained."
+  ],
+  "visual_review": {
+    "png_figures_inspected": 7,
+    "publication_layout_hindrance": [
+      "Expression heatmap legend titles collide and condition labels extend beyond the right edge.",
+      "Sample-distance heatmap legend titles collide and condition labels extend beyond the right edge."
+    ],
+    "pca_note": "Native static PCA labels overlap in the dense cluster; the interactive page also provides point search and accessible evidence tables.",
+    "not_claimed": "Full visual rendering of each PDF/SVG variant was not performed."
+  }
+}

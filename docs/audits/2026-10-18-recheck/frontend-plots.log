@@ -1,0 +1,6 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> bionexus-frontend@0.1.0 test:rnaseq-plots
+> node scripts/check-rnaseq-plot-data.mjs
+
+RNA-seq plot identity, missingness, metadata and checksum checks passed

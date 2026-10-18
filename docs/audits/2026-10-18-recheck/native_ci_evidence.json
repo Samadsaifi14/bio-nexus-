@@ -1,0 +1,3750 @@
+{
+  "checked_at": "2026-10-18",
+  "source_revision": "ae77a4fe1b9e55f2a5c7034009952f4a9a5bade2",
+  "production_revision": "18ae7b602e34a52259434ee66fd0ac2d99c28934",
+  "source_difference": "Only two prior verification documents differ between these revisions; git diff --name-only archived in report.",
+  "checks": [
+    {
+      "job_id": 117729457390,
+      "run_id": 39066715492,
+      "record": null,
+      "log_summary": [
+        "﻿2026-10-18T16:37:47.5987798Z Current runner version: '2.337.0'",
+        "2026-10-18T16:38:37.1421592Z Bioconductor version 3.18 (BiocManager 1.30.22), R 4.3.3 (2024-02-29)",
+        "2026-10-18T16:39:02.2266080Z Bioconductor version 3.18 (BiocManager 1.30.22), R 4.3.3 (2024-02-29)",
+        "2026-10-18T16:39:47.4842048Z GO enrichment statistical and mapping tests passed",
+        "2026-10-18T16:39:52.8778772Z [1] \"R version 4.3.3 (2024-02-29)\"",
+        "2026-10-18T16:39:52.8982998Z Enrichment recovery and alternate-method tests passed",
+        "2026-10-18T16:39:55.5886560Z Preranked GSEA parity, direction, reproducibility and universe checks passed",
+        "2026-10-18T16:40:10.1207078Z Expression recovery known-answer tests passed",
+        "2026-10-18T16:41:45.3654723Z =================== 6 passed, 2 warnings in 60.59s (0:01:00) ==================="
+      ]
+    },
+    {
+      "job_id": 117730745492,
+      "run_id": 39066715514,
+      "record": {
+        "benchmark": "local-swissprot-production-accession-recovery/v1",
+        "criteria": {
+          "essential_required": true,
+          "max_recovery_rank": 5,
+          "min_queries": 6,
+          "recovery_threshold_frac": 0.8
+        },
+        "essential_recovered": true,
+        "executed": true,
+        "limitations": [
+          "Canonical queries originate in the searched snapshot: accession-recovery positive controls only.",
+          "No claim of novel sequence function, homology-transfer accuracy, or external NCBI service availability."
+        ],
+        "n_queries": 8,
+        "n_recovered": 8,
+        "queries": [
+          {
+            "essential": true,
+            "expected_accessions": [
+              "P02768"
+            ],
+            "id": "HUMAN_ALBUMIN",
+            "query_length": 609,
+            "query_sha256": "e7b80c7861adc0143f8aead03ec9fa83b782439c3eae4730ffaa7beafa37c40b",
+            "recovered": true,
+            "recovered_rank": 1,
+            "top_hits": [
+              {
+                "accession": "P02768",
+                "bit_score": 1239.17,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "Q5NVH5",
+                "bit_score": 1221.84,
+                "evalue": 0,
+                "identity_pct": 98.5
+              },
+              {
+                "accession": "A2V9Z4",
+                "bit_score": 1175.61,
+                "evalue": 0,
+                "identity_pct": 93.6
+              },
+              {
+                "accession": "Q28522",
+                "bit_score": 1155.97,
+                "evalue": 0,
+                "identity_pct": 93.5
+              },
+              {
+                "accession": "P49064",
+                "bit_score": 1035.02,
+                "evalue": 0,
+                "identity_pct": 82.3
+              }
+            ]
+          },
+          {
+            "essential": false,
+            "expected_accessions": [
+              "P69905"
+            ],
+            "id": "HUMAN_HBA1",
+            "query_length": 142,
+            "query_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242",
+            "recovered": true,
+            "recovered_rank": 1,
+            "top_hits": [
+              {
+                "accession": "P69905",
+                "bit_score": 286.96,
+                "evalue": 2.23587e-100,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P69906",
+                "bit_score": 286.96,
+                "evalue": 2.23587e-100,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P69907",
+                "bit_score": 286.96,
+                "evalue": 2.23587e-100,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P01923",
+                "bit_score": 282.337,
+                "evalue": 1.20026e-98,
+                "identity_pct": 99.3
+              },
+              {
+                "accession": "Q9TS35",
+                "bit_score": 281.567,
+                "evalue": 2.6775e-98,
+                "identity_pct": 98.6
+              }
+            ]
+          },
+          {
+            "essential": false,
+            "expected_accessions": [
+              "P68871"
+            ],
+            "id": "HUMAN_HBB",
+            "query_length": 147,
+            "query_sha256": "9ebf320eb707d71644444fe5006ed58af56a0bf0ec9568eb6a3a65e0e8191465",
+            "recovered": true,
+            "recovered_rank": 1,
+            "top_hits": [
+              {
+                "accession": "P68871",
+                "bit_score": 301.212,
+                "evalue": 6.55889e-106,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P68872",
+                "bit_score": 301.212,
+                "evalue": 6.55889e-106,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P68873",
+                "bit_score": 301.212,
+                "evalue": 6.55889e-106,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P02024",
+                "bit_score": 300.056,
+                "evalue": 2.2922e-105,
+                "identity_pct": 99.3
+              },
+              {
+                "accession": "P02025",
+                "bit_score": 294.278,
+                "evalue": 3.33996e-103,
+                "identity_pct": 98.6
+              }
+            ]
+          },
+          {
+            "essential": false,
+            "expected_accessions": [
+              "P61626"
+            ],
+            "id": "HUMAN_LYSOZYME_C",
+            "query_length": 148,
+            "query_sha256": "7d0e4fd9fdc4406e6179855d1e2bf7e9aa182416262a70dafca656fcada3f2f7",
+            "recovered": true,
+            "recovered_rank": 1,
+            "top_hits": [
+              {
+                "accession": "P61626",
+                "bit_score": 303.908,
+                "evalue": 5.48237e-107,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P61627",
+                "bit_score": 303.908,
+                "evalue": 5.48237e-107,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P61628",
+                "bit_score": 303.908,
+                "evalue": 5.48237e-107,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P79179",
+                "bit_score": 301.982,
+                "evalue": 3.54269e-106,
+                "identity_pct": 99.3
+              },
+              {
+                "accession": "P79239",
+                "bit_score": 300.442,
+                "evalue": 1.62897e-105,
+                "identity_pct": 98
+              }
+            ]
+          },
+          {
+            "essential": false,
+            "expected_accessions": [
+              "P60709"
+            ],
+            "id": "HUMAN_ACTB",
+            "query_length": 375,
+            "query_sha256": "d498c40159d7c993d9e7e36afbe2f4921d5e81e6ab08d5388cbab47cc0234a92",
+            "recovered": true,
+            "recovered_rank": 5,
+            "top_hits": [
+              {
+                "accession": "O18840",
+                "bit_score": 785.793,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P60706",
+                "bit_score": 785.793,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P60707",
+                "bit_score": 785.793,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P60708",
+                "bit_score": 785.793,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P60709",
+                "bit_score": 785.793,
+                "evalue": 0,
+                "identity_pct": 100
+              }
+            ]
+          },
+          {
+            "essential": true,
+            "expected_accessions": [
+              "P04637"
+            ],
+            "id": "HUMAN_TP53",
+            "query_length": 393,
+            "query_sha256": "e3ca60f18e3b6e98986ad6749215ee3b7a3abc09c191675213d1f243c035c9a3",
+            "recovered": true,
+            "recovered_rank": 1,
+            "top_hits": [
+              {
+                "accession": "P04637",
+                "bit_score": 813.913,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P13481",
+                "bit_score": 746.888,
+                "evalue": 0,
+                "identity_pct": 95.7
+              },
+              {
+                "accession": "P56423",
+                "bit_score": 739.954,
+                "evalue": 0,
+                "identity_pct": 95.7
+              },
+              {
+                "accession": "P56424",
+                "bit_score": 739.954,
+                "evalue": 0,
+                "identity_pct": 95.7
+              },
+              {
+                "accession": "P61260",
+                "bit_score": 739.954,
+                "evalue": 0,
+                "identity_pct": 95.7
+              }
+            ]
+          },
+          {
+            "essential": false,
+            "expected_accessions": [
+              "P01308"
+            ],
+            "id": "HUMAN_INSULIN",
+            "query_length": 110,
+            "query_sha256": "99603f8fb1e9872e2d24ee1e9f85108c2bddea6b148a0f1099e16ba2715c8263",
+            "recovered": true,
+            "recovered_rank": 1,
+            "top_hits": [
+              {
+                "accession": "P01308",
+                "bit_score": 223.787,
+                "evalue": 1.77921e-76,
+                "identity_pct": 100
+              },
+              {
+                "accession": "Q6YK33",
+                "bit_score": 223.787,
+                "evalue": 1.77921e-76,
+                "identity_pct": 100
+              },
+              {
+                "accession": "Q8HXV2",
+                "bit_score": 222.246,
+                "evalue": 8.45847e-76,
+                "identity_pct": 99.1
+              },
+              {
+                "accession": "P30410",
+                "bit_score": 221.861,
+                "evalue": 1.26972e-75,
+                "identity_pct": 98.2
+              },
+              {
+                "accession": "P30406",
+                "bit_score": 219.164,
+                "evalue": 1.28747e-74,
+                "identity_pct": 98.2
+              }
+            ]
+          },
+          {
+            "essential": false,
+            "expected_accessions": [
+              "P02931"
+            ],
+            "id": "ECOLI_OMPF",
+            "query_length": 362,
+            "query_sha256": "55f961c09343ee1d99690b114ae3b16baff650d855e575645cf2017ae6caad11",
+            "recovered": true,
+            "recovered_rank": 2,
+            "top_hits": [
+              {
+                "accession": "A0A4P7TN82",
+                "bit_score": 720.694,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P02931",
+                "bit_score": 720.694,
+                "evalue": 0,
+                "identity_pct": 100
+              },
+              {
+                "accession": "P0DSD9",
+                "bit_score": 712.605,
+                "evalue": 0,
+                "identity_pct": 98.9
+              },
+              {
+                "accession": "P02932",
+                "bit_score": 430.639,
+                "evalue": 2.66172e-150,
+                "identity_pct": 60.2
+              },
+              {
+                "accession": "Q47490",
+                "bit_score": 417.927,
+                "evalue": 2.66853e-145,
+                "identity_pct": 58.5
+              }
+            ]
+          }
+        ],
+        "recorded_at": "2026-10-18T16:39:05.411205+00:00",
+        "reference": {
+          "archive_sha256": "a9c3496aa727e61d25d9e1291c9ba28d2c2ad19c0e26569dc083d53ec4169536",
+          "database": "swissprot",
+          "fasta_sha256": "1372f18e218d761027616bf17479bcf450b30314fc0a8095fcb0e97e85d6ecf9",
+          "index_files": {
+            "swissprot.pdb": "460c0087f2683dcb9e8c6098aebb0e2614f6202203b85dfd1c6c7e45d53243f3",
+            "swissprot.phr": "a10f3c08c20f5d336b5e5c58f61b5bb205fdc5b61f4e5898e0ff05267f276950",
+            "swissprot.pin": "94ac5e4d728f3e1d015a921d7b822a47d7555548266d91ed00c36a1a46d9845b",
+            "swissprot.pog": "81cb94739f65c8268f9583d9d68b20f5c7f5dfd729959416d27892f7c9a05257",
+            "swissprot.pos": "620d0b9622ad25da625dfe93a1b9d10887f03e3255424159465dbdf8e0d98a5a",
+            "swissprot.pot": "20e4eb416145a4b971122032e72a1bc2376d7a6cecc0539ef40fb61d92e1e5cd",
+            "swissprot.psq": "fd8e666adbf7a26a5767c47e4dc22765f5350a850c938bdcd65de666452cb72b",
+            "swissprot.ptf": "67982e4d7b1490b09cce06e7c29175c6bd011cd542cfacb1a1c310084a50821a",
+            "swissprot.pto": "19bd9efe2fa98b9b22ba077ec6e484f463ea89abc48dfc3538b1d1babe7037dd"
+          },
+          "indexer": "makeblastdb: 2.12.0+\n Package: blast 2.12.0, build Apr  1 2024 07:01:27",
+          "release": "2026_03",
+          "release_text": "UniProt Knowledgebase Release 2026_03 consists of:\nUniProtKB/Swiss-Prot Release 2026_03 of 02-Sep-2026\nUniProtKB/TrEMBL Release 2026_03 of 02-Sep-2026\n",
+          "release_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt",
+          "retrieved_at": "2026-10-18T16:38:53.221922+00:00",
+          "scope": "complete UniProtKB/Swiss-Prot canonical sequence snapshot",
+          "sequence_count": 575748,
+          "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz"
+        },
+        "status": "passed"
+      },
+      "log_summary": [
+        "﻿2026-10-18T16:37:48.7098653Z Current runner version: '2.337.0'",
+        "2026-10-18T16:38:36.9467197Z bioai-platform/backend/tests/test_local_blast.py::test_native_search_recovers_input_accession_and_actual_hsp PASSED [ 11%]",
+        "2026-10-18T16:38:36.9676246Z bioai-platform/backend/tests/test_local_blast.py::test_local_database_never_substitutes_for_nr_or_nt PASSED [ 22%]",
+        "2026-10-18T16:38:36.9685091Z bioai-platform/backend/tests/test_local_blast.py::test_missing_reference_is_unavailable_not_completed_zero PASSED [ 33%]",
+        "2026-10-18T16:38:36.9903357Z bioai-platform/backend/tests/test_local_blast.py::test_reference_corruption_fails_closed PASSED [ 44%]",
+        "2026-10-18T16:38:37.0116733Z bioai-platform/backend/tests/test_local_blast.py::test_invalid_sequence_is_not_a_completed_no_hit_search PASSED [ 55%]",
+        "2026-10-18T16:38:37.0680431Z bioai-platform/backend/tests/test_local_blast.py::test_production_tool_uses_local_route_without_remote_submission PASSED [ 66%]",
+        "2026-10-18T16:38:37.4044451Z bioai-platform/backend/tests/test_local_blast.py::test_pipeline_uses_local_route_and_preserves_reference PASSED [ 77%]",
+        "2026-10-18T16:38:37.4080450Z bioai-platform/backend/tests/test_local_blast.py::test_native_reference_does_not_claim_an_ncbi_page_was_queried PASSED [ 88%]",
+        "2026-10-18T16:38:37.5126459Z bioai-platform/backend/tests/test_local_blast.py::test_reference_download_resource_allowlist PASSED [100%]",
+        "2026-10-18T16:38:37.5131279Z ========================= 9 passed, 1 warning in 0.59s =========================",
+        "2026-10-18T16:39:05.4166170Z LOCAL_BLAST_BENCHMARK={\"benchmark\": \"local-swissprot-production-accession-recovery/v1\", \"criteria\": {\"essential_required\": true, \"max_recovery_rank\": 5, \"min_queries\": 6, \"recovery_threshold_frac\": 0.8}, \"essential_recovered\": true, \"executed\": true, \"limitations\": [\"Canonical queries originate in the searched snapshot: accession-recovery positive controls only.\", \"No claim of novel sequence function, homology-transfer accuracy, or external NCBI service availability.\"], \"n_queries\": 8, \"n_recovered\": 8, \"queries\": [{\"essential\": true, \"expected_accessions\": [\"P02768\"], \"id\": \"HUMAN_ALBUMIN\", \"query_length\": 609, \"query_sha256\": \"e7b80c7861adc0143f8aead03ec9fa83b782439c3eae4730ffaa7beafa37c40b\", \"recovered\": true, \"recovered_rank\": 1, \"top_hits\": [{\"accession\": \"P02768\", \"bit_score\": 1239.17, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"Q5NVH5\", \"bit_score\": 1221.84, \"evalue\": 0.0, \"identity_pct\": 98.5}, {\"accession\": \"A2V9Z4\", \"bit_score\": 1175.61, \"evalue\": 0.0, \"identity_pct\": 93.6}, {\"accession\": \"Q28522\", \"bit_score\": 1155.97, \"evalue\": 0.0, \"identity_pct\": 93.5}, {\"accession\": \"P49064\", \"bit_score\": 1035.02, \"evalue\": 0.0, \"identity_pct\": 82.3}]}, {\"essential\": false, \"expected_accessions\": [\"P69905\"], \"id\": \"HUMAN_HBA1\", \"query_length\": 142, \"query_sha256\": \"14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242\", \"recovered\": true, \"recovered_rank\": 1, \"top_hits\": [{\"accession\": \"P69905\", \"bit_score\": 286.96, \"evalue\": 2.23587e-100, \"identity_pct\": 100.0}, {\"accession\": \"P69906\", \"bit_score\": 286.96, \"evalue\": 2.23587e-100, \"identity_pct\": 100.0}, {\"accession\": \"P69907\", \"bit_score\": 286.96, \"evalue\": 2.23587e-100, \"identity_pct\": 100.0}, {\"accession\": \"P01923\", \"bit_score\": 282.337, \"evalue\": 1.20026e-98, \"identity_pct\": 99.3}, {\"accession\": \"Q9TS35\", \"bit_score\": 281.567, \"evalue\": 2.6775e-98, \"identity_pct\": 98.6}]}, {\"essential\": false, \"expected_accessions\": [\"P68871\"], \"id\": \"HUMAN_HBB\", \"query_length\": 147, \"query_sha256\": \"9ebf320eb707d71644444fe5006ed58af56a0bf0ec9568eb6a3a65e0e8191465\", \"recovered\": true, \"recovered_rank\": 1, \"top_hits\": [{\"accession\": \"P68871\", \"bit_score\": 301.212, \"evalue\": 6.55889e-106, \"identity_pct\": 100.0}, {\"accession\": \"P68872\", \"bit_score\": 301.212, \"evalue\": 6.55889e-106, \"identity_pct\": 100.0}, {\"accession\": \"P68873\", \"bit_score\": 301.212, \"evalue\": 6.55889e-106, \"identity_pct\": 100.0}, {\"accession\": \"P02024\", \"bit_score\": 300.056, \"evalue\": 2.2922e-105, \"identity_pct\": 99.3}, {\"accession\": \"P02025\", \"bit_score\": 294.278, \"evalue\": 3.33996e-103, \"identity_pct\": 98.6}]}, {\"essential\": false, \"expected_accessions\": [\"P61626\"], \"id\": \"HUMAN_LYSOZYME_C\", \"query_length\": 148, \"query_sha256\": \"7d0e4fd9fdc4406e6179855d1e2bf7e9aa182416262a70dafca656fcada3f2f7\", \"recovered\": true, \"recovered_rank\": 1, \"top_hits\": [{\"accession\": \"P61626\", \"bit_score\": 303.908, \"evalue\": 5.48237e-107, \"identity_pct\": 100.0}, {\"accession\": \"P61627\", \"bit_score\": 303.908, \"evalue\": 5.48237e-107, \"identity_pct\": 100.0}, {\"accession\": \"P61628\", \"bit_score\": 303.908, \"evalue\": 5.48237e-107, \"identity_pct\": 100.0}, {\"accession\": \"P79179\", \"bit_score\": 301.982, \"evalue\": 3.54269e-106, \"identity_pct\": 99.3}, {\"accession\": \"P79239\", \"bit_score\": 300.442, \"evalue\": 1.62897e-105, \"identity_pct\": 98.0}]}, {\"essential\": false, \"expected_accessions\": [\"P60709\"], \"id\": \"HUMAN_ACTB\", \"query_length\": 375, \"query_sha256\": \"d498c40159d7c993d9e7e36afbe2f4921d5e81e6ab08d5388cbab47cc0234a92\", \"recovered\": true, \"recovered_rank\": 5, \"top_hits\": [{\"accession\": \"O18840\", \"bit_score\": 785.793, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P60706\", \"bit_score\": 785.793, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P60707\", \"bit_score\": 785.793, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P60708\", \"bit_score\": 785.793, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P60709\", \"bit_score\": 785.793, \"evalue\": 0.0, \"identity_pct\": 100.0}]}, {\"essential\": true, \"expected_accessions\": [\"P04637\"], \"id\": \"HUMAN_TP53\", \"query_length\": 393, \"query_sha256\": \"e3ca60f18e3b6e98986ad6749215ee3b7a3abc09c191675213d1f243c035c9a3\", \"recovered\": true, \"recovered_rank\": 1, \"top_hits\": [{\"accession\": \"P04637\", \"bit_score\": 813.913, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P13481\", \"bit_score\": 746.888, \"evalue\": 0.0, \"identity_pct\": 95.7}, {\"accession\": \"P56423\", \"bit_score\": 739.954, \"evalue\": 0.0, \"identity_pct\": 95.7}, {\"accession\": \"P56424\", \"bit_score\": 739.954, \"evalue\": 0.0, \"identity_pct\": 95.7}, {\"accession\": \"P61260\", \"bit_score\": 739.954, \"evalue\": 0.0, \"identity_pct\": 95.7}]}, {\"essential\": false, \"expected_accessions\": [\"P01308\"], \"id\": \"HUMAN_INSULIN\", \"query_length\": 110, \"query_sha256\": \"99603f8fb1e9872e2d24ee1e9f85108c2bddea6b148a0f1099e16ba2715c8263\", \"recovered\": true, \"recovered_rank\": 1, \"top_hits\": [{\"accession\": \"P01308\", \"bit_score\": 223.787, \"evalue\": 1.77921e-76, \"identity_pct\": 100.0}, {\"accession\": \"Q6YK33\", \"bit_score\": 223.787, \"evalue\": 1.77921e-76, \"identity_pct\": 100.0}, {\"accession\": \"Q8HXV2\", \"bit_score\": 222.246, \"evalue\": 8.45847e-76, \"identity_pct\": 99.1}, {\"accession\": \"P30410\", \"bit_score\": 221.861, \"evalue\": 1.26972e-75, \"identity_pct\": 98.2}, {\"accession\": \"P30406\", \"bit_score\": 219.164, \"evalue\": 1.28747e-74, \"identity_pct\": 98.2}]}, {\"essential\": false, \"expected_accessions\": [\"P02931\"], \"id\": \"ECOLI_OMPF\", \"query_length\": 362, \"query_sha256\": \"55f961c09343ee1d99690b114ae3b16baff650d855e575645cf2017ae6caad11\", \"recovered\": true, \"recovered_rank\": 2, \"top_hits\": [{\"accession\": \"A0A4P7TN82\", \"bit_score\": 720.694, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P02931\", \"bit_score\": 720.694, \"evalue\": 0.0, \"identity_pct\": 100.0}, {\"accession\": \"P0DSD9\", \"bit_score\": 712.605, \"evalue\": 0.0, \"identity_pct\": 98.9}, {\"accession\": \"P02932\", \"bit_score\": 430.639, \"evalue\": 2.66172e-150, \"identity_pct\": 60.2}, {\"accession\": \"Q47490\", \"bit_score\": 417.927, \"evalue\": 2.66853e-145, \"identity_pct\": 58.5}]}], \"recorded_at\": \"2026-10-18T16:39:05.411205+00:00\", \"reference\": {\"archive_sha256\": \"a9c3496aa727e61d25d9e1291c9ba28d2c2ad19c0e26569dc083d53ec4169536\", \"database\": \"swissprot\", \"fasta_sha256\": \"1372f18e218d761027616bf17479bcf450b30314fc0a8095fcb0e97e85d6ecf9\", \"index_files\": {\"swissprot.pdb\": \"460c0087f2683dcb9e8c6098aebb0e2614f6202203b85dfd1c6c7e45d53243f3\", \"swissprot.phr\": \"a10f3c08c20f5d336b5e5c58f61b5bb205fdc5b61f4e5898e0ff05267f276950\", \"swissprot.pin\": \"94ac5e4d728f3e1d015a921d7b822a47d7555548266d91ed00c36a1a46d9845b\", \"swissprot.pog\": \"81cb94739f65c8268f9583d9d68b20f5c7f5dfd729959416d27892f7c9a05257\", \"swissprot.pos\": \"620d0b9622ad25da625dfe93a1b9d10887f03e3255424159465dbdf8e0d98a5a\", \"swissprot.pot\": \"20e4eb416145a4b971122032e72a1bc2376d7a6cecc0539ef40fb61d92e1e5cd\", \"swissprot.psq\": \"fd8e666adbf7a26a5767c47e4dc22765f5350a850c938bdcd65de666452cb72b\", \"swissprot.ptf\": \"67982e4d7b1490b09cce06e7c29175c6bd011cd542cfacb1a1c310084a50821a\", \"swissprot.pto\": \"19bd9efe2fa98b9b22ba077ec6e484f463ea89abc48dfc3538b1d1babe7037dd\"}, \"indexer\": \"makeblastdb: 2.12.0+\\n Package: blast 2.12.0, build Apr  1 2024 07:01:27\", \"release\": \"2026_03\", \"release_text\": \"UniProt Knowledgebase Release 2026_03 consists of:\\nUniProtKB/Swiss-Prot Release 2026_03 of 02-Sep-2026\\nUniProtKB/TrEMBL Release 2026_03 of 02-Sep-2026\\n\", \"release_url\": \"https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt\", \"retrieved_at\": \"2026-10-18T16:38:53.221922+00:00\", \"scope\": \"complete UniProtKB/Swiss-Prot canonical sequence snapshot\", \"sequence_count\": 575748, \"source_url\": \"https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz\"}, \"status\": \"passed\"}"
+      ]
+    },
+    {
+      "job_id": 117730332827,
+      "run_id": 39066715524,
+      "record": {
+        "benchmark": "BBS1-DOCK-1STP-BTN",
+        "code_sha256": {
+          "benchmark/fixtures/docking/run_redock_panel.py": "8a56216d9ced2916c4cd3bf455b22904fcc4fab4e804cacc93b79bf870843f64",
+          "bioai-platform/backend/app/benchmarking/docking_redock.py": "5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb",
+          "bioai-platform/backend/app/tools/docking.py": "deceb0760dd570f3eee59dd3db472a770b7cb413e8756fad378c19a088b8909b"
+        },
+        "essential_passed": true,
+        "executed_at_utc": "2026-10-18T16:36:15.358024+00:00",
+        "fixture_revision": "2026-10-18-rcsb-identity-correction",
+        "fixture_sha256": "060d464d3ab9d7f97b71ddfee030f32961c794c0d7adb6ed1bbd55ce469de461",
+        "limitations": [
+          "Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.",
+          "Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.",
+          "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
+          "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
+        ],
+        "n_complexes": 1,
+        "n_passed": 1,
+        "passed_fraction": 1,
+        "recorded": "2026-10-18",
+        "results": [
+          {
+            "affinity_kcal_mol": -6.328,
+            "artifact_directory": "artifacts/20261018T163554398778Z/1STP",
+            "artifact_sha256": {
+              "lig.pdb": "6243300bd6945395ade902611e8b80d169b29ba789193038abae957dee946359",
+              "lig.pdbqt": "2b151c57e38a49bd7cc5ba5f2ebb77a3e28b4336d5f3e40a0ced3a34118b8816",
+              "lig_ref.sdf": "18eb29d8eeeb949a1521349307c389b3c8ba7d0c6b67359270316531ebb86d8e",
+              "receptor.pdbqt": "dad69020f2a869b46c856e6b3b89e7577a677a172cb73daf779336b56640730d",
+              "source.pdb": "6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30",
+              "top_pose.pdbqt": "7d4926d967e1c3ebe7371bca450877d6c1fcdebbe690e5093f148ef15c8058d3",
+              "top_pose.sdf": "f8d00338c1981a6f526975ddb0db314db7b7c052317bf3aa068132911d5810a3",
+              "top_pose_chemical_graph.sdf": "004cf83b6eec772e2de3c9dab73f123e6ac88b153278e4a815e8f97ee30550b4",
+              "vina.log": "29f64dacbeb39a54d4c720f18eb097ea691d051b2a8c6a0a40d594968a63eba7",
+              "vina_output.pdbqt": "0611e133f6a020745ff8c106e711e4adc96568c4c747e3f7847504ab4194a94b",
+              "vina_output.sdf": "229c521e6d1e8b111c47b0c19df38f6e33d6c25bb6aefbea6bb30ace8004e463"
+            },
+            "essential": true,
+            "exhaustiveness": 32,
+            "grid": {
+              "candidates": [
+                {
+                  "atom_count": 41,
+                  "center": [
+                    10.566,
+                    2.844,
+                    -10.458
+                  ],
+                  "rank": 1,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 88
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 49
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 86
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 112
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 47
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 110
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 108
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 45
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 124
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 48
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 92
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 90
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 25
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 79
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 50
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TYR",
+                      "residue_number": 43
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 128
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 23
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 27
+                    }
+                  ],
+                  "residues": [
+                    "ALA50:A",
+                    "ALA86:A",
+                    "ASN23:A",
+                    "ASN49:A",
+                    "ASP128:A",
+                    "GLY48:A",
+                    "LEU110:A",
+                    "LEU124:A",
+                    "LEU25:A",
+                    "SER112:A",
+                    "SER27:A",
+                    "SER45:A",
+                    "SER88:A",
+                    "THR90:A",
+                    "TRP108:A",
+                    "TRP79:A",
+                    "TRP92:A",
+                    "TYR43:A",
+                    "VAL47:A"
+                  ],
+                  "size": [
+                    21.805,
+                    21.514,
+                    21.442
+                  ]
+                },
+                {
+                  "atom_count": 22,
+                  "center": [
+                    11.827,
+                    -0.471,
+                    6.43
+                  ],
+                  "rank": 2,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 94
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 95
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 72
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 106
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 105
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 93
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 107
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 70
+                    }
+                  ],
+                  "residues": [
+                    "ALA72:A",
+                    "ASN105:A",
+                    "GLN107:A",
+                    "GLN95:A",
+                    "GLY70:A",
+                    "GLY94:A",
+                    "SER93:A",
+                    "THR106:A"
+                  ],
+                  "size": [
+                    18.141,
+                    17.204,
+                    20.88
+                  ]
+                },
+                {
+                  "atom_count": 20,
+                  "center": [
+                    25.109,
+                    -5.082,
+                    4.382
+                  ],
+                  "rank": 3,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 131
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 133
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 132
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 101
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 102
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 100
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TYR",
+                      "residue_number": 96
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 99
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 16
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 103
+                    }
+                  ],
+                  "residues": [
+                    "ALA100:A",
+                    "ALA102:A",
+                    "ARG103:A",
+                    "GLU101:A",
+                    "GLY16:A",
+                    "GLY99:A",
+                    "LYS132:A",
+                    "THR131:A",
+                    "TYR96:A",
+                    "VAL133:A"
+                  ],
+                  "size": [
+                    16,
+                    20.899,
+                    18.354
+                  ]
+                },
+                {
+                  "atom_count": 18,
+                  "center": [
+                    12.716,
+                    8.958,
+                    1.953
+                  ],
+                  "rank": 4,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 59
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 74
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 93
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 92
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 91
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 75
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 76
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 58
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 57
+                    }
+                  ],
+                  "residues": [
+                    "ARG59:A",
+                    "GLY58:A",
+                    "GLY74:A",
+                    "SER93:A",
+                    "THR57:A",
+                    "THR76:A",
+                    "THR91:A",
+                    "TRP75:A",
+                    "TRP92:A"
+                  ],
+                  "size": [
+                    16.699,
+                    17.627,
+                    16.023
+                  ]
+                }
+              ],
+              "center": [
+                10.566,
+                2.844,
+                -10.458
+              ],
+              "selected_rank": 1,
+              "size": [
+                21.805,
+                21.514,
+                21.442
+              ]
+            },
+            "id": "1STP",
+            "ligand_resname": "BTN",
+            "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
+            "n_pose_models": 9,
+            "observed_hetatm_resnames": [
+              "BTN",
+              "HOH"
+            ],
+            "passed": true,
+            "pdb": "1STP",
+            "runtime_s": 20.9,
+            "seed": 42,
+            "selected_ligand_atom_records": 16,
+            "selected_ligand_instance": "A 300 ",
+            "site_offset_angstrom": 1.3217374780710047,
+            "source_url": "https://files.rcsb.org/download/1STP.pdb",
+            "top_pose_rmsd_angstrom": 0.8561054622533372,
+            "vina_version": "1.2.7"
+          }
+        ],
+        "run_id": "20261018T163554398778Z",
+        "status": "passed",
+        "success_criteria": {
+          "essential_top_pose_success": true,
+          "note": "Canonical 1STP-BTN control: top pose RMSD <= 2.0 A; no panel-wide validation claim.",
+          "panel_pass_threshold_frac": 1,
+          "per_complex_rmsd_threshold_angstrom": 2
+        },
+        "tool_versions": {
+          "fpocket_binary_sha256": "efef0bc0ec0c13ea6e0982a373adde6533b7987ff22a68a3d55b7986da7381b4",
+          "openbabel": "Open Babel 3.1.0 -- Feb 17 2026 -- 06:47:59",
+          "python": "3.12.15",
+          "rdkit": "2026.09.1",
+          "vina_binary_sha256": "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644"
+        }
+      },
+      "log_summary": [
+        "﻿2026-10-18T16:35:11.1787107Z Current runner version: '2.337.0'",
+        "2026-10-18T16:35:24.7149635Z 4 passed, 1 warning in 0.07s",
+        "2026-10-18T16:36:15.3695548Z REDOCK_EVIDENCE={\"benchmark\": \"BBS1-DOCK-1STP-BTN\", \"code_sha256\": {\"benchmark/fixtures/docking/run_redock_panel.py\": \"8a56216d9ced2916c4cd3bf455b22904fcc4fab4e804cacc93b79bf870843f64\", \"bioai-platform/backend/app/benchmarking/docking_redock.py\": \"5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb\", \"bioai-platform/backend/app/tools/docking.py\": \"deceb0760dd570f3eee59dd3db472a770b7cb413e8756fad378c19a088b8909b\"}, \"essential_passed\": true, \"executed_at_utc\": \"2026-10-18T16:36:15.358024+00:00\", \"fixture_revision\": \"2026-10-18-rcsb-identity-correction\", \"fixture_sha256\": \"060d464d3ab9d7f97b71ddfee030f32961c794c0d7adb6ed1bbd55ce469de461\", \"limitations\": [\"Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.\", \"Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.\", \"Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.\", \"Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass.\"], \"n_complexes\": 1, \"n_passed\": 1, \"passed_fraction\": 1.0, \"recorded\": \"2026-10-18\", \"results\": [{\"affinity_kcal_mol\": -6.328, \"artifact_directory\": \"artifacts/20261018T163554398778Z/1STP\", \"artifact_sha256\": {\"lig.pdb\": \"6243300bd6945395ade902611e8b80d169b29ba789193038abae957dee946359\", \"lig.pdbqt\": \"2b151c57e38a49bd7cc5ba5f2ebb77a3e28b4336d5f3e40a0ced3a34118b8816\", \"lig_ref.sdf\": \"18eb29d8eeeb949a1521349307c389b3c8ba7d0c6b67359270316531ebb86d8e\", \"receptor.pdbqt\": \"dad69020f2a869b46c856e6b3b89e7577a677a172cb73daf779336b56640730d\", \"source.pdb\": \"6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30\", \"top_pose.pdbqt\": \"7d4926d967e1c3ebe7371bca450877d6c1fcdebbe690e5093f148ef15c8058d3\", \"top_pose.sdf\": \"f8d00338c1981a6f526975ddb0db314db7b7c052317bf3aa068132911d5810a3\", \"top_pose_chemical_graph.sdf\": \"004cf83b6eec772e2de3c9dab73f123e6ac88b153278e4a815e8f97ee30550b4\", \"vina.log\": \"29f64dacbeb39a54d4c720f18eb097ea691d051b2a8c6a0a40d594968a63eba7\", \"vina_output.pdbqt\": \"0611e133f6a020745ff8c106e711e4adc96568c4c747e3f7847504ab4194a94b\", \"vina_output.sdf\": \"229c521e6d1e8b111c47b0c19df38f6e33d6c25bb6aefbea6bb30ace8004e463\"}, \"essential\": true, \"exhaustiveness\": 32, \"grid\": {\"candidates\": [{\"atom_count\": 41, \"center\": [10.566, 2.844, -10.458], \"rank\": 1, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 88}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 49}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 86}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 112}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 47}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 110}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 108}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 45}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 124}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 48}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 92}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 90}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 25}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 79}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 50}, {\"chain\": \"A\", \"residue_name\": \"TYR\", \"residue_number\": 43}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 128}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 23}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 27}], \"residues\": [\"ALA50:A\", \"ALA86:A\", \"ASN23:A\", \"ASN49:A\", \"ASP128:A\", \"GLY48:A\", \"LEU110:A\", \"LEU124:A\", \"LEU25:A\", \"SER112:A\", \"SER27:A\", \"SER45:A\", \"SER88:A\", \"THR90:A\", \"TRP108:A\", \"TRP79:A\", \"TRP92:A\", \"TYR43:A\", \"VAL47:A\"], \"size\": [21.805, 21.514, 21.442]}, {\"atom_count\": 22, \"center\": [11.827, -0.471, 6.43], \"rank\": 2, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 94}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 95}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 72}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 106}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 105}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 93}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 107}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 70}], \"residues\": [\"ALA72:A\", \"ASN105:A\", \"GLN107:A\", \"GLN95:A\", \"GLY70:A\", \"GLY94:A\", \"SER93:A\", \"THR106:A\"], \"size\": [18.141, 17.204, 20.88]}, {\"atom_count\": 20, \"center\": [25.109, -5.082, 4.382], \"rank\": 3, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 131}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 133}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 132}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 101}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 102}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 100}, {\"chain\": \"A\", \"residue_name\": \"TYR\", \"residue_number\": 96}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 99}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 16}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 103}], \"residues\": [\"ALA100:A\", \"ALA102:A\", \"ARG103:A\", \"GLU101:A\", \"GLY16:A\", \"GLY99:A\", \"LYS132:A\", \"THR131:A\", \"TYR96:A\", \"VAL133:A\"], \"size\": [16.0, 20.899, 18.354]}, {\"atom_count\": 18, \"center\": [12.716, 8.958, 1.953], \"rank\": 4, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 59}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 74}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 93}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 92}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 91}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 75}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 76}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 58}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 57}], \"residues\": [\"ARG59:A\", \"GLY58:A\", \"GLY74:A\", \"SER93:A\", \"THR57:A\", \"THR76:A\", \"THR91:A\", \"TRP75:A\", \"TRP92:A\"], \"size\": [16.699, 17.627, 16.023]}], \"center\": [10.566, 2.844, -10.458], \"selected_rank\": 1, \"size\": [21.805, 21.514, 21.442]}, \"id\": \"1STP\", \"ligand_resname\": \"BTN\", \"metric\": \"RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)\", \"n_pose_models\": 9, \"observed_hetatm_resnames\": [\"BTN\", \"HOH\"], \"passed\": true, \"pdb\": \"1STP\", \"runtime_s\": 20.9, \"seed\": 42, \"selected_ligand_atom_records\": 16, \"selected_ligand_instance\": \"A 300 \", \"site_offset_angstrom\": 1.3217374780710047, \"source_url\": \"https://files.rcsb.org/download/1STP.pdb\", \"top_pose_rmsd_angstrom\": 0.8561054622533372, \"vina_version\": \"1.2.7\"}], \"run_id\": \"20261018T163554398778Z\", \"status\": \"passed\", \"success_criteria\": {\"essential_top_pose_success\": true, \"note\": \"Canonical 1STP-BTN control: top pose RMSD <= 2.0 A; no panel-wide validation claim.\", \"panel_pass_threshold_frac\": 1.0, \"per_complex_rmsd_threshold_angstrom\": 2}, \"tool_versions\": {\"fpocket_binary_sha256\": \"efef0bc0ec0c13ea6e0982a373adde6533b7987ff22a68a3d55b7986da7381b4\", \"openbabel\": \"Open Babel 3.1.0 -- Feb 17 2026 -- 06:47:59\", \"python\": \"3.12.15\", \"rdkit\": \"2026.09.1\", \"vina_binary_sha256\": \"f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644\"}}",
+        "2026-10-18T16:36:15.3757715Z REDOCK PANEL passed: 1/1 complexes < 2.0 A RMSD"
+      ]
+    },
+    {
+      "job_id": 117730723360,
+      "run_id": 39066715514,
+      "record": null,
+      "log_summary": [
+        "2026-10-17T20:27:33.2153064Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_empty_then_valid_json_recovers PASSED [ 91%]",
+        "2026-10-17T20:27:33.2168202Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_non_json_then_valid_json_recovers PASSED [ 92%]",
+        "2026-10-17T20:27:33.2182295Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_all_empty_returns_none PASSED [ 93%]",
+        "2026-10-17T20:27:33.2195820Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_unknown_tool_returns_none PASSED [ 93%]",
+        "2026-10-17T20:27:33.2211431Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_invented_number_rejected_then_grounded_retry_accepted PASSED [ 94%]",
+        "2026-10-17T20:27:33.2226561Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_number_in_omitted_result_field_is_not_evidence PASSED [ 95%]",
+        "2026-10-17T20:27:33.2240679Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_invalid_list_schema_not_coerced_into_letters PASSED [ 95%]",
+        "2026-10-17T20:27:33.2254653Z tests/test_tool_interpreter.py::TestToolInterpretResilience::test_failed_or_empty_result_never_calls_provider PASSED [ 96%]",
+        "2026-10-17T20:27:33.2270260Z tests/test_interpret_stream_grounding.py::test_split_provider_reply_is_admitted_only_after_numeric_check PASSED [ 97%]",
+        "2026-10-17T20:27:33.2291787Z tests/test_interpret_stream_grounding.py::test_invented_number_never_reaches_client PASSED [ 97%]",
+        "2026-10-17T20:27:33.2309310Z tests/test_interpret_stream_grounding.py::test_partial_failure_does_not_mix_provider_outputs PASSED [ 98%]",
+        "2026-10-17T20:27:33.2322999Z tests/test_interpret_stream_grounding.py::test_missing_provider_has_explicit_failure_without_fake_summary PASSED [ 99%]",
+        "2026-10-17T20:27:33.4956769Z tests/test_interpret_stream_grounding.py::test_numeric_gate_preserves_missing_evidence PASSED [100%]",
+        "2026-10-17T20:27:33.4964537Z ======================= 148 passed, 1 warning in 21.91s ========================"
+      ]
+    },
+    {
+      "job_id": 117730331292,
+      "run_id": 39066715524,
+      "record": {
+        "benchmark": "bionexus-redock-panel/v1",
+        "code_sha256": {
+          "benchmark/fixtures/docking/run_redock_panel.py": "8a56216d9ced2916c4cd3bf455b22904fcc4fab4e804cacc93b79bf870843f64",
+          "bioai-platform/backend/app/benchmarking/docking_redock.py": "5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb",
+          "bioai-platform/backend/app/tools/docking.py": "deceb0760dd570f3eee59dd3db472a770b7cb413e8756fad378c19a088b8909b"
+        },
+        "essential_passed": true,
+        "executed_at_utc": "2026-10-18T16:48:09.951556+00:00",
+        "fixture_revision": "2026-10-18-rcsb-identity-correction",
+        "fixture_sha256": "060d464d3ab9d7f97b71ddfee030f32961c794c0d7adb6ed1bbd55ce469de461",
+        "limitations": [
+          "Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.",
+          "Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.",
+          "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
+          "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
+        ],
+        "n_complexes": 10,
+        "n_passed": 2,
+        "passed_fraction": 0.2,
+        "recorded": "2026-10-18",
+        "results": [
+          {
+            "affinity_kcal_mol": -6.328,
+            "artifact_directory": "artifacts/20261018T164229090836Z/1STP",
+            "artifact_sha256": {
+              "lig.pdb": "6243300bd6945395ade902611e8b80d169b29ba789193038abae957dee946359",
+              "lig.pdbqt": "c33b187a489dd682af8adc46af4cb649cd261a88f9eaab913e4d8ae7860154c7",
+              "lig_ref.sdf": "d822d075fd7a692933a47d57fac8cb49fda7f546af6ff3e6920a176250374f5c",
+              "receptor.pdbqt": "c7d1ed4b18891d0572c4a5edda0bb5eb0548a216718bc33dd5c0a1aaa32dc523",
+              "source.pdb": "6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30",
+              "top_pose.pdbqt": "8fd392c368b9e6f52e146733ecbce512e310887c24aa14a15c09bb571affb213",
+              "top_pose.sdf": "dd4e6a52baf16963791fbd8ee87cbba1ab8684ca90b66356296945f479a9c8ef",
+              "top_pose_chemical_graph.sdf": "c171ae35a1875793a47f435e78a77402d7468739ebcaf23fcc6de817baeb9b87",
+              "vina.log": "33dabc12c322197d76932419a923f955232a8d59d68e5f8ec1649af8ffa3d30e",
+              "vina_output.pdbqt": "1170ab874e8f15ea02cf12dea333c33433dea215263125ddfb7c13ba70ae8a50",
+              "vina_output.sdf": "7f9f1b02eaa9e69dde2036a5ad3c527ca3f36adee7c791851bb706d456a6921f"
+            },
+            "essential": true,
+            "exhaustiveness": 32,
+            "grid": {
+              "candidates": [
+                {
+                  "atom_count": 41,
+                  "center": [
+                    10.566,
+                    2.844,
+                    -10.458
+                  ],
+                  "rank": 1,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 88
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 49
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 86
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 112
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 47
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 110
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 108
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 45
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 124
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 48
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 92
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 90
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 25
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 79
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 50
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TYR",
+                      "residue_number": 43
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 128
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 23
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 27
+                    }
+                  ],
+                  "residues": [
+                    "ALA50:A",
+                    "ALA86:A",
+                    "ASN23:A",
+                    "ASN49:A",
+                    "ASP128:A",
+                    "GLY48:A",
+                    "LEU110:A",
+                    "LEU124:A",
+                    "LEU25:A",
+                    "SER112:A",
+                    "SER27:A",
+                    "SER45:A",
+                    "SER88:A",
+                    "THR90:A",
+                    "TRP108:A",
+                    "TRP79:A",
+                    "TRP92:A",
+                    "TYR43:A",
+                    "VAL47:A"
+                  ],
+                  "size": [
+                    21.805,
+                    21.514,
+                    21.442
+                  ]
+                },
+                {
+                  "atom_count": 22,
+                  "center": [
+                    11.827,
+                    -0.471,
+                    6.43
+                  ],
+                  "rank": 2,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 94
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 95
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 72
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 106
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 105
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 93
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 107
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 70
+                    }
+                  ],
+                  "residues": [
+                    "ALA72:A",
+                    "ASN105:A",
+                    "GLN107:A",
+                    "GLN95:A",
+                    "GLY70:A",
+                    "GLY94:A",
+                    "SER93:A",
+                    "THR106:A"
+                  ],
+                  "size": [
+                    18.141,
+                    17.204,
+                    20.88
+                  ]
+                },
+                {
+                  "atom_count": 20,
+                  "center": [
+                    25.109,
+                    -5.082,
+                    4.382
+                  ],
+                  "rank": 3,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 131
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 133
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 132
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 101
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 102
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 100
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TYR",
+                      "residue_number": 96
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 99
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 16
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 103
+                    }
+                  ],
+                  "residues": [
+                    "ALA100:A",
+                    "ALA102:A",
+                    "ARG103:A",
+                    "GLU101:A",
+                    "GLY16:A",
+                    "GLY99:A",
+                    "LYS132:A",
+                    "THR131:A",
+                    "TYR96:A",
+                    "VAL133:A"
+                  ],
+                  "size": [
+                    16,
+                    20.899,
+                    18.354
+                  ]
+                },
+                {
+                  "atom_count": 18,
+                  "center": [
+                    12.716,
+                    8.958,
+                    1.953
+                  ],
+                  "rank": 4,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 59
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 74
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 93
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 92
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 91
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 75
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 76
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 58
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 57
+                    }
+                  ],
+                  "residues": [
+                    "ARG59:A",
+                    "GLY58:A",
+                    "GLY74:A",
+                    "SER93:A",
+                    "THR57:A",
+                    "THR76:A",
+                    "THR91:A",
+                    "TRP75:A",
+                    "TRP92:A"
+                  ],
+                  "size": [
+                    16.699,
+                    17.627,
+                    16.023
+                  ]
+                }
+              ],
+              "center": [
+                10.566,
+                2.844,
+                -10.458
+              ],
+              "selected_rank": 1,
+              "size": [
+                21.805,
+                21.514,
+                21.442
+              ]
+            },
+            "id": "1STP",
+            "ligand_resname": "BTN",
+            "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
+            "n_pose_models": 9,
+            "observed_hetatm_resnames": [
+              "BTN",
+              "HOH"
+            ],
+            "passed": true,
+            "pdb": "1STP",
+            "runtime_s": 23.27,
+            "seed": 42,
+            "selected_ligand_atom_records": 16,
+            "selected_ligand_instance": "A 300 ",
+            "site_offset_angstrom": 1.3217374780710047,
+            "source_url": "https://files.rcsb.org/download/1STP.pdb",
+            "top_pose_rmsd_angstrom": 0.8561054622533372,
+            "vina_version": "1.2.7"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/1IEP",
+            "artifact_sha256": {
+              "source.pdb": "577386b4b8bc58a570facba0c8a843386842caef5ed7b60106c685d0f68d4218"
+            },
+            "error": "grid does not cover site (offset 59.0 A)",
+            "essential": true,
+            "id": "1IEP",
+            "ligand_resname": "STI",
+            "observed_hetatm_resnames": [
+              "CL",
+              "HOH",
+              "STI"
+            ],
+            "passed": false,
+            "pdb": "1IEP",
+            "runtime_s": 1.56,
+            "selected_ligand_atom_records": 37,
+            "selected_ligand_instance": "A 201 ",
+            "source_url": "https://files.rcsb.org/download/1IEP.pdb"
+          },
+          {
+            "affinity_kcal_mol": -14.54,
+            "artifact_directory": "artifacts/20261018T164229090836Z/1HVR",
+            "artifact_sha256": {
+              "lig.pdb": "91dee43a9b689667660ad01608d6e265a5c989d1f36f9ae4bb76a3d454545627",
+              "lig.pdbqt": "36cc530c95c6144612a6f58d086d0205dbdb97f74b176ebc320d11b0aa303536",
+              "lig_ref.sdf": "9bf0dffc07c15062c89c396f481eb6b9d1544dd3f74bb31f371589d9176b37a5",
+              "receptor.pdbqt": "56cbfdb7e8baf760df95454957adde796d9a3303413ed44a02652100c42699a1",
+              "source.pdb": "c8d3f238d3269a66823454d4681b71467b4677a18751ce094047961620b338cb",
+              "top_pose.pdbqt": "51912e6c2af3daed636b33bd589d6d42273e8ce9dbd88aadc497da907df8e15b",
+              "top_pose.sdf": "c5208a0006a0260d10b9625512a4c53d25e72f66b597e8dc5fbb234632d1535b",
+              "top_pose_chemical_graph.sdf": "f0407946bced5bddc9320bc56d2521a44cb3b3ff59d6b7b8f77526abc472606a",
+              "vina.log": "d8541da3538db16130c98710c6178f1ce93ff140ee897ea69116f4b3173ee126",
+              "vina_output.pdbqt": "c96b8941bb46e8b3d7075a54d9f4084360a1471aa706b43861642e450fdb6424",
+              "vina_output.sdf": "be502c7ae95373586d08253e33bcefa8cbf2250a9590030cbeb327dcdad2721d"
+            },
+            "essential": true,
+            "exhaustiveness": 32,
+            "grid": {
+              "candidates": [
+                {
+                  "atom_count": 79,
+                  "center": [
+                    -8.762,
+                    15.752,
+                    28.125
+                  ],
+                  "rank": 1,
+                  "residue_ids": [
+                    {
+                      "chain": "B",
+                      "residue_name": "ILE",
+                      "residue_number": 47
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLY",
+                      "residue_number": 48
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "MET",
+                      "residue_number": 46
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ALA",
+                      "residue_number": 28
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ASP",
+                      "residue_number": 30
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "VAL",
+                      "residue_number": 32
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 81
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 82
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 8
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ASP",
+                      "residue_number": 29
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 50
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ILE",
+                      "residue_number": 84
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ASP",
+                      "residue_number": 25
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "THR",
+                      "residue_number": 80
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "VAL",
+                      "residue_number": 82
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "PRO",
+                      "residue_number": 81
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ILE",
+                      "residue_number": 50
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "LEU",
+                      "residue_number": 76
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "LEU",
+                      "residue_number": 23
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLY",
+                      "residue_number": 49
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLY",
+                      "residue_number": 27
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 84
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 25
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 23
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 28
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 32
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 47
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 30
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 76
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 48
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ARG",
+                      "residue_number": 8
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 27
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 49
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 29
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 45
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 46
+                    }
+                  ],
+                  "residues": [
+                    "ALA28:A",
+                    "ALA28:B",
+                    "ARG8:A",
+                    "ARG8:B",
+                    "ASP25:A",
+                    "ASP25:B",
+                    "ASP29:A",
+                    "ASP29:B",
+                    "ASP30:A",
+                    "ASP30:B",
+                    "GLY27:A",
+                    "GLY27:B",
+                    "GLY48:A",
+                    "GLY48:B",
+                    "GLY49:A",
+                    "GLY49:B",
+                    "ILE47:A",
+                    "ILE47:B",
+                    "ILE50:A",
+                    "ILE50:B",
+                    "ILE84:A",
+                    "ILE84:B",
+                    "LEU23:A",
+                    "LEU23:B",
+                    "LEU76:A",
+                    "LEU76:B",
+                    "LYS45:A",
+                    "MET46:A",
+                    "MET46:B",
+                    "PRO81:A",
+                    "PRO81:B",
+                    "THR80:B",
+                    "VAL32:A",
+                    "VAL32:B",
+                    "VAL82:A",
+                    "VAL82:B"
+                  ],
+                  "size": [
+                    26.95,
+                    22.229,
+                    32
+                  ]
+                },
+                {
+                  "atom_count": 25,
+                  "center": [
+                    0.017,
+                    32.813,
+                    36.536
+                  ],
+                  "rank": 2,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 65
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 68
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 12
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 19
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 21
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 13
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 14
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 20
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 66
+                    }
+                  ],
+                  "residues": [
+                    "GLU21:A",
+                    "GLU65:A",
+                    "GLY68:A",
+                    "ILE13:A",
+                    "ILE66:A",
+                    "LEU19:A",
+                    "LYS14:A",
+                    "LYS20:A",
+                    "THR12:A"
+                  ],
+                  "size": [
+                    19.306,
+                    17.911,
+                    20.266
+                  ]
+                },
+                {
+                  "atom_count": 17,
+                  "center": [
+                    -19.996,
+                    12.739,
+                    27.578
+                  ],
+                  "rank": 3,
+                  "residue_ids": [
+                    {
+                      "chain": "B",
+                      "residue_name": "LEU",
+                      "residue_number": 10
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "VAL",
+                      "residue_number": 82
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ARG",
+                      "residue_number": 8
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLU",
+                      "residue_number": 34
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ASN",
+                      "residue_number": 83
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "PRO",
+                      "residue_number": 81
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLU",
+                      "residue_number": 21
+                    }
+                  ],
+                  "residues": [
+                    "ARG8:B",
+                    "ASN83:B",
+                    "GLU21:B",
+                    "GLU34:B",
+                    "LEU10:B",
+                    "PRO81:B",
+                    "VAL82:B"
+                  ],
+                  "size": [
+                    16.458,
+                    18.184,
+                    20.132
+                  ]
+                },
+                {
+                  "atom_count": 11,
+                  "center": [
+                    -4.3,
+                    7.961,
+                    42.555
+                  ],
+                  "rank": 4,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 44
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 55
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 46
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 45
+                    }
+                  ],
+                  "residues": [
+                    "LYS45:A",
+                    "LYS55:A",
+                    "MET46:A",
+                    "PRO44:A"
+                  ],
+                  "size": [
+                    16,
+                    16,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 18,
+                  "center": [
+                    -25.761,
+                    14.286,
+                    10.726
+                  ],
+                  "rank": 5,
+                  "residue_ids": [
+                    {
+                      "chain": "B",
+                      "residue_name": "LEU",
+                      "residue_number": 63
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "LYS",
+                      "residue_number": 14
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLU",
+                      "residue_number": 65
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLY",
+                      "residue_number": 17
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "ILE",
+                      "residue_number": 62
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "GLY",
+                      "residue_number": 16
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "PRO",
+                      "residue_number": 39
+                    },
+                    {
+                      "chain": "B",
+                      "residue_name": "LEU",
+                      "residue_number": 38
+                    }
+                  ],
+                  "residues": [
+                    "GLU65:B",
+                    "GLY16:B",
+                    "GLY17:B",
+                    "ILE62:B",
+                    "LEU38:B",
+                    "LEU63:B",
+                    "LYS14:B",
+                    "PRO39:B"
+                  ],
+                  "size": [
+                    21.637,
+                    18.034,
+                    16
+                  ]
+                }
+              ],
+              "center": [
+                -8.762,
+                15.752,
+                28.125
+              ],
+              "selected_rank": 1,
+              "size": [
+                26.95,
+                22.229,
+                32
+              ]
+            },
+            "id": "1HVR",
+            "ligand_resname": "XK2",
+            "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
+            "n_pose_models": 2,
+            "observed_hetatm_resnames": [
+              "CSO",
+              "XK2"
+            ],
+            "passed": true,
+            "pdb": "1HVR",
+            "runtime_s": 226.02,
+            "seed": 42,
+            "selected_ligand_atom_records": 46,
+            "selected_ligand_instance": "A 263 ",
+            "site_offset_angstrom": 0.4900945859868376,
+            "source_url": "https://files.rcsb.org/download/1HVR.pdb",
+            "top_pose_rmsd_angstrom": 0.5148776764816382,
+            "vina_version": "1.2.7"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/2F12",
+            "artifact_sha256": {
+              "source.pdb": "64fb92f2902928cab1a505ed87079c6eb9e376d4d398eae877301ccc4d08dc8f"
+            },
+            "error": "grid does not cover site (offset 10.1 A)",
+            "essential": true,
+            "id": "2F12",
+            "ligand_resname": "HTM",
+            "observed_hetatm_resnames": [
+              "HOH",
+              "HTM",
+              "PO4"
+            ],
+            "passed": false,
+            "pdb": "2F12",
+            "runtime_s": 0.92,
+            "selected_ligand_atom_records": 19,
+            "selected_ligand_instance": "A1001 ",
+            "source_url": "https://files.rcsb.org/download/2F12.pdb"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/1GKC",
+            "artifact_sha256": {
+              "source.pdb": "495a00a7443f6d931da570a66ba1ffe0e0649a34e7f7735a65955bcb8dbd39a1"
+            },
+            "error": "grid does not cover site (offset 19.4 A)",
+            "essential": false,
+            "id": "1GKC",
+            "ligand_resname": "NFH",
+            "observed_hetatm_resnames": [
+              "CA",
+              "HOH",
+              "NFH",
+              "ZN"
+            ],
+            "passed": false,
+            "pdb": "1GKC",
+            "runtime_s": 0.83,
+            "selected_ligand_atom_records": 22,
+            "selected_ligand_instance": "A1448 ",
+            "source_url": "https://files.rcsb.org/download/1GKC.pdb"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/1OYT",
+            "artifact_sha256": {
+              "lig.pdb": "e89352ea8db094265705fb4f8be716c051aee104360b52b3c21ddcad8b23db8f",
+              "lig.pdbqt": "00b15be4e9916f712fd651b31487dea31faa225fa4977f3332552ab573ad880c",
+              "lig_ref.sdf": "0c75e7a4b23762a68fe12f92b51c44cab268e3b6da429f457c45533f32e5f01f",
+              "receptor.pdbqt": "7abb4274354614ab10069819a8e93e3795a27ddde7193f29b7518d00ce3fced8",
+              "source.pdb": "22d343aef7a42d7b355c05d0cae878ff579ff5a0d79162f7cd6e5053f18879bd",
+              "top_pose.pdbqt": "433f937ad063826710c3b499381792960a478f00badba5213c97d9626a0d4c24",
+              "top_pose.sdf": "c7aa841429116fe25ace018edc7b888644a2977c79bc2cf187495f565e2a88fc",
+              "vina.log": "4f7aa33457e34bcebd8c9959b0720ba22900a9874a8f31aec5f6c3995762852c",
+              "vina_output.pdbqt": "b95267d6b45c753a0f66149d11172a8b09187b76ecd6758eae3c07ea7101b70f",
+              "vina_output.sdf": "3731ede36f26d755323dd00b4f8ac4771074a284eefd2f3f8499c9e7c452c3eb"
+            },
+            "error": "Could not parse docked pose SDF",
+            "essential": false,
+            "id": "1OYT",
+            "ligand_resname": "FSN",
+            "observed_hetatm_resnames": [
+              "CA",
+              "FSN",
+              "HOH",
+              "NA",
+              "SIN"
+            ],
+            "passed": false,
+            "pdb": "1OYT",
+            "runtime_s": 53.92,
+            "selected_ligand_atom_records": 30,
+            "selected_ligand_instance": "H 501 ",
+            "source_url": "https://files.rcsb.org/download/1OYT.pdb"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/1UYG",
+            "artifact_sha256": {
+              "source.pdb": "bebffd75b618913bcdc1478dcd45de833c4dc93d3a341b5f065515ac87406985"
+            },
+            "error": "could not parse reference ligand SDF",
+            "essential": false,
+            "id": "1UYG",
+            "ligand_resname": "PU2",
+            "observed_hetatm_resnames": [
+              "HOH",
+              "PU2"
+            ],
+            "passed": false,
+            "pdb": "1UYG",
+            "runtime_s": 0.74,
+            "selected_ligand_atom_records": 22,
+            "selected_ligand_instance": "A1224 ",
+            "source_url": "https://files.rcsb.org/download/1UYG.pdb"
+          },
+          {
+            "affinity_kcal_mol": -6.179,
+            "artifact_directory": "artifacts/20261018T164229090836Z/2H4G",
+            "artifact_sha256": {
+              "lig.pdb": "2501b82741fc1e51c7bea7f65f20b414f15780da1cf533171a8cda0f850724fe",
+              "lig.pdbqt": "a59dd16e2e71fd57c408f8936a0a84540f4902948d575d8010b0fc423ef2a448",
+              "lig_ref.sdf": "6951f66327bccd1bd1b6b152acb8838821d8407a611e5bcfb8be0b46e0cbe846",
+              "receptor.pdbqt": "f6622312d64e13c49f9660d3f0cb5f113ee1f7acc3bb09d3af485a4d50097287",
+              "source.pdb": "985442cd7ca32cfbc69dd144d09c44a502fc11405ef53b826d08d4174888e8b6",
+              "top_pose.pdbqt": "5d966539dc5933017f76705969e3db2cd0842db81eae3d287248c163e76d4059",
+              "top_pose.sdf": "a8399be8dfc00fddf4b78376da17dbcbf230a18f776fb2016c23237e1bb163bf",
+              "top_pose_chemical_graph.sdf": "328808e8485022d4d6863632aefeb2c122ac1967c391940a604126d84707fba0",
+              "vina.log": "f48da219f5b3d461603899a7a723bf9df05619d7f0f4c8a2c2c7172c0875e9f3",
+              "vina_output.pdbqt": "657cd91fef4750deb1e4c1e74e2bc92482fa8dd7caba43f5d5beb7ed184a120d",
+              "vina_output.sdf": "77bf525d5bba3f3883de17a09f9a89a716d0a96370bdffd999e36c26ed4888f5"
+            },
+            "essential": false,
+            "exhaustiveness": 32,
+            "grid": {
+              "candidates": [
+                {
+                  "atom_count": 45,
+                  "center": [
+                    45.219,
+                    14.883,
+                    1.863
+                  ],
+                  "rank": 1,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 181
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 216
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 221
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 120
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 116
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 118
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 182
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TYR",
+                      "residue_number": 46
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 217
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 262
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 219
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 47
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 48
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "CYS",
+                      "residue_number": 215
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 220
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 266
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 49
+                    }
+                  ],
+                  "residues": [
+                    "ALA217:A",
+                    "ARG221:A",
+                    "ARG47:A",
+                    "ASP181:A",
+                    "ASP48:A",
+                    "CYS215:A",
+                    "GLN262:A",
+                    "GLN266:A",
+                    "GLY220:A",
+                    "ILE219:A",
+                    "LYS116:A",
+                    "LYS120:A",
+                    "PHE182:A",
+                    "SER118:A",
+                    "SER216:A",
+                    "TYR46:A",
+                    "VAL49:A"
+                  ],
+                  "size": [
+                    20.491,
+                    25.477,
+                    22.014
+                  ]
+                },
+                {
+                  "atom_count": 24,
+                  "center": [
+                    32.691,
+                    17.235,
+                    27.47
+                  ],
+                  "rank": 2,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 105
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 208
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 103
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 207
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 169
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 104
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 170
+                    }
+                  ],
+                  "residues": [
+                    "ARG105:A",
+                    "ARG169:A",
+                    "GLU170:A",
+                    "GLU207:A",
+                    "HIS208:A",
+                    "LYS103:A",
+                    "SER104:A"
+                  ],
+                  "size": [
+                    18.205,
+                    19.976,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 28,
+                  "center": [
+                    23.935,
+                    9.476,
+                    19.464
+                  ],
+                  "rank": 3,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 97
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 61
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 137
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 162
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 101
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 140
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 100
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 138
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 164
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 60
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 139
+                    }
+                  ],
+                  "residues": [
+                    "ASN139:A",
+                    "ASN162:A",
+                    "ASP137:A",
+                    "GLN61:A",
+                    "GLU101:A",
+                    "GLU97:A",
+                    "HIS60:A",
+                    "LEU140:A",
+                    "THR138:A",
+                    "THR164:A",
+                    "TRP100:A"
+                  ],
+                  "size": [
+                    19.683,
+                    19.245,
+                    18.818
+                  ]
+                },
+                {
+                  "atom_count": 17,
+                  "center": [
+                    27.723,
+                    24.672,
+                    25.423
+                  ],
+                  "rank": 4,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 145
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 159
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 157
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 169
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 170
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 158
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 168
+                    }
+                  ],
+                  "residues": [
+                    "ARG169:A",
+                    "GLN157:A",
+                    "GLU159:A",
+                    "GLU170:A",
+                    "ILE145:A",
+                    "LEU158:A",
+                    "THR168:A"
+                  ],
+                  "size": [
+                    16.111,
+                    18.825,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 24,
+                  "center": [
+                    25.751,
+                    16.755,
+                    8.896
+                  ],
+                  "rank": 5,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 123
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 122
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 89
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "CYS",
+                      "residue_number": 92
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 133
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 93
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 90
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 137
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 134
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 135
+                    }
+                  ],
+                  "residues": [
+                    "ALA122:A",
+                    "ASN90:A",
+                    "ASP137:A",
+                    "CYS92:A",
+                    "GLN123:A",
+                    "GLY93:A",
+                    "ILE134:A",
+                    "MET133:A",
+                    "PHE135:A",
+                    "PRO89:A"
+                  ],
+                  "size": [
+                    19.494,
+                    20.606,
+                    19.41
+                  ]
+                },
+                {
+                  "atom_count": 14,
+                  "center": [
+                    33.759,
+                    12.153,
+                    10.074
+                  ],
+                  "rank": 6,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 43
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 91
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 67
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 85
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 95
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 87
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 84
+                    }
+                  ],
+                  "residues": [
+                    "ARG43:A",
+                    "GLN85:A",
+                    "ILE67:A",
+                    "PHE95:A",
+                    "PRO87:A",
+                    "THR84:A",
+                    "THR91:A"
+                  ],
+                  "size": [
+                    16,
+                    16.377,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 24,
+                  "center": [
+                    49.147,
+                    6.273,
+                    26.815
+                  ],
+                  "rank": 7,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 75
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 73
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 256
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 74
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 78
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 80
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 79
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 252
+                    }
+                  ],
+                  "residues": [
+                    "ARG79:A",
+                    "GLN78:A",
+                    "GLU252:A",
+                    "GLU75:A",
+                    "LYS73:A",
+                    "MET74:A",
+                    "PHE256:A",
+                    "SER80:A"
+                  ],
+                  "size": [
+                    16.974,
+                    18.316,
+                    21.013
+                  ]
+                },
+                {
+                  "atom_count": 25,
+                  "center": [
+                    54.913,
+                    7.502,
+                    23
+                  ],
+                  "rank": 8,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 252
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 248
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 76
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 249
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 75
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 74
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 234
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 77
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 230
+                    }
+                  ],
+                  "residues": [
+                    "ALA77:A",
+                    "GLU252:A",
+                    "GLU75:A",
+                    "GLU76:A",
+                    "LEU234:A",
+                    "LYS248:A",
+                    "MET74:A",
+                    "THR230:A",
+                    "VAL249:A"
+                  ],
+                  "size": [
+                    19.109,
+                    18.734,
+                    17.341
+                  ]
+                },
+                {
+                  "atom_count": 18,
+                  "center": [
+                    63.559,
+                    7.387,
+                    13.418
+                  ],
+                  "rank": 9,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 245
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 248
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 247
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 251
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 26
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 23
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 22
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 19
+                    }
+                  ],
+                  "residues": [
+                    "ASP22:A",
+                    "ASP245:A",
+                    "GLU26:A",
+                    "ILE19:A",
+                    "ILE23:A",
+                    "LEU251:A",
+                    "LYS247:A",
+                    "LYS248:A"
+                  ],
+                  "size": [
+                    16,
+                    16.102,
+                    20.819
+                  ]
+                },
+                {
+                  "atom_count": 27,
+                  "center": [
+                    35.694,
+                    1.83,
+                    0.899
+                  ],
+                  "rank": 10,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 41
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 38
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 36
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 37
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 44
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 47
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 45
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 35
+                    }
+                  ],
+                  "residues": [
+                    "ALA35:A",
+                    "ARG45:A",
+                    "ARG47:A",
+                    "ASN44:A",
+                    "LEU37:A",
+                    "LYS36:A",
+                    "LYS41:A",
+                    "PRO38:A"
+                  ],
+                  "size": [
+                    19.159,
+                    23.07,
+                    16.586
+                  ]
+                },
+                {
+                  "atom_count": 16,
+                  "center": [
+                    52.606,
+                    3.369,
+                    7.079
+                  ],
+                  "rank": 11,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 29
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 24
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 27
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 25
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 28
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 262
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 259
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 258
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 254
+                    }
+                  ],
+                  "residues": [
+                    "ALA27:A",
+                    "ARG24:A",
+                    "ARG254:A",
+                    "ASP29:A",
+                    "GLN262:A",
+                    "GLY259:A",
+                    "HIS25:A",
+                    "MET258:A",
+                    "SER28:A"
+                  ],
+                  "size": [
+                    18.668,
+                    21.411,
+                    16.251
+                  ]
+                },
+                {
+                  "atom_count": 27,
+                  "center": [
+                    39.28,
+                    3.443,
+                    19.923
+                  ],
+                  "rank": 12,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 54
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 73
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 71
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 256
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 58
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 60
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 102
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 56
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 55
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ILE",
+                      "residue_number": 57
+                    }
+                  ],
+                  "residues": [
+                    "ARG56:A",
+                    "GLN102:A",
+                    "HIS54:A",
+                    "HIS60:A",
+                    "ILE57:A",
+                    "LEU71:A",
+                    "LYS58:A",
+                    "LYS73:A",
+                    "PHE256:A",
+                    "SER55:A"
+                  ],
+                  "size": [
+                    25.329,
+                    16.33,
+                    17.469
+                  ]
+                },
+                {
+                  "atom_count": 17,
+                  "center": [
+                    41.41,
+                    29.226,
+                    23.788
+                  ],
+                  "rank": 13,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 201
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 200
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 197
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 174
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 155
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 172
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 148
+                    }
+                  ],
+                  "residues": [
+                    "ASP148:A",
+                    "GLU200:A",
+                    "LEU172:A",
+                    "LYS197:A",
+                    "PHE174:A",
+                    "SER201:A",
+                    "VAL155:A"
+                  ],
+                  "size": [
+                    17.518,
+                    17.703,
+                    17.673
+                  ]
+                },
+                {
+                  "atom_count": 15,
+                  "center": [
+                    57.919,
+                    24.608,
+                    8.928
+                  ],
+                  "rank": 14,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 269
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 265
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 268
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 188
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 272
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 186
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 184
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 187
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 185
+                    }
+                  ],
+                  "residues": [
+                    "ARG268:A",
+                    "ASP265:A",
+                    "GLU186:A",
+                    "LEU272:A",
+                    "PHE269:A",
+                    "PRO185:A",
+                    "PRO188:A",
+                    "SER187:A",
+                    "VAL184:A"
+                  ],
+                  "size": [
+                    16.67,
+                    18.666,
+                    16.058
+                  ]
+                },
+                {
+                  "atom_count": 21,
+                  "center": [
+                    25.876,
+                    28.111,
+                    9.759
+                  ],
+                  "rank": 15,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 123
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 127
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 126
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 125
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 133
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 128
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 131
+                    }
+                  ],
+                  "residues": [
+                    "GLN123:A",
+                    "GLN127:A",
+                    "LYS128:A",
+                    "LYS131:A",
+                    "MET133:A",
+                    "PRO126:A",
+                    "TRP125:A"
+                  ],
+                  "size": [
+                    17.806,
+                    21.54,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 16,
+                  "center": [
+                    51.441,
+                    33.975,
+                    10.463
+                  ],
+                  "rank": 16,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 294
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 187
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 186
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 296
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 190
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 295
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TYR",
+                      "residue_number": 152
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 151
+                    }
+                  ],
+                  "residues": [
+                    "GLU186:A",
+                    "HIS296:A",
+                    "LEU294:A",
+                    "SER151:A",
+                    "SER187:A",
+                    "SER190:A",
+                    "SER295:A",
+                    "TYR152:A"
+                  ],
+                  "size": [
+                    18.378,
+                    16.481,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 18,
+                  "center": [
+                    42.953,
+                    13.09,
+                    26.863
+                  ],
+                  "rank": 17,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 80
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 79
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 204
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLY",
+                      "residue_number": 209
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 210
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 205
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 211
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "HIS",
+                      "residue_number": 208
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 206
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 78
+                    }
+                  ],
+                  "residues": [
+                    "ARG79:A",
+                    "GLN78:A",
+                    "GLY209:A",
+                    "HIS208:A",
+                    "LEU204:A",
+                    "PRO206:A",
+                    "PRO210:A",
+                    "SER205:A",
+                    "SER80:A",
+                    "VAL211:A"
+                  ],
+                  "size": [
+                    16.697,
+                    16.267,
+                    17.286
+                  ]
+                },
+                {
+                  "atom_count": 22,
+                  "center": [
+                    65.705,
+                    12.533,
+                    19.753
+                  ],
+                  "rank": 18,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 247
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 6
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 245
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 2
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 242
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 243
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 244
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "MET",
+                      "residue_number": 3
+                    }
+                  ],
+                  "residues": [
+                    "ASP245:A",
+                    "GLU2:A",
+                    "GLU6:A",
+                    "LYS247:A",
+                    "MET3:A",
+                    "SER242:A",
+                    "SER243:A",
+                    "VAL244:A"
+                  ],
+                  "size": [
+                    16,
+                    16.538,
+                    21.649
+                  ]
+                },
+                {
+                  "atom_count": 18,
+                  "center": [
+                    46.142,
+                    26.193,
+                    3.486
+                  ],
+                  "rank": 19,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 180
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 112
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 178
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 179
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 181
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 116
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "THR",
+                      "residue_number": 177
+                    }
+                  ],
+                  "residues": [
+                    "ARG112:A",
+                    "ASP181:A",
+                    "LYS116:A",
+                    "PRO180:A",
+                    "THR177:A",
+                    "THR178:A",
+                    "TRP179:A"
+                  ],
+                  "size": [
+                    16,
+                    17.209,
+                    18.887
+                  ]
+                },
+                {
+                  "atom_count": 15,
+                  "center": [
+                    48.615,
+                    13.611,
+                    30.471
+                  ],
+                  "rank": 20,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 204
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 78
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 79
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 206
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 233
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 237
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 77
+                    }
+                  ],
+                  "residues": [
+                    "ALA77:A",
+                    "ARG79:A",
+                    "GLN78:A",
+                    "LEU204:A",
+                    "LEU233:A",
+                    "LYS237:A",
+                    "PRO206:A"
+                  ],
+                  "size": [
+                    16.69,
+                    17.285,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 19,
+                  "center": [
+                    47.789,
+                    34.063,
+                    22.191
+                  ],
+                  "rank": 21,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 292
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASN",
+                      "residue_number": 193
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 197
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 200
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 288
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 289
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 297
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 150
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PHE",
+                      "residue_number": 196
+                    }
+                  ],
+                  "residues": [
+                    "ASN193:A",
+                    "ASP289:A",
+                    "GLN288:A",
+                    "GLU200:A",
+                    "GLU297:A",
+                    "LYS150:A",
+                    "LYS197:A",
+                    "LYS292:A",
+                    "PHE196:A"
+                  ],
+                  "size": [
+                    18.911,
+                    19.013,
+                    16
+                  ]
+                },
+                {
+                  "atom_count": 15,
+                  "center": [
+                    32.474,
+                    19.221,
+                    2.721
+                  ],
+                  "rank": 22,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 45
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 89
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 119
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 122
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "CYS",
+                      "residue_number": 121
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 123
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 113
+                    }
+                  ],
+                  "residues": [
+                    "ALA122:A",
+                    "ARG45:A",
+                    "CYS121:A",
+                    "GLN123:A",
+                    "LEU119:A",
+                    "PRO89:A",
+                    "VAL113:A"
+                  ],
+                  "size": [
+                    16,
+                    16.706,
+                    16.511
+                  ]
+                },
+                {
+                  "atom_count": 13,
+                  "center": [
+                    60.669,
+                    9.414,
+                    23.218
+                  ],
+                  "rank": 23,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ARG",
+                      "residue_number": 238
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 243
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 76
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "VAL",
+                      "residue_number": 249
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 234
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "ASP",
+                      "residue_number": 245
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 248
+                    }
+                  ],
+                  "residues": [
+                    "ARG238:A",
+                    "ASP245:A",
+                    "GLU76:A",
+                    "LEU234:A",
+                    "LYS248:A",
+                    "SER243:A",
+                    "VAL249:A"
+                  ],
+                  "size": [
+                    16,
+                    16,
+                    17.764
+                  ]
+                },
+                {
+                  "atom_count": 16,
+                  "center": [
+                    58.75,
+                    31.152,
+                    16.653
+                  ],
+                  "rank": 24,
+                  "residue_ids": [
+                    {
+                      "chain": "A",
+                      "residue_name": "ALA",
+                      "residue_number": 189
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "SER",
+                      "residue_number": 187
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LEU",
+                      "residue_number": 294
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "PRO",
+                      "residue_number": 188
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLU",
+                      "residue_number": 276
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "LYS",
+                      "residue_number": 279
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "GLN",
+                      "residue_number": 290
+                    },
+                    {
+                      "chain": "A",
+                      "residue_name": "TRP",
+                      "residue_number": 291
+                    }
+                  ],
+                  "residues": [
+                    "ALA189:A",
+                    "GLN290:A",
+                    "GLU276:A",
+                    "LEU294:A",
+                    "LYS279:A",
+                    "PRO188:A",
+                    "SER187:A",
+                    "TRP291:A"
+                  ],
+                  "size": [
+                    16.598,
+                    17.215,
+                    18.147
+                  ]
+                }
+              ],
+              "center": [
+                45.219,
+                14.883,
+                1.863
+              ],
+              "selected_rank": 1,
+              "size": [
+                20.491,
+                25.477,
+                22.014
+              ]
+            },
+            "id": "2H4G",
+            "ligand_resname": "694",
+            "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
+            "n_pose_models": 9,
+            "observed_hetatm_resnames": [
+              "694",
+              "HOH"
+            ],
+            "passed": false,
+            "pdb": "2H4G",
+            "runtime_s": 31.85,
+            "seed": 42,
+            "selected_ligand_atom_records": 21,
+            "selected_ligand_instance": "A 300 ",
+            "site_offset_angstrom": 1.3708573719538995,
+            "source_url": "https://files.rcsb.org/download/2H4G.pdb",
+            "top_pose_rmsd_angstrom": 7.366091769207125,
+            "vina_version": "1.2.7"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/1Q4T",
+            "artifact_sha256": {
+              "source.pdb": "e3cf9be0283c9340976d8e00a9fc8bfc020231c50075f21f2d5765bd64bacc4d"
+            },
+            "error": "grid does not cover site (offset 19.5 A)",
+            "essential": false,
+            "id": "1Q4T",
+            "ligand_resname": "4CO",
+            "observed_hetatm_resnames": [
+              "4CO",
+              "CL",
+              "EDO",
+              "HOH"
+            ],
+            "passed": false,
+            "pdb": "1Q4T",
+            "runtime_s": 0.98,
+            "selected_ligand_atom_records": 58,
+            "selected_ligand_instance": "A 370 ",
+            "source_url": "https://files.rcsb.org/download/1Q4T.pdb"
+          },
+          {
+            "artifact_directory": "artifacts/20261018T164229090836Z/1P62",
+            "artifact_sha256": {
+              "source.pdb": "2292457473c12633a4a78c1bfeee09984c5a336c9d0f291e29fc43071c282617"
+            },
+            "error": "grid does not cover site (offset 9.7 A)",
+            "essential": false,
+            "id": "1P62",
+            "ligand_resname": "GEO",
+            "observed_hetatm_resnames": [
+              "ADP",
+              "GEO",
+              "HOH",
+              "MG"
+            ],
+            "passed": false,
+            "pdb": "1P62",
+            "runtime_s": 0.7,
+            "selected_ligand_atom_records": 18,
+            "selected_ligand_instance": "B 302 ",
+            "source_url": "https://files.rcsb.org/download/1P62.pdb"
+          }
+        ],
+        "run_id": "20261018T164229090836Z",
+        "status": "failed",
+        "success_criteria": {
+          "essential_top_pose_success": true,
+          "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags).",
+          "panel_pass_threshold_frac": 0.7,
+          "per_complex_rmsd_threshold_angstrom": 2
+        },
+        "tool_versions": {
+          "fpocket_binary_sha256": "efef0bc0ec0c13ea6e0982a373adde6533b7987ff22a68a3d55b7986da7381b4",
+          "openbabel": "Open Babel 3.1.0 -- Feb 17 2026 -- 06:47:59",
+          "python": "3.12.15",
+          "rdkit": "2026.09.1",
+          "vina_binary_sha256": "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644"
+        }
+      },
+      "log_summary": [
+        "﻿2026-10-18T16:41:44.0515710Z Current runner version: '2.337.0'",
+        "2026-10-18T16:42:00.3909254Z 4 passed, 1 warning in 0.09s",
+        "2026-10-18T16:48:09.9688978Z REDOCK_EVIDENCE={\"benchmark\": \"bionexus-redock-panel/v1\", \"code_sha256\": {\"benchmark/fixtures/docking/run_redock_panel.py\": \"8a56216d9ced2916c4cd3bf455b22904fcc4fab4e804cacc93b79bf870843f64\", \"bioai-platform/backend/app/benchmarking/docking_redock.py\": \"5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb\", \"bioai-platform/backend/app/tools/docking.py\": \"deceb0760dd570f3eee59dd3db472a770b7cb413e8756fad378c19a088b8909b\"}, \"essential_passed\": true, \"executed_at_utc\": \"2026-10-18T16:48:09.951556+00:00\", \"fixture_revision\": \"2026-10-18-rcsb-identity-correction\", \"fixture_sha256\": \"060d464d3ab9d7f97b71ddfee030f32961c794c0d7adb6ed1bbd55ce469de461\", \"limitations\": [\"Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.\", \"Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.\", \"Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.\", \"Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass.\"], \"n_complexes\": 10, \"n_passed\": 2, \"passed_fraction\": 0.2, \"recorded\": \"2026-10-18\", \"results\": [{\"affinity_kcal_mol\": -6.328, \"artifact_directory\": \"artifacts/20261018T164229090836Z/1STP\", \"artifact_sha256\": {\"lig.pdb\": \"6243300bd6945395ade902611e8b80d169b29ba789193038abae957dee946359\", \"lig.pdbqt\": \"c33b187a489dd682af8adc46af4cb649cd261a88f9eaab913e4d8ae7860154c7\", \"lig_ref.sdf\": \"d822d075fd7a692933a47d57fac8cb49fda7f546af6ff3e6920a176250374f5c\", \"receptor.pdbqt\": \"c7d1ed4b18891d0572c4a5edda0bb5eb0548a216718bc33dd5c0a1aaa32dc523\", \"source.pdb\": \"6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30\", \"top_pose.pdbqt\": \"8fd392c368b9e6f52e146733ecbce512e310887c24aa14a15c09bb571affb213\", \"top_pose.sdf\": \"dd4e6a52baf16963791fbd8ee87cbba1ab8684ca90b66356296945f479a9c8ef\", \"top_pose_chemical_graph.sdf\": \"c171ae35a1875793a47f435e78a77402d7468739ebcaf23fcc6de817baeb9b87\", \"vina.log\": \"33dabc12c322197d76932419a923f955232a8d59d68e5f8ec1649af8ffa3d30e\", \"vina_output.pdbqt\": \"1170ab874e8f15ea02cf12dea333c33433dea215263125ddfb7c13ba70ae8a50\", \"vina_output.sdf\": \"7f9f1b02eaa9e69dde2036a5ad3c527ca3f36adee7c791851bb706d456a6921f\"}, \"essential\": true, \"exhaustiveness\": 32, \"grid\": {\"candidates\": [{\"atom_count\": 41, \"center\": [10.566, 2.844, -10.458], \"rank\": 1, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 88}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 49}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 86}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 112}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 47}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 110}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 108}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 45}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 124}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 48}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 92}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 90}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 25}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 79}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 50}, {\"chain\": \"A\", \"residue_name\": \"TYR\", \"residue_number\": 43}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 128}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 23}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 27}], \"residues\": [\"ALA50:A\", \"ALA86:A\", \"ASN23:A\", \"ASN49:A\", \"ASP128:A\", \"GLY48:A\", \"LEU110:A\", \"LEU124:A\", \"LEU25:A\", \"SER112:A\", \"SER27:A\", \"SER45:A\", \"SER88:A\", \"THR90:A\", \"TRP108:A\", \"TRP79:A\", \"TRP92:A\", \"TYR43:A\", \"VAL47:A\"], \"size\": [21.805, 21.514, 21.442]}, {\"atom_count\": 22, \"center\": [11.827, -0.471, 6.43], \"rank\": 2, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 94}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 95}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 72}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 106}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 105}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 93}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 107}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 70}], \"residues\": [\"ALA72:A\", \"ASN105:A\", \"GLN107:A\", \"GLN95:A\", \"GLY70:A\", \"GLY94:A\", \"SER93:A\", \"THR106:A\"], \"size\": [18.141, 17.204, 20.88]}, {\"atom_count\": 20, \"center\": [25.109, -5.082, 4.382], \"rank\": 3, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 131}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 133}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 132}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 101}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 102}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 100}, {\"chain\": \"A\", \"residue_name\": \"TYR\", \"residue_number\": 96}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 99}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 16}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 103}], \"residues\": [\"ALA100:A\", \"ALA102:A\", \"ARG103:A\", \"GLU101:A\", \"GLY16:A\", \"GLY99:A\", \"LYS132:A\", \"THR131:A\", \"TYR96:A\", \"VAL133:A\"], \"size\": [16.0, 20.899, 18.354]}, {\"atom_count\": 18, \"center\": [12.716, 8.958, 1.953], \"rank\": 4, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 59}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 74}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 93}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 92}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 91}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 75}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 76}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 58}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 57}], \"residues\": [\"ARG59:A\", \"GLY58:A\", \"GLY74:A\", \"SER93:A\", \"THR57:A\", \"THR76:A\", \"THR91:A\", \"TRP75:A\", \"TRP92:A\"], \"size\": [16.699, 17.627, 16.023]}], \"center\": [10.566, 2.844, -10.458], \"selected_rank\": 1, \"size\": [21.805, 21.514, 21.442]}, \"id\": \"1STP\", \"ligand_resname\": \"BTN\", \"metric\": \"RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)\", \"n_pose_models\": 9, \"observed_hetatm_resnames\": [\"BTN\", \"HOH\"], \"passed\": true, \"pdb\": \"1STP\", \"runtime_s\": 23.27, \"seed\": 42, \"selected_ligand_atom_records\": 16, \"selected_ligand_instance\": \"A 300 \", \"site_offset_angstrom\": 1.3217374780710047, \"source_url\": \"https://files.rcsb.org/download/1STP.pdb\", \"top_pose_rmsd_angstrom\": 0.8561054622533372, \"vina_version\": \"1.2.7\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/1IEP\", \"artifact_sha256\": {\"source.pdb\": \"577386b4b8bc58a570facba0c8a843386842caef5ed7b60106c685d0f68d4218\"}, \"error\": \"grid does not cover site (offset 59.0 A)\", \"essential\": true, \"id\": \"1IEP\", \"ligand_resname\": \"STI\", \"observed_hetatm_resnames\": [\"CL\", \"HOH\", \"STI\"], \"passed\": false, \"pdb\": \"1IEP\", \"runtime_s\": 1.56, \"selected_ligand_atom_records\": 37, \"selected_ligand_instance\": \"A 201 \", \"source_url\": \"https://files.rcsb.org/download/1IEP.pdb\"}, {\"affinity_kcal_mol\": -14.54, \"artifact_directory\": \"artifacts/20261018T164229090836Z/1HVR\", \"artifact_sha256\": {\"lig.pdb\": \"91dee43a9b689667660ad01608d6e265a5c989d1f36f9ae4bb76a3d454545627\", \"lig.pdbqt\": \"36cc530c95c6144612a6f58d086d0205dbdb97f74b176ebc320d11b0aa303536\", \"lig_ref.sdf\": \"9bf0dffc07c15062c89c396f481eb6b9d1544dd3f74bb31f371589d9176b37a5\", \"receptor.pdbqt\": \"56cbfdb7e8baf760df95454957adde796d9a3303413ed44a02652100c42699a1\", \"source.pdb\": \"c8d3f238d3269a66823454d4681b71467b4677a18751ce094047961620b338cb\", \"top_pose.pdbqt\": \"51912e6c2af3daed636b33bd589d6d42273e8ce9dbd88aadc497da907df8e15b\", \"top_pose.sdf\": \"c5208a0006a0260d10b9625512a4c53d25e72f66b597e8dc5fbb234632d1535b\", \"top_pose_chemical_graph.sdf\": \"f0407946bced5bddc9320bc56d2521a44cb3b3ff59d6b7b8f77526abc472606a\", \"vina.log\": \"d8541da3538db16130c98710c6178f1ce93ff140ee897ea69116f4b3173ee126\", \"vina_output.pdbqt\": \"c96b8941bb46e8b3d7075a54d9f4084360a1471aa706b43861642e450fdb6424\", \"vina_output.sdf\": \"be502c7ae95373586d08253e33bcefa8cbf2250a9590030cbeb327dcdad2721d\"}, \"essential\": true, \"exhaustiveness\": 32, \"grid\": {\"candidates\": [{\"atom_count\": 79, \"center\": [-8.762, 15.752, 28.125], \"rank\": 1, \"residue_ids\": [{\"chain\": \"B\", \"residue_name\": \"ILE\", \"residue_number\": 47}, {\"chain\": \"B\", \"residue_name\": \"GLY\", \"residue_number\": 48}, {\"chain\": \"B\", \"residue_name\": \"MET\", \"residue_number\": 46}, {\"chain\": \"B\", \"residue_name\": \"ALA\", \"residue_number\": 28}, {\"chain\": \"B\", \"residue_name\": \"ASP\", \"residue_number\": 30}, {\"chain\": \"B\", \"residue_name\": \"VAL\", \"residue_number\": 32}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 81}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 82}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 8}, {\"chain\": \"B\", \"residue_name\": \"ASP\", \"residue_number\": 29}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 50}, {\"chain\": \"B\", \"residue_name\": \"ILE\", \"residue_number\": 84}, {\"chain\": \"B\", \"residue_name\": \"ASP\", \"residue_number\": 25}, {\"chain\": \"B\", \"residue_name\": \"THR\", \"residue_number\": 80}, {\"chain\": \"B\", \"residue_name\": \"VAL\", \"residue_number\": 82}, {\"chain\": \"B\", \"residue_name\": \"PRO\", \"residue_number\": 81}, {\"chain\": \"B\", \"residue_name\": \"ILE\", \"residue_number\": 50}, {\"chain\": \"B\", \"residue_name\": \"LEU\", \"residue_number\": 76}, {\"chain\": \"B\", \"residue_name\": \"LEU\", \"residue_number\": 23}, {\"chain\": \"B\", \"residue_name\": \"GLY\", \"residue_number\": 49}, {\"chain\": \"B\", \"residue_name\": \"GLY\", \"residue_number\": 27}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 84}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 25}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 23}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 28}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 32}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 47}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 30}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 76}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 48}, {\"chain\": \"B\", \"residue_name\": \"ARG\", \"residue_number\": 8}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 27}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 49}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 29}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 45}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 46}], \"residues\": [\"ALA28:A\", \"ALA28:B\", \"ARG8:A\", \"ARG8:B\", \"ASP25:A\", \"ASP25:B\", \"ASP29:A\", \"ASP29:B\", \"ASP30:A\", \"ASP30:B\", \"GLY27:A\", \"GLY27:B\", \"GLY48:A\", \"GLY48:B\", \"GLY49:A\", \"GLY49:B\", \"ILE47:A\", \"ILE47:B\", \"ILE50:A\", \"ILE50:B\", \"ILE84:A\", \"ILE84:B\", \"LEU23:A\", \"LEU23:B\", \"LEU76:A\", \"LEU76:B\", \"LYS45:A\", \"MET46:A\", \"MET46:B\", \"PRO81:A\", \"PRO81:B\", \"THR80:B\", \"VAL32:A\", \"VAL32:B\", \"VAL82:A\", \"VAL82:B\"], \"size\": [26.95, 22.229, 32.0]}, {\"atom_count\": 25, \"center\": [0.017, 32.813, 36.536], \"rank\": 2, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 65}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 68}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 12}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 19}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 21}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 13}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 14}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 20}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 66}], \"residues\": [\"GLU21:A\", \"GLU65:A\", \"GLY68:A\", \"ILE13:A\", \"ILE66:A\", \"LEU19:A\", \"LYS14:A\", \"LYS20:A\", \"THR12:A\"], \"size\": [19.306, 17.911, 20.266]}, {\"atom_count\": 17, \"center\": [-19.996, 12.739, 27.578], \"rank\": 3, \"residue_ids\": [{\"chain\": \"B\", \"residue_name\": \"LEU\", \"residue_number\": 10}, {\"chain\": \"B\", \"residue_name\": \"VAL\", \"residue_number\": 82}, {\"chain\": \"B\", \"residue_name\": \"ARG\", \"residue_number\": 8}, {\"chain\": \"B\", \"residue_name\": \"GLU\", \"residue_number\": 34}, {\"chain\": \"B\", \"residue_name\": \"ASN\", \"residue_number\": 83}, {\"chain\": \"B\", \"residue_name\": \"PRO\", \"residue_number\": 81}, {\"chain\": \"B\", \"residue_name\": \"GLU\", \"residue_number\": 21}], \"residues\": [\"ARG8:B\", \"ASN83:B\", \"GLU21:B\", \"GLU34:B\", \"LEU10:B\", \"PRO81:B\", \"VAL82:B\"], \"size\": [16.458, 18.184, 20.132]}, {\"atom_count\": 11, \"center\": [-4.3, 7.961, 42.555], \"rank\": 4, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 44}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 55}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 46}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 45}], \"residues\": [\"LYS45:A\", \"LYS55:A\", \"MET46:A\", \"PRO44:A\"], \"size\": [16.0, 16.0, 16.0]}, {\"atom_count\": 18, \"center\": [-25.761, 14.286, 10.726], \"rank\": 5, \"residue_ids\": [{\"chain\": \"B\", \"residue_name\": \"LEU\", \"residue_number\": 63}, {\"chain\": \"B\", \"residue_name\": \"LYS\", \"residue_number\": 14}, {\"chain\": \"B\", \"residue_name\": \"GLU\", \"residue_number\": 65}, {\"chain\": \"B\", \"residue_name\": \"GLY\", \"residue_number\": 17}, {\"chain\": \"B\", \"residue_name\": \"ILE\", \"residue_number\": 62}, {\"chain\": \"B\", \"residue_name\": \"GLY\", \"residue_number\": 16}, {\"chain\": \"B\", \"residue_name\": \"PRO\", \"residue_number\": 39}, {\"chain\": \"B\", \"residue_name\": \"LEU\", \"residue_number\": 38}], \"residues\": [\"GLU65:B\", \"GLY16:B\", \"GLY17:B\", \"ILE62:B\", \"LEU38:B\", \"LEU63:B\", \"LYS14:B\", \"PRO39:B\"], \"size\": [21.637, 18.034, 16.0]}], \"center\": [-8.762, 15.752, 28.125], \"selected_rank\": 1, \"size\": [26.95, 22.229, 32.0]}, \"id\": \"1HVR\", \"ligand_resname\": \"XK2\", \"metric\": \"RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)\", \"n_pose_models\": 2, \"observed_hetatm_resnames\": [\"CSO\", \"XK2\"], \"passed\": true, \"pdb\": \"1HVR\", \"runtime_s\": 226.02, \"seed\": 42, \"selected_ligand_atom_records\": 46, \"selected_ligand_instance\": \"A 263 \", \"site_offset_angstrom\": 0.4900945859868376, \"source_url\": \"https://files.rcsb.org/download/1HVR.pdb\", \"top_pose_rmsd_angstrom\": 0.5148776764816382, \"vina_version\": \"1.2.7\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/2F12\", \"artifact_sha256\": {\"source.pdb\": \"64fb92f2902928cab1a505ed87079c6eb9e376d4d398eae877301ccc4d08dc8f\"}, \"error\": \"grid does not cover site (offset 10.1 A)\", \"essential\": true, \"id\": \"2F12\", \"ligand_resname\": \"HTM\", \"observed_hetatm_resnames\": [\"HOH\", \"HTM\", \"PO4\"], \"passed\": false, \"pdb\": \"2F12\", \"runtime_s\": 0.92, \"selected_ligand_atom_records\": 19, \"selected_ligand_instance\": \"A1001 \", \"source_url\": \"https://files.rcsb.org/download/2F12.pdb\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/1GKC\", \"artifact_sha256\": {\"source.pdb\": \"495a00a7443f6d931da570a66ba1ffe0e0649a34e7f7735a65955bcb8dbd39a1\"}, \"error\": \"grid does not cover site (offset 19.4 A)\", \"essential\": false, \"id\": \"1GKC\", \"ligand_resname\": \"NFH\", \"observed_hetatm_resnames\": [\"CA\", \"HOH\", \"NFH\", \"ZN\"], \"passed\": false, \"pdb\": \"1GKC\", \"runtime_s\": 0.83, \"selected_ligand_atom_records\": 22, \"selected_ligand_instance\": \"A1448 \", \"source_url\": \"https://files.rcsb.org/download/1GKC.pdb\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/1OYT\", \"artifact_sha256\": {\"lig.pdb\": \"e89352ea8db094265705fb4f8be716c051aee104360b52b3c21ddcad8b23db8f\", \"lig.pdbqt\": \"00b15be4e9916f712fd651b31487dea31faa225fa4977f3332552ab573ad880c\", \"lig_ref.sdf\": \"0c75e7a4b23762a68fe12f92b51c44cab268e3b6da429f457c45533f32e5f01f\", \"receptor.pdbqt\": \"7abb4274354614ab10069819a8e93e3795a27ddde7193f29b7518d00ce3fced8\", \"source.pdb\": \"22d343aef7a42d7b355c05d0cae878ff579ff5a0d79162f7cd6e5053f18879bd\", \"top_pose.pdbqt\": \"433f937ad063826710c3b499381792960a478f00badba5213c97d9626a0d4c24\", \"top_pose.sdf\": \"c7aa841429116fe25ace018edc7b888644a2977c79bc2cf187495f565e2a88fc\", \"vina.log\": \"4f7aa33457e34bcebd8c9959b0720ba22900a9874a8f31aec5f6c3995762852c\", \"vina_output.pdbqt\": \"b95267d6b45c753a0f66149d11172a8b09187b76ecd6758eae3c07ea7101b70f\", \"vina_output.sdf\": \"3731ede36f26d755323dd00b4f8ac4771074a284eefd2f3f8499c9e7c452c3eb\"}, \"error\": \"Could not parse docked pose SDF\", \"essential\": false, \"id\": \"1OYT\", \"ligand_resname\": \"FSN\", \"observed_hetatm_resnames\": [\"CA\", \"FSN\", \"HOH\", \"NA\", \"SIN\"], \"passed\": false, \"pdb\": \"1OYT\", \"runtime_s\": 53.92, \"selected_ligand_atom_records\": 30, \"selected_ligand_instance\": \"H 501 \", \"source_url\": \"https://files.rcsb.org/download/1OYT.pdb\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/1UYG\", \"artifact_sha256\": {\"source.pdb\": \"bebffd75b618913bcdc1478dcd45de833c4dc93d3a341b5f065515ac87406985\"}, \"error\": \"could not parse reference ligand SDF\", \"essential\": false, \"id\": \"1UYG\", \"ligand_resname\": \"PU2\", \"observed_hetatm_resnames\": [\"HOH\", \"PU2\"], \"passed\": false, \"pdb\": \"1UYG\", \"runtime_s\": 0.74, \"selected_ligand_atom_records\": 22, \"selected_ligand_instance\": \"A1224 \", \"source_url\": \"https://files.rcsb.org/download/1UYG.pdb\"}, {\"affinity_kcal_mol\": -6.179, \"artifact_directory\": \"artifacts/20261018T164229090836Z/2H4G\", \"artifact_sha256\": {\"lig.pdb\": \"2501b82741fc1e51c7bea7f65f20b414f15780da1cf533171a8cda0f850724fe\", \"lig.pdbqt\": \"a59dd16e2e71fd57c408f8936a0a84540f4902948d575d8010b0fc423ef2a448\", \"lig_ref.sdf\": \"6951f66327bccd1bd1b6b152acb8838821d8407a611e5bcfb8be0b46e0cbe846\", \"receptor.pdbqt\": \"f6622312d64e13c49f9660d3f0cb5f113ee1f7acc3bb09d3af485a4d50097287\", \"source.pdb\": \"985442cd7ca32cfbc69dd144d09c44a502fc11405ef53b826d08d4174888e8b6\", \"top_pose.pdbqt\": \"5d966539dc5933017f76705969e3db2cd0842db81eae3d287248c163e76d4059\", \"top_pose.sdf\": \"a8399be8dfc00fddf4b78376da17dbcbf230a18f776fb2016c23237e1bb163bf\", \"top_pose_chemical_graph.sdf\": \"328808e8485022d4d6863632aefeb2c122ac1967c391940a604126d84707fba0\", \"vina.log\": \"f48da219f5b3d461603899a7a723bf9df05619d7f0f4c8a2c2c7172c0875e9f3\", \"vina_output.pdbqt\": \"657cd91fef4750deb1e4c1e74e2bc92482fa8dd7caba43f5d5beb7ed184a120d\", \"vina_output.sdf\": \"77bf525d5bba3f3883de17a09f9a89a716d0a96370bdffd999e36c26ed4888f5\"}, \"essential\": false, \"exhaustiveness\": 32, \"grid\": {\"candidates\": [{\"atom_count\": 45, \"center\": [45.219, 14.883, 1.863], \"rank\": 1, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 181}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 216}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 221}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 120}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 116}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 118}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 182}, {\"chain\": \"A\", \"residue_name\": \"TYR\", \"residue_number\": 46}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 217}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 262}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 219}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 47}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 48}, {\"chain\": \"A\", \"residue_name\": \"CYS\", \"residue_number\": 215}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 220}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 266}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 49}], \"residues\": [\"ALA217:A\", \"ARG221:A\", \"ARG47:A\", \"ASP181:A\", \"ASP48:A\", \"CYS215:A\", \"GLN262:A\", \"GLN266:A\", \"GLY220:A\", \"ILE219:A\", \"LYS116:A\", \"LYS120:A\", \"PHE182:A\", \"SER118:A\", \"SER216:A\", \"TYR46:A\", \"VAL49:A\"], \"size\": [20.491, 25.477, 22.014]}, {\"atom_count\": 24, \"center\": [32.691, 17.235, 27.47], \"rank\": 2, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 105}, {\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 208}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 103}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 207}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 169}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 104}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 170}], \"residues\": [\"ARG105:A\", \"ARG169:A\", \"GLU170:A\", \"GLU207:A\", \"HIS208:A\", \"LYS103:A\", \"SER104:A\"], \"size\": [18.205, 19.976, 16.0]}, {\"atom_count\": 28, \"center\": [23.935, 9.476, 19.464], \"rank\": 3, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 97}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 61}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 137}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 162}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 101}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 140}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 100}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 138}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 164}, {\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 60}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 139}], \"residues\": [\"ASN139:A\", \"ASN162:A\", \"ASP137:A\", \"GLN61:A\", \"GLU101:A\", \"GLU97:A\", \"HIS60:A\", \"LEU140:A\", \"THR138:A\", \"THR164:A\", \"TRP100:A\"], \"size\": [19.683, 19.245, 18.818]}, {\"atom_count\": 17, \"center\": [27.723, 24.672, 25.423], \"rank\": 4, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 145}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 159}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 157}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 169}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 170}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 158}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 168}], \"residues\": [\"ARG169:A\", \"GLN157:A\", \"GLU159:A\", \"GLU170:A\", \"ILE145:A\", \"LEU158:A\", \"THR168:A\"], \"size\": [16.111, 18.825, 16.0]}, {\"atom_count\": 24, \"center\": [25.751, 16.755, 8.896], \"rank\": 5, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 123}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 122}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 89}, {\"chain\": \"A\", \"residue_name\": \"CYS\", \"residue_number\": 92}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 133}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 93}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 90}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 137}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 134}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 135}], \"residues\": [\"ALA122:A\", \"ASN90:A\", \"ASP137:A\", \"CYS92:A\", \"GLN123:A\", \"GLY93:A\", \"ILE134:A\", \"MET133:A\", \"PHE135:A\", \"PRO89:A\"], \"size\": [19.494, 20.606, 19.41]}, {\"atom_count\": 14, \"center\": [33.759, 12.153, 10.074], \"rank\": 6, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 43}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 91}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 67}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 85}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 95}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 87}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 84}], \"residues\": [\"ARG43:A\", \"GLN85:A\", \"ILE67:A\", \"PHE95:A\", \"PRO87:A\", \"THR84:A\", \"THR91:A\"], \"size\": [16.0, 16.377, 16.0]}, {\"atom_count\": 24, \"center\": [49.147, 6.273, 26.815], \"rank\": 7, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 75}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 73}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 256}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 74}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 78}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 80}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 79}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 252}], \"residues\": [\"ARG79:A\", \"GLN78:A\", \"GLU252:A\", \"GLU75:A\", \"LYS73:A\", \"MET74:A\", \"PHE256:A\", \"SER80:A\"], \"size\": [16.974, 18.316, 21.013]}, {\"atom_count\": 25, \"center\": [54.913, 7.502, 23.0], \"rank\": 8, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 252}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 248}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 76}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 249}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 75}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 74}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 234}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 77}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 230}], \"residues\": [\"ALA77:A\", \"GLU252:A\", \"GLU75:A\", \"GLU76:A\", \"LEU234:A\", \"LYS248:A\", \"MET74:A\", \"THR230:A\", \"VAL249:A\"], \"size\": [19.109, 18.734, 17.341]}, {\"atom_count\": 18, \"center\": [63.559, 7.387, 13.418], \"rank\": 9, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 245}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 248}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 247}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 251}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 26}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 23}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 22}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 19}], \"residues\": [\"ASP22:A\", \"ASP245:A\", \"GLU26:A\", \"ILE19:A\", \"ILE23:A\", \"LEU251:A\", \"LYS247:A\", \"LYS248:A\"], \"size\": [16.0, 16.102, 20.819]}, {\"atom_count\": 27, \"center\": [35.694, 1.83, 0.899], \"rank\": 10, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 41}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 38}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 36}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 37}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 44}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 47}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 45}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 35}], \"residues\": [\"ALA35:A\", \"ARG45:A\", \"ARG47:A\", \"ASN44:A\", \"LEU37:A\", \"LYS36:A\", \"LYS41:A\", \"PRO38:A\"], \"size\": [19.159, 23.07, 16.586]}, {\"atom_count\": 16, \"center\": [52.606, 3.369, 7.079], \"rank\": 11, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 29}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 24}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 27}, {\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 25}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 28}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 262}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 259}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 258}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 254}], \"residues\": [\"ALA27:A\", \"ARG24:A\", \"ARG254:A\", \"ASP29:A\", \"GLN262:A\", \"GLY259:A\", \"HIS25:A\", \"MET258:A\", \"SER28:A\"], \"size\": [18.668, 21.411, 16.251]}, {\"atom_count\": 27, \"center\": [39.28, 3.443, 19.923], \"rank\": 12, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 54}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 73}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 71}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 256}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 58}, {\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 60}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 102}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 56}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 55}, {\"chain\": \"A\", \"residue_name\": \"ILE\", \"residue_number\": 57}], \"residues\": [\"ARG56:A\", \"GLN102:A\", \"HIS54:A\", \"HIS60:A\", \"ILE57:A\", \"LEU71:A\", \"LYS58:A\", \"LYS73:A\", \"PHE256:A\", \"SER55:A\"], \"size\": [25.329, 16.33, 17.469]}, {\"atom_count\": 17, \"center\": [41.41, 29.226, 23.788], \"rank\": 13, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 201}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 200}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 197}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 174}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 155}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 172}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 148}], \"residues\": [\"ASP148:A\", \"GLU200:A\", \"LEU172:A\", \"LYS197:A\", \"PHE174:A\", \"SER201:A\", \"VAL155:A\"], \"size\": [17.518, 17.703, 17.673]}, {\"atom_count\": 15, \"center\": [57.919, 24.608, 8.928], \"rank\": 14, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 269}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 265}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 268}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 188}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 272}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 186}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 184}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 187}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 185}], \"residues\": [\"ARG268:A\", \"ASP265:A\", \"GLU186:A\", \"LEU272:A\", \"PHE269:A\", \"PRO185:A\", \"PRO188:A\", \"SER187:A\", \"VAL184:A\"], \"size\": [16.67, 18.666, 16.058]}, {\"atom_count\": 21, \"center\": [25.876, 28.111, 9.759], \"rank\": 15, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 123}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 127}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 126}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 125}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 133}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 128}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 131}], \"residues\": [\"GLN123:A\", \"GLN127:A\", \"LYS128:A\", \"LYS131:A\", \"MET133:A\", \"PRO126:A\", \"TRP125:A\"], \"size\": [17.806, 21.54, 16.0]}, {\"atom_count\": 16, \"center\": [51.441, 33.975, 10.463], \"rank\": 16, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 294}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 187}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 186}, {\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 296}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 190}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 295}, {\"chain\": \"A\", \"residue_name\": \"TYR\", \"residue_number\": 152}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 151}], \"residues\": [\"GLU186:A\", \"HIS296:A\", \"LEU294:A\", \"SER151:A\", \"SER187:A\", \"SER190:A\", \"SER295:A\", \"TYR152:A\"], \"size\": [18.378, 16.481, 16.0]}, {\"atom_count\": 18, \"center\": [42.953, 13.09, 26.863], \"rank\": 17, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 80}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 79}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 204}, {\"chain\": \"A\", \"residue_name\": \"GLY\", \"residue_number\": 209}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 210}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 205}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 211}, {\"chain\": \"A\", \"residue_name\": \"HIS\", \"residue_number\": 208}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 206}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 78}], \"residues\": [\"ARG79:A\", \"GLN78:A\", \"GLY209:A\", \"HIS208:A\", \"LEU204:A\", \"PRO206:A\", \"PRO210:A\", \"SER205:A\", \"SER80:A\", \"VAL211:A\"], \"size\": [16.697, 16.267, 17.286]}, {\"atom_count\": 22, \"center\": [65.705, 12.533, 19.753], \"rank\": 18, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 247}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 6}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 245}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 2}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 242}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 243}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 244}, {\"chain\": \"A\", \"residue_name\": \"MET\", \"residue_number\": 3}], \"residues\": [\"ASP245:A\", \"GLU2:A\", \"GLU6:A\", \"LYS247:A\", \"MET3:A\", \"SER242:A\", \"SER243:A\", \"VAL244:A\"], \"size\": [16.0, 16.538, 21.649]}, {\"atom_count\": 18, \"center\": [46.142, 26.193, 3.486], \"rank\": 19, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 180}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 112}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 178}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 179}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 181}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 116}, {\"chain\": \"A\", \"residue_name\": \"THR\", \"residue_number\": 177}], \"residues\": [\"ARG112:A\", \"ASP181:A\", \"LYS116:A\", \"PRO180:A\", \"THR177:A\", \"THR178:A\", \"TRP179:A\"], \"size\": [16.0, 17.209, 18.887]}, {\"atom_count\": 15, \"center\": [48.615, 13.611, 30.471], \"rank\": 20, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 204}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 78}, {\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 79}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 206}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 233}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 237}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 77}], \"residues\": [\"ALA77:A\", \"ARG79:A\", \"GLN78:A\", \"LEU204:A\", \"LEU233:A\", \"LYS237:A\", \"PRO206:A\"], \"size\": [16.69, 17.285, 16.0]}, {\"atom_count\": 19, \"center\": [47.789, 34.063, 22.191], \"rank\": 21, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 292}, {\"chain\": \"A\", \"residue_name\": \"ASN\", \"residue_number\": 193}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 197}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 200}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 288}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 289}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 297}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 150}, {\"chain\": \"A\", \"residue_name\": \"PHE\", \"residue_number\": 196}], \"residues\": [\"ASN193:A\", \"ASP289:A\", \"GLN288:A\", \"GLU200:A\", \"GLU297:A\", \"LYS150:A\", \"LYS197:A\", \"LYS292:A\", \"PHE196:A\"], \"size\": [18.911, 19.013, 16.0]}, {\"atom_count\": 15, \"center\": [32.474, 19.221, 2.721], \"rank\": 22, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 45}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 89}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 119}, {\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 122}, {\"chain\": \"A\", \"residue_name\": \"CYS\", \"residue_number\": 121}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 123}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 113}], \"residues\": [\"ALA122:A\", \"ARG45:A\", \"CYS121:A\", \"GLN123:A\", \"LEU119:A\", \"PRO89:A\", \"VAL113:A\"], \"size\": [16.0, 16.706, 16.511]}, {\"atom_count\": 13, \"center\": [60.669, 9.414, 23.218], \"rank\": 23, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ARG\", \"residue_number\": 238}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 243}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 76}, {\"chain\": \"A\", \"residue_name\": \"VAL\", \"residue_number\": 249}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 234}, {\"chain\": \"A\", \"residue_name\": \"ASP\", \"residue_number\": 245}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 248}], \"residues\": [\"ARG238:A\", \"ASP245:A\", \"GLU76:A\", \"LEU234:A\", \"LYS248:A\", \"SER243:A\", \"VAL249:A\"], \"size\": [16.0, 16.0, 17.764]}, {\"atom_count\": 16, \"center\": [58.75, 31.152, 16.653], \"rank\": 24, \"residue_ids\": [{\"chain\": \"A\", \"residue_name\": \"ALA\", \"residue_number\": 189}, {\"chain\": \"A\", \"residue_name\": \"SER\", \"residue_number\": 187}, {\"chain\": \"A\", \"residue_name\": \"LEU\", \"residue_number\": 294}, {\"chain\": \"A\", \"residue_name\": \"PRO\", \"residue_number\": 188}, {\"chain\": \"A\", \"residue_name\": \"GLU\", \"residue_number\": 276}, {\"chain\": \"A\", \"residue_name\": \"LYS\", \"residue_number\": 279}, {\"chain\": \"A\", \"residue_name\": \"GLN\", \"residue_number\": 290}, {\"chain\": \"A\", \"residue_name\": \"TRP\", \"residue_number\": 291}], \"residues\": [\"ALA189:A\", \"GLN290:A\", \"GLU276:A\", \"LEU294:A\", \"LYS279:A\", \"PRO188:A\", \"SER187:A\", \"TRP291:A\"], \"size\": [16.598, 17.215, 18.147]}], \"center\": [45.219, 14.883, 1.863], \"selected_rank\": 1, \"size\": [20.491, 25.477, 22.014]}, \"id\": \"2H4G\", \"ligand_resname\": \"694\", \"metric\": \"RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)\", \"n_pose_models\": 9, \"observed_hetatm_resnames\": [\"694\", \"HOH\"], \"passed\": false, \"pdb\": \"2H4G\", \"runtime_s\": 31.85, \"seed\": 42, \"selected_ligand_atom_records\": 21, \"selected_ligand_instance\": \"A 300 \", \"site_offset_angstrom\": 1.3708573719538995, \"source_url\": \"https://files.rcsb.org/download/2H4G.pdb\", \"top_pose_rmsd_angstrom\": 7.366091769207125, \"vina_version\": \"1.2.7\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/1Q4T\", \"artifact_sha256\": {\"source.pdb\": \"e3cf9be0283c9340976d8e00a9fc8bfc020231c50075f21f2d5765bd64bacc4d\"}, \"error\": \"grid does not cover site (offset 19.5 A)\", \"essential\": false, \"id\": \"1Q4T\", \"ligand_resname\": \"4CO\", \"observed_hetatm_resnames\": [\"4CO\", \"CL\", \"EDO\", \"HOH\"], \"passed\": false, \"pdb\": \"1Q4T\", \"runtime_s\": 0.98, \"selected_ligand_atom_records\": 58, \"selected_ligand_instance\": \"A 370 \", \"source_url\": \"https://files.rcsb.org/download/1Q4T.pdb\"}, {\"artifact_directory\": \"artifacts/20261018T164229090836Z/1P62\", \"artifact_sha256\": {\"source.pdb\": \"2292457473c12633a4a78c1bfeee09984c5a336c9d0f291e29fc43071c282617\"}, \"error\": \"grid does not cover site (offset 9.7 A)\", \"essential\": false, \"id\": \"1P62\", \"ligand_resname\": \"GEO\", \"observed_hetatm_resnames\": [\"ADP\", \"GEO\", \"HOH\", \"MG\"], \"passed\": false, \"pdb\": \"1P62\", \"runtime_s\": 0.7, \"selected_ligand_atom_records\": 18, \"selected_ligand_instance\": \"B 302 \", \"source_url\": \"https://files.rcsb.org/download/1P62.pdb\"}], \"run_id\": \"20261018T164229090836Z\", \"status\": \"failed\", \"success_criteria\": {\"essential_top_pose_success\": true, \"note\": \"A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags).\", \"panel_pass_threshold_frac\": 0.7, \"per_complex_rmsd_threshold_angstrom\": 2}, \"tool_versions\": {\"fpocket_binary_sha256\": \"efef0bc0ec0c13ea6e0982a373adde6533b7987ff22a68a3d55b7986da7381b4\", \"openbabel\": \"Open Babel 3.1.0 -- Feb 17 2026 -- 06:47:59\", \"python\": \"3.12.15\", \"rdkit\": \"2026.09.1\", \"vina_binary_sha256\": \"f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644\"}}"
+      ]
+    }
+  ]
+}
+

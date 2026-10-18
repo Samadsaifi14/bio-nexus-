@@ -1,0 +1,4225 @@
+{
+  "note": "Latest attempt per module; final fixture correction overrides 3 modules. Deadline modules have unknown uncompleted case totals. Not equivalent to the CI monolithic gate.",
+  "totals_completed_cases": {
+    "passed": 1345,
+    "error": 2,
+    "skipped": 20,
+    "failure": 4
+  },
+  "modules": [
+    {
+      "module": "test_admet_definitions.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_admet_definitions.xml",
+      "attempt": {
+        "module": "test_admet_definitions.py",
+        "started_at": "2026-10-18T16:40:36.007631+00:00",
+        "elapsed_seconds": 0.97,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_admet_definitions.xml",
+        "log": "test_admet_definitions.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_admet_definitions.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_admet_definitions.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_alignment_insights.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_alignment_insights.xml",
+      "attempt": {
+        "module": "test_alignment_insights.py",
+        "started_at": "2026-10-18T16:40:36.980124+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_alignment_insights.xml",
+        "log": "test_alignment_insights.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_alignment_insights.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_alignment_insights.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_alignment_pairwise.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 18
+      },
+      "evidence": "backend/test_alignment_pairwise.xml",
+      "attempt": {
+        "module": "test_alignment_pairwise.py",
+        "started_at": "2026-10-18T16:40:37.649241+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_alignment_pairwise.xml",
+        "log": "test_alignment_pairwise.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_alignment_pairwise.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_alignment_pairwise.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_alignment_stats.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_alignment_stats.xml",
+      "attempt": {
+        "module": "test_alignment_stats.py",
+        "started_at": "2026-10-18T16:40:38.417478+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_alignment_stats.xml",
+        "log": "test_alignment_stats.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_alignment_stats.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_alignment_stats.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_alignment_trim.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 20
+      },
+      "evidence": "backend/test_alignment_trim.xml",
+      "attempt": {
+        "module": "test_alignment_trim.py",
+        "started_at": "2026-10-18T16:40:39.085273+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_alignment_trim.xml",
+        "log": "test_alignment_trim.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_alignment_trim.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_alignment_trim.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_alphafold_pathway_engines.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 21
+      },
+      "evidence": "backend/test_alphafold_pathway_engines.xml",
+      "attempt": {
+        "module": "test_alphafold_pathway_engines.py",
+        "started_at": "2026-10-18T16:40:39.903694+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_alphafold_pathway_engines.xml",
+        "log": "test_alphafold_pathway_engines.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_alphafold_pathway_engines.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_alphafold_pathway_engines.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_annotated_sequence.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_annotated_sequence.xml",
+      "attempt": {
+        "module": "test_annotated_sequence.py",
+        "started_at": "2026-10-18T16:40:40.624421+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_annotated_sequence.xml",
+        "log": "test_annotated_sequence.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_annotated_sequence.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_annotated_sequence.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_admet_validity.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_audit_admet_validity.xml",
+      "attempt": {
+        "module": "test_audit_admet_validity.py",
+        "started_at": "2026-10-18T16:40:41.443712+00:00",
+        "elapsed_seconds": 1.12,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_admet_validity.xml",
+        "log": "test_audit_admet_validity.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_admet_validity.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_admet_validity.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_alignment_randomized.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_audit_alignment_randomized.xml",
+      "attempt": {
+        "module": "test_audit_alignment_randomized.py",
+        "started_at": "2026-10-18T16:40:42.562509+00:00",
+        "elapsed_seconds": 0.87,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_alignment_randomized.xml",
+        "log": "test_audit_alignment_randomized.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_alignment_randomized.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_alignment_randomized.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_blast_offline.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_audit_blast_offline.xml",
+      "attempt": {
+        "module": "test_audit_blast_offline.py",
+        "started_at": "2026-10-18T16:40:43.436209+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_blast_offline.xml",
+        "log": "test_audit_blast_offline.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_blast_offline.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_blast_offline.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_msa_randomized.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_audit_msa_randomized.xml",
+      "attempt": {
+        "module": "test_audit_msa_randomized.py",
+        "started_at": "2026-10-18T16:40:44.156609+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_msa_randomized.xml",
+        "log": "test_audit_msa_randomized.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_msa_randomized.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_msa_randomized.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_phylo_randomized.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10
+      },
+      "evidence": "backend/test_audit_phylo_randomized.xml",
+      "attempt": {
+        "module": "test_audit_phylo_randomized.py",
+        "started_at": "2026-10-18T16:40:44.875776+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_phylo_randomized.xml",
+        "log": "test_audit_phylo_randomized.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_phylo_randomized.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_phylo_randomized.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_sequence_randomized.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_audit_sequence_randomized.xml",
+      "attempt": {
+        "module": "test_audit_sequence_randomized.py",
+        "started_at": "2026-10-18T16:40:45.695916+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_sequence_randomized.xml",
+        "log": "test_audit_sequence_randomized.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_sequence_randomized.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_sequence_randomized.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_uniprot_cds.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_audit_uniprot_cds.xml",
+      "attempt": {
+        "module": "test_audit_uniprot_cds.py",
+        "started_at": "2026-10-18T16:40:46.465704+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_uniprot_cds.xml",
+        "log": "test_audit_uniprot_cds.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_uniprot_cds.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_uniprot_cds.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_audit_uniprot_schema.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 11
+      },
+      "evidence": "backend/test_audit_uniprot_schema.xml",
+      "attempt": {
+        "module": "test_audit_uniprot_schema.py",
+        "started_at": "2026-10-18T16:40:47.185642+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_audit_uniprot_schema.xml",
+        "log": "test_audit_uniprot_schema.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_audit_uniprot_schema.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_audit_uniprot_schema.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_auth.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 13
+      },
+      "evidence": "backend/test_auth.xml",
+      "attempt": {
+        "module": "test_auth.py",
+        "started_at": "2026-10-18T16:40:47.855567+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_auth.xml",
+        "log": "test_auth.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_auth.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_auth.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_bbs2_fixtures.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 19
+      },
+      "evidence": "backend/test_bbs2_fixtures.xml",
+      "attempt": {
+        "module": "test_bbs2_fixtures.py",
+        "started_at": "2026-10-18T16:40:48.525385+00:00",
+        "elapsed_seconds": 1.98,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_bbs2_fixtures.xml",
+        "log": "test_bbs2_fixtures.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_bbs2_fixtures.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_bbs2_fixtures.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_benchmark_registry_wiring.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 1
+      },
+      "evidence": "backend/test_benchmark_registry_wiring.xml",
+      "attempt": {
+        "module": "test_benchmark_registry_wiring.py",
+        "started_at": "2026-10-18T16:40:50.502382+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_benchmark_registry_wiring.xml",
+        "log": "test_benchmark_registry_wiring.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_benchmark_registry_wiring.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_benchmark_registry_wiring.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_benchmarks_compare.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 14
+      },
+      "evidence": "backend/test_benchmarks_compare.xml",
+      "attempt": {
+        "module": "test_benchmarks_compare.py",
+        "started_at": "2026-10-18T16:40:51.271493+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_benchmarks_compare.xml",
+        "log": "test_benchmarks_compare.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_benchmarks_compare.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_benchmarks_compare.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_config.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 17
+      },
+      "evidence": "backend/test_blast_config.xml",
+      "attempt": {
+        "module": "test_blast_config.py",
+        "started_at": "2026-10-18T16:40:51.889496+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_blast_config.xml",
+        "log": "test_blast_config.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_config.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_config.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10
+      },
+      "evidence": "backend/test_blast_engine.xml",
+      "attempt": {
+        "module": "test_blast_engine.py",
+        "started_at": "2026-10-18T16:40:52.557482+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_blast_engine.xml",
+        "log": "test_blast_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_false_denovo_guard.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 1
+      },
+      "evidence": "backend/test_blast_false_denovo_guard.xml",
+      "attempt": {
+        "module": "test_blast_false_denovo_guard.py",
+        "started_at": "2026-10-18T16:40:53.227742+00:00",
+        "elapsed_seconds": 0.78,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_blast_false_denovo_guard.xml",
+        "log": "test_blast_false_denovo_guard.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_false_denovo_guard.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_false_denovo_guard.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_parser_fidelity.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_blast_parser_fidelity.xml",
+      "attempt": {
+        "module": "test_blast_parser_fidelity.py",
+        "started_at": "2026-10-18T16:40:54.006659+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_blast_parser_fidelity.xml",
+        "log": "test_blast_parser_fidelity.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_parser_fidelity.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_parser_fidelity.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_program_matrix.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_blast_program_matrix.xml",
+      "attempt": {
+        "module": "test_blast_program_matrix.py",
+        "started_at": "2026-10-18T16:40:54.675589+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_blast_program_matrix.xml",
+        "log": "test_blast_program_matrix.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_program_matrix.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_program_matrix.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_resilience.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 30
+      },
+      "evidence": "backend/test_blast_resilience.xml",
+      "attempt": {
+        "module": "test_blast_resilience.py",
+        "started_at": "2026-10-18T16:40:55.395802+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_blast_resilience.xml",
+        "log": "test_blast_resilience.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_resilience.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_resilience.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_castp_provenance.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_castp_provenance.xml",
+      "attempt": {
+        "module": "test_castp_provenance.py",
+        "started_at": "2026-10-18T16:40:56.215925+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_castp_provenance.xml",
+        "log": "test_castp_provenance.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_castp_provenance.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_castp_provenance.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_dashboard.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_dashboard.xml",
+      "attempt": {
+        "module": "test_dashboard.py",
+        "started_at": "2026-10-18T16:40:56.933666+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_dashboard.xml",
+        "log": "test_dashboard.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_dashboard.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_dashboard.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_dataset_library.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_dataset_library.xml",
+      "attempt": {
+        "module": "test_dataset_library.py",
+        "started_at": "2026-10-18T16:40:57.606488+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_dataset_library.xml",
+        "log": "test_dataset_library.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_dataset_library.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_dataset_library.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_de_novo_branch.py",
+      "status": "BLOCKED: module deadline",
+      "counts": {},
+      "evidence": "backend-retry/missing.xml",
+      "attempt": {
+        "module": "test_de_novo_branch.py",
+        "started_at": "2026-10-18T16:50:27.498664+00:00",
+        "elapsed_seconds": 120.11,
+        "exit_code": -15,
+        "deadline_seconds": 120,
+        "deadline_exceeded": true,
+        "junit": null,
+        "log": "test_de_novo_branch.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_de_novo_branch.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_de_novo_branch.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_de_novo_branch"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_docking_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 14
+      },
+      "evidence": "backend/test_docking_engine.xml",
+      "attempt": {
+        "module": "test_docking_engine.py",
+        "started_at": "2026-10-18T16:42:58.340597+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_docking_engine.xml",
+        "log": "test_docking_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_docking_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_docking_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_docking_integrity.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 18
+      },
+      "evidence": "backend/test_docking_integrity.xml",
+      "attempt": {
+        "module": "test_docking_integrity.py",
+        "started_at": "2026-10-18T16:42:59.059669+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_docking_integrity.xml",
+        "log": "test_docking_integrity.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_docking_integrity.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_docking_integrity.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_docking_pose_analytics.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_docking_pose_analytics.xml",
+      "attempt": {
+        "module": "test_docking_pose_analytics.py",
+        "started_at": "2026-10-18T16:42:59.779710+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_docking_pose_analytics.xml",
+        "log": "test_docking_pose_analytics.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_docking_pose_analytics.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_docking_pose_analytics.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_docking_quality_repairs.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_docking_quality_repairs.xml",
+      "attempt": {
+        "module": "test_docking_quality_repairs.py",
+        "started_at": "2026-10-18T16:43:00.449456+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_docking_quality_repairs.xml",
+        "log": "test_docking_quality_repairs.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_docking_quality_repairs.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_docking_quality_repairs.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_docking_redock_benchmark.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_docking_redock_benchmark.xml",
+      "attempt": {
+        "module": "test_docking_redock_benchmark.py",
+        "started_at": "2026-10-18T16:43:01.117568+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_docking_redock_benchmark.xml",
+        "log": "test_docking_redock_benchmark.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_docking_redock_benchmark.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_docking_redock_benchmark.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_domains_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10
+      },
+      "evidence": "backend/test_domains_engine.xml",
+      "attempt": {
+        "module": "test_domains_engine.py",
+        "started_at": "2026-10-18T16:43:01.936225+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_domains_engine.xml",
+        "log": "test_domains_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_domains_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_domains_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ebi_msa.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_ebi_msa.xml",
+      "attempt": {
+        "module": "test_ebi_msa.py",
+        "started_at": "2026-10-18T16:43:02.655787+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ebi_msa.xml",
+        "log": "test_ebi_msa.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ebi_msa.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ebi_msa.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_enrichment_retry.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_enrichment_retry.xml",
+      "attempt": {
+        "module": "test_enrichment_retry.py",
+        "started_at": "2026-10-18T16:43:03.426243+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_enrichment_retry.xml",
+        "log": "test_enrichment_retry.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_enrichment_retry.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_enrichment_retry.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_evidence_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 12
+      },
+      "evidence": "backend/test_evidence_engine.xml",
+      "attempt": {
+        "module": "test_evidence_engine.py",
+        "started_at": "2026-10-18T16:43:04.197908+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_evidence_engine.xml",
+        "log": "test_evidence_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_evidence_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_evidence_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_evidence_graph_v3.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_evidence_graph_v3.xml",
+      "attempt": {
+        "module": "test_evidence_graph_v3.py",
+        "started_at": "2026-10-18T16:43:04.971072+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_evidence_graph_v3.xml",
+        "log": "test_evidence_graph_v3.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_evidence_graph_v3.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_evidence_graph_v3.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_experiment_provenance.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 24
+      },
+      "evidence": "backend/test_experiment_provenance.xml",
+      "attempt": {
+        "module": "test_experiment_provenance.py",
+        "started_at": "2026-10-18T16:43:05.741640+00:00",
+        "elapsed_seconds": 0.92,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_experiment_provenance.xml",
+        "log": "test_experiment_provenance.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_experiment_provenance.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_experiment_provenance.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_export_stamping.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_export_stamping.xml",
+      "attempt": {
+        "module": "test_export_stamping.py",
+        "started_at": "2026-10-18T16:43:06.662140+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_export_stamping.xml",
+        "log": "test_export_stamping.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_export_stamping.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_export_stamping.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_expression_remote_queue.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_expression_remote_queue.xml",
+      "attempt": {
+        "module": "test_expression_remote_queue.py",
+        "started_at": "2026-10-18T16:43:07.381802+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_expression_remote_queue.xml",
+        "log": "test_expression_remote_queue.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_expression_remote_queue.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_expression_remote_queue.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_feature_validation.py",
+      "status": "BLOCKED: module deadline",
+      "counts": {},
+      "evidence": "backend-retry/missing.xml",
+      "attempt": {
+        "module": "test_feature_validation.py",
+        "started_at": "2026-10-18T16:52:27.613597+00:00",
+        "elapsed_seconds": 300.02,
+        "exit_code": -15,
+        "deadline_seconds": 300,
+        "deadline_exceeded": true,
+        "junit": null,
+        "log": "test_feature_validation.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_feature_validation.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_feature_validation.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_feature_validation"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_figure_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_figure_engine.xml",
+      "attempt": {
+        "module": "test_figure_engine.py",
+        "started_at": "2026-10-18T16:45:38.841733+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_figure_engine.xml",
+        "log": "test_figure_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_figure_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_figure_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_figure_export.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_figure_export.xml",
+      "attempt": {
+        "module": "test_figure_export.py",
+        "started_at": "2026-10-18T16:45:39.559700+00:00",
+        "elapsed_seconds": 0.92,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_figure_export.xml",
+        "log": "test_figure_export.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_figure_export.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_figure_export.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_function_hints_background.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_function_hints_background.xml",
+      "attempt": {
+        "module": "test_function_hints_background.py",
+        "started_at": "2026-10-18T16:45:40.480364+00:00",
+        "elapsed_seconds": 0.87,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_function_hints_background.xml",
+        "log": "test_function_hints_background.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_function_hints_background.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_function_hints_background.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_function_research_grade.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 16
+      },
+      "evidence": "backend/test_function_research_grade.xml",
+      "attempt": {
+        "module": "test_function_research_grade.py",
+        "started_at": "2026-10-18T16:45:41.350256+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_function_research_grade.xml",
+        "log": "test_function_research_grade.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_function_research_grade.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_function_research_grade.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_fuzz_random.py",
+      "status": "BLOCKED: module deadline",
+      "counts": {},
+      "evidence": "backend-retry/missing.xml",
+      "attempt": {
+        "module": "test_fuzz_random.py",
+        "started_at": "2026-10-18T16:57:27.630430+00:00",
+        "elapsed_seconds": 120.02,
+        "exit_code": -15,
+        "deadline_seconds": 120,
+        "deadline_exceeded": true,
+        "junit": null,
+        "log": "test_fuzz_random.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_fuzz_random.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_fuzz_random.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_fuzz_random"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_gene_set_enrichment.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_gene_set_enrichment.xml",
+      "attempt": {
+        "module": "test_gene_set_enrichment.py",
+        "started_at": "2026-10-18T16:45:46.648452+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_gene_set_enrichment.xml",
+        "log": "test_gene_set_enrichment.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_gene_set_enrichment.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_gene_set_enrichment.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_geo_automatic.py",
+      "status": "FAIL/ERROR",
+      "counts": {
+        "passed": 12,
+        "error": 1
+      },
+      "evidence": "backend-retry/test_geo_automatic.xml",
+      "attempt": {
+        "module": "test_geo_automatic.py",
+        "started_at": "2026-10-18T16:59:27.646969+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 1,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_geo_automatic.xml",
+        "log": "test_geo_automatic.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_geo_automatic.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_geo_automatic.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_geo_automatic"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_geo_counts_import.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 14
+      },
+      "evidence": "backend-retry/test_geo_counts_import.xml",
+      "attempt": {
+        "module": "test_geo_counts_import.py",
+        "started_at": "2026-10-18T16:59:28.465498+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_geo_counts_import.xml",
+        "log": "test_geo_counts_import.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_geo_counts_import.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_geo_counts_import.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_geo_counts_import"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_geo_recovery.py",
+      "status": "FAIL/ERROR",
+      "counts": {
+        "passed": 4,
+        "error": 1
+      },
+      "evidence": "backend-retry/test_geo_recovery.xml",
+      "attempt": {
+        "module": "test_geo_recovery.py",
+        "started_at": "2026-10-18T16:59:29.233569+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 1,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_geo_recovery.xml",
+        "log": "test_geo_recovery.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_geo_recovery.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_geo_recovery.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_geo_recovery"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_geo_sample_matching.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 18
+      },
+      "evidence": "backend-retry/test_geo_sample_matching.xml",
+      "attempt": {
+        "module": "test_geo_sample_matching.py",
+        "started_at": "2026-10-18T16:59:30.056565+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_geo_sample_matching.xml",
+        "log": "test_geo_sample_matching.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_geo_sample_matching.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_geo_sample_matching.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_geo_sample_matching"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_geo_search.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend-retry/test_geo_search.xml",
+      "attempt": {
+        "module": "test_geo_search.py",
+        "started_at": "2026-10-18T16:59:30.825634+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_geo_search.xml",
+        "log": "test_geo_search.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_geo_search.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_geo_search.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_geo_search"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_hbb_case_study.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_hbb_case_study.xml",
+      "attempt": {
+        "module": "test_hbb_case_study.py",
+        "started_at": "2026-10-18T16:45:51.765836+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_hbb_case_study.xml",
+        "log": "test_hbb_case_study.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_hbb_case_study.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_hbb_case_study.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_identifier_resolution.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 30
+      },
+      "evidence": "backend-retry/test_identifier_resolution.xml",
+      "attempt": {
+        "module": "test_identifier_resolution.py",
+        "started_at": "2026-10-18T16:59:31.545575+00:00",
+        "elapsed_seconds": 3.68,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_identifier_resolution.xml",
+        "log": "test_identifier_resolution.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_identifier_resolution.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_identifier_resolution.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_identifier_resolution"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_interactions_contract.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_interactions_contract.xml",
+      "attempt": {
+        "module": "test_interactions_contract.py",
+        "started_at": "2026-10-18T16:45:56.218782+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_interactions_contract.xml",
+        "log": "test_interactions_contract.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_interactions_contract.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_interactions_contract.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_interpret_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10
+      },
+      "evidence": "backend/test_interpret_engine.xml",
+      "attempt": {
+        "module": "test_interpret_engine.py",
+        "started_at": "2026-10-18T16:45:56.987872+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_interpret_engine.xml",
+        "log": "test_interpret_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_interpret_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_interpret_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_interpret_stream_grounding.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_interpret_stream_grounding.xml",
+      "attempt": {
+        "module": "test_interpret_stream_grounding.py",
+        "started_at": "2026-10-18T16:45:57.607470+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_interpret_stream_grounding.xml",
+        "log": "test_interpret_stream_grounding.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_interpret_stream_grounding.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_interpret_stream_grounding.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_interpro_background_completion.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_interpro_background_completion.xml",
+      "attempt": {
+        "module": "test_interpro_background_completion.py",
+        "started_at": "2026-10-18T16:45:58.277783+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_interpro_background_completion.xml",
+        "log": "test_interpro_background_completion.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_interpro_background_completion.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_interpro_background_completion.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_intramolecular_contacts.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 15
+      },
+      "evidence": "backend/test_intramolecular_contacts.xml",
+      "attempt": {
+        "module": "test_intramolecular_contacts.py",
+        "started_at": "2026-10-18T16:45:59.096523+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_intramolecular_contacts.xml",
+        "log": "test_intramolecular_contacts.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_intramolecular_contacts.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_intramolecular_contacts.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_job_state.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 13
+      },
+      "evidence": "backend/test_job_state.xml",
+      "attempt": {
+        "module": "test_job_state.py",
+        "started_at": "2026-10-18T16:45:59.916464+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_job_state.xml",
+        "log": "test_job_state.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_job_state.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_job_state.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_lifespan_worker.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_lifespan_worker.xml",
+      "attempt": {
+        "module": "test_lifespan_worker.py",
+        "started_at": "2026-10-18T16:46:00.587323+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_lifespan_worker.xml",
+        "log": "test_lifespan_worker.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_lifespan_worker.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_lifespan_worker.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_live_analysis_progress.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "final-fixture-retry.xml",
+      "attempt": {
+        "module": "test_live_analysis_progress.py",
+        "started_at": "2026-10-18T16:59:35.223975+00:00",
+        "elapsed_seconds": 0.87,
+        "exit_code": 1,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_live_analysis_progress.xml",
+        "log": "test_live_analysis_progress.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_live_analysis_progress.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_live_analysis_progress.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_live_analysis_progress"
+        ],
+        "evidence_folder": "backend-retry",
+        "final_override": "final-fixture-retry.xml"
+      }
+    },
+    {
+      "module": "test_local_blast.py",
+      "status": "PASS",
+      "counts": {
+        "skipped": 9
+      },
+      "evidence": "backend/test_local_blast.xml",
+      "attempt": {
+        "module": "test_local_blast.py",
+        "started_at": "2026-10-18T16:46:02.128239+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_local_blast.xml",
+        "log": "test_local_blast.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_local_blast.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_local_blast.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_advanced_analysis.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_md_advanced_analysis.xml",
+      "attempt": {
+        "module": "test_md_advanced_analysis.py",
+        "started_at": "2026-10-18T16:46:02.797760+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_advanced_analysis.xml",
+        "log": "test_md_advanced_analysis.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_advanced_analysis.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_advanced_analysis.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_config.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10,
+        "skipped": 1
+      },
+      "evidence": "backend/test_md_config.xml",
+      "attempt": {
+        "module": "test_md_config.py",
+        "started_at": "2026-10-18T16:46:03.469996+00:00",
+        "elapsed_seconds": 16.41,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_config.xml",
+        "log": "test_md_config.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_config.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_config.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_convergence_statuses.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_md_convergence_statuses.xml",
+      "attempt": {
+        "module": "test_md_convergence_statuses.py",
+        "started_at": "2026-10-18T16:46:19.884264+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_convergence_statuses.xml",
+        "log": "test_md_convergence_statuses.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_convergence_statuses.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_convergence_statuses.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_md_engine.xml",
+      "attempt": {
+        "module": "test_md_engine.py",
+        "started_at": "2026-10-18T16:46:20.603976+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_engine.xml",
+        "log": "test_md_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_sim_unit.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 36
+      },
+      "evidence": "backend/test_md_sim_unit.xml",
+      "attempt": {
+        "module": "test_md_sim_unit.py",
+        "started_at": "2026-10-18T16:46:21.273924+00:00",
+        "elapsed_seconds": 18.47,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_sim_unit.xml",
+        "log": "test_md_sim_unit.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_sim_unit.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_sim_unit.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_v2.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_md_v2.xml",
+      "attempt": {
+        "module": "test_md_v2.py",
+        "started_at": "2026-10-18T16:46:39.743060+00:00",
+        "elapsed_seconds": 63.03,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_v2.xml",
+        "log": "test_md_v2.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_v2.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_v2.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_md_v2_sync_budget.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_md_v2_sync_budget.xml",
+      "attempt": {
+        "module": "test_md_v2_sync_budget.py",
+        "started_at": "2026-10-18T16:47:42.774441+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_md_v2_sync_budget.xml",
+        "log": "test_md_v2_sync_budget.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_md_v2_sync_budget.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_md_v2_sync_budget.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_msa_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 12
+      },
+      "evidence": "backend/test_msa_engine.xml",
+      "attempt": {
+        "module": "test_msa_engine.py",
+        "started_at": "2026-10-18T16:47:43.493828+00:00",
+        "elapsed_seconds": 0.57,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_msa_engine.xml",
+        "log": "test_msa_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_msa_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_msa_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ncbi_wallclock_budget.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_ncbi_wallclock_budget.xml",
+      "attempt": {
+        "module": "test_ncbi_wallclock_budget.py",
+        "started_at": "2026-10-18T16:47:44.063730+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ncbi_wallclock_budget.xml",
+        "log": "test_ncbi_wallclock_budget.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ncbi_wallclock_budget.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ncbi_wallclock_budget.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_annotation_research_grade.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_ngs_annotation_research_grade.xml",
+      "attempt": {
+        "module": "test_ngs_annotation_research_grade.py",
+        "started_at": "2026-10-18T16:47:44.687243+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_annotation_research_grade.xml",
+        "log": "test_ngs_annotation_research_grade.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_annotation_research_grade.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_annotation_research_grade.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_demo_downloads.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_ngs_demo_downloads.xml",
+      "attempt": {
+        "module": "test_ngs_demo_downloads.py",
+        "started_at": "2026-10-18T16:47:45.355816+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_demo_downloads.xml",
+        "log": "test_ngs_demo_downloads.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_demo_downloads.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_demo_downloads.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_demo_readiness_regression.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_ngs_demo_readiness_regression.xml",
+      "attempt": {
+        "module": "test_ngs_demo_readiness_regression.py",
+        "started_at": "2026-10-18T16:47:46.126055+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_demo_readiness_regression.xml",
+        "log": "test_ngs_demo_readiness_regression.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_demo_readiness_regression.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_demo_readiness_regression.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_ngs_engine.xml",
+      "attempt": {
+        "module": "test_ngs_engine.py",
+        "started_at": "2026-10-18T16:47:46.795848+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_engine.xml",
+        "log": "test_ngs_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_execution_evidence.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 11
+      },
+      "evidence": "backend/test_ngs_execution_evidence.xml",
+      "attempt": {
+        "module": "test_ngs_execution_evidence.py",
+        "started_at": "2026-10-18T16:47:47.466132+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_execution_evidence.xml",
+        "log": "test_ngs_execution_evidence.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_execution_evidence.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_execution_evidence.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_guided_pipeline.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_ngs_guided_pipeline.xml",
+      "attempt": {
+        "module": "test_ngs_guided_pipeline.py",
+        "started_at": "2026-10-18T16:47:48.286591+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_guided_pipeline.xml",
+        "log": "test_ngs_guided_pipeline.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_guided_pipeline.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_guided_pipeline.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_lecture_contracts.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 19
+      },
+      "evidence": "backend/test_ngs_lecture_contracts.xml",
+      "attempt": {
+        "module": "test_ngs_lecture_contracts.py",
+        "started_at": "2026-10-18T16:47:48.904395+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_lecture_contracts.xml",
+        "log": "test_ngs_lecture_contracts.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_lecture_contracts.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_lecture_contracts.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_paired_preview.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_ngs_paired_preview.xml",
+      "attempt": {
+        "module": "test_ngs_paired_preview.py",
+        "started_at": "2026-10-18T16:47:49.624271+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_paired_preview.xml",
+        "log": "test_ngs_paired_preview.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_paired_preview.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_paired_preview.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_platform.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 77
+      },
+      "evidence": "backend/test_ngs_platform.xml",
+      "attempt": {
+        "module": "test_ngs_platform.py",
+        "started_at": "2026-10-18T16:47:50.347339+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_platform.xml",
+        "log": "test_ngs_platform.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_platform.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_platform.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_production_execution.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_ngs_production_execution.xml",
+      "attempt": {
+        "module": "test_ngs_production_execution.py",
+        "started_at": "2026-10-18T16:47:51.118241+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_production_execution.xml",
+        "log": "test_ngs_production_execution.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_production_execution.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_production_execution.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_security_boundaries.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_ngs_security_boundaries.xml",
+      "attempt": {
+        "module": "test_ngs_security_boundaries.py",
+        "started_at": "2026-10-18T16:47:51.838202+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_security_boundaries.xml",
+        "log": "test_ngs_security_boundaries.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_security_boundaries.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_security_boundaries.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_ngs_v2_router.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 13
+      },
+      "evidence": "backend/test_ngs_v2_router.xml",
+      "attempt": {
+        "module": "test_ngs_v2_router.py",
+        "started_at": "2026-10-18T16:47:52.657227+00:00",
+        "elapsed_seconds": 2.88,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_ngs_v2_router.xml",
+        "log": "test_ngs_v2_router.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_ngs_v2_router.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_ngs_v2_router.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_page_capture_synthesis.py",
+      "status": "FAIL/ERROR",
+      "counts": {
+        "passed": 8,
+        "failure": 2
+      },
+      "evidence": "backend-retry/test_page_capture_synthesis.xml",
+      "attempt": {
+        "module": "test_page_capture_synthesis.py",
+        "started_at": "2026-10-18T16:59:36.094093+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 1,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_page_capture_synthesis.xml",
+        "log": "test_page_capture_synthesis.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_page_capture_synthesis.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_page_capture_synthesis.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_page_capture_synthesis"
+        ],
+        "evidence_folder": "backend-retry"
+      }
+    },
+    {
+      "module": "test_paper_artifacts.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_paper_artifacts.xml",
+      "attempt": {
+        "module": "test_paper_artifacts.py",
+        "started_at": "2026-10-18T16:47:56.208145+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_paper_artifacts.xml",
+        "log": "test_paper_artifacts.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_paper_artifacts.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_paper_artifacts.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_pathway_enrichment_research_grade.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_pathway_enrichment_research_grade.xml",
+      "attempt": {
+        "module": "test_pathway_enrichment_research_grade.py",
+        "started_at": "2026-10-18T16:47:56.928282+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_pathway_enrichment_research_grade.xml",
+        "log": "test_pathway_enrichment_research_grade.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_pathway_enrichment_research_grade.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_pathway_enrichment_research_grade.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_phylo_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 12
+      },
+      "evidence": "backend/test_phylo_engine.xml",
+      "attempt": {
+        "module": "test_phylo_engine.py",
+        "started_at": "2026-10-18T16:47:57.598081+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_phylo_engine.xml",
+        "log": "test_phylo_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_phylo_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_phylo_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_phylo_insights.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_phylo_insights.xml",
+      "attempt": {
+        "module": "test_phylo_insights.py",
+        "started_at": "2026-10-18T16:47:58.218478+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_phylo_insights.xml",
+        "log": "test_phylo_insights.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_phylo_insights.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_phylo_insights.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_phylo_ml_runner.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_phylo_ml_runner.xml",
+      "attempt": {
+        "module": "test_phylo_ml_runner.py",
+        "started_at": "2026-10-18T16:47:58.938359+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_phylo_ml_runner.xml",
+        "log": "test_phylo_ml_runner.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_phylo_ml_runner.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_phylo_ml_runner.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_plugin_system.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_plugin_system.xml",
+      "attempt": {
+        "module": "test_plugin_system.py",
+        "started_at": "2026-10-18T16:47:59.658617+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_plugin_system.xml",
+        "log": "test_plugin_system.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_plugin_system.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_plugin_system.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_pocket_detection.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_pocket_detection.xml",
+      "attempt": {
+        "module": "test_pocket_detection.py",
+        "started_at": "2026-10-18T16:48:00.331503+00:00",
+        "elapsed_seconds": 0.87,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_pocket_detection.xml",
+        "log": "test_pocket_detection.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_pocket_detection.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_pocket_detection.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_primer_advanced.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_primer_advanced.xml",
+      "attempt": {
+        "module": "test_primer_advanced.py",
+        "started_at": "2026-10-18T16:48:01.202617+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_primer_advanced.xml",
+        "log": "test_primer_advanced.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_primer_advanced.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_primer_advanced.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_primer_binding.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 13
+      },
+      "evidence": "backend/test_primer_binding.xml",
+      "attempt": {
+        "module": "test_primer_binding.py",
+        "started_at": "2026-10-18T16:48:01.871934+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_primer_binding.xml",
+        "log": "test_primer_binding.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_primer_binding.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_primer_binding.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_primers_qc.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 21
+      },
+      "evidence": "backend/test_primers_qc.xml",
+      "attempt": {
+        "module": "test_primers_qc.py",
+        "started_at": "2026-10-18T16:48:02.692872+00:00",
+        "elapsed_seconds": 0.92,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_primers_qc.xml",
+        "log": "test_primers_qc.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_primers_qc.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_primers_qc.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_protox.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 14
+      },
+      "evidence": "backend/test_protox.xml",
+      "attempt": {
+        "module": "test_protox.py",
+        "started_at": "2026-10-18T16:48:03.612937+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_protox.xml",
+        "log": "test_protox.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_protox.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_protox.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_publication_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_publication_engine.xml",
+      "attempt": {
+        "module": "test_publication_engine.py",
+        "started_at": "2026-10-18T16:48:04.332402+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_publication_engine.xml",
+        "log": "test_publication_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_publication_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_publication_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_redock_native_artifact.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_redock_native_artifact.xml",
+      "attempt": {
+        "module": "test_redock_native_artifact.py",
+        "started_at": "2026-10-18T16:48:04.951960+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_redock_native_artifact.xml",
+        "log": "test_redock_native_artifact.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_redock_native_artifact.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_redock_native_artifact.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_redock_runner.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_redock_runner.xml",
+      "attempt": {
+        "module": "test_redock_runner.py",
+        "started_at": "2026-10-18T16:48:05.672236+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_redock_runner.xml",
+        "log": "test_redock_runner.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_redock_runner.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_redock_runner.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_reproducibility.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 7
+      },
+      "evidence": "backend/test_reproducibility.xml",
+      "attempt": {
+        "module": "test_reproducibility.py",
+        "started_at": "2026-10-18T16:48:06.394208+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_reproducibility.xml",
+        "log": "test_reproducibility.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_reproducibility.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_reproducibility.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_restriction_map.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_restriction_map.xml",
+      "attempt": {
+        "module": "test_restriction_map.py",
+        "started_at": "2026-10-18T16:48:07.064665+00:00",
+        "elapsed_seconds": 0.87,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_restriction_map.xml",
+        "log": "test_restriction_map.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_restriction_map.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_restriction_map.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_designs_r.py",
+      "status": "PASS",
+      "counts": {
+        "skipped": 7
+      },
+      "evidence": "backend/test_rnaseq_designs_r.xml",
+      "attempt": {
+        "module": "test_rnaseq_designs_r.py",
+        "started_at": "2026-10-18T16:48:07.934832+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_designs_r.xml",
+        "log": "test_rnaseq_designs_r.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_designs_r.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_designs_r.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_durable_recovery.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 19
+      },
+      "evidence": "final-fixture-retry.xml",
+      "attempt": {
+        "module": "test_rnaseq_durable_recovery.py",
+        "started_at": "2026-10-18T16:59:36.763238+00:00",
+        "elapsed_seconds": 1.08,
+        "exit_code": 1,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_durable_recovery.xml",
+        "log": "test_rnaseq_durable_recovery.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_durable_recovery.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_rnaseq_durable_recovery.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_rnaseq_durable_recovery"
+        ],
+        "evidence_folder": "backend-retry",
+        "final_override": "final-fixture-retry.xml"
+      }
+    },
+    {
+      "module": "test_rnaseq_exploration.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3,
+        "skipped": 1
+      },
+      "evidence": "backend/test_rnaseq_exploration.xml",
+      "attempt": {
+        "module": "test_rnaseq_exploration.py",
+        "started_at": "2026-10-18T16:48:09.531057+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_exploration.xml",
+        "log": "test_rnaseq_exploration.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_exploration.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_exploration.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_expression_contract.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_rnaseq_expression_contract.xml",
+      "attempt": {
+        "module": "test_rnaseq_expression_contract.py",
+        "started_at": "2026-10-18T16:48:10.199982+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_expression_contract.xml",
+        "log": "test_rnaseq_expression_contract.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_expression_contract.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_expression_contract.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_expression_source_boundary.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 2
+      },
+      "evidence": "backend/test_rnaseq_expression_source_boundary.xml",
+      "attempt": {
+        "module": "test_rnaseq_expression_source_boundary.py",
+        "started_at": "2026-10-18T16:48:10.818302+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_expression_source_boundary.xml",
+        "log": "test_rnaseq_expression_source_boundary.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_expression_source_boundary.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_expression_source_boundary.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_input_provenance.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 19
+      },
+      "evidence": "backend/test_rnaseq_input_provenance.xml",
+      "attempt": {
+        "module": "test_rnaseq_input_provenance.py",
+        "started_at": "2026-10-18T16:48:11.438171+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_input_provenance.xml",
+        "log": "test_rnaseq_input_provenance.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_input_provenance.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_input_provenance.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_production.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_rnaseq_production.xml",
+      "attempt": {
+        "module": "test_rnaseq_production.py",
+        "started_at": "2026-10-18T16:48:12.110198+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_production.xml",
+        "log": "test_rnaseq_production.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_production.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_production.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_recovery_r.py",
+      "status": "PASS",
+      "counts": {
+        "skipped": 2
+      },
+      "evidence": "backend/test_rnaseq_recovery_r.xml",
+      "attempt": {
+        "module": "test_rnaseq_recovery_r.py",
+        "started_at": "2026-10-18T16:48:12.830227+00:00",
+        "elapsed_seconds": 0.63,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_recovery_r.xml",
+        "log": "test_rnaseq_recovery_r.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_recovery_r.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_recovery_r.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_rnaseq_regression_harness.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_rnaseq_regression_harness.xml",
+      "attempt": {
+        "module": "test_rnaseq_regression_harness.py",
+        "started_at": "2026-10-18T16:48:13.456899+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_rnaseq_regression_harness.xml",
+        "log": "test_rnaseq_regression_harness.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_rnaseq_regression_harness.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_rnaseq_regression_harness.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_scanprosite.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_scanprosite.xml",
+      "attempt": {
+        "module": "test_scanprosite.py",
+        "started_at": "2026-10-18T16:48:14.126524+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_scanprosite.xml",
+        "log": "test_scanprosite.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_scanprosite.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_scanprosite.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_scientific_contract.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 14
+      },
+      "evidence": "backend/test_scientific_contract.xml",
+      "attempt": {
+        "module": "test_scientific_contract.py",
+        "started_at": "2026-10-18T16:48:14.796341+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_scientific_contract.xml",
+        "log": "test_scientific_contract.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_scientific_contract.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_scientific_contract.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_scientific_foundation_v2.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 11
+      },
+      "evidence": "backend/test_scientific_foundation_v2.xml",
+      "attempt": {
+        "module": "test_scientific_foundation_v2.py",
+        "started_at": "2026-10-18T16:48:15.417307+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_scientific_foundation_v2.xml",
+        "log": "test_scientific_foundation_v2.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_scientific_foundation_v2.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_scientific_foundation_v2.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_scientific_hardening_p0.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10
+      },
+      "evidence": "backend/test_scientific_hardening_p0.xml",
+      "attempt": {
+        "module": "test_scientific_hardening_p0.py",
+        "started_at": "2026-10-18T16:48:16.086213+00:00",
+        "elapsed_seconds": 1.47,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_scientific_hardening_p0.xml",
+        "log": "test_scientific_hardening_p0.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_scientific_hardening_p0.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_scientific_hardening_p0.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_scientific_result_consensus.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_scientific_result_consensus.xml",
+      "attempt": {
+        "module": "test_scientific_result_consensus.py",
+        "started_at": "2026-10-18T16:48:17.558902+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_scientific_result_consensus.xml",
+        "log": "test_scientific_result_consensus.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_scientific_result_consensus.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_scientific_result_consensus.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_seq_tools.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 48
+      },
+      "evidence": "backend/test_seq_tools.xml",
+      "attempt": {
+        "module": "test_seq_tools.py",
+        "started_at": "2026-10-18T16:48:18.228214+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_seq_tools.xml",
+        "log": "test_seq_tools.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_seq_tools.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_seq_tools.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_sequence_utils_property.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 16
+      },
+      "evidence": "backend/test_sequence_utils_property.xml",
+      "attempt": {
+        "module": "test_sequence_utils_property.py",
+        "started_at": "2026-10-18T16:48:19.046799+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_sequence_utils_property.xml",
+        "log": "test_sequence_utils_property.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_sequence_utils_property.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_sequence_utils_property.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_sequencing_contract.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_sequencing_contract.xml",
+      "attempt": {
+        "module": "test_sequencing_contract.py",
+        "started_at": "2026-10-18T16:48:19.816826+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_sequencing_contract.xml",
+        "log": "test_sequencing_contract.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_sequencing_contract.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_sequencing_contract.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_smoke_admet.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 26
+      },
+      "evidence": "backend/test_smoke_admet.xml",
+      "attempt": {
+        "module": "test_smoke_admet.py",
+        "started_at": "2026-10-18T16:48:20.536370+00:00",
+        "elapsed_seconds": 1.22,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_smoke_admet.xml",
+        "log": "test_smoke_admet.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_smoke_admet.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_smoke_admet.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_smoke_docking.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_smoke_docking.xml",
+      "attempt": {
+        "module": "test_smoke_docking.py",
+        "started_at": "2026-10-18T16:48:21.758952+00:00",
+        "elapsed_seconds": 0.92,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_smoke_docking.xml",
+        "log": "test_smoke_docking.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_smoke_docking.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_smoke_docking.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_smoke_function_predict.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_smoke_function_predict.xml",
+      "attempt": {
+        "module": "test_smoke_function_predict.py",
+        "started_at": "2026-10-18T16:48:22.682441+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_smoke_function_predict.xml",
+        "log": "test_smoke_function_predict.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_smoke_function_predict.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_smoke_function_predict.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_smoke_md.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 10
+      },
+      "evidence": "backend/test_smoke_md.xml",
+      "attempt": {
+        "module": "test_smoke_md.py",
+        "started_at": "2026-10-18T16:48:23.506902+00:00",
+        "elapsed_seconds": 17.22,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_smoke_md.xml",
+        "log": "test_smoke_md.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_smoke_md.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_smoke_md.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_stats_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 13
+      },
+      "evidence": "backend/test_stats_engine.xml",
+      "attempt": {
+        "module": "test_stats_engine.py",
+        "started_at": "2026-10-18T16:48:40.727069+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_stats_engine.xml",
+        "log": "test_stats_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_stats_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_stats_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_structure_export.py",
+      "status": "FAIL",
+      "counts": {
+        "passed": 10,
+        "failure": 2
+      },
+      "evidence": "final-fixture-retry.xml",
+      "attempt": {
+        "module": "test_structure_export.py",
+        "started_at": "2026-10-18T16:59:37.839220+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 1,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_structure_export.xml",
+        "log": "test_structure_export.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_structure_export.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/test_structure_export.xml",
+          "--basetemp=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend-retry/work/test_structure_export"
+        ],
+        "evidence_folder": "backend-retry",
+        "final_override": "final-fixture-retry.xml"
+      }
+    },
+    {
+      "module": "test_structure_insights.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_structure_insights.xml",
+      "attempt": {
+        "module": "test_structure_insights.py",
+        "started_at": "2026-10-18T16:48:42.268877+00:00",
+        "elapsed_seconds": 0.77,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_structure_insights.xml",
+        "log": "test_structure_insights.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_structure_insights.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_structure_insights.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_structure_metric_missingness.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 3
+      },
+      "evidence": "backend/test_structure_metric_missingness.xml",
+      "attempt": {
+        "module": "test_structure_metric_missingness.py",
+        "started_at": "2026-10-18T16:48:43.038567+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_structure_metric_missingness.xml",
+        "log": "test_structure_metric_missingness.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_structure_metric_missingness.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_structure_metric_missingness.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_structure_prep_validation.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 25
+      },
+      "evidence": "backend/test_structure_prep_validation.xml",
+      "attempt": {
+        "module": "test_structure_prep_validation.py",
+        "started_at": "2026-10-18T16:48:43.758437+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_structure_prep_validation.xml",
+        "log": "test_structure_prep_validation.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_structure_prep_validation.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_structure_prep_validation.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_tool_interpreter.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_tool_interpreter.xml",
+      "attempt": {
+        "module": "test_tool_interpreter.py",
+        "started_at": "2026-10-18T16:48:44.428396+00:00",
+        "elapsed_seconds": 0.68,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_tool_interpreter.xml",
+        "log": "test_tool_interpreter.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_tool_interpreter.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_tool_interpreter.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_uniprot_engine.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 9
+      },
+      "evidence": "backend/test_uniprot_engine.xml",
+      "attempt": {
+        "module": "test_uniprot_engine.py",
+        "started_at": "2026-10-18T16:48:45.107400+00:00",
+        "elapsed_seconds": 0.72,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_uniprot_engine.xml",
+        "log": "test_uniprot_engine.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_uniprot_engine.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_uniprot_engine.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_uniprot_search.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_uniprot_search.xml",
+      "attempt": {
+        "module": "test_uniprot_search.py",
+        "started_at": "2026-10-18T16:48:45.828384+00:00",
+        "elapsed_seconds": 0.73,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_uniprot_search.xml",
+        "log": "test_uniprot_search.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_uniprot_search.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_uniprot_search.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_validation_boundaries.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_validation_boundaries.xml",
+      "attempt": {
+        "module": "test_validation_boundaries.py",
+        "started_at": "2026-10-18T16:48:46.557808+00:00",
+        "elapsed_seconds": 0.62,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_validation_boundaries.xml",
+        "log": "test_validation_boundaries.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_validation_boundaries.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_validation_boundaries.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_verification_matrix.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 5
+      },
+      "evidence": "backend/test_verification_matrix.xml",
+      "attempt": {
+        "module": "test_verification_matrix.py",
+        "started_at": "2026-10-18T16:48:47.178498+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_verification_matrix.xml",
+        "log": "test_verification_matrix.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_verification_matrix.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_verification_matrix.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_vina_log.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 20
+      },
+      "evidence": "backend/test_vina_log.xml",
+      "attempt": {
+        "module": "test_vina_log.py",
+        "started_at": "2026-10-18T16:48:47.848152+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_vina_log.xml",
+        "log": "test_vina_log.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_vina_log.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_vina_log.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_worker_claim.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 8
+      },
+      "evidence": "backend/test_worker_claim.xml",
+      "attempt": {
+        "module": "test_worker_claim.py",
+        "started_at": "2026-10-18T16:48:48.518478+00:00",
+        "elapsed_seconds": 0.67,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_worker_claim.xml",
+        "log": "test_worker_claim.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_worker_claim.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_worker_claim.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_workflow_collections.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 19
+      },
+      "evidence": "backend/test_workflow_collections.xml",
+      "attempt": {
+        "module": "test_workflow_collections.py",
+        "started_at": "2026-10-18T16:48:49.188553+00:00",
+        "elapsed_seconds": 0.82,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_workflow_collections.xml",
+        "log": "test_workflow_collections.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_workflow_collections.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_workflow_collections.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_workflow_manifest.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 4
+      },
+      "evidence": "backend/test_workflow_manifest.xml",
+      "attempt": {
+        "module": "test_workflow_manifest.py",
+        "started_at": "2026-10-18T16:48:50.008899+00:00",
+        "elapsed_seconds": 0.87,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_workflow_manifest.xml",
+        "log": "test_workflow_manifest.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_workflow_manifest.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_workflow_manifest.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_workflow_replay.py",
+      "status": "PASS",
+      "counts": {
+        "passed": 6
+      },
+      "evidence": "backend/test_workflow_replay.xml",
+      "attempt": {
+        "module": "test_workflow_replay.py",
+        "started_at": "2026-10-18T16:48:50.879723+00:00",
+        "elapsed_seconds": 0.88,
+        "exit_code": 0,
+        "deadline_seconds": 120,
+        "deadline_exceeded": false,
+        "junit": "test_workflow_replay.xml",
+        "log": "test_workflow_replay.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_workflow_replay.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_workflow_replay.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    },
+    {
+      "module": "test_blast_comprehensive.py",
+      "status": "BLOCKED: module deadline",
+      "counts": {},
+      "evidence": "backend/missing.xml",
+      "attempt": {
+        "module": "test_blast_comprehensive.py",
+        "started_at": "2026-10-18T16:48:51.758094+00:00",
+        "elapsed_seconds": 900.01,
+        "exit_code": -15,
+        "deadline_seconds": 900,
+        "deadline_exceeded": true,
+        "junit": null,
+        "log": "test_blast_comprehensive.log",
+        "command": [
+          "/workspace/scratch/7a02479db0c3/audit-venv/bin/python",
+          "-m",
+          "pytest",
+          "tests/test_blast_comprehensive.py",
+          "-vv",
+          "--disable-warnings",
+          "--timeout=90",
+          "--timeout-method=signal",
+          "--junitxml=/workspace/scratch/7a02479db0c3/bionexus/docs/audits/2026-10-18-recheck/backend/test_blast_comprehensive.xml"
+        ],
+        "evidence_folder": "backend"
+      }
+    }
+  ]
+}

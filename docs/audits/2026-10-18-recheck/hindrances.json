@@ -1,0 +1,116 @@
+[
+  {
+    "id": "DOCK-01",
+    "status": "P1 / OPEN",
+    "area": "Docking and pockets",
+    "evidence_and_next_step": "Redocking remains 2/10. First-pocket site offsets: 1IEP 59.0 \u00c5; 2F12 10.1 \u00c5; 1GKC 19.4 \u00c5; 1Q4T 19.5 \u00c5; 1P62 9.7 \u00c5. Correct site selection and rerun the unchanged panel."
+  },
+  {
+    "id": "DOCK-02",
+    "status": "P1 / OPEN",
+    "area": "Docking",
+    "evidence_and_next_step": "1OYT docked SDF and 1UYG reference SDF could not be parsed. Repair chemical conversion, retaining failed artifacts."
+  },
+  {
+    "id": "DOCK-03",
+    "status": "P1 / OPEN",
+    "area": "Docking",
+    "evidence_and_next_step": "2H4G top-mode RMSD 7.366 \u00c5 fails 2 \u00c5 criterion. Passing cases: 1STP 0.856 \u00c5 and 1HVR 0.515 \u00c5. No threshold was relaxed."
+  },
+  {
+    "id": "AI-01",
+    "status": "P2 / OPEN",
+    "area": "Interpretation",
+    "evidence_and_next_step": "Live TP53 explanation warns that count 12 cannot be traced, although 12 partners are displayed. Investigate derived-count grounding; biological correctness is not established by successful generation."
+  },
+  {
+    "id": "SEC-01",
+    "status": "P1 / OPEN",
+    "area": "Pairwise \u2192 dot plot",
+    "evidence_and_next_step": "Bridge embeds full sequences in seq_a/seq_b URL parameters. Public p53 fixtures exposed the mechanism; no private-data disclosure was established. Replace with an opaque run reference or payload transfer."
+  },
+  {
+    "id": "ADMET-01",
+    "status": "P1 / OPEN",
+    "area": "ADMET",
+    "evidence_and_next_step": "Selecting Caffeine changes input but leaves Aspirin C9H8O4 / 180.16 results visible. Example handler only calls setSmiles; clear or explicitly label previous results when input changes."
+  },
+  {
+    "id": "CHART-01",
+    "status": "P2 / OPEN",
+    "area": "ADMET",
+    "evidence_and_next_step": "Generic Min vs Value scatter mixes six radar descriptors with different units and lacks descriptor labels/normalization. Use a descriptor-aware plot."
+  },
+  {
+    "id": "PPI-01",
+    "status": "P2 / OPEN",
+    "area": "PPI",
+    "evidence_and_next_step": "UI says STRING native 0\u20131000 scores were normalized, while adapter preserves REST confidence on 0\u20131. Correct displayed provenance."
+  },
+  {
+    "id": "UI-01",
+    "status": "P3 / OPEN",
+    "area": "PPI, pairwise, ADMET",
+    "evidence_and_next_step": "Generic result footer discusses docking score/displacement charts on unrelated tools. Render tool-specific help."
+  },
+  {
+    "id": "PLOT-01",
+    "status": "P2 / OPEN",
+    "area": "RNA-seq exports",
+    "evidence_and_next_step": "Native expression and sample-distance PNGs have colliding legends and clipped condition labels. PCA labels also crowd. Inspect all export formats after layout repair."
+  },
+  {
+    "id": "DATA-01",
+    "status": "QC WARNING / REVIEW",
+    "area": "RNA-seq GSE336901",
+    "evidence_and_next_step": "Library size spread is 270.654\u00d7 (45,116\u201312,210,825); size factors 0.0457\u201310.032; 5 samples/group. UI warnings are present. Review depth/outliers and design; a completed run is not biological validation."
+  },
+  {
+    "id": "PROV-01",
+    "status": "VALIDATION GAP",
+    "area": "Uploaded teaching counts",
+    "evidence_and_next_step": "Checksum and arithmetic match the teaching fixture; independent raw-read provenance and a fresh full uploaded-matrix DESeq2 fit were not established."
+  },
+  {
+    "id": "METHOD-01",
+    "status": "DISCLOSED DIFFERENCE",
+    "area": "RNA-seq",
+    "evidence_and_next_step": "Implementation uses DESeq2 normal-prior shrinkage; lecture mentions apeglm. These methods are not interchangeable. UI discloses its method."
+  },
+  {
+    "id": "PROVIDER-01",
+    "status": "BLOCKED / OPEN",
+    "area": "Remote BLAST",
+    "evidence_and_next_step": "Fresh full CI: 4 failures (2 timeouts and 2 reliability/loop assertions); NCBI queue estimates 8,530\u20138,703 seconds. Native Swiss-Prot 8/8 controls passed; they do not close remote reliability failures."
+  },
+  {
+    "id": "ENV-01",
+    "status": "BLOCKED / OPEN",
+    "area": "Local suite",
+    "evidence_and_next_step": "Monolithic run stalled and was interrupted (130). All 140 modules were subsequently attempted with OS deadlines. Deadline modules: test_de_novo_branch.py, test_feature_validation.py, test_fuzz_random.py, test_blast_comprehensive.py. Unfinished cases are not passes."
+  },
+  {
+    "id": "ENV-02",
+    "status": "RESOLVED / RETESTED",
+    "area": "Local proxy",
+    "evidence_and_next_step": "Installed missing socksio via httpx[socks]. Retried affected modules; retained original failures and later outcomes."
+  },
+  {
+    "id": "ENV-03",
+    "status": "RESOLVED SETUP; DNS OPEN",
+    "area": "Local fixture/export checks",
+    "evidence_and_next_step": "Created missing basetemp parent and reran 3 modules: 33 passed, 2 structure-export failures. SSRF hostname resolution blocks those 2 checks. Page-capture DNS failures also remain. No SSRF guard was disabled."
+  },
+  {
+    "id": "ENV-04",
+    "status": "LOCAL BLOCKER; REMOTE SUBSET PASS",
+    "area": "R runtime",
+    "evidence_and_next_step": "Rscript absent locally; apt installation denied setgroups/seteuid/setegid. Native remote R/DESeq2/GO known-answer and 221-gene SALS fixture checks passed. This does not establish a fresh full uploaded-matrix fit."
+  },
+  {
+    "id": "SCOPE-01",
+    "status": "UNVERIFIED / PER FEATURE",
+    "area": "All roadmap items",
+    "evidence_and_next_step": "Every row below lists remaining scope. Page rendering, mocked contracts and native positive controls do not certify all competitor capabilities, clinical validity, commercial licensing or live cross-tenant authorization."
+  }
+]

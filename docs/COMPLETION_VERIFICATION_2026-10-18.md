@@ -50,3 +50,7 @@ The newer full audit at ae77 is run 39066715514. Its actual final outcome must b
 - Long MD/convergence, production-scale RNA-seq/variant truth-set execution and matched competitor benchmarks remain bounded by their separate contracts in SCIENTIFIC_ROADMAP_STATUS.md. No all-feature parity, experimental accuracy or clinical validation claim is made.
 
 This is an evidence hand-off, not an assertion that all requested work is complete.
+
+## Later full recheck
+
+The workspace became available on 18 October. All 25 pages, interpretation, all four lecture decks and the attached counts were inspected; fresh CI and native/live checks were rerun. See [the per-feature report and hindrance register](audits/2026-10-18-recheck/REPORT.md). The earlier disconnected-workspace statement above is historical. Fresh full CI finished with 1,537 passed, 4 failed, 40 skipped; docking remains 2/10.

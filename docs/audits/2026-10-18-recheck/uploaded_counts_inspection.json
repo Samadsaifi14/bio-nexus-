@@ -1,0 +1,113 @@
+{
+  "counts_sha256": "b7a9736672a6cebfdeea78dd151f5c764b058537cac09aeb0256cbfb7123dc08",
+  "dimensions": [
+    22085,
+    18
+  ],
+  "sample_groups": {
+    "healthy": 8,
+    "SALS": 10
+  },
+  "finite": true,
+  "nonnegative": true,
+  "integer_cells": true,
+  "duplicate_gene_ids": 0,
+  "all_zero_genes": 0,
+  "zero_cell_fraction": 0.023799461675848364,
+  "genes_kept_count10_samples8": 20169,
+  "zero_free_genes_before_filter": 19491,
+  "sample_statistics": [
+    {
+      "sample": "Cer_healthy1",
+      "library_size": 30901516,
+      "median_log_ratio_size_factor_after_filter": 0.8910644529214594
+    },
+    {
+      "sample": "Cer_healthy2",
+      "library_size": 35837469,
+      "median_log_ratio_size_factor_after_filter": 1.1961223200850124
+    },
+    {
+      "sample": "Cer_healthy3",
+      "library_size": 35348190,
+      "median_log_ratio_size_factor_after_filter": 1.2761978839147552
+    },
+    {
+      "sample": "Cer_healthy4",
+      "library_size": 34900700,
+      "median_log_ratio_size_factor_after_filter": 1.2277942069608057
+    },
+    {
+      "sample": "Cer_healthy5",
+      "library_size": 35417054,
+      "median_log_ratio_size_factor_after_filter": 1.2821440627775413
+    },
+    {
+      "sample": "Cer_healthy6",
+      "library_size": 34466780,
+      "median_log_ratio_size_factor_after_filter": 1.1464503565602486
+    },
+    {
+      "sample": "Cer_healthy7",
+      "library_size": 28779755,
+      "median_log_ratio_size_factor_after_filter": 0.7912508538490075
+    },
+    {
+      "sample": "Cer_healthy8",
+      "library_size": 37325494,
+      "median_log_ratio_size_factor_after_filter": 1.2097885959256551
+    },
+    {
+      "sample": "Cer_SALS1",
+      "library_size": 23968815,
+      "median_log_ratio_size_factor_after_filter": 0.8314010542757895
+    },
+    {
+      "sample": "Cer_SALS2",
+      "library_size": 26119948,
+      "median_log_ratio_size_factor_after_filter": 0.8978456174625392
+    },
+    {
+      "sample": "Cer_SALS3",
+      "library_size": 39421430,
+      "median_log_ratio_size_factor_after_filter": 1.2448323145997815
+    },
+    {
+      "sample": "Cer_SALS4",
+      "library_size": 19932944,
+      "median_log_ratio_size_factor_after_filter": 0.7098800347371754
+    },
+    {
+      "sample": "Cer_SALS5",
+      "library_size": 26144091,
+      "median_log_ratio_size_factor_after_filter": 0.9159402809205339
+    },
+    {
+      "sample": "Cer_SALS6",
+      "library_size": 29265636,
+      "median_log_ratio_size_factor_after_filter": 1.0610164119879184
+    },
+    {
+      "sample": "Cer_SALS7",
+      "library_size": 24128808,
+      "median_log_ratio_size_factor_after_filter": 0.8268737964682268
+    },
+    {
+      "sample": "Cer_SALS8",
+      "library_size": 21918047,
+      "median_log_ratio_size_factor_after_filter": 0.7891776784011361
+    },
+    {
+      "sample": "Cer_SALS9",
+      "library_size": 36166017,
+      "median_log_ratio_size_factor_after_filter": 1.249367962496584
+    },
+    {
+      "sample": "Cer_SALS10",
+      "library_size": 30916319,
+      "median_log_ratio_size_factor_after_filter": 0.9940451263551062
+    }
+  ],
+  "library_size_size_factor_pearson": 0.9278077535154119,
+  "method": "Independent Python reproduction of inspect/filter/median-log-ratio arithmetic only; not an executed DESeq2 fit or inferred raw-count provenance."
+}

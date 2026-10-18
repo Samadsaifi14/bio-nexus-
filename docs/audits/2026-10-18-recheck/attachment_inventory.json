@@ -1,0 +1,36 @@
+[
+  {
+    "filename": "02-Lecture8_Transfer_Computing_Skills.pptx",
+    "bytes": 1069810,
+    "sha256": "8c8dc8a629bc882346e240901fb7e3ef2ab6efcc6776e97872abb1a3ca29e88e",
+    "review": "READ",
+    "slides": 24
+  },
+  {
+    "filename": "03-Practical_DESeq2_Normalization_DEG.pptx",
+    "bytes": 1000995,
+    "sha256": "7c950441f5eca3c912ef13eb25a872547a801d432c3e1d4c90eebab10e02c27d",
+    "review": "READ",
+    "slides": 22
+  },
+  {
+    "filename": "04-Lecture10_RNA_Seq_Experimental_Design.pptx",
+    "bytes": 1201722,
+    "sha256": "eb5d1774475bf2f19330e8480741bdbf7f4965fb50688f59e0df23584d0bb421",
+    "review": "READ",
+    "slides": 28
+  },
+  {
+    "filename": "05-Cer_SALS_file_for_Dseq_input.txt",
+    "bytes": 1673353,
+    "sha256": "b7a9736672a6cebfdeea78dd151f5c764b058537cac09aeb0256cbfb7123dc08",
+    "review": "READ"
+  },
+  {
+    "filename": "01-Lecture9_Principles_of_RNA_Seq.pptx",
+    "bytes": 1140493,
+    "sha256": "e0309c1d3cbb8ea0c77914409b261372f1d1988f29690db8e150b0d99d61a735",
+    "review": "READ",
+    "slides": 26
+  }
+]

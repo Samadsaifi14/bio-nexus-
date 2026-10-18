@@ -1,0 +1,23 @@
+{
+  "job_id": 117730721829,
+  "run_id": 39066715514,
+  "source": "ae77a4fe1b9e55f2a5c7034009952f4a9a5bade2",
+  "code_equivalent_production": "18ae7b602e34a52259434ee66fd0ac2d99c28934",
+  "passed": 1537,
+  "failed": 4,
+  "skipped": 40,
+  "finished_at": "2026-10-18T17:02:01Z",
+  "failure_excerpt": [
+    "2026-10-18T17:02:01.4713289Z E   AssertionError: No BLAST tests succeeded: [{'name': 'crambin_short', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'human_insulin', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'gfp_fragment', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'lysozyme', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'human_hemoglobin_beta', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}]",
+    "2026-10-18T17:02:01.4720817Z   crambin_short: error (hits=N/A, error=NCBI estimated 8530s queue time (threshold 90s))",
+    "2026-10-18T17:02:01.4721380Z   human_insulin: error (hits=N/A, error=NCBI estimated 8530s queue time (threshold 90s))",
+    "2026-10-18T17:02:01.4721925Z   gfp_fragment: error (hits=N/A, error=NCBI estimated 8530s queue time (threshold 90s))",
+    "2026-10-18T17:02:01.4722454Z   lysozyme: error (hits=N/A, error=NCBI estimated 8530s queue time (threshold 90s))",
+    "2026-10-18T17:02:01.4723011Z   human_hemoglobin_beta: error (hits=N/A, error=NCBI estimated 8530s queue time (threshold 90s))",
+    "2026-10-18T17:02:01.6676525Z FAILED tests/test_feature_validation.py::TestBLAST::test_blast_hit_structure - Failed: Timeout (>90.0s) from pytest-timeout.",
+    "2026-10-18T17:02:01.6678056Z FAILED tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_retry_on_failure - Failed: Timeout (>90.0s) from pytest-timeout.",
+    "2026-10-18T17:02:01.6682682Z FAILED tests/test_blast_comprehensive.py::TestPipelineV2BLAST::test_pipeline_blast_multiple_sequences_loop - AssertionError: No BLAST tests succeeded: [{'name': 'crambin_short', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'human_insulin', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'gfp_fragment', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'lysozyme', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}, {'name': 'human_hemoglobin_beta', 'status': 'error', 'error': 'NCBI estimated 8530s queue time (threshold 90s)'}]",
+    "2026-10-18T17:02:01.6687552Z FAILED tests/test_blast_comprehensive.py::TestBlastReliability::test_consecutive_blast_runs - AssertionError: Too many BLAST failures: 3/3 failed",
+    "2026-10-18T17:02:01.6689009Z ===== 4 failed, 1537 passed, 40 skipped, 2 warnings in 1058.08s (0:17:38) ======"
+  ]
+}

@@ -1,0 +1,72 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> bionexus-frontend@0.1.0 build
+> next build
+
+▲ Next.js 16.3.8 (Turbopack)
+✓ Running next.config.mjs took 233ms
+
+  Creating an optimized production build ...
+✓ Compiled successfully in 10.8s
+  Running TypeScript ...
+  Finished TypeScript in 12.3s ...
+  Collecting page data using 8 workers ...
+  Generating static pages using 8 workers (0/42) ...
+  Generating static pages using 8 workers (10/42) 
+  Generating static pages using 8 workers (20/42) 
+  Generating static pages using 8 workers (31/42) 
+✓ Generating static pages using 8 workers (42/42) in 666ms
+  Finalizing page optimization ...
+
+Route (app)
+┌ ○ /
+├ ○ /_not-found
+├ ○ /analyze
+├ ○ /analyze/admet
+├ ○ /analyze/alignment
+├ ○ /analyze/blast
+├ ○ /analyze/castp
+├ ○ /analyze/compare
+├ ○ /analyze/docking
+├ ○ /analyze/domains
+├ ○ /analyze/dotplot
+├ ○ /analyze/function
+├ ○ /analyze/interactions
+├ ○ /analyze/md
+├ ○ /analyze/md-v2
+├ ○ /analyze/motif
+├ ○ /analyze/ngs
+├ ○ /analyze/ngs-v2
+├ ○ /analyze/pairwise
+├ ○ /analyze/pathway
+├ ○ /analyze/phylo
+├ ○ /analyze/predict-structure
+├ ○ /analyze/primers
+├ ○ /analyze/sequences
+├ ○ /analyze/sequencing
+├ ○ /analyze/structure
+├ ○ /analyze/structure-prep
+├ ○ /analyze/swissmodel
+├ ○ /analyze/tools
+├ ○ /analyze/uniprot
+├ ○ /auth
+├ ○ /auth/callback
+├ ○ /dashboard
+├ ○ /history
+├ ○ /jobs
+├ ƒ /jobs/[jobId]
+├ ○ /learn
+├ ƒ /learn/[topic]
+├ ƒ /report/[jobId]
+├ ƒ /results/[jobId]
+├ ○ /retrieve
+├ ○ /robots.txt
+├ ○ /settings
+├ ƒ /shared/[token]
+├ ○ /sitemap.xml
+└ ○ /wizard
+
+
+○  (Static)   prerendered as static content
+ƒ  (Dynamic)  server-rendered on demand
+

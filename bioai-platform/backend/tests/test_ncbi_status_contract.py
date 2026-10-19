@@ -145,3 +145,18 @@ async def test_http_200_outage_is_retried_without_fabricating_a_result(monkeypat
             await blast.submit_blast('TTCCPSIVARSNFNVCRLPG')
     assert len(attempts) == 3
     assert delays == [10, 20]
+
+
+@pytest.mark.asyncio
+async def test_submission_uses_supported_gap_and_short_query_parameters(monkeypatch):
+    async def request(method, url, **kwargs):
+        params = kwargs['data']
+        assert params['GAPCOSTS'] == '11 1'
+        assert params['SHORT_QUERY_ADJUST'] == 'true'
+        assert params['FORMAT_TYPE'] == 'XML2_S'
+        assert params['tool'] == 'bio-nexus'
+        assert not {'GAPOPEN', 'GAPEXTEND', 'ASYNC', 'api_key'} & params.keys()
+        return httpx.Response(200, text='RID = CONTRACT\nRTOE = 22')
+    monkeypatch.setattr(blast, '_request_with_retry', request)
+    result = await blast.submit_blast('TTCCPSIVARSNFNVCRLPG', gapopen=11, gapextend=1)
+    assert result['rid'] == 'CONTRACT'

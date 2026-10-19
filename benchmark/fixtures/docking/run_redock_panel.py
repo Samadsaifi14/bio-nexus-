@@ -232,6 +232,8 @@ def main() -> int:
     parser.add_argument("--panel", type=Path, default=FIXTURE_DIR / "redock_panel.json")
     parser.add_argument("--outdir", type=Path, default=REPO / "benchmark" / "results" / "docking" / "redock")
     parser.add_argument("--runtime-out", type=Path)
+    parser.add_argument("--engine-timeout", type=float, default=900,
+                        help="Per-complex native execution budget; does not change scientific thresholds")
     parser.add_argument("--canonical", action="store_true", help="Run only the predeclared 1STP-BTN control")
     args = parser.parse_args()
 
@@ -352,7 +354,8 @@ def main() -> int:
             receptor_pdbqt = pdb_to_pdbqt_receptor(receptor_pdb)
             (artifact_dir / "receptor.pdbqt").write_text(receptor_pdbqt, encoding="utf-8")
             result = run_vina(receptor_pdbqt, ligand_pdbqt, grid_center=grid["center"],
-                              grid_size=grid["size"], exhaustiveness=32, num_modes=9, seed=42)
+                              grid_size=grid["size"], exhaustiveness=32, num_modes=9, seed=42,
+                              timeout_seconds=args.engine_timeout)
 
             native_pdbqt, pose_blocks = _native_pose_output(result)
             (artifact_dir / "vina_output.pdbqt").write_text(native_pdbqt, encoding="utf-8")
@@ -403,6 +406,11 @@ def main() -> int:
         except Exception as exc:  # per-complex failure
             entry["passed"] = False
             entry["error"] = str(exc)
+            if isinstance(exc, subprocess.TimeoutExpired) and entry.get("artifact_directory"):
+                output = exc.stdout or ""
+                if isinstance(output, bytes):
+                    output = output.decode("utf-8", errors="replace")
+                (args.outdir / entry["artifact_directory"] / "vina_timeout.log").write_text(output)
         artifact_relative = entry.get("artifact_directory")
         if artifact_relative:
             entry["artifact_sha256"] = {
@@ -424,6 +432,7 @@ def main() -> int:
         "fixture_revision": panel.get("fixture_revision"),
         "fixture_sha256": hashlib.sha256(args.panel.read_bytes()).hexdigest(),
         "tool_versions": tool_versions,
+        "engine_timeout_seconds": args.engine_timeout,
         "code_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in (
             "benchmark/fixtures/docking/run_redock_panel.py",
             "bioai-platform/backend/app/tools/docking.py",

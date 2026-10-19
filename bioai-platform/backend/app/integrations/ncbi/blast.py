@@ -93,14 +93,14 @@ async def submit_blast(
         "HITLIST_SIZE": str(hitlist_size),
         "EXPECT": str(expect),
         "MATRIX": matrix,
-        "ASYNC": "1" if async_flag else "0",
-        "EMAIL": settings.NCBI_EMAIL,
-        **_api_key_param(),
+        "FORMAT_TYPE": "XML2_S",
+        "email": settings.NCBI_EMAIL,
+        "tool": "bio-nexus",
     }
-    if gapopen > 0:
-        params["GAPOPEN"] = str(gapopen)
-    if gapextend > 0:
-        params["GAPEXTEND"] = str(gapextend)
+    if gapopen > 0 and gapextend > 0:
+        params["GAPCOSTS"] = f"{gapopen} {gapextend}"
+    if len(sequence) < 30:
+        params["SHORT_QUERY_ADJUST"] = "true"
 
     resp = await _request_with_retry(
         "post", NCBI_BLAST_URL, data=params,
@@ -135,7 +135,8 @@ async def submit_blast_sync(sequence: str, **kwargs) -> dict:
 
 
 async def check_status(rid: str, fmt: str = "XML2_S") -> dict:
-    params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
+    params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid,
+              "email": settings.NCBI_EMAIL, "tool": "bio-nexus"}
     resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params, max_retries=1)
     text = resp.text
     match = re.search(r"Status\s*=\s*(\w+)", text, flags=re.IGNORECASE)
@@ -154,7 +155,8 @@ async def check_status(rid: str, fmt: str = "XML2_S") -> dict:
 
 
 async def fetch_results(rid: str, fmt: str = "XML2_S") -> dict:
-    params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
+    params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid,
+              "email": settings.NCBI_EMAIL, "tool": "bio-nexus"}
     resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params)
     text = resp.text
 
@@ -275,7 +277,9 @@ async def _run_blast_attempts(
                 "BLAST RTOE=%ds exceeds threshold (%ds) — abandoning NCBI fallback",
                 est, MAX_RTOE,
             )
-            return {"error": f"NCBI estimated {est}s queue time (threshold {MAX_RTOE}s)"}
+            return {"error": f"NCBI estimated {est}s queue time (threshold {MAX_RTOE}s)",
+                    "status": "QUEUED", "rid": rid, "estimated_seconds": est,
+                    "search_complete": False}
 
         remaining = HARD_DEADLINE_S - (time.monotonic() - t0)
         per_attempt_budget = min(max_wait_seconds, int(remaining) - 30)

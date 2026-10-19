@@ -536,6 +536,7 @@ def run_vina(
     exhaustiveness: int = 8,
     num_modes: int = 9,
     seed: int = 42,
+    timeout_seconds: float = 300,
 ) -> dict:
     """Run AutoDock Vina and return parsed multi-pose results.
 
@@ -544,6 +545,8 @@ def run_vina(
     """
     grid_center = _validate_grid_vector(grid_center, "grid_center")
     grid_size = _validate_grid_vector(grid_size, "grid_size", positive=True)
+    if not math.isfinite(timeout_seconds) or not 1 <= timeout_seconds <= 1800:
+        raise ValueError("timeout_seconds must be finite and between 1 and 1800")
     vina_bin = _ensure_vina()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -577,7 +580,7 @@ def run_vina(
             "--out", out_path,
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
 
         if result.returncode != 0:
             raise RuntimeError(f"Vina failed: {result.stderr[:2000]}")

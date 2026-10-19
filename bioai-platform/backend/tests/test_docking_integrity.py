@@ -80,3 +80,24 @@ def test_invalid_grid_rejected_before_binary_lookup(center, size, monkeypatch):
 def test_explicit_origin_is_a_valid_center():
     assert docking._validate_grid_vector([0, 0, 0], "grid_center") == [0.0]*3
 
+
+
+@pytest.mark.parametrize('budget', [0, -1, float('nan'), float('inf'), 1801])
+def test_native_execution_budget_rejected_before_binary_execution(monkeypatch, budget):
+    monkeypatch.setattr(docking, '_ensure_vina', lambda: pytest.fail('Invalid budget reached native binary'))
+    with pytest.raises(ValueError, match='timeout_seconds'):
+        docking.run_vina('', '', [1, 2, 3], [20, 20, 20], timeout_seconds=budget)
+
+
+def test_native_execution_honors_explicit_budget(verified_binary, monkeypatch):
+    from types import SimpleNamespace
+    artifacts = Path(__file__).resolve().parents[3] / 'benchmark/results/docking/redock/artifacts/20261012T080418163266Z/1STP'
+    def execute(command, **kwargs):
+        assert kwargs['timeout'] == 900
+        Path(command[command.index('--out') + 1]).write_text((artifacts / 'vina_output.pdbqt').read_text())
+        return SimpleNamespace(returncode=0, stdout=(artifacts / 'vina.log').read_text(), stderr='')
+    monkeypatch.setattr(docking.subprocess, 'run', execute)
+    monkeypatch.setattr(docking, 'pdbqt_to_sdf', lambda *args: '')
+    result = docking.run_vina('receptor', 'ligand', [1, 2, 3], [20, 20, 20], timeout_seconds=900)
+    assert result['num_poses'] > 0
+    assert result['result_pdbqt']

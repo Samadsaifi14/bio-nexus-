@@ -3,6 +3,7 @@ uvicorn
 slowapi
 redis
 httpx
+requests>=2.31  # official BLAST database provisioning
 aiohttp
 biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)
 litellm

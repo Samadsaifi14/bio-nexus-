@@ -82,16 +82,15 @@ class TestResolveCombo:
         with pytest.raises(ValueError, match="Unsupported solvent"):
             resolve_combo("ff14sb", "explicit")
 
-    def test_unverified_combo_raises(self):
-        # Simulate a deployment where only amber14 passed verification.
-        verified = verify_ff_solvent_combos()
-        if not verified:
-            pytest.skip("OpenMM unavailable — verification empty")
-        unverified = [ff for ff in FF_XML if ff not in verified]
-        if not unverified:
-            pytest.skip("all force fields verified — nothing unverified to test")
+    def test_unverified_combo_raises(self, monkeypatch):
+        # Exercise the unavailable-combination guard regardless of which native
+        # combinations this machine supports. Native startup verification has
+        # its own executed test below.
+        from app.tools import md_config
+        monkeypatch.setattr(md_config, 'verify_ff_solvent_combos',
+                            lambda: {'amber14': ('obc2',)})
         with pytest.raises(ValueError, match="not available"):
-            resolve_combo(unverified[0], "obc2")
+            resolve_combo('ff14sb', 'obc2')
 
 
 class TestStartupVerification:

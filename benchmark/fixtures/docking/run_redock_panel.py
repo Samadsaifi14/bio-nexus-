@@ -314,22 +314,35 @@ def main() -> int:
                 lig_pdbqt = os.path.join(tmp, "lig.pdbqt")
                 ref_sdf = os.path.join(tmp, "lig_ref.sdf")
                 Path(lig_pdb).write_text("\n".join(ref_lines) + "\nEND\n", encoding="utf-8")
-                # crystal ligand -> PDBQT (prod prep path)
-                r = subprocess.run(
-                    ["obabel", lig_pdb, "-O", lig_pdbqt, "--partialcharge", "gasteiger", "-p", "7.4"],
-                    capture_output=True, text=True, timeout=120)
-                if r.returncode != 0:
-                    raise RuntimeError(f"obabel pdbqt failed: {r.stderr[:300]}")
-                # crystal ligand -> SDF (coords + bonds for the RMSD reference)
+                # Validate the reference graph before preparing PDBQT. PDB does
+                # not encode bond orders; use official CCD if perception fails.
                 r2 = subprocess.run(
                     ["obabel", lig_pdb, "-O", ref_sdf, "-p", "7.4"],
                     capture_output=True, text=True, timeout=120)
                 if r2.returncode != 0 or not os.path.isfile(ref_sdf):
                     raise RuntimeError(f"obabel sdf failed: {r2.stderr[:300]}")
-                ligand_pdbqt = Path(lig_pdbqt).read_text(encoding="utf-8")
                 ref_mol = Chem.MolFromMolBlock(Path(ref_sdf).read_text(encoding="utf-8"), removeHs=False, sanitize=True)
+                prep_input = lig_pdb
+                entry["ligand_chemistry_source"] = "Open Babel PDB bond perception"
                 if ref_mol is None:
-                    raise RuntimeError("could not parse reference ligand SDF")
+                    from app.benchmarking.ligand_reference import deposited_ligand
+                    component = cx["ligand_resname"]
+                    if re.fullmatch(r"[A-Z0-9]{1,3}", component) is None:
+                        raise ValueError("Invalid CCD component identifier")
+                    url = f"https://files.rcsb.org/ligands/download/{component}.cif"
+                    response = httpx.get(url, timeout=60, follow_redirects=False)
+                    response.raise_for_status()
+                    (artifact_dir / "ligand_ccd.cif").write_text(response.text)
+                    ref_mol = deposited_ligand(response.text, ref_lines)
+                    Path(ref_sdf).write_text(Chem.MolToMolBlock(ref_mol) + "\n$$$$\n")
+                    prep_input = ref_sdf
+                    entry["ligand_chemistry_source"] = url
+                r = subprocess.run(
+                    ["obabel", prep_input, "-O", lig_pdbqt, "--partialcharge", "gasteiger", "-p", "7.4"],
+                    capture_output=True, text=True, timeout=120)
+                if r.returncode != 0:
+                    raise RuntimeError(f"obabel pdbqt failed: {r.stderr[:300]}")
+                ligand_pdbqt = Path(lig_pdbqt).read_text(encoding="utf-8")
                 for name in ("lig.pdb", "lig.pdbqt", "lig_ref.sdf"):
                     shutil.copyfile(Path(tmp) / name, artifact_dir / name)
 
@@ -408,7 +421,8 @@ def main() -> int:
         "code_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in (
             "benchmark/fixtures/docking/run_redock_panel.py",
             "bioai-platform/backend/app/tools/docking.py",
-            "bioai-platform/backend/app/benchmarking/docking_redock.py")},
+            "bioai-platform/backend/app/benchmarking/docking_redock.py",
+            "bioai-platform/backend/app/benchmarking/ligand_reference.py")},
         "executed_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": "passed" if panel_ok else "failed",
         "recorded": date.today().isoformat(),

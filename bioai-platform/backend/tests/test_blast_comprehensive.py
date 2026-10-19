@@ -96,7 +96,7 @@ class TestNCBIBlastIntegration:
 
         if "error" in submit_result:
             # NCBI may rate-limit; skip if submit fails
-            pytest.skip(f"NCBI submit failed: {submit_result['error']}")
+            pytest.fail(f"NCBI submit failed: {submit_result['error']}")
 
         rid = submit_result["rid"]
         assert rid, "RID should not be empty"
@@ -123,7 +123,7 @@ class TestNCBIBlastIntegration:
         )
 
         if "error" in result:
-            pytest.skip(f"NCBI BLAST roundtrip failed (external API issue): {result['error']}")
+            pytest.fail(f"NCBI BLAST roundtrip failed (external API issue): {result['error']}")
 
         assert "raw" in result, "Should return raw XML"
         assert len(result["raw"]) > 100, "Raw XML too short"
@@ -144,7 +144,7 @@ class TestNCBIBlastIntegration:
         )
 
         if "error" in result:
-            pytest.skip(f"BLAST failed: {result['error']}")
+            pytest.fail(f"BLAST failed: {result['error']}")
 
         parsed = parse_blast_xml(result["raw"])
         assert "error" not in parsed, f"Parse error: {parsed.get('error')}"
@@ -236,7 +236,7 @@ class TestEBIBlastTool:
         })
 
         if "error" in result:
-            pytest.skip(f"EBI BLAST failed: {result['error']}")
+            pytest.fail(f"EBI BLAST failed: {result['error']}")
 
         for hit in result["hits"]:
             assert "accession" in hit
@@ -287,7 +287,7 @@ class TestPipelineV2BLAST:
         )
 
         if "error" in results:
-            pytest.skip(f"Pipeline BLAST step failed: {results['error']}")
+            pytest.fail(f"Pipeline BLAST step failed: {results['error']}")
 
         parsed = parse_blast_xml(results["raw"])
         assert "error" not in parsed

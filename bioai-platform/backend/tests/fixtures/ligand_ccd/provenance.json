@@ -1,0 +1,10 @@
+{
+  "ccd_url": "https://files.rcsb.org/ligands/download/PU2.cif",
+  "coordinate_url": "https://files.rcsb.org/download/1UYG.pdb",
+  "selected_residue": "A1224 ",
+  "retrieved_on": "2026-10-19",
+  "sha256": {
+    "1UYG_PU2.pdb": "549e853ca9710158b8117b00d27eddb2e5c0b2758294dc3505c548e2510820f6",
+    "PU2.cif": "82e8b1da9792402724502f98b6e0b2c0d39e4b5df27ab301101c46ac74edcb3d"
+  }
+}

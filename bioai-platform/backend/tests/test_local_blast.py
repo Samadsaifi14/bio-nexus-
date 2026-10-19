@@ -9,8 +9,12 @@ import pytest
 from app.tools.blast_local import run_local_blast, _reference
 from app.config import settings
 
-pytestmark = pytest.mark.skipif(not shutil.which("makeblastdb") or not shutil.which("blastp"),
-                               reason="requires real local NCBI BLAST+ executables")
+@pytest.fixture(autouse=True)
+def require_native_blast():
+    assert shutil.which("makeblastdb") and shutil.which("blastp"), (
+        "Native BLAST+ executables are required; install ncbi-blast+ before this audit")
+
+
 SEQUENCE = "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH"
 
 

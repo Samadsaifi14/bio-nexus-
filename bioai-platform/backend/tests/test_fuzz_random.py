@@ -7,13 +7,47 @@ Verifies that every endpoint degrades gracefully with garbage inputs:
 - Validates input before hitting external APIs or RDKit
 """
 import asyncio
+import httpx
 import string
 import random
 import pytest
 from httpx import AsyncClient, ASGITransport
 from app.main import app
+from tests.conftest import _make_test_jwt, _SMOKE_JWT_SECRET
+from app.services import auth
 
 transport = ASGITransport(app=app)
+
+
+@pytest.fixture(autouse=True)
+def signed_fuzz_session(monkeypatch):
+    """Exercise validation after real signature verification, not a 401 skip."""
+    monkeypatch.setenv('SUPABASE_JWT_SECRET', _SMOKE_JWT_SECRET)
+    auth._verified_cache.clear()
+    yield
+    auth._verified_cache.clear()
+
+
+@pytest.fixture(autouse=True)
+def unavailable_upstreams(monkeypatch):
+    """Fuzz error handling with controlled connection failures.
+
+    These tests assert validation/status/traceback safety, not biological
+    results. Real provider integration remains in test_feature_validation and
+    test_blast_comprehensive; a provider outage must not stall garbage-input
+    checks or accidentally turn them into an availability benchmark.
+    """
+    original = httpx.AsyncClient
+    def unavailable(request):
+        raise httpx.ConnectError('Controlled upstream failure for fuzz validation', request=request)
+    def client(*args, **kwargs):
+        kwargs.setdefault('transport', httpx.MockTransport(unavailable))
+        return original(*args, **kwargs)
+    monkeypatch.setattr(httpx, 'AsyncClient', client)
+
+
+def _headers():
+    return {"Authorization": f"Bearer {_make_test_jwt()}"}
 
 
 def _rand_str(n: int) -> str:
@@ -281,7 +315,8 @@ class TestFuzzPathways:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             ids = [_rand_str(random.randint(2, 10)) for _ in range(5)]
             r = await ac.post("/api/pathways/enrichment", json={"identifiers": ids})
-            assert r.status_code in (200, 422, 500, 502)
+            assert r.status_code == 503
+            assert "no synthetic result" in r.json()["detail"]
 
     @pytest.mark.asyncio
     async def test_empty_enrichment(self):
@@ -388,19 +423,15 @@ class TestFuzzFunctionPrediction:
             for _ in range(10):
                 pid = _rand_str(random.randint(1, 10))
                 r = await ac.post("/api/function/predict", json={"pdb_id": pid},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required — cannot test without valid token")
-                assert r.status_code in (200, 422, 401), f"pdb_id={pid!r} status={r.status_code}"
+                                  headers=_headers())
+                assert r.status_code in (200, 422), f"pdb_id={pid!r} status={r.status_code}"
 
     @pytest.mark.asyncio
     async def test_too_short_pdb_id(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             for pid in ["A", "AB", "ABC", "ABCDE"]:
                 r = await ac.post("/api/function/predict", json={"pdb_id": pid},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
+                                  headers=_headers())
                 assert r.status_code == 422, f"pid={pid!r} should be rejected (len != 4)"
 
     @pytest.mark.asyncio
@@ -408,18 +439,14 @@ class TestFuzzFunctionPrediction:
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             for pid in ["AB;D", "AA/BB", "AA'BB", "AA BB"]:
                 r = await ac.post("/api/function/predict", json={"pdb_id": pid},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
+                                  headers=_headers())
                 assert r.status_code == 422, f"pid={pid!r} should be rejected (special chars)"
 
     @pytest.mark.asyncio
     async def test_missing_pdb_id(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post("/api/function/predict", json={},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
+                              headers=_headers())
             assert r.status_code == 422
 
 
@@ -434,28 +461,22 @@ class TestFuzzMD:
             for _ in range(5):
                 pid = _rand_pdb_id()
                 r = await ac.post("/api/md/run", json={"pdb_id": pid},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
-                assert r.status_code in (200, 422, 401), f"pdb_id={pid!r} status={r.status_code}"
+                                  headers=_headers())
+                assert r.status_code in (200, 422), f"pdb_id={pid!r} status={r.status_code}"
 
     @pytest.mark.asyncio
     async def test_invalid_mode_rejected(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             for mode in ["destroy", "explode", "minimize; rm -rf /", "production\n"]:
                 r = await ac.post("/api/md/run", json={"pdb_id": "1CRN", "mode": mode},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
+                                  headers=_headers())
                 assert r.status_code == 422, f"mode={mode!r} should be rejected"
 
     @pytest.mark.asyncio
     async def test_empty_pdb_id_md(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post("/api/md/run", json={"pdb_id": ""},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
+                              headers=_headers())
             assert r.status_code == 422
 
 
@@ -470,10 +491,8 @@ class TestFuzzDocking:
             for _ in range(5):
                 s = _rand_smiles(random.randint(1, 30))
                 r = await ac.post("/api/docking/run", json={"smiles": s, "pdb_id": _rand_pdb_id()},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
-                assert r.status_code in (200, 422, 401), f"smiles={s!r} status={r.status_code}"
+                                  headers=_headers())
+                assert r.status_code in (200, 422), f"smiles={s!r} status={r.status_code}"
 
     @pytest.mark.asyncio
     async def test_extreme_grid_size(self):
@@ -481,9 +500,7 @@ class TestFuzzDocking:
             for gs in [[-1, -1, -1], [0, 0, 0], [99999, 99999, 99999], [0.001, 0.001, 0.001]]:
                 r = await ac.post("/api/docking/run",
                                   json={"smiles": "CCO", "pdb_id": "1CRN", "grid_size": gs},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
+                                  headers=_headers())
                 assert r.status_code in (200, 422, 400, 401), f"grid={gs} status={r.status_code}"
 
     @pytest.mark.asyncio
@@ -492,28 +509,22 @@ class TestFuzzDocking:
             for ex in [0, -1, 99999]:
                 r = await ac.post("/api/docking/run",
                                   json={"smiles": "CCO", "pdb_id": "1CRN", "exhaustiveness": ex},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
+                                  headers=_headers())
                 assert r.status_code in (200, 422, 400, 401), f"exhaustiveness={ex} status={r.status_code}"
 
     @pytest.mark.asyncio
     async def test_empty_smiles_docking(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post("/api/docking/run", json={"smiles": ""},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
-            assert r.status_code in (200, 422, 401)
+                              headers=_headers())
+            assert r.status_code in (200, 422)
 
     @pytest.mark.asyncio
     async def test_grid_center_wrong_type(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post("/api/docking/run",
                               json={"smiles": "CCO", "pdb_id": "1CRN", "grid_center": "not_a_list"},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
+                              headers=_headers())
             assert r.status_code == 422
 
 
@@ -568,18 +579,14 @@ class TestFuzzSequencing:
             for _ in range(5):
                 url = _rand_str(random.randint(5, 50))
                 r = await ac.post("/api/sequencing/run", json={"fastq_url": url},
-                                  headers={"Authorization": "Bearer test-token"})
-                if r.status_code == 401:
-                    pytest.skip("Auth required")
+                                  headers=_headers())
                 assert r.status_code in (200, 422, 400, 500, 502), f"url={url!r} status={r.status_code}"
 
     @pytest.mark.asyncio
     async def test_empty_fastq_url(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post("/api/sequencing/run", json={"fastq_url": ""},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
+                              headers=_headers())
             assert r.status_code in (200, 422, 400, 500)
 
     @pytest.mark.asyncio
@@ -588,18 +595,14 @@ class TestFuzzSequencing:
             ref = _rand_str(random.randint(1, 30))
             r = await ac.post("/api/sequencing/run",
                               json={"fastq_url": "https://example.com/file.fastq", "reference": ref},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
+                              headers=_headers())
             assert r.status_code in (200, 422, 400, 500, 502)
 
     @pytest.mark.asyncio
     async def test_missing_fastq_url(self):
         async with AsyncClient(transport=transport, base_url="http://test") as ac:
             r = await ac.post("/api/sequencing/run", json={},
-                              headers={"Authorization": "Bearer test-token"})
-            if r.status_code == 401:
-                pytest.skip("Auth required")
+                              headers=_headers())
             assert r.status_code == 422
 
 

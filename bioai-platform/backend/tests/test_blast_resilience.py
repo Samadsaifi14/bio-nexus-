@@ -1,8 +1,8 @@
 """Unit tests for BLAST pipeline resilience.
 
 Covers:
-- check_status_until_ready: jobs are not declared STUCK before they get a
-  meaningful share of their poll budget (NCBI routinely exceeds RTOE).
+- check_status_until_ready: accepted requests retain their full poll budget
+  and WAITING alone does not establish a stuck search.
 - _run_blast (pipeline_v2): NCBI failure falls back to EBI BLAST instead of
   failing the whole pipeline; result shape is normalized across providers.
 - BlastTool._submit stype mapping for blastx/tblastn.
@@ -80,6 +80,7 @@ def fake_clock(monkeypatch):
 
     monkeypatch.setattr(ncbi_blast.asyncio, "sleep", _fake_sleep)
     monkeypatch.setattr(ncbi_blast.asyncio, "get_event_loop", lambda: clock)
+    monkeypatch.setattr(ncbi_blast, "monotonic", clock.time)
     return clock
 
 
@@ -108,16 +109,16 @@ class TestStuckThreshold:
         assert result["status"] == "READY", result
         assert fake_clock.now >= 300
 
-    def test_truly_stuck_job_declared_stuck_after_half_budget(self, monkeypatch, fake_clock):
+    def test_waiting_job_keeps_its_full_budget(self, monkeypatch, fake_clock):
         monkeypatch.setattr(ncbi_blast, "check_status", _always_waiting)
         result = asyncio_run(ncbi_blast.check_status_until_ready(
             "RID2", max_wait_seconds=900, estimated_seconds=10,
         ))
-        assert result["status"] == "STUCK", result
-        assert fake_clock.now >= 450, f"STUCK fired too early at {fake_clock.now:.0f}s"
+        assert result["status"] == "TIMEOUT", result
+        assert fake_clock.now == 900, f"Polling ended before the full budget at {fake_clock.now:.0f}s"
 
     def test_budget_exhaustion_returns_timeout_before_stuck(self, monkeypatch, fake_clock):
-        # With a small budget, TIMEOUT (end of budget) must win over STUCK.
+        # A short budget must terminate with an explicit timeout.
         monkeypatch.setattr(ncbi_blast, "check_status", _always_waiting)
         result = asyncio_run(ncbi_blast.check_status_until_ready(
             "RID3", max_wait_seconds=120, estimated_seconds=1000,
@@ -135,6 +136,7 @@ class TestPipelineBlastFallback:
         # These contracts specifically exercise remote fallback ordering.
         # Native provider routing is covered separately by test_local_blast.
         monkeypatch.delenv("BIONEXUS_BLAST_DB_ROOT", raising=False)
+        monkeypatch.setattr(ncbi_blast.settings, "BIONEXUS_BLAST_DB_ROOT", "")
 
     def _fake_ebi_tool(self, hits):
         class _FakeBlastTool:

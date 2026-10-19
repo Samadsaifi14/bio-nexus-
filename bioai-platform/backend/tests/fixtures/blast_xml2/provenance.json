@@ -1,0 +1,39 @@
+{
+  "origin": "native-blast-plus; not a live NCBI response",
+  "tool": "BLASTP 2.12.0+",
+  "reference_manifest": {
+    "database": "swissprot",
+    "release": "2026_03",
+    "scope": "complete UniProtKB/Swiss-Prot canonical sequence snapshot",
+    "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+    "release_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt",
+    "release_text": "UniProt Knowledgebase Release 2026_03 consists of:\nUniProtKB/Swiss-Prot Release 2026_03 of 02-Sep-2026\nUniProtKB/TrEMBL Release 2026_03 of 02-Sep-2026\n",
+    "retrieved_at": "2026-10-19T09:32:18.641044+00:00",
+    "sequence_count": 575748,
+    "archive_sha256": "a9c3496aa727e61d25d9e1291c9ba28d2c2ad19c0e26569dc083d53ec4169536",
+    "fasta_sha256": "1372f18e218d761027616bf17479bcf450b30314fc0a8095fcb0e97e85d6ecf9",
+    "index_files": {
+      "swissprot.pdb": "460c0087f2683dcb9e8c6098aebb0e2614f6202203b85dfd1c6c7e45d53243f3",
+      "swissprot.phr": "a10f3c08c20f5d336b5e5c58f61b5bb205fdc5b61f4e5898e0ff05267f276950",
+      "swissprot.pin": "74c72f4786a96b71d34051603f4844ddc112536e5171bdc12089b257385aeff9",
+      "swissprot.pog": "81cb94739f65c8268f9583d9d68b20f5c7f5dfd729959416d27892f7c9a05257",
+      "swissprot.pos": "620d0b9622ad25da625dfe93a1b9d10887f03e3255424159465dbdf8e0d98a5a",
+      "swissprot.pot": "20e4eb416145a4b971122032e72a1bc2376d7a6cecc0539ef40fb61d92e1e5cd",
+      "swissprot.psq": "fd8e666adbf7a26a5767c47e4dc22765f5350a850c938bdcd65de666452cb72b",
+      "swissprot.ptf": "67982e4d7b1490b09cce06e7c29175c6bd011cd542cfacb1a1c310084a50821a",
+      "swissprot.pto": "19bd9efe2fa98b9b22ba077ec6e484f463ea89abc48dfc3538b1d1babe7037dd"
+    },
+    "indexer": "makeblastdb: 2.12.0+\n Package: blast 2.12.0, build Apr  1 2024 07:01:27"
+  },
+  "commands": [
+    "blastp -query query.fasta -db <complete-swissprot>/swissprot -outfmt 5 -max_target_seqs 3 -out hbb-legacy.xml",
+    "blastp -query query.fasta -db <complete-swissprot>/swissprot -outfmt 16 -max_target_seqs 3 -out hbb-xml2.xml"
+  ],
+  "format_documentation": "https://blast.ncbi.nlm.nih.gov/doc/blast-help/urlapi.html",
+  "sha256": {
+    "hbb-xml2.xml": "bf60502d5ce57a1d0389283f15f19b877fc520e6b00edfe8cbccfac73eca7bf9",
+    "hbb-legacy.xml": "448466fdacd266274002e7bfa9bfff1e6be9d1b75a9e776bc7dcc98a3daa17ca",
+    "query.fasta": "eedd7a77f78daa920b0c227f572dd351131118bfc3d848b1c2b5f87c8edb27ac"
+  },
+  "fixture_normalization": "Only trailing blank lines in legacy XML were removed; native XML payload and scientific values are unchanged."
+}

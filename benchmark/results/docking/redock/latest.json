@@ -1,6 +1,6 @@
 {
   "benchmark": "bionexus-redock-panel/v1",
-  "run_id": "20261019T094542448030Z",
+  "run_id": "20261019T103622089319Z",
   "fixture_revision": "2026-10-19-ccd-chemistry-repair",
   "fixture_sha256": "b4c3da2c69c53b1fa0e195f80388007fc1397f83c0afd8d3cb4ad5849212cbcf",
   "tool_versions": {
@@ -11,12 +11,12 @@
     "fpocket_binary_sha256": "9510304c12812da39c2a6fc760f0b2ebd987b48b23e06e6dceda840c57e43e3a"
   },
   "code_sha256": {
-    "benchmark/fixtures/docking/run_redock_panel.py": "3ad7912abf01e5b87388111424f2c67301bb6fc238e04e62bc06026786f0cfc8",
+    "benchmark/fixtures/docking/run_redock_panel.py": "d885cac11f1eda1b02cc8e7c6ad228315cfe8e3e58e0d6bc39d4417e4ce52128",
     "bioai-platform/backend/app/tools/docking.py": "31489aa713bd6371c72f415997450cff9c0a7f62dc949208b30423936255b90f",
     "bioai-platform/backend/app/benchmarking/docking_redock.py": "5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb",
     "bioai-platform/backend/app/benchmarking/ligand_reference.py": "fe18fa79345f127f6b571797a0e749cde6402fed4ecca102d1048d3feb3d6915"
   },
-  "executed_at_utc": "2026-10-19T09:50:08.717329+00:00",
+  "executed_at_utc": "2026-10-19T10:47:17.514188+00:00",
   "status": "failed",
   "recorded": "2026-10-19",
   "n_complexes": 10,
@@ -35,7 +35,7 @@
       "pdb": "1STP",
       "ligand_resname": "BTN",
       "essential": true,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1STP",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1STP",
       "source_url": "https://files.rcsb.org/download/1STP.pdb",
       "observed_hetatm_resnames": [
         "BTN",
@@ -193,7 +193,7 @@
             "total_sasa": 173.938,
             "polar_sasa": 38.683,
             "apolar_sasa": 135.254,
-            "volume": 482.391,
+            "volume": 480.305,
             "mean_local_hydrophobic_density": 34.056,
             "mean_alpha_sphere_radius": 3.954
           },
@@ -268,7 +268,7 @@
             "total_sasa": 85.21,
             "polar_sasa": 33.282,
             "apolar_sasa": 51.928,
-            "volume": 357.677,
+            "volume": 354.329,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 3.897
           },
@@ -355,7 +355,7 @@
             "total_sasa": 75.663,
             "polar_sasa": 43.058,
             "apolar_sasa": 32.606,
-            "volume": 308.833,
+            "volume": 306.75,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.873
           },
@@ -436,13 +436,14 @@
             "total_sasa": 82.127,
             "polar_sasa": 19.331,
             "apolar_sasa": 62.797,
-            "volume": 334.745,
+            "volume": 326.933,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 4.116
           }
         ]
       },
       "site_offset_angstrom": 1.3217374780710047,
+      "site_coverage_passed": true,
       "ligand_chemistry_source": "Open Babel PDB bond perception",
       "pose_sdf_export_valid": true,
       "vina_version": "1.2.7",
@@ -451,22 +452,23 @@
       "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
       "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "vina_output.sdf": "18311abee35143ab5fc34a7a5b3189fea5f0bd11f7b67496cc1594824e45c3e1",
-        "lig.pdbqt": "0cee9cf3cb3e4452af5f606015811a17b2e3cb28558d7b2d41700d65a6032bc3",
+        "vina_output.sdf": "d0891130dc31617af9988266bd3f8daee9bc2bcbb9e4acd75c47a1f2ea98d006",
+        "lig.pdbqt": "e0e8b690da7e2f80dc68536e65894ce49f7bd1f2e3b22ba96577c1e52c75e2e0",
         "lig.pdb": "6243300bd6945395ade902611e8b80d169b29ba789193038abae957dee946359",
-        "top_pose_chemical_graph.sdf": "18e0818c1775bc546b2883a9c7eab9c874adea4ba6ebc98100cc637a6ea2187b",
-        "receptor.pdbqt": "5a4650ee494b4f99c93f9d1666ac28298c123a711c7fadd18cc0221d9c287efb",
-        "vina_output.pdbqt": "7f9544401e8a1769c3bb8d2bdf3c4b63057064ae4644b1fc7394775fa43c93d9",
-        "lig_ref.sdf": "45b7d2be8bd90106a094e08668c35ddf6216361cc86190e93bd11ebe8c09745a",
+        "top_pose_chemical_graph.sdf": "8cfff5d25cebd1b0cb639ab4a2b9a05dba68bc02d45a61ee62dfadf57049325e",
+        "receptor.pdbqt": "7df12ec02294b7a383b8c8e7fe4562d63ac2684ff9acfb7304dd7f36caff191b",
+        "vina_output.pdbqt": "f99e3fc9ff37b04df37a501202736ccbf21cab4c6555143678f1cc6ea59a0296",
+        "lig_ref.sdf": "95169b4a8aa07f85093d105622fad41cf22a3ccaf67be3d4709ed288eb3d6793",
         "source.pdb": "6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30",
-        "top_pose.pdbqt": "3602fa8630ade42dd26a34434ca09b3b1d1bf9438f899bca30f8238ae719371b",
-        "vina.log": "a1cacf0b3564736cd1c786f011d6371187a0e0fe376c6725b7d384aa0ad658b4",
-        "top_pose.sdf": "722b347c0dd46067eaf704e4bfc13cf96d2f808d5030a1f84ce9824fe6bab6ef"
+        "top_pose.pdbqt": "155cd4a21e5ad7913e0296d0b0dffc26547ccc8e907b90018acab4e962cb1219",
+        "vina.log": "04f96537a2f76b235c5194ec38a0d6a806bbbde1989e8921d84e78c56170cc43",
+        "top_pose.sdf": "d04e6769fa9893d4d712a99478f674a71fc34499adfbbd1e47758e1a875aad54"
       },
-      "runtime_s": 15.68,
+      "runtime_s": 16.63,
       "top_pose_rmsd_angstrom": 0.8561054622533371,
       "n_pose_models": 9,
       "affinity_kcal_mol": -6.328,
+      "pose_recovery_passed": true,
       "passed": true
     },
     {
@@ -474,7 +476,7 @@
       "pdb": "1IEP",
       "ligand_resname": "STI",
       "essential": true,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1IEP",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1IEP",
       "source_url": "https://files.rcsb.org/download/1IEP.pdb",
       "observed_hetatm_resnames": [
         "CL",
@@ -753,7 +755,7 @@
             "total_sasa": 407.931,
             "polar_sasa": 149.42,
             "apolar_sasa": 258.512,
-            "volume": 1653.183,
+            "volume": 1669.207,
             "mean_local_hydrophobic_density": 58.831,
             "mean_alpha_sphere_radius": 3.928
           },
@@ -1002,7 +1004,7 @@
             "total_sasa": 374.655,
             "polar_sasa": 137.722,
             "apolar_sasa": 236.933,
-            "volume": 1393.453,
+            "volume": 1404.429,
             "mean_local_hydrophobic_density": 60.318,
             "mean_alpha_sphere_radius": 3.943
           },
@@ -1101,7 +1103,7 @@
             "total_sasa": 34.894,
             "polar_sasa": 20.402,
             "apolar_sasa": 14.492,
-            "volume": 137.154,
+            "volume": 139.07,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.61
           },
@@ -1200,7 +1202,7 @@
             "total_sasa": 40.251,
             "polar_sasa": 25.759,
             "apolar_sasa": 14.492,
-            "volume": 137.783,
+            "volume": 137.675,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.646
           },
@@ -1275,7 +1277,7 @@
             "total_sasa": 102.639,
             "polar_sasa": 28.974,
             "apolar_sasa": 73.665,
-            "volume": 393.111,
+            "volume": 395.804,
             "mean_local_hydrophobic_density": 19.36,
             "mean_alpha_sphere_radius": 3.997
           },
@@ -1344,7 +1346,7 @@
             "total_sasa": 72.993,
             "polar_sasa": 24.688,
             "apolar_sasa": 48.305,
-            "volume": 261.492,
+            "volume": 267.076,
             "mean_local_hydrophobic_density": 7.778,
             "mean_alpha_sphere_radius": 3.916
           },
@@ -1431,7 +1433,7 @@
             "total_sasa": 43.211,
             "polar_sasa": 21.473,
             "apolar_sasa": 21.737,
-            "volume": 146.508,
+            "volume": 145.817,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.652
           },
@@ -1500,7 +1502,7 @@
             "total_sasa": 52.982,
             "polar_sasa": 21.584,
             "apolar_sasa": 31.398,
-            "volume": 203.834,
+            "volume": 201.447,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.85
           },
@@ -1575,7 +1577,7 @@
             "total_sasa": 112.708,
             "polar_sasa": 25.759,
             "apolar_sasa": 86.949,
-            "volume": 440.785,
+            "volume": 432.218,
             "mean_local_hydrophobic_density": 20.846,
             "mean_alpha_sphere_radius": 3.949
           },
@@ -1650,7 +1652,7 @@
             "total_sasa": 80.629,
             "polar_sasa": 31.117,
             "apolar_sasa": 49.513,
-            "volume": 289.922,
+            "volume": 285.774,
             "mean_local_hydrophobic_density": 4.857,
             "mean_alpha_sphere_radius": 3.977
           },
@@ -1719,7 +1721,7 @@
             "total_sasa": 35.276,
             "polar_sasa": 7.5,
             "apolar_sasa": 27.775,
-            "volume": 90.164,
+            "volume": 87.875,
             "mean_local_hydrophobic_density": 12.0,
             "mean_alpha_sphere_radius": 3.514
           },
@@ -1794,7 +1796,7 @@
             "total_sasa": 62.625,
             "polar_sasa": 20.358,
             "apolar_sasa": 42.267,
-            "volume": 158.423,
+            "volume": 156.617,
             "mean_local_hydrophobic_density": 14.0,
             "mean_alpha_sphere_radius": 3.699
           },
@@ -1863,7 +1865,7 @@
             "total_sasa": 96.989,
             "polar_sasa": 47.476,
             "apolar_sasa": 49.513,
-            "volume": 286.086,
+            "volume": 293.011,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 4.021
           },
@@ -1932,7 +1934,7 @@
             "total_sasa": 64.43,
             "polar_sasa": 35.447,
             "apolar_sasa": 28.983,
-            "volume": 253.561,
+            "volume": 258.433,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.76
           },
@@ -2013,7 +2015,7 @@
             "total_sasa": 57.522,
             "polar_sasa": 22.501,
             "apolar_sasa": 35.021,
-            "volume": 264.205,
+            "volume": 265.771,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 4.196
           },
@@ -2112,7 +2114,7 @@
             "total_sasa": 95.674,
             "polar_sasa": 46.161,
             "apolar_sasa": 49.513,
-            "volume": 338.29,
+            "volume": 329.886,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 3.978
           },
@@ -2187,7 +2189,7 @@
             "total_sasa": 37.441,
             "polar_sasa": 9.665,
             "apolar_sasa": 27.775,
-            "volume": 107.838,
+            "volume": 107.81,
             "mean_local_hydrophobic_density": 13.0,
             "mean_alpha_sphere_radius": 3.784
           },
@@ -2268,7 +2270,7 @@
             "total_sasa": 128.378,
             "polar_sasa": 76.45,
             "apolar_sasa": 51.928,
-            "volume": 496.502,
+            "volume": 480.473,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.915
           },
@@ -2349,7 +2351,7 @@
             "total_sasa": 55.083,
             "polar_sasa": 17.409,
             "apolar_sasa": 37.674,
-            "volume": 198.39,
+            "volume": 196.492,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 4.004
           },
@@ -2424,7 +2426,7 @@
             "total_sasa": 84.591,
             "polar_sasa": 46.759,
             "apolar_sasa": 37.832,
-            "volume": 281.861,
+            "volume": 284.761,
             "mean_local_hydrophobic_density": 11.0,
             "mean_alpha_sphere_radius": 4.018
           },
@@ -2493,7 +2495,7 @@
             "total_sasa": 120.434,
             "polar_sasa": 43.146,
             "apolar_sasa": 77.288,
-            "volume": 396.533,
+            "volume": 398.447,
             "mean_local_hydrophobic_density": 9.667,
             "mean_alpha_sphere_radius": 3.888
           },
@@ -2598,7 +2600,7 @@
             "total_sasa": 133.682,
             "polar_sasa": 22.501,
             "apolar_sasa": 111.181,
-            "volume": 422.488,
+            "volume": 428.358,
             "mean_local_hydrophobic_density": 40.409,
             "mean_alpha_sphere_radius": 3.819
           },
@@ -2673,7 +2675,7 @@
             "total_sasa": 81.456,
             "polar_sasa": 54.888,
             "apolar_sasa": 26.568,
-            "volume": 220.368,
+            "volume": 220.181,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.862
           },
@@ -2742,7 +2744,7 @@
             "total_sasa": 79.541,
             "polar_sasa": 50.558,
             "apolar_sasa": 28.983,
-            "volume": 232.174,
+            "volume": 230.255,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.823
           },
@@ -2817,7 +2819,7 @@
             "total_sasa": 66.108,
             "polar_sasa": 26.831,
             "apolar_sasa": 39.277,
-            "volume": 212.53,
+            "volume": 209.496,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.933
           },
@@ -2874,7 +2876,7 @@
             "total_sasa": 52.368,
             "polar_sasa": 27.008,
             "apolar_sasa": 25.36,
-            "volume": 164.15,
+            "volume": 169.237,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 3.727
           },
@@ -2979,7 +2981,7 @@
             "total_sasa": 121.724,
             "polar_sasa": 11.83,
             "apolar_sasa": 109.894,
-            "volume": 358.048,
+            "volume": 372.316,
             "mean_local_hydrophobic_density": 42.4,
             "mean_alpha_sphere_radius": 3.864
           },
@@ -3048,7 +3050,7 @@
             "total_sasa": 66.345,
             "polar_sasa": 39.777,
             "apolar_sasa": 26.568,
-            "volume": 209.77,
+            "volume": 207.996,
             "mean_local_hydrophobic_density": 2.0,
             "mean_alpha_sphere_radius": 3.941
           },
@@ -3111,7 +3113,7 @@
             "total_sasa": 67.828,
             "polar_sasa": 36.43,
             "apolar_sasa": 31.398,
-            "volume": 272.913,
+            "volume": 274.71,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 4.035
           },
@@ -3186,7 +3188,7 @@
             "total_sasa": 49.363,
             "polar_sasa": 20.38,
             "apolar_sasa": 28.983,
-            "volume": 117.508,
+            "volume": 116.779,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.788
           },
@@ -3243,7 +3245,7 @@
             "total_sasa": 36.391,
             "polar_sasa": 8.616,
             "apolar_sasa": 27.775,
-            "volume": 122.056,
+            "volume": 126.468,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 4.022
           },
@@ -3348,7 +3350,7 @@
             "total_sasa": 150.352,
             "polar_sasa": 93.593,
             "apolar_sasa": 56.759,
-            "volume": 558.698,
+            "volume": 553.722,
             "mean_local_hydrophobic_density": 10.923,
             "mean_alpha_sphere_radius": 4.032
           },
@@ -3423,7 +3425,7 @@
             "total_sasa": 126.754,
             "polar_sasa": 71.203,
             "apolar_sasa": 55.551,
-            "volume": 370.326,
+            "volume": 362.562,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 3.858
           },
@@ -3486,7 +3488,7 @@
             "total_sasa": 78.029,
             "polar_sasa": 56.291,
             "apolar_sasa": 21.737,
-            "volume": 229.118,
+            "volume": 229.476,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.8
           },
@@ -3561,7 +3563,7 @@
             "total_sasa": 102.435,
             "polar_sasa": 52.922,
             "apolar_sasa": 49.513,
-            "volume": 404.271,
+            "volume": 398.483,
             "mean_local_hydrophobic_density": 12.0,
             "mean_alpha_sphere_radius": 4.08
           },
@@ -3624,7 +3626,7 @@
             "total_sasa": 82.832,
             "polar_sasa": 35.734,
             "apolar_sasa": 47.097,
-            "volume": 233.404,
+            "volume": 225.981,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 3.911
           },
@@ -3681,7 +3683,7 @@
             "total_sasa": 58.561,
             "polar_sasa": 27.163,
             "apolar_sasa": 31.398,
-            "volume": 186.483,
+            "volume": 188.367,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.885
           },
@@ -3750,7 +3752,7 @@
             "total_sasa": 90.347,
             "polar_sasa": 60.157,
             "apolar_sasa": 30.191,
-            "volume": 245.689,
+            "volume": 246.157,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.832
           },
@@ -3831,7 +3833,7 @@
             "total_sasa": 68.236,
             "polar_sasa": 33.215,
             "apolar_sasa": 35.021,
-            "volume": 182.028,
+            "volume": 179.918,
             "mean_local_hydrophobic_density": 13.0,
             "mean_alpha_sphere_radius": 3.908
           },
@@ -3894,7 +3896,7 @@
             "total_sasa": 87.624,
             "polar_sasa": 67.094,
             "apolar_sasa": 20.53,
-            "volume": 243.614,
+            "volume": 240.777,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 4.014
           },
@@ -3963,7 +3965,7 @@
             "total_sasa": 86.203,
             "polar_sasa": 49.42,
             "apolar_sasa": 36.783,
-            "volume": 273.488,
+            "volume": 272.003,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 4.173
           },
@@ -4026,7 +4028,7 @@
             "total_sasa": 61.421,
             "polar_sasa": 30.023,
             "apolar_sasa": 31.398,
-            "volume": 139.727,
+            "volume": 139.18,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 4.146
           },
@@ -4125,7 +4127,7 @@
             "total_sasa": 160.35,
             "polar_sasa": 92.743,
             "apolar_sasa": 67.607,
-            "volume": 519.26,
+            "volume": 522.768,
             "mean_local_hydrophobic_density": 13.733,
             "mean_alpha_sphere_radius": 4.121
           },
@@ -4206,7 +4208,7 @@
             "total_sasa": 141.876,
             "polar_sasa": 93.571,
             "apolar_sasa": 48.305,
-            "volume": 443.263,
+            "volume": 426.453,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.915
           },
@@ -4317,7 +4319,7 @@
             "total_sasa": 170.792,
             "polar_sasa": 68.144,
             "apolar_sasa": 102.648,
-            "volume": 493.144,
+            "volume": 487.966,
             "mean_local_hydrophobic_density": 8.571,
             "mean_alpha_sphere_radius": 3.942
           },
@@ -4374,7 +4376,7 @@
             "total_sasa": 125.576,
             "polar_sasa": 65.195,
             "apolar_sasa": 60.381,
-            "volume": 330.137,
+            "volume": 336.114,
             "mean_local_hydrophobic_density": 14.0,
             "mean_alpha_sphere_radius": 3.876
           },
@@ -4443,7 +4445,7 @@
             "total_sasa": 166.482,
             "polar_sasa": 86.779,
             "apolar_sasa": 79.703,
-            "volume": 370.171,
+            "volume": 367.64,
             "mean_local_hydrophobic_density": 6.222,
             "mean_alpha_sphere_radius": 3.952
           },
@@ -4566,7 +4568,7 @@
             "total_sasa": 249.387,
             "polar_sasa": 109.302,
             "apolar_sasa": 140.085,
-            "volume": 775.724,
+            "volume": 756.963,
             "mean_local_hydrophobic_density": 24.2,
             "mean_alpha_sphere_radius": 3.748
           },
@@ -4677,26 +4679,50 @@
             "total_sasa": 211.489,
             "polar_sasa": 93.141,
             "apolar_sasa": 118.348,
-            "volume": 643.031,
+            "volume": 647.569,
             "mean_local_hydrophobic_density": 19.545,
             "mean_alpha_sphere_radius": 3.878
           }
         ]
       },
       "site_offset_angstrom": 59.03154912785725,
-      "passed": false,
-      "error": "grid does not cover site (offset 59.0 A)",
+      "site_coverage_passed": false,
+      "ligand_chemistry_source": "https://files.rcsb.org/ligands/download/STI.cif",
+      "pose_sdf_export_valid": false,
+      "pose_sdf_export_error": "Open Babel pose SDF failed chemical sanitization; retained as failed export evidence",
+      "vina_version": "1.2.7",
+      "seed": 42,
+      "exhaustiveness": 32,
+      "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
+      "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "source.pdb": "577386b4b8bc58a570facba0c8a843386842caef5ed7b60106c685d0f68d4218"
+        "ligand_ccd.cif": "2829bd3174ecf9e9dff3e76c080017fe5436858aa3d65756e4078615020a728c",
+        "vina_output.sdf": "d668b28200a257e75f415afc2be1ab819957d1ad593a817fa14a18e203bb3d52",
+        "lig.pdbqt": "346d3b4bb26a20997154b54b3bb02fecdd1b9bed92300c300aa2d973ca465b49",
+        "lig.pdb": "6dee0ced42266816c9d322eeac6390664763cf564bbf243e91dd2880c9d65e9d",
+        "top_pose_chemical_graph.sdf": "d5e766501088af01988425305e59a3cc9b66310b1debadc3591192e4f0d8ff5e",
+        "receptor.pdbqt": "ba4c213cc94b0acfde77be882113b1a0f2cbe225f08136dfbc6c2f0e5426bb2c",
+        "vina_output.pdbqt": "38238dc3cac7aa0190632ca89608856122733fd8b930bcf9c149274cfa0d0102",
+        "lig_ref.sdf": "73d37b6ed1e91ca72b859a22305f24f9a4082e8f59cf8311504a66fb9081c9a1",
+        "source.pdb": "577386b4b8bc58a570facba0c8a843386842caef5ed7b60106c685d0f68d4218",
+        "top_pose.pdbqt": "db68f9a06ef79b45032fd51dd5ee48f9b642775414ffcee511c3861423ee6abf",
+        "vina.log": "04d21d7ec00237d59ca5cbc8a0f3d0569eef23ae523b765525a0d56657c19b82",
+        "top_pose.sdf": "bab690877db78f0fab0fed46f41f5dc008764606bf5fe02624d28b92c066df63"
       },
-      "runtime_s": 7.05
+      "runtime_s": 63.03,
+      "top_pose_rmsd_angstrom": 62.014948203660566,
+      "n_pose_models": 8,
+      "affinity_kcal_mol": -13.42,
+      "pose_recovery_passed": false,
+      "passed": false,
+      "error": "grid does not cover site (offset 59.0 A); native docking completed for diagnosis"
     },
     {
       "id": "1HVR",
       "pdb": "1HVR",
       "ligand_resname": "XK2",
       "essential": true,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1HVR",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1HVR",
       "source_url": "https://files.rcsb.org/download/1HVR.pdb",
       "observed_hetatm_resnames": [
         "CSO",
@@ -4956,7 +4982,7 @@
             "total_sasa": 310.481,
             "polar_sasa": 159.528,
             "apolar_sasa": 150.953,
-            "volume": 1362.758,
+            "volume": 1328.409,
             "mean_local_hydrophobic_density": 33.0,
             "mean_alpha_sphere_radius": 4.113
           },
@@ -5037,7 +5063,7 @@
             "total_sasa": 88.108,
             "polar_sasa": 49.464,
             "apolar_sasa": 38.644,
-            "volume": 377.382,
+            "volume": 376.473,
             "mean_local_hydrophobic_density": 10.0,
             "mean_alpha_sphere_radius": 3.963
           },
@@ -5106,7 +5132,7 @@
             "total_sasa": 77.474,
             "polar_sasa": 19.508,
             "apolar_sasa": 57.966,
-            "volume": 270.556,
+            "volume": 264.145,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 3.945
           },
@@ -5157,7 +5183,7 @@
             "total_sasa": 39.47,
             "polar_sasa": 12.902,
             "apolar_sasa": 26.568,
-            "volume": 110.088,
+            "volume": 108.247,
             "mean_local_hydrophobic_density": 12.0,
             "mean_alpha_sphere_radius": 3.779
           },
@@ -5232,13 +5258,14 @@
             "total_sasa": 113.681,
             "polar_sasa": 30.355,
             "apolar_sasa": 83.326,
-            "volume": 366.406,
+            "volume": 366.187,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 4.111
           }
         ]
       },
       "site_offset_angstrom": 0.4900945859868376,
+      "site_coverage_passed": true,
       "ligand_chemistry_source": "Open Babel PDB bond perception",
       "pose_sdf_export_valid": true,
       "vina_version": "1.2.7",
@@ -5247,22 +5274,23 @@
       "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
       "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "vina_output.sdf": "848f26c433247a575d5313f30670cf0af701db955821d4f35adb06be9afaad71",
-        "lig.pdbqt": "1c6a91406ff31c4755a5896e6b2981181fc37f5346d4d3bbf933ce1fecb80cf4",
+        "vina_output.sdf": "6ac9971e30d232d45e1a926883ad6cc222ae50e96e2772791cbf270bfc0da7ba",
+        "lig.pdbqt": "d122e6704243343040967edd5a4d8806f4d6f48eb237fadaea3c60855dcd98ad",
         "lig.pdb": "91dee43a9b689667660ad01608d6e265a5c989d1f36f9ae4bb76a3d454545627",
-        "top_pose_chemical_graph.sdf": "d63c3e83cb46e5b1198770150ed1819e8968e66d7d355d5a0c0661197595d795",
-        "receptor.pdbqt": "4acd0b779f743475623d30a25e9f09f0d83a5c9c2a00eea81873002a9f472957",
-        "vina_output.pdbqt": "94476261f82b02e85389a87b2ab3fb5d1fdd92ca0ae66cfd5d6154c753be130b",
-        "lig_ref.sdf": "650704682b71e71927130df88d24433e680f9a9deaed8e356a8de8a1582a5cc2",
+        "top_pose_chemical_graph.sdf": "81c3a2c2e30b054943807e4584f6ad7a6666ff62f6acd8a0a9bdcd51586b1dbd",
+        "receptor.pdbqt": "2d3fe5b8b93ca3168b683badae1f6ef23edeb00e47179b377ec0316f9eed0b99",
+        "vina_output.pdbqt": "395e882a41b6368a758c960edbf9963dc91899e4096cf2f8c3e83052d4d1a8b8",
+        "lig_ref.sdf": "63f63ab9a923799c2176bf422b0c4d93d2f2bb52eed6ef76609a8367384975f5",
         "source.pdb": "c8d3f238d3269a66823454d4681b71467b4677a18751ce094047961620b338cb",
-        "top_pose.pdbqt": "80f185fe56488d8104bb5cef36a7da98b3db9781df95aa8b3061b9baa389c278",
-        "vina.log": "b5f85684f3bc67ce4cd7d9f7a46e28eab7fbbadb50e3c6fbae6fe2aa00bb6853",
-        "top_pose.sdf": "590f13d874ced3c041df6cabb7ee669e9ce8ac7ac536dcf6bd97a90a99080982"
+        "top_pose.pdbqt": "f1bdf5517493bdce71633027281a22eb1d2680fba470d614aa9a278f8c7a9bf7",
+        "vina.log": "db9b04bd11b9f2c0ea2ef51e4ecb8f09fc8acb0038b32a66a86d30bf304aa9f6",
+        "top_pose.sdf": "82b973de2235a74e1f6d992609de63e5236b3252d60493853b34b8eec22a99f5"
       },
-      "runtime_s": 132.33,
+      "runtime_s": 114.64,
       "top_pose_rmsd_angstrom": 0.5148776764816382,
       "n_pose_models": 2,
       "affinity_kcal_mol": -14.54,
+      "pose_recovery_passed": true,
       "passed": true
     },
     {
@@ -5270,7 +5298,7 @@
       "pdb": "2F12",
       "ligand_resname": "HTM",
       "essential": true,
-      "artifact_directory": "artifacts/20261019T094542448030Z/2F12",
+      "artifact_directory": "artifacts/20261019T103622089319Z/2F12",
       "source_url": "https://files.rcsb.org/download/2F12.pdb",
       "observed_hetatm_resnames": [
         "HOH",
@@ -5399,7 +5427,7 @@
             "total_sasa": 172.818,
             "polar_sasa": 97.945,
             "apolar_sasa": 74.873,
-            "volume": 589.454,
+            "volume": 590.325,
             "mean_local_hydrophobic_density": 13.733,
             "mean_alpha_sphere_radius": 3.933
           },
@@ -5528,7 +5556,7 @@
             "total_sasa": 110.515,
             "polar_sasa": 60.289,
             "apolar_sasa": 50.225,
-            "volume": 370.484,
+            "volume": 383.858,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.957
           },
@@ -5609,7 +5637,7 @@
             "total_sasa": 65.178,
             "polar_sasa": 41.025,
             "apolar_sasa": 24.153,
-            "volume": 232.661,
+            "volume": 224.033,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.858
           },
@@ -5672,7 +5700,7 @@
             "total_sasa": 14.492,
             "polar_sasa": 0.0,
             "apolar_sasa": 14.492,
-            "volume": 58.47,
+            "volume": 59.67,
             "mean_local_hydrophobic_density": 15.0,
             "mean_alpha_sphere_radius": 3.544
           },
@@ -5753,7 +5781,7 @@
             "total_sasa": 79.582,
             "polar_sasa": 51.806,
             "apolar_sasa": 27.775,
-            "volume": 212.192,
+            "volume": 219.665,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.711
           },
@@ -5834,7 +5862,7 @@
             "total_sasa": 64.271,
             "polar_sasa": 36.496,
             "apolar_sasa": 27.775,
-            "volume": 202.755,
+            "volume": 203.213,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 4.045
           },
@@ -5909,7 +5937,7 @@
             "total_sasa": 91.838,
             "polar_sasa": 39.91,
             "apolar_sasa": 51.928,
-            "volume": 305.086,
+            "volume": 299.394,
             "mean_local_hydrophobic_density": 10.0,
             "mean_alpha_sphere_radius": 3.666
           },
@@ -5972,7 +6000,7 @@
             "total_sasa": 70.123,
             "polar_sasa": 50.801,
             "apolar_sasa": 19.322,
-            "volume": 185.113,
+            "volume": 190.372,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.636
           },
@@ -6041,7 +6069,7 @@
             "total_sasa": 50.729,
             "polar_sasa": 19.331,
             "apolar_sasa": 31.398,
-            "volume": 191.812,
+            "volume": 190.632,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 4.175
           },
@@ -6110,7 +6138,7 @@
             "total_sasa": 100.813,
             "polar_sasa": 24.732,
             "apolar_sasa": 76.081,
-            "volume": 332.08,
+            "volume": 327.646,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 4.135
           },
@@ -6179,7 +6207,7 @@
             "total_sasa": 108.043,
             "polar_sasa": 66.984,
             "apolar_sasa": 41.059,
-            "volume": 348.519,
+            "volume": 332.52,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 3.82
           },
@@ -6260,7 +6288,7 @@
             "total_sasa": 71.333,
             "polar_sasa": 38.727,
             "apolar_sasa": 32.606,
-            "volume": 230.372,
+            "volume": 227.396,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 4.063
           },
@@ -6329,7 +6357,7 @@
             "total_sasa": 69.795,
             "polar_sasa": 34.774,
             "apolar_sasa": 35.021,
-            "volume": 249.621,
+            "volume": 246.673,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 4.083
           },
@@ -6392,7 +6420,7 @@
             "total_sasa": 52.548,
             "polar_sasa": 25.981,
             "apolar_sasa": 26.568,
-            "volume": 103.231,
+            "volume": 102.564,
             "mean_local_hydrophobic_density": 12.0,
             "mean_alpha_sphere_radius": 3.611
           },
@@ -6467,7 +6495,7 @@
             "total_sasa": 90.129,
             "polar_sasa": 44.24,
             "apolar_sasa": 45.89,
-            "volume": 281.2,
+            "volume": 279.072,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.909
           },
@@ -6548,7 +6576,7 @@
             "total_sasa": 111.948,
             "polar_sasa": 50.359,
             "apolar_sasa": 61.589,
-            "volume": 275.849,
+            "volume": 286.138,
             "mean_local_hydrophobic_density": 13.0,
             "mean_alpha_sphere_radius": 3.8
           },
@@ -6611,7 +6639,7 @@
             "total_sasa": 57.961,
             "polar_sasa": 38.639,
             "apolar_sasa": 19.322,
-            "volume": 174.4,
+            "volume": 173.172,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 4.066
           },
@@ -6686,26 +6714,48 @@
             "total_sasa": 111.04,
             "polar_sasa": 79.642,
             "apolar_sasa": 31.398,
-            "volume": 312.529,
+            "volume": 317.679,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 3.779
           }
         ]
       },
       "site_offset_angstrom": 10.122009505222897,
-      "passed": false,
-      "error": "grid does not cover site (offset 10.1 A)",
+      "site_coverage_passed": false,
+      "ligand_chemistry_source": "Open Babel PDB bond perception",
+      "pose_sdf_export_valid": true,
+      "vina_version": "1.2.7",
+      "seed": 42,
+      "exhaustiveness": 32,
+      "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
+      "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "source.pdb": "64fb92f2902928cab1a505ed87079c6eb9e376d4d398eae877301ccc4d08dc8f"
+        "vina_output.sdf": "9ae6d1ba855faaf2ae8a59d8bd8233d346cdc25c4e98317483a08b6aae3b5d0d",
+        "lig.pdbqt": "093696314ad1629bd44eb40cdee1c7d6a4c37c990ec1e902cee0a94ff2c1d6c7",
+        "lig.pdb": "9daa826fe304eba2435f7868b23aa0b66dcf68420cf92c306103783ed87bcd66",
+        "top_pose_chemical_graph.sdf": "806f07d4396bbec0a263fffec3853d9027d4d75c6c1e3fbe3ff9e6b0892e8f8b",
+        "receptor.pdbqt": "efac652e984cc27ec173081ebef1f59bf6ec2a85c98415eff2549555e827740c",
+        "vina_output.pdbqt": "0521a399b0279bd80620e0ce22a61f219623f00ae1d3fd27378ddbcdb1f0a0e7",
+        "lig_ref.sdf": "d97ee5051598e10cd46ce9c6d6c4c7f372eb2ff931e7d368fdff4d16c49cd7a6",
+        "source.pdb": "64fb92f2902928cab1a505ed87079c6eb9e376d4d398eae877301ccc4d08dc8f",
+        "top_pose.pdbqt": "6eba3bd5fdcf6554575944dab278dfa2b1751d1f3e3024a5d3b85113e47dccde",
+        "vina.log": "b8019af5281be62531304d5f59c33f714916370df29838147703d2b3b426b71f",
+        "top_pose.sdf": "d64ad966bc87c3fee64be4c4cf218e928b1ffc3257aec550fd65b9639754b2d0"
       },
-      "runtime_s": 8.67
+      "runtime_s": 24.48,
+      "top_pose_rmsd_angstrom": 3.2512750454325814,
+      "n_pose_models": 9,
+      "affinity_kcal_mol": -6.098,
+      "pose_recovery_passed": false,
+      "passed": false,
+      "error": "grid does not cover site (offset 10.1 A); native docking completed for diagnosis"
     },
     {
       "id": "1GKC",
       "pdb": "1GKC",
       "ligand_resname": "NFH",
       "essential": false,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1GKC",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1GKC",
       "source_url": "https://files.rcsb.org/download/1GKC.pdb",
       "observed_hetatm_resnames": [
         "CA",
@@ -6871,7 +6921,7 @@
             "total_sasa": 86.89,
             "polar_sasa": 42.207,
             "apolar_sasa": 44.682,
-            "volume": 364.967,
+            "volume": 367.684,
             "mean_local_hydrophobic_density": 16.429,
             "mean_alpha_sphere_radius": 3.694
           },
@@ -7078,7 +7128,7 @@
             "total_sasa": 342.678,
             "polar_sasa": 177.233,
             "apolar_sasa": 165.445,
-            "volume": 1129.547,
+            "volume": 1107.433,
             "mean_local_hydrophobic_density": 33.843,
             "mean_alpha_sphere_radius": 3.915
           },
@@ -7159,7 +7209,7 @@
             "total_sasa": 54.356,
             "polar_sasa": 28.996,
             "apolar_sasa": 25.36,
-            "volume": 239.104,
+            "volume": 240.581,
             "mean_local_hydrophobic_density": 4.0,
             "mean_alpha_sphere_radius": 3.819
           },
@@ -7324,7 +7374,7 @@
             "total_sasa": 256.701,
             "polar_sasa": 111.786,
             "apolar_sasa": 144.915,
-            "volume": 850.046,
+            "volume": 873.859,
             "mean_local_hydrophobic_density": 31.167,
             "mean_alpha_sphere_radius": 3.96
           },
@@ -7387,7 +7437,7 @@
             "total_sasa": 52.081,
             "polar_sasa": 37.59,
             "apolar_sasa": 14.492,
-            "volume": 157.925,
+            "volume": 160.374,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.883
           },
@@ -7474,7 +7524,7 @@
             "total_sasa": 130.026,
             "polar_sasa": 55.153,
             "apolar_sasa": 74.873,
-            "volume": 426.829,
+            "volume": 436.858,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 4.125
           },
@@ -7549,7 +7599,7 @@
             "total_sasa": 93.951,
             "polar_sasa": 58.93,
             "apolar_sasa": 35.021,
-            "volume": 221.629,
+            "volume": 218.235,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.681
           },
@@ -7636,7 +7686,7 @@
             "total_sasa": 106.643,
             "polar_sasa": 64.376,
             "apolar_sasa": 42.267,
-            "volume": 395.758,
+            "volume": 397.013,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 4.095
           },
@@ -7705,7 +7755,7 @@
             "total_sasa": 98.785,
             "polar_sasa": 32.365,
             "apolar_sasa": 66.42,
-            "volume": 264.937,
+            "volume": 260.807,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 4.158
           },
@@ -7780,7 +7830,7 @@
             "total_sasa": 50.365,
             "polar_sasa": 22.589,
             "apolar_sasa": 27.775,
-            "volume": 194.039,
+            "volume": 184.953,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.853
           },
@@ -7843,7 +7893,7 @@
             "total_sasa": 54.905,
             "polar_sasa": 34.375,
             "apolar_sasa": 20.53,
-            "volume": 149.722,
+            "volume": 151.445,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.913
           },
@@ -7912,7 +7962,7 @@
             "total_sasa": 85.247,
             "polar_sasa": 35.734,
             "apolar_sasa": 49.513,
-            "volume": 294.535,
+            "volume": 289.732,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 4.075
           },
@@ -8011,7 +8061,7 @@
             "total_sasa": 138.056,
             "polar_sasa": 55.937,
             "apolar_sasa": 82.119,
-            "volume": 382.714,
+            "volume": 374.444,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 3.817
           },
@@ -8080,7 +8130,7 @@
             "total_sasa": 83.163,
             "polar_sasa": 39.688,
             "apolar_sasa": 43.475,
-            "volume": 186.372,
+            "volume": 190.263,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.713
           },
@@ -8143,7 +8193,7 @@
             "total_sasa": 92.638,
             "polar_sasa": 53.993,
             "apolar_sasa": 38.644,
-            "volume": 274.474,
+            "volume": 269.296,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.999
           },
@@ -8272,26 +8322,48 @@
             "total_sasa": 222.276,
             "polar_sasa": 135.327,
             "apolar_sasa": 86.949,
-            "volume": 624.636,
+            "volume": 620.574,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.987
           }
         ]
       },
       "site_offset_angstrom": 19.375419951513848,
-      "passed": false,
-      "error": "grid does not cover site (offset 19.4 A)",
+      "site_coverage_passed": false,
+      "ligand_chemistry_source": "Open Babel PDB bond perception",
+      "pose_sdf_export_valid": true,
+      "vina_version": "1.2.7",
+      "seed": 42,
+      "exhaustiveness": 32,
+      "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
+      "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "source.pdb": "495a00a7443f6d931da570a66ba1ffe0e0649a34e7f7735a65955bcb8dbd39a1"
+        "vina_output.sdf": "4cc7292bc43d1f160a0451843c6c9ca808c95b3980546189a7f102c07e488129",
+        "lig.pdbqt": "f1f82ad6546a716735b8a9b58541542fa854715b6779953d61f405b0eaafe0f8",
+        "lig.pdb": "418792ac2747f473859163385484db6a10ee39ad3210cd09b16118f8213cfec9",
+        "top_pose_chemical_graph.sdf": "8fe1321f0d7f264bd67ce5135a6208220ba8a795bad71f47542de3eafa03ad1c",
+        "receptor.pdbqt": "969da8da2e9e55eeef0874bff0767c79ba63fc2f5b6a49487538fa2def910a8e",
+        "vina_output.pdbqt": "916c271c748bac6571549f53e332839e9044116fc981168256f8387604dc98d4",
+        "lig_ref.sdf": "25f5a7d94365711cc26df68e4afbbdfcee1679f1767c8c6ccec8a28818a67502",
+        "source.pdb": "495a00a7443f6d931da570a66ba1ffe0e0649a34e7f7735a65955bcb8dbd39a1",
+        "top_pose.pdbqt": "ea5c5592ec141a0bb5e965a13e28bc51a3fd4adfd8f6624682306d1f5230693a",
+        "vina.log": "2099c8d0468981cdd2267e8cd44be17d4032d7af351c9fae4d93fbfdff44fa8b",
+        "top_pose.sdf": "0a9c2e892c4b4fce02e950d181b8ef30e797f4bd7b8e1d1fe5c84dd9ae7493a9"
       },
-      "runtime_s": 8.71
+      "runtime_s": 37.61,
+      "top_pose_rmsd_angstrom": 19.94819039411846,
+      "n_pose_models": 9,
+      "affinity_kcal_mol": -4.402,
+      "pose_recovery_passed": false,
+      "passed": false,
+      "error": "grid does not cover site (offset 19.4 A); native docking completed for diagnosis"
     },
     {
       "id": "1OYT",
       "pdb": "1OYT",
       "ligand_resname": "FSN",
       "essential": false,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1OYT",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1OYT",
       "source_url": "https://files.rcsb.org/download/1OYT.pdb",
       "observed_hetatm_resnames": [
         "CA",
@@ -8460,7 +8532,7 @@
             "total_sasa": 186.7,
             "polar_sasa": 86.071,
             "apolar_sasa": 100.629,
-            "volume": 716.772,
+            "volume": 725.762,
             "mean_local_hydrophobic_density": 32.375,
             "mean_alpha_sphere_radius": 3.973
           },
@@ -8563,7 +8635,7 @@
             "total_sasa": 58.26,
             "polar_sasa": 46.183,
             "apolar_sasa": 12.076,
-            "volume": 198.928,
+            "volume": 194.334,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.542
           },
@@ -8668,7 +8740,7 @@
             "total_sasa": 84.385,
             "polar_sasa": 31.249,
             "apolar_sasa": 53.136,
-            "volume": 225.589,
+            "volume": 229.764,
             "mean_local_hydrophobic_density": 11.0,
             "mean_alpha_sphere_radius": 3.695
           },
@@ -8743,7 +8815,7 @@
             "total_sasa": 59.039,
             "polar_sasa": 22.81,
             "apolar_sasa": 36.229,
-            "volume": 296.205,
+            "volume": 287.053,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 3.901
           },
@@ -8831,7 +8903,7 @@
             "total_sasa": 93.62,
             "polar_sasa": 44.107,
             "apolar_sasa": 49.513,
-            "volume": 376.74,
+            "volume": 373.348,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.992
           },
@@ -8893,7 +8965,7 @@
             "total_sasa": 138.198,
             "polar_sasa": 86.27,
             "apolar_sasa": 51.928,
-            "volume": 434.997,
+            "volume": 433.628,
             "mean_local_hydrophobic_density": 2.8,
             "mean_alpha_sphere_radius": 3.905
           },
@@ -8959,7 +9031,7 @@
             "total_sasa": 94.802,
             "polar_sasa": 45.289,
             "apolar_sasa": 49.513,
-            "volume": 233.689,
+            "volume": 242.673,
             "mean_local_hydrophobic_density": 17.0,
             "mean_alpha_sphere_radius": 3.695
           },
@@ -9022,7 +9094,7 @@
             "total_sasa": 68.119,
             "polar_sasa": 35.513,
             "apolar_sasa": 32.606,
-            "volume": 261.801,
+            "volume": 258.227,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 3.914
           },
@@ -9097,7 +9169,7 @@
             "total_sasa": 72.99,
             "polar_sasa": 36.762,
             "apolar_sasa": 36.229,
-            "volume": 230.159,
+            "volume": 226.277,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.857
           },
@@ -9157,7 +9229,7 @@
             "total_sasa": 72.114,
             "polar_sasa": 40.715,
             "apolar_sasa": 31.398,
-            "volume": 260.016,
+            "volume": 254.534,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.83
           },
@@ -9220,7 +9292,7 @@
             "total_sasa": 132.295,
             "polar_sasa": 59.838,
             "apolar_sasa": 72.458,
-            "volume": 458.18,
+            "volume": 475.53,
             "mean_local_hydrophobic_density": 14.5,
             "mean_alpha_sphere_radius": 4.01
           },
@@ -9289,7 +9361,7 @@
             "total_sasa": 62.832,
             "polar_sasa": 39.887,
             "apolar_sasa": 22.945,
-            "volume": 178.245,
+            "volume": 182.848,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 4.002
           },
@@ -9364,7 +9436,7 @@
             "total_sasa": 102.806,
             "polar_sasa": 47.255,
             "apolar_sasa": 55.551,
-            "volume": 374.5,
+            "volume": 375.054,
             "mean_local_hydrophobic_density": 11.0,
             "mean_alpha_sphere_radius": 3.924
           },
@@ -9435,7 +9507,7 @@
             "total_sasa": 65.317,
             "polar_sasa": 38.75,
             "apolar_sasa": 26.568,
-            "volume": 236.274,
+            "volume": 236.273,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 4.146
           },
@@ -9504,7 +9576,7 @@
             "total_sasa": 70.17,
             "polar_sasa": 38.772,
             "apolar_sasa": 31.398,
-            "volume": 228.425,
+            "volume": 229.076,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 4.038
           },
@@ -9575,7 +9647,7 @@
             "total_sasa": 92.058,
             "polar_sasa": 29.261,
             "apolar_sasa": 62.797,
-            "volume": 318.918,
+            "volume": 317.141,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 4.0
           },
@@ -9650,7 +9722,7 @@
             "total_sasa": 43.255,
             "polar_sasa": 21.518,
             "apolar_sasa": 21.737,
-            "volume": 84.356,
+            "volume": 85.261,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.729
           },
@@ -9713,7 +9785,7 @@
             "total_sasa": 75.903,
             "polar_sasa": 33.636,
             "apolar_sasa": 42.267,
-            "volume": 272.916,
+            "volume": 266.428,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 4.258
           },
@@ -9770,7 +9842,7 @@
             "total_sasa": 58.866,
             "polar_sasa": 21.429,
             "apolar_sasa": 37.436,
-            "volume": 173.679,
+            "volume": 172.743,
             "mean_local_hydrophobic_density": 4.0,
             "mean_alpha_sphere_radius": 4.062
           },
@@ -9870,7 +9942,7 @@
             "total_sasa": 151.023,
             "polar_sasa": 102.718,
             "apolar_sasa": 48.305,
-            "volume": 425.402,
+            "volume": 419.085,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.959
           },
@@ -9945,7 +10017,7 @@
             "total_sasa": 71.196,
             "polar_sasa": 28.929,
             "apolar_sasa": 42.267,
-            "volume": 206.112,
+            "volume": 206.95,
             "mean_local_hydrophobic_density": 18.0,
             "mean_alpha_sphere_radius": 4.054
           },
@@ -10026,13 +10098,14 @@
             "total_sasa": 150.592,
             "polar_sasa": 41.114,
             "apolar_sasa": 109.478,
-            "volume": 408.582,
+            "volume": 421.456,
             "mean_local_hydrophobic_density": 13.176,
             "mean_alpha_sphere_radius": 3.919
           }
         ]
       },
       "site_offset_angstrom": 2.4239649422198983,
+      "site_coverage_passed": true,
       "ligand_chemistry_source": "Open Babel PDB bond perception",
       "pose_sdf_export_valid": false,
       "pose_sdf_export_error": "Open Babel pose SDF failed chemical sanitization; retained as failed export evidence",
@@ -10042,22 +10115,23 @@
       "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
       "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "vina_output.sdf": "57013ca7d5a916a795d9316e655a737b3b6ea9fafc4f2a258b98d2aa67cd00c9",
-        "lig.pdbqt": "95f78fa7697705cb759ab3f820430614b83800e15dc0a7114a0ae0b829a6b774",
+        "vina_output.sdf": "653bf6467f1b087589f87194c747b1060b0f56dbce4944401d84c142b067f30a",
+        "lig.pdbqt": "e2d95e116b8bbb7353d78d303c7d1a34ca0bd41753d1428853368af679376b09",
         "lig.pdb": "e89352ea8db094265705fb4f8be716c051aee104360b52b3c21ddcad8b23db8f",
-        "top_pose_chemical_graph.sdf": "313c3ef084f2fdd3f9371c90e271172892f8734444aae93379f23f63bea6b7b1",
-        "receptor.pdbqt": "9cc5cb3f7d873967b029a409e7c476b9e6f1498ea873cbc1d3bb6696957cf96f",
-        "vina_output.pdbqt": "f30e74cea0b2b712e2b9897185e179ddb2a95a9f9e9169471bbec7aee1f77249",
-        "lig_ref.sdf": "6a73a580f4d6bb1b86e659a974ca21308803df6c933502b28cba1db605d8a006",
+        "top_pose_chemical_graph.sdf": "536c7700186acaa8d4df6c0dfe1cf6378777e8b32cf3634c4dcc2076ecf712c3",
+        "receptor.pdbqt": "ba66941f0478ad088b57cab60d2190e866470d9a8a2d2aecfb50fa6173a491d1",
+        "vina_output.pdbqt": "3693fe4b1f593bd8b4f75c5d9d1a246addc772b29f43f26aa298b30b5713e79d",
+        "lig_ref.sdf": "f57498e995ea5f51f44c5056db461ca107608bb74f67fbfd2701b32822d694ff",
         "source.pdb": "22d343aef7a42d7b355c05d0cae878ff579ff5a0d79162f7cd6e5053f18879bd",
-        "top_pose.pdbqt": "27470d51d23d7ddd034d21234e770f2fee389af6065822500d6d0280c294674c",
-        "vina.log": "8b49b523c61672e3007f7408f07f76bf014de79b3b2d9a61d203343d3fe7d04b",
-        "top_pose.sdf": "5d8cad6b869b4646dc3392997e6972550e23a55a2c892da20dbeb2baaa9ef766"
+        "top_pose.pdbqt": "c5d45a327e169ec7f9164f94f286da2232dd1be56101e924efec0c8cb9f86f8a",
+        "vina.log": "10b38009dbdf83b1c9326b399d2077969b11a429b2f600d985ed322d836a086d",
+        "top_pose.sdf": "3567b02d1c190de3091f56b3b29f7c254c7b0c8a5bbd195bae2c9e122d4f4745"
       },
-      "runtime_s": 29.34,
+      "runtime_s": 27.87,
       "top_pose_rmsd_angstrom": 0.3208094449981173,
       "n_pose_models": 9,
       "affinity_kcal_mol": -11.05,
+      "pose_recovery_passed": true,
       "passed": true
     },
     {
@@ -10065,7 +10139,7 @@
       "pdb": "1UYG",
       "ligand_resname": "PU2",
       "essential": false,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1UYG",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1UYG",
       "source_url": "https://files.rcsb.org/download/1UYG.pdb",
       "observed_hetatm_resnames": [
         "HOH",
@@ -10295,7 +10369,7 @@
             "total_sasa": 320.964,
             "polar_sasa": 101.988,
             "apolar_sasa": 218.977,
-            "volume": 1050.251,
+            "volume": 1062.539,
             "mean_local_hydrophobic_density": 48.282,
             "mean_alpha_sphere_radius": 3.887
           },
@@ -10406,7 +10480,7 @@
             "total_sasa": 180.728,
             "polar_sasa": 54.976,
             "apolar_sasa": 125.752,
-            "volume": 600.172,
+            "volume": 592.296,
             "mean_local_hydrophobic_density": 20.789,
             "mean_alpha_sphere_radius": 3.927
           },
@@ -10493,7 +10567,7 @@
             "total_sasa": 122.918,
             "polar_sasa": 31.139,
             "apolar_sasa": 91.78,
-            "volume": 447.511,
+            "volume": 446.007,
             "mean_local_hydrophobic_density": 20.727,
             "mean_alpha_sphere_radius": 3.97
           },
@@ -10562,7 +10636,7 @@
             "total_sasa": 98.265,
             "polar_sasa": 35.469,
             "apolar_sasa": 62.797,
-            "volume": 322.121,
+            "volume": 336.827,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 4.041
           },
@@ -10625,7 +10699,7 @@
             "total_sasa": 63.742,
             "polar_sasa": 43.212,
             "apolar_sasa": 20.53,
-            "volume": 200.164,
+            "volume": 199.199,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.808
           },
@@ -10694,7 +10768,7 @@
             "total_sasa": 81.155,
             "polar_sasa": 70.287,
             "apolar_sasa": 10.869,
-            "volume": 245.251,
+            "volume": 241.802,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.854
           },
@@ -10757,7 +10831,7 @@
             "total_sasa": 75.406,
             "polar_sasa": 47.631,
             "apolar_sasa": 27.775,
-            "volume": 246.922,
+            "volume": 252.739,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.945
           },
@@ -10826,7 +10900,7 @@
             "total_sasa": 62.968,
             "polar_sasa": 27.946,
             "apolar_sasa": 35.021,
-            "volume": 195.88,
+            "volume": 193.998,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.92
           },
@@ -10907,7 +10981,7 @@
             "total_sasa": 107.342,
             "polar_sasa": 49.376,
             "apolar_sasa": 57.966,
-            "volume": 388.459,
+            "volume": 385.583,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.858
           },
@@ -10982,13 +11056,14 @@
             "total_sasa": 68.671,
             "polar_sasa": 39.688,
             "apolar_sasa": 28.983,
-            "volume": 182.503,
+            "volume": 183.793,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.852
           }
         ]
       },
       "site_offset_angstrom": 4.1352013119672755,
+      "site_coverage_passed": true,
       "ligand_chemistry_source": "https://files.rcsb.org/ligands/download/PU2.cif",
       "pose_sdf_export_valid": true,
       "vina_version": "1.2.7",
@@ -10998,22 +11073,23 @@
       "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
         "ligand_ccd.cif": "82e8b1da9792402724502f98b6e0b2c0d39e4b5df27ab301101c46ac74edcb3d",
-        "vina_output.sdf": "b9a9d63c0f6cb8c8cd6af8ef27a95fd76621c1164c0b2928989f092160780e9b",
+        "vina_output.sdf": "c6233ebc389a2613e4f5dcf32c58316d81e8ea894ca154a824c8ae8a84641ac5",
         "lig.pdbqt": "bc9ba7f6d7f6eebccaf61d24cc132748f1b9b3b48f7351d999408ef0e8109a0a",
         "lig.pdb": "ac98a5ddc71fb57357017a18b471afe009637a8e77f719b35de8022b16103614",
         "top_pose_chemical_graph.sdf": "edd9e2e8dfcf75c393f170a0d0faca1d577b599c2bd11389e3c2d2b1aa205c78",
-        "receptor.pdbqt": "b87a84ad62185a0bbcc525cbb49a321ec2f7dd8ee211bc877c1b1c83f877dcb4",
+        "receptor.pdbqt": "46589e0e7e45a099a965f20f316eb93be9c84effe99172fc74b7984d6d54f027",
         "vina_output.pdbqt": "b7e34530d8fa6799fb6c73328790061b54c3f960e9cea9967fcbc60a9644cc08",
         "lig_ref.sdf": "2976148d3ca5e61b18043ce596e9b76736ff9c127ea2a305601cd9e423abcb12",
         "source.pdb": "bebffd75b618913bcdc1478dcd45de833c4dc93d3a341b5f065515ac87406985",
         "top_pose.pdbqt": "9ac442da009dc4289b6e8c7a097d9c3875daf86d04c902e04f6d326bc66bf7b0",
-        "vina.log": "b2a40b4b62bdb7062a4b2e1c799919f0bc3ccaaa9077ea3008a1ec0498ec9e92",
-        "top_pose.sdf": "9a99e593ad8d08d8f42c5cb90b3fcb7ac8ec33e0ca1141f4b29ba3ec894f4d52"
+        "vina.log": "980511a30030c2c0e262b451d91e9f6a9501a619c856b8b4a827542bb87e4b5a",
+        "top_pose.sdf": "c65a46e925ca13f0dfb901aad932ad51de62a4dc607586873f1a242bb2445397"
       },
-      "runtime_s": 35.4,
+      "runtime_s": 22.98,
       "top_pose_rmsd_angstrom": 0.6560639173406536,
       "n_pose_models": 9,
       "affinity_kcal_mol": -8.413,
+      "pose_recovery_passed": true,
       "passed": true
     },
     {
@@ -11021,7 +11097,7 @@
       "pdb": "2H4G",
       "ligand_resname": "694",
       "essential": false,
-      "artifact_directory": "artifacts/20261019T094542448030Z/2H4G",
+      "artifact_directory": "artifacts/20261019T103622089319Z/2H4G",
       "source_url": "https://files.rcsb.org/download/2H4G.pdb",
       "observed_hetatm_resnames": [
         "694",
@@ -11167,7 +11243,7 @@
             "total_sasa": 182.449,
             "polar_sasa": 49.531,
             "apolar_sasa": 132.918,
-            "volume": 741.015,
+            "volume": 734.67,
             "mean_local_hydrophobic_density": 40.75,
             "mean_alpha_sphere_radius": 3.968
           },
@@ -11236,7 +11312,7 @@
             "total_sasa": 64.466,
             "polar_sasa": 27.03,
             "apolar_sasa": 37.436,
-            "volume": 319.742,
+            "volume": 324.725,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 4.069
           },
@@ -11329,7 +11405,7 @@
             "total_sasa": 95.494,
             "polar_sasa": 58.058,
             "apolar_sasa": 37.436,
-            "volume": 396.354,
+            "volume": 392.023,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 3.999
           },
@@ -11398,7 +11474,7 @@
             "total_sasa": 53.829,
             "polar_sasa": 23.638,
             "apolar_sasa": 30.191,
-            "volume": 216.363,
+            "volume": 216.362,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.742
           },
@@ -11485,7 +11561,7 @@
             "total_sasa": 121.427,
             "polar_sasa": 46.316,
             "apolar_sasa": 75.11,
-            "volume": 526.176,
+            "volume": 516.514,
             "mean_local_hydrophobic_density": 9.273,
             "mean_alpha_sphere_radius": 4.136
           },
@@ -11554,7 +11630,7 @@
             "total_sasa": 18.119,
             "polar_sasa": 9.665,
             "apolar_sasa": 8.453,
-            "volume": 87.209,
+            "volume": 85.709,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.625
           },
@@ -11629,7 +11705,7 @@
             "total_sasa": 127.806,
             "polar_sasa": 60.179,
             "apolar_sasa": 67.627,
-            "volume": 419.167,
+            "volume": 431.509,
             "mean_local_hydrophobic_density": 19.524,
             "mean_alpha_sphere_radius": 4.033
           },
@@ -11710,7 +11786,7 @@
             "total_sasa": 101.031,
             "polar_sasa": 51.519,
             "apolar_sasa": 49.513,
-            "volume": 277.909,
+            "volume": 285.478,
             "mean_local_hydrophobic_density": 15.0,
             "mean_alpha_sphere_radius": 3.829
           },
@@ -11785,7 +11861,7 @@
             "total_sasa": 84.662,
             "polar_sasa": 49.641,
             "apolar_sasa": 35.021,
-            "volume": 256.796,
+            "volume": 262.321,
             "mean_local_hydrophobic_density": 10.0,
             "mean_alpha_sphere_radius": 3.889
           },
@@ -11860,7 +11936,7 @@
             "total_sasa": 125.721,
             "polar_sasa": 38.772,
             "apolar_sasa": 86.949,
-            "volume": 437.412,
+            "volume": 433.707,
             "mean_local_hydrophobic_density": 14.375,
             "mean_alpha_sphere_radius": 3.952
           },
@@ -11941,7 +12017,7 @@
             "total_sasa": 97.016,
             "polar_sasa": 68.033,
             "apolar_sasa": 28.983,
-            "volume": 387.106,
+            "volume": 372.013,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 4.061
           },
@@ -12028,7 +12104,7 @@
             "total_sasa": 136.956,
             "polar_sasa": 68.122,
             "apolar_sasa": 68.835,
-            "volume": 435.856,
+            "volume": 426.784,
             "mean_local_hydrophobic_density": 11.143,
             "mean_alpha_sphere_radius": 3.947
           },
@@ -12097,7 +12173,7 @@
             "total_sasa": 77.662,
             "polar_sasa": 26.941,
             "apolar_sasa": 50.72,
-            "volume": 234.271,
+            "volume": 233.679,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 4.084
           },
@@ -12178,7 +12254,7 @@
             "total_sasa": 61.69,
             "polar_sasa": 29.084,
             "apolar_sasa": 32.606,
-            "volume": 148.372,
+            "volume": 149.53,
             "mean_local_hydrophobic_density": 6.0,
             "mean_alpha_sphere_radius": 3.776
           },
@@ -12247,7 +12323,7 @@
             "total_sasa": 96.836,
             "polar_sasa": 39.998,
             "apolar_sasa": 56.838,
-            "volume": 328.462,
+            "volume": 333.577,
             "mean_local_hydrophobic_density": 13.6,
             "mean_alpha_sphere_radius": 4.011
           },
@@ -12322,7 +12398,7 @@
             "total_sasa": 86.22,
             "polar_sasa": 54.821,
             "apolar_sasa": 31.398,
-            "volume": 235.673,
+            "volume": 234.422,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.843
           },
@@ -12409,7 +12485,7 @@
             "total_sasa": 86.742,
             "polar_sasa": 50.513,
             "apolar_sasa": 36.229,
-            "volume": 251.808,
+            "volume": 259.229,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.977
           },
@@ -12484,7 +12560,7 @@
             "total_sasa": 102.79,
             "polar_sasa": 78.637,
             "apolar_sasa": 24.153,
-            "volume": 262.701,
+            "volume": 266.128,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.901
           },
@@ -12553,7 +12629,7 @@
             "total_sasa": 81.348,
             "polar_sasa": 39.082,
             "apolar_sasa": 42.267,
-            "volume": 271.688,
+            "volume": 259.905,
             "mean_local_hydrophobic_density": 2.0,
             "mean_alpha_sphere_radius": 3.742
           },
@@ -12622,7 +12698,7 @@
             "total_sasa": 88.822,
             "polar_sasa": 36.894,
             "apolar_sasa": 51.928,
-            "volume": 221.094,
+            "volume": 224.643,
             "mean_local_hydrophobic_density": 4.0,
             "mean_alpha_sphere_radius": 4.006
           },
@@ -12703,7 +12779,7 @@
             "total_sasa": 111.984,
             "polar_sasa": 86.624,
             "apolar_sasa": 25.36,
-            "volume": 272.812,
+            "volume": 267.2,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.771
           },
@@ -12772,7 +12848,7 @@
             "total_sasa": 81.777,
             "polar_sasa": 14.15,
             "apolar_sasa": 67.627,
-            "volume": 164.425,
+            "volume": 166.392,
             "mean_local_hydrophobic_density": 5.0,
             "mean_alpha_sphere_radius": 3.786
           },
@@ -12841,7 +12917,7 @@
             "total_sasa": 74.618,
             "polar_sasa": 40.804,
             "apolar_sasa": 33.814,
-            "volume": 165.678,
+            "volume": 164.267,
             "mean_local_hydrophobic_density": 4.0,
             "mean_alpha_sphere_radius": 3.966
           },
@@ -12916,13 +12992,14 @@
             "total_sasa": 111.72,
             "polar_sasa": 48.924,
             "apolar_sasa": 62.797,
-            "volume": 296.424,
+            "volume": 290.74,
             "mean_local_hydrophobic_density": 17.0,
             "mean_alpha_sphere_radius": 4.029
           }
         ]
       },
       "site_offset_angstrom": 1.3708573719538995,
+      "site_coverage_passed": true,
       "ligand_chemistry_source": "Open Babel PDB bond perception",
       "pose_sdf_export_valid": true,
       "vina_version": "1.2.7",
@@ -12931,22 +13008,23 @@
       "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
       "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "vina_output.sdf": "90670448ed95ad6d4e3e4ae7bb52a8d32470262dcd63ee28b519e5543c55e4d3",
-        "lig.pdbqt": "94c658e527c1ff90d6e869f64eb932bdf24f579868c0013fa40e6313a733dc5e",
+        "vina_output.sdf": "d7f68b3ac0a3fe6b2beeb263c142a547aed61fa0e61ae02c6e17313f7378658e",
+        "lig.pdbqt": "05d81f08c5425976b4b279caa0db21195af11f4a03913e4e85ea658aef5e6df2",
         "lig.pdb": "2501b82741fc1e51c7bea7f65f20b414f15780da1cf533171a8cda0f850724fe",
-        "top_pose_chemical_graph.sdf": "8ba1c3f6257f4a02bbcf5a1f53e907cd23f2b4017d1e97771849b36df5b197f2",
-        "receptor.pdbqt": "6b675bf60bc0813af206efa13ba7af2fd6eb3ded2d6ee25b76c1af237534921b",
-        "vina_output.pdbqt": "252079f697c7eeb7941050be7fa2f0d308e0e2e62cf34ac9b2a7cc90dab917fb",
-        "lig_ref.sdf": "3ba2a4e2a5301f5cb1023b37c0cafcb4f2edef3b10d624d9dd34b98a1c5821de",
+        "top_pose_chemical_graph.sdf": "d029838da7f0b8d193b709435c6f931228407c067b01622df384b215953b3191",
+        "receptor.pdbqt": "0b6975c2abd32cee09e469146291599fada0f094050f76eccf987f23397a8af0",
+        "vina_output.pdbqt": "a37a3d1e86b764944eaf15ec5aa842eae16222d8b7519d6612320dcbaf466cb2",
+        "lig_ref.sdf": "bfc077789bae1e3efd00f9bf87ca9dc73e34c58f45258a5e8d280ca3bd98ce10",
         "source.pdb": "985442cd7ca32cfbc69dd144d09c44a502fc11405ef53b826d08d4174888e8b6",
-        "top_pose.pdbqt": "cbe402ebc58654231392f9dd532881a325111e12a9180b6ca08db9e467526a5f",
-        "vina.log": "49d5578800581f354f541353234ebc96f3c357271f824928f1c1f30c70f44f4c",
-        "top_pose.sdf": "00052ff47e60a40613febf38a074c901043cc7dd435ed9a9d606e623f0badb7f"
+        "top_pose.pdbqt": "3ab3b46e7b43bb736477174d4c8a92e5bfe28b831a13135bebdb3b9e245e4648",
+        "vina.log": "542d484ae8e01777e68e463217dce2657448afb779e62d306f44a217d4854f8e",
+        "top_pose.sdf": "43831d36a4e47a5bf2e0617fc1297e26d99811fdd1e16881f1515d8cf7f8f240"
       },
-      "runtime_s": 19.66,
+      "runtime_s": 21.31,
       "top_pose_rmsd_angstrom": 7.366091769207125,
       "n_pose_models": 9,
       "affinity_kcal_mol": -6.179,
+      "pose_recovery_passed": false,
       "passed": false
     },
     {
@@ -12954,7 +13032,7 @@
       "pdb": "1Q4T",
       "ligand_resname": "4CO",
       "essential": false,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1Q4T",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1Q4T",
       "source_url": "https://files.rcsb.org/download/1Q4T.pdb",
       "observed_hetatm_resnames": [
         "4CO",
@@ -13078,7 +13156,7 @@
             "total_sasa": 24.153,
             "polar_sasa": 0.0,
             "apolar_sasa": 24.153,
-            "volume": 132.421,
+            "volume": 131.011,
             "mean_local_hydrophobic_density": 25.0,
             "mean_alpha_sphere_radius": 3.58
           },
@@ -13273,7 +13351,7 @@
             "total_sasa": 282.175,
             "polar_sasa": 85.331,
             "apolar_sasa": 196.843,
-            "volume": 1075.884,
+            "volume": 1029.685,
             "mean_local_hydrophobic_density": 37.299,
             "mean_alpha_sphere_radius": 3.905
           },
@@ -13480,7 +13558,7 @@
             "total_sasa": 313.342,
             "polar_sasa": 88.723,
             "apolar_sasa": 224.619,
-            "volume": 1099.868,
+            "volume": 1131.776,
             "mean_local_hydrophobic_density": 36.389,
             "mean_alpha_sphere_radius": 3.924
           },
@@ -13567,7 +13645,7 @@
             "total_sasa": 87.011,
             "polar_sasa": 49.575,
             "apolar_sasa": 37.436,
-            "volume": 286.113,
+            "volume": 279.105,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.854
           },
@@ -13660,7 +13738,7 @@
             "total_sasa": 108.673,
             "polar_sasa": 63.991,
             "apolar_sasa": 44.682,
-            "volume": 430.65,
+            "volume": 435.207,
             "mean_local_hydrophobic_density": 15.765,
             "mean_alpha_sphere_radius": 3.843
           },
@@ -13723,7 +13801,7 @@
             "total_sasa": 58.457,
             "polar_sasa": 24.644,
             "apolar_sasa": 33.814,
-            "volume": 204.37,
+            "volume": 200.815,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 3.776
           },
@@ -13804,7 +13882,7 @@
             "total_sasa": 78.347,
             "polar_sasa": 31.249,
             "apolar_sasa": 47.098,
-            "volume": 268.0,
+            "volume": 263.64,
             "mean_local_hydrophobic_density": 12.0,
             "mean_alpha_sphere_radius": 4.13
           },
@@ -13855,7 +13933,7 @@
             "total_sasa": 57.004,
             "polar_sasa": 36.474,
             "apolar_sasa": 20.53,
-            "volume": 155.984,
+            "volume": 150.416,
             "mean_local_hydrophobic_density": 3.0,
             "mean_alpha_sphere_radius": 3.896
           },
@@ -13924,7 +14002,7 @@
             "total_sasa": 193.411,
             "polar_sasa": 84.725,
             "apolar_sasa": 108.687,
-            "volume": 625.23,
+            "volume": 640.673,
             "mean_local_hydrophobic_density": 10.0,
             "mean_alpha_sphere_radius": 4.044
           },
@@ -14005,26 +14083,32 @@
             "total_sasa": 201.774,
             "polar_sasa": 107.579,
             "apolar_sasa": 94.195,
-            "volume": 594.4,
+            "volume": 592.405,
             "mean_local_hydrophobic_density": 8.0,
             "mean_alpha_sphere_radius": 4.047
           }
         ]
       },
       "site_offset_angstrom": 19.53271832899501,
+      "site_coverage_passed": false,
+      "ligand_chemistry_source": "Open Babel PDB bond perception",
       "passed": false,
-      "error": "grid does not cover site (offset 19.5 A)",
+      "error": "Command '['/tmp/vina_bin/vina', '--receptor', '/tmp/tmpdq6a7l_t/protein.pdbqt', '--ligand', '/tmp/tmpdq6a7l_t/ligand.pdbqt', '--center_x', '69.755', '--center_y', '35.89', '--center_z', '15.877', '--size_x', '16.0', '--size_y', '16.0', '--size_z', '19.666', '--exhaustiveness', '32', '--num_modes', '9', '--seed', '42', '--out', '/tmp/tmpdq6a7l_t/output.pdbqt']' timed out after 300 seconds",
       "artifact_sha256": {
+        "lig.pdbqt": "da5f953557fbb5b34392786c0c0827cb40e7e7df5e25af17b8e962af5bbecf01",
+        "lig.pdb": "843899fbc5bae6bc67f9bca09053923acc90eb5b5016f51c9c033c757d88fb8d",
+        "receptor.pdbqt": "0e666ae471a4f3f9f20f806426bc7277ca0225fef37f8ce2917f809f66a48d8d",
+        "lig_ref.sdf": "f74845a2a66c74c9f27e1004819314af7649aab773c5dfdf7579a9cad0b873a7",
         "source.pdb": "e3cf9be0283c9340976d8e00a9fc8bfc020231c50075f21f2d5765bd64bacc4d"
       },
-      "runtime_s": 4.58
+      "runtime_s": 308.84
     },
     {
       "id": "1P62",
       "pdb": "1P62",
       "ligand_resname": "GEO",
       "essential": false,
-      "artifact_directory": "artifacts/20261019T094542448030Z/1P62",
+      "artifact_directory": "artifacts/20261019T103622089319Z/1P62",
       "source_url": "https://files.rcsb.org/download/1P62.pdb",
       "observed_hetatm_resnames": [
         "ADP",
@@ -14166,7 +14250,7 @@
             "total_sasa": 158.954,
             "polar_sasa": 64.442,
             "apolar_sasa": 94.512,
-            "volume": 625.257,
+            "volume": 638.896,
             "mean_local_hydrophobic_density": 38.0,
             "mean_alpha_sphere_radius": 3.805
           },
@@ -14337,7 +14421,7 @@
             "total_sasa": 215.762,
             "polar_sasa": 127.605,
             "apolar_sasa": 88.157,
-            "volume": 787.912,
+            "volume": 757.179,
             "mean_local_hydrophobic_density": 24.452,
             "mean_alpha_sphere_radius": 3.955
           },
@@ -14418,7 +14502,7 @@
             "total_sasa": 12.076,
             "polar_sasa": 0.0,
             "apolar_sasa": 12.076,
-            "volume": 93.112,
+            "volume": 93.58,
             "mean_local_hydrophobic_density": 19.0,
             "mean_alpha_sphere_radius": 3.5
           },
@@ -14487,7 +14571,7 @@
             "total_sasa": 11.259,
             "polar_sasa": 6.429,
             "apolar_sasa": 4.831,
-            "volume": 61.257,
+            "volume": 62.034,
             "mean_local_hydrophobic_density": 11.0,
             "mean_alpha_sphere_radius": 3.476
           },
@@ -14568,7 +14652,7 @@
             "total_sasa": 77.458,
             "polar_sasa": 50.89,
             "apolar_sasa": 26.568,
-            "volume": 236.27,
+            "volume": 234.851,
             "mean_local_hydrophobic_density": 0.0,
             "mean_alpha_sphere_radius": 3.711
           },
@@ -14637,7 +14721,7 @@
             "total_sasa": 60.163,
             "polar_sasa": 4.374,
             "apolar_sasa": 55.788,
-            "volume": 255.149,
+            "volume": 254.981,
             "mean_local_hydrophobic_density": 15.0,
             "mean_alpha_sphere_radius": 3.934
           },
@@ -14736,7 +14820,7 @@
             "total_sasa": 134.069,
             "polar_sasa": 59.196,
             "apolar_sasa": 74.873,
-            "volume": 478.783,
+            "volume": 487.169,
             "mean_local_hydrophobic_density": 13.6,
             "mean_alpha_sphere_radius": 3.969
           },
@@ -14817,7 +14901,7 @@
             "total_sasa": 111.2,
             "polar_sasa": 89.462,
             "apolar_sasa": 21.737,
-            "volume": 367.169,
+            "volume": 364.193,
             "mean_local_hydrophobic_density": 1.0,
             "mean_alpha_sphere_radius": 3.995
           },
@@ -14886,7 +14970,7 @@
             "total_sasa": 78.47,
             "polar_sasa": 3.281,
             "apolar_sasa": 75.19,
-            "volume": 271.594,
+            "volume": 270.285,
             "mean_local_hydrophobic_density": 23.0,
             "mean_alpha_sphere_radius": 4.021
           },
@@ -14949,7 +15033,7 @@
             "total_sasa": 56.108,
             "polar_sasa": 24.71,
             "apolar_sasa": 31.398,
-            "volume": 207.255,
+            "volume": 213.991,
             "mean_local_hydrophobic_density": 2.0,
             "mean_alpha_sphere_radius": 4.024
           },
@@ -15006,7 +15090,7 @@
             "total_sasa": 55.81,
             "polar_sasa": 17.165,
             "apolar_sasa": 38.644,
-            "volume": 182.078,
+            "volume": 179.68,
             "mean_local_hydrophobic_density": 9.0,
             "mean_alpha_sphere_radius": 3.862
           },
@@ -15087,7 +15171,7 @@
             "total_sasa": 117.792,
             "polar_sasa": 56.203,
             "apolar_sasa": 61.589,
-            "volume": 360.21,
+            "volume": 358.0,
             "mean_local_hydrophobic_density": 2.0,
             "mean_alpha_sphere_radius": 3.998
           },
@@ -15150,7 +15234,7 @@
             "total_sasa": 77.987,
             "polar_sasa": 44.173,
             "apolar_sasa": 33.814,
-            "volume": 240.592,
+            "volume": 241.755,
             "mean_local_hydrophobic_density": 7.0,
             "mean_alpha_sphere_radius": 3.966
           },
@@ -15213,7 +15297,7 @@
             "total_sasa": 117.736,
             "polar_sasa": 52.524,
             "apolar_sasa": 65.212,
-            "volume": 427.591,
+            "volume": 410.983,
             "mean_local_hydrophobic_density": 4.857,
             "mean_alpha_sphere_radius": 4.143
           },
@@ -15288,19 +15372,41 @@
             "total_sasa": 120.467,
             "polar_sasa": 84.238,
             "apolar_sasa": 36.229,
-            "volume": 285.374,
+            "volume": 282.31,
             "mean_local_hydrophobic_density": 10.0,
             "mean_alpha_sphere_radius": 3.863
           }
         ]
       },
       "site_offset_angstrom": 9.69170280079885,
-      "passed": false,
-      "error": "grid does not cover site (offset 9.7 A)",
+      "site_coverage_passed": false,
+      "ligand_chemistry_source": "Open Babel PDB bond perception",
+      "pose_sdf_export_valid": true,
+      "vina_version": "1.2.7",
+      "seed": 42,
+      "exhaustiveness": 32,
+      "atom_correspondence": "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting",
+      "metric": "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)",
       "artifact_sha256": {
-        "source.pdb": "2292457473c12633a4a78c1bfeee09984c5a336c9d0f291e29fc43071c282617"
+        "vina_output.sdf": "0d40c4f4e2fc6fefe389daf79fd7035c87dc74446f69be6c4f705bcf13058a53",
+        "lig.pdbqt": "54bb1676ee254029b1d7be334cffa5845078d80858e1f27e5bde7572450b75b8",
+        "lig.pdb": "954e47a540aca898aed571e0be07439d597a4be93ddf846e4713ac39efbb4168",
+        "top_pose_chemical_graph.sdf": "f0b4a1ebf03a78752a4c36cfc696112cfc86118354cd6195e2f80f1ab5a604a9",
+        "receptor.pdbqt": "9db3d0c471aa0748451f112481f0fc2de985ee8eda76a325e6edca9bd7a11ec1",
+        "vina_output.pdbqt": "81feaeabd2972d52736ca5c8757b720536ce12e46f47946c1af141f24fbf3a5b",
+        "lig_ref.sdf": "c1eee1b27c17b5888794231770c4387ebb8c6b7a8c43e047e592369373dbb070",
+        "source.pdb": "2292457473c12633a4a78c1bfeee09984c5a336c9d0f291e29fc43071c282617",
+        "top_pose.pdbqt": "5eacc524d60be715ca7e108dbc449e8884a696f05387584e47c929afbaf05fb0",
+        "vina.log": "0a1469a7bf2fddcade3fecadeacc74d9b9d58448d3b7320af6fcf509ab504711",
+        "top_pose.sdf": "3f4c449d5cb10afc6e3b7842a1fc96a6712571e808cf7ca609b9c26c577ad77e"
       },
-      "runtime_s": 4.79
+      "runtime_s": 17.96,
+      "top_pose_rmsd_angstrom": 13.186773914713855,
+      "n_pose_models": 9,
+      "affinity_kcal_mol": -5.317,
+      "pose_recovery_passed": false,
+      "passed": false,
+      "error": "grid does not cover site (offset 9.7 A); native docking completed for diagnosis"
     }
   ],
   "limitations": [
@@ -15309,6 +15415,6 @@
     "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
     "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
   ],
-  "artifact_archive": "docs/verification/2026-10-19-complete-audit/native-docking-artifacts.zip",
-  "artifact_archive_note": "Per-complex artifact_directory values are relative to this retained native-run archive; raw unmodified run record is retained with the same archive."
+  "artifact_archive": "docs/verification/2026-10-19-provider-docking-followup/native-docking-artifacts.zip",
+  "artifact_archive_note": "Per-complex artifact_directory values are relative to the retained native-run archive. Nine native pose outputs are measured; 1Q4T records an explicit 300-second Vina timeout."
 }

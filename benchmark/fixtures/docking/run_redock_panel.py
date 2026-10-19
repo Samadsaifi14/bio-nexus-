@@ -308,8 +308,9 @@ def main() -> int:
             offset = sum((grid["center"][i] - ref_center[i]) ** 2 for i in range(3)) ** 0.5
             entry["grid"] = grid
             entry["site_offset_angstrom"] = offset
-            if offset >= 8.0:
-                raise RuntimeError(f"grid does not cover site (offset {offset:.1f} A)")
+            # Keep the declared site gate, but execute docking even when it
+            # fails so a failed case still retains native poses and RMSD.
+            entry["site_coverage_passed"] = offset < 8.0
 
             with tempfile.TemporaryDirectory() as tmp:
                 lig_pdb = os.path.join(tmp, "lig.pdb")
@@ -393,7 +394,10 @@ def main() -> int:
             entry["n_pose_models"] = len(pose_blocks)
             entry["affinity_kcal_mol"] = result.get("affinity")
             threshold = criteria["per_complex_rmsd_threshold_angstrom"]
-            entry["passed"] = top_rmsd is not None and (top_rmsd <= threshold if args.canonical else top_rmsd < threshold)
+            entry["pose_recovery_passed"] = top_rmsd is not None and (top_rmsd <= threshold if args.canonical else top_rmsd < threshold)
+            entry["passed"] = entry["site_coverage_passed"] and entry["pose_recovery_passed"]
+            if not entry["site_coverage_passed"]:
+                entry["error"] = f"grid does not cover site (offset {offset:.1f} A); native docking completed for diagnosis"
             if entry["passed"]:
                 passes += 1
         except Exception as exc:  # per-complex failure

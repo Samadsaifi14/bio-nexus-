@@ -1,5 +1,7 @@
 # Complete-case audit follow-up — 2026-10-19
 
+Follow-up: [provider fixes, CI isolation repair, and native docking outcomes](../2026-10-19-provider-docking-followup/REPORT.md). This dated report retains its original results.
+
 The missing-result gap is closed: **197/197 previously unreported cases now have terminal test outcomes, with zero skips and zero unreported cases**. Outcomes: **194 passed, 3 failed**. A timeout is a recorded failed test, not a successful biological result. **All 20 original skipped cases now pass.**
 
 **The entire request is not scientifically complete. The native docking panel still fails at 4/10**, improved from 3/10 after correcting 1UYG ligand chemistry. Remaining remote-provider failures are listed below. No RMSD cutoff, blind-pocket selection rule, pose order or panel acceptance fraction was relaxed.

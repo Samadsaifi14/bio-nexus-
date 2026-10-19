@@ -41,6 +41,57 @@ def test_crystal_extraction_selects_one_ligand_residue():
     assert ligand == [line]
 
 
+def test_site_failure_retains_native_pose_evidence_and_stays_failed(monkeypatch, tmp_path):
+    """Replay retained native output to isolate failure control flow."""
+    import json
+    from types import SimpleNamespace
+    from app.tools import docking
+
+    artifacts = runner.REPO / 'benchmark/results/docking/redock/artifacts/20261012T080418163266Z/1STP'
+    panel = json.loads((runner.FIXTURE_DIR / 'redock_panel.json').read_text())
+    panel['complexes'] = [case for case in panel['complexes'] if case['id'] == '1STP']
+    panel_path = tmp_path / 'panel.json'
+    panel_path.write_text(json.dumps(panel))
+    output = tmp_path / 'output'
+    monkeypatch.setattr(runner.sys, 'argv', ['runner', '--panel', str(panel_path), '--outdir', str(output)])
+    monkeypatch.setattr(runner, '_tools_available', lambda: (True, []))
+    monkeypatch.setattr(runner, '_vina_bin', lambda: __file__)
+    monkeypatch.setattr(runner.shutil, 'which', lambda _: __file__)
+    source = (artifacts / 'source.pdb').read_text()
+    monkeypatch.setattr(runner, '_fetch_pdb', lambda _: source)
+    _, ligand = runner._split_ligand_receptor(source, 'BTN')
+    center = runner._heavy_centroid(ligand)
+    monkeypatch.setattr(docking, 'compute_pocket_grid', lambda _: {
+        'center': [center[0] + 9, center[1], center[2]], 'size': [20, 20, 20]})
+    monkeypatch.setattr(docking, 'pdb_to_pdbqt_receptor', lambda _: (artifacts / 'receptor.pdbqt').read_text())
+    executions = []
+
+    def native_replay(*args, **kwargs):
+        executions.append(True)
+        native = (artifacts / 'vina_output.pdbqt').read_text()
+        return {'result_pdbqt': native, 'num_poses': len(runner._extract_pdbqt_models(native)),
+                'vina_log': (artifacts / 'vina.log').read_text(), 'vina_version': 'fixture replay'}
+
+    def conversion(command, **kwargs):
+        if '-O' in command:
+            destination = Path(command[command.index('-O') + 1])
+            source_name = {'lig_ref.sdf': 'lig_ref.sdf', 'lig.pdbqt': 'lig.pdbqt',
+                           'top_pose.sdf': 'top_pose.sdf'}[destination.name]
+            destination.write_bytes((artifacts / source_name).read_bytes())
+        return SimpleNamespace(returncode=0, stdout='retained fixture replay', stderr='')
+
+    monkeypatch.setattr(docking, 'run_vina', native_replay)
+    monkeypatch.setattr(runner.subprocess, 'run', conversion)
+    assert runner.main() == 1
+    case = json.loads((output / 'latest.json').read_text())['results'][0]
+    assert executions == [True]
+    assert case['site_coverage_passed'] is False
+    assert case['pose_recovery_passed'] is True
+    assert case['passed'] is False
+    assert case['top_pose_rmsd_angstrom'] < 2
+    assert {'vina_output.pdbqt', 'top_pose_chemical_graph.sdf', 'vina.log'} <= case['artifact_sha256'].keys()
+
+
 def _native_atoms(mol, shift=0, serial_offset=0):
     types = {'C': 'C', 'N': 'N', 'O': 'OA', 'S': 'SA'}
     lines = []

@@ -1,8 +1,9 @@
 """
 Thin client for NCBI BLAST URL API (QBLAST).
 
-Rate limit: NCBI enforces 1 request per 10 seconds without an API key,
-3 req/s with an API key. Rate limiting is the caller's responsibility.
+Rate limit: no more than one request per 10 seconds, and poll each RID
+at most once per minute. API keys do not relax BLAST usage guidelines.
+Cross-worker request coordination remains the caller's responsibility.
 
 API docs: https://ncbi.github.io/blast-cloud/api.html
 """
@@ -11,6 +12,7 @@ import asyncio
 import logging
 import os
 import re
+from time import monotonic
 import httpx
 
 logger = logging.getLogger(__name__)
@@ -28,6 +30,10 @@ def _api_key_param() -> dict:
     return {"api_key": NCBI_API_KEY} if NCBI_API_KEY else {}
 
 
+class NCBIUnavailableError(RuntimeError):
+    """NCBI returned a temporary outage message, even with HTTP 200."""
+
+
 async def _request_with_retry(method: str, url: str, max_retries: int = 3, request_timeout: float = 60.0, **kwargs) -> httpx.Response:
     """Make an HTTP request with retry on connection, timeout, and transient errors.
 
@@ -39,6 +45,8 @@ async def _request_with_retry(method: str, url: str, max_retries: int = 3, reque
             async with httpx.AsyncClient(timeout=httpx.Timeout(request_timeout, connect=15.0)) as client:
                 resp = await getattr(client, method)(url, **kwargs)
                 resp.raise_for_status()
+                if resp.text.strip().casefold() in ("temporarily unavailable", "service temporarily unavailable"):
+                    raise NCBIUnavailableError("NCBI service temporarily unavailable")
                 return resp
         except (
             httpx.ReadError,
@@ -46,9 +54,10 @@ async def _request_with_retry(method: str, url: str, max_retries: int = 3, reque
             httpx.ConnectError,
             httpx.TimeoutException,
             httpx.HTTPStatusError,
+            NCBIUnavailableError,
         ) as e:
             if attempt < max_retries - 1:
-                delay = 3 * (attempt + 1)
+                delay = 10 * (attempt + 1)
                 logger.warning("NCBI request failed (attempt %d/%d): %s — retrying in %ds", attempt + 1, max_retries, e, delay)
                 await asyncio.sleep(delay)
             else:
@@ -125,9 +134,9 @@ async def submit_blast_sync(sequence: str, **kwargs) -> dict:
     return await submit_blast(sequence, async_flag=False, **kwargs)
 
 
-async def check_status(rid: str, fmt: str = "XML") -> dict:
+async def check_status(rid: str, fmt: str = "XML2_S") -> dict:
     params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
-    resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params)
+    resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params, max_retries=1)
     text = resp.text
     match = re.search(r"Status\s*=\s*(\w+)", text, flags=re.IGNORECASE)
     status = match.group(1).upper() if match else "UNKNOWN"
@@ -144,7 +153,7 @@ async def check_status(rid: str, fmt: str = "XML") -> dict:
     return {"status": status, "raw": text, "rid": rid}
 
 
-async def fetch_results(rid: str, fmt: str = "XML") -> dict:
+async def fetch_results(rid: str, fmt: str = "XML2_S") -> dict:
     params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
     resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params)
     text = resp.text
@@ -160,55 +169,39 @@ async def check_status_until_ready(
     max_wait_seconds: int = 300,
     estimated_seconds: int = 0,
 ) -> dict:
-    """Poll NCBI with exponential backoff until READY or budget exhausted."""
-    elapsed = 0
-    delay = 5 if NCBI_API_KEY else 10
+    """Poll a RID at most once per minute within a wall-clock budget.
+
+    WAITING is not proof that a search is stuck. Keep the accepted request
+    alive for its full budget instead of abandoning it halfway through.
+    https://blast.ncbi.nlm.nih.gov/doc/blast-help/developerinfo.html
+    """
+    deadline = monotonic() + max_wait_seconds
     consecutive_failures = 0
-    max_consecutive_failures = 3
-    stuck_threshold = max(estimated_seconds * 5, max_wait_seconds // 2)
-    stuck_threshold = min(stuck_threshold, max_wait_seconds)
-
-    while elapsed < max_wait_seconds:
+    delay = max(60, estimated_seconds)
+    while True:
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return {"status": "TIMEOUT", "rid": rid}
+        await asyncio.sleep(min(delay, remaining))
+        remaining = deadline - monotonic()
+        if remaining <= 0:
+            return {"status": "TIMEOUT", "rid": rid}
         try:
-            result = await check_status(rid)
+            result = await asyncio.wait_for(check_status(rid), timeout=remaining)
             consecutive_failures = 0
-        except Exception as e:
+        except asyncio.TimeoutError:
+            return {"status": "TIMEOUT", "rid": rid}
+        except Exception as exc:
             consecutive_failures += 1
-            logger.warning(
-                "BLAST poll for %s failed (consecutive %d/%d): %s",
-                rid, consecutive_failures, max_consecutive_failures, e,
-            )
-            if consecutive_failures >= max_consecutive_failures:
-                logger.warning(
-                    "BLAST RID %s — %d consecutive poll failures, giving up", rid, consecutive_failures
-                )
-                return {"status": "POLL_FAILED", "rid": rid, "error": str(e)}
-            await asyncio.sleep(delay)
-            elapsed += delay
-            delay = min(delay * 1.5, 15 if NCBI_API_KEY else 25)
+            logger.warning("BLAST poll for %s failed (%d/3): %s", rid, consecutive_failures, exc)
+            if consecutive_failures >= 3:
+                return {"status": "POLL_FAILED", "rid": rid, "error": str(exc)}
+            delay = 60
             continue
-
         status = result["status"]
-
-        if status == "READY":
-            return result
         if status not in ("WAITING", "UNKNOWN", "QUEUED"):
-            logger.warning("BLAST RID %s returned terminal status: %s", rid, status)
             return result
-
-        if elapsed > stuck_threshold:
-            logger.warning(
-                "BLAST RID %s stuck in %s for %ds (threshold=%ds), treating as STUCK",
-                rid, status, elapsed, stuck_threshold,
-            )
-            return {"status": "STUCK", "rid": rid, "error": f"Job stuck in {status} for {elapsed}s"}
-
-        await asyncio.sleep(delay)
-        elapsed += delay
-        delay = min(delay * 1.5, 15 if NCBI_API_KEY else 25)
-
-    logger.warning("BLAST RID %s timed out after %ds", rid, max_wait_seconds)
-    return {"status": "TIMEOUT", "rid": rid}
+        delay = 60
 
 
 async def _run_blast_attempts(
@@ -257,7 +250,7 @@ async def _run_blast_attempts(
                 attempt + 1, retries + 1, last_error,
             )
             if attempt < retries:
-                await asyncio.sleep(5 * (attempt + 1))
+                await asyncio.sleep(RATE_LIMIT_SECONDS * (attempt + 1))
             continue
 
         if "error" in submit_result:
@@ -267,7 +260,7 @@ async def _run_blast_attempts(
                 attempt + 1, retries + 1, last_error,
             )
             if attempt < retries:
-                await asyncio.sleep(5 * (attempt + 1))
+                await asyncio.sleep(RATE_LIMIT_SECONDS * (attempt + 1))
             continue
 
         rid = submit_result["rid"]
@@ -299,25 +292,36 @@ async def _run_blast_attempts(
             last_error = f"BLAST polling crashed: {e}"
             logger.warning("BLAST RID %s: %s", rid, last_error)
             if attempt < retries:
-                await asyncio.sleep(5 * (attempt + 1))
+                await asyncio.sleep(RATE_LIMIT_SECONDS * (attempt + 1))
             continue
 
         if status_result["status"] == "READY":
             try:
+                from app.integrations.ncbi.parser import parse_blast_xml
+                raw = status_result.get("raw", "")
+                if raw and "error" not in parse_blast_xml(raw):
+                    return {"raw": raw, "rid": rid}
+                await asyncio.sleep(RATE_LIMIT_SECONDS)
                 return await fetch_results(rid)
             except Exception as e:
                 last_error = f"BLAST result fetch failed: {e}"
                 logger.warning("BLAST RID %s: %s", rid, last_error)
                 if attempt < retries:
-                    await asyncio.sleep(5 * (attempt + 1))
+                    await asyncio.sleep(RATE_LIMIT_SECONDS * (attempt + 1))
                 continue
+
+        if status_result["status"] == "TIMEOUT":
+            # A queued search is still an accepted remote job. Resubmitting the
+            # same query discards its queue position and creates orphaned RIDs.
+            return {"error": "NCBI search did not complete within the polling budget",
+                    "status": "TIMEOUT", "rid": rid, "search_complete": False}
 
         last_error = f"BLAST {status_result['status']} after polling (attempt {attempt + 1}/{retries + 1})"
         if status_result.get("error"):
             last_error += f": {status_result['error']}"
         logger.warning("BLAST RID %s: %s", rid, last_error)
         if attempt < retries:
-            await asyncio.sleep(5 * (attempt + 1))
+            await asyncio.sleep(RATE_LIMIT_SECONDS * (attempt + 1))
 
     return {"error": last_error or "BLAST failed after all attempts"}
 

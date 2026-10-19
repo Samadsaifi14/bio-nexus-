@@ -1,5 +1,7 @@
 # Attached audit: repairs and fresh verification
 
+Follow-up: [2026-10-19 complete-case audit](../2026-10-19-complete-audit/REPORT.md). This dated report preserves the original failures and missing results; the follow-up records repairs and reruns.
+
 Base: `dd807a31c309c45dfea5179fa4f123716d9e4296` (2026-10-18). The attachment is an audit, not evidence that all competitor capabilities are implemented. This patch repairs observed defects and preserves the remaining scope explicitly. **The entire roadmap is not complete or scientifically validated.**
 
 ## Repaired behavior

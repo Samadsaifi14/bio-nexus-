@@ -25,5 +25,7 @@ primer3-py==2.3.1
 # dev / testing
 PyJWT>=2.10,<3  # signed-token authentication regression fixtures
 pytest>=7.0
+pytest-asyncio>=0.23
+pytest-timeout>=2.3
 httpx>=0.24
 boto3>=1.35,<2

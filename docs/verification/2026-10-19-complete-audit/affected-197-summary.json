@@ -1,0 +1,13 @@
+{
+  "planned_cases": 197,
+  "recorded_cases": 197,
+  "missing_cases": [],
+  "counts": {
+    "passed": 194,
+    "failed": 3
+  },
+  "skipped": 0,
+  "execution_errors": 0,
+  "all_terminal": true,
+  "scientifically_validated": false
+}

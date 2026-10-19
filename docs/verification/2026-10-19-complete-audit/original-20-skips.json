@@ -1,0 +1,242 @@
+[
+  {
+    "nodeid": "tests/test_local_blast.py::test_native_search_recovers_input_accession_and_actual_hsp",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_native_search_recovers_input_accession_and_actual_hsp",
+      "status": "passed",
+      "duration": 0.06438093099995967,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_local_database_never_substitutes_for_nr_or_nt",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_local_database_never_substitutes_for_nr_or_nt",
+      "status": "passed",
+      "duration": 0.02664598199999091,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_missing_reference_is_unavailable_not_completed_zero",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_missing_reference_is_unavailable_not_completed_zero",
+      "status": "passed",
+      "duration": 0.00046868300012192776,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_reference_corruption_fails_closed",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_reference_corruption_fails_closed",
+      "status": "passed",
+      "duration": 0.028926750999971773,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_invalid_sequence_is_not_a_completed_no_hit_search",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_invalid_sequence_is_not_a_completed_no_hit_search",
+      "status": "passed",
+      "duration": 0.02867623000020103,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_production_tool_uses_local_route_without_remote_submission",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_production_tool_uses_local_route_without_remote_submission",
+      "status": "passed",
+      "duration": 0.07590425299986236,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_pipeline_uses_local_route_and_preserves_reference",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_pipeline_uses_local_route_and_preserves_reference",
+      "status": "passed",
+      "duration": 0.1795299390000764,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_native_reference_does_not_claim_an_ncbi_page_was_queried",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_native_reference_does_not_claim_an_ncbi_page_was_queried",
+      "status": "passed",
+      "duration": 0.0020718260000194277,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_local_blast.py::test_reference_download_resource_allowlist",
+    "previous_reason": "requires real local NCBI BLAST+ executables",
+    "latest": {
+      "nodeid": "tests/test_local_blast.py::test_reference_download_resource_allowlist",
+      "status": "passed",
+      "duration": 0.038905637999846476,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_local_blast",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_md_config.py::TestResolveCombo::test_unverified_combo_raises",
+    "previous_reason": "all force fields verified \u2014 nothing unverified to test",
+    "latest": {
+      "nodeid": "tests/test_md_config.py::TestResolveCombo::test_unverified_combo_raises",
+      "status": "passed",
+      "duration": 0.000415736000149991,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_md_config",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_blocked_partial_and_recorded_nested_designs[batches0-covariates0]",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_blocked_partial_and_recorded_nested_designs[batches0-covariates0]",
+      "status": "passed",
+      "duration": 11.150873533999857,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_blocked_partial_and_recorded_nested_designs[batches1-covariates1]",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_blocked_partial_and_recorded_nested_designs[batches1-covariates1]",
+      "status": "passed",
+      "duration": 11.058819146000133,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_blocked_partial_and_recorded_nested_designs[batches2-covariates2]",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_blocked_partial_and_recorded_nested_designs[batches2-covariates2]",
+      "status": "passed",
+      "duration": 10.701681129000121,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_numeric_paired_subject_ids_are_categorical",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_numeric_paired_subject_ids_are_categorical",
+      "status": "passed",
+      "duration": 12.694335320999926,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_requested_perfectly_confounded_batch_fails_rank",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_requested_perfectly_confounded_batch_fails_rank",
+      "status": "passed",
+      "duration": 7.088529891000235,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_repeated_units_cannot_be_ignored",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_repeated_units_cannot_be_ignored",
+      "status": "passed",
+      "duration": 5.8283634210001765,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_designs_r.py::test_within_condition_repeats_need_aggregation_or_correlation_model",
+    "previous_reason": "R scientific runtime is absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_designs_r.py::test_within_condition_repeats_need_aggregation_or_correlation_model",
+      "status": "passed",
+      "duration": 6.6641379459999825,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_designs_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_exploration.py::test_large_low_abundance_matrix_uses_exact_vst_and_exports_batch_metadata",
+    "previous_reason": "R runtime absent",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_exploration.py::test_large_low_abundance_matrix_uses_exact_vst_and_exports_batch_metadata",
+      "status": "passed",
+      "duration": 14.816431347999924,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_exploration",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_recovery_r.py::test_qc_stops_before_testing_and_inference_matches_direct_deseq2",
+    "previous_reason": "R scientific runtime is not installed",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_recovery_r.py::test_qc_stops_before_testing_and_inference_matches_direct_deseq2",
+      "status": "passed",
+      "duration": 59.02901070600001,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_recovery_r",
+      "execution_complete": true
+    }
+  },
+  {
+    "nodeid": "tests/test_rnaseq_recovery_r.py::test_salmon_offsets_and_statistics_match_direct_tximport",
+    "previous_reason": "R scientific runtime is not installed",
+    "latest": {
+      "nodeid": "tests/test_rnaseq_recovery_r.py::test_salmon_offsets_and_statistics_match_direct_tximport",
+      "status": "passed",
+      "duration": 46.890928752000036,
+      "reason": "",
+      "evidence": "dependency-final/modules/test_rnaseq_recovery_r",
+      "execution_complete": true
+    }
+  }
+]

@@ -10,7 +10,7 @@ def pytest_addoption(parser):
     group = parser.getgroup('complete-audit')
     group.addoption('--audit-events')
     group.addoption('--audit-manifest')
-    group.addoption('--forbid-skips', action='store_true')
+    group.addoption('--forbid-skips', action='store_true', default=True)
 
 
 def _event(config, **payload):

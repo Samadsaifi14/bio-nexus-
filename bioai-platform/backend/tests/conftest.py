@@ -21,6 +21,11 @@ from fastapi.testclient import TestClient
 # Ensure the backend app package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Backend pytest runs enforce the same no-skip contract as the full audit.
+# Register here so ordinary pytest invocations do not need a special wrapper.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../scripts")))
+pytest_plugins = ("audit_pytest_plugin",)
+
 # ---------------------------------------------------------------------------
 # Mock out heavy dependencies that aren't installed in the test env
 # ---------------------------------------------------------------------------

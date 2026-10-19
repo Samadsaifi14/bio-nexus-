@@ -130,6 +130,12 @@ class TestPipelineBlastFallback:
     """EBI is now the PRIMARY provider (fast & reliable, ~30s); NCBI is the
     fallback. Tests assert EBI-first ordering and the NCBI fallback path."""
 
+    @pytest.fixture(autouse=True)
+    def remote_provider_mode(self, monkeypatch):
+        # These contracts specifically exercise remote fallback ordering.
+        # Native provider routing is covered separately by test_local_blast.
+        monkeypatch.delenv("BIONEXUS_BLAST_DB_ROOT", raising=False)
+
     def _fake_ebi_tool(self, hits):
         class _FakeBlastTool:
             async def run_uncached(self, input):

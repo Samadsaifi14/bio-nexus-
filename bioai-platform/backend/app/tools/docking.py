@@ -217,6 +217,7 @@ def compute_pocket_grid(pdb_text: str, padding: float = 4.0,
         if not os.path.isdir(pocket_dir):
             return None
         info_candidates = (
+            os.path.join(tmp, "receptor_out", "receptor_info.txt"),
             os.path.join(tmp, "receptor_out", "info", "infos.txt"),
             os.path.join(tmp, "receptor_out", "infos.txt"),
             os.path.join(tmp, "receptor_info.txt"),

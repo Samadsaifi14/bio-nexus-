@@ -66,6 +66,16 @@ async def submit_blast(
     matrix: str = "BLOSUM62",
     async_flag: bool = True,
 ) -> dict:
+    # Reject malformed queries before spending a remote submission/poll budget.
+    # FASTA headers and whitespace are permitted; valid ambiguous residues stay.
+    sequence = "".join(line.strip() for line in str(sequence).splitlines()
+                       if not line.lstrip().startswith(">"))
+    sequence = re.sub(r"\s+", "", sequence).upper()
+    alphabet = ("ACGTURYSWKMBDHVN" if program in ("blastn", "blastx", "tblastx")
+                else "ACDEFGHIKLMNPQRSTVWYBXZJUO*")
+    if not sequence or any(char not in alphabet for char in sequence):
+        return {"error": "BLAST query is empty or contains invalid sequence characters",
+                "status": "INVALID_QUERY", "search_complete": False}
     params = {
         "CMD": "Put",
         "PROGRAM": program,
@@ -119,13 +129,18 @@ async def check_status(rid: str, fmt: str = "XML") -> dict:
     params = {"CMD": "Get", "FORMAT_TYPE": fmt, "RID": rid, **_api_key_param()}
     resp = await _request_with_retry("get", NCBI_BLAST_URL, params=params)
     text = resp.text
-
-    if "Status=" in text:
-        status_match = re.search(r"Status\s*=\s*(\w+)", text)
-        status = status_match.group(1) if status_match else "UNKNOWN"
-    else:
-        status = "READY"
-
+    match = re.search(r"Status\s*=\s*(\w+)", text, flags=re.IGNORECASE)
+    status = match.group(1).upper() if match else "UNKNOWN"
+    if match is None:
+        # An absent status line means readiness only for an actual BLAST XML
+        # document. A proxy error or HTML service page is never a ready search.
+        import xml.etree.ElementTree as ET
+        try:
+            root = ET.fromstring(text)
+            if root.tag.rsplit("}", 1)[-1] in ("BlastOutput", "BlastXML2", "BlastOutput2"):
+                status = "READY"
+        except ET.ParseError:
+            pass
     return {"status": status, "raw": text, "rid": rid}
 
 

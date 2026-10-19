@@ -30,7 +30,7 @@ def deposited_ligand(ccd_text: str, pdb_lines: list[str]):
     for name, element, charge in zip(names, elements, charges):
         if element == 'H':
             continue
-        atom = Chem.Atom(element)
+        atom = Chem.Atom(element.title())
         atom.SetFormalCharge(int(charge))
         atom.SetNoImplicit(True)
         indices[name] = graph.AddAtom(atom)

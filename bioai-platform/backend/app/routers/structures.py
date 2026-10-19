@@ -132,7 +132,7 @@ async def search_pdb(req: StructureSearchRequest):
     payload = {
         "query": {
             "type": "terminal",
-            "service": "text",
+            "service": "full_text",
             "parameters": {"value": req.query},
         },
         "return_type": "entry",
@@ -145,6 +145,8 @@ async def search_pdb(req: StructureSearchRequest):
     }
     async with httpx.AsyncClient(timeout=15) as client:
         resp = await client.post(RCSB_SEARCH, json=payload)
+        if resp.status_code == 204:
+            return {"results": [], "count": 0}
         if resp.status_code != 200:
             raise HTTPException(status_code=502, detail="RCSB search failed")
         data = resp.json()

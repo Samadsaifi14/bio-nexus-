@@ -9,7 +9,7 @@
   },
   "preparation_policy": {
     "receptor": "crystal ATOM records, first model, altloc-filtered (mirrors prod path)",
-    "ligand": "crystal ligand HETATM -> obabel PDBQT with Gasteiger charges + pH 7.4 protonation (mirrors prod path)",
+    "ligand": "Crystal ligand HETATM -> Open Babel PDBQT with Gasteiger charges and pH 7.4. Validate perceived reference graph first; if chemically invalid, restore official RCSB CCD bond orders/formal charges at exact deposited atom-name coordinates and prepare PDBQT from that SDF. Retain the CCD source and hash. No missing heavy atoms or coordinate synthesis allowed.",
     "grid": "fpocket pocket #1, must cover the crystal binding site (<8.0 A offset), else per-complex fail",
     "engine": "AutoDock Vina (app.tools.docking.run_vina), exhaustiveness 32, num_modes 9, fixed seed",
     "rmsd": "symmetry-aware heavy-atom RMSD via RDKit CalcRMS in the receptor frame without alignment; native Vina PDBQT serials mapped to the prepared reference graph using original input heavy-atom coordinates; ambiguous, missing or changed atoms fail closed. Pose SDF export validity is reported separately."
@@ -113,6 +113,6 @@
     "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
     "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
   ],
-  "fixture_revision": "2026-10-18-rcsb-identity-correction",
+  "fixture_revision": "2026-10-19-ccd-chemistry-repair",
   "correction_note": "The previous nine noncanonical entries mismatched deposited ligand/protein identities. All ten PDB identifiers, essential flags, preparation policy and success thresholds are retained. Prior result records are unchanged and do not validate this corrected revision."
 }

@@ -306,6 +306,8 @@ def main() -> int:
             if not grid:
                 raise RuntimeError("fpocket found no pocket")
             offset = sum((grid["center"][i] - ref_center[i]) ** 2 for i in range(3)) ** 0.5
+            entry["grid"] = grid
+            entry["site_offset_angstrom"] = offset
             if offset >= 8.0:
                 raise RuntimeError(f"grid does not cover site (offset {offset:.1f} A)")
 

@@ -1,6 +1,8 @@
 """
 Comprehensive BLAST test suite — loops over multiple datasets to verify
-all BLAST features work end-to-end against live NCBI/EBI APIs.
+BLAST behavior through direct NCBI requests and the configured production tool.
+The production tool may use an exact-scope local Swiss-Prot reference; direct
+NCBI tests above never substitute that provider.
 
 Tests:
   1. NCBI BLAST integration (submit → poll → fetch)
@@ -95,7 +97,7 @@ class TestNCBIBlastIntegration:
         )
 
         if "error" in submit_result:
-            # NCBI may rate-limit; skip if submit fails
+            # Provider submission failures are explicit audit failures.
             pytest.fail(f"NCBI submit failed: {submit_result['error']}")
 
         rid = submit_result["rid"]
@@ -197,7 +199,7 @@ class TestNCBIBlastIntegration:
 # 2. EBI BLAST tool tests
 # ---------------------------------------------------------------------------
 class TestEBIBlastTool:
-    """Test the EBI BLAST tool (BlastTool class)."""
+    """Test BlastTool: native exact-scope reference when configured, else EBI."""
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -267,98 +269,46 @@ class TestEBIBlastTool:
 # 3. Pipeline v2 BLAST step integration
 # ---------------------------------------------------------------------------
 class TestPipelineV2BLAST:
-    """Test BLAST as part of the pipeline v2 flow."""
+    """Exercise the production pipeline provider route, including local Swiss-Prot.
+
+    Direct remote NCBI submission/poll/XML coverage remains in the dedicated
+    class above. Reimplementing that client here did not test pipeline_v2.
+    """
 
     @pytest.mark.asyncio
-    async def test_pipeline_blast_step_only(self):
-        """Run only the BLAST step via pipeline_v2."""
-        from app.integrations.ncbi.blast import run_blast_with_retry
-        from app.integrations.ncbi.parser import parse_blast_xml
-
-        # Simulate what pipeline_v2._run_blast does
-        sequence = "TTCCPSIVARSNFNVCRLPG"
-        database = "swissprot"
-
-        results = await run_blast_with_retry(
-            sequence,
-            retries=2,
-            max_wait_seconds=180,
-            database=database,
-        )
-
-        if "error" in results:
-            pytest.fail(f"Pipeline BLAST step failed: {results['error']}")
-
-        parsed = parse_blast_xml(results["raw"])
-        assert "error" not in parsed
-        assert parsed["count"] > 0
-
-        hits = parsed.get("hits", [])
-        top_hit = hits[0] if hits else None
-
-        # Verify the data structure matches what pipeline_v2 expects
-        if top_hit:
-            assert "accession" in top_hit
-            assert "evalue" in top_hit
-            assert "identity_pct" in top_hit
-            assert "bit_score" in top_hit
+    async def test_pipeline_blast_step_only(self, record_property):
+        from app.routers.pipeline_v2 import _run_blast
+        import json
+        result = await _run_blast("TTCCPSIVARSNFNVCRLPG", blast_params={
+            "program": "blastp", "database": "swissprot", "max_hits": 10})
+        assert not result.get("error"), result.get("error")
+        assert result["search_complete"] is True
+        assert result["count"] == len(result["hits"]) > 0
+        top = result["hits"][0]
+        assert top["accession"]
+        assert top["evalue"] >= 0
+        assert 0 <= top["identity_pct"] <= 100
+        assert top["bit_score"] > 0
+        record_property("production_result", json.dumps({
+            "source": result["source"], "database": result["database"],
+            "count": result["count"], "top_hit": top}))
 
     @pytest.mark.asyncio
-    async def test_pipeline_blast_multiple_sequences_loop(self):
-        """Loop: run BLAST for each test sequence and verify results."""
-        from app.integrations.ncbi.blast import run_blast_with_retry
-        from app.integrations.ncbi.parser import parse_blast_xml
-
-        results_summary = []
-
+    async def test_pipeline_blast_multiple_sequences_loop(self, record_property):
+        from app.routers.pipeline_v2 import _run_blast
+        import json
+        summary = []
         for dataset in BLAST_TEST_SEQUENCES:
-            sequence = dataset["sequence"]
-            name = dataset["name"]
-
-            try:
-                blast_result = await run_blast_with_retry(
-                    sequence,
-                    retries=2,
-                    max_wait_seconds=180,
-                    program=dataset["expected_program"],
-                    database="swissprot",
-                    hitlist_size=10,
-                )
-
-                if "error" in blast_result:
-                    results_summary.append({
-                        "name": name,
-                        "status": "error",
-                        "error": blast_result["error"],
-                    })
-                    continue
-
-                parsed = parse_blast_xml(blast_result["raw"])
-                hit_count = parsed.get("count", 0)
-                results_summary.append({
-                    "name": name,
-                    "status": "ok" if hit_count >= dataset["min_hits"] else "low_hits",
-                    "hits": hit_count,
-                })
-
-            except Exception as e:
-                results_summary.append({
-                    "name": name,
-                    "status": "exception",
-                    "error": str(e),
-                })
-
-            # Rate limit: wait between requests
-            await asyncio.sleep(2)
-
-        # Report results
-        print("\n=== BLAST Loop Test Results ===")
-        for r in results_summary:
-            print(f"  {r['name']}: {r['status']} (hits={r.get('hits', 'N/A')}, error={r.get('error', 'none')})")
-
-        # At least some should succeed (unless NCBI is completely down)
-        ok_count = sum(1 for r in results_summary if r["status"] == "ok")
-        assert ok_count >= 1, f"No BLAST tests succeeded: {results_summary}"
+            result = await _run_blast(dataset["sequence"], blast_params={
+                "program": dataset["expected_program"], "database": "swissprot", "max_hits": 10})
+            assert not result.get("error"), f"{dataset['name']}: {result.get('error')}"
+            assert result["search_complete"] is True
+            assert result["count"] >= dataset["min_hits"], dataset["name"]
+            summary.append({"name": dataset["name"], "source": result["source"],
+                            "database": result["database"], "count": result["count"],
+                            "accessions": [h["accession"] for h in result["hits"]]})
+        assert len(summary) == len(BLAST_TEST_SEQUENCES)
+        record_property("query_results", json.dumps(summary))
 
 
 # ---------------------------------------------------------------------------

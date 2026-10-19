@@ -27,3 +27,11 @@ def test_incomplete_or_ambiguous_ligand_fails_closed(damage):
         lines[0] = lines[0][:76] + ' O'
     with pytest.raises(ValueError, match='CCD'):
         deposited_ligand((FIXTURE / 'PU2.cif').read_text(), lines)
+
+
+def test_ccd_uppercase_halogen_symbols_are_valid_elements():
+    lines = [line for line in (FIXTURE / '2H4G_694.pdb').read_text().splitlines()
+             if line.startswith('HETATM')]
+    mol = deposited_ligand((FIXTURE / '694.cif').read_text(), lines)
+    assert sum(atom.GetAtomicNum() == 35 for atom in mol.GetAtoms()) == 1
+    assert mol.GetNumAtoms() == len(lines)

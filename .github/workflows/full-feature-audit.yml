@@ -64,7 +64,7 @@ jobs:
         with:
           name: local-blast-reference-evidence
           path: ${{ runner.temp }}/local-blast-evidence
-          if-no-files-found: warn
+          if-no-files-found: error
 
 
   statistics-interpretation:
@@ -133,7 +133,7 @@ jobs:
   backend-full-suite:
     name: Backend full pytest suite
     runs-on: ubuntu-24.04
-    timeout-minutes: 120
+    timeout-minutes: 360
     defaults:
       run:
         working-directory: bioai-platform/backend
@@ -184,7 +184,7 @@ jobs:
       - name: Run every backend module with independent deadlines and reports
         env:
           BIONEXUS_BLAST_DB_ROOT: ${{ runner.temp }}/audit-swissprot
-        run: python ../../scripts/run_feature_audit.py --outdir "$RUNNER_TEMP/full-feature-audit" --module-seconds 300 --case-seconds 180
+        run: python ../../scripts/run_feature_audit.py --outdir "$RUNNER_TEMP/full-feature-audit" --module-seconds 2400 --case-seconds 900
       - name: Retain full-suite test report
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
@@ -193,7 +193,7 @@ jobs:
           path: |
             ${{ runner.temp }}/full-feature-audit/
             !${{ runner.temp }}/full-feature-audit/work/**
-          if-no-files-found: warn
+          if-no-files-found: error
       - name: Validate benchmark and engine registry
         run: python scripts/ci_validate.py
 

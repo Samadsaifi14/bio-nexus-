@@ -37,10 +37,13 @@ def execute(target, directory, env, seconds, test_seconds):
     # Every attempt has its own path; an old journal must never satisfy a rerun.
     if events.exists():
         raise ValueError(f'Attempt directory already contains evidence: {directory}')
-    command = [sys.executable, '-m', 'pytest', target, '-q', '-p', 'audit_pytest_plugin',
+    targets = target if isinstance(target, list) else [target]
+    command = [sys.executable, '-m', 'pytest', *targets, '-q', '-p', 'audit_pytest_plugin',
                '--forbid-skips', '--audit-events=' + str(events),
                '--timeout=' + str(test_seconds), '--timeout-method=signal',
-               '--junitxml=' + str(directory / 'pytest.xml')]
+               '--junitxml=' + str(directory / 'pytest.xml'),
+               '--basetemp=' + str(directory / 'work')]
+    started_at = datetime.now(timezone.utc).isoformat()
     started = time.monotonic()
     with (directory / 'process.log').open('w') as log:
         process = subprocess.Popen(command, cwd=BACKEND, env=env, stdout=log,
@@ -62,7 +65,7 @@ def execute(target, directory, env, seconds, test_seconds):
     result = {'target': target, 'exit_code': code, 'deadline_exceeded': deadline,
               'elapsed_seconds': round(time.monotonic() - started, 3),
               'deadline_seconds': seconds, 'command': command,
-              'started_at': datetime.now(timezone.utc).isoformat()}
+              'started_at': started_at, 'finished_at': datetime.now(timezone.utc).isoformat()}
     write_json(directory / 'process.json', result)
     return result
 
@@ -142,7 +145,8 @@ def main():
                      key=lambda name: (name.endswith('test_blast_comprehensive.py'), name))
     for module in modules:
         directory = out / 'modules' / Path(module).stem
-        process = execute(module, directory, env, args.module_seconds, args.case_seconds)
+        selected = [nodeid for nodeid in planned if nodeid.split('::')[0] == module]
+        process = execute(selected, directory, env, args.module_seconds, args.case_seconds)
         attempts.append(process)
         results.update(terminal_cases(directory))
         write_json(out / 'cases.json', results)
@@ -166,11 +170,13 @@ def main():
         write_json(out / 'cases.json', results)
         print(f'Recovered {len(results)}/{len(planned)}: {nodeid} -> {results[nodeid]["status"]}', flush=True)
     counts = Counter(row['status'] for row in results.values())
+    process_errors = [p for p in attempts if p['deadline_exceeded'] or p['exit_code'] != 0]
     summary = {'planned_cases': len(planned), 'recorded_cases': len(results),
                'missing_cases': sorted(set(planned) - set(results)), 'counts': dict(counts),
                'skipped': 0, 'execution_errors': sum(not row['execution_complete'] for row in results.values()),
                'complete': set(results) == set(planned),
-               'passed': len(results) == len(planned) and counts.get('passed', 0) == len(planned),
+               'process_errors': process_errors,
+               'passed': not process_errors and len(results) == len(planned) and counts.get('passed', 0) == len(planned),
                'scientifically_validated': False}
     write_json(out / 'execution.json', attempts)
     write_json(out / 'summary.json', summary)

@@ -47,3 +47,31 @@ def test_deadline_retains_earlier_terminal_case(tmp_path, monkeypatch):
     assert process['deadline_exceeded'] is True
     assert len(cases) == 1
     assert next(iter(cases.values()))['status'] == 'passed'
+
+
+def test_selected_case_does_not_execute_uncollected_sibling(tmp_path, monkeypatch):
+    import json
+    import sys
+    test = tmp_path / 'test_selection.py'
+    test.write_text('import pytest\ndef test_selected(): assert True\ndef test_unselected(): pytest.skip("must not execute")\n')
+    out = tmp_path / 'report'
+    monkeypatch.setattr(runner, 'BACKEND', tmp_path)
+    monkeypatch.setattr(sys, 'argv', ['audit', '--outdir', str(out),
+                                    '--test-root', str(test) + '::test_selected'])
+    assert runner.main() == 0
+    summary = json.loads((out / 'summary.json').read_text())
+    assert summary['planned_cases'] == summary['recorded_cases'] == 1
+    assert summary['counts'] == {'passed': 1}
+
+
+def test_collection_skip_is_a_failure_not_an_empty_green_run(tmp_path, monkeypatch):
+    test = tmp_path / 'test_collection_skip.py'
+    test.write_text('import pytest\npytest.skip("missing prerequisite", allow_module_level=True)\n')
+    monkeypatch.setattr(runner, 'BACKEND', tmp_path)
+    env = dict(os.environ, PYTHONPATH=str(ROOT / 'scripts'))
+    result = runner.execute(str(test), tmp_path / 'attempt', env, 20, 10)
+    assert result['exit_code'] != 0
+    assert runner.terminal_cases(tmp_path / 'attempt') == {}
+    junit = ET.parse(tmp_path / 'attempt/pytest.xml')
+    assert not list(junit.iter('skipped'))
+    assert 'Audit forbids collection skips' in (tmp_path / 'attempt/process.log').read_text()

@@ -56,8 +56,8 @@
     "bytes": 1803805
   },
   "benchmark/fixtures/manifests/fixtures_manifest.json": {
-    "sha256": "9ed92b71df076c716f480fdb92acbd5ea147f2497c592c046772c106521b7f8e",
-    "bytes": 6526
+    "sha256": "6cd5e49e16dc50974fb3f52df1b83c2b2cc031ba1e7148b6327c40a9d6b424c8",
+    "bytes": 6669
   },
   "docs/verification/2026-10-20-combined-repair/incremental-regressions.xml": {
     "sha256": "b7ca1fc98777a3c847d7b326ab9e4bc2b7fad8ed7bec248f6b2768935dcc5d2e",

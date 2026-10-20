@@ -1,0 +1,1578 @@
+{
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_submit_and_poll[crambin_short]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_submit_and_poll[crambin_short]",
+    "status": "passed",
+    "duration": 108.97200197700022,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_submit_and_poll[human_insulin]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_submit_and_poll[human_insulin]",
+    "status": "passed",
+    "duration": 104.00684314300008,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_submit_and_poll[gfp_fragment]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_submit_and_poll[gfp_fragment]",
+    "status": "passed",
+    "duration": 103.55207821700014,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_full_roundtrip_short_seq": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_full_roundtrip_short_seq",
+    "status": "failed",
+    "duration": 180.0006761220002,
+    "reason": "/root/.local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest\n    super().runtest()\n/root/.local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner\n    runner.run(coro, context=context)\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:678: in run_until_complete\n    self.run_forever()\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:645: in run_forever\n    self._run_once()\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:1961: in _run_once\n    event_list = self._selector.select(timeout)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/selectors.py:468: in select\n    fd_event_list = self._selector.poll(timeout, max_ev)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: Timeout (>180.0s) from pytest-timeout.",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_parse_xml": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_parse_xml",
+    "status": "failed",
+    "duration": 180.00082456300015,
+    "reason": "/root/.local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:569: in runtest\n    super().runtest()\n/root/.local/lib/python3.12/site-packages/pytest_asyncio/plugin.py:905: in inner\n    runner.run(coro, context=context)\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/runners.py:118: in run\n    return self._loop.run_until_complete(task)\n           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:678: in run_until_complete\n    self.run_forever()\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:645: in run_forever\n    self._run_once()\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/asyncio/base_events.py:1961: in _run_once\n    event_list = self._selector.select(timeout)\n                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n/opt/codex/runtimes/codex-primary-runtime/dependencies/python/lib/python3.12/selectors.py:468: in select\n    fd_event_list = self._selector.poll(timeout, max_ev)\n                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nE   Failed: Timeout (>180.0s) from pytest-timeout.",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_retry_on_failure": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_retry_on_failure",
+    "status": "passed",
+    "duration": 107.50677161700014,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_timeout_handling": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_timeout_handling",
+    "status": "passed",
+    "duration": 0.032549227999879804,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_returns_hits[crambin_short]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_returns_hits[crambin_short]",
+    "status": "passed",
+    "duration": 1.3893945970000914,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_returns_hits[human_insulin]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_returns_hits[human_insulin]",
+    "status": "passed",
+    "duration": 1.9358614819998365,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_hit_structure": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_hit_structure",
+    "status": "passed",
+    "duration": 0.8339864440004021,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_poll_resilience": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestEBIBlastTool::test_ebi_blast_poll_resilience",
+    "status": "passed",
+    "duration": 1.790882276000275,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestPipelineV2BLAST::test_pipeline_blast_step_only": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestPipelineV2BLAST::test_pipeline_blast_step_only",
+    "status": "passed",
+    "duration": 0.6722765899999104,
+    "reason": "",
+    "evidence": "pipeline-blast-final/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestPipelineV2BLAST::test_pipeline_blast_multiple_sequences_loop": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestPipelineV2BLAST::test_pipeline_blast_multiple_sequences_loop",
+    "status": "passed",
+    "duration": 3.8284492650000175,
+    "reason": "",
+    "evidence": "pipeline-blast-final/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_empty_sequence": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_empty_sequence",
+    "status": "passed",
+    "duration": 0.007942338000020754,
+    "reason": "",
+    "evidence": "ncbi-input-fixed/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_invalid_characters": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_invalid_characters",
+    "status": "passed",
+    "duration": 0.0012933460000112973,
+    "reason": "",
+    "evidence": "ncbi-input-fixed/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_very_long_sequence": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_very_long_sequence",
+    "status": "passed",
+    "duration": 8.862429927999983,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_dna_blastn": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastErrorHandling::test_dna_blastn",
+    "status": "passed",
+    "duration": 58.2804719159999,
+    "reason": "",
+    "evidence": "blast-complete/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[0]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[0]",
+    "status": "passed",
+    "duration": 168.66834290800034,
+    "reason": "",
+    "evidence": "blast-recovery-final/00/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[1]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[1]",
+    "status": "passed",
+    "duration": 153.4688201830004,
+    "reason": "",
+    "evidence": "blast-recovery-final/01/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[2]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[2]",
+    "status": "passed",
+    "duration": 206.1275428199997,
+    "reason": "",
+    "evidence": "blast-recovery-final/02/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[3]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[3]",
+    "status": "passed",
+    "duration": 206.25218956000026,
+    "reason": "",
+    "evidence": "blast-recovery-final/03/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[4]": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_protein_sequence[4]",
+    "status": "passed",
+    "duration": 159.45273096099982,
+    "reason": "",
+    "evidence": "blast-recovery-final/04/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_edge_case_lengths": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastRandomFuzz::test_random_edge_case_lengths",
+    "status": "passed",
+    "duration": 579.1816939589999,
+    "reason": "",
+    "evidence": "blast-recovery-final/05/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_blast_comprehensive.py::TestBlastReliability::test_consecutive_blast_runs": {
+    "nodeid": "tests/test_blast_comprehensive.py::TestBlastReliability::test_consecutive_blast_runs",
+    "status": "failed",
+    "duration": 695.1788754429999,
+    "reason": "tests/test_blast_comprehensive.py:475: in test_consecutive_blast_runs\n    assert successes >= 2, f\"Too many BLAST failures: {failures}/3 failed\"\nE   AssertionError: Too many BLAST failures: 3/3 failed\nE   assert 0 >= 2",
+    "evidence": "blast-recovery-final/06/modules/test_blast_comprehensive",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_formula": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_formula",
+    "status": "passed",
+    "duration": 0.3956795609999517,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_molecular_weight": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_molecular_weight",
+    "status": "passed",
+    "duration": 0.004327803000023778,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_logp": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_logp",
+    "status": "passed",
+    "duration": 0.003503960999978517,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_tpsa": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_tpsa",
+    "status": "passed",
+    "duration": 0.0030340549999436917,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_hbd": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_hbd",
+    "status": "passed",
+    "duration": 0.0031563589999450414,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_hba": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_hba",
+    "status": "passed",
+    "duration": 0.0038733380000621764,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_lipinski_passes": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_lipinski_passes",
+    "status": "passed",
+    "duration": 0.0029239290000759866,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_rotatable_bonds": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_rotatable_bonds",
+    "status": "passed",
+    "duration": 0.0029396019999694545,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_heavy_atoms": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_heavy_atoms",
+    "status": "passed",
+    "duration": 0.0027671519999330485,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETAspirin::test_qed_positive": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETAspirin::test_qed_positive",
+    "status": "passed",
+    "duration": 0.0027642680000781183,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETCaffeine::test_formula": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETCaffeine::test_formula",
+    "status": "passed",
+    "duration": 0.003073263999908704,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETCaffeine::test_molecular_weight": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETCaffeine::test_molecular_weight",
+    "status": "passed",
+    "duration": 0.002936728999998195,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETCaffeine::test_logp_range": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETCaffeine::test_logp_range",
+    "status": "passed",
+    "duration": 0.003203920999908405,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETCaffeine::test_lipinski_passes": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETCaffeine::test_lipinski_passes",
+    "status": "passed",
+    "duration": 0.003266733999907956,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETIbuprofen::test_formula": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETIbuprofen::test_formula",
+    "status": "passed",
+    "duration": 0.003442057999905046,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETIbuprofen::test_molecular_weight": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETIbuprofen::test_molecular_weight",
+    "status": "passed",
+    "duration": 0.003510250999966047,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETIbuprofen::test_logp": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETIbuprofen::test_logp",
+    "status": "passed",
+    "duration": 0.0035309630001165715,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETIbuprofen::test_lipinski_passes": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETIbuprofen::test_lipinski_passes",
+    "status": "passed",
+    "duration": 0.003526366000073722,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETLargeMolecule::test_molecular_weight_large": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETLargeMolecule::test_molecular_weight_large",
+    "status": "passed",
+    "duration": 0.008544447000076616,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETLargeMolecule::test_lipinski_fails_mw": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETLargeMolecule::test_lipinski_fails_mw",
+    "status": "passed",
+    "duration": 0.00833053300004849,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestFunctionPrediction::test_fetches_sequence": {
+    "nodeid": "tests/test_feature_validation.py::TestFunctionPrediction::test_fetches_sequence",
+    "status": "passed",
+    "duration": 4.991901908000045,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestFunctionPrediction::test_prediction_returns_go_terms": {
+    "nodeid": "tests/test_feature_validation.py::TestFunctionPrediction::test_prediction_returns_go_terms",
+    "status": "passed",
+    "duration": 4.176740246999998,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestFunctionPrediction::test_prediction_has_saliency": {
+    "nodeid": "tests/test_feature_validation.py::TestFunctionPrediction::test_prediction_has_saliency",
+    "status": "passed",
+    "duration": 4.666540690999909,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestFunctionPrediction::test_prediction_pdb_id_uppercase": {
+    "nodeid": "tests/test_feature_validation.py::TestFunctionPrediction::test_prediction_pdb_id_uppercase",
+    "status": "passed",
+    "duration": 7.570633190999956,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestFunctionPrediction::test_hydrophobic_protein_detection": {
+    "nodeid": "tests/test_feature_validation.py::TestFunctionPrediction::test_hydrophobic_protein_detection",
+    "status": "passed",
+    "duration": 0.003965634999985923,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_fetch_p00698": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_fetch_p00698",
+    "status": "passed",
+    "duration": 7.775936555000044,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_ec_number": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_ec_number",
+    "status": "passed",
+    "duration": 7.594382137000025,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_has_functions": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_has_functions",
+    "status": "passed",
+    "duration": 7.781523782000022,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_has_pdb_ids": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_has_pdb_ids",
+    "status": "passed",
+    "duration": 4.342054640000015,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_has_sequence": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_has_sequence",
+    "status": "passed",
+    "duration": 5.407846510000013,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_invalid_accession": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_invalid_accession",
+    "status": "passed",
+    "duration": 5.345724990999997,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestUniProtLookup::test_gene_names": {
+    "nodeid": "tests/test_feature_validation.py::TestUniProtLookup::test_gene_names",
+    "status": "passed",
+    "duration": 7.7308821189999435,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestBLAST::test_blast_returns_hits": {
+    "nodeid": "tests/test_feature_validation.py::TestBLAST::test_blast_returns_hits",
+    "status": "passed",
+    "duration": 0.6369277740000143,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestBLAST::test_blast_hit_structure": {
+    "nodeid": "tests/test_feature_validation.py::TestBLAST::test_blast_hit_structure",
+    "status": "passed",
+    "duration": 0.35753973400005634,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestBLAST::test_blast_evalue_reasonable": {
+    "nodeid": "tests/test_feature_validation.py::TestBLAST::test_blast_evalue_reasonable",
+    "status": "passed",
+    "duration": 0.3474202200000036,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_points": {
+    "nodeid": "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_points",
+    "status": "passed",
+    "duration": 8.184294690999991,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_regions_present": {
+    "nodeid": "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_regions_present",
+    "status": "passed",
+    "duration": 5.053810727000041,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_phi_psi_range": {
+    "nodeid": "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_phi_psi_range",
+    "status": "passed",
+    "duration": 4.802413261999959,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_high_core_fraction": {
+    "nodeid": "tests/test_feature_validation.py::TestRamachandran::test_ramachandran_high_core_fraction",
+    "status": "passed",
+    "duration": 3.9707481890000054,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureInventory::test_inventory_returns_chains": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureInventory::test_inventory_returns_chains",
+    "status": "passed",
+    "duration": 4.746814288999872,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureInventory::test_inventory_has_ligands": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureInventory::test_inventory_has_ligands",
+    "status": "passed",
+    "duration": 5.408262319000073,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureInventory::test_inventory_pdb_id": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureInventory::test_inventory_pdb_id",
+    "status": "passed",
+    "duration": 4.716960970000059,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomains::test_domains_returned": {
+    "nodeid": "tests/test_feature_validation.py::TestDomains::test_domains_returned",
+    "status": "passed",
+    "duration": 6.989978288999964,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomains::test_domains_have_positions": {
+    "nodeid": "tests/test_feature_validation.py::TestDomains::test_domains_have_positions",
+    "status": "passed",
+    "duration": 4.680150119000018,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomains::test_domains_sorted_by_start": {
+    "nodeid": "tests/test_feature_validation.py::TestDomains::test_domains_sorted_by_start",
+    "status": "passed",
+    "duration": 8.175584661000016,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomains::test_domains_source_databases": {
+    "nodeid": "tests/test_feature_validation.py::TestDomains::test_domains_source_databases",
+    "status": "passed",
+    "duration": 5.400888190999922,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestInteractions::test_tp53_has_interactions": {
+    "nodeid": "tests/test_feature_validation.py::TestInteractions::test_tp53_has_interactions",
+    "status": "passed",
+    "reason": "",
+    "duration": 4.389,
+    "execution_complete": true,
+    "evidence": "contract-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestInteractions::test_interaction_scores_reasonable": {
+    "nodeid": "tests/test_feature_validation.py::TestInteractions::test_interaction_scores_reasonable",
+    "status": "passed",
+    "reason": "",
+    "duration": 4.984,
+    "execution_complete": true,
+    "evidence": "contract-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestInteractions::test_interactions_sorted_by_score": {
+    "nodeid": "tests/test_feature_validation.py::TestInteractions::test_interactions_sorted_by_score",
+    "status": "passed",
+    "reason": "",
+    "duration": 5.638,
+    "execution_complete": true,
+    "evidence": "contract-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestInteractions::test_gene_name_preserved": {
+    "nodeid": "tests/test_feature_validation.py::TestInteractions::test_gene_name_preserved",
+    "status": "passed",
+    "reason": "",
+    "duration": 6.35,
+    "execution_complete": true,
+    "evidence": "contract-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestPathwayAnalysis::test_reactome_search": {
+    "nodeid": "tests/test_feature_validation.py::TestPathwayAnalysis::test_reactome_search",
+    "status": "passed",
+    "duration": 5.051553218999857,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestPathwayAnalysis::test_reactome_pathway_has_id": {
+    "nodeid": "tests/test_feature_validation.py::TestPathwayAnalysis::test_reactome_pathway_has_id",
+    "status": "passed",
+    "duration": 5.604181030999939,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestPathwayAnalysis::test_kegg_search": {
+    "nodeid": "tests/test_feature_validation.py::TestPathwayAnalysis::test_kegg_search",
+    "status": "passed",
+    "duration": 5.306696176999935,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestPathwayAnalysis::test_kegg_pathway_has_url": {
+    "nodeid": "tests/test_feature_validation.py::TestPathwayAnalysis::test_kegg_pathway_has_url",
+    "status": "passed",
+    "duration": 5.753820633000032,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureRetrieval::test_fetch_pdb_entry": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureRetrieval::test_fetch_pdb_entry",
+    "status": "passed",
+    "duration": 3.4363079190000008,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureRetrieval::test_fetch_pdb_resolution": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureRetrieval::test_fetch_pdb_resolution",
+    "status": "passed",
+    "duration": 4.717432296000084,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureRetrieval::test_fetch_alphafold": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureRetrieval::test_fetch_alphafold",
+    "status": "passed",
+    "duration": 8.063111344000163,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureRetrieval::test_search_pdb": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureRetrieval::test_search_pdb",
+    "status": "passed",
+    "reason": "",
+    "duration": 6.141,
+    "execution_complete": true,
+    "evidence": "rcsb-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestAlphaFold::test_alphafold_available": {
+    "nodeid": "tests/test_feature_validation.py::TestAlphaFold::test_alphafold_available",
+    "status": "passed",
+    "duration": 4.794764819000079,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestAlphaFold::test_alphafold_confidence_score": {
+    "nodeid": "tests/test_feature_validation.py::TestAlphaFold::test_alphafold_confidence_score",
+    "status": "passed",
+    "duration": 5.692701814000088,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestAlphaFold::test_alphafold_structure_url_format": {
+    "nodeid": "tests/test_feature_validation.py::TestAlphaFold::test_alphafold_structure_url_format",
+    "status": "passed",
+    "duration": 8.012663542999917,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestMDSimulation::test_md_minimize_returns_result": {
+    "nodeid": "tests/test_feature_validation.py::TestMDSimulation::test_md_minimize_returns_result",
+    "status": "passed",
+    "duration": 36.343718053999964,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestMDSimulation::test_md_has_energy": {
+    "nodeid": "tests/test_feature_validation.py::TestMDSimulation::test_md_has_energy",
+    "status": "passed",
+    "duration": 22.943065254999965,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestMDSimulation::test_md_atom_count": {
+    "nodeid": "tests/test_feature_validation.py::TestMDSimulation::test_md_atom_count",
+    "status": "passed",
+    "duration": 19.151156338000078,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestMDSimulation::test_md_residue_count": {
+    "nodeid": "tests/test_feature_validation.py::TestMDSimulation::test_md_residue_count",
+    "status": "passed",
+    "duration": 18.04701908600032,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestMDSimulation::test_md_production_mode": {
+    "nodeid": "tests/test_feature_validation.py::TestMDSimulation::test_md_production_mode",
+    "status": "passed",
+    "duration": 174.8473024509999,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestStructureComparison::test_compare_returns_matches": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureComparison::test_compare_returns_matches",
+    "status": "passed",
+    "reason": "",
+    "duration": 19.735,
+    "execution_complete": true,
+    "evidence": "foldseek-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestStructureComparison::test_match_has_tm_score": {
+    "nodeid": "tests/test_feature_validation.py::TestStructureComparison::test_match_has_tm_score",
+    "status": "passed",
+    "reason": "",
+    "duration": 18.387,
+    "execution_complete": true,
+    "evidence": "foldseek-fixed.xml"
+  },
+  "tests/test_feature_validation.py::TestSecondaryStructure::test_secondary_structure": {
+    "nodeid": "tests/test_feature_validation.py::TestSecondaryStructure::test_secondary_structure",
+    "status": "passed",
+    "duration": 4.922742728999765,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestSecondaryStructure::test_ss_has_helix_sheet_coil": {
+    "nodeid": "tests/test_feature_validation.py::TestSecondaryStructure::test_ss_has_helix_sheet_coil",
+    "status": "passed",
+    "duration": 11.581329635000202,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestSequencingPipeline::test_synthetic_reads": {
+    "nodeid": "tests/test_feature_validation.py::TestSequencingPipeline::test_synthetic_reads",
+    "status": "passed",
+    "duration": 0.02192658100011613,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestSequencingPipeline::test_variant_detection": {
+    "nodeid": "tests/test_feature_validation.py::TestSequencingPipeline::test_variant_detection",
+    "status": "passed",
+    "duration": 0.00195733200007453,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestPipelineV2::test_pipeline_steps_available": {
+    "nodeid": "tests/test_feature_validation.py::TestPipelineV2::test_pipeline_steps_available",
+    "status": "passed",
+    "duration": 0.15651695299993662,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestPipelineV2::test_pipeline_step_order_defined": {
+    "nodeid": "tests/test_feature_validation.py::TestPipelineV2::test_pipeline_step_order_defined",
+    "status": "passed",
+    "duration": 0.00036560999978973996,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDockingLogic::test_fetch_pdb": {
+    "nodeid": "tests/test_feature_validation.py::TestDockingLogic::test_fetch_pdb",
+    "status": "passed",
+    "duration": 8.0842155119999,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDockingLogic::test_compute_grid_center": {
+    "nodeid": "tests/test_feature_validation.py::TestDockingLogic::test_compute_grid_center",
+    "status": "passed",
+    "duration": 3.1499403350001103,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDockingLogic::test_grid_center_reasonable": {
+    "nodeid": "tests/test_feature_validation.py::TestDockingLogic::test_grid_center_reasonable",
+    "status": "passed",
+    "duration": 4.654659625999784,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETComparison::test_aspirin_smaller_than_ibuprofen": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETComparison::test_aspirin_smaller_than_ibuprofen",
+    "status": "passed",
+    "duration": 0.006319715000017823,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETComparison::test_ibuprofen_more_lipophilic": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETComparison::test_ibuprofen_more_lipophilic",
+    "status": "passed",
+    "duration": 0.005374935000190817,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETComparison::test_both_pass_lipinski": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETComparison::test_both_pass_lipinski",
+    "status": "passed",
+    "duration": 0.005612211000197931,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestADMETComparison::test_aspirin_higher_tpsa": {
+    "nodeid": "tests/test_feature_validation.py::TestADMETComparison::test_aspirin_higher_tpsa",
+    "status": "passed",
+    "duration": 0.010186311000097703,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestScoreDistribution::test_top_hit_high_score": {
+    "nodeid": "tests/test_feature_validation.py::TestScoreDistribution::test_top_hit_high_score",
+    "status": "passed",
+    "duration": 0.33803324499990595,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestScoreDistribution::test_evalues_increasing": {
+    "nodeid": "tests/test_feature_validation.py::TestScoreDistribution::test_evalues_increasing",
+    "status": "passed",
+    "duration": 0.33014316699996016,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_features_returns_categories": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_features_returns_categories",
+    "status": "passed",
+    "duration": 5.093470909999951,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_features_has_topology": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_features_has_topology",
+    "status": "passed",
+    "duration": 3.810244379000096,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_functional_sites_returned": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_functional_sites_returned",
+    "status": "passed",
+    "duration": 3.8733185960002174,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_functional_sites_have_positions": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_functional_sites_have_positions",
+    "status": "passed",
+    "duration": 5.18816878299981,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_ptms_returned": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_ptms_returned",
+    "status": "passed",
+    "duration": 3.211223472999791,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_topology_has_signal_peptide": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_topology_has_signal_peptide",
+    "status": "passed",
+    "duration": 3.948404739999887,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_topology_positions_valid": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_topology_positions_valid",
+    "status": "passed",
+    "duration": 5.585878154000056,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_motifs_returned": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_motifs_returned",
+    "status": "passed",
+    "duration": 3.637554150999904,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_variants_or_mutagenesis": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_variants_or_mutagenesis",
+    "status": "passed",
+    "duration": 5.058696539000039,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_disulfide_bonds": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_disulfide_bonds",
+    "status": "passed",
+    "duration": 5.322037406999925,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_composition_bias": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_composition_bias",
+    "status": "passed",
+    "duration": 5.218672876000028,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_go_terms": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_go_terms",
+    "status": "passed",
+    "duration": 4.013901329999953,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_go_terms_include_lysozyme_activity": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_go_terms_include_lysozyme_activity",
+    "status": "passed",
+    "duration": 4.253869868000038,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_pathways": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_pathways",
+    "status": "passed",
+    "duration": 3.3439440530000866,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_full_analysis_combined": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_full_analysis_combined",
+    "status": "passed",
+    "duration": 8.188573280000128,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_full_analysis_organism": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_full_analysis_organism",
+    "status": "passed",
+    "duration": 9.155710143000078,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_full_analysis_protein_name": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_full_analysis_protein_name",
+    "status": "passed",
+    "duration": 9.806435886999907,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_invalid_accession_404": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_invalid_accession_404",
+    "status": "passed",
+    "duration": 8.248786062999898,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_disulfide_bonds_1crn": {
+    "nodeid": "tests/test_feature_validation.py::TestDomainMotifAnalysis::test_disulfide_bonds_1crn",
+    "status": "passed",
+    "duration": 9.783167368000022,
+    "reason": "",
+    "evidence": "features-complete/modules/test_feature_validation",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_random_smiles_no_crash": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_random_smiles_no_crash",
+    "status": "passed",
+    "duration": 0.19790905599938924,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_empty_smiles_rejected": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_empty_smiles_rejected",
+    "status": "passed",
+    "duration": 0.004919008000342728,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_500_char_smiles_rejected": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_500_char_smiles_rejected",
+    "status": "passed",
+    "duration": 0.003475796999737213,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_unicode_smiles_no_crash": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_unicode_smiles_no_crash",
+    "status": "passed",
+    "duration": 0.007739491000393173,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_sql_injection_smiles": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_sql_injection_smiles",
+    "status": "passed",
+    "duration": 0.003151439999783179,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_missing_field": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_missing_field",
+    "status": "passed",
+    "duration": 0.003360172999691713,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_wrong_type_smiles": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_wrong_type_smiles",
+    "status": "passed",
+    "duration": 0.0028626449998228054,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_list_smiles_rejected": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_list_smiles_rejected",
+    "status": "passed",
+    "duration": 0.0031431670004167245,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_newlines_in_smiles": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_newlines_in_smiles",
+    "status": "passed",
+    "duration": 0.31748795000021346,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzADMET::test_null_smiles": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzADMET::test_null_smiles",
+    "status": "passed",
+    "duration": 0.0030520899999828544,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructures::test_random_pdb_search_no_crash": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructures::test_random_pdb_search_no_crash",
+    "status": "passed",
+    "duration": 0.012630446999082778,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructures::test_random_inventory_pdb_ids": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructures::test_random_inventory_pdb_ids",
+    "status": "passed",
+    "duration": 0.012418959000115137,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructures::test_inventory_too_long_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructures::test_inventory_too_long_pdb_id",
+    "status": "passed",
+    "duration": 0.002188641999509855,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructures::test_inventory_special_chars_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructures::test_inventory_special_chars_pdb_id",
+    "status": "passed",
+    "duration": 0.00501570400001583,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructures::test_fetch_structure_empty_query": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructures::test_fetch_structure_empty_query",
+    "status": "passed",
+    "duration": 0.002005446000111988,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructures::test_fetch_structure_long_query": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructures::test_fetch_structure_long_query",
+    "status": "passed",
+    "duration": 0.0024494249996678263,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_random_pdb_ramachandran": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_random_pdb_ramachandran",
+    "status": "passed",
+    "duration": 0.05169171900070069,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_random_pdb_secondary_structure": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_random_pdb_secondary_structure",
+    "status": "passed",
+    "duration": 0.014834332000191353,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_random_pdb_compare": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_random_pdb_compare",
+    "status": "passed",
+    "duration": 0.01748260800013668,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_ramachandran_long_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_ramachandran_long_pdb_id",
+    "status": "passed",
+    "duration": 0.002416172999801347,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_compare_negative_max_results": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzStructureAnalysis::test_compare_negative_max_results",
+    "status": "passed",
+    "duration": 0.0022804800000812975,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDomains::test_random_accession_domains": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDomains::test_random_accession_domains",
+    "status": "passed",
+    "duration": 0.010094933999880595,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDomains::test_empty_accession_domains": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDomains::test_empty_accession_domains",
+    "status": "passed",
+    "duration": 0.0021609000000353262,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDomains::test_numeric_accession": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDomains::test_numeric_accession",
+    "status": "passed",
+    "duration": 0.001539764999961335,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzInteractions::test_random_gene_interactions": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzInteractions::test_random_gene_interactions",
+    "status": "passed",
+    "duration": 0.011916794999706326,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzInteractions::test_gene_with_special_chars": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzInteractions::test_gene_with_special_chars",
+    "status": "passed",
+    "duration": 0.002384786000220629,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPathways::test_random_pathway_search": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPathways::test_random_pathway_search",
+    "status": "passed",
+    "duration": 0.013212043999828893,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPathways::test_single_char_pathway_search": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPathways::test_single_char_pathway_search",
+    "status": "passed",
+    "duration": 0.0017897929997161555,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPathways::test_random_kegg_search": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPathways::test_random_kegg_search",
+    "status": "passed",
+    "duration": 0.007631267999840929,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPathways::test_random_enrichment": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPathways::test_random_enrichment",
+    "status": "passed",
+    "duration": 0.0029387720001068374,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPathways::test_empty_enrichment": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPathways::test_empty_enrichment",
+    "status": "passed",
+    "duration": 0.0016621599997961312,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzAlignment::test_random_protein_alignment": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzAlignment::test_random_protein_alignment",
+    "status": "passed",
+    "duration": 0.08985112300024412,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzAlignment::test_random_dna_alignment": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzAlignment::test_random_dna_alignment",
+    "status": "passed",
+    "duration": 0.005843319000177871,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzAlignment::test_empty_alignment": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzAlignment::test_empty_alignment",
+    "status": "passed",
+    "duration": 0.0024199200001930876,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzAlignment::test_numeric_sequence": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzAlignment::test_numeric_sequence",
+    "status": "passed",
+    "duration": 0.001662480999584659,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzAlignment::test_very_long_alignment": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzAlignment::test_very_long_alignment",
+    "status": "passed",
+    "duration": 0.0022652470001958136,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzUniProt::test_random_uniprot_search": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzUniProt::test_random_uniprot_search",
+    "status": "passed",
+    "duration": 0.01527978499962046,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzUniProt::test_random_uniprot_detail": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzUniProt::test_random_uniprot_detail",
+    "status": "passed",
+    "duration": 0.010178751000239572,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_search_single_char": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_search_single_char",
+    "status": "passed",
+    "duration": 0.001684023000052548,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_max_results_extreme": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_max_results_extreme",
+    "status": "passed",
+    "duration": 0.002018677000705793,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_max_results_zero": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_max_results_zero",
+    "status": "passed",
+    "duration": 0.0017852349997156125,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_negative_max_results": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzUniProt::test_uniprot_negative_max_results",
+    "status": "passed",
+    "duration": 0.0019355110002834408,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_random_pdb_id_rejected": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_random_pdb_id_rejected",
+    "status": "passed",
+    "duration": 0.04317799799991917,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_too_short_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_too_short_pdb_id",
+    "status": "passed",
+    "duration": 0.00680088999979489,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_special_chars_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_special_chars_pdb_id",
+    "status": "passed",
+    "duration": 0.0072468900007152115,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_missing_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzFunctionPrediction::test_missing_pdb_id",
+    "status": "passed",
+    "duration": 0.002202984000177821,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzMD::test_random_pdb_id_md": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzMD::test_random_pdb_id_md",
+    "status": "passed",
+    "duration": 16.847889956000017,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzMD::test_invalid_mode_rejected": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzMD::test_invalid_mode_rejected",
+    "status": "passed",
+    "duration": 0.007726611000180128,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzMD::test_empty_pdb_id_md": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzMD::test_empty_pdb_id_md",
+    "status": "passed",
+    "duration": 0.002587792000213085,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDocking::test_random_smiles_docking": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDocking::test_random_smiles_docking",
+    "status": "passed",
+    "duration": 0.014811176999955933,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDocking::test_extreme_grid_size": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDocking::test_extreme_grid_size",
+    "status": "passed",
+    "duration": 0.007256453999616497,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDocking::test_extreme_exhaustiveness": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDocking::test_extreme_exhaustiveness",
+    "status": "passed",
+    "duration": 0.004714051000064501,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDocking::test_empty_smiles_docking": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDocking::test_empty_smiles_docking",
+    "status": "passed",
+    "duration": 0.0025501250001980225,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzDocking::test_grid_center_wrong_type": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzDocking::test_grid_center_wrong_type",
+    "status": "passed",
+    "duration": 0.0021095219999551773,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPipeline::test_random_sequence_pipeline": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPipeline::test_random_sequence_pipeline",
+    "status": "passed",
+    "duration": 0.018833127000107197,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPipeline::test_too_short_sequence": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPipeline::test_too_short_sequence",
+    "status": "passed",
+    "duration": 0.029010453999489982,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPipeline::test_invalid_steps": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPipeline::test_invalid_steps",
+    "status": "passed",
+    "duration": 0.03704046700022445,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPipeline::test_empty_steps_list": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPipeline::test_empty_steps_list",
+    "status": "passed",
+    "duration": 0.016863804000422533,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzPipeline::test_numeric_sequence_pipeline": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzPipeline::test_numeric_sequence_pipeline",
+    "status": "passed",
+    "duration": 0.008734066000215535,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzSequencing::test_random_fastq_url": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzSequencing::test_random_fastq_url",
+    "status": "passed",
+    "duration": 0.0202636670001084,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzSequencing::test_empty_fastq_url": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzSequencing::test_empty_fastq_url",
+    "status": "passed",
+    "duration": 0.003568597999674239,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzSequencing::test_random_reference": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzSequencing::test_random_reference",
+    "status": "passed",
+    "duration": 0.0025760329999684473,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzSequencing::test_missing_fastq_url": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzSequencing::test_missing_fastq_url",
+    "status": "passed",
+    "duration": 0.0021513550000236137,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_empty_body_post_endpoints": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_empty_body_post_endpoints",
+    "status": "passed",
+    "duration": 0.007196132999979454,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_malformed_json": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_malformed_json",
+    "status": "passed",
+    "duration": 0.005310357999860571,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_json_array_instead_of_object": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_json_array_instead_of_object",
+    "status": "passed",
+    "duration": 0.0047308260000136215,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_huge_payload_rejection": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_huge_payload_rejection",
+    "status": "passed",
+    "duration": 0.00827099999969505,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_get_on_post_endpoint": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_get_on_post_endpoint",
+    "status": "passed",
+    "duration": 0.003974918999574584,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_nonexistent_endpoint": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_nonexistent_endpoint",
+    "status": "passed",
+    "duration": 0.002828352999586059,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_path_traversal_pdb_id": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_path_traversal_pdb_id",
+    "status": "passed",
+    "duration": 0.004998909000278218,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  },
+  "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_xss_in_queries": {
+    "nodeid": "tests/test_fuzz_random.py::TestFuzzCrossCutting::test_xss_in_queries",
+    "status": "passed",
+    "duration": 0.0029304769996088,
+    "reason": "",
+    "evidence": "fuzz-default-final/modules/test_fuzz_random",
+    "execution_complete": true
+  }
+}

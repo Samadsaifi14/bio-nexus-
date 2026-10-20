@@ -1,0 +1,670 @@
+{
+  "attempted_modules": 140,
+  "modules_with_complete_junit": 136,
+  "planned_modules": 140,
+  "all_modules_attempted": true,
+  "features": [
+    {
+      "id": 1,
+      "name": "RNA-seq",
+      "route": "ngs-v2",
+      "tests": [
+        "test_rnaseq_*.py",
+        "test_geo_*.py",
+        "test_expression_*.py",
+        "test_ngs_lecture_contracts.py",
+        "test_gene_set_enrichment.py"
+      ],
+      "scope": "GEO counts, provenance/design gates, DESeq2 QC/figures, ORA and GSEA adapters",
+      "remaining": "Full FASTQ-to-count production execution and SEQC truth-set parity are separate from the successful live count-matrix case. Uploaded teaching counts have no independently established raw-read provenance.",
+      "counts": {
+        "passed": 146,
+        "skipped": 10
+      },
+      "module_status": {
+        "test_expression_remote_queue.py": "PASSED",
+        "test_gene_set_enrichment.py": "PASSED",
+        "test_geo_automatic.py": "PASSED",
+        "test_geo_counts_import.py": "PASSED",
+        "test_geo_recovery.py": "PASSED",
+        "test_geo_sample_matching.py": "PASSED",
+        "test_geo_search.py": "PASSED",
+        "test_ngs_lecture_contracts.py": "PASSED",
+        "test_rnaseq_designs_r.py": "SKIPPED",
+        "test_rnaseq_durable_recovery.py": "PASSED",
+        "test_rnaseq_exploration.py": "PASSED_WITH_SKIPS",
+        "test_rnaseq_expression_contract.py": "PASSED",
+        "test_rnaseq_expression_source_boundary.py": "PASSED",
+        "test_rnaseq_input_provenance.py": "PASSED",
+        "test_rnaseq_production.py": "PASSED",
+        "test_rnaseq_recovery_r.py": "SKIPPED",
+        "test_rnaseq_regression_harness.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS_WITH_SKIPS"
+    },
+    {
+      "id": 2,
+      "name": "Consensus sequencing",
+      "route": "sequencing",
+      "tests": [
+        "test_sequencing_contract.py",
+        "test_ngs_engine.py",
+        "test_ngs_paired_preview.py"
+      ],
+      "scope": "Compact-reference alignment, consensus/variant and degraded-state contracts",
+      "remaining": "Synthetic/compact-reference fixtures do not certify genome-scale calling, ClinVar/VEP completeness or clinical accuracy.",
+      "counts": {
+        "passed": 20
+      },
+      "module_status": {
+        "test_ngs_engine.py": "PASSED",
+        "test_ngs_paired_preview.py": "PASSED",
+        "test_sequencing_contract.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 3,
+      "name": "BLAST",
+      "route": "blast",
+      "tests": [
+        "test_blast*.py",
+        "test_audit_blast_offline.py",
+        "test_local_blast.py",
+        "test_ncbi_wallclock_budget.py"
+      ],
+      "scope": "Program/database guards, parsing, provider failures, native exact-scope Swiss-Prot recovery",
+      "remaining": "Remote NCBI availability remains an external dependency. Custom uploaded databases, DIAMOND and broad-taxonomy production workloads are not certified by Swiss-Prot positive controls.",
+      "counts": {
+        "passed": 79,
+        "skipped": 9
+      },
+      "module_status": {
+        "test_audit_blast_offline.py": "PASSED",
+        "test_blast_config.py": "PASSED",
+        "test_blast_engine.py": "PASSED",
+        "test_blast_false_denovo_guard.py": "PASSED",
+        "test_blast_parser_fidelity.py": "PASSED",
+        "test_blast_program_matrix.py": "PASSED",
+        "test_blast_resilience.py": "PASSED",
+        "test_local_blast.py": "SKIPPED",
+        "test_ncbi_wallclock_budget.py": "PASSED",
+        "test_blast_comprehensive.py": "TIMED_OUT"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "INCOMPLETE"
+    },
+    {
+      "id": 4,
+      "name": "Pairwise alignment",
+      "route": "pairwise",
+      "tests": [
+        "test_alignment_pairwise.py",
+        "test_audit_alignment_randomized.py",
+        "test_alignment_stats.py"
+      ],
+      "scope": "Global/local alignment, scores, coordinates and statistical helpers",
+      "remaining": "Live sample alignment completed. Comprehensive UniProt feature-track overlays and permutation-calibration parity are not established by this sample.",
+      "counts": {
+        "passed": 32
+      },
+      "module_status": {
+        "test_alignment_pairwise.py": "PASSED",
+        "test_alignment_stats.py": "PASSED",
+        "test_audit_alignment_randomized.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 5,
+      "name": "Multiple sequence alignment",
+      "route": "alignment",
+      "tests": [
+        "test_msa_engine.py",
+        "test_ebi_msa.py",
+        "test_audit_msa_randomized.py",
+        "test_alignment_trim.py",
+        "test_alignment_insights.py"
+      ],
+      "scope": "Alignment engine adapters, conservation and deterministic column filtering",
+      "remaining": "A full editable alignment workspace and large benchmark corpus remain outside the observed page and regression checks.",
+      "counts": {
+        "passed": 52
+      },
+      "module_status": {
+        "test_alignment_insights.py": "PASSED",
+        "test_alignment_trim.py": "PASSED",
+        "test_audit_msa_randomized.py": "PASSED",
+        "test_ebi_msa.py": "PASSED",
+        "test_msa_engine.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 6,
+      "name": "Phylogenetics",
+      "route": "phylo",
+      "tests": [
+        "test_phylo_*.py",
+        "test_audit_phylo_randomized.py"
+      ],
+      "scope": "NJ/UPGMA, ML adapters, model validation and honest bootstrap provenance",
+      "remaining": "IQ-TREE adapter tests do not establish executed ModelFinder selection or external evolutionary-tree accuracy.",
+      "counts": {
+        "passed": 35
+      },
+      "module_status": {
+        "test_audit_phylo_randomized.py": "PASSED",
+        "test_phylo_engine.py": "PASSED",
+        "test_phylo_insights.py": "PASSED",
+        "test_phylo_ml_runner.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 7,
+      "name": "Domains",
+      "route": "domains",
+      "tests": [
+        "test_domains_engine.py",
+        "test_interpro_background_completion.py"
+      ],
+      "scope": "InterPro/UniProt feature coordinates and asynchronous result handling",
+      "remaining": "Domain-to-MSA overlays and multi-homolog architecture comparison were not demonstrated end to end.",
+      "counts": {
+        "passed": 18
+      },
+      "module_status": {
+        "test_domains_engine.py": "PASSED",
+        "test_interpro_background_completion.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 8,
+      "name": "Motif scanner",
+      "route": "motif",
+      "tests": [
+        "test_scanprosite.py",
+        "test_seq_tools.py"
+      ],
+      "filters": {
+        "test_seq_tools.py": "TestPrositeToRegex|TestScanPattern|TestScanLibrary|motif"
+      },
+      "scope": "Curated/custom PROSITE-style pattern scanning",
+      "remaining": "Pattern scanning is distinct from MEME-style de novo motif discovery; discovery/enrichment validation was not established.",
+      "counts": {
+        "passed": 54
+      },
+      "module_status": {
+        "test_scanprosite.py": "PASSED",
+        "test_seq_tools.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 9,
+      "name": "UniProt",
+      "route": "uniprot",
+      "tests": [
+        "test_uniprot_*.py",
+        "test_audit_uniprot_*.py"
+      ],
+      "scope": "Identifier, annotation, sequence and schema adapters",
+      "remaining": "Full record-track/link integration and arbitrary-source availability require representative live runs beyond unit fixtures.",
+      "counts": {
+        "passed": 28
+      },
+      "module_status": {
+        "test_audit_uniprot_cds.py": "PASSED",
+        "test_audit_uniprot_schema.py": "PASSED",
+        "test_uniprot_engine.py": "PASSED",
+        "test_uniprot_search.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 10,
+      "name": "Sequence utilities",
+      "route": "sequences",
+      "tests": [
+        "test_sequence_utils_property.py",
+        "test_seq_tools.py",
+        "test_restriction_map.py",
+        "test_annotated_sequence.py"
+      ],
+      "filters": {
+        "test_seq_tools.py": "TestAnalyzeSequence"
+      },
+      "scope": "Sequence arithmetic, translations/ORFs, curated restriction enzymes and GenBank annotation",
+      "remaining": "The observed UI offers 13 curated enzymes. A full enzyme catalog, codon-usage comparison and cloning equivalence are not certified.",
+      "counts": {
+        "passed": 79
+      },
+      "module_status": {
+        "test_annotated_sequence.py": "PASSED",
+        "test_restriction_map.py": "PASSED",
+        "test_seq_tools.py": "PASSED",
+        "test_sequence_utils_property.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 11,
+      "name": "Dot plot",
+      "route": "dotplot",
+      "tests": [
+        "test_seq_tools.py"
+      ],
+      "filters": {
+        "test_seq_tools.py": "TestDotPlot|test_dotplot"
+      },
+      "scope": "Bounded sequence-window identity/substitution plots",
+      "remaining": "Genome-scale minimap2/MUMmer plotting remains unverified. Sequence URL handoffs are repaired and checked in the local production frontend.",
+      "counts": {
+        "passed": 48
+      },
+      "module_status": {
+        "test_seq_tools.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 12,
+      "name": "Structure analysis",
+      "route": "structure",
+      "tests": [
+        "test_structure_insights.py",
+        "test_structure_metric_missingness.py",
+        "test_structure_export.py",
+        "test_intramolecular_contacts.py"
+      ],
+      "scope": "Geometry, confidence/missingness and export contracts",
+      "remaining": "A MolProbity/wwPDB-equivalent full clash/rotamer validation and physical APBS electrostatics have not been established.",
+      "counts": {
+        "passed": 35
+      },
+      "module_status": {
+        "test_intramolecular_contacts.py": "PASSED",
+        "test_structure_export.py": "PASSED",
+        "test_structure_insights.py": "PASSED",
+        "test_structure_metric_missingness.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 13,
+      "name": "Structure preparation",
+      "route": "structure-prep",
+      "tests": [
+        "test_structure_prep_validation.py",
+        "test_validation_boundaries.py"
+      ],
+      "scope": "Input validation, cleanup and honest missing-dependency contracts",
+      "remaining": "PDB2PQR/PROPKA protonation, PDBFixer missing-atom repair and licensed loop modeling are not certified by cleanup tests.",
+      "counts": {
+        "passed": 33
+      },
+      "module_status": {
+        "test_structure_prep_validation.py": "PASSED",
+        "test_validation_boundaries.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 14,
+      "name": "Pocket analysis",
+      "route": "castp",
+      "tests": [
+        "test_pocket_detection.py",
+        "test_castp_provenance.py"
+      ],
+      "scope": "fpocket parsing/provenance and separately labeled exploratory hints",
+      "remaining": "The redocking panel shows five first-ranked-pocket/site mismatches. P2Rank and calibrated druggability were not established.",
+      "counts": {
+        "passed": 16
+      },
+      "module_status": {
+        "test_castp_provenance.py": "PASSED",
+        "test_pocket_detection.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 15,
+      "name": "Structure comparison",
+      "route": "compare",
+      "tests": [
+        "test_structure_insights.py",
+        "test_feature_validation.py"
+      ],
+      "filters": {
+        "test_feature_validation.py": "TestStructureComparison"
+      },
+      "scope": "Structural geometry and Foldseek comparison adapter",
+      "remaining": "Binding-site/ligand superposition and a representative external US-align/Foldseek benchmark remain unverified.",
+      "counts": {
+        "passed": 4
+      },
+      "module_status": {
+        "test_feature_validation.py": "TIMED_OUT",
+        "test_structure_insights.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "INCOMPLETE"
+    },
+    {
+      "id": 16,
+      "name": "Structure prediction",
+      "route": "predict-structure",
+      "tests": [
+        "test_de_novo_branch.py",
+        "test_alphafold_pathway_engines.py"
+      ],
+      "scope": "ESMFold/AlphaFold retrieval and failure/shape contracts",
+      "remaining": "The visible tool is ESMFold. ColabFold/Boltz complex/ligand prediction and new-sequence experimental validation are not established.",
+      "counts": {
+        "passed": 21
+      },
+      "module_status": {
+        "test_alphafold_pathway_engines.py": "PASSED",
+        "test_de_novo_branch.py": "FAILED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "INCOMPLETE",
+      "correction_evidence": "final-corrections.xml supersedes the earlier test_de_novo_branch.py termination (13 current tests pass)."
+    },
+    {
+      "id": 17,
+      "name": "SWISS-MODEL",
+      "route": "swissmodel",
+      "tests": [
+        "test_structure_prep_validation.py"
+      ],
+      "filters": {
+        "test_structure_prep_validation.py": "swissmodel"
+      },
+      "scope": "Repository retrieval/input validation",
+      "remaining": "Repository lookup does not implement a new template-selection/alignment/MODELLER/refinement workflow.",
+      "counts": {
+        "passed": 25
+      },
+      "module_status": {
+        "test_structure_prep_validation.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 18,
+      "name": "Molecular dynamics",
+      "route": "md-v2",
+      "tests": [
+        "test_md_*.py",
+        "test_smoke_md.py"
+      ],
+      "scope": "Short implicit-solvent OpenMM, force-field gates, staged execution and analysis",
+      "remaining": "The hosted UI caps production at 20 ps. Long convergence, explicit-solvent production and MM-GBSA are not certified.",
+      "counts": {
+        "passed": 85,
+        "skipped": 1
+      },
+      "module_status": {
+        "test_md_advanced_analysis.py": "PASSED",
+        "test_md_config.py": "PASSED_WITH_SKIPS",
+        "test_md_convergence_statuses.py": "PASSED",
+        "test_md_engine.py": "PASSED",
+        "test_md_sim_unit.py": "PASSED",
+        "test_md_v2.py": "PASSED",
+        "test_md_v2_sync_budget.py": "PASSED",
+        "test_smoke_md.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS_WITH_SKIPS"
+    },
+    {
+      "id": 19,
+      "name": "Function hints",
+      "route": "function",
+      "tests": [
+        "test_function_*.py",
+        "test_smoke_function_predict.py",
+        "test_interpro_background_completion.py",
+        "test_de_novo_branch.py"
+      ],
+      "scope": "InterProScan/InterPro2GO evidence and asynchronous completion",
+      "remaining": "Evidence counts are not functional probabilities. eggNOG/DeepFRI-equivalent performance and novel-function correctness remain unverified.",
+      "counts": {
+        "passed": 34
+      },
+      "module_status": {
+        "test_de_novo_branch.py": "FAILED",
+        "test_function_hints_background.py": "PASSED",
+        "test_function_research_grade.py": "PASSED",
+        "test_interpro_background_completion.py": "PASSED",
+        "test_smoke_function_predict.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "INCOMPLETE",
+      "correction_evidence": "final-corrections.xml supersedes the earlier test_de_novo_branch.py termination (13 current tests pass)."
+    },
+    {
+      "id": 20,
+      "name": "Docking",
+      "route": "docking",
+      "tests": [
+        "test_docking_*.py",
+        "test_smoke_docking.py",
+        "test_redock_*.py",
+        "test_vina_log.py"
+      ],
+      "scope": "Vina output, pose/artifact, interaction and native redocking contracts",
+      "remaining": "Fresh repaired panel remains FAILED: 3/10 with unchanged <2 \u00c5 / 70% criteria. Five first-pocket site misses, one invalid reference ligand and one high-RMSD pose remain. 1OYT native pose measurement is repaired; its Open Babel SDF export remains invalid.",
+      "counts": {
+        "passed": 90
+      },
+      "module_status": {
+        "test_docking_engine.py": "PASSED",
+        "test_docking_integrity.py": "PASSED",
+        "test_docking_pose_analytics.py": "PASSED",
+        "test_docking_quality_repairs.py": "PASSED",
+        "test_docking_redock_benchmark.py": "PASSED",
+        "test_redock_native_artifact.py": "PASSED",
+        "test_redock_runner.py": "PASSED",
+        "test_smoke_docking.py": "PASSED",
+        "test_vina_log.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 21,
+      "name": "ADMET",
+      "route": "admet",
+      "tests": [
+        "test_admet_*.py",
+        "test_audit_admet_validity.py",
+        "test_smoke_admet.py",
+        "test_protox.py"
+      ],
+      "scope": "RDKit descriptors, named rule filters and explicitly heuristic estimates",
+      "remaining": "Source labels ADME/toxicity as heuristics, not trained ADMET-AI models. Applicability-domain and external predictive accuracy remain unverified.",
+      "counts": {
+        "passed": 48
+      },
+      "module_status": {
+        "test_admet_definitions.py": "PASSED",
+        "test_audit_admet_validity.py": "PASSED",
+        "test_protox.py": "PASSED",
+        "test_smoke_admet.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 22,
+      "name": "Pathway analysis",
+      "route": "pathway",
+      "tests": [
+        "test_pathway_*.py",
+        "test_gene_set_enrichment.py",
+        "test_enrichment_retry.py",
+        "test_alphafold_pathway_engines.py"
+      ],
+      "scope": "Pathway adapters, ORA/GSEA data contracts and enrichment recovery",
+      "remaining": "Causal-network/IPA equivalence is not established. The UI offers KEGG, while RULES.md restricts KEGG use in a monetized fallback; commercial configuration/terms need review.",
+      "counts": {
+        "passed": 36
+      },
+      "module_status": {
+        "test_alphafold_pathway_engines.py": "PASSED",
+        "test_enrichment_retry.py": "PASSED",
+        "test_gene_set_enrichment.py": "PASSED",
+        "test_pathway_enrichment_research_grade.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 23,
+      "name": "Protein interactions",
+      "route": "interactions",
+      "tests": [
+        "test_interactions_contract.py",
+        "test_feature_validation.py"
+      ],
+      "filters": {
+        "test_feature_validation.py": "TestInteractions"
+      },
+      "scope": "STRING native confidence, evidence channels and a live TP53 network",
+      "remaining": "Native STRING API scale text and exact returned partner count are repaired. Local numeric-count grounding checks pass; production network/community/export parity remains unverified.",
+      "counts": {
+        "passed": 8
+      },
+      "module_status": {
+        "test_feature_validation.py": "TIMED_OUT",
+        "test_interactions_contract.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "INCOMPLETE"
+    },
+    {
+      "id": 24,
+      "name": "Primers",
+      "route": "primers",
+      "tests": [
+        "test_primer_*.py",
+        "test_primers_qc.py"
+      ],
+      "scope": "Primer3 nearest-neighbor thermodynamics, binding and amplicon checks",
+      "remaining": "Supplied-template/in-silico PCR does not establish genome-wide primer-BLAST specificity or laboratory PCR success.",
+      "counts": {
+        "passed": 37
+      },
+      "module_status": {
+        "test_primer_advanced.py": "PASSED",
+        "test_primer_binding.py": "PASSED",
+        "test_primers_qc.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 25,
+      "name": "Utility tools",
+      "route": "tools",
+      "tests": [
+        "test_seq_tools.py",
+        "test_sequence_utils_property.py"
+      ],
+      "filters": {
+        "test_seq_tools.py": "TestSeqToolsEndpoints|TestAnalyzeSequence"
+      },
+      "scope": "Backend formatting, sequence operations and validation endpoints",
+      "remaining": "EMBOSS-scale converters and full FASTA/GenBank/GFF validation breadth are not certified.",
+      "counts": {
+        "passed": 64
+      },
+      "module_status": {
+        "test_seq_tools.py": "PASSED",
+        "test_sequence_utils_property.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS"
+    },
+    {
+      "id": 26,
+      "name": "Interpretation and evidence",
+      "route": "interactions",
+      "tests": [
+        "test_interpret*.py",
+        "test_tool_interpreter.py",
+        "test_evidence_*.py",
+        "test_page_capture_synthesis.py"
+      ],
+      "scope": "Streaming/grounding regressions, deterministic RNA-seq explanation and live PPI AI output",
+      "remaining": "Derived-count grounding and self-evidence handling repaired in frontend regressions. Numeric presence is not expert-reviewed biological correctness; fresh production PPI generation remains unverified.",
+      "counts": {
+        "passed": 47
+      },
+      "module_status": {
+        "test_evidence_engine.py": "PASSED",
+        "test_evidence_graph_v3.py": "PASSED",
+        "test_interpret_engine.py": "PASSED",
+        "test_interpret_stream_grounding.py": "PASSED",
+        "test_page_capture_synthesis.py": "PASSED",
+        "test_tool_interpreter.py": "PASSED"
+      },
+      "scientifically_validated": false,
+      "note": "Shared-module counts overlap; do not add feature rows. Original scientific gaps remain open.",
+      "regression_status": "PASS",
+      "correction_evidence": "final-corrections.xml supersedes the earlier test_de_novo_branch.py termination (13 current tests pass)."
+    }
+  ],
+  "passed_modules": 131,
+  "skipped_tests": 20,
+  "failed_or_timed_out_modules": [
+    "test_de_novo_branch.py",
+    "test_feature_validation.py",
+    "test_fuzz_random.py",
+    "test_blast_comprehensive.py"
+  ]
+}

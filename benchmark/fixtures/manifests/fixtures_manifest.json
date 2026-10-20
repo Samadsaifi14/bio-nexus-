@@ -79,12 +79,16 @@
       "bytes": 1906
     },
     "docking/redock_panel.json": {
-      "sha256": "060d464d3ab9d7f97b71ddfee030f32961c794c0d7adb6ed1bbd55ce469de461",
-      "bytes": 5420
+      "sha256": "b4c3da2c69c53b1fa0e195f80388007fc1397f83c0afd8d3cb4ad5849212cbcf",
+      "bytes": 5696
+    },
+    "docking/run_multisite_panel.py": {
+      "sha256": "1cb0269cf11c82e9d0faee301873352a796bee12b0e76ff3e44b22088c6abf49",
+      "bytes": 22920
     },
     "docking/run_redock_panel.py": {
-      "sha256": "8a56216d9ced2916c4cd3bf455b22904fcc4fab4e804cacc93b79bf870843f64",
-      "bytes": 17570
+      "sha256": "9b19ebbde93fa69e9e3084c5ced6f4fa0f1103c0a996487bcd99cd566ba54403",
+      "bytes": 22952
     },
     "ngs/README.md": {
       "sha256": "7668b0bebe0014be656a197644eb3b9289cf9083acc6e379a973047b03c28cc8",
@@ -161,6 +165,10 @@
     "structure_prep/structure_prep_panel.json": {
       "sha256": "e43c3f15509f880a5b6c56f75dcf3abf1d03547f3b00e13fcab457a559f6c574",
       "bytes": 2030
+    },
+    "docking/PROTOCOL_V2.md": {
+      "sha256": "e171e7793834e82f9c785af94dde8658748b3efebc9e9a58bf9f1ddbbb267f07",
+      "bytes": 2910
     }
   }
 }

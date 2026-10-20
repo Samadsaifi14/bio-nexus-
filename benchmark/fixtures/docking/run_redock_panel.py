@@ -64,9 +64,23 @@ def _fetch_pdb(pdb_id: str) -> str:
     normalized = pdb_id.strip().upper()
     if re.fullmatch(r"[0-9][A-Z0-9]{3}", normalized) is None:
         raise ValueError(f"invalid PDB: {pdb_id!r}")
-    resp = httpx.get(f"{RCSB_DOWNLOAD_BASE}/{normalized}.pdb", timeout=60.0, follow_redirects=False)
-    resp.raise_for_status()
-    return resp.text
+    url = f"{RCSB_DOWNLOAD_BASE}/{normalized}.pdb"
+    failures = []
+    for attempt in range(4):
+        try:
+            resp = httpx.get(url, timeout=60.0, follow_redirects=True,
+                             headers={"User-Agent": "BioNexus-redock-benchmark/1.0"})
+            resp.raise_for_status()
+            data = resp.text
+            if not any(line.startswith(("ATOM  ", "HETATM")) for line in data.splitlines()):
+                raise ValueError(f"RCSB response for {normalized} has no coordinate records")
+            return data
+        except (httpx.HTTPError, ValueError) as exc:
+            failures.append(f"attempt {attempt + 1}: {type(exc).__name__}: {exc}")
+            if attempt < 3:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"RCSB failed to provide a valid PDB for {normalized} after 4 attempts: "
+                       + "; ".join(failures))
 
 
 def _split_ligand_receptor(pdb_text: str, lig_resname: str):
@@ -160,6 +174,62 @@ def _restore_pose_chemistry(pose_sdf_block: str, ref_mol):
     return restored
 
 
+
+def _native_pose_molecule(pose_pdbqt: str, prepared_pdbqt: str, ref_mol):
+    """Transfer native pose coordinates onto the prepared reference graph.
+
+    Vina preserves input atom serials/types. Reference-to-input correspondence
+    is established by original heavy-atom coordinates, never by fitting the
+    docked pose to the crystal. Ambiguous or incomplete mappings fail closed.
+    Open Babel pose SDF bond perception is not used for this metric.
+    """
+    from rdkit import Chem
+    types = {"A": "C", "C": "C", "N": "N", "NA": "N", "NS": "N",
+             "O": "O", "OA": "O", "OS": "O", "S": "S", "SA": "S", "P": "P",
+             "F": "F", "Cl": "Cl", "Br": "Br", "I": "I", "H": "H", "HD": "H", "HS": "H"}
+
+    def atoms(block):
+        result = {}
+        for line in block.splitlines():
+            if not line.startswith(("ATOM", "HETATM")):
+                continue
+            serial = int(line[6:11])
+            atom_type = line.split()[-1]
+            element = types.get(atom_type)
+            if element is None or serial in result:
+                raise ValueError("Unknown atom type or duplicate native PDBQT serial")
+            xyz = tuple(float(line[start:start + 8]) for start in (30, 38, 46))
+            if not all(math.isfinite(v) for v in xyz):
+                raise ValueError("Nonfinite native PDBQT coordinates")
+            if element != "H":
+                result[serial] = (element, xyz)
+        return result
+
+    prepared, pose = atoms(prepared_pdbqt), atoms(pose_pdbqt)
+    ref = Chem.RemoveHs(Chem.Mol(ref_mol))
+    if set(prepared) != set(pose) or len(prepared) != ref.GetNumAtoms():
+        raise ValueError("Native pose/preparation/reference heavy-atom identities differ")
+    reference_coords = ref.GetConformer()
+    output = Chem.Conformer(ref.GetNumAtoms())
+    used = set()
+    for atom in ref.GetAtoms():
+        index = atom.GetIdx()
+        point = reference_coords.GetAtomPosition(index)
+        matches = [serial for serial, (element, xyz) in prepared.items()
+                   if element == atom.GetSymbol() and math.dist((point.x, point.y, point.z), xyz) <= 0.01]
+        if len(matches) != 1 or matches[0] in used:
+            raise ValueError("Ambiguous reference-to-prepared atom correspondence")
+        serial = matches[0]
+        if pose[serial][0] != atom.GetSymbol():
+            raise ValueError("Native pose changed an atom element")
+        used.add(serial)
+        output.SetAtomPosition(index, pose[serial][1])
+    ref.RemoveAllConformers()
+    ref.AddConformer(output)
+    Chem.SanitizeMol(ref)
+    return ref
+
+
 def _rmsd_vs_crystal(pose_sdf_block: str, ref_mol) -> float:
     """Symmetry-aware heavy-atom RMSD between a Vina pose and the crystal ligand.
 
@@ -176,6 +246,8 @@ def main() -> int:
     parser.add_argument("--panel", type=Path, default=FIXTURE_DIR / "redock_panel.json")
     parser.add_argument("--outdir", type=Path, default=REPO / "benchmark" / "results" / "docking" / "redock")
     parser.add_argument("--runtime-out", type=Path)
+    parser.add_argument("--engine-timeout", type=float, default=900,
+                        help="Per-complex native execution budget; does not change scientific thresholds")
     parser.add_argument("--canonical", action="store_true", help="Run only the predeclared 1STP-BTN control")
     args = parser.parse_args()
 
@@ -250,37 +322,54 @@ def main() -> int:
             if not grid:
                 raise RuntimeError("fpocket found no pocket")
             offset = sum((grid["center"][i] - ref_center[i]) ** 2 for i in range(3)) ** 0.5
-            if offset >= 8.0:
-                raise RuntimeError(f"grid does not cover site (offset {offset:.1f} A)")
+            entry["grid"] = grid
+            entry["site_offset_angstrom"] = offset
+            # Keep the declared site gate, but execute docking even when it
+            # fails so a failed case still retains native poses and RMSD.
+            entry["site_coverage_passed"] = offset < 8.0
 
             with tempfile.TemporaryDirectory() as tmp:
                 lig_pdb = os.path.join(tmp, "lig.pdb")
                 lig_pdbqt = os.path.join(tmp, "lig.pdbqt")
                 ref_sdf = os.path.join(tmp, "lig_ref.sdf")
                 Path(lig_pdb).write_text("\n".join(ref_lines) + "\nEND\n", encoding="utf-8")
-                # crystal ligand -> PDBQT (prod prep path)
-                r = subprocess.run(
-                    ["obabel", lig_pdb, "-O", lig_pdbqt, "--partialcharge", "gasteiger", "-p", "7.4"],
-                    capture_output=True, text=True, timeout=120)
-                if r.returncode != 0:
-                    raise RuntimeError(f"obabel pdbqt failed: {r.stderr[:300]}")
-                # crystal ligand -> SDF (coords + bonds for the RMSD reference)
+                # Validate the reference graph before preparing PDBQT. PDB does
+                # not encode bond orders; use official CCD if perception fails.
                 r2 = subprocess.run(
                     ["obabel", lig_pdb, "-O", ref_sdf, "-p", "7.4"],
                     capture_output=True, text=True, timeout=120)
                 if r2.returncode != 0 or not os.path.isfile(ref_sdf):
                     raise RuntimeError(f"obabel sdf failed: {r2.stderr[:300]}")
-                ligand_pdbqt = Path(lig_pdbqt).read_text(encoding="utf-8")
                 ref_mol = Chem.MolFromMolBlock(Path(ref_sdf).read_text(encoding="utf-8"), removeHs=False, sanitize=True)
+                prep_input = lig_pdb
+                entry["ligand_chemistry_source"] = "Open Babel PDB bond perception"
                 if ref_mol is None:
-                    raise RuntimeError("could not parse reference ligand SDF")
+                    from app.benchmarking.ligand_reference import deposited_ligand
+                    component = cx["ligand_resname"]
+                    if re.fullmatch(r"[A-Z0-9]{1,3}", component) is None:
+                        raise ValueError("Invalid CCD component identifier")
+                    url = f"https://files.rcsb.org/ligands/download/{component}.cif"
+                    response = httpx.get(url, timeout=60, follow_redirects=False)
+                    response.raise_for_status()
+                    (artifact_dir / "ligand_ccd.cif").write_text(response.text)
+                    ref_mol = deposited_ligand(response.text, ref_lines)
+                    Path(ref_sdf).write_text(Chem.MolToMolBlock(ref_mol) + "\n$$$$\n")
+                    prep_input = ref_sdf
+                    entry["ligand_chemistry_source"] = url
+                r = subprocess.run(
+                    ["obabel", prep_input, "-O", lig_pdbqt, "--partialcharge", "gasteiger", "-p", "7.4"],
+                    capture_output=True, text=True, timeout=120)
+                if r.returncode != 0:
+                    raise RuntimeError(f"obabel pdbqt failed: {r.stderr[:300]}")
+                ligand_pdbqt = Path(lig_pdbqt).read_text(encoding="utf-8")
                 for name in ("lig.pdb", "lig.pdbqt", "lig_ref.sdf"):
                     shutil.copyfile(Path(tmp) / name, artifact_dir / name)
 
             receptor_pdbqt = pdb_to_pdbqt_receptor(receptor_pdb)
             (artifact_dir / "receptor.pdbqt").write_text(receptor_pdbqt, encoding="utf-8")
             result = run_vina(receptor_pdbqt, ligand_pdbqt, grid_center=grid["center"],
-                              grid_size=grid["size"], exhaustiveness=32, num_modes=9, seed=42)
+                              grid_size=grid["size"], exhaustiveness=32, num_modes=9, seed=42,
+                              timeout_seconds=args.engine_timeout)
 
             native_pdbqt, pose_blocks = _native_pose_output(result)
             (artifact_dir / "vina_output.pdbqt").write_text(native_pdbqt, encoding="utf-8")
@@ -294,10 +383,17 @@ def main() -> int:
                 pose_path.write_text(pose_blocks[1], encoding="utf-8")
                 conversion = subprocess.run(["obabel", str(pose_path), "-O", str(sdf_path)],
                                             capture_output=True, text=True, timeout=120)
+                entry["pose_sdf_export_valid"] = False
                 if conversion.returncode != 0 or not sdf_path.is_file():
-                    raise RuntimeError(f"Pose SDF conversion failed: {conversion.stderr[:300]}")
-                top_rmsd = _rmsd_vs_crystal(sdf_path.read_text(encoding="utf-8"), ref_mol)
-                restored = _restore_pose_chemistry(sdf_path.read_text(encoding="utf-8"), ref_mol)
+                    entry["pose_sdf_export_error"] = conversion.stderr[:300]
+                else:
+                    exported = Chem.MolFromMolBlock(sdf_path.read_text(encoding="utf-8"), sanitize=True)
+                    entry["pose_sdf_export_valid"] = exported is not None
+                    if exported is None:
+                        entry["pose_sdf_export_error"] = "Open Babel pose SDF failed chemical sanitization; retained as failed export evidence"
+                from app.benchmarking.docking_redock import symmetry_aware_pose_rmsd
+                restored = _native_pose_molecule(pose_blocks[1], ligand_pdbqt, ref_mol)
+                top_rmsd = symmetry_aware_pose_rmsd(ref_mol, restored)
                 (artifact_dir / "top_pose_chemical_graph.sdf").write_text(
                     Chem.MolToMolBlock(restored) + "\n$$$$\n", encoding="utf-8")
 
@@ -306,6 +402,7 @@ def main() -> int:
             entry["vina_version"] = result["vina_version"]
             entry["seed"] = 42
             entry["exhaustiveness"] = 32
+            entry["atom_correspondence"] = "prepared PDBQT serials mapped to reference by original heavy-atom coordinates; no pose fitting"
             entry["metric"] = "RDKit CalcRMS symmetry-aware heavy-atom RMSD in receptor frame (no alignment)"
             entry["artifact_sha256"] = {p.name: hashlib.sha256(p.read_bytes()).hexdigest()
                                          for p in artifact_dir.iterdir() if p.is_file()}
@@ -314,12 +411,20 @@ def main() -> int:
             entry["n_pose_models"] = len(pose_blocks)
             entry["affinity_kcal_mol"] = result.get("affinity")
             threshold = criteria["per_complex_rmsd_threshold_angstrom"]
-            entry["passed"] = top_rmsd is not None and (top_rmsd <= threshold if args.canonical else top_rmsd < threshold)
+            entry["pose_recovery_passed"] = top_rmsd is not None and (top_rmsd <= threshold if args.canonical else top_rmsd < threshold)
+            entry["passed"] = entry["site_coverage_passed"] and entry["pose_recovery_passed"]
+            if not entry["site_coverage_passed"]:
+                entry["error"] = f"grid does not cover site (offset {offset:.1f} A); native docking completed for diagnosis"
             if entry["passed"]:
                 passes += 1
         except Exception as exc:  # per-complex failure
             entry["passed"] = False
             entry["error"] = str(exc)
+            if isinstance(exc, subprocess.TimeoutExpired) and entry.get("artifact_directory"):
+                output = exc.stdout or ""
+                if isinstance(output, bytes):
+                    output = output.decode("utf-8", errors="replace")
+                (args.outdir / entry["artifact_directory"] / "vina_timeout.log").write_text(output)
         artifact_relative = entry.get("artifact_directory")
         if artifact_relative:
             entry["artifact_sha256"] = {
@@ -341,10 +446,12 @@ def main() -> int:
         "fixture_revision": panel.get("fixture_revision"),
         "fixture_sha256": hashlib.sha256(args.panel.read_bytes()).hexdigest(),
         "tool_versions": tool_versions,
+        "engine_timeout_seconds": args.engine_timeout,
         "code_sha256": {path: hashlib.sha256((REPO / path).read_bytes()).hexdigest() for path in (
             "benchmark/fixtures/docking/run_redock_panel.py",
             "bioai-platform/backend/app/tools/docking.py",
-            "bioai-platform/backend/app/benchmarking/docking_redock.py")},
+            "bioai-platform/backend/app/benchmarking/docking_redock.py",
+            "bioai-platform/backend/app/benchmarking/ligand_reference.py")},
         "executed_at_utc": datetime.now(timezone.utc).isoformat(),
         "status": "passed" if panel_ok else "failed",
         "recorded": date.today().isoformat(),

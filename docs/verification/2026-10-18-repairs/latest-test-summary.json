@@ -1,0 +1,19 @@
+{
+  "scope": "Unique test cases with completed JUnit records; targeted corrections supersede earlier module observations. No inferred passes for timed-out or terminated cases.",
+  "counts": {
+    "passed": 1372,
+    "skipped": 20
+  },
+  "recorded_unique_cases": 1392,
+  "collected_suite_cases": 1589,
+  "cases_without_completed_junit": 197,
+  "modules_attempted": 140,
+  "planned_modules": 140,
+  "incomplete_modules": [
+    "test_feature_validation.py",
+    "test_fuzz_random.py",
+    "test_blast_comprehensive.py"
+  ],
+  "superseded_module_termination": "test_de_novo_branch.py: current 13 tests pass in final-corrections.xml",
+  "scientifically_validated": false
+}

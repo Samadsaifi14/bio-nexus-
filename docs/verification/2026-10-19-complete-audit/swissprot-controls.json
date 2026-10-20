@@ -1,0 +1,389 @@
+{
+  "benchmark": "local-swissprot-production-accession-recovery/v1",
+  "status": "passed",
+  "executed": true,
+  "recorded_at": "2026-10-19T09:48:00.334619+00:00",
+  "reference": {
+    "database": "swissprot",
+    "release": "2026_03",
+    "scope": "complete UniProtKB/Swiss-Prot canonical sequence snapshot",
+    "source_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/uniprot_sprot.fasta.gz",
+    "release_url": "https://ftp.uniprot.org/pub/databases/uniprot/current_release/knowledgebase/complete/reldate.txt",
+    "release_text": "UniProt Knowledgebase Release 2026_03 consists of:\nUniProtKB/Swiss-Prot Release 2026_03 of 02-Sep-2026\nUniProtKB/TrEMBL Release 2026_03 of 02-Sep-2026\n",
+    "retrieved_at": "2026-10-19T09:32:18.641044+00:00",
+    "sequence_count": 575748,
+    "archive_sha256": "a9c3496aa727e61d25d9e1291c9ba28d2c2ad19c0e26569dc083d53ec4169536",
+    "fasta_sha256": "1372f18e218d761027616bf17479bcf450b30314fc0a8095fcb0e97e85d6ecf9",
+    "index_files": {
+      "swissprot.pdb": "460c0087f2683dcb9e8c6098aebb0e2614f6202203b85dfd1c6c7e45d53243f3",
+      "swissprot.phr": "a10f3c08c20f5d336b5e5c58f61b5bb205fdc5b61f4e5898e0ff05267f276950",
+      "swissprot.pin": "74c72f4786a96b71d34051603f4844ddc112536e5171bdc12089b257385aeff9",
+      "swissprot.pog": "81cb94739f65c8268f9583d9d68b20f5c7f5dfd729959416d27892f7c9a05257",
+      "swissprot.pos": "620d0b9622ad25da625dfe93a1b9d10887f03e3255424159465dbdf8e0d98a5a",
+      "swissprot.pot": "20e4eb416145a4b971122032e72a1bc2376d7a6cecc0539ef40fb61d92e1e5cd",
+      "swissprot.psq": "fd8e666adbf7a26a5767c47e4dc22765f5350a850c938bdcd65de666452cb72b",
+      "swissprot.ptf": "67982e4d7b1490b09cce06e7c29175c6bd011cd542cfacb1a1c310084a50821a",
+      "swissprot.pto": "19bd9efe2fa98b9b22ba077ec6e484f463ea89abc48dfc3538b1d1babe7037dd"
+    },
+    "indexer": "makeblastdb: 2.12.0+\n Package: blast 2.12.0, build Apr  1 2024 07:01:27"
+  },
+  "n_queries": 8,
+  "n_recovered": 8,
+  "essential_recovered": true,
+  "criteria": {
+    "min_queries": 6,
+    "recovery_threshold_frac": 0.8,
+    "max_recovery_rank": 5,
+    "essential_required": true
+  },
+  "queries": [
+    {
+      "id": "HUMAN_ALBUMIN",
+      "expected_accessions": [
+        "P02768"
+      ],
+      "essential": true,
+      "query_length": 609,
+      "query_sha256": "e7b80c7861adc0143f8aead03ec9fa83b782439c3eae4730ffaa7beafa37c40b",
+      "recovered_rank": 1,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "P02768",
+          "identity_pct": 100.0,
+          "bit_score": 1239.17,
+          "evalue": 0.0
+        },
+        {
+          "accession": "Q5NVH5",
+          "identity_pct": 98.5,
+          "bit_score": 1221.84,
+          "evalue": 0.0
+        },
+        {
+          "accession": "A2V9Z4",
+          "identity_pct": 93.6,
+          "bit_score": 1175.61,
+          "evalue": 0.0
+        },
+        {
+          "accession": "Q28522",
+          "identity_pct": 93.5,
+          "bit_score": 1155.97,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P49064",
+          "identity_pct": 82.3,
+          "bit_score": 1035.02,
+          "evalue": 0.0
+        }
+      ]
+    },
+    {
+      "id": "HUMAN_HBA1",
+      "expected_accessions": [
+        "P69905"
+      ],
+      "essential": false,
+      "query_length": 142,
+      "query_sha256": "14725a10598943a7aa719eed7d24c7fee599192a6c63c75b051ee6f156341242",
+      "recovered_rank": 1,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "P69905",
+          "identity_pct": 100.0,
+          "bit_score": 286.96,
+          "evalue": 2.23587e-100
+        },
+        {
+          "accession": "P69906",
+          "identity_pct": 100.0,
+          "bit_score": 286.96,
+          "evalue": 2.23587e-100
+        },
+        {
+          "accession": "P69907",
+          "identity_pct": 100.0,
+          "bit_score": 286.96,
+          "evalue": 2.23587e-100
+        },
+        {
+          "accession": "P01923",
+          "identity_pct": 99.3,
+          "bit_score": 282.337,
+          "evalue": 1.20026e-98
+        },
+        {
+          "accession": "Q9TS35",
+          "identity_pct": 98.6,
+          "bit_score": 281.567,
+          "evalue": 2.6775e-98
+        }
+      ]
+    },
+    {
+      "id": "HUMAN_HBB",
+      "expected_accessions": [
+        "P68871"
+      ],
+      "essential": false,
+      "query_length": 147,
+      "query_sha256": "9ebf320eb707d71644444fe5006ed58af56a0bf0ec9568eb6a3a65e0e8191465",
+      "recovered_rank": 1,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "P68871",
+          "identity_pct": 100.0,
+          "bit_score": 301.212,
+          "evalue": 6.55889e-106
+        },
+        {
+          "accession": "P68872",
+          "identity_pct": 100.0,
+          "bit_score": 301.212,
+          "evalue": 6.55889e-106
+        },
+        {
+          "accession": "P68873",
+          "identity_pct": 100.0,
+          "bit_score": 301.212,
+          "evalue": 6.55889e-106
+        },
+        {
+          "accession": "P02024",
+          "identity_pct": 99.3,
+          "bit_score": 300.056,
+          "evalue": 2.2922e-105
+        },
+        {
+          "accession": "P02025",
+          "identity_pct": 98.6,
+          "bit_score": 294.278,
+          "evalue": 3.33996e-103
+        }
+      ]
+    },
+    {
+      "id": "HUMAN_LYSOZYME_C",
+      "expected_accessions": [
+        "P61626"
+      ],
+      "essential": false,
+      "query_length": 148,
+      "query_sha256": "7d0e4fd9fdc4406e6179855d1e2bf7e9aa182416262a70dafca656fcada3f2f7",
+      "recovered_rank": 1,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "P61626",
+          "identity_pct": 100.0,
+          "bit_score": 303.908,
+          "evalue": 5.48237e-107
+        },
+        {
+          "accession": "P61627",
+          "identity_pct": 100.0,
+          "bit_score": 303.908,
+          "evalue": 5.48237e-107
+        },
+        {
+          "accession": "P61628",
+          "identity_pct": 100.0,
+          "bit_score": 303.908,
+          "evalue": 5.48237e-107
+        },
+        {
+          "accession": "P79179",
+          "identity_pct": 99.3,
+          "bit_score": 301.982,
+          "evalue": 3.54269e-106
+        },
+        {
+          "accession": "P79239",
+          "identity_pct": 98.0,
+          "bit_score": 300.442,
+          "evalue": 1.62897e-105
+        }
+      ]
+    },
+    {
+      "id": "HUMAN_ACTB",
+      "expected_accessions": [
+        "P60709"
+      ],
+      "essential": false,
+      "query_length": 375,
+      "query_sha256": "d498c40159d7c993d9e7e36afbe2f4921d5e81e6ab08d5388cbab47cc0234a92",
+      "recovered_rank": 5,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "O18840",
+          "identity_pct": 100.0,
+          "bit_score": 785.793,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P60706",
+          "identity_pct": 100.0,
+          "bit_score": 785.793,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P60707",
+          "identity_pct": 100.0,
+          "bit_score": 785.793,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P60708",
+          "identity_pct": 100.0,
+          "bit_score": 785.793,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P60709",
+          "identity_pct": 100.0,
+          "bit_score": 785.793,
+          "evalue": 0.0
+        }
+      ]
+    },
+    {
+      "id": "HUMAN_TP53",
+      "expected_accessions": [
+        "P04637"
+      ],
+      "essential": true,
+      "query_length": 393,
+      "query_sha256": "e3ca60f18e3b6e98986ad6749215ee3b7a3abc09c191675213d1f243c035c9a3",
+      "recovered_rank": 1,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "P04637",
+          "identity_pct": 100.0,
+          "bit_score": 813.913,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P13481",
+          "identity_pct": 95.7,
+          "bit_score": 746.888,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P56423",
+          "identity_pct": 95.7,
+          "bit_score": 739.954,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P56424",
+          "identity_pct": 95.7,
+          "bit_score": 739.954,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P61260",
+          "identity_pct": 95.7,
+          "bit_score": 739.954,
+          "evalue": 0.0
+        }
+      ]
+    },
+    {
+      "id": "HUMAN_INSULIN",
+      "expected_accessions": [
+        "P01308"
+      ],
+      "essential": false,
+      "query_length": 110,
+      "query_sha256": "99603f8fb1e9872e2d24ee1e9f85108c2bddea6b148a0f1099e16ba2715c8263",
+      "recovered_rank": 1,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "P01308",
+          "identity_pct": 100.0,
+          "bit_score": 223.787,
+          "evalue": 1.77921e-76
+        },
+        {
+          "accession": "Q6YK33",
+          "identity_pct": 100.0,
+          "bit_score": 223.787,
+          "evalue": 1.77921e-76
+        },
+        {
+          "accession": "Q8HXV2",
+          "identity_pct": 99.1,
+          "bit_score": 222.246,
+          "evalue": 8.45847e-76
+        },
+        {
+          "accession": "P30410",
+          "identity_pct": 98.2,
+          "bit_score": 221.861,
+          "evalue": 1.26972e-75
+        },
+        {
+          "accession": "P30406",
+          "identity_pct": 98.2,
+          "bit_score": 219.164,
+          "evalue": 1.28747e-74
+        }
+      ]
+    },
+    {
+      "id": "ECOLI_OMPF",
+      "expected_accessions": [
+        "P02931"
+      ],
+      "essential": false,
+      "query_length": 362,
+      "query_sha256": "55f961c09343ee1d99690b114ae3b16baff650d855e575645cf2017ae6caad11",
+      "recovered_rank": 2,
+      "recovered": true,
+      "top_hits": [
+        {
+          "accession": "A0A4P7TN82",
+          "identity_pct": 100.0,
+          "bit_score": 720.694,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P02931",
+          "identity_pct": 100.0,
+          "bit_score": 720.694,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P0DSD9",
+          "identity_pct": 98.9,
+          "bit_score": 712.605,
+          "evalue": 0.0
+        },
+        {
+          "accession": "P02932",
+          "identity_pct": 60.2,
+          "bit_score": 430.639,
+          "evalue": 2.66172e-150
+        },
+        {
+          "accession": "Q47490",
+          "identity_pct": 58.5,
+          "bit_score": 417.927,
+          "evalue": 2.66853e-145
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Canonical queries originate in the searched snapshot: accession-recovery positive controls only.",
+    "No claim of novel sequence function, homology-transfer accuracy, or external NCBI service availability."
+  ]
+}

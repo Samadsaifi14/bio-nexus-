@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime, timezone, timedelta
 
 import sentry_sdk
+import httpx
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -260,6 +261,16 @@ async def health():
     if len(revision) == 40 and all(char in "0123456789abcdef" for char in revision):
         result["source_revision"] = revision
     return result
+
+
+@app.exception_handler(httpx.HTTPError)
+async def upstream_exception_handler(request: Request, exc: httpx.HTTPError):
+    from app.logging_config import request_id_var
+    rid = request_id_var.get("")
+    logger.warning("Upstream HTTP failure (%s), request_id=%s", type(exc).__name__, rid)
+    return JSONResponse(status_code=502, content={
+        "detail": "Upstream service unavailable. Please retry.", "request_id": rid,
+    })
 
 
 @app.exception_handler(Exception)

@@ -1,0 +1,10 @@
+{
+  "scope": "Local production frontend, HTTP-intercepted native RDKit/Biopython fixture results; not a live backend/provider validation",
+  "checks": [
+    "Changing Aspirin to Caffeine clears the old formula",
+    "Changing input while a request is pending ignores its late result",
+    "Pairwise view excludes docking help",
+    "Pairwise to dotplot transfers exact sequences with no query string"
+  ],
+  "passed": true
+}

@@ -21,6 +21,11 @@ from fastapi.testclient import TestClient
 # Ensure the backend app package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Backend pytest runs enforce the same no-skip contract as the full audit.
+# Register here so ordinary pytest invocations do not need a special wrapper.
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "../../../scripts")))
+pytest_plugins = ("audit_pytest_plugin",)
+
 # ---------------------------------------------------------------------------
 # Mock out heavy dependencies that aren't installed in the test env
 # ---------------------------------------------------------------------------
@@ -146,3 +151,11 @@ def valid_smiles():
 @pytest.fixture
 def invalid_smiles():
     return "NOT_A_SMILES_12345"
+
+
+@pytest.fixture
+def public_upstream_dns(monkeypatch):
+    """Public DNS for explicitly opted-in HTTP-mocked tests; SSRF stays active."""
+    import socket
+    monkeypatch.setattr(socket, 'getaddrinfo', lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('93.184.216.34', 443))])

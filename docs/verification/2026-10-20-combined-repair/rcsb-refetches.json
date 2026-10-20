@@ -1,0 +1,35 @@
+{
+  "source": "https://files.rcsb.org/download/{PDB}.pdb",
+  "retried_fetches": [
+    {
+      "pdb": "1OYT",
+      "bytes": 272565,
+      "sha256": "22d343aef7a42d7b355c05d0cae878ff579ff5a0d79162f7cd6e5053f18879bd",
+      "coordinate_records": 2728
+    },
+    {
+      "pdb": "1P62",
+      "bytes": 212058,
+      "sha256": "2292457473c12633a4a78c1bfeee09984c5a336c9d0f291e29fc43071c282617",
+      "coordinate_records": 2082
+    },
+    {
+      "pdb": "1Q4T",
+      "bytes": 262440,
+      "sha256": "e3cf9be0283c9340976d8e00a9fc8bfc020231c50075f21f2d5765bd64bacc4d",
+      "coordinate_records": 2608
+    },
+    {
+      "pdb": "1UYG",
+      "bytes": 196182,
+      "sha256": "bebffd75b618913bcdc1478dcd45de833c4dc93d3a341b5f065515ac87406985",
+      "coordinate_records": 1896
+    },
+    {
+      "pdb": "2H4G",
+      "bytes": 241461,
+      "sha256": "985442cd7ca32cfbc69dd144d09c44a502fc11405ef53b826d08d4174888e8b6",
+      "coordinate_records": 2545
+    }
+  ]
+}

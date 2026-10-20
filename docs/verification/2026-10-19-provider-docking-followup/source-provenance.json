@@ -1,0 +1,22 @@
+{
+  "base_commit": "bf31d7d79caf22c503b834054998add6fe46d21b",
+  "source_sha256": {
+    "benchmark/fixtures/docking/run_redock_panel.py": "d885cac11f1eda1b02cc8e7c6ad228315cfe8e3e58e0d6bc39d4417e4ce52128",
+    "benchmark/fixtures/manifests/fixtures_manifest.json": "9fc8ac4ca71a9160eeaf1ab8e5ed008c1506e75d886dd457c65fb72633b35265",
+    "bioai-platform/backend/app/integrations/ncbi/blast.py": "51cda39abd807d74d6078041b5c420d4523bab839568d84133f05104ee3b4e1c",
+    "bioai-platform/backend/app/integrations/ncbi/parser.py": "cf6fe037f562e0f6674579020530e4b3981318144b9d115975673500c5e8740b",
+    "bioai-platform/backend/tests/test_blast_resilience.py": "57bcf8e51bdde48895b692cdfe2501673b1e9d1f2fecba4e107fcda6add89065",
+    "bioai-platform/backend/tests/test_ncbi_status_contract.py": "3d367997ef7a8ec592474460dc182225203b10f7f15c00e015cdbf0df04ab720",
+    "bioai-platform/backend/tests/test_ncbi_xml2.py": "ef5e0e2062b10922e8c76af42c53e5017b2e04ad3148c8be966449c5545c76d8",
+    "bioai-platform/backend/tests/test_redock_runner.py": "b2a2662a9d20f81122c86bf10091cba94cb2a867899d03ce1ee018c220675c8e",
+    "bioai-platform/backend/tests/fixtures/blast_xml2/hbb-legacy.xml": "448466fdacd266274002e7bfa9bfff1e6be9d1b75a9e776bc7dcc98a3daa17ca",
+    "bioai-platform/backend/tests/fixtures/blast_xml2/hbb-xml2.xml": "bf60502d5ce57a1d0389283f15f19b877fc520e6b00edfe8cbccfac73eca7bf9",
+    "bioai-platform/backend/tests/fixtures/blast_xml2/provenance.json": "aed70abe662d665395b5726ce9e1b9c5969dac24a7184040d6dcc50b7c4857ad",
+    "bioai-platform/backend/tests/fixtures/blast_xml2/query.fasta": "eedd7a77f78daa920b0c227f572dd351131118bfc3d848b1c2b5f87c8edb27ac"
+  },
+  "ncbi_documentation": [
+    "https://blast.ncbi.nlm.nih.gov/doc/blast-help/urlapi.html",
+    "https://blast.ncbi.nlm.nih.gov/doc/blast-help/developerinfo.html"
+  ],
+  "fixture_provenance": "../../../bioai-platform/backend/tests/fixtures/blast_xml2/provenance.json"
+}

@@ -1,0 +1,53 @@
+{
+  "recorded_at_utc": "2026-10-19T10:55:06.887194+00:00",
+  "base_commit": "bf31d7d79caf22c503b834054998add6fe46d21b",
+  "affected_197": {
+    "total": 197,
+    "passed": 194,
+    "failed": 3,
+    "missing": 0,
+    "skipped": 0
+  },
+  "current_targeted_regressions": {
+    "passed": 71,
+    "failed": 0,
+    "skipped": 0
+  },
+  "original_skips_rerun": {
+    "passed": 20,
+    "failed": 0,
+    "skipped": 0
+  },
+  "latest_completed_ncbi_rerun": [
+    {
+      "classname": "tests.test_blast_comprehensive.TestNCBIBlastIntegration",
+      "name": "test_ncbi_blast_full_roundtrip_short_seq",
+      "status": "failed",
+      "duration": 188.926,
+      "reason": "Failed: NCBI BLAST roundtrip failed (external API issue): NCBI search did not complete within the polling budget"
+    },
+    {
+      "classname": "tests.test_blast_comprehensive.TestNCBIBlastIntegration",
+      "name": "test_ncbi_blast_parse_xml",
+      "status": "failed",
+      "duration": 25.463,
+      "reason": "Failed: BLAST failed: No RID returned from NCBI"
+    },
+    {
+      "classname": "tests.test_blast_comprehensive.TestBlastReliability",
+      "name": "test_consecutive_blast_runs",
+      "status": "failed",
+      "duration": 87.772,
+      "reason": "AssertionError: Too many BLAST failures: 3/3 failed\nassert 0 >= 2"
+    }
+  ],
+  "outage_retry_live_verification_complete": false,
+  "native_docking": {
+    "total": 10,
+    "passed": 4,
+    "native_pose_outputs": 9,
+    "status": "failed"
+  },
+  "full_suite_rerun_in_this_followup": false,
+  "inherited_case_evidence": "../2026-10-19-complete-audit/test-evidence.zip"
+}

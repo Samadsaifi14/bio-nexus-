@@ -12,7 +12,7 @@ from typing import Optional
 
 def _strip_ncbi_preamble(raw_xml: str) -> str:
     """Strip QBLAST status text that may precede the XML document."""
-    match = re.search(r"<\?xml|<BlastOutput", raw_xml)
+    match = re.search(r"<\?xml|<(?:BlastXML2|BlastOutput2|BlastOutput)\b", raw_xml)
     if match:
         return raw_xml[match.start():]
     return raw_xml
@@ -25,7 +25,24 @@ def parse_blast_xml(raw_xml: str) -> dict:
     except ET.ParseError as e:
         return {"error": f"XML parse error: {e}", "hits": []}
 
-    query_len_el = root.find(".//BlastOutput_query-len")
+    format_name = root.tag.rsplit("}", 1)[-1]
+    if format_name not in ("BlastOutput", "BlastXML2", "BlastOutput2"):
+        return {"error": "Response is not a BLAST XML document", "hits": []}
+    xml2 = format_name != "BlastOutput"
+    if xml2:
+        # XML2 uses a default NCBI namespace; keep field lookup independent of
+        # the namespace prefix chosen by the provider.
+        for element in root.iter():
+            element.tag = element.tag.rsplit("}", 1)[-1]
+        searches = root.findall(".//Search")
+        if len(searches) != 1:
+            return {"error": "Expected exactly one BLAST XML2 search", "hits": []}
+        search = searches[0]
+        query_len_el = search.find("query-len")
+        hit_elements = search.findall("./hits/Hit")
+    else:
+        query_len_el = root.find(".//BlastOutput_query-len")
+        hit_elements = root.findall(".//Iteration/Iteration_hits/Hit")
     try:
         query_len = int(query_len_el.text) if query_len_el is not None and query_len_el.text else 0
     except (TypeError, ValueError):
@@ -33,29 +50,28 @@ def parse_blast_xml(raw_xml: str) -> dict:
 
     hits = []
     try:
-        for iteration in root.findall(".//Iteration"):
-            for hit_el in iteration.findall(".//Hit"):
-                hit = _parse_hit(hit_el)
-                if hit is not None:
-                    hits.append(hit)
+        for hit_el in hit_elements:
+            hit = _parse_hit(hit_el, xml2=xml2)
+            if hit is not None:
+                hits.append(hit)
     except (TypeError, ValueError) as e:
         return {"error": f"BLAST XML contained an invalid numeric field: {e}", "hits": []}
 
     return {
         "query_length": query_len,
-        "provider_version": root.findtext("BlastOutput_version"),
-        "provider_database_label": root.findtext("BlastOutput_db"),
+        "provider_version": root.findtext(".//Report/version") if xml2 else root.findtext("BlastOutput_version"),
+        "provider_database_label": root.findtext(".//Target/db") if xml2 else root.findtext("BlastOutput_db"),
         "hits": hits,
         "count": len(hits),
     }
 
 
-def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
-    acc = _text(hit_el, "Hit_accession")
+def _parse_hit(hit_el: ET.Element, xml2: bool = False) -> Optional[dict]:
+    acc = _text(hit_el, "description/HitDescr/accession" if xml2 else "Hit_accession")
     if not acc:
         return None
-    hit_id = _text(hit_el, "Hit_id")
-    def_line = _text(hit_el, "Hit_def")
+    hit_id = _text(hit_el, "description/HitDescr/id" if xml2 else "Hit_id")
+    def_line = _text(hit_el, "description/HitDescr/title" if xml2 else "Hit_def")
     accession = acc
     description = def_line or ""
     if " " in def_line:
@@ -71,7 +87,7 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
     # NCBI normally emits HSPs in score order, but the parser should not depend
     # on that transport ordering.  Select the best HSP explicitly so the values
     # shown for a hit are the strongest recorded local alignment.
-    parsed_hsps = [_parse_hsp(hsp) for hsp in hit_el.findall(".//Hsp")]
+    parsed_hsps = [_parse_hsp(hsp, xml2=xml2) for hsp in hit_el.findall(".//Hsp")]
     top_hsp = max(
         parsed_hsps,
         key=lambda h: (h["bit_score"], h["score"], -h["evalue"]),
@@ -83,7 +99,7 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
         "id": hit_id,
         "description": description,
         "organism": organism,
-        "length": int(_text(hit_el, "Hit_len") or 0),
+        "length": int(_text(hit_el, "len" if xml2 else "Hit_len") or 0),
         "score": top_hsp.get("score", 0) if top_hsp else 0,
         "bit_score": top_hsp.get("bit_score", 0) if top_hsp else 0,
         "evalue": top_hsp.get("evalue", 0) if top_hsp else 0,
@@ -105,22 +121,23 @@ def _parse_hit(hit_el: ET.Element) -> Optional[dict]:
     }
 
 
-def _parse_hsp(hsp_el: ET.Element) -> dict:
-    score = int(_text(hsp_el, "Hsp_score") or 0)
-    bit_score = float(_text(hsp_el, "Hsp_bit-score") or 0)
-    evalue_raw = _text(hsp_el, "Hsp_evalue") or "0"
+def _parse_hsp(hsp_el: ET.Element, xml2: bool = False) -> dict:
+    prefix = "" if xml2 else "Hsp_"
+    score = int(_text(hsp_el, prefix + "score") or 0)
+    bit_score = float(_text(hsp_el, prefix + "bit-score") or 0)
+    evalue_raw = _text(hsp_el, prefix + "evalue") or "0"
     evalue = float(evalue_raw)
-    identity = int(_text(hsp_el, "Hsp_identity") or 0)
-    positive = int(_text(hsp_el, "Hsp_positive") or 0)
-    gaps = int(_text(hsp_el, "Hsp_gaps") or 0)
-    align_len = int(_text(hsp_el, "Hsp_align-len") or 0)
-    query_from = int(_text(hsp_el, "Hsp_query-from") or 0)
-    query_to = int(_text(hsp_el, "Hsp_query-to") or 0)
-    hit_from = int(_text(hsp_el, "Hsp_hit-from") or 0)
-    hit_to = int(_text(hsp_el, "Hsp_hit-to") or 0)
-    qseq = _text(hsp_el, "Hsp_qseq") or ""
-    hseq = _text(hsp_el, "Hsp_hseq") or ""
-    mid = _text(hsp_el, "Hsp_midline") or ""
+    identity = int(_text(hsp_el, prefix + "identity") or 0)
+    positive = int(_text(hsp_el, prefix + "positive") or 0)
+    gaps = int(_text(hsp_el, prefix + "gaps") or 0)
+    align_len = int(_text(hsp_el, prefix + "align-len") or 0)
+    query_from = int(_text(hsp_el, prefix + "query-from") or 0)
+    query_to = int(_text(hsp_el, prefix + "query-to") or 0)
+    hit_from = int(_text(hsp_el, prefix + "hit-from") or 0)
+    hit_to = int(_text(hsp_el, prefix + "hit-to") or 0)
+    qseq = _text(hsp_el, prefix + "qseq") or ""
+    hseq = _text(hsp_el, prefix + "hseq") or ""
+    mid = _text(hsp_el, prefix + "midline") or ""
 
     identity_pct = round(identity / align_len * 100, 1) if align_len > 0 else 0
 

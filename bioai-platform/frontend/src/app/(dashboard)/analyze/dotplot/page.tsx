@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { consumeParam } from '@/lib/cross-link';
 import { motion } from 'framer-motion';
 import {
   CircleNotch as LoaderCircle,
@@ -91,16 +92,25 @@ export default function DotPlotPage() {
   const [accError, setAccError] = useState<string | null>(null);
   const audit = useAuditTrail();
 
-  // Deep-link support: /analyze/dotplot?seq_a=...&seq_b=...&self=1&scoring=...
+  // Sequence inputs are consumed from tab-local storage, never URL parameters.
   useEffect(() => {
     const params = new URLSearchParams(globalThis.location?.search ?? '');
-    const a = params.get('seq_a');
-    const b = params.get('seq_b');
+    const input = consumeParam('dotplot_input');
+    if (input) {
+      try {
+        const value: unknown = JSON.parse(input);
+        if (value && typeof value === 'object') {
+          const data = value as Record<string, unknown>;
+          if (typeof data.sequenceA === 'string') setSeqA(data.sequenceA);
+          if (typeof data.sequenceB === 'string') setSeqB(data.sequenceB);
+          if (typeof data.self === 'boolean') setSelfCompare(data.self);
+          if (typeof data.scoring === 'string' && SCORING_OPTIONS.includes(data.scoring)) setScoring(data.scoring);
+        }
+      } catch { setError('The sequence handoff could not be read. Paste the sequences to continue.'); }
+    }
     const score = params.get('scoring');
     const w = params.get('window');
     const s = params.get('stringency');
-    if (a) setSeqA(decodeURIComponent(a));
-    if (b) setSeqB(decodeURIComponent(b));
     if (params.get('self') === '1') setSelfCompare(true);
     if (score && SCORING_OPTIONS.includes(score)) setScoring(score);
     if (w && Number(w) >= 1 && Number(w) <= 50) setWindow(Number(w));

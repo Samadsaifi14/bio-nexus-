@@ -105,3 +105,7 @@ Unknown sequences that fail tiers 1–5 (no BLAST hit / resolution exhausted) no
 ---
 
 *When a sprint or phase ships, add one row here — do not restate the shipped-feature list in `MASTER_PLAN.md`.*
+
+## 2026-10-18 attached audit repairs
+
+Repaired PPI count/provenance, strict browser numeric grounding, private sequence handoffs, ADMET input/result consistency and generic chart/copy defects. Default production build uses the verified webpack path. Mocked HTTP regressions retain real SSRF checks with explicit DNS fixtures. Redocking now uses native atom serial correspondence for pose coordinates; 1OYT is measurable at 0.321 Å without moving the pose or relaxing acceptance thresholds. Full fresh panel still fails at 3/10; its failed SDF export remains labeled. Isolated module audit attempts all 140 modules and preserves skips/deadlines; CI installs the R runtime and uploads module evidence. Exact acceptance boundaries and evidence: `docs/verification/2026-10-18-repairs/REPORT.md`. This is not all-roadmap or scientific validation completion.

@@ -1,6 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { openDotPlot } from '@/lib/cross-link';
 import { DownloadSimple as Download, ChartScatter as Scatter } from '@phosphor-icons/react';
 import type { PairwiseAlignResult } from '@/types/pipeline';
 import { downloadText, downloadTsv } from '@/lib/export-utils';
@@ -188,6 +190,7 @@ export function PairwiseResultDisplay({
   queryLabel?: string;
   subjectLabel?: string;
 }) {
+  const router = useRouter();
   const stats = useMemo(() => {
     const gappedCols = result.alignment_length - result.identity - result.mismatches;
     return {
@@ -258,12 +261,12 @@ export function PairwiseResultDisplay({
           Mode: <strong className="text-text-primary capitalize">{result.mode} {result.mode === 'global' ? 'Needleman-Wunsch' : 'Smith-Waterman'}</strong>
         </span>
         <span className="ml-auto flex items-center gap-2">
-          <a
-            href={`/analyze/dotplot?seq_a=${encodeURIComponent(result.aligned_query.replace(/-/g, ''))}&seq_b=${encodeURIComponent(result.aligned_hit.replace(/-/g, ''))}&scoring=${dotplotScoringFor(result.matrix)}`}
+          <button type="button"
+            onClick={() => openDotPlot(router, result.aligned_query.replace(/-/g, ''), result.aligned_hit.replace(/-/g, ''), dotplotScoringFor(result.matrix))}
             className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5"
           >
             <Scatter className="w-3.5 h-3.5" /> Dot plot
-          </a>
+          </button>
           <button onClick={exportFasta}
             className="text-xs px-2.5 py-1 rounded bg-surface-1 border border-glass-border text-text-secondary hover:text-accent-cyan transition-colors flex items-center gap-1.5">
             <Download className="w-3.5 h-3.5" /> FASTA

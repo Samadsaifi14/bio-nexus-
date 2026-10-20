@@ -1,6 +1,8 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
+import { openDotPlot, setPrefill } from '@/lib/cross-link';
 import { motion } from 'framer-motion';
 import { CaretDown as ChevronDown, CaretUp as ChevronUp, ArrowSquareOut as ExternalLink, Download, ChartScatter as Scatter, Target } from '@phosphor-icons/react';
 import type { BlastHitSummary } from '@/types/pipeline';
@@ -28,6 +30,7 @@ function looksLikeProtein(seq: string): boolean {
 }
 
 export function BlastPanel({ hits, count, source, querySequence, fullSequences }: BlastPanelProps) {
+  const router = useRouter();
   const [expanded, setExpanded] = useState<number | null>(null);
   const safeHits = hits ?? [];
   const displayedHits = safeHits.slice(0, 20);
@@ -104,18 +107,18 @@ export function BlastPanel({ hits, count, source, querySequence, fullSequences }
                   <AlignmentView hit={hit} />
                   <PairwiseAlignView hit={hit} querySequence={querySequence} />
                   <div className="mt-2 flex flex-wrap items-center gap-2">
-                    <a
-                      href={`/analyze/dotplot?seq_a=${encodeURIComponent(querySequence ?? '')}&seq_b=${encodeURIComponent(subjectSequence(hit))}&scoring=${looksLikeProtein(querySequence ?? '') ? 'blosum62' : 'identity'}`}
+                    <button type="button"
+                      onClick={() => openDotPlot(router, querySequence ?? '', subjectSequence(hit), looksLikeProtein(querySequence ?? '') ? 'blosum62' : 'identity')}
                       className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-cyan transition"
                     >
                       <Scatter className="w-3.5 h-3.5" /> Dot plot vs query
-                    </a>
-                    <a
-                      href={`/analyze/motif?sequence=${encodeURIComponent((hit.hit_alignment || hit.midline || '').replace(/-/g, ''))}&uniprot=${encodeURIComponent(hit.accession)}`}
+                    </button>
+                    <button type="button"
+                      onClick={() => setPrefill(router, 'motif_sequence', subjectSequence(hit), `/analyze/motif?uniprot=${encodeURIComponent(hit.accession)}`)}
                       className="inline-flex items-center gap-1 text-xs px-2.5 py-1 rounded border border-glass-border bg-surface-1 text-text-secondary hover:text-accent-purple transition"
                     >
                       <Target className="w-3.5 h-3.5" /> Scan for motifs
-                    </a>
+                    </button>
                     <a
                       href={`https://www.ncbi.nlm.nih.gov/protein/${hit.accession}`}
                       target="_blank"

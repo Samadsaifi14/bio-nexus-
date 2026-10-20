@@ -496,14 +496,14 @@ class TestInteractions:
         from app.routers.interactions import get_interactions
         result = await get_interactions("TP53", species=9606, limit=15)
         for inter in result["interactions"]:
-            assert 0 <= inter.combined_score <= 1.0, \
-                f"Score out of range: {inter.combined_score}"
+            assert 0 <= inter["combined_score"] <= 1.0, \
+                f"Score out of range: {inter}"
 
     @pytest.mark.asyncio
     async def test_interactions_sorted_by_score(self):
         from app.routers.interactions import get_interactions
         result = await get_interactions("TP53", species=9606, limit=15)
-        scores = [i.combined_score for i in result["interactions"]]
+        scores = [i["combined_score"] for i in result["interactions"]]
         assert scores == sorted(scores, reverse=True), "Should be sorted by score desc"
 
     @pytest.mark.asyncio
@@ -599,7 +599,7 @@ class TestStructureRetrieval:
             assert "count" in result
         except HTTPException as e:
             if e.status_code == 502:
-                pytest.skip("RCSB search API temporarily unavailable")
+                pytest.fail("RCSB search API temporarily unavailable")
             else:
                 raise
 

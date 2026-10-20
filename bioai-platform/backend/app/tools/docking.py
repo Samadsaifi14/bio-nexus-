@@ -10,6 +10,7 @@ import urllib.request
 from pathlib import Path
 from urllib.parse import quote
 from typing import Optional
+import httpx
 
 # AutoDock Vina binary location
 _VINA_BINARY: str | None = None
@@ -128,17 +129,26 @@ def _ensure_obabel() -> str:
 def fetch_pdb_from_rcsb(pdb_id: str) -> str:
     """Download a PDB file from RCSB by 4-character PDB ID."""
     pdb_id = pdb_id.strip().upper()
-    if len(pdb_id) != 4:
+    if re.fullmatch(r"[0-9][A-Z0-9]{3}", pdb_id) is None:
         raise ValueError(f"Invalid PDB ID: {pdb_id!r}")
     url = f"https://files.rcsb.org/download/{pdb_id}.pdb"
-    try:
-        # pdb_id is length- and charset-restricted above
-        data = urllib.request.urlopen(url, timeout=30).read().decode("utf-8", errors="replace")  # nosemgrep
-    except Exception as e:
-        raise RuntimeError(f"Failed to fetch PDB {pdb_id} from RCSB: {e}")
-    if "ATOM" not in data and "HETATM" not in data:
-        raise RuntimeError(f"PDB {pdb_id} from RCSB contains no coordinate data")
-    return data
+    failures = []
+    for attempt in range(4):
+        try:
+            # The URL is constructed from a validated PDB identifier and fixed RCSB origin.
+            response = httpx.get(url, timeout=30, follow_redirects=True,
+                                 headers={"User-Agent": "BioNexus/1.0 (structure retrieval)"})
+            response.raise_for_status()
+            data = response.text
+            if not any(line.startswith(("ATOM  ", "HETATM")) for line in data.splitlines()):
+                raise ValueError("response contains no coordinate records")
+            return data
+        except (httpx.HTTPError, ValueError) as exc:
+            failures.append(f"attempt {attempt + 1}: {type(exc).__name__}: {exc}")
+            if attempt < 3:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"Failed to fetch a valid PDB {pdb_id} from RCSB after 4 attempts: "
+                       + "; ".join(failures))
 
 
 # ---------------------------------------------------------------------------
@@ -217,6 +227,7 @@ def compute_pocket_grid(pdb_text: str, padding: float = 4.0,
         if not os.path.isdir(pocket_dir):
             return None
         info_candidates = (
+            os.path.join(tmp, "receptor_out", "receptor_info.txt"),
             os.path.join(tmp, "receptor_out", "info", "infos.txt"),
             os.path.join(tmp, "receptor_out", "infos.txt"),
             os.path.join(tmp, "receptor_info.txt"),
@@ -535,6 +546,7 @@ def run_vina(
     exhaustiveness: int = 8,
     num_modes: int = 9,
     seed: int = 42,
+    timeout_seconds: float = 300,
 ) -> dict:
     """Run AutoDock Vina and return parsed multi-pose results.
 
@@ -543,6 +555,8 @@ def run_vina(
     """
     grid_center = _validate_grid_vector(grid_center, "grid_center")
     grid_size = _validate_grid_vector(grid_size, "grid_size", positive=True)
+    if not math.isfinite(timeout_seconds) or not 1 <= timeout_seconds <= 1800:
+        raise ValueError("timeout_seconds must be finite and between 1 and 1800")
     vina_bin = _ensure_vina()
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -576,7 +590,7 @@ def run_vina(
             "--out", out_path,
         ]
 
-        result = subprocess.run(cmd, capture_output=True, text=True, timeout=300)
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout_seconds)
 
         if result.returncode != 0:
             raise RuntimeError(f"Vina failed: {result.stderr[:2000]}")

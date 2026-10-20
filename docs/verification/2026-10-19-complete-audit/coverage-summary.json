@@ -1,0 +1,18 @@
+{
+  "planned_unique_cases": 1608,
+  "missing_cases": [],
+  "unexpected_cases": [],
+  "recorded_unique_cases": 1608,
+  "counts": {
+    "passed": 1605,
+    "failed": 3
+  },
+  "previous_skips": 20,
+  "previous_skips_now_passed": 20,
+  "failed_cases": [
+    "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_full_roundtrip_short_seq",
+    "tests/test_blast_comprehensive.py::TestNCBIBlastIntegration::test_ncbi_blast_parse_xml",
+    "tests/test_blast_comprehensive.py::TestBlastReliability::test_consecutive_blast_runs"
+  ],
+  "scientifically_validated": false
+}

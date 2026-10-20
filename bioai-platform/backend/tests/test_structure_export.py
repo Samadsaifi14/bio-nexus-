@@ -5,6 +5,8 @@ from fastapi import HTTPException
 
 from app.routers import structure_export as se
 
+pytestmark = pytest.mark.usefixtures("public_upstream_dns")
+
 
 # ── Identifier resolution ────────────────────────────────────────────────────
 
@@ -161,3 +163,14 @@ def test_docking_complex_merges_receptor_and_ligand():
     merged = receptor.rstrip() + "\n" + ligand.rstrip() + "\nEND\n"
     assert merged.count("END") == 1
     assert "HETATM" in merged and "ATOM" in merged
+
+@pytest.mark.asyncio
+async def test_private_upstream_dns_still_blocks_before_http(monkeypatch):
+    import socket
+    monkeypatch.setattr(socket, 'getaddrinfo', lambda *a, **k: [
+        (socket.AF_INET, socket.SOCK_STREAM, 6, '', ('127.0.0.1', 443))])
+    def no_http(*a, **k):
+        raise AssertionError('SSRF-blocked exports must never reach HTTP')
+    monkeypatch.setattr(se.httpx, 'AsyncClient', no_http)
+    with pytest.raises(HTTPException, match='private IP'):
+        await se.export_structure('P04637', format='pdb', user_id='u1')

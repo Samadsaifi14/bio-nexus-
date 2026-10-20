@@ -70,3 +70,28 @@ await assert.rejects(dockingPrototype.runDockingValidation('/not-a-molecule.apk'
 const dockingPage = readFileSync(new URL('../src/app/(dashboard)/analyze/docking/page.tsx', import.meta.url), 'utf8');
 assert(!dockingPage.includes('runDockingValidation') && !dockingPage.includes('APK Path'));
 console.log('Interpretation streaming, RNA-seq evidence and APK/molecular boundary checks passed');
+
+const { checkNumericGrounding } = await load('numericGrounding.ts');
+const explanation = text => ({ headline: 'Recorded result', summary: text, findings: [], caveats: [] });
+const ppi = { interactions: Array.from({ length: 12 }, () => ({ score: .99 })) };
+assert.equal(checkNumericGrounding(explanation('There are 12 partners.'), ppi).grounded, true);
+assert.equal(checkNumericGrounding(explanation('There are 13 partners.'), ppi).grounded, false);
+assert.equal(checkNumericGrounding(explanation('There are 3 partners.'), { count: 1 }).grounded, false);
+assert.equal(checkNumericGrounding(explanation('Score is 99.'), { score: .99 }).grounded, false);
+assert.equal(checkNumericGrounding(explanation('Score is 0.99%.'), { score: .99 }).grounded, false);
+assert.equal(checkNumericGrounding(explanation('Score is 7.'), { score: -7 }).grounded, false);
+assert.equal(checkNumericGrounding(explanation('There are 42 partners.'), { ai_interpretation: { summary: '42' } }).grounded, false);
+
+const { openDotPlot, consumeParam } = await load('cross-link.ts');
+const storage = new Map();
+globalThis.window = {};
+globalThis.sessionStorage = { getItem: key => storage.get(key) ?? null,
+  setItem: (key, value) => storage.set(key, value), removeItem: key => storage.delete(key) };
+let target;
+openDotPlot({ push: route => { target = route; } }, 'MPRIVATESEQ', 'MOTHERSEQ', 'blosum62');
+assert.equal(target, '/analyze/dotplot');
+assert.equal(target.includes('MPRIVATESEQ'), false);
+assert.deepEqual(JSON.parse(consumeParam('dotplot_input')), {
+  sequenceA: 'MPRIVATESEQ', sequenceB: 'MOTHERSEQ', scoring: 'blosum62', self: false });
+assert.equal(consumeParam('dotplot_input'), null);
+console.log('Numeric grounding and private sequence handoff checks passed.');

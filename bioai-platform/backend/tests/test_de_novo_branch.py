@@ -7,6 +7,8 @@ import pytest
 from app.routers import pipeline_v2 as pv
 from app.services import de_novo
 
+pytestmark = pytest.mark.usefixtures("public_upstream_dns")
+
 
 # ── ESMFold structure card ──────────────────────────────────────────────────
 

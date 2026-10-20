@@ -120,7 +120,9 @@ function NumericSeriesChart({ block }: { block: SeriesBlock }) {
   });
   if (numericKeys.length < 2) return null;
 
-  const xKey = X_KEYS.find(key => numericKeys.includes(key)) ?? numericKeys[0];
+  // Heterogeneous descriptor rows have no common physical axis (e.g. ADMET radar).
+  const xKey = X_KEYS.find(key => numericKeys.includes(key));
+  if (!xKey) return null;
   const yKey = chooseYKey(block, numericKeys, xKey);
   if (!yKey) return null;
 
@@ -225,6 +227,6 @@ export function ScientificDataViews({ toolName, result }: ScientificDataViewsPro
 
     {tableBlocks.length > 0 && <div className="space-y-2"><p className="text-xs font-medium uppercase tracking-wide text-text-muted">Detailed result tables</p>{tableBlocks.map(block => <DataTable key={`table-${block.path}`} block={block}/>)}</div>}
 
-    <p className="text-[10px] leading-relaxed text-text-muted">Docking charts now plot score/displacement metrics (affinity and RMSD) rather than atom-count bookkeeping. Interaction charts appear only when returned contact counts vary across poses. Constant or zero values remain visible in tables for scientific completeness.</p>
+    {toolName === 'docking' && <p className="text-[10px] leading-relaxed text-text-muted">Docking charts now plot score/displacement metrics (affinity and RMSD) rather than atom-count bookkeeping. Interaction charts appear only when returned contact counts vary across poses. Constant or zero values remain visible in tables for scientific completeness.</p>}
   </section>;
 }

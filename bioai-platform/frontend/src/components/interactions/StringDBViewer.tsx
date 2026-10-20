@@ -94,10 +94,10 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       species,
       network_type: networkType,
       source: "STRING-DB interaction_partners API",
-      score_scale: "0-1 (normalized from STRING's 0-1000 confidence)",
+      score_scale: "0-1 (native STRING API confidence)",
       score_derivations: [
-        "combined_score is STRING's combined confidence value, normalized from its native 0-1000 scale.",
-        "per-channel scores (experimental/database/coexpression/textmining) are STRING's, normalized from 0-1000.",
+        "combined_score is STRING's combined confidence value, preserved in its native API 0-1 scale.",
+        "per-channel scores (experimental/database/coexpression/textmining) are preserved in STRING's native API 0-1 scale.",
         "physical_evidence_avg is a local heuristic (mean of experimental + database channels), NOT a STRING-provided score.",
       ],
       interactions: data.interactions,
@@ -146,7 +146,7 @@ export function StringDBViewer({ geneName, initialData }: { geneName: string; in
       </div>
 
       <p className="text-[11px] leading-4 text-text-muted border border-glass-border rounded-lg bg-surface-0 px-3 py-2">
-        Scores are normalized from STRING&rsquo;s native 0&ndash;1000 confidence scale to 0&ndash;1. &ldquo;Combined&rdquo; is STRING&rsquo;s
+        Scores are preserved in STRING&rsquo;s native API 0&ndash;1 confidence scale. &ldquo;Combined&rdquo; is STRING&rsquo;s
         combined confidence over all evidence channels; per-channel scores are STRING&rsquo;s as provided by STRING-DB.
       </p>
 

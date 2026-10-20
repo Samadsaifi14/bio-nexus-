@@ -210,8 +210,8 @@ async def compare_structures(pdb_id: str, chain: Annotated[str, Query()] = "A",
     except HTTPException:
         raise
     except Exception as e:
-        import traceback
-        raise HTTPException(500, f"Foldseek error: {type(e).__name__}: {e}\n{traceback.format_exc()[:2000]}")
+        logger.warning("Foldseek request failed (%s)", type(e).__name__)
+        raise HTTPException(502, "Structure comparison provider unavailable. Please retry.") from e
 
 async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
     # 1. Fetch PDB file from RCSB
@@ -223,7 +223,7 @@ async def _foldseek_search(pdb_id: str, chain: str, max_results: int) -> dict:
 
     # 2. Submit to Foldseek (via aiohttp, handles async multipart natively)
     import aiohttp, json as _json
-    async with aiohttp.ClientSession() as session:
+    async with aiohttp.ClientSession(trust_env=True, timeout=aiohttp.ClientTimeout(total=60)) as session:
         form = aiohttp.FormData()
         form.add_field("q", pdb_bytes, filename=f"{pdb_id}.pdb", content_type="application/octet-stream")
         form.add_field("mode", "tmalign")

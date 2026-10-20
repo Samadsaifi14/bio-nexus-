@@ -1,0 +1,16 @@
+{
+  "ccd_url": "https://files.rcsb.org/ligands/download/PU2.cif",
+  "coordinate_url": "https://files.rcsb.org/download/1UYG.pdb",
+  "selected_residue": "A1224 ",
+  "retrieved_on": "2026-10-19",
+  "sha256": {
+    "1UYG_PU2.pdb": "549e853ca9710158b8117b00d27eddb2e5c0b2758294dc3505c548e2510820f6",
+    "2H4G_694.pdb": "2501b82741fc1e51c7bea7f65f20b414f15780da1cf533171a8cda0f850724fe",
+    "694.cif": "55743082d8a5f4f3c0492a73e15f03798dd72e2677f7c406676e0e996e454a52",
+    "PU2.cif": "82e8b1da9792402724502f98b6e0b2c0d39e4b5df27ab301101c46ac74edcb3d"
+  },
+  "additional_source_urls": [
+    "https://files.rcsb.org/ligands/download/694.cif",
+    "https://files.rcsb.org/download/2H4G.pdb"
+  ]
+}

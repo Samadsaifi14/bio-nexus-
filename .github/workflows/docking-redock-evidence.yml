@@ -7,6 +7,15 @@ on:
     paths:
       - 'benchmark/fixtures/docking/**'
       - '.github/workflows/docking-redock-evidence.yml'
+      - 'bioai-platform/backend/app/tools/docking.py'
+      - 'bioai-platform/backend/app/benchmarking/**'
+
+  pull_request:
+    paths:
+      - 'benchmark/fixtures/docking/**'
+      - '.github/workflows/docking-redock-evidence.yml'
+      - 'bioai-platform/backend/app/tools/docking.py'
+      - 'bioai-platform/backend/app/benchmarking/**'
 
 permissions:
   contents: read
@@ -26,7 +35,7 @@ jobs:
         with:
           python-version: '3.12'
       - name: Install benchmark dependencies
-        run: python -m pip install rdkit==2026.9.1 openbabel-wheel==3.1.1.23 httpx fastapi 'pydantic[email]' python-dotenv pytest
+        run: python -m pip install rdkit==2026.9.1 openbabel-wheel==3.1.1.23 httpx biopython fastapi 'pydantic[email]' python-dotenv pytest
       - name: Verify native pose artifact contract
         run: python -m pytest bioai-platform/backend/tests/test_redock_native_artifact.py --noconftest -o addopts='' -q
       - name: Build declared fpocket revision

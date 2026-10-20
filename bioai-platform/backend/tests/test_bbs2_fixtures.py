@@ -179,21 +179,22 @@ def test_redock_panel_spec_is_well_formed():
     assert len(panel["limitations"]) >= 4
 
 
-def test_redock_panel_runner_is_honest_without_tools():
-    proc = _run(DOCKING / "run_redock_panel.py", cwd=REPO)
-    # With Vina/OpenBabel/fpocket absent this must be an explicit not-executed
-    # status (exit 2), never a fabricated pass.
-    latest = json.loads((REPO / "benchmark" / "results" / "docking" / "redock" / "latest.json").read_text(encoding="utf-8"))
+def test_redock_panel_runner_is_honest_without_tools(tmp_path, monkeypatch):
+    # The missing-tools unit contract must be deterministic even on a fully
+    # provisioned machine. The native panel is executed by its dedicated job.
+    import importlib.util
+    spec = importlib.util.spec_from_file_location("redock_missing_tools", DOCKING / "run_redock_panel.py")
+    runner = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(runner)
+    monkeypatch.setattr(runner, "_tools_available", lambda: (False, ["fpocket"]))
+    monkeypatch.setattr(sys, "argv", [str(DOCKING / "run_redock_panel.py"), "--outdir", str(tmp_path)])
+    assert runner.main() == 2
+    latest = json.loads((tmp_path / "latest.json").read_text(encoding="utf-8"))
     assert latest["status"] == "not_executed"
     assert latest["reason"] == "requires_external"
-    if proc.returncode == 2:
-        assert latest["status"] == "not_executed"
-    else:
-        # If tools ARE present this box truly runs the panel; we only assert the
-        # record schema and honesty fields regardless of verdict.
-        assert latest["status"] in ("passed", "failed")
-        assert "results" in latest
-        assert len(latest["success_criteria"]) > 0
+    assert latest["missing_tools"] == ["fpocket"]
+    assert latest["panels_planned"] == 10
+    assert "results" not in latest
 
 
 def test_structure_prep_panel_spec_is_well_formed():

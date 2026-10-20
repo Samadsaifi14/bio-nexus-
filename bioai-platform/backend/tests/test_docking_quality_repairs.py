@@ -67,7 +67,7 @@ def test_fpocket_grid_uses_real_candidate_files_and_reports_metadata(tmp_path, m
         pockets = out / "pockets"
         pockets.mkdir(parents=True)
         (out / "info").mkdir()
-        (out / "info" / "infos.txt").write_text(
+        (out / "receptor_info.txt").write_text(
             "Pocket 1 :\nPocket Score : 12.5\nDruggability Score : 0.72\nVolume : 184.25\n"
         )
         lines = []

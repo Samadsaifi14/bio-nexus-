@@ -87,6 +87,16 @@ export default function ADMETPage() {
   const [selected, setSelected] = useState<{ name: string; cid: number } | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+  const requestVersion = useRef(0);
+
+  const invalidateResult = () => {
+    requestVersion.current += 1;
+    setResult(null);
+    setError("");
+    setLoading(false);
+  };
+
+  useEffect(() => () => { requestVersion.current += 1; }, []);
 
   useEffect(() => {
     const stored = consumeParam('admet_smiles');
@@ -126,8 +136,9 @@ export default function ADMETPage() {
   }, []);
 
   const handlePick = (hit: { cid: number; name: string; smiles?: string }) => {
+    invalidateResult();
     setSelected({ name: hit.name, cid: hit.cid });
-    if (hit.smiles) setSmiles(hit.smiles);
+    setSmiles(hit.smiles ?? "");
     setQuery(hit.name);
     setShowDropdown(false);
     setError("");
@@ -142,25 +153,30 @@ export default function ADMETPage() {
     } else {
       return;
     }
+    const version = ++requestVersion.current;
     setLoading(true);
     setError("");
     setResult(null);
     try {
       const res = await computeADMET(payload);
+      if (version !== requestVersion.current) return;
       setResult(res.result);
     } catch (e: any) {
+      if (version !== requestVersion.current) return;
       setError(typeof e?.response?.data?.detail === "string" ? e.response.data.detail : e?.response?.data?.detail?.message || e.message || "Computation failed");
       if (payload.name && smiles.trim()) {
         try {
           const res = await computeADMET({ smiles: smiles.trim() });
+          if (version !== requestVersion.current) return;
           setError("");
           setResult(res.result);
         } catch (e2: any) {
+          if (version !== requestVersion.current) return;
           setError(typeof e2?.response?.data?.detail === "string" ? e2.response.data.detail : "Computation failed");
         }
       }
     } finally {
-      setLoading(false);
+      if (version === requestVersion.current) setLoading(false);
     }
   };
 
@@ -220,7 +236,7 @@ export default function ADMETPage() {
           </label>
           <div ref={dropdownRef} className="relative">
             <FlatInput value={query}
-              onChange={(e) => { setQuery(e.target.value); setSelected(null); setError(""); setResult(null); }}
+              onChange={(e) => { invalidateResult(); setQuery(e.target.value); setSelected(null); }}
               placeholder="e.g. fluconazole, aspirin, metformin…"
               className="w-full font-mono text-sm"
               onKeyDown={(e) => { if (e.key === "Enter") { setShowDropdown(false); if (query.trim()) handleSubmit(); } }} />
@@ -248,7 +264,7 @@ export default function ADMETPage() {
         <div className="data-card p-5">
           <label className="block text-sm text-text-secondary mb-2">SMILES String</label>
           <div className="flex gap-2">
-            <FlatInput value={smiles} onChange={(e) => { setSmiles(e.target.value); setSelected(null); setResult(null); setError(""); }}
+            <FlatInput value={smiles} onChange={(e) => { invalidateResult(); setSmiles(e.target.value); setSelected(null); }}
               placeholder="e.g. CC(=O)OC1=CC=CC=C1C(=O)O"
               className="flex-1 font-mono"
               onKeyDown={(e) => e.key === "Enter" && handleSubmit()} />
@@ -259,7 +275,7 @@ export default function ADMETPage() {
           </div>
           <div className="flex flex-wrap gap-2 mt-3">
             {EXAMPLES.map((ex) => (
-              <button key={ex.name} onClick={() => setSmiles(ex.smiles)}
+              <button key={ex.name} onClick={() => { invalidateResult(); setSmiles(ex.smiles); setSelected(null); setQuery(""); }}
                 className="text-xs px-2 py-1 rounded bg-surface-2 hover:bg-surface-3 text-text-secondary transition-colors">
                 {ex.name}
               </button>

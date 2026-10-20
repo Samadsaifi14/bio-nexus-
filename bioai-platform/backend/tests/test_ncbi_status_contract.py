@@ -126,6 +126,7 @@ async def test_http_200_outage_is_retried_without_fabricating_a_result(monkeypat
     real_client = httpx.AsyncClient
     attempts = []
     delays = []
+    clock = [0.0]
 
     def response(request):
         attempts.append(True)
@@ -134,9 +135,12 @@ async def test_http_200_outage_is_retried_without_fabricating_a_result(monkeypat
 
     async def sleep(seconds):
         delays.append(seconds)
+        clock[0] += seconds
 
     monkeypatch.setattr(blast.httpx, 'AsyncClient', lambda **kwargs: real_client(transport=httpx.MockTransport(response), **kwargs))
     monkeypatch.setattr(blast.asyncio, 'sleep', sleep)
+    monkeypatch.setattr(blast, 'monotonic', lambda: clock[0])
+    monkeypatch.setattr(blast, '_next_request_slot', 0.0)
     if recovered:
         result = await blast.submit_blast('TTCCPSIVARSNFNVCRLPG')
         assert result == {'rid': 'RECOVERED', 'estimated_seconds': 22}
@@ -148,15 +152,37 @@ async def test_http_200_outage_is_retried_without_fabricating_a_result(monkeypat
 
 
 @pytest.mark.asyncio
+async def test_concurrent_request_slots_are_spaced_ten_seconds(monkeypatch):
+    clock = [0.0]
+    waits = []
+
+    async def sleep(seconds):
+        waits.append(seconds)
+        clock[0] += seconds
+
+    monkeypatch.setattr(blast, 'monotonic', lambda: clock[0])
+    monkeypatch.setattr(blast, '_next_request_slot', 0.0)
+    monkeypatch.setattr(blast.asyncio, 'sleep', sleep)
+    delays = [blast._reserve_request_slot_delay() for _ in range(4)]
+    assert delays == [0.0, 10.0, 20.0, 30.0]
+
+    monkeypatch.setattr(blast, '_next_request_slot', 0.0)
+    await blast._wait_for_request_slot()
+    await blast._wait_for_request_slot()
+    await blast._wait_for_request_slot()
+    assert waits == [10.0, 10.0]
+
+
+@pytest.mark.asyncio
 async def test_submission_uses_supported_gap_and_short_query_parameters(monkeypatch):
     async def request(method, url, **kwargs):
-        params = kwargs['data']
-        assert params['GAPCOSTS'] == '11 1'
-        assert params['SHORT_QUERY_ADJUST'] == 'true'
-        assert params['FORMAT_TYPE'] == 'XML2_S'
-        assert params['tool'] == 'bio-nexus'
-        assert not {'GAPOPEN', 'GAPEXTEND', 'ASYNC', 'api_key'} & params.keys()
-        return httpx.Response(200, text='RID = CONTRACT\nRTOE = 22')
-    monkeypatch.setattr(blast, '_request_with_retry', request)
-    result = await blast.submit_blast('TTCCPSIVARSNFNVCRLPG', gapopen=11, gapextend=1)
-    assert result['rid'] == 'CONTRACT'
+        params = kwargs["data"]
+        assert params["GAPCOSTS"] == "11 1"
+        assert params["SHORT_QUERY_ADJUST"] == "true"
+        assert params["FORMAT_TYPE"] == "XML2_S"
+        assert params["tool"] == "bio-nexus"
+        assert not {"GAPOPEN", "GAPEXTEND", "ASYNC", "api_key"} & params.keys()
+        return httpx.Response(200, text="RID = CONTRACT\nRTOE = 22")
+    monkeypatch.setattr(blast, "_request_with_retry", request)
+    result = await blast.submit_blast("TTCCPSIVARSNFNVCRLPG", gapopen=11, gapextend=1)
+    assert result["rid"] == "CONTRACT"

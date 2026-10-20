@@ -371,9 +371,7 @@ def asyncio_run(coro):
 
 
 class TestUnreasonableRtoeBails:
-    """Regression: when NCBI reports an enormous RTOE (overloaded), run_blast_with_retry
-    must return an error immediately so the caller's EBI fallback can run — it must NOT
-    `continue` into sync mode, which blocks 300s x3 and stalls the pipeline for ~15 min."""
+    """Do not poll beyond the budget or resubmit a queued request with a huge RTOE."""
 
     async def _huge_rtoe_submit(self, *args, **kwargs):
         return {"rid": "RID9", "estimated_seconds": 2300}
@@ -396,6 +394,9 @@ class TestUnreasonableRtoeBails:
         result = asyncio_run(ncbi_blast.run_blast_with_retry("MEEPQSDPSVEPPL", max_wait_seconds=600))
         assert "error" in result, result
         assert "2300" in result["error"], result["error"]
+        assert result["rid"] == "RID9"
+        assert result["status"] == "TIMEOUT"
+        assert result["search_complete"] is False
         assert not called["submit_sync"], "sync mode must not be attempted on huge RTOE"
         assert not called["check"], "must not poll after bailing on huge RTOE"
 

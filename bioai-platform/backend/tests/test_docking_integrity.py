@@ -51,6 +51,34 @@ def test_bad_download_never_published(tmp_path, monkeypatch):
     assert not list((tmp_path / "vina_bin").iterdir())
 
 
+def test_rcsb_fetch_retries_transient_proxy_and_rejects_nonstructure(monkeypatch):
+    import httpx
+    attempts = []
+    delays = []
+    request = httpx.Request("GET", "https://files.rcsb.org/download/1STP.pdb")
+    def fetch(url, **kwargs):
+        attempts.append((url, kwargs))
+        if len(attempts) == 1:
+            return httpx.Response(403, text="proxy transient", request=request)
+        if len(attempts) == 2:
+            return httpx.Response(200, text="temporarily unavailable", request=request)
+        return httpx.Response(200, text="ATOM      1  CA  ALA A   1       1.000   2.000   3.000\n", request=request)
+    monkeypatch.setattr(docking.httpx, "get", fetch)
+    monkeypatch.setattr(docking.time, "sleep", delays.append)
+    data = docking.fetch_pdb_from_rcsb("1stp")
+    assert data.startswith("ATOM")
+    assert len(attempts) == 3
+    assert delays == [1, 2]
+    assert all(url == "https://files.rcsb.org/download/1STP.pdb" for url, _ in attempts)
+    assert all(kwargs["follow_redirects"] is True for _, kwargs in attempts)
+
+
+def test_rcsb_fetch_bad_identifier_fails_before_network(monkeypatch):
+    monkeypatch.setattr(docking.httpx, "get", lambda *a, **k: pytest.fail("network not expected"))
+    with pytest.raises(ValueError, match="Invalid PDB ID"):
+        docking.fetch_pdb_from_rcsb("../admin")
+
+
 @pytest.mark.parametrize("pdb", ["", "HEADER no atoms\nEND", "ATOM invalid columns",
                                    "HETATM    1  C   LIG A   1       1.000   2.000   3.000"])
 def test_grid_without_receptor_coordinates_fails(pdb):
@@ -81,23 +109,22 @@ def test_explicit_origin_is_a_valid_center():
     assert docking._validate_grid_vector([0, 0, 0], "grid_center") == [0.0]*3
 
 
-
-@pytest.mark.parametrize('budget', [0, -1, float('nan'), float('inf'), 1801])
+@pytest.mark.parametrize("budget", [0, -1, float("nan"), float("inf"), 1801])
 def test_native_execution_budget_rejected_before_binary_execution(monkeypatch, budget):
-    monkeypatch.setattr(docking, '_ensure_vina', lambda: pytest.fail('Invalid budget reached native binary'))
-    with pytest.raises(ValueError, match='timeout_seconds'):
-        docking.run_vina('', '', [1, 2, 3], [20, 20, 20], timeout_seconds=budget)
+    monkeypatch.setattr(docking, "_ensure_vina", lambda: pytest.fail("Invalid budget reached native binary"))
+    with pytest.raises(ValueError, match="timeout_seconds"):
+        docking.run_vina("", "", [1, 2, 3], [20, 20, 20], timeout_seconds=budget)
 
 
 def test_native_execution_honors_explicit_budget(verified_binary, monkeypatch):
     from types import SimpleNamespace
-    artifacts = Path(__file__).resolve().parents[3] / 'benchmark/results/docking/redock/artifacts/20261012T080418163266Z/1STP'
+    artifacts = Path(__file__).resolve().parents[3] / "benchmark/results/docking/redock/artifacts/20261012T080418163266Z/1STP"
     def execute(command, **kwargs):
-        assert kwargs['timeout'] == 900
-        Path(command[command.index('--out') + 1]).write_text((artifacts / 'vina_output.pdbqt').read_text())
-        return SimpleNamespace(returncode=0, stdout=(artifacts / 'vina.log').read_text(), stderr='')
-    monkeypatch.setattr(docking.subprocess, 'run', execute)
-    monkeypatch.setattr(docking, 'pdbqt_to_sdf', lambda *args: '')
-    result = docking.run_vina('receptor', 'ligand', [1, 2, 3], [20, 20, 20], timeout_seconds=900)
-    assert result['num_poses'] > 0
-    assert result['result_pdbqt']
+        assert kwargs["timeout"] == 900
+        Path(command[command.index("--out") + 1]).write_text((artifacts / "vina_output.pdbqt").read_text())
+        return SimpleNamespace(returncode=0, stdout=(artifacts / "vina.log").read_text(), stderr="")
+    monkeypatch.setattr(docking.subprocess, "run", execute)
+    monkeypatch.setattr(docking, "pdbqt_to_sdf", lambda *args: "")
+    result = docking.run_vina("receptor", "ligand", [1, 2, 3], [20, 20, 20], timeout_seconds=900)
+    assert result["num_poses"] > 0
+

@@ -1,0 +1,86 @@
+[
+  {
+    "rank": 1,
+    "pocket_rank": 1,
+    "original_model": 1,
+    "vina_affinity": -6.292,
+    "vinardo_score": -4.43,
+    "rmsd_by_copy": [
+      0.8198785733265628
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 0.8198785733265628
+  },
+  {
+    "rank": 2,
+    "pocket_rank": 1,
+    "original_model": 2,
+    "vina_affinity": -5.444,
+    "vinardo_score": -3.613,
+    "rmsd_by_copy": [
+      7.272354063506534
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 7.272354063506534
+  },
+  {
+    "rank": 3,
+    "pocket_rank": 1,
+    "original_model": 5,
+    "vina_affinity": -4.948,
+    "vinardo_score": -3.402,
+    "rmsd_by_copy": [
+      6.390811695316957
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 6.390811695316957
+  },
+  {
+    "rank": 4,
+    "pocket_rank": 1,
+    "original_model": 3,
+    "vina_affinity": -4.974,
+    "vinardo_score": -3.158,
+    "rmsd_by_copy": [
+      3.962181674910932
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 3.962181674910932
+  },
+  {
+    "rank": 5,
+    "pocket_rank": 1,
+    "original_model": 4,
+    "vina_affinity": -4.957,
+    "vinardo_score": -3.138,
+    "rmsd_by_copy": [
+      6.485537087435397
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 6.485537087435397
+  },
+  {
+    "rank": 6,
+    "pocket_rank": 1,
+    "original_model": 6,
+    "vina_affinity": -4.112,
+    "vinardo_score": -2.744,
+    "rmsd_by_copy": [
+      5.086473987449459
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 5.086473987449459
+  },
+  {
+    "rank": 7,
+    "pocket_rank": 1,
+    "original_model": 7,
+    "vina_affinity": -3.874,
+    "vinardo_score": -2.38,
+    "rmsd_by_copy": [
+      6.306642544769761
+    ],
+    "best_copy_index": 0,
+    "top_pose_rmsd_angstrom": 6.306642544769761
+  }
+]

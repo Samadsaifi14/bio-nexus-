@@ -2,7 +2,7 @@ fastapi
 uvicorn
 slowapi
 redis
-httpx
+httpx[socks]  # Supports managed environments whose HTTPS egress uses a SOCKS proxy.
 requests>=2.31  # official BLAST database provisioning
 aiohttp
 biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)

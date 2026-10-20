@@ -1,0 +1,248 @@
+{
+  "benchmark": "bionexus-redock-panel/v2-multisite",
+  "run_id": "20261020T153832438496Z",
+  "fixture_revision": "2026-10-19-ccd-chemistry-repair",
+  "fixture_sha256": "d470823fa25272e19071e667fbe7d8c7e9e2741df241996444efadbafa9bd1ed",
+  "method": {
+    "pocket_limit": 1,
+    "exhaustiveness": 1,
+    "num_modes_per_pocket": 9,
+    "seed": 42,
+    "pose_ranking": "fixed-coordinate Vinardo score-only on a pose-centered grid with 6 A margin, then Vina affinity, pocket rank, pose index",
+    "ligand_copy_policy": "score before evaluation; RMSD against each CCD-validated deposited copy",
+    "receptor_chains": "all",
+    "explicit_cofactors": {
+      "1GKC": [
+        "A:1450:ZN"
+      ]
+    }
+  },
+  "executed_at_utc": "2026-10-20T15:38:59.211051+00:00",
+  "status": "passed",
+  "full_panel": true,
+  "n_complexes": 1,
+  "n_expected": 1,
+  "n_passed": 1,
+  "passed_fraction": 1.0,
+  "success_criteria": {
+    "panel_pass_threshold_frac": 0.7,
+    "per_complex_rmsd_threshold_angstrom": 2,
+    "essential_top_pose_success": true,
+    "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags)."
+  },
+  "results": [
+    {
+      "id": "1STP",
+      "pdb": "1STP",
+      "ligand_resname": "BTN",
+      "essential": true,
+      "method": "multisite-v2",
+      "receptor_chains": "all",
+      "cofactor_selection": [],
+      "search": {
+        "pocket_limit": 1,
+        "exhaustiveness": 1,
+        "num_modes_per_pocket": 9,
+        "seed": 42,
+        "ranker": "fixed-coordinate Vina 1.2.x Vinardo score-only"
+      },
+      "artifact_directory": "artifacts/20261020T153832438496Z/1STP",
+      "ligand_copies": [
+        {
+          "chain": "A",
+          "residue_number": "300",
+          "insertion_code": "",
+          "heavy_atoms": 16
+        }
+      ],
+      "cofactor_preparation": [],
+      "fpocket_candidates": [
+        {
+          "rank": 1,
+          "center": [
+            10.566,
+            2.844,
+            -10.458
+          ],
+          "size": [
+            21.805,
+            21.514,
+            21.442
+          ],
+          "atom_count": 41,
+          "residues": [
+            "ALA50:A",
+            "ALA86:A",
+            "ASN23:A",
+            "ASN49:A",
+            "ASP128:A",
+            "GLY48:A",
+            "LEU110:A",
+            "LEU124:A",
+            "LEU25:A",
+            "SER112:A",
+            "SER27:A",
+            "SER45:A",
+            "SER88:A",
+            "THR90:A",
+            "TRP108:A",
+            "TRP79:A",
+            "TRP92:A",
+            "TYR43:A",
+            "VAL47:A"
+          ],
+          "residue_ids": [
+            {
+              "chain": "A",
+              "residue_number": 88,
+              "residue_name": "SER"
+            },
+            {
+              "chain": "A",
+              "residue_number": 49,
+              "residue_name": "ASN"
+            },
+            {
+              "chain": "A",
+              "residue_number": 86,
+              "residue_name": "ALA"
+            },
+            {
+              "chain": "A",
+              "residue_number": 112,
+              "residue_name": "SER"
+            },
+            {
+              "chain": "A",
+              "residue_number": 47,
+              "residue_name": "VAL"
+            },
+            {
+              "chain": "A",
+              "residue_number": 110,
+              "residue_name": "LEU"
+            },
+            {
+              "chain": "A",
+              "residue_number": 108,
+              "residue_name": "TRP"
+            },
+            {
+              "chain": "A",
+              "residue_number": 45,
+              "residue_name": "SER"
+            },
+            {
+              "chain": "A",
+              "residue_number": 124,
+              "residue_name": "LEU"
+            },
+            {
+              "chain": "A",
+              "residue_number": 48,
+              "residue_name": "GLY"
+            },
+            {
+              "chain": "A",
+              "residue_number": 92,
+              "residue_name": "TRP"
+            },
+            {
+              "chain": "A",
+              "residue_number": 90,
+              "residue_name": "THR"
+            },
+            {
+              "chain": "A",
+              "residue_number": 25,
+              "residue_name": "LEU"
+            },
+            {
+              "chain": "A",
+              "residue_number": 79,
+              "residue_name": "TRP"
+            },
+            {
+              "chain": "A",
+              "residue_number": 50,
+              "residue_name": "ALA"
+            },
+            {
+              "chain": "A",
+              "residue_number": 43,
+              "residue_name": "TYR"
+            },
+            {
+              "chain": "A",
+              "residue_number": 128,
+              "residue_name": "ASP"
+            },
+            {
+              "chain": "A",
+              "residue_number": 23,
+              "residue_name": "ASN"
+            },
+            {
+              "chain": "A",
+              "residue_number": 27,
+              "residue_name": "SER"
+            }
+          ],
+          "score": 0.165,
+          "druggability_score": 0.568,
+          "number_of_alpha_spheres": 66,
+          "total_sasa": 173.938,
+          "polar_sasa": 38.683,
+          "apolar_sasa": 135.254,
+          "volume": 475.519,
+          "mean_local_hydrophobic_density": 34.056,
+          "mean_alpha_sphere_radius": 3.954
+        }
+      ],
+      "search_complete": true,
+      "search_errors": [],
+      "evaluated_pose_count": 7,
+      "ranked_pose": {
+        "rank": 1,
+        "pocket_rank": 1,
+        "original_model": 1,
+        "vina_affinity": -6.292,
+        "vinardo_score": -4.43,
+        "rmsd_by_copy": [
+          0.8198785733265628
+        ],
+        "best_copy_index": 0,
+        "top_pose_rmsd_angstrom": 0.8198785733265628
+      },
+      "selected_pocket_site_offsets_angstrom": [
+        1.3217374780710047
+      ],
+      "site_coverage_passed": true,
+      "pose_recovery_passed": true,
+      "passed": true,
+      "selected_ligand_copy_index": 0,
+      "vina_version": "1.2.7",
+      "runtime_seconds": 26.72,
+      "artifact_sha256": {
+        "top-ranked-pose.pdbqt": "ff4a22b63c59486bdbbf1bf0cc572b79d10fcdfc1664365d9856edaf87022fb8",
+        "top-ranked-pose.sdf": "07d23405f7b56dfa4122c18b7d4b08c4a4189dd14fdb21cec88a8a9510dad2c0",
+        "ligand-reference.sdf": "c46af9416afe19384cb844644c3b177cca63d5911cf53fba67e911e67429cc18",
+        "source.pdb": "6fbb3d5c324e717fe7284703426e74ea58191431720daab1b2faa0bbb6430f30",
+        "ranked-poses.json": "aea35990c096bef6dbe7d1cef9a8b33e92d1bc485f546c71eba6cd833c909b09",
+        "ligand.pdbqt": "a179a3e97dfcce0902039ca2e0c96af8d933e6d03984c95b7264f3f077b2a893",
+        "ligand-ccd.cif": "9fff069dc9e0387d49c3ef62cab0867a10dae56274931a779fb87f377b9c11ea",
+        "receptor.pdbqt": "1726f99e54b20ebd611301fc2895311f47e5776316da10b7f684d9bcc0186d4c",
+        "vina.log": "8de28f35b2ed5191be9a64e33f0b61760308a90020beff688ca92c9cd616de14",
+        "mode-04.vinardo.log": "943400d71b86b199f138fefd898cf129b47668ff476403b65eba387679c1bc29",
+        "grid.json": "0d51890b0311692631315aed438172a10e5ff9413a1c48bf25e9946361e8cd14",
+        "poses.pdbqt": "dfa29ac42e8f8ce45d39bba0edf9114f40d5e34596a9e226cf009ec3c0cd089f",
+        "mode-01.vinardo.log": "62671dd869127e8e372ba010d7b4b4e147caf12d66f2e751a7afecbded6765fd",
+        "mode-02.vinardo.log": "f2a9132c8214a75760a950cce829b0ea2859c8007baaffa53705201363360c22",
+        "mode-06.vinardo.log": "ebe4c9d400da33318f62ada59abeab7dbdc902b4136ab61f698287d8631d92cd",
+        "mode-03.vinardo.log": "fc01af094a4af5951e5b65c66dd90b2d21b850b722ea1dc2679464b988aedf89",
+        "mode-05.vinardo.log": "069b931cdcefa79d32cdb2b51467fc731d1f4798de46d35714516a840423d32f",
+        "mode-07.vinardo.log": "236c05eb0abb493a645590e9dbabccc813d3b3419e234c2aec3fdd299d133185"
+      }
+    }
+  ]
+}

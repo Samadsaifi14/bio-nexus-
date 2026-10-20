@@ -1,0 +1,130 @@
+{
+  "benchmark": "bionexus-redock-panel/v1",
+  "run_id": "20261020T143740483253Z",
+  "fixture_revision": "2026-10-19-ccd-chemistry-repair",
+  "fixture_sha256": "b4c3da2c69c53b1fa0e195f80388007fc1397f83c0afd8d3cb4ad5849212cbcf",
+  "tool_versions": {
+    "python": "3.12.14",
+    "rdkit": "2026.09.1",
+    "openbabel": "Open Babel 3.1.0 -- Feb 17 2026 -- 06:47:59",
+    "vina_binary_sha256": "f31f774f723bba7bbe6e9d1c47577020eea9a8da16424284c043d22593570644",
+    "fpocket_binary_sha256": "9510304c12812da39c2a6fc760f0b2ebd987b48b23e06e6dceda840c57e43e3a"
+  },
+  "code_sha256": {
+    "benchmark/fixtures/docking/run_redock_panel.py": "9b19ebbde93fa69e9e3084c5ced6f4fa0f1103c0a996487bcd99cd566ba54403",
+    "bioai-platform/backend/app/tools/docking.py": "31489aa713bd6371c72f415997450cff9c0a7f62dc949208b30423936255b90f",
+    "bioai-platform/backend/app/benchmarking/docking_redock.py": "5ad350f43a3da88cd848cc880997f934300a41461f5d5b41ea85fffbd2453ecb",
+    "bioai-platform/backend/app/benchmarking/ligand_reference.py": "fe18fa79345f127f6b571797a0e749cde6402fed4ecca102d1048d3feb3d6915"
+  },
+  "executed_at_utc": "2026-10-20T14:37:40.644745+00:00",
+  "status": "failed",
+  "recorded": "2026-10-20",
+  "n_complexes": 10,
+  "n_passed": 0,
+  "passed_fraction": 0.0,
+  "essential_passed": false,
+  "success_criteria": {
+    "panel_pass_threshold_frac": 0.7,
+    "per_complex_rmsd_threshold_angstrom": 2,
+    "essential_top_pose_success": true,
+    "note": "A complex is a per-complex PASS only if the top-docked pose (mode 1) recovers the crystal pose with heavy-atom RMSD < 2.0 A. The panel PASSES when >=70% of complexes pass AND at least one is an essential control selected for ligand/pose difficulty (see essential: true flags)."
+  },
+  "results": [
+    {
+      "id": "1STP",
+      "pdb": "1STP",
+      "ligand_resname": "BTN",
+      "essential": true,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.1
+    },
+    {
+      "id": "1IEP",
+      "pdb": "1IEP",
+      "ligand_resname": "STI",
+      "essential": true,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "1HVR",
+      "pdb": "1HVR",
+      "ligand_resname": "XK2",
+      "essential": true,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "2F12",
+      "pdb": "2F12",
+      "ligand_resname": "HTM",
+      "essential": true,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "1GKC",
+      "pdb": "1GKC",
+      "ligand_resname": "NFH",
+      "essential": false,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "1OYT",
+      "pdb": "1OYT",
+      "ligand_resname": "FSN",
+      "essential": false,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "1UYG",
+      "pdb": "1UYG",
+      "ligand_resname": "PU2",
+      "essential": false,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "2H4G",
+      "pdb": "2H4G",
+      "ligand_resname": "694",
+      "essential": false,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "1Q4T",
+      "pdb": "1Q4T",
+      "ligand_resname": "4CO",
+      "essential": false,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    },
+    {
+      "id": "1P62",
+      "pdb": "1P62",
+      "ligand_resname": "GEO",
+      "essential": false,
+      "passed": false,
+      "error": "Using SOCKS proxy, but the 'socksio' package is not installed. Make sure to install httpx using `pip install httpx[socks]`.",
+      "runtime_s": 0.0
+    }
+  ],
+  "limitations": [
+    "Redocking exercises pose reproduction only; it does NOT measure affinity prediction accuracy, scoring function rank quality, or screening enrichment.",
+    "Crystal-ligand seeding uses the native pose as input geometry (extracted from the same PDB), which is the standard redocking setup but is more permissive than true virtual-screening blind docking.",
+    "Frozen receptor approximation ignores induced fit; flexible side-chain and ensemble docking are explicitly out of scope for this panel.",
+    "Panel execution requires the API container (AutoDock Vina + OpenBabel + fpocket). When the tools are absent the runner writes a requires_external record and never reports a pass."
+  ]
+}

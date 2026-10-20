@@ -1,6 +1,6 @@
 # Docking method v2 — declared before comparative execution
 
-Status: implementation and validation pending. The original v1 panel remains the baseline.
+Status: implemented; the ligand-aware box rule is covered by unit tests. The original v1 panel remains the baseline.
 
 ## Selection, preparation and ranking
 

@@ -12,6 +12,7 @@ import asyncio
 import logging
 import os
 import re
+import threading
 from time import monotonic
 import httpx
 
@@ -19,6 +20,27 @@ logger = logging.getLogger(__name__)
 
 NCBI_BLAST_URL = "https://blast.ncbi.nlm.nih.gov/blast/Blast.cgi"
 RATE_LIMIT_SECONDS = 10
+
+# NCBI's request-start limit applies across RIDs. Reserve starts under a
+# process-wide lock so concurrent BLAST jobs in one worker cannot burst past
+# it. Multi-worker deployments still need shared coordination at the queue.
+_request_slot_lock = threading.Lock()
+_next_request_slot = 0.0
+
+
+def _reserve_request_slot_delay() -> float:
+    global _next_request_slot
+    with _request_slot_lock:
+        now = monotonic()
+        start_at = max(now, _next_request_slot)
+        _next_request_slot = start_at + RATE_LIMIT_SECONDS
+        return max(0.0, start_at - now)
+
+
+async def _wait_for_request_slot() -> None:
+    delay = _reserve_request_slot_delay()
+    if delay:
+        await asyncio.sleep(delay)
 
 from app.config import settings
 
@@ -42,6 +64,7 @@ async def _request_with_retry(method: str, url: str, max_retries: int = 3, reque
     """
     for attempt in range(max_retries):
         try:
+            await _wait_for_request_slot()
             async with httpx.AsyncClient(timeout=httpx.Timeout(request_timeout, connect=15.0)) as client:
                 resp = await getattr(client, method)(url, **kwargs)
                 resp.raise_for_status()
@@ -220,11 +243,10 @@ async def _run_blast_attempts(
     degraded NCBI service cannot leave a BioNexus job apparently frozen.
     """
     last_error = None
-    MAX_RTOE = 90
 
     # The pipeline already has EBI as its primary BLAST provider. NCBI is the
-    # fallback, so fail it promptly enough for the overall job to terminate
-    # cleanly instead of consuming tens of minutes on repeated QBLAST waits.
+    # fallback, so bound the wait without rejecting valid accepted RIDs just
+    # because NCBI reports a queue estimate over an arbitrary threshold.
     retries = min(max(int(retries), 0), 1)
     max_wait_seconds = min(max(int(max_wait_seconds), 60), 300)
     HARD_DEADLINE_S = max_wait_seconds + 120
@@ -272,21 +294,20 @@ async def _run_blast_attempts(
             attempt + 1, retries + 1, rid, est,
         )
 
-        if est > MAX_RTOE:
-            logger.warning(
-                "BLAST RTOE=%ds exceeds threshold (%ds) — abandoning NCBI fallback",
-                est, MAX_RTOE,
-            )
-            return {"error": f"NCBI estimated {est}s queue time (threshold {MAX_RTOE}s)",
-                    "status": "QUEUED", "rid": rid, "estimated_seconds": est,
-                    "search_complete": False}
-
         remaining = HARD_DEADLINE_S - (time.monotonic() - t0)
         per_attempt_budget = min(max_wait_seconds, int(remaining) - 30)
         if per_attempt_budget < 30:
             logger.warning("BLAST: only %.0fs left of hard deadline, skipping poll", remaining)
             last_error = f"BLAST: insufficient time remaining ({remaining:.0f}s) for poll"
             continue
+        if est > per_attempt_budget:
+            logger.warning(
+                "BLAST RTOE=%ds exceeds remaining poll budget (%ds); retaining RID=%s without resubmission",
+                est, per_attempt_budget, rid,
+            )
+            return {"error": f"NCBI estimated {est}s queue time exceeds the {per_attempt_budget}s poll budget",
+                    "status": "TIMEOUT", "rid": rid, "estimated_seconds": est,
+                    "search_complete": False}
 
         try:
             status_result = await check_status_until_ready(

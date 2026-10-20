@@ -1,0 +1,16 @@
+{
+  "score_grid": {
+    "center": [
+      8.218,
+      2.8815,
+      -11.118
+    ],
+    "size": [
+      21.805,
+      21.514,
+      21.442
+    ],
+    "margin_angstrom": 6.0
+  },
+  "log": "AutoDock Vina v1.2.7\n#################################################################\n# If you used AutoDock Vina in your work, please cite:          #\n#                                                               #\n# J. Eberhardt, D. Santos-Martins, A. F. Tillack, and S. Forli  #\n# AutoDock Vina 1.2.0: New Docking Methods, Expanded Force      #\n# Field, and Python Bindings, J. Chem. Inf. Model. (2021)       #\n# DOI 10.1021/acs.jcim.1c00203                                  #\n#                                                               #\n# O. Trott, A. J. Olson,                                        #\n# AutoDock Vina: improving the speed and accuracy of docking    #\n# with a new scoring function, efficient optimization and       #\n# multithreading, J. Comp. Chem. (2010)                         #\n# DOI 10.1002/jcc.21334                                         #\n#                                                               #\n# Please see https://github.com/ccsb-scripps/AutoDock-Vina for  #\n# more information.                                             #\n#################################################################\n\nScoring function : vinardo\nRigid receptor: benchmark/results/docking/multisite-v2-summary-smoke-20261020/final-exit-smoke/artifacts/20261020T153832438496Z/1STP/receptor.pdbqt\nLigand: /tmp/bionexus-vinardo-u7ah4icm/pose.pdbqt\nGrid center: X 8.218 Y 2.8815 Z -11.118\nGrid size  : X 21.805 Y 21.514 Z 21.442\nGrid space : 0.375\nExhaustiveness: 8\nCPU: 1\nVerbosity: 1\n\nComputing Vinardo grid ... done.\nEstimated Free Energy of Binding   : -3.613 (kcal/mol) [=(1)+(2)+(3)-(4)]\n(1) Final Intermolecular Energy    : -4.669 (kcal/mol)\n    Ligand - Receptor              : -4.669 (kcal/mol)\n    Ligand - Flex side chains      : 0.000 (kcal/mol)\n(2) Final Total Internal Energy    : -0.251 (kcal/mol)\n    Ligand                         : -0.251 (kcal/mol)\n    Flex   - Receptor              : 0.000 (kcal/mol)\n    Flex   - Flex side chains      : 0.000 (kcal/mol)\n(3) Torsional Free Energy          : 1.056 (kcal/mol)\n(4) Unbound System's Energy        : -0.251 (kcal/mol)\n\n"
+}

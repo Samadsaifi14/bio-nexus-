@@ -1,0 +1,70 @@
+{
+  "docs/verification/2026-10-20-combined-repair/REPORT.md": {
+    "sha256": "3f9927d40d872aaa00f1469e740412cdaa9c5cc556d05931be97dc600051cfe7",
+    "bytes": 8005
+  },
+  "docs/verification/2026-10-20-combined-repair/summary.json": {
+    "sha256": "f200b57710857405ed18f87dfe420f54e65b1bb3f238b7f9bf81929aacc562b8",
+    "bytes": 7807
+  },
+  "docs/verification/2026-10-20-combined-repair/source-provenance.json": {
+    "sha256": "68cefa6e20e7edb8b2a8110fe82ef6237c88700655b1e182a16990f9218f3236",
+    "bytes": 3670
+  },
+  "docs/verification/2026-10-20-combined-repair/focused-regressions.xml": {
+    "sha256": "32f18c5583db7fff1864c90b4b9ca1f5130327c2c8996b62c56c6ca7ae85e41a",
+    "bytes": 12589
+  },
+  "docs/verification/2026-10-20-combined-repair/ncbi-live-rerun.xml": {
+    "sha256": "c6f207e01f835530b31c83eb69bfe606dcc040354d83138748296aa89daa8690",
+    "bytes": 1736
+  },
+  "docs/verification/2026-10-20-combined-repair/rcsb-refetches.json": {
+    "sha256": "9ea458a1d5ed05a9f2fb8b79d22153814f6528f3461ff8e404bf8f5ea45d8ccd",
+    "bytes": 957
+  },
+  "benchmark/results/docking/redock-refresh-20261020/latest.json": {
+    "sha256": "329278d46caf487a6e990f7e03d656f8190353b213dd63d7b086f867ad4f2cca",
+    "bytes": 425571
+  },
+  "benchmark/results/docking/redock-refresh-20261020/artifacts.zip": {
+    "sha256": "a92b06da10ad21eb85cbb9d795db738bd16a743fd769c5e10b8330521e3214d9",
+    "bytes": 1020410
+  },
+  "benchmark/results/docking/v1-dependency-rerun-20261020/latest.json": {
+    "sha256": "1f5c65c0a8a704dea1262a41ed1da5b4b9e7f4543f52485ab259469b238c2d2e",
+    "bytes": 146082
+  },
+  "benchmark/results/docking/v1-dependency-rerun-20261020/artifacts.zip": {
+    "sha256": "c99537e033efa22a82371639b0aa707b23935634eb9a8cbc57af7e7b7dc61b51",
+    "bytes": 308486
+  },
+  "benchmark/results/docking/multisite-v2-diagnostic-20261020/latest.json": {
+    "sha256": "c8e081ded7784e0a9077ccaa5d9382998ab4a8a12ed0ebaf9c53142b61e80c9d",
+    "bytes": 16403
+  },
+  "benchmark/results/docking/multisite-v2-diagnostic-20261020/artifacts.zip": {
+    "sha256": "11059168e46982a1c4895d54ab1ae3028365212b6dc30fa1358a9fc47d25826b",
+    "bytes": 196989
+  },
+  "benchmark/results/docking/multisite-v2-full-scored-20261020/latest.json": {
+    "sha256": "fd5ce70997b545771353f6be441de9873848883510b4034213dd3965d870400e",
+    "bytes": 177177
+  },
+  "benchmark/results/docking/multisite-v2-full-scored-20261020/artifacts.zip": {
+    "sha256": "a542d10a9ace45018750c196c95a828a3f8b2b2a2898910ba19cc5a72688dc10",
+    "bytes": 1803805
+  },
+  "benchmark/fixtures/manifests/fixtures_manifest.json": {
+    "sha256": "9ed92b71df076c716f480fdb92acbd5ea147f2497c592c046772c106521b7f8e",
+    "bytes": 6526
+  },
+  "docs/verification/2026-10-20-combined-repair/incremental-regressions.xml": {
+    "sha256": "b7ca1fc98777a3c847d7b326ab9e4bc2b7fad8ed7bec248f6b2768935dcc5d2e",
+    "bytes": 13406
+  },
+  "benchmark/fixtures/docking/PROTOCOL_V2.md": {
+    "sha256": "e171e7793834e82f9c785af94dde8658748b3efebc9e9a58bf9f1ddbbb267f07",
+    "bytes": 2910
+  }
+}

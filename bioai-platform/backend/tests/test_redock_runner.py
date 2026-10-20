@@ -34,6 +34,36 @@ def test_pdbqt_models_keep_pose_numbers_and_coordinates():
     assert runner._extract_pdbqt_models(text) == {1: "ATOM coordinates1\n", 2: "ATOM coordinates2\n"}
 
 
+def test_rcsb_fetch_retries_transient_proxy_errors_and_validates_coordinates(monkeypatch):
+    import httpx
+    attempts = []
+    delays = []
+    bodies = [
+        httpx.Response(403, text="proxy unavailable", request=httpx.Request("GET", "https://files.rcsb.org/download/1STP.pdb")),
+        httpx.Response(200, text="HEADER    EMPTY RESPONSE\n", request=httpx.Request("GET", "https://files.rcsb.org/download/1STP.pdb")),
+        httpx.Response(200, text="ATOM      1  CA  ALA A   1       1.000   2.000   3.000\n", request=httpx.Request("GET", "https://files.rcsb.org/download/1STP.pdb")),
+    ]
+    def get(url, **kwargs):
+        attempts.append((url, kwargs))
+        return bodies.pop(0)
+    monkeypatch.setattr(runner.httpx, "get", get)
+    monkeypatch.setattr(runner.time, "sleep", delays.append)
+    result = runner._fetch_pdb("1stp")
+    assert result.startswith("ATOM")
+    assert len(attempts) == 3
+    assert delays == [1, 2]
+    assert attempts[-1][1]["follow_redirects"] is True
+
+
+def test_rcsb_fetch_fails_explicitly_after_invalid_responses(monkeypatch):
+    import httpx
+    request = httpx.Request("GET", "https://files.rcsb.org/download/1STP.pdb")
+    monkeypatch.setattr(runner.httpx, "get", lambda *a, **k: httpx.Response(200, text="temporarily unavailable", request=request))
+    monkeypatch.setattr(runner.time, "sleep", lambda _: None)
+    with pytest.raises(RuntimeError, match="after 4 attempts"):
+        runner._fetch_pdb("1STP")
+
+
 def test_crystal_extraction_selects_one_ligand_residue():
     line = "HETATM  903  C11 BTN A 300       9.051   4.576 -14.459  1.00 21.57           C  "
     second = line[:22] + " 301" + line[26:]

@@ -118,7 +118,7 @@ class TestNCBIBlastIntegration:
         result = await run_blast_with_retry(
             "TTCCPSIVARSNFNVCRLPG",
             retries=2,
-            max_wait_seconds=180,
+            max_wait_seconds=300,
             program="blastp",
             database="swissprot",
             hitlist_size=10,
@@ -139,7 +139,7 @@ class TestNCBIBlastIntegration:
         result = await run_blast_with_retry(
             "MVHLTPEEKSAVTALWGKVNVDEVGGEALGRLLVVYPWTQRFFESFGDLSTPDAVMGNPKVKAHGKKVLGAFSDGLAHLDNLKGTFATLSELHCDKLHVDPENFRLLGNVLVCVLAHHFGKEFTPPVQAAYQKVVAGVANALAHKYH",
             retries=2,
-            max_wait_seconds=180,
+            max_wait_seconds=300,
             program="blastp",
             database="swissprot",
             hitlist_size=10,
@@ -457,7 +457,7 @@ class TestBlastReliability:
             result = await run_blast_with_retry(
                 sequence,
                 retries=2,
-                max_wait_seconds=120,
+                max_wait_seconds=300,
                 program="blastp",
                 database="swissprot",
                 hitlist_size=5,

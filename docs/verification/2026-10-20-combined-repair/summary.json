@@ -1,0 +1,265 @@
+{
+  "recorded_at_utc": "2026-10-20",
+  "base_commit": "d4b5689",
+  "focused_regressions": {
+    "total": 87,
+    "passed": 87,
+    "failed": 0,
+    "skipped": 0,
+    "junit": "focused-regressions.xml"
+  },
+  "fresh_ncbi_live_rerun": {
+    "total": 3,
+    "passed": 0,
+    "failed": 3,
+    "skipped": 0,
+    "tests": [
+      {
+        "test": "test_ncbi_blast_full_roundtrip_short_seq",
+        "duration_seconds": 308.259,
+        "status": "failed",
+        "failure": "Failed: NCBI BLAST roundtrip failed (external API issue): NCBI search did not complete within the polling budget"
+      },
+      {
+        "test": "test_ncbi_blast_parse_xml",
+        "duration_seconds": 320.708,
+        "status": "failed",
+        "failure": "Failed: BLAST failed: NCBI search did not complete within the polling budget"
+      },
+      {
+        "test": "test_consecutive_blast_runs",
+        "duration_seconds": 635.89,
+        "status": "failed",
+        "failure": "AssertionError: Too many BLAST failures: 3/3 failed\nassert 0 >= 2"
+      }
+    ],
+    "junit": "ncbi-live-rerun.xml",
+    "observed_rtoe_seconds": 21223
+  },
+  "v1_redocking": {
+    "total": 10,
+    "passed": 4,
+    "failed": 6,
+    "skipped": 0,
+    "single_run": false,
+    "full_run_id": "20261020T143826741765Z",
+    "supplement_run_id": "20261020T145108009718Z",
+    "results": [
+      {
+        "id": "1STP",
+        "passed": true,
+        "site_offset_angstrom": 1.3217374780710047,
+        "top_pose_rmsd_angstrom": 0.8561054622533371,
+        "error": null
+      },
+      {
+        "id": "1IEP",
+        "passed": false,
+        "site_offset_angstrom": 59.03154912785725,
+        "top_pose_rmsd_angstrom": 62.014948203660566,
+        "error": "grid does not cover site (offset 59.0 A); native docking completed for diagnosis"
+      },
+      {
+        "id": "1HVR",
+        "passed": true,
+        "site_offset_angstrom": 0.4900945859868376,
+        "top_pose_rmsd_angstrom": 0.5148776764816382,
+        "error": null
+      },
+      {
+        "id": "2F12",
+        "passed": false,
+        "site_offset_angstrom": 10.122009505222897,
+        "top_pose_rmsd_angstrom": 3.2512750454325814,
+        "error": "grid does not cover site (offset 10.1 A); native docking completed for diagnosis"
+      },
+      {
+        "id": "1GKC",
+        "passed": false,
+        "site_offset_angstrom": 19.375419951513848,
+        "top_pose_rmsd_angstrom": 19.94819039411846,
+        "error": "grid does not cover site (offset 19.4 A); native docking completed for diagnosis"
+      },
+      {
+        "id": "1OYT",
+        "passed": true,
+        "site_offset_angstrom": 2.4239649422198983,
+        "top_pose_rmsd_angstrom": 0.3208094449981173,
+        "error": null
+      },
+      {
+        "id": "1UYG",
+        "passed": true,
+        "site_offset_angstrom": 4.1352013119672755,
+        "top_pose_rmsd_angstrom": 0.6560639173406536,
+        "error": null
+      },
+      {
+        "id": "2H4G",
+        "passed": false,
+        "site_offset_angstrom": 1.3708573719538995,
+        "top_pose_rmsd_angstrom": 7.366091769207125,
+        "error": null
+      },
+      {
+        "id": "1Q4T",
+        "passed": false,
+        "site_offset_angstrom": 19.53271832899501,
+        "top_pose_rmsd_angstrom": null,
+        "error": "Command '['/tmp/vina_bin/vina', '--receptor', '/tmp/tmpph1lo6px/protein.pdbqt', '--ligand', '/tmp/tmpph1lo6px/ligand.pdbqt', '--center_x', '69.755', '--center_y', '35.89', '--center_z', '15.877', '--size_x', '16.0', '--size_y', '16.0', '--size_z', '19.666', '--exhaustiveness', '32', '--num_modes', '9', '--seed', '42', '--out', '/tmp/tmpph1lo6px/output.pdbqt']' timed out after 300 seconds"
+      },
+      {
+        "id": "1P62",
+        "passed": false,
+        "site_offset_angstrom": 9.69170280079885,
+        "top_pose_rmsd_angstrom": 13.186773914713855,
+        "error": "grid does not cover site (offset 9.7 A); native docking completed for diagnosis"
+      }
+    ],
+    "artifacts_archives": [
+      "benchmark/results/docking/redock-refresh-20261020/artifacts.zip",
+      "benchmark/results/docking/v1-dependency-rerun-20261020/artifacts.zip"
+    ]
+  },
+  "v2_redocking": {
+    "run_id": "20261020T145714856968Z",
+    "status": "historical_prior_method_6_of_10; not a result for final ligand-aware grid implementation",
+    "full_panel": true,
+    "total": 10,
+    "passed": 6,
+    "failed": 4,
+    "skipped": 0,
+    "pocket_limit": 5,
+    "exhaustiveness": 8,
+    "results": [
+      {
+        "id": "1STP",
+        "passed": true,
+        "top_pose_rmsd_angstrom": 0.8722339494080703,
+        "site_offsets_angstrom": [
+          1.3217374780710047
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "1IEP",
+        "passed": true,
+        "top_pose_rmsd_angstrom": 0.8386001849929854,
+        "site_offsets_angstrom": [
+          59.03154912785725,
+          4.779518913887708
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "1HVR",
+        "passed": true,
+        "top_pose_rmsd_angstrom": 0.5148776764816382,
+        "site_offsets_angstrom": [
+          0.4900945859868376
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "2F12",
+        "passed": false,
+        "top_pose_rmsd_angstrom": 5.231761915152686,
+        "site_offsets_angstrom": [
+          10.122009505222897
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "1GKC",
+        "passed": true,
+        "top_pose_rmsd_angstrom": 1.7740027159966918,
+        "site_offsets_angstrom": [
+          4.317876943304511,
+          35.44171958941249
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "1OYT",
+        "passed": true,
+        "top_pose_rmsd_angstrom": 0.3208094449981173,
+        "site_offsets_angstrom": [
+          2.4239649422198983
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "1UYG",
+        "passed": false,
+        "top_pose_rmsd_angstrom": 22.551013378761738,
+        "site_offsets_angstrom": [
+          20.414531132138237
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "2H4G",
+        "passed": false,
+        "top_pose_rmsd_angstrom": 7.203910231190253,
+        "site_offsets_angstrom": [
+          1.3708573719538995
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      },
+      {
+        "id": "1Q4T",
+        "passed": false,
+        "top_pose_rmsd_angstrom": 7.357520816753801,
+        "site_offsets_angstrom": [
+          29.60215653914649,
+          6.3791728786913
+        ],
+        "search_complete": false,
+        "search_error_count": 3
+      },
+      {
+        "id": "1P62",
+        "passed": true,
+        "top_pose_rmsd_angstrom": 0.2819858152460843,
+        "site_offsets_angstrom": [
+          3.915593492848123
+        ],
+        "search_complete": true,
+        "search_error_count": 0
+      }
+    ],
+    "artifacts_archive": "benchmark/results/docking/multisite-v2-full-scored-20261020/artifacts.zip",
+    "rerun_on_final_method": false
+  },
+  "inherited_197_case_results": {
+    "total": 197,
+    "passed": 194,
+    "failed": 3,
+    "skipped": 0,
+    "missing": 0,
+    "fresh_execution_this_run": false
+  },
+  "full_suite_rerun": false,
+  "incremental_offline_regressions": {
+    "total": 93,
+    "passed": 93,
+    "failed": 0,
+    "skipped": 0,
+    "junit": "incremental-regressions.xml",
+    "tests": [
+      "test_ncbi_status_contract.py",
+      "test_docking_integrity.py",
+      "test_docking_multisite.py",
+      "test_blast_resilience.py",
+      "test_redock_runner.py"
+    ]
+  }
+}

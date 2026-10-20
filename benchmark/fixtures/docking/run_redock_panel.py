@@ -64,9 +64,23 @@ def _fetch_pdb(pdb_id: str) -> str:
     normalized = pdb_id.strip().upper()
     if re.fullmatch(r"[0-9][A-Z0-9]{3}", normalized) is None:
         raise ValueError(f"invalid PDB: {pdb_id!r}")
-    resp = httpx.get(f"{RCSB_DOWNLOAD_BASE}/{normalized}.pdb", timeout=60.0, follow_redirects=False)
-    resp.raise_for_status()
-    return resp.text
+    url = f"{RCSB_DOWNLOAD_BASE}/{normalized}.pdb"
+    failures = []
+    for attempt in range(4):
+        try:
+            resp = httpx.get(url, timeout=60.0, follow_redirects=True,
+                             headers={"User-Agent": "BioNexus-redock-benchmark/1.0"})
+            resp.raise_for_status()
+            data = resp.text
+            if not any(line.startswith(("ATOM  ", "HETATM")) for line in data.splitlines()):
+                raise ValueError(f"RCSB response for {normalized} has no coordinate records")
+            return data
+        except (httpx.HTTPError, ValueError) as exc:
+            failures.append(f"attempt {attempt + 1}: {type(exc).__name__}: {exc}")
+            if attempt < 3:
+                time.sleep(2 ** attempt)
+    raise RuntimeError(f"RCSB failed to provide a valid PDB for {normalized} after 4 attempts: "
+                       + "; ".join(failures))
 
 
 def _split_ligand_receptor(pdb_text: str, lig_resname: str):

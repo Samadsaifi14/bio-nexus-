@@ -5,7 +5,7 @@ redis
 httpx[socks]  # Supports managed environments whose HTTPS egress uses a SOCKS proxy.
 requests>=2.31  # official BLAST database provisioning
 aiohttp
-biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)
+biopython>=1.88  # PairwiseAligner + substitution_matrices (Bio.Align)
 litellm
 sentry-sdk
 python-dotenv

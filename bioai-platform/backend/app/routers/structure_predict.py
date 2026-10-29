@@ -10,6 +10,8 @@ from pydantic import BaseModel, Field
 
 from app.tools.structure_prep import esmfold_predict
 from app.services import job_state
+from app.services import job_registry
+from app.services.auth import get_user_id
 from app.services.de_novo import _mean_plddt_from_pdb  # single CA-only mean pLDDT source (per-residue)
 
 logger = logging.getLogger(__name__)
@@ -32,6 +34,8 @@ def _patch(job_id: str, **kw) -> None:
         job.update(kw)
         snapshot = dict(job)
     job_state.mirror(job_id, _JOB_KIND, snapshot)
+    # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
+    job_registry.propagate_patch("structure_predict", job_id, kw)
 
 
 def _reconcile() -> int:
@@ -40,6 +44,8 @@ def _reconcile() -> int:
         with _lock:
             if job_id not in _jobs:
                 _jobs[job_id] = state
+        if isinstance(state, dict) and state.get("interrupted"):
+            job_registry.finish(job_id, status="failed", error=state.get("error"))
 
     return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
 
@@ -76,7 +82,7 @@ def _validate_sequence(seq: str) -> str:
 
 
 @router.post("/predict", response_model=PredictResponse)
-async def submit_prediction(body: PredictRequest):
+async def submit_prediction(body: PredictRequest, user_id: str | None = Depends(get_user_id)):
     try:
         clean_seq = _validate_sequence(body.sequence)
     except ValueError as e:
@@ -84,6 +90,11 @@ async def submit_prediction(body: PredictRequest):
 
     job_id = str(uuid.uuid4())
     _patch(job_id, status="running", pdb=None, mean_plddt=None, ptm=None, error=None)
+    job_registry.start(
+        "structure_predict", user_id, job_id=job_id,
+        query_preview=f"ESMFold · {len(clean_seq)} aa",
+        context={"sequence_length": len(clean_seq), "title": body.job_title},
+    )
 
     asyncio.create_task(_run_esmfold(job_id, clean_seq))
     return PredictResponse(job_id=job_id)

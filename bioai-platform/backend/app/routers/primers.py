@@ -1,10 +1,12 @@
 import json
 import re
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from typing import Any, Optional
 
 from app.scientific.contract import sha256_hex
+from app.services import job_registry
+from app.services.auth import get_user_id
 from app.services.ncbi_service import NCBIService
 from app.tools.oligo_qc import clean, is_dna, oligo_report, dimer_analysis, in_silico_pcr
 from app.tools.primer_advanced import multiplex_compatibility, snp_overlap
@@ -80,7 +82,7 @@ class PrimerDesignResult(BaseModel):
 
 
 @router.post("/design", response_model=PrimerDesignResult)
-async def design_primers(req: PrimerRequest):
+async def design_primers(req: PrimerRequest, user_id: str | None = Depends(get_user_id)):
     if not HAS_PRIMER3:
         raise HTTPException(503, "Primer3 is not installed on this server")
     seq = req.sequence.upper().replace(" ", "").replace("\n", "")
@@ -137,6 +139,12 @@ async def design_primers(req: PrimerRequest):
     if not pairs:
         raise HTTPException(404, "No primer pairs found. Try relaxing GC%, Tm, or product size constraints.")
     canonical = json.dumps([p.model_dump() for p in pairs], sort_keys=True, separators=(",", ":"))
+    job_registry.record_completed(
+        "primer_design", user_id,
+        query_preview=f"Primer design · {len(seq)} bp",
+        context={"template_length": len(seq), "pairs_found": len(pairs),
+                 "opt_tm": req.opt_tm},
+    )
     return PrimerDesignResult(
         engine="Primer3",
         engine_version=PRIMER3_VERSION,
@@ -253,7 +261,7 @@ class PrimerAnalyzeRequest(BaseModel):
 
 
 @router.post("/analyze")
-async def analyze_primer(req: PrimerAnalyzeRequest):
+async def analyze_primer(req: PrimerAnalyzeRequest, user_id: str | None = Depends(get_user_id)):
     left = clean(req.left_seq)
     right = clean(req.right_seq)
     if not is_dna(left) or not is_dna(right):
@@ -298,6 +306,13 @@ async def analyze_primer(req: PrimerAnalyzeRequest):
             response["ai_interpretation"] = ai_interp
     except Exception:
         pass
+    pcr = response.get("pcr") or {}
+    job_registry.record_completed(
+        "primer_qc", user_id,
+        query_preview=f"Primer QC · {len(left)}+{len(right)} bp",
+        context={"left_length": len(left), "right_length": len(right),
+                 "pcr_specific": pcr.get("specific")},
+    )
     return response
 
 

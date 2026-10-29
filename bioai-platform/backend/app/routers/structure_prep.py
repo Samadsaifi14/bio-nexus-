@@ -162,6 +162,14 @@ async def run_pipeline(body: PipelineRequest, user_id: str = Depends(require_use
     task = asyncio.create_task(_run_pipeline(job_id, body))
     _TASKS.add(task)
     task.add_done_callback(_TASKS.discard)
+    from app.services import job_registry
+    input_desc = body.pdb_id or body.uniprot_accession or (f"{len(body.sequence)} aa" if body.sequence else "input")
+    job_registry.start(
+        "structure_prep", user_id, job_id=job_id,
+        query_preview=f"Prep · {input_desc}",
+        context={"pdb_id": body.pdb_id, "uniprot_accession": body.uniprot_accession,
+                 "skip_repair": body.skip_repair, "skip_castp": body.skip_castp},
+    )
     return {"job_id": job_id, "status": "running"}
 
 
@@ -246,6 +254,9 @@ def _update_job(supabase, job_id: str, **fields) -> None:
     # so no write ever ran and jobs sat in "running" forever.)
     fields["updated_at"] = datetime.now(timezone.utc).isoformat()
     supabase.table(_TABLE).update(fields).eq("id", job_id).execute()
+    # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
+    from app.services import job_registry
+    job_registry.propagate_patch("structure_prep", job_id, fields)
 
 
 def _fail(supabase, job_id: str, message: str) -> None:

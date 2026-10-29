@@ -11,6 +11,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, model_validator
 
 from app.services.auth import get_user_id
+from app.services import job_registry
 
 router = APIRouter(prefix="/api/admet", tags=["ADMET"])
 
@@ -148,6 +149,15 @@ async def compute_descriptors(body: ADMETRequest, user_id: str | None = Depends(
         except Exception:
             pass
 
+        drug_likeness = result.get("drug_likeness") or {}
+        job_registry.record_completed(
+            "admet", user_id,
+            query_preview=f"ADMET · {chemical_name or smiles[:20]}",
+            context={"input": chemical_name or (smiles[:60] if smiles else None),
+                     "pubchem_cid": cid,
+                     "qed_score": result.get("qed_score"),
+                     "lipinski_pass": (drug_likeness.get("lipinski") or {}).get("pass")},
+        )
         return ADMETResponse(result=result)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
@@ -191,6 +201,12 @@ async def predict_toxicity(body: ProToxRequest, user_id: str | None = Depends(ge
         result["chemical_name"] = chemical_name or body.name
         if cid is not None:
             result["pubchem_cid"] = cid
+        job_registry.record_completed(
+            "protox", user_id,
+            query_preview=f"ProTox · {chemical_name or smiles[:20]}",
+            context={"input": chemical_name or (smiles[:60] if smiles else None),
+                     "requested_models": body.models},
+        )
         return ADMETResponse(result=result)
     except ProToxError as e:
         raise HTTPException(status_code=502, detail=str(e))

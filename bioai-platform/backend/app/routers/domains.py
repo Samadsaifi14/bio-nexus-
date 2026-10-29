@@ -14,9 +14,10 @@ Provides comprehensive protein feature analysis:
   - Pathway annotations (KEGG, Reactome, WikiPathways)
   - Combined analysis endpoint
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 from app.config import settings
+from app.services.auth import get_user_id
 from app.tools.domain_analysis import (
     _sanitize,
     fetch_interpro_domains,
@@ -303,12 +304,20 @@ class ScanPrositeResponse(BaseModel):
 
 
 @router.post("/scan", response_model=ScanPrositeResponse)
-async def scan_prosite(req: ScanPrositeRequest):
+async def scan_prosite(req: ScanPrositeRequest, user_id: str | None = Depends(get_user_id)):
     """Scan a raw protein sequence against PROSITE signatures (best-effort)."""
     email = settings.NCBI_EMAIL or ""
     result = await scan_prosite_sequence(req.sequence, email)
     if "error" in result:
         raise HTTPException(status_code=400, detail=result["error"])
+    if user_id:
+        from app.services import job_registry
+        job_registry.record_completed(
+            "prosite_scan", user_id,
+            query_preview=f"PROSITE scan · {len(req.sequence)} aa",
+            context={"sequence_length": result.get("sequence_length"),
+                     "match_count": result.get("count")},
+        )
     return ScanPrositeResponse(**result)
 
 

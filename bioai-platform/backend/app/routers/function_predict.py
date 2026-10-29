@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 from app.services.supabase import get_client
 from app.services.auth import require_user_id
+from app.services import job_registry
 
 router = APIRouter(prefix="/api/function", tags=["Function Prediction"])
 _TABLE = "docking_jobs"  # reuse table with tool_type="function_predict"
@@ -54,6 +55,11 @@ async def predict_function_endpoint(request: Request, body: FunctionPredictReque
         else:
             raise
 
+    job_registry.start(
+        "function_predict", user_id, job_id=job_id,
+        query_preview=f"Function prediction · {body.pdb_id}",
+        context={"pdb_id": body.pdb_id},
+    )
     return FunctionPredictResponse(job_id=job_id, status="queued")
 
 
@@ -77,6 +83,7 @@ async def get_function_status(job_id: str, user_id: str = Depends(require_user_i
                 }).eq("id", job_id).execute()
                 data["status"] = "failed"
                 data["error"] = "Job timed out (exceeded 10 minute limit)"
+                job_registry.finish(job_id, status="failed", error=data["error"])
         except Exception:
             pass
 

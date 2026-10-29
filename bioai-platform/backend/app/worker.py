@@ -153,6 +153,19 @@ def _patch(table: str, job_id: str, payload: dict) -> None:
     import httpx
     url = f"{_base()}/rest/v1/{table}?id=eq.{job_id}"
     httpx.patch(url, headers=_headers(), json=payload, timeout=15)
+    # Mirror stale-sweep / worker failures into the shared jobs table too. The
+    # sweep emits both requeue and terminal payloads; the registry maps them to
+    # running/failed respectively, so history rows never pretend progress.
+    try:
+        from app.services import job_registry
+        _registry_kind = {
+            "docking_jobs": "docking", "sequencing_jobs": "sequencing",
+            "ngs_jobs": "ngs", "jobs": "pipeline",
+        }.get(table)
+        if _registry_kind:
+            job_registry.propagate_patch(_registry_kind, job_id, payload)
+    except Exception:
+        pass
 
 
 def _stale_recovery_payload(table: str, row: dict) -> dict:
@@ -405,6 +418,9 @@ def _run_md(job: dict) -> None:
             "storage_url": storage_url,
             "result_sdf": None,
         }).eq("id", job["id"]).execute()
+        from app.services import job_registry
+        job_registry.finish(job["id"], status="complete",
+                            context={"storage_url": storage_url})
         logger.info("MD simulation complete for %s (engine=%s)", pdb_id, result.get("engine", "unknown"))
     except Exception as exc:
         logger.exception("Worker MD error for %s", pdb_id)
@@ -437,6 +453,9 @@ def _run_function_predict(job: dict) -> None:
             "storage_url": storage_url,
             "result_sdf": None,
         }).eq("id", job["id"]).execute()
+        from app.services import job_registry
+        job_registry.finish(job["id"], status="complete",
+                            context={"storage_url": storage_url})
     except Exception as exc:
         logger.exception("Worker function prediction error for %s", job["id"])
         _handle_failure("docking_jobs", job, exc)

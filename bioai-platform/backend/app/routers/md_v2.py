@@ -11,13 +11,14 @@ import asyncio
 import logging
 from typing import Any, Optional
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.md.advanced_analysis import analyze_trajectory
 from app.md.engines import engine_status
 from app.md.orchestrator import STAGE_INTRO, build_md_pipeline
 from app.science.result import build_scientific_result
+from app.services.auth import get_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/md/v2", tags=["md-v2"])
@@ -240,7 +241,7 @@ def advanced_trajectory_analysis(payload: TrajectoryAnalysisRequest):
 
 
 @router.post("/analyze")
-async def analyze(payload: AnalyzeRequest):
+async def analyze(payload: AnalyzeRequest, user_id: str | None = Depends(get_user_id)):
     if payload.pdb_text:
         pdb_text = payload.pdb_text
         pdb_id = payload.pdb_id
@@ -349,4 +350,11 @@ async def analyze(payload: AnalyzeRequest):
     # Compatibility keys remain top-level while clients migrate to ScientificResult.
     scientific["requested"] = requested
     scientific["pipeline"] = report
+    from app.services import job_registry
+    job_registry.record_completed(
+        "md_v2", user_id,
+        query_preview=f"Staged MD · {pdb_id}",
+        context={"pdb_id": pdb_id, "forcefield": payload.forcefield,
+                 "solvent": payload.solvent, "scientific_status": scientific_status},
+    )
     return scientific

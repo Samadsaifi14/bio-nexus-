@@ -6,10 +6,12 @@ import logging
 from typing import Any, Literal
 
 import Bio
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.science.result import build_scientific_result
+from app.services import job_registry
+from app.services.auth import get_user_id
 from app.tools.sequence_utilities import (
     SequenceUtilitiesError,
     analyze_sequence,
@@ -78,12 +80,19 @@ class AnalyzeResponse(BaseModel):
 
 
 @router.post("/analyze", response_model=AnalyzeResponse)
-async def analyze_sequence_endpoint(req: AnalyzeRequest):
+async def analyze_sequence_endpoint(req: AnalyzeRequest, user_id: str | None = Depends(get_user_id)):
     """Legacy-shaped response backed by the same validated library as /operate."""
     try:
-        return analyze_sequence(req.sequence, req.seq_type)
+        result = analyze_sequence(req.sequence, req.seq_type)
     except SequenceUtilitiesError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    job_registry.record_completed(
+        "seq_analysis", user_id,
+        query_preview=f"Sequence analysis · {result.get('length', '?')} nt",
+        context={"seq_type": result.get("sequence_type"), "length": result.get("length"),
+                 "gc_percent": result.get("gc_percent")},
+    )
+    return result
 
 
 class SequenceOperationRequest(BaseModel):
@@ -235,19 +244,33 @@ class LibraryScanResponse(BaseModel):
 
 
 @router.post("/motif-scan", response_model=PatternScanResponse)
-async def scan_custom_pattern(req: PatternScanRequest):
+async def scan_custom_pattern(req: PatternScanRequest, user_id: str | None = Depends(get_user_id)):
     try:
-        return scan_pattern(req.sequence, req.pattern)
+        result = scan_pattern(req.sequence, req.pattern)
     except MotifError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    job_registry.record_completed(
+        "motif_scan", user_id,
+        query_preview=f"Motif scan · {req.pattern}",
+        context={"pattern": req.pattern, "match_count": result.get("count")},
+    )
+    return result
 
 
 @router.post("/motif-library", response_model=LibraryScanResponse)
-async def scan_motif_library(req: LibraryScanRequest):
+async def scan_motif_library(req: LibraryScanRequest, user_id: str | None = Depends(get_user_id)):
     try:
-        return scan_library(req.sequence, categories=req.categories)
+        result = scan_library(req.sequence, categories=req.categories)
     except MotifError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    job_registry.record_completed(
+        "motif_library", user_id,
+        query_preview=f"Motif library · {result.get('motifs_found', 0)} hits",
+        context={"patterns_scanned": result.get("patterns_scanned"),
+                 "motifs_found": result.get("motifs_found"),
+                 "top_hits": [h.get("name") for h in (result.get("hits") or [])[:5]]},
+    )
+    return result
 
 
 @router.get("/motif-library/patterns")
@@ -292,11 +315,19 @@ class DotPlotResponse(BaseModel):
 
 
 @router.post("/dotplot", response_model=DotPlotResponse)
-async def run_dotplot(req: DotPlotRequest):
+async def run_dotplot(req: DotPlotRequest, user_id: str | None = Depends(get_user_id)):
     try:
-        return compute_dotplot(req.seq_a, req.seq_b, window=req.window, stringency=req.stringency, scoring=req.scoring)
+        result = compute_dotplot(req.seq_a, req.seq_b, window=req.window, stringency=req.stringency, scoring=req.scoring)
     except DotPlotError as exc:
         raise HTTPException(status_code=400, detail=str(exc))
+    job_registry.record_completed(
+        "dotplot", user_id,
+        query_preview=f"Dot plot · {result.get('seq_a_length', '?')}×{result.get('seq_b_length', '?')}",
+        context={"scoring_used": result.get("scoring_used"),
+                 "total_matches": result.get("total_matches"),
+                 "dot_count": result.get("dot_count")},
+    )
+    return result
 
 
 class AlignmentInsightsRequest(BaseModel):

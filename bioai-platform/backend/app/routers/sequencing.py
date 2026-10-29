@@ -12,6 +12,7 @@ from pydantic import BaseModel
 from app.deps import limiter
 from app.services.supabase import get_supabase
 from app.services.auth import require_user_id
+from app.services import job_registry
 from app.services.ssrf import validate_url
 from app.services.rate_limit import check_daily_limit_sequencing
 
@@ -78,6 +79,8 @@ def _init(job_id: str, req: SequencingRequest, user_id: str) -> None:
 
 def _patch(job_id: str, **kw) -> None:
     get_supabase().table(_TABLE).update(kw).eq("id", job_id).execute()
+    # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
+    job_registry.propagate_patch("sequencing", job_id, kw)
 
 
 def _read(job_id: str, user_id: str | None = None) -> dict | None:
@@ -148,6 +151,11 @@ async def run_sequencing(request: Request, req: SequencingRequest, user_id: str 
 
     job_id = str(uuid.uuid4())
     _init(job_id, req, user_id)
+    job_registry.start(
+        "sequencing", user_id, job_id=job_id,
+        query_preview=f"FASTQ {req.reference}",
+        context={"reference": req.reference, "fastq_source": req.fastq_url},
+    )
     return {"job_id": job_id, "status": "queued"}
 
 

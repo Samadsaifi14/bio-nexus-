@@ -13,10 +13,12 @@ import re
 from typing import Any
 
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.science.result import build_scientific_result, failed_scientific_result
+from app.services import job_registry
+from app.services.auth import get_user_id
 from app.services.identifier_resolution import is_uniprot_accession, resolve_to_uniprot
 from app.tools.castp import PocketAnalysisError, analyze_pockets_pdb_text
 from app.tools.contacts import compute_intramolecular_contacts
@@ -185,7 +187,7 @@ def _method_label(method: str) -> str:
 
 
 @router.post("/analyze")
-async def analyze_pockets(body: CastpRequest):
+async def analyze_pockets(body: CastpRequest, user_id: str | None = Depends(get_user_id)):
     requested_method = _method_label(body.method)
     resolved = await _resolve_structure(body)
     pdb_text = resolved["pdb_text"]
@@ -266,6 +268,12 @@ async def analyze_pockets(body: CastpRequest):
             validation=validation,
         )
         failed["results"] = results
+        job_registry.record_completed(
+            "castp", user_id, error=str(validation.get("reason") or f"{requested_method} failed"),
+            query_preview=f"Pockets · {resolved['pdb_id'] or 'sequence'}",
+            context={"pdb_id": resolved["pdb_id"], "method": requested_method,
+                     "outcome": str(failed.get("status") or "FAILED")},
+        )
         return failed
 
     scientific = build_scientific_result(
@@ -285,5 +293,12 @@ async def analyze_pockets(body: CastpRequest):
             if str(method_result.get("method")) == "fpocket"
             else {"label": "Biopython", "url": "https://biopython.org/"}
         ],
+    )
+    job_registry.record_completed(
+        "castp", user_id,
+        query_preview=f"Pockets · {resolved['pdb_id'] or 'sequence'}",
+        context={"pdb_id": resolved["pdb_id"], "method": requested_method,
+                 "pocket_count": len(results.get("pockets") or []),
+                 "scientific_status": method_status},
     )
     return scientific

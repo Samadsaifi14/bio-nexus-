@@ -1,10 +1,12 @@
 import logging
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config import settings
+from app.services import job_registry
+from app.services.auth import get_user_id
 from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
 from app.tools.pairwise_alignment import PairwiseAlignError, pairwise_align
 from app.tools.sequence_fetch import fetch_sequence_by_accession
@@ -63,7 +65,7 @@ class PairwiseAlignResponse(BaseModel):
 
 
 @router.post("/pairwise", response_model=PairwiseAlignResponse)
-async def run_pairwise(req: PairwiseAlignRequest):
+async def run_pairwise(req: PairwiseAlignRequest, user_id: str | None = Depends(get_user_id)):
     if req.mode not in ("global", "local"):
         raise HTTPException(status_code=400, detail="mode must be 'global' or 'local'")
     if req.matrix not in ("blosum62", "pam250"):
@@ -102,11 +104,18 @@ async def run_pairwise(req: PairwiseAlignRequest):
         raise HTTPException(status_code=400, detail=str(exc))
 
     result["hit_source"] = hit_source
+    job_registry.record_completed(
+        "pairwise", user_id,
+        query_preview=f"Pairwise {req.mode} · {len(query_seq)}×{len(hit_seq)} aa",
+        context={"mode": req.mode, "matrix": req.matrix, "score": result.get("score"),
+                 "identities": result.get("identities")}
+        if "score" in result else {"mode": req.mode, "matrix": req.matrix},
+    )
     return result
 
 
 @router.post("/run")
-async def run_alignment(req: AlignRequest):
+async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_user_id)):
     if req.method not in EBI_TOOLS:
         raise HTTPException(status_code=400, detail=f"method must be one of: {', '.join(sorted(EBI_TOOLS))}")
     email = settings.NCBI_EMAIL or "bioflow@example.com"
@@ -137,4 +146,10 @@ async def run_alignment(req: AlignRequest):
             response["ai_interpretation"] = ai_interp
     except Exception:
         pass
+    job_registry.record_completed(
+        "msa", user_id,
+        query_preview=f"MSA {req.method} · {req.stype}",
+        context={"method": result["method"], "stype": req.stype,
+                 "sequence_length": len(req.sequence or "")},
+    )
     return response

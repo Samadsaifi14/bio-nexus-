@@ -1,7 +1,8 @@
 import re
 from urllib.parse import quote as urlquote
 import httpx
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
+from app.services.auth import get_user_id
 from pydantic import BaseModel, Field
 
 router = APIRouter()
@@ -178,7 +179,7 @@ async def kegg_search(req: KEGGSearchRequest):
 
 
 @router.post("/enrichment")
-async def pathway_enrichment(req: EnrichmentRequest):
+async def pathway_enrichment(req: EnrichmentRequest, user_id: str | None = Depends(get_user_id)):
     from app.services.pathway_enrichment import run_resilient_enrichment
     result = await run_resilient_enrichment(req.identifiers)
     if result is None:
@@ -196,6 +197,13 @@ async def pathway_enrichment(req: EnrichmentRequest):
     except Exception:
         pass
 
+    from app.services import job_registry
+    job_registry.record_completed(
+        "pathway_enrichment", user_id,
+        query_preview=f"Enrichment · {len(req.identifiers)} ids",
+        context={"identifiers": len(req.identifiers),
+                 "pathway_count": len(result.get("pathways") or [])},
+    )
     return result
 
 

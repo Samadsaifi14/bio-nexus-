@@ -11,6 +11,7 @@ from typing import Any, Optional
 
 from app.services.supabase import get_client
 from app.services.auth import require_user_id
+from app.services import job_registry
 from app.services.ssrf import validate_url
 router = APIRouter(prefix="/api/docking", tags=["Docking"])
 _TABLE = "docking_jobs"
@@ -446,6 +447,7 @@ def _run_docking_sync(job_id: str, payload: dict):
             "storage_url": storage_url,
             "result_sdf": None,  # cleared — data lives in Storage now
         }).eq("id", job_id).execute()
+        job_registry.propagate_patch("docking", job_id, {"status": "complete", "storage_url": storage_url})
 
     except Exception as exc:
         import traceback
@@ -454,6 +456,7 @@ def _run_docking_sync(job_id: str, payload: dict):
             "status": "failed",
             "error": f"{exc}\n\n{tb}"[:4000],
         }).eq("id", job_id).execute()
+        job_registry.propagate_patch("docking", job_id, {"status": "failed", "error": str(exc)})
     finally:
         _prune_old(supabase)
 
@@ -998,6 +1001,12 @@ async def create_docking_job(request: Request, body: DockingJobCreate, user_id: 
         else:
             raise
 
+    job_registry.start(
+        "docking", user_id, job_id=job_id,
+        query_preview=f"Docking · {body.pdb_id.upper()}" if body.pdb_id else "Docking · uploaded receptor",
+        context={"pdb_id": body.pdb_id.upper() if body.pdb_id else "",
+                 "exhaustiveness": body.exhaustiveness, "num_modes": body.num_modes},
+    )
     return DockingJobResponse(job_id=job_id, status="queued", result=None)
 
 

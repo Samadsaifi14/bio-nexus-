@@ -27,6 +27,8 @@ from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.services import job_state
+from app.services import job_registry
+from app.services.auth import get_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/phylo", tags=["phylo"])
@@ -203,6 +205,8 @@ def _patch(job_id: str, **kw) -> None:
         _jobs[job_id].update(kw)
         snapshot = _hydratable(_jobs[job_id])
     job_state.mirror(job_id, _JOB_KIND, snapshot)
+    # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
+    job_registry.propagate_patch("phylo", job_id, kw)
 
 
 def _read(job_id: str) -> dict | None:
@@ -216,6 +220,10 @@ def _reconcile() -> int:
         with _lock:
             if job_id not in _jobs:
                 _jobs[job_id] = state
+        # A restart cannot run again, so any non-terminal mirror row must not
+        # linger as "running" on the shared jobs table either.
+        if isinstance(state, dict) and state.get("interrupted"):
+            job_registry.finish(job_id, status="failed", error=state.get("error"))
 
     return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
 
@@ -712,6 +720,7 @@ async def _worker(job_id: str) -> None:
 async def run_phylo(
     req: PhyloRequest,
     background_tasks: BackgroundTasks,
+    user_id: str | None = Depends(get_user_id),
 ):
     if len(req.sequences) < 2:
         raise HTTPException(400, detail="At least 2 sequences are required")
@@ -727,6 +736,12 @@ async def run_phylo(
 
     job_id = str(uuid.uuid4())
     _init(job_id, req)
+    job_registry.start(
+        "phylo", user_id, job_id=job_id,
+        query_preview=f"Tree {req.method.upper()} · {len(req.sequences)} seqs ({req.seq_type})",
+        context={"method": req.method, "seq_type": req.seq_type,
+                 "n_sequences": len(req.sequences), "model": req.model},
+    )
     background_tasks.add_task(_worker, job_id)
     return RunResponse(job_id=job_id, status="queued")
 

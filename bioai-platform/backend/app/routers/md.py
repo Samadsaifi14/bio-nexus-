@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field
 
 from app.services.supabase import get_client
 from app.services.auth import require_user_id
-
+from app.services import job_registry
 router = APIRouter(prefix="/api/md", tags=["MD Simulation"])
 _TABLE = "docking_jobs"  # reuse docking_jobs table with md_jobs for now
 
@@ -103,6 +103,12 @@ async def run_md(request: Request, body: MDRunRequest, user_id: str = Depends(re
         else:
             raise
 
+    job_registry.start(
+        "md", user_id, job_id=job_id,
+        query_preview=f"MD {body.mode} · {body.pdb_id.upper()}",
+        context={"pdb_id": body.pdb_id.upper(), "mode": body.mode,
+                 "forcefield": body.forcefield, "solvent": body.solvent},
+    )
     return MDJobResponse(job_id=job_id, status="queued")
 
 
@@ -126,6 +132,7 @@ async def get_md_status(job_id: str, user_id: str = Depends(require_user_id)):
                 }).eq("id", job_id).execute()
                 data["status"] = "failed"
                 data["error"] = "Job timed out (exceeded 60 minute limit)"
+                job_registry.finish(job_id, status="failed", error=data["error"])
         except Exception:
             pass
 

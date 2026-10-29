@@ -498,16 +498,54 @@ _PDB_COORD_RE = re.compile(
 
 
 def _parse_atom_coords(pdb_text: str) -> list[tuple[str, str, str, str, int, float, float, float]]:
-    """Parse PDB into (record, atom_name, res_name, chain, res_seq, x, y, z)."""
-    atoms = []
+    """Parse fixed-width PDB/PDBQT records, including blank chain IDs.
+
+    PDBQT ligand records commonly have a blank chain column. A whitespace-only
+    regex that requires a chain token can silently reject every ligand atom and
+    make all interaction classes appear to be zero. Prefer fixed columns and
+    retain a guarded fallback for non-standard records.
+    """
+    atoms: list[tuple[str, str, str, str, int, float, float, float]] = []
     for line in pdb_text.splitlines():
-        m = _PDB_COORD_RE.match(line)
-        if m:
-            atoms.append((
-                m.group(1), m.group(2), m.group(3), m.group(4),
-                int(m.group(5)),
-                float(m.group(6)), float(m.group(7)), float(m.group(8)),
-            ))
+        record = line[:6].strip()
+        if record not in ("ATOM", "HETATM"):
+            continue
+
+        parsed = None
+        try:
+            atom_name = line[12:16].strip()
+            res_name = line[17:20].strip()
+            chain = line[21:22].strip()
+            res_seq = int(line[22:26].strip())
+            x = float(line[30:38].strip())
+            y = float(line[38:46].strip())
+            z = float(line[46:54].strip())
+            if atom_name and res_name and all(math.isfinite(v) for v in (x, y, z)):
+                parsed = (record, atom_name, res_name, chain, res_seq, x, y, z)
+        except (ValueError, IndexError):
+            parsed = None
+
+        if parsed is None:
+            fields = line.split()
+            try:
+                # Standard tokenized record with a chain identifier.
+                if len(fields) >= 9 and fields[5].lstrip("-").isdigit():
+                    atom_name, res_name, chain, res_seq = fields[2], fields[3], fields[4], int(fields[5])
+                    coord_start = 6
+                # Tokenized record with a blank chain identifier.
+                elif len(fields) >= 8 and fields[4].lstrip("-").isdigit():
+                    atom_name, res_name, chain, res_seq = fields[2], fields[3], "", int(fields[4])
+                    coord_start = 5
+                else:
+                    continue
+                x, y, z = map(float, fields[coord_start:coord_start + 3])
+                if all(math.isfinite(v) for v in (x, y, z)):
+                    parsed = (record, atom_name, res_name, chain, res_seq, x, y, z)
+            except (ValueError, IndexError):
+                continue
+
+        if parsed is not None:
+            atoms.append(parsed)
     return atoms
 
 
@@ -597,6 +635,12 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
 
     prot_atoms = _parse_atom_coords(protein_pdb)
     lig_atoms = _parse_atom_coords(ligand_pdb)
+    if not prot_atoms or not lig_atoms:
+        raise ValueError(
+            "Interaction analysis could not parse coordinates "
+            f"(protein_atoms={len(prot_atoms)}, ligand_atoms={len(lig_atoms)}); "
+            "contact counts are unavailable, not zero."
+        )
     prot_h = _find_hydrogens(prot_atoms)
     lig_h = _find_hydrogens(lig_atoms)
     prot_heavy = [a for a in prot_atoms if not (a[1].startswith("H") or a[1] in ("1H", "2H", "3H"))]

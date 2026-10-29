@@ -262,7 +262,7 @@ export default function SequencingPage() {
       )}
 
 {result && (
-        <motion-div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+        <motion.div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <AIResultSummary toolName="sequencing" result={result as unknown as Record<string, unknown>} />
           {/* IMPORTANT LIMITATIONS (honest relabeling): */}
           <p className="mt-2 text-[11px] leading-4 text-text-muted">

@@ -253,7 +253,7 @@ export default function PathwayPage() {
       )}
 
 {tab === 'enrichment' && enrichmentResult && (
-        <motion-div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
+        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <AIResultSummary toolName="pathway_enrichment" result={enrichmentResult as unknown as Record<string, unknown>} />
           <div className="rounded-xl border border-glass-border bg-surface-0 px-4 py-3 space-y-1.5">
             <p className="text-xs text-text-secondary">

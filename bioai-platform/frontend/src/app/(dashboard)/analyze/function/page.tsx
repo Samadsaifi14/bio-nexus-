@@ -146,7 +146,7 @@ export default function FunctionPage() {
       {error && <div className="mt-4 data-card border border-error/30 p-4 text-sm text-error">{error}</div>}
 
       {result && (
-        <motion-div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           <ResultsReadyBanner
             title={`${result.status === "inferred" ? "Evidence mapping complete" : "Insufficient mapping evidence"} · ${result.pdb_id}`}
             subtitle={`${result.method_version} · ${result.sequence_length} residues`}

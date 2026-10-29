@@ -49,7 +49,7 @@ export function useAuditTrail() {
     fetch('/api/backend/api/audit/event', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body), keepalive: true }).catch(() => {});
   }, [user?.id]);
   const emitStarted = useCallback((step: string, tool: string, input_summary: string) => {
-    const key = `${step}-${tool}-${Date.now()}`; const analysisId = newAnalysisId(); idRef.current[`${step}-${tool}`] = analysisId; t0Ref.current[`${step}-${tool}`] = Date.now();
+    const analysisId = newAnalysisId(); idRef.current[`${step}-${tool}`] = analysisId; t0Ref.current[`${step}-${tool}`] = Date.now();
     emit({ step, tool, status: 'started', input_summary, output_summary: '', duration_ms: 0, user_id: user?.id ?? null, metadata: { analysis_id: analysisId } });
   }, [emit, user?.id]);
   const emitSuccess = useCallback((step: string, tool: string, input_summary: string, output_summary: string) => {

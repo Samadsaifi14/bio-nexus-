@@ -223,6 +223,24 @@ export default function DockingPage() {
         gridCenter || undefined,
       );
       setJobId(job_id);
+      try {
+        const key = 'omvetra.analysis-history.v1';
+        const history = JSON.parse(window.localStorage.getItem(key) || '[]') as Array<Record<string, unknown>>;
+        const tracking = history.find((item) => item.tool === 'AutoDock Vina' && item.status === 'started');
+        const entry = {
+          analysis_id: typeof tracking?.analysis_id === 'string' ? tracking.analysis_id : job_id,
+          job_id,
+          tool: 'AutoDock Vina',
+          step: 'docking_run',
+          status: 'queued',
+          input_summary: inputSummary,
+          output_summary: `Server job ID: ${job_id}`,
+          updated_at: new Date().toISOString(),
+        };
+        window.localStorage.setItem(key, JSON.stringify([entry, ...history.filter((item) => item.job_id !== job_id)].slice(0, 100)));
+      } catch {
+        // Local history is best-effort; never block a docking run.
+      }
       setPolling(true);
       audit.emitSuccess('docking_run', 'AutoDock Vina', inputSummary, `job_id:${job_id}`);
     } catch (err: unknown) {
@@ -390,6 +408,16 @@ export default function DockingPage() {
               </div>
               <span className="text-xs text-text-muted font-mono">{result.result?.pdb_id} + {result.result?.smiles?.slice(0, 20)}...</span>
             </div>
+            {jobId && (
+              <div className="mt-3 rounded-lg border border-white/10 bg-white/[0.02] p-3">
+                <p className="text-xs text-text-muted mb-1">Saved docking job ID</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <code className="text-xs font-mono text-text-primary break-all">{jobId}</code>
+                  <button type="button" onClick={() => navigator.clipboard.writeText(jobId)} className="text-xs text-accent-cyan hover:underline">Copy ID</button>
+                </div>
+                <p className="text-[11px] text-text-muted mt-1">Keep this ID to identify this exact run. Recent analysis tracking is saved in this browser.</p>
+              </div>
+            )}
 
             {result.status === 'failed' && result.error && (
               <div className="p-3 rounded-lg bg-error/5 border border-error/20 mt-3">

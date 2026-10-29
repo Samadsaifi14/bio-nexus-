@@ -707,10 +707,19 @@ def _parse_vina_poses(output_pdbqt: str, vina_log: str) -> list[dict]:
     for model_id in sorted(models.keys()):
         atom_lines = [l for l in models[model_id] if l.startswith("HETATM") or l.startswith("ATOM")]
         atom_count = len(atom_lines)
-        hydrogen_count = sum(
-            1 for l in atom_lines
-            if (l.split()[2].startswith("H") if len(l.split()) > 2 else False)
-        )
+        def _is_hydrogen_record(line: str) -> bool:
+            # PDBQT atom types are stored in columns 78-79 (e.g. HD for a
+            # polar hydrogen). Atom names alone are not a reliable element
+            # source, so prefer the atom-type field and use the name only as
+            # a fallback for shortened/non-standard records.
+            atom_type = line[77:79].strip().upper() if len(line) >= 78 else ""
+            if atom_type:
+                return atom_type in {"H", "HD"}
+            fields = line.split()
+            atom_name = line[12:16].strip() if len(line) >= 16 else (fields[2] if len(fields) > 2 else "")
+            return atom_name.upper().startswith("H")
+
+        hydrogen_count = sum(1 for line in atom_lines if _is_hydrogen_record(line))
         entry = mode_table.get(model_id, {})
         poses.append({
             "model": model_id,

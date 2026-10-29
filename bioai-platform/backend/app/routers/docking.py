@@ -645,6 +645,12 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
     lig_h = _find_hydrogens(lig_atoms)
     prot_heavy = [a for a in prot_atoms if not (a[1].startswith("H") or a[1] in ("1H", "2H", "3H"))]
     lig_heavy = [a for a in lig_atoms if not (a[1].startswith("H") or a[1] in ("1H", "2H", "3H"))]
+    if not prot_heavy or not lig_heavy:
+        raise ValueError(
+            "Interaction analysis parsed coordinates but found no usable heavy atoms "
+            f"(protein_heavy_atoms={len(prot_heavy)}, ligand_heavy_atoms={len(lig_heavy)}); "
+            "counts are unavailable, not zero."
+        )
 
     hbonds: list[dict] = []
     hydrophobic: list[dict] = []
@@ -708,7 +714,8 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
             if not angle_ok:
                 continue
 
-            key = (la[4], pa[4])  # (lig_res_seq, prot_res_seq)
+            # Count distinct atom-pair contacts, not just one contact per residue pair.
+            key = (la[1], la[5], la[6], la[7], pa[3], pa[2], pa[4], pa[1])
             if key in seen_hbonds:
                 continue
             seen_hbonds.add(key)
@@ -744,7 +751,8 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
             pcoord = (pa[5], pa[6], pa[7])
             d = _distance(lcoord, pcoord)
             if d < 4.5:
-                key = (la[4], pa[4])
+                # Distinct ligand/protein atom contacts; residue-only keys undercounted contacts.
+                key = (la[1], la[5], la[6], la[7], pa[3], pa[2], pa[4], pa[1])
                 if key in seen_hydrophobic:
                     continue
                 seen_hydrophobic.add(key)
@@ -867,7 +875,7 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
             if pres in _ANIONIC_RES and pa[1] in ("OD1", "OD2", "OE1", "OE2"):
                 d = _distance(lcoord, pa[1:8] if False else (pa[5], pa[6], pa[7]))
                 if d < 4.0 and l_elem in ("N",):
-                    key = (la[4], pa[4])
+                    key = (la[1], la[5], la[6], la[7], pa[3], pa[2], pa[4], pa[1])
                     if key not in seen_salt:
                         seen_salt.add(key)
                         salt_bridges.append({
@@ -890,7 +898,7 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
                 if pa[1] in cat_atoms:
                     d = _distance(lcoord, (pa[5], pa[6], pa[7]))
                     if d < 4.0 and l_elem in ("O",):
-                        key = (la[4], pa[4])
+                        key = (la[1], la[5], la[6], la[7], pa[3], pa[2], pa[4], pa[1])
                         if key not in seen_salt:
                             seen_salt.add(key)
                             salt_bridges.append({

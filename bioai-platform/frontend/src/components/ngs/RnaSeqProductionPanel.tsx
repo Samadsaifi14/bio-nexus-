@@ -6,6 +6,78 @@ import { recoveryError } from './RnaSeqRecoveryPanel';
 
 type Plan = { ready_to_launch: boolean; command_display: string; blockers: string[]; warnings: string[] };
 
+type Aligner = 'star_salmon' | 'star_rsem' | 'hisat2' | 'bowtie2_salmon';
+
+type AlignerInfo = {
+  name: string;
+  description: string;
+  quantification: string;
+  notes: string[];
+};
+
+const alignerOptions: Record<Aligner, AlignerInfo> = {
+  star_salmon: {
+    name: 'STAR + Salmon (default)',
+    description: 'STAR alignment followed by Salmon quasi-mapping quantification',
+    quantification: 'Salmon gene-level counts with tximport length-aware normalization',
+    notes: [
+      'STAR generates a BAM file; Salmon performs quasi-mapping against the transcriptome',
+      'tximport applies gene-length offsets for DESeq2 compatibility',
+      'Default nf-core/rnaseq 3.26.0 configuration',
+    ],
+  },
+  star_rsem: {
+    name: 'STAR + RSEM',
+    description: 'STAR alignment followed by RSEM abundance estimation',
+    quantification: 'RSEM estimated expected counts',
+    notes: [
+      'STAR generates a BAM file; RSEM estimates abundances from the BAM',
+      'RSEM provides transcript-level and gene-level estimates',
+      'More computationally expensive than Salmon quasi-mapping',
+    ],
+  },
+  hisat2: {
+    name: 'HISAT2 (with Salmon pseudo-aligner)',
+    description: 'HISAT2 alignment with Salmon quasi-mapping for abundance estimates',
+    quantification: 'Salmon quasi-mapping; requires pseudo-aligner configuration',
+    notes: [
+      'HISAT2 generates a BAM file; Salmon performs quasi-mapping',
+      'WARNING: HISAT2 alone does not produce abundance estimates — Salmon pseudo-aligner is required',
+      'This combination is experimental; verify output integrity before DESeq2 differential testing',
+    ],
+  },
+  bowtie2_salmon: {
+    name: 'Bowtie2 + Salmon',
+    description: 'Bowtie2 alignment followed by Salmon quantification',
+    quantification: 'Salmon gene-level counts',
+    notes: [
+      'Bowtie2 generates a BAM file; Salmon performs quasi-mapping',
+      'Alternative to STAR for index-friendly alignment',
+      'Less common in nf-core/rnaseq default workflows',
+    ],
+  },
+};
+const alignerDescriptions: Record<Aligner, string> = {
+  star_salmon:
+    'STAR alignment + Salmon quantification. The nf-core/rnaseq 3.26.0 pipeline uses GTF-guided transcript models for Salmon quasi-mapping. Tximport length-aware normalization converts to DESeq2-compatible count matrix.',
+  star_rsem:
+    'STAR alignment + RSEM abundance estimation. RSEM models isoform expression and estimates expected counts. More computationally intensive than Salmon quasi-mapping; verify output integrity before DESeq2 differential testing.',
+  hisat2:
+    'HISAT2 alignment with Salmon pseudo-aligner for abundance estimates. WARNING: HISAT2 alone does not produce abundance estimates — the Salmon pseudo-aligner component is required. This combination is experimental; verify output integrity before DESeq2 differential testing.',
+  bowtie2_salmon:
+    'Bowtie2 alignment + Salmon quantification. Alternative to STAR for index-friendly alignment. Less common in nf-core/rnaseq default workflows; verify output integrity before DESeq2 differential testing.',
+};
+const alignerNotes: Record<Aligner, string> = {
+  star_salmon:
+    'STAR generates a BAM file; Salmon performs quasi-mapping against the transcriptome. Tximport applies gene-length offsets for DESeq2 compatibility. Default nf-core/rnaseq 3.26.0 configuration.',
+  star_rsem:
+    'STAR generates a BAM file; RSEM estimates abundances from the BAM. More computationally expensive than Salmon quasi-mapping. Verify output integrity before DESeq2 differential testing.',
+  hisat2:
+    'HISAT2 generates a BAM file; Salmon performs quasi-mapping. WARNING: HISAT2 alone does not produce abundance estimates — Salmon pseudo-aligner is required. This combination is experimental; verify output integrity before DESeq2 differential testing.',
+  bowtie2_salmon:
+    'Bowtie2 generates a BAM file; Salmon performs quasi-mapping. Alternative to STAR for index-friendly alignment. Less common in nf-core/rnaseq default workflows; verify output integrity before DESeq2 differential testing.',
+};
+
 export default function RnaSeqProductionPanel() {
   const [samplesheet, setSamplesheet] = useState('');
   const [outdir, setOutdir] = useState('');
@@ -19,8 +91,10 @@ export default function RnaSeqProductionPanel() {
   const [artifacts, setArtifacts] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const payload = () => ({ samplesheet_path: samplesheet, outdir, genome, execution_profile: profile, custom_config: config || null, aligner: 'star_salmon' });
+  const [aligner, setAligner] = useState<Aligner>('star_salmon');
   const inputClass = 'mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-sm';
+  const payload = () => ({ samplesheet_path: samplesheet, outdir, genome, execution_profile: profile, custom_config: config || null, aligner });
+
   async function request(submit = false) {
     setBusy(true); setError('');
     try {
@@ -50,8 +124,12 @@ export default function RnaSeqProductionPanel() {
       <label className="text-xs">Private output directory or S3 prefix<input value={outdir} onChange={event => changed(() => setOutdir(event.target.value))} className={inputClass} /></label>
       <label className="text-xs">Reference catalogue key<input value={genome} onChange={event => changed(() => setGenome(event.target.value))} className={inputClass} /></label>
       <label className="text-xs">Executor<select value={profile} onChange={event => changed(() => setProfile(event.target.value))} className={inputClass}><option value="awsbatch">AWS Batch</option><option value="slurm">Slurm</option><option value="docker">Local Docker</option><option value="apptainer">Local Apptainer</option></select></label>
+      <label className="text-xs">Aligner<select value={aligner} onChange={event => changed(() => setAligner(event.target.value))} className={inputClass}><option value="star_salmon">STAR + Salmon (default)</option><option value="star_rsem">STAR + RSEM</option><option value="hisat2">HISAT2 (with Salmon pseudo-aligner)</option><option value="bowtie2_salmon">Bowtie2 + Salmon</option></select></label>
       <label className="text-xs">Administrator-reviewed Nextflow configuration path<input value={config} onChange={event => changed(() => setConfig(event.target.value))} className={inputClass} /></label>
     </div>
+    <p className="text-xs text-text-muted mt-2">{alignerDescriptions[aligner]}</p>
+    <p className="text-xs text-text-muted mt-1"><strong>Quantification:</strong> {alignerOptions[aligner].quantification}</p>
+    <p className="text-xs text-text-muted mt-1"><strong>Notes:</strong> {alignerNotes[aligner]}</p>
     <button type="button" disabled={busy || !samplesheet || !outdir} onClick={() => request()} className="btn-secondary">Build execution plan</button>
     {plan && <><pre className="overflow-x-auto whitespace-pre-wrap rounded bg-surface-1 p-3 text-xs">{plan.command_display}</pre>{[...plan.blockers, ...plan.warnings].map((text, index) => <p key={index} className="text-xs text-warn">{text}</p>)}
       <label className="flex gap-2 text-sm"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} />I reviewed sample/read identities, assay, reference, strandedness, compute configuration and costs.</label>

@@ -165,15 +165,16 @@ export default function PathwayPage() {
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
           ) : (
             reactomeResults.map((p) => (
-              <div key={p.pathway_id} className="data-card overflow-hidden">
-                <button
-                  onClick={() => setExpandedDiagram(expandedDiagram === p.pathway_id ? null : p.pathway_id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"
-                >
-                  <div>
-                    <p className="text-sm font-medium text-text-primary">{p.name}</p>
-                    <p className="text-xs text-text-muted mt-0.5">{p.pathway_id} · {p.species}</p>
-                  </div>
+<div key={p.pathway_id} className="data-card overflow-hidden">
+                  <button
+                    onClick={() => setExpandedDiagram(expandedDiagram === p.pathway_id ? null : p.pathway_id)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-text-primary">{p.name}</p>
+                      <p className="text-xs text-text-muted mt-0.5">{p.pathway_id} · {p.species}</p>
+                      <p className="text-[11px] text-text-secondary">Pathway membership is predicted, not experimentally confirmed for all listed genes.</p>
+                    </div>
                   <div className="flex items-center gap-2">
                     <a href={p.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-text-muted hover:text-accent-cyan transition">
                       <ExternalLink className="w-4 h-4" />
@@ -210,17 +211,18 @@ export default function PathwayPage() {
             <div className="glass-card p-6 text-center"><p className="text-sm text-text-secondary">No pathways found</p></div>
           ) : (
             keggResults.map((p) => (
-              <div key={p.pathway_id} className="data-card overflow-hidden">
-                <button
-                  onClick={() => setExpandedKEGG(expandedKEGG === p.pathway_id ? null : p.pathway_id)}
-                  className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"
-                >
-                  <div className="flex items-center gap-3">
-                    <img src={p.image_url} alt="" className="w-16 h-12 object-contain rounded border border-glass-border shrink-0" />
-                    <div>
-                      <p className="text-sm font-medium text-text-primary">{p.name}</p>
-                      <p className="text-xs text-text-muted mt-0.5">{p.pathway_id} · {p.organism}</p>
-                    </div>
+<div key={p.pathway_id} className="data-card overflow-hidden">
+                  <button
+                    onClick={() => setExpandedKEGG(expandedKEGG === p.pathway_id ? null : p.pathway_id)}
+                    className="w-full p-4 flex items-center justify-between hover:bg-surface-2 transition cursor-pointer text-left"
+                  >
+                    <div className="flex items-center gap-3">
+                      <img src={p.image_url} alt="" className="w-16 h-12 object-contain rounded border border-glass-border shrink-0" />
+                      <div>
+                        <p className="text-sm font-medium text-text-primary">{p.name}</p>
+                        <p className="text-xs text-text-muted mt-0.5">{p.pathway_id} · {p.organism}</p>
+                        <p className="text-[11px] text-text-secondary">Pathway membership is predicted, not experimentally confirmed for all listed genes.</p>
+                      </div>
                   </div>
                   <div className="flex items-center gap-2">
                     <a href={p.url} target="_blank" rel="noopener noreferrer" onClick={(e) => e.stopPropagation()} className="text-text-muted hover:text-accent-cyan transition">
@@ -250,8 +252,8 @@ export default function PathwayPage() {
         </motion.div>
       )}
 
-      {tab === 'enrichment' && enrichmentResult && (
-        <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
+{tab === 'enrichment' && enrichmentResult && (
+        <motion-div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-3">
           <AIResultSummary toolName="pathway_enrichment" result={enrichmentResult as unknown as Record<string, unknown>} />
           <div className="rounded-xl border border-glass-border bg-surface-0 px-4 py-3 space-y-1.5">
             <p className="text-xs text-text-secondary">
@@ -267,6 +269,16 @@ export default function PathwayPage() {
                 {(enrichmentResult.provider_attempts ?? []).map(a => `${a.provider}:${a.status}`).join(', ')}
               </p>
             )}
+            {/* IMPORTANT LIMITATIONS (honest relabeling): */}
+            <p className="text-[11px] leading-4 text-text-muted">
+              Pathway enrichment identifies statistically over-represented categories from 
+              genome-wide annotation databases. Pathway membership is predicted, not 
+              experimentally confirmed for all listed genes. Significance thresholds 
+              (FDR/p-adjusted) are approximate; multiple-testing correction depends on 
+              the provider's method. Biological interpretation should be validated 
+              experimentally. This analysis does not claim disease association or 
+              therapeutic target prioritization.
+            </p>
           </div>
           <div className="flex flex-wrap items-center justify-between gap-2">
             <p className="text-xs text-text-muted">Top {Math.min(20, enrichmentResult.pathways.length)} displayed / {enrichmentResult.pathways.length} returned by provider</p>

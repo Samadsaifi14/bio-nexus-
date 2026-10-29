@@ -146,11 +146,16 @@ export default function FunctionPage() {
       {error && <div className="mt-4 data-card border border-error/30 p-4 text-sm text-error">{error}</div>}
 
       {result && (
-        <motion.div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
+        <motion-div initial={{ opacity: 0, y: 16 }} animate={{ opacity: 1, y: 0 }} className="mt-6 space-y-4">
           <ResultsReadyBanner
             title={`${result.status === "inferred" ? "Evidence mapping complete" : "Insufficient mapping evidence"} · ${result.pdb_id}`}
             subtitle={`${result.method_version} · ${result.sequence_length} residues`}
           />
+
+          {/* IMPORTANT LIMITATIONS (honest relabeling): */}
+          <p className="mt-2 text-[11px] leading-4 text-text-muted">
+            GO-term support counts are evidence counts from InterPro2GO mappings, NOT calibrated function probabilities. InterPro2GO associations are predictive annotations, not experimental validations for this protein. No residue saliency or posterior probability is reported. EC-number inference is out of scope until a defensible, benchmarks mapping/prediction method is implemented.
+          </p>
 
           <div className="flex flex-wrap items-center gap-3">
             <button onClick={exportJson} className="flex items-center gap-1.5 rounded border border-glass-border bg-surface-1 px-2.5 py-1 text-xs text-text-secondary hover:text-accent-cyan">

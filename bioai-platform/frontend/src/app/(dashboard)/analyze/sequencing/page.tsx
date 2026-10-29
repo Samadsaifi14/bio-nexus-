@@ -261,9 +261,13 @@ export default function SequencingPage() {
         </motion.div>
       )}
 
-      {result && (
-        <motion.div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
+{result && (
+        <motion-div id="sequencing-results" variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <AIResultSummary toolName="sequencing" result={result as unknown as Record<string, unknown>} />
+          {/* IMPORTANT LIMITATIONS (honest relabeling): */}
+          <p className="mt-2 text-[11px] leading-4 text-text-muted">
+            Read mapping is reference-dependent; variant calling has minimum allele-frequency thresholds (typically ≥1–5%). Consensus sequence is experimental-quality only with sufficient coverage. Downstream analyses (BLAST identification, phylogenetic placement) are separate from this pipeline and use independent methods. Reported frequencies and variant calls are computational predictions, not clinical diagnoses.
+          </p>
           {result.status === 'complete' && (
             <ResultsReadyBanner
               title="Pipeline complete"

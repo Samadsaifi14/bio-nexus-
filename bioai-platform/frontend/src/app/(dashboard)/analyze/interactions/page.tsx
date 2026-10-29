@@ -62,6 +62,9 @@ export default function InteractionsPage() {
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show">
           <div className="data-card p-5">
             <StringDBViewer geneName={submitted} />
+            <p className="text-[11px] leading-4 text-text-muted mt-3">
+              Scores are normalized from STRING's native 0–1000 confidence scale to 0–1. &ldquo;Combined&rdquo; is STRING's combined confidence over all evidence channels; per-channel scores are STRING's as provided by STRING-DB. &ldquo;Physical evidence average&rdquo; is a local Bio Nexus heuristic (mean of experimental + database channels), NOT a STRING-provided score. STRING-DB interactions are predicted, not experimentally validated for all entries.
+            </p>
           </div>
         </motion.div>
       )}

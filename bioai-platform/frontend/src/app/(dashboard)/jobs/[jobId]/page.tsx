@@ -211,7 +211,7 @@ export default function JobPage() {
     const context = (job.context_json ?? {}) as Record<string, unknown>;
     const contextRows = summarizeContext(context);
     const progress = Number.isFinite(job.progress_pct) ? Math.max(0, Math.min(100, job.progress_pct)) : 0;
-    const statusLabel = job.status === 'interrupted' ? 'Interrupted' : toolFailed ? 'Failed' : toolActive ? 'Running' : 'Completed';
+    const statusLabel = (job.status as string) === 'interrupted' ? 'Interrupted' : toolFailed ? 'Failed' : toolActive ? 'Running' : 'Completed';
 
     return (
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="max-w-3xl mx-auto py-8">

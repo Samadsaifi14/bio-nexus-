@@ -38,7 +38,7 @@ _pool = ThreadPoolExecutor(max_workers=1, thread_name_prefix="job-registry")
 _MAX_CONTEXT_CHARS = 24_000
 
 # Registry rows may only carry statuses the router/jobs.py surface understands.
-_RUNNING_SERVERAliases = frozenset({
+_RUNNING_SERVER_ALIASES = frozenset({
     "queued", "running", "downloading", "submitted_to_ncbi", "polling_ncbi",
     "parsing", "interpreting", "fetching_uniprot", "running_msa",
     "fetching_alphafold", "structure_ready", "queued_models", "selected_models",
@@ -227,7 +227,7 @@ def _normalize_status(status: Any) -> str | None:
     """Map a tool's own status vocabulary onto the shared ``jobs`` rules."""
     if not isinstance(status, str) or not status:
         return None
-    if status in _RUNNING_SERVERAliases:
+    if status in _RUNNING_SERVER_ALIASES:
         return "running"
     if status in _SUCCESS_ALIASES:
         return "complete"

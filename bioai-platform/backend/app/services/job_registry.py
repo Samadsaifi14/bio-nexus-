@@ -81,18 +81,22 @@ def _shrink(context: dict[str, Any] | None) -> dict[str, Any]:
     }
 
 
-def _submit(fn, *args) -> None:
-    """Run one registry write on the mirror thread; never raise into the caller."""
+def _submit(fn, *args, **kwargs) -> None:
+    """Run one registry write on the mirror thread; never raise into the caller.
+
+    Preserve keyword arguments: registry writers such as _insert_row and
+    _finish_row expose keyword-only fields (query_preview, context, status).
+    """
     try:
-        _pool.submit(_guarded, fn, *args)
+        _pool.submit(_guarded, fn, *args, **kwargs)
     except RuntimeError:
         # Interpreter shutdown: write inline so the final state is not lost.
-        _guarded(fn, *args)
+        _guarded(fn, *args, **kwargs)
 
 
-def _guarded(fn, *args) -> None:
+def _guarded(fn, *args, **kwargs) -> None:
     try:
-        fn(*args)
+        fn(*args, **kwargs)
     except Exception:
         logger.debug("job registry write skipped", exc_info=True)
 

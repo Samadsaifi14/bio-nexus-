@@ -5,7 +5,7 @@ import logging
 import threading
 import uuid
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.tools.structure_prep import esmfold_predict

@@ -9,14 +9,13 @@ import { getJobs } from '@/lib/api';
 import type { JobStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
 import { PageHeader } from '@/components/ui';
-import { STATUS_TEXT } from '@/lib/status-colors';
+import { STATUS_TEXT, ACTIVE_STATUSES } from '@/lib/status-colors';
+import { toolLabel } from '@/lib/tool-labels';
 
 const STATUS_ICONS: Record<string, typeof Clock> = {
-  queued: Clock, submitted_to_ncbi: Clock, polling_ncbi: Clock,
+  queued: Clock, running: LoaderCircle, submitted_to_ncbi: Clock, polling_ncbi: Clock,
   parsing: Clock, interpreting: Clock, complete: CheckCircle, failed: XCircle,
 };
-
-const ACTIVE_STATUSES = ['queued', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'interpreting'];
 
 type FilterTab = 'all' | 'active' | 'complete' | 'failed';
 
@@ -131,7 +130,8 @@ export default function JobsPage() {
           {filtered.map(job => {
             const Icon       = STATUS_ICONS[job.status] || Clock;
             const color      = STATUS_TEXT[job.status] || 'text-text-muted';
-            const label      = job.current_step_label || STEP_LABELS[job.status as keyof typeof STEP_LABELS] || job.status;
+            const label      = toolLabel(job) || job.current_step_label || STEP_LABELS[job.status as keyof typeof STEP_LABELS] || job.status;
+            const query      = job.context_json?.query?.sequence || job.query_preview || '';
             const isComplete = job.status === 'complete';
             const isFailed   = job.status === 'failed';
             const isActive   = ACTIVE_STATUSES.includes(job.status);
@@ -151,9 +151,9 @@ export default function JobsPage() {
                     }`}>
                       {label}
                     </p>
-                    {job.context_json?.query?.sequence && (
+                    {query && (
                       <p className="text-[11px] text-text-muted font-mono truncate mt-0.5">
-                        {job.context_json.query.sequence.slice(0, 90)}…
+                        {query.slice(0, 90)}{query.length > 90 ? '…' : ''}
                       </p>
                     )}
                   </div>

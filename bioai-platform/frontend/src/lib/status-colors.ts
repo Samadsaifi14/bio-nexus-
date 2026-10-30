@@ -27,6 +27,7 @@ export const STATUS_BADGE: Record<string, string> = {
 
 export const ACTIVE_STATUSES = [
   'queued',
+  'running',
   'submitted_to_ncbi',
   'polling_ncbi',
   'parsing',

@@ -202,9 +202,9 @@ def _reconcile_background_jobs():
     an explicit terminal state. Never raises -- an unavailable mirror just leaves
     in-memory behaviour unchanged.
     """
-    from app.routers import phylo, pipeline_v2, structure_predict
+    from app.routers import md_v2, phylo, pipeline_v2, structure_predict
 
-    for module in (phylo, pipeline_v2, structure_predict):
+    for module in (phylo, pipeline_v2, structure_predict, md_v2):
         try:
             module._reconcile()
         except Exception:

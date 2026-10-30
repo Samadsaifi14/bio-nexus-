@@ -9,6 +9,8 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import threading
+import uuid
 from typing import Any, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
@@ -18,11 +20,52 @@ from app.md.advanced_analysis import analyze_trajectory
 from app.md.engines import engine_status
 from app.md.orchestrator import STAGE_INTRO, build_md_pipeline
 from app.science.result import build_scientific_result
+from app.services import job_registry, job_state
 from app.services.auth import get_user_id
 
 logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/api/md/v2", tags=["md-v2"])
 SYNC_PRODUCTION_MAX_PS = 20.0
+
+# ---------------------------------------------------------------------------
+# Background run store
+#
+# A staged MD run outlives a single HTTP request: even the 20 ps hosted cap takes
+# minutes on CPU, and the Hugging Face proxy terminates the connection long before
+# that. The old synchronous route therefore surfaced as a bare 504 "Request failed
+# with status code 504" while the simulation was still running.
+#
+# Runs are now submitted, given an id, executed on the event loop's thread pool and
+# polled. State lives in ``_jobs`` and is mirrored to Supabase (job_state) so a
+# restart can restore finished results instead of losing them.
+# ---------------------------------------------------------------------------
+_JOB_KIND = "md_v2"
+
+_jobs: dict[str, dict] = {}
+_lock = threading.Lock()
+_tasks: set[asyncio.Task] = set()
+
+
+def _patch(job_id: str, **kw) -> None:
+    with _lock:
+        job = _jobs.setdefault(job_id, {"status": "running"})
+        job.update(kw)
+        snapshot = {k: v for k, v in job.items() if k != "pdb_text"}
+    job_state.mirror(job_id, _JOB_KIND, snapshot)
+    # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
+    job_registry.propagate_patch("md_v2", job_id, kw)
+
+
+def _reconcile() -> int:
+    """Restore finished runs and fail restart-interrupted ones. Called at startup."""
+    def hydrate(job_id: str, state: dict) -> None:
+        with _lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+        if isinstance(state, dict) and state.get("interrupted"):
+            job_registry.finish(job_id, status="failed", error=state.get("error"))
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
 
 
 class AnalyzeRequest(BaseModel):
@@ -240,8 +283,8 @@ def advanced_trajectory_analysis(payload: TrajectoryAnalysisRequest):
         raise HTTPException(status_code=500, detail=f"trajectory analysis failed: {type(exc).__name__}: {exc}") from exc
 
 
-@router.post("/analyze")
-async def analyze(payload: AnalyzeRequest, user_id: str | None = Depends(get_user_id)):
+async def _resolve_structure(payload: AnalyzeRequest) -> tuple[str, str]:
+    """Return ``(pdb_text, pdb_id)`` or raise the user-facing 4xx."""
     if payload.pdb_text:
         pdb_text = payload.pdb_text
         pdb_id = payload.pdb_id
@@ -257,39 +300,34 @@ async def analyze(payload: AnalyzeRequest, user_id: str | None = Depends(get_use
 
     if not pdb_text or "ATOM" not in pdb_text:
         raise HTTPException(status_code=400, detail="structure contains no ATOM records")
+    return pdb_text, pdb_id
 
-    requested_production_ps = payload.production_ps
-    effective_production_ps = min(float(requested_production_ps), SYNC_PRODUCTION_MAX_PS) if requested_production_ps is not None else None
-    production_was_capped = requested_production_ps is not None and effective_production_ps is not None and float(requested_production_ps) > effective_production_ps
 
-    sample: dict = {"pdb_id": pdb_id, "pdb_text": pdb_text, "forcefield": payload.forcefield, "solvent": payload.solvent}
+def _effective_production(requested_ps: float | None) -> tuple[float | None, bool]:
+    effective = min(float(requested_ps), SYNC_PRODUCTION_MAX_PS) if requested_ps is not None else None
+    capped = requested_ps is not None and effective is not None and float(requested_ps) > effective
+    return effective, capped
+
+
+def _build_sample(payload: AnalyzeRequest, pdb_text: str, pdb_id: str,
+                  effective_production_ps: float | None) -> dict:
+    sample: dict = {"pdb_id": pdb_id, "pdb_text": pdb_text,
+                    "forcefield": payload.forcefield, "solvent": payload.solvent}
     if effective_production_ps is not None:
         sample["production_steps"] = int(effective_production_ps * 1000 / 2.0)
     if payload.nvt_ps:
         sample["nvt_steps"] = int(payload.nvt_ps * 1000 / 2.0)
+    return sample
 
-    pipe = build_md_pipeline()
-    try:
-        # Keep the synchronous route inside typical proxy/gateway limits.
-        # Longer trajectories belong to the durable MD workflow.
-        report = await asyncio.wait_for(asyncio.to_thread(pipe.run, sample), timeout=55.0)
-    except asyncio.TimeoutError as exc:
-        logger.error("MD v2 synchronous pipeline timed out for %s", pdb_id)
-        raise HTTPException(
-            status_code=504,
-            detail=(
-                "Staged MD exceeded the synchronous execution budget before a complete scientific result was emitted. "
-                "Use a smaller structure/shorter diagnostic run or the durable MD workflow."
-            ),
-        ) from exc
-    except Exception as exc:
-        logger.exception("MD v2 pipeline failed for %s", pdb_id)
-        raise HTTPException(status_code=503, detail=f"MD engine failed before producing a scientific result: {type(exc).__name__}: {exc}") from exc
 
+def _build_result(report: dict, payload: AnalyzeRequest, pdb_text: str, pdb_id: str,
+                  requested_production_ps: float | None,
+                  effective_production_ps: float | None,
+                  production_was_capped: bool) -> dict:
     warnings = report.setdefault("warnings", [])
     if production_was_capped:
         warnings.append(
-            f"Requested production length {requested_production_ps:g} ps was capped to {effective_production_ps:g} ps for synchronous hosted execution. Use the durable MD workflow for longer trajectories."
+            f"Requested production length {requested_production_ps:g} ps was capped to {effective_production_ps:g} ps for hosted execution. Longer trajectories belong to the durable MD workflow."
         )
 
     requested = {
@@ -350,11 +388,152 @@ async def analyze(payload: AnalyzeRequest, user_id: str | None = Depends(get_use
     # Compatibility keys remain top-level while clients migrate to ScientificResult.
     scientific["requested"] = requested
     scientific["pipeline"] = report
-    from app.services import job_registry
+    return scientific
+
+
+@router.post("/analyze")
+async def analyze(payload: AnalyzeRequest, user_id: str | None = Depends(get_user_id)):
+    """Run staged MD inside the request (short diagnostics only).
+
+    Exposed for tests and API clients that explicitly want a blocking call. The
+    UI uses ``POST /api/md/v2/jobs`` so a real run is not tied to one connection.
+    """
+    pdb_text, pdb_id = await _resolve_structure(payload)
+
+    requested_production_ps = payload.production_ps
+    effective_production_ps, production_was_capped = _effective_production(requested_production_ps)
+    sample = _build_sample(payload, pdb_text, pdb_id, effective_production_ps)
+
+    pipe = build_md_pipeline()
+    try:
+        # Keep the synchronous route inside typical proxy/gateway limits.
+        # Longer trajectories belong to the durable MD workflow.
+        report = await asyncio.wait_for(asyncio.to_thread(pipe.run, sample), timeout=55.0)
+    except asyncio.TimeoutError as exc:
+        logger.error("MD v2 synchronous pipeline timed out for %s", pdb_id)
+        raise HTTPException(
+            status_code=504,
+            detail=(
+                "Staged MD exceeded the synchronous execution budget before a complete scientific result was emitted. "
+                "Submit it as a background job (POST /api/md/v2/jobs) instead."
+            ),
+        ) from exc
+    except Exception as exc:
+        logger.exception("MD v2 pipeline failed for %s", pdb_id)
+        raise HTTPException(status_code=503, detail=f"MD engine failed before producing a scientific result: {type(exc).__name__}: {exc}") from exc
+
+    scientific = _build_result(
+        report, payload, pdb_text, pdb_id,
+        requested_production_ps, effective_production_ps, production_was_capped,
+    )
     job_registry.record_completed(
         "md_v2", user_id,
         query_preview=f"Staged MD · {pdb_id}",
         context={"pdb_id": pdb_id, "forcefield": payload.forcefield,
-                 "solvent": payload.solvent, "scientific_status": scientific_status},
+                 "solvent": payload.solvent,
+                 "scientific_status": scientific.get("status")},
     )
     return scientific
+
+
+class MdJobSubmitResponse(BaseModel):
+    job_id: str
+    status: str
+
+
+class MdJobStatusResponse(BaseModel):
+    job_id: str
+    status: str
+    progress_pct: int = 0
+    result: dict | None = None
+    error: str | None = None
+
+
+async def _run_job(job_id: str, pdb_text: str, pdb_id: str, payload: AnalyzeRequest) -> None:
+    """Execute one queued staged-MD run off the request path."""
+    try:
+        _patch(job_id, status="running", progress_pct=10)
+        requested_production_ps = payload.production_ps
+        effective_production_ps, production_was_capped = _effective_production(requested_production_ps)
+        sample = _build_sample(payload, pdb_text, pdb_id, effective_production_ps)
+        _patch(job_id, current_step="md_pipeline", progress_pct=25)
+
+        # No request timeout: the run lasts as long as the simulation needs. The
+        # worker keeps the row alive; a restart marks it interrupted instead of
+        # silently reporting progress it is no longer making.
+        pipe = build_md_pipeline()
+        report = await asyncio.to_thread(pipe.run, sample)
+
+        scientific = _build_result(
+            report, payload, pdb_text, pdb_id,
+            requested_production_ps, effective_production_ps, production_was_capped,
+        )
+        _patch(
+            job_id, status="complete", progress_pct=100, result=scientific,
+            scientific_status=scientific.get("status"),
+            pipeline_status=(scientific.get("pipeline") or {}).get("pipeline_status"),
+        )
+    except Exception as exc:
+        logger.exception("MD v2 background run failed for %s", job_id)
+        _patch(job_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+
+
+@router.post("/jobs", response_model=MdJobSubmitResponse)
+async def submit_job(payload: AnalyzeRequest, user_id: str | None = Depends(get_user_id)):
+    """Queue a staged MD run and return its id immediately.
+
+    The run no longer has to finish inside one HTTP connection, so the frontend
+    polls ``GET /api/md/v2/jobs/{job_id}`` and the run also appears on the Jobs
+    and History pages.
+    """
+    pdb_text, pdb_id = await _resolve_structure(payload)
+
+    job_id = str(uuid.uuid4())
+    with _lock:
+        _jobs[job_id] = {
+            "job_id": job_id,
+            "status": "queued",
+            "progress_pct": 0,
+            "pdb_id": pdb_id,
+            "user_id": user_id,
+            "requested": {
+                "forcefield": payload.forcefield,
+                "solvent": payload.solvent,
+                "production_ps": payload.production_ps,
+            },
+        }
+    job_state.mirror(job_id, _JOB_KIND, dict(_jobs[job_id]))
+    job_registry.start(
+        "md_v2", user_id, job_id=job_id,
+        query_preview=f"Staged MD · {pdb_id}",
+        context={"pdb_id": pdb_id, "forcefield": payload.forcefield,
+                 "solvent": payload.solvent, "production_ps": payload.production_ps},
+    )
+
+    task = asyncio.create_task(_run_job(job_id, pdb_text, pdb_id, payload))
+    _tasks.add(task)
+    task.add_done_callback(_tasks.discard)
+    return MdJobSubmitResponse(job_id=job_id, status="queued")
+
+
+@router.get("/jobs/{job_id}", response_model=MdJobStatusResponse)
+async def job_status(job_id: str, user_id: str | None = Depends(get_user_id)):
+    with _lock:
+        job = _jobs.get(job_id)
+        snapshot = dict(job) if job else None
+
+    if not snapshot:
+        raise HTTPException(status_code=404, detail="MD job not found")
+
+    owner = snapshot.get("user_id")
+    if owner and user_id and owner != user_id:
+        # Do not reveal whether the id belongs to another account.
+        raise HTTPException(status_code=404, detail="MD job not found")
+
+    return MdJobStatusResponse(
+        job_id=job_id,
+        status=str(snapshot.get("status") or "running"),
+        progress_pct=int(snapshot.get("progress_pct") or 0),
+        result=snapshot.get("result"),
+        error=snapshot.get("error"),
+    )

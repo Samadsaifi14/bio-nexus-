@@ -9,6 +9,7 @@ import { fadeUp, stagger } from '@/lib/animations';
 import { CircleNotch as LoaderCircle, FileText, Dna } from '@phosphor-icons/react';
 import { PageHeader } from '@/components/ui';
 import { STATUS_BADGE } from '@/lib/status-colors';
+import { toolLabel } from '@/lib/tool-labels';
 
 export default function HistoryPage() {
   const router = useRouter();
@@ -78,11 +79,11 @@ export default function HistoryPage() {
                   {job.id.slice(0, 8)}...
                 </td>
                 <td className="px-4 py-3 text-text-secondary capitalize">
-                  {(job.pipeline_type ?? 'protein_analysis').replace(/_/g, ' ')}
+                  {toolLabel(job) ?? (job.pipeline_type ?? 'protein_analysis').replace(/_/g, ' ')}
                 </td>
                 <td className="px-4 py-3">
                   <span className={STATUS_BADGE[job.status] ?? 'badge bg-surface-2 text-text-muted text-[10px]'}>
-                    {job.status}
+                    {job.status.replace(/_/g, ' ')}
                   </span>
                 </td>
                 <td className="px-4 py-3 text-text-muted text-xs hidden sm:table-cell">

@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef, useMemo } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { CircleNotch as LoaderCircle, Dna, WarningCircle as AlertCircle, ShareNetwork, Download, MagnifyingGlass as Search, Clock, WifiSlash as WifiOff, TestTube as FlaskConical } from '@phosphor-icons/react';
 import toast from 'react-hot-toast';
 import type { JobStatus, JobStepStatus } from '@/types/pipeline';
@@ -20,6 +21,7 @@ import { WorkflowReplay } from '@/components/pipeline/WorkflowReplay';
 import { getJob, createShareLink, getWorkflowEvidenceManifest } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { buildShareUrl, buildShareMessage, buildShareDetails, type ShareDetails } from '@/lib/share';
+import { toolMetaFor } from '@/lib/tool-labels';
 import { ShareDialog } from '@/components/share/ShareDialog';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
@@ -40,6 +42,16 @@ import { branchFromJob } from '@/lib/api';
 import { runBlastPipeline, type BlastProgram } from '@/lib/blastApi';
 
 const STEP_ORDER = ['blast', 'uniprot', 'msa', 'phylo', 'domains', 'pathway_enrichment', 'alphafold', 'interpret'];
+
+function summarizeContext(context: Record<string, unknown>): Array<[string, string]> {
+  const rows: Array<[string, string]> = [];
+  for (const [key, value] of Object.entries(context)) {
+    if (key === 'source' || value === null || value === undefined) continue;
+    if (typeof value === 'object') continue;
+    rows.push([key, String(value)]);
+  }
+  return rows;
+}
 
 const STATUS_ORDER: JobStepStatus[] = [
   'queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold', 'complete',
@@ -185,6 +197,101 @@ export default function JobPage() {
         <Dna className="w-16 h-16 text-text-muted mx-auto mb-6" />
         <h3 className="text-xl font-semibold text-text-primary mb-2">Job not found</h3>
         <p className="text-sm text-text-secondary">This job does not exist or has been deleted.</p>
+      </motion.div>
+    );
+  }
+
+  // Analysis-tool jobs (MD, docking, NGS, ADMET, ...) have their own detail view.
+  // They share the jobs table but carry none of the BLAST pipeline stages below.
+  const toolMeta = toolMetaFor(job);
+  if (toolMeta) {
+    const toolActive = ['queued', 'running', 'submitted_to_ncbi', 'polling_ncbi', 'parsing', 'fetching_uniprot', 'running_msa', 'interpreting', 'pathway_enrichment', 'fetching_alphafold'].includes(job.status);
+    const toolFailed = ['failed', 'interrupted', 'cancelled', 'error'].includes(job.status);
+    const toolError = job.error_message || job.error;
+    const context = (job.context_json ?? {}) as Record<string, unknown>;
+    const contextRows = summarizeContext(context);
+    const progress = Number.isFinite(job.progress_pct) ? Math.max(0, Math.min(100, job.progress_pct)) : 0;
+    const statusLabel = job.status === 'interrupted' ? 'Interrupted' : toolFailed ? 'Failed' : toolActive ? 'Running' : 'Completed';
+
+    return (
+      <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="max-w-3xl mx-auto py-8">
+        <BackButton href="/jobs" label="All jobs" />
+
+        <div className="glass-card p-6 mb-6">
+          <div className="flex flex-wrap items-start justify-between gap-3 mb-4">
+            <div>
+              <p className="text-[11px] uppercase tracking-wide text-text-muted mb-1">Analysis job</p>
+              <h1 className="text-2xl font-semibold text-text-primary">{toolMeta.label}</h1>
+              <p className="text-xs text-text-muted font-mono mt-1">{job.id}</p>
+            </div>
+            <span className={`text-[11px] px-2.5 py-1 rounded-full font-medium ${
+              toolFailed ? 'bg-error/10 text-error'
+                : toolActive ? 'bg-accent-purple/10 text-accent-purple'
+                : 'bg-accent-cyan/10 text-accent-cyan'
+            }`}>
+              {statusLabel}
+            </span>
+          </div>
+
+          {job.query_preview && (
+            <div className="glass p-3 mb-4">
+              <p className="text-[11px] text-text-muted mb-1">Input</p>
+              <p className="text-sm text-text-primary break-words">{job.query_preview}</p>
+            </div>
+          )}
+
+          {toolActive && (
+            <div className="mb-4">
+              <div className="flex items-center gap-2 mb-2">
+                <LoaderCircle className="w-4 h-4 text-accent-cyan animate-spin" />
+                <p className="text-sm text-text-secondary">
+                  {job.current_step_label || 'Running in the background — you can close this tab.'}
+                </p>
+              </div>
+              <div className="h-1.5 rounded-full bg-surface-1 overflow-hidden">
+                <div className="h-full rounded-full bg-accent-cyan transition-all" style={{ width: `${progress || 5}%` }} />
+              </div>
+            </div>
+          )}
+
+          {toolFailed && (
+            <div className="glass bg-error/5 border border-error/20 p-3 mb-4">
+              <p className="text-xs text-error font-mono leading-relaxed">{toolError || 'The run failed before producing a result.'}</p>
+            </div>
+          )}
+
+          <div className="flex flex-wrap gap-x-6 gap-y-1 text-[11px] text-text-muted mb-4">
+            <span className="inline-flex items-center gap-1"><Clock className="w-3 h-3" />Started {new Date(job.created_at).toLocaleString()}</span>
+            {job.completed_at && <span>Finished {new Date(job.completed_at).toLocaleString()}</span>}
+          </div>
+
+          {contextRows.length > 0 && (
+            <div className="glass p-3">
+              <p className="text-[11px] text-text-muted mb-2">Parameters</p>
+              <dl className="space-y-1">
+                {contextRows.map(([key, value]) => (
+                  <div key={key} className="flex items-baseline justify-between gap-4 text-xs">
+                    <dt className="text-text-muted capitalize">{key.replace(/_/g, ' ')}</dt>
+                    <dd className="text-text-secondary font-mono text-right break-all">{value}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          )}
+
+          {toolMeta.href && (
+            <div className="mt-5">
+              <Link href={toolMeta.href} className="btn-critical text-sm inline-flex items-center gap-2">
+                Open {toolMeta.label}
+              </Link>
+            </div>
+          )}
+        </div>
+
+        <p className="text-xs text-text-muted text-center">
+          This run is recorded on the <a href="/jobs" className="text-accent-cyan hover:underline">Jobs</a> and{' '}
+          <a href="/history" className="text-accent-cyan hover:underline">History</a> pages.
+        </p>
       </motion.div>
     );
   }

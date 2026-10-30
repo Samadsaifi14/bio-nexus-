@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import type { ReactElement } from 'react';
+import Link from 'next/link';
 import { motion } from 'framer-motion';
 import {
   Atom,
@@ -29,7 +30,7 @@ import {
   YAxis,
 } from 'recharts';
 import { fadeUp } from '@/lib/animations';
-import { runMd2Analyze } from '@/lib/api';
+import { getMd2Job, submitMd2Job } from '@/lib/api';
 import type { Md2Stage, Md2Metric } from '@/lib/api';
 import { BackButton, CriticalButton, FlatInput, PageHeader } from '@/components/ui';
 import { consumeParam, getAnalysisHandoff } from '@/lib/cross-link';
@@ -147,7 +148,10 @@ export default function MdV2Page() {
   const [productionPs, setProductionPs] = useState(5);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [result, setResult] = useState<Awaited<ReturnType<typeof runMd2Analyze>> | null>(null);
+  const [pollNote, setPollNote] = useState<string | null>(null);
+  const [jobId, setJobId] = useState<string | null>(null);
+  const [result, setResult] = useState<Awaited<ReturnType<typeof getMd2Job>>['result'] | null>(null);
+  const pollTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   useEffect(() => {
     const handoff = getAnalysisHandoff();
@@ -159,22 +163,65 @@ export default function MdV2Page() {
     if (!pdbId.trim()) return;
     setLoading(true);
     setError(null);
+    setPollNote(null);
     setResult(null);
+    setJobId(null);
     try {
-      const res = await runMd2Analyze({
+      // Submit and return immediately: the run is now a background job with an id,
+      // so a long simulation is not cut off by a proxy timeout.
+      const submitted = await submitMd2Job({
         pdb_id: pdbId.trim(),
         forcefield: forcefield || undefined,
         solvent: solvent || undefined,
         production_ps: productionPs,
       });
-      setResult(res);
+      setJobId(submitted.job_id);
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : 'Failed to run analysis';
+      const message = err instanceof Error ? err.message : 'Failed to submit analysis';
       setError(message);
-    } finally {
       setLoading(false);
     }
   };
+
+  // Poll the queued run. Transient gateway errors are retried: the job keeps
+  // running on the server even when one poll fails.
+  useEffect(() => {
+    if (!jobId) return;
+    let cancelled = false;
+
+    const poll = async () => {
+      try {
+        const snapshot = await getMd2Job(jobId);
+        if (cancelled) return;
+        setPollNote(null);
+        if (snapshot.status === 'complete' && snapshot.result) {
+          setResult(snapshot.result);
+          setLoading(false);
+          return;
+        }
+        if (['failed', 'interrupted', 'error'].includes(snapshot.status)) {
+          setError(snapshot.error || 'The staged MD run did not finish.');
+          setLoading(false);
+          return;
+        }
+      } catch (err: unknown) {
+        if (cancelled) return;
+        const message = err instanceof Error ? err.message : 'Lost connection while polling';
+        setPollNote(`Still running — retrying status check (${message})`);
+      }
+      if (!cancelled) pollTimer.current = setTimeout(poll, 3000);
+    };
+
+    poll();
+    return () => {
+      cancelled = true;
+      if (pollTimer.current) clearTimeout(pollTimer.current);
+    };
+  }, [jobId]);
+
+  useEffect(() => () => {
+    if (pollTimer.current) clearTimeout(pollTimer.current);
+  }, []);
 
   const verdict = result?.pipeline.pipeline_status ?? null;
   const scientific = (result ?? {}) as unknown as ScientificMdEnvelope;
@@ -280,8 +327,24 @@ export default function MdV2Page() {
 
         <CriticalButton onClick={run} disabled={loading || !pdbId.trim()} className="w-full py-3 flex items-center justify-center gap-2 disabled:opacity-50">
           {loading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Atom className="w-4 h-4" />}
-          {loading ? 'Running OpenMM stages...' : 'Run Staged MD Pipeline'}
+          {loading ? 'Running OpenMM stages…' : 'Run Staged MD Pipeline'}
         </CriticalButton>
+
+        {jobId && (
+          <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-glass-border bg-surface-1 px-3 py-2">
+            <p className="text-[11px] text-text-muted">
+              Job <span className="font-mono text-text-secondary">{jobId}</span>
+              {loading ? ' · running in the background' : ''}
+            </p>
+            <Link href={`/jobs/${jobId}`} className="text-[11px] text-accent-cyan hover:underline">
+              Open on Jobs page
+            </Link>
+          </div>
+        )}
+
+        {pollNote && (
+          <p className="text-[11px] text-accent-amber">{pollNote}</p>
+        )}
       </motion.div>
 
       {error && (

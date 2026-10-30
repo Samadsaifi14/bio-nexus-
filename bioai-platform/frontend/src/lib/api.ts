@@ -1335,6 +1335,32 @@ export async function runMd2Analyze(payload: {
   return res.data;
 }
 
+export type Md2JobSnapshot = {
+  job_id: string;
+  status: string;
+  progress_pct?: number;
+  result?: Md2AnalyzeResult | null;
+  error?: string | null;
+};
+
+/** Queue a staged-MD run; the simulation outlives the HTTP request. */
+export async function submitMd2Job(payload: {
+  pdb_id: string;
+  forcefield?: string;
+  solvent?: string;
+  production_ps?: number;
+  nvt_ps?: number;
+}): Promise<{ job_id: string; status: string }> {
+  const res = await api.post('/api/md/v2/jobs', payload);
+  return res.data;
+}
+
+/** Poll one queued/running staged-MD run. */
+export async function getMd2Job(jobId: string): Promise<Md2JobSnapshot> {
+  const res = await longApi.get(`/api/md/v2/jobs/${jobId}`);
+  return res.data;
+}
+
 export async function listMd2Stages(): Promise<Md2StageContract[]> {
   const res = await api.get('/api/md/v2/stages');
   return res.data.stages || [];

@@ -1,6 +1,7 @@
 ﻿from __future__ import annotations
 
 import json
+import hashlib
 import logging
 import math
 import re
@@ -652,6 +653,42 @@ def _find_hydrogens(atoms: list[tuple]) -> list[tuple]:
     return [a for a in atoms if a[1].startswith("H") or a[1] in ("1H", "2H", "3H")]
 
 
+def _extract_vina_pose_models(pdbqt: str) -> list[dict]:
+    """Return original Vina pose models and their recorded affinity remarks."""
+    models = []
+    current = None
+    for line in pdbqt.splitlines():
+        record = line[:6].strip()
+        if record == "MODEL":
+            if current is not None:
+                models.append(current)
+            parts = line.split()
+            try:
+                model_id = int(parts[1])
+            except (ValueError, IndexError):
+                model_id = len(models) + 1
+            current = {"model": model_id, "records": [], "affinity_kcal_mol": None}
+        elif record == "ENDMDL":
+            if current is not None:
+                models.append(current)
+                current = None
+        elif current is not None:
+            if line.startswith("REMARK VINA RESULT:"):
+                match = re.search(r"REMARK VINA RESULT:\\s*([-+]?\\d+(?:\\.\\d+)?)", line)
+                if match:
+                    current["affinity_kcal_mol"] = float(match.group(1))
+            elif record in ("ATOM", "HETATM"):
+                current["records"].append(line)
+    if current is not None:
+        models.append(current)
+    if not models:
+        records = [line for line in pdbqt.splitlines()
+                   if line[:6].strip() in ("ATOM", "HETATM")]
+        if records:
+            models = [{"model": 1, "records": records, "affinity_kcal_mol": None}]
+    return [model for model in models if model["records"]]
+
+
 def _first_pose_pdbqt(pdbqt: str) -> str:
     """Extract model 1 from Vina output without changing atom order or coordinates."""
     in_first = False
@@ -1095,6 +1132,81 @@ async def get_docking_job(job_id: str, user_id: str = Depends(require_user_id)):
     if not result.data:
         raise HTTPException(status_code=404, detail="Docking job not found")
     return DockingJobResponse(**_row_to_response(result.data))
+
+
+@router.post("/recalculate-interactions/{job_id}")
+async def recalculate_stored_docking_interactions(job_id: str, user_id: str = Depends(require_user_id)):
+    """Recalculate all stored poses without changing the original docking artifact."""
+    data = _load_docking_result(job_id, user_id)
+    receptor_pdb = data.get("receptor_pdb")
+    smiles = data.get("smiles")
+    pdbqt = data.get("result_pdbqt")
+    if not receptor_pdb or not smiles or not pdbqt:
+        raise HTTPException(
+            status_code=422,
+            detail="Stored job lacks receptor_pdb, smiles, or native result_pdbqt; exact reproduction is unavailable.",
+        )
+    models = _extract_vina_pose_models(pdbqt)
+    if not models:
+        raise HTTPException(status_code=422, detail="Stored Vina artifact contains no recoverable pose models.")
+    pose_results = []
+    for model in models:
+        pose_pdbqt = "\\n".join(model["records"]) + "\\nEND\\n"
+        try:
+            interactions = _compute_interactions(receptor_pdb, pose_pdbqt, smiles)
+            pose_results.append({
+                "model": model["model"],
+                "affinity_kcal_mol": model["affinity_kcal_mol"],
+                "status": interactions.get("status", "COMPUTED"),
+                "counts": interactions.get("counts", {
+                    "hbonds": len(interactions.get("hbonds", [])),
+                    "hydrophobic": len(interactions.get("hydrophobic", [])),
+                    "pi_stacking": len(interactions.get("pi_stacking", [])),
+                    "salt_bridges": len(interactions.get("salt_bridges", [])),
+                }),
+                "hbonds": interactions.get("hbonds", []),
+                "hydrophobic": interactions.get("hydrophobic", []),
+                "pi_stacking": interactions.get("pi_stacking", []),
+                "salt_bridges": interactions.get("salt_bridges", []),
+                "protein_parse": interactions.get("protein_parse"),
+                "hydrogen_coordinate_provenance": interactions.get("hydrogen_coordinate_provenance"),
+                "limitations": interactions.get("limitations", []),
+            })
+        except Exception as exc:
+            pose_results.append({
+                "model": model["model"],
+                "affinity_kcal_mol": model["affinity_kcal_mol"],
+                "status": "UNAVAILABLE",
+                "reason": type(exc).__name__,
+                "message": str(exc)[:300],
+                "limitations": ["Interaction calculation failed; missing contacts are unavailable, not zero."],
+            })
+    unavailable = sum(row["status"] == "UNAVAILABLE" for row in pose_results)
+    degraded = sum(row["status"] == "DEGRADED" for row in pose_results)
+    return {
+        "job_id": job_id,
+        "status": "UNAVAILABLE" if unavailable == len(pose_results) else ("DEGRADED" if unavailable or degraded else "COMPUTED"),
+        "reproduction": {
+            "source": "original stored docking artifact; native Vina PDBQT coordinates",
+            "original_interaction_analysis": data.get("interaction_analysis"),
+            "pdb_id": data.get("pdb_id"),
+            "smiles": smiles,
+            "vina_version": data.get("vina_version"),
+            "exhaustiveness": data.get("vina_exhaustiveness"),
+            "num_modes": data.get("vina_num_modes"),
+            "seed": data.get("vina_seed"),
+            "box_center": data.get("box_center"),
+            "box_size": data.get("box_size"),
+            "selected_pocket_rank": data.get("selected_pocket_rank"),
+            "cnn_rescoring": data.get("cnn_rescoring"),
+            "receptor_pdb_sha256": hashlib.sha256(receptor_pdb.encode("utf-8")).hexdigest(),
+            "native_result_pdbqt_sha256": hashlib.sha256(pdbqt.encode("utf-8")).hexdigest(),
+            "original_artifact_mutated": False,
+        },
+        "engine": "RDKit",
+        "pose_count": len(pose_results),
+        "pose_results": pose_results,
+    }
 
 
 @router.get("/result/{job_id}/pdb")

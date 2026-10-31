@@ -383,10 +383,21 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
                     "method": "RDKit Hydrophobe chemical features + heavy-atom distance",
                 })
 
-    # Formal charge features are required on BOTH partners.
+    # RDKit PosIonizable/NegIonizable features are pharmacophore patterns,
+    # not proof of an actual formal charge. For the submitted ligand, require
+    # an explicit formal charge so neutral heteroaromatics (e.g. caffeine)
+    # cannot be mislabeled as salt-bridge partners.
+    ligand_positive = {
+        idx for idx in lf["PosIonizable"]
+        if ligand.GetAtomWithIdx(idx).GetFormalCharge() > 0
+    }
+    ligand_negative = {
+        idx for idx in lf["NegIonizable"]
+        if ligand.GetAtomWithIdx(idx).GetFormalCharge() < 0
+    }
     for positive_mol, positive_ids, negative_mol, negative_ids, label in (
-        (ligand, lf["PosIonizable"], protein, pf["NegIonizable"], "ligand_positive_protein_negative"),
-        (protein, pf["PosIonizable"], ligand, lf["NegIonizable"], "protein_positive_ligand_negative"),
+        (ligand, ligand_positive, protein, pf["NegIonizable"], "ligand_positive_protein_negative"),
+        (protein, pf["PosIonizable"], ligand, ligand_negative, "protein_positive_ligand_negative"),
     ):
         for pos in positive_ids:
             for neg in negative_ids:

@@ -17,7 +17,7 @@ def _atom(record="ATOM", serial=1, atom="C1"):
 def test_vina_atom_records_are_parsed_as_pose_atoms(monkeypatch):
     observed = []
 
-    def fake_compute(protein, ligand):
+    def fake_compute(protein, ligand, ligand_smiles=None):
         observed.append(ligand)
         return {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
 
@@ -33,7 +33,7 @@ def test_heteroatom_records_are_also_parsed(monkeypatch):
     observed = []
     monkeypatch.setattr(
         module, "_compute_interactions",
-        lambda protein, ligand: observed.append(ligand) or {
+        lambda protein, ligand, ligand_smiles=None: observed.append(ligand) or {
             "hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []
         },
     )

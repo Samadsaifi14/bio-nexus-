@@ -44,7 +44,7 @@ def _ligand_with_template(ligand_pdb: str, smiles: str):
     template = Chem.MolFromSmiles(smiles)
     if template is None:
         raise ValueError("Ligand SMILES could not be parsed by RDKit")
-    pose = _pdb_mol(ligand_pdb, "ligand")
+    pose = Chem.RemoveHs(_pdb_mol(ligand_pdb, "ligand"))
     if pose.GetNumHeavyAtoms() != template.GetNumHeavyAtoms():
         raise ValueError(
             "Ligand pose atom count does not match the submitted SMILES "

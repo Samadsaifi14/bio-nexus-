@@ -359,7 +359,9 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
                 "protein_residue_seq": pres["number"], "protein_chain": pres["chain"],
                 "protein_ring_atom_indices": list(pids), "ligand_ring_atom_indices": list(lids),
                 "protein_centroid": list(pc), "ligand_centroid": list(lc),
-                "centroid_distance": round(d, 3), "ring_plane_angle": round(plane_angle, 2),\n                "plane_separation": round(plane_separation, 3),\n                "lateral_offset": round(lateral_offset, 3),
+                "centroid_distance": round(d, 3), "ring_plane_angle": round(plane_angle, 2),
+                "plane_separation": round(plane_separation, 3),
+                "lateral_offset": round(lateral_offset, 3),
                 "geometry": kind, "method": "RDKit aromatic ring features + least-squares plane geometry",
             })
     return rows

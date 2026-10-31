@@ -143,11 +143,53 @@ def _protein_mol(block: str):
     return protein
 
 
+def _ligand_pose_from_pdbqt(block: str, template):
+    """Attach original PDBQT pose coordinates to the exact SMILES atom order.
+
+    This is permitted only when every heavy-atom element matches in sequence;
+    no coordinate generation, minimization, or atom reordering is performed.
+    """
+    records = []
+    for line in block.splitlines():
+        if line[:6].strip() not in ("ATOM", "HETATM"):
+            continue
+        fields = line.split()
+        if len(fields) < 9:
+            continue
+        try:
+            element = "".join(ch for ch in fields[-1] if ch.isalpha()).title()
+            xyz = tuple(float(fields[i]) for i in (5, 6, 7))
+        except (ValueError, IndexError):
+            continue
+        records.append((element, xyz))
+    expected = [atom.GetSymbol() for atom in template.GetAtoms()]
+    observed = [element for element, _ in records]
+    if len(records) != template.GetNumHeavyAtoms() or observed != expected:
+        raise ValueError(
+            "PDBQT atom sequence does not exactly match the submitted SMILES atom order; "
+            "refusing coordinate assignment"
+        )
+    conformer = Chem.Conformer(template.GetNumAtoms())
+    for index, (_, xyz) in enumerate(records):
+        conformer.SetAtomPosition(index, xyz)
+    template_with_pose = Chem.Mol(template)
+    template_with_pose.RemoveAllConformers()
+    template_with_pose.AddConformer(conformer, assignId=True)
+    template_with_pose.SetProp("_coordinate_source", "original Vina PDBQT pose; atom-order identity check passed")
+    return template_with_pose
+
+
 def _ligand_with_template(ligand_pdb: str, smiles: str):
     template = Chem.MolFromSmiles(smiles)
     if template is None:
         raise ValueError("Ligand SMILES could not be parsed by RDKit")
-    pose = Chem.RemoveHs(_pdb_mol(ligand_pdb, "ligand"))
+    try:
+        pose = Chem.RemoveHs(_pdb_mol(ligand_pdb, "ligand"))
+    except ValueError:
+        # Legacy stored ligand_pdb serialization can be malformed. Recover
+        # coordinates from the original Vina PDBQT only after exact atom-order
+        # and element-sequence matching against the submitted SMILES.
+        pose = _ligand_pose_from_pdbqt(ligand_pdb, template)
     if pose.GetNumHeavyAtoms() != template.GetNumHeavyAtoms():
         raise ValueError(
             "Ligand pose atom count does not match the submitted SMILES "

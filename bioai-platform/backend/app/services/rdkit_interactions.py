@@ -379,7 +379,9 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
                     "donor_atom_index": did, "acceptor_atom_index": aid,
                     "donor_residue": _residue(donor), "acceptor_residue": _residue(acceptor_mol.GetAtomWithIdx(aid)),
                     "distance": round(distance, 3), "donor_h_acceptor_angle": round(best_angle, 2),
-                    "method": "RDKit donor/acceptor chemical features + explicit-H geometry",
+                    "method": "RDKit donor/acceptor chemical features + RDKit-generated-H geometry",
+                    "evidence_class": "Heuristic",
+                    "hydrogen_coordinates": "RDKit-generated with AddHs(addCoords=True); not experimentally observed",
                 })
 
     # Hydrophobic features are chemically classified by RDKit's BaseFeatures.
@@ -430,7 +432,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
     }
     return {
         **categories,
-        "status": "COMPUTED",
+        "status": "DEGRADED" if protein_parse["residues_skipped"] else "COMPUTED",
         "engine": "RDKit",
         "engine_version": Chem.rdBase.rdkitVersion,
         "method": "RDKit BaseFeatures chemical perception with coordinate geometry",

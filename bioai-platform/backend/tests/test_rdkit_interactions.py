@@ -16,7 +16,7 @@ def _embedded_pdb(smiles, residue="LIG", chain="A", residue_number=1):
     for line in block.splitlines():
         if not line.startswith(("ATOM  ", "HETATM")):
             continue
-        line = line[:17] + f"{residue:>3s}" + f" {chain}{residue_number:4d}" + line[27:]
+        line = line[:17] + f"{residue:>3s}" + f" {chain}{residue_number:4d} " + line[27:]
         line = line[:6] + f"{serial:5d}" + line[11:]
         lines.append(line)
         serial += 1

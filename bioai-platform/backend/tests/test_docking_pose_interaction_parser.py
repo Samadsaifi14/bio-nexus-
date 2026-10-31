@@ -4,7 +4,9 @@ These tests exercise the PDBQT record/model parser independently of chemistry.
 They deliberately mock the chemistry routine: they validate parser behavior,
 not the scientific validity of interaction classifications.
 """
-import asyncio\n\nfrom app.routers import docking as module
+import asyncio
+
+from app.routers import docking as module
 
 
 def _atom(record="ATOM", serial=1, atom="C1"):

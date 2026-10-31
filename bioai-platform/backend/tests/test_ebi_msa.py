@@ -12,7 +12,7 @@ All network calls are mocked; these run fully offline.
 import pytest
 from fastapi import HTTPException
 
-from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
+from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa_best_effort
 from app.routers import alignment as alignment_router
 from app.routers.alignment import AlignRequest, run_alignment
 
@@ -56,10 +56,10 @@ class TestRunAlignment:
         }
 
         async def fake_run_ebi_msa(**kwargs):
-            assert kwargs["base_url"] == EBI_TOOLS["muscle"]
+            assert "muscle" in kwargs["tools"]
             return canned
 
-        monkeypatch.setattr(alignment_router, "run_ebi_msa", fake_run_ebi_msa)
+        monkeypatch.setattr(alignment_router, "run_ebi_msa_best_effort", fake_run_ebi_msa)
         req = AlignRequest(sequence=">a\nMEEPQSDPSV\n>b\nMEEPQSDPSA", method="muscle")
         result = await run_alignment(req)
         assert result["job_id"] == "job-1"
@@ -71,11 +71,30 @@ class TestRunAlignment:
     @pytest.mark.asyncio
     async def test_runner_failure_maps_to_502(self, monkeypatch):
         async def fake_run_ebi_msa(**kwargs):
-            raise ValueError("EBI submission failed (HTTP 500): boom")
+            raise ValueError("EBI submission failed (HTTP 400): invalid parameters")
 
         monkeypatch.setattr(alignment_router, "run_ebi_msa", fake_run_ebi_msa)
         req = AlignRequest(sequence=">a\nMEEPQSDPSV")
         with pytest.raises(HTTPException) as exc:
             await run_alignment(req)
         assert exc.value.status_code == 502
-        assert "boom" in exc.value.detail
+        assert "local fallback" in exc.value.detail.lower()
+
+
+class TestAlignmentFallback:
+    @pytest.mark.asyncio
+    async def test_provider_failure_uses_explicit_local_fallback(self, monkeypatch):
+        async def fail_all(**kwargs):
+            raise ValueError("EBI submission failed (HTTP 400): invalid parameters")
+
+        monkeypatch.setattr(alignment_router, "run_ebi_msa_best_effort", fail_all)
+        req = AlignRequest(
+            sequence=">query\\nMEEPQSDPSV\\n>subject\\nMEEPQSDPSA",
+            method="clustalo",
+        )
+        result = await run_alignment(req)
+        assert result["method"] == "in-process fallback"
+        assert result["provider"] == "BioNexus local fallback"
+        assert result["provider_fallback"] is True
+        assert result["validation"]["record_set_verified"] is True
+        assert result["validation"]["residue_preservation_verified"] is True

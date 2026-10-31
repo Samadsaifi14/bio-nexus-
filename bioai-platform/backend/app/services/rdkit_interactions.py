@@ -75,6 +75,32 @@ def _pdb_mol(block: str, label: str):
     return mol
 
 
+def _nearby_protein_pdb(block: str, ligand, radius: float = 10.0) -> str:
+    """Keep complete protein residues having any heavy atom within radius of ligand."""
+    ligand_points = [_coords(ligand, atom.GetIdx()) for atom in ligand.GetAtoms()
+                     if atom.GetAtomicNum() > 1]
+    if not ligand_points:
+        raise ValueError("Ligand has no heavy-atom coordinates")
+    cutoff2 = radius * radius
+    selected = set()
+    residue_lines = {}
+    for line in block.splitlines():
+        if not line.startswith("ATOM  ") or len(line) < 54:
+            continue
+        key = (line[21:22], line[22:26], line[26:27], line[17:20])
+        residue_lines.setdefault(key, []).append(line)
+        try:
+            xyz = (float(line[30:38]), float(line[38:46]), float(line[46:54]))
+        except ValueError:
+            continue
+        if any(sum((a-b)**2 for a, b in zip(xyz, point)) <= cutoff2 for point in ligand_points):
+            selected.add(key)
+    lines = [line for key in residue_lines if key in selected for line in residue_lines[key]]
+    if not lines:
+        raise ValueError("No protein residues were found within the interaction-analysis radius")
+    return "\n".join(lines) + "\nEND\n"
+
+
 def _protein_mol(block: str):
     """Parse protein residues independently to prevent false inter-residue proximity bonds.
 
@@ -302,8 +328,17 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
 def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str) -> dict[str, Any]:
     """Return RDKit feature-based interaction evidence for one docked pose."""
     factory = _feature_factory()
-    protein_raw = _protein_mol(protein_pdb)\n    protein_parse = {\n        "parser": "RDKit residue-wise chemical perception; residues kept disconnected",\n        "residues_skipped": json.loads(protein_raw.GetProp("_omvetra_skipped_residues")),\n        "peptide_bonds_reconstructed": 0,\n    }\n    protein = _with_hydrogens(protein_raw)
-    ligand = _with_hydrogens(_ligand_with_template(ligand_pdb, ligand_smiles))
+    ligand_raw = _ligand_with_template(ligand_pdb, ligand_smiles)
+    nearby_protein = _nearby_protein_pdb(protein_pdb, ligand_raw, radius=10.0)
+    protein_raw = _protein_mol(nearby_protein)
+    protein_parse = {
+        "parser": "RDKit residue-wise perception on ligand-local receptor; residues kept disconnected",
+        "analysis_radius_angstrom": 10.0,
+        "residues_skipped": json.loads(protein_raw.GetProp("_omvetra_skipped_residues")),
+        "peptide_bonds_reconstructed": 0,
+    }
+    protein = _with_hydrogens(protein_raw)
+    ligand = _with_hydrogens(ligand_raw)
     pf = _atom_features(protein, factory)
     lf = _atom_features(ligand, factory)
 
@@ -382,7 +417,8 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
         "limitations": [
             "Interaction classifications depend on the supplied protonation/tautomer state and prepared coordinates.",
             "RDKit feature perception is a computational model, not experimental evidence of binding.",
-            "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",\n            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
+            "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",
+            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
             "Distances and angles are geometric screens, not interaction energies or binding-affinity measurements.",
         ],
     }

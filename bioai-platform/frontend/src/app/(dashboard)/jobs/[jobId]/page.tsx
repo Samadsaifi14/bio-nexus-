@@ -289,8 +289,8 @@ export default function JobPage() {
         </div>
 
         <p className="text-xs text-text-muted text-center">
-          This run is recorded on the <a href="/jobs" className="text-accent-cyan hover:underline">Jobs</a> and{' '}
-          <a href="/history" className="text-accent-cyan hover:underline">History</a> pages.
+          This run is recorded on the <Link href="/jobs" className="text-accent-cyan hover:underline">Jobs</Link> and{' '}
+          <Link href="/history" className="text-accent-cyan hover:underline">History</Link> pages.
         </p>
       </motion.div>
     );

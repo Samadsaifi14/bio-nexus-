@@ -7,6 +7,7 @@ zero-contact claim.
 from __future__ import annotations
 
 import math
+import json
 from typing import Any
 
 from rdkit import Chem, RDConfig

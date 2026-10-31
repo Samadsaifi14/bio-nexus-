@@ -674,7 +674,7 @@ def _extract_vina_pose_models(pdbqt: str) -> list[dict]:
                 current = None
         elif current is not None:
             if line.startswith("REMARK VINA RESULT:"):
-                match = re.search(r"REMARK VINA RESULT:\\s*([-+]?\\d+(?:\\.\\d+)?)", line)
+                match = re.search(r"REMARK VINA RESULT:\s*([-+]?\d+(?:\.\d+)?)", line)
                 if match:
                     current["affinity_kcal_mol"] = float(match.group(1))
             elif record in ("ATOM", "HETATM"):

@@ -191,9 +191,9 @@ def _engines_manifest(obabel_version: str, rdkit_version: str, vina_version: str
         },
         {
             "role": "interactions",
-            "engine": "Bio Nexus geometric detector",
-            "version": "",
-            "note": "H-bonds/hydrophobic/pi-stacking/salt bridges from local distance+angle heuristics",
+            "engine": "RDKit",
+            "version": rdkit_version,
+            "note": "Chemical-feature donor/acceptor, hydrophobe, ionizable-group, and aromatic-ring geometry; unavailable when chemical mapping fails",
         },
     ]
 
@@ -326,13 +326,13 @@ def _run_docking_sync(job_id: str, payload: dict):
         # 7. Compute interaction summary for best pose
         interaction_analysis = {
             "status": "COMPUTED",
-            "method": "distance and geometry thresholds; per-contact evidence is listed by interaction type",
+            "method": "RDKit chemical features and coordinate geometry; per-contact evidence is listed by interaction type",
             "limitations": "Geometric contact screening is not an energy calculation or experimental validation.",
         }
         # Keep best-pose contacts independent from the optional per-pose summary:
         # a malformed MODEL block must never erase valid primary contact evidence.
         try:
-            interactions = _compute_interactions(protein_pdb, vina_result.get("ligand_pdb", ""))
+            interactions = _compute_interactions(protein_pdb, vina_result.get("ligand_pdb", ""), smiles)
         except Exception as e:
             interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
             interaction_analysis = {
@@ -344,7 +344,7 @@ def _run_docking_sync(job_id: str, payload: dict):
             }
         try:
             pose_interactions = _summarize_pose_interactions(
-                protein_pdb, vina_result.get("result_pdbqt", "")
+                protein_pdb, vina_result.get("result_pdbqt", ""), smiles
             )
             interaction_analysis["pose_summary_status"] = "COMPUTED"
         except Exception as e:
@@ -645,7 +645,7 @@ def _find_hydrogens(atoms: list[tuple]) -> list[tuple]:
     return [a for a in atoms if a[1].startswith("H") or a[1] in ("1H", "2H", "3H")]
 
 
-def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
+def _compute_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str | None = None) -> dict:
     """
     Compute protein-ligand interactions using proper geometry.
 
@@ -655,8 +655,13 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
     Salt bridges: charged group centroids, distance < 4.0Å
     """
     if not ligand_pdb:
-        return {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
+        raise ValueError("Docked ligand coordinates are unavailable; interaction counts are unavailable, not zero.")
+    if ligand_smiles:
+        from app.services.rdkit_interactions import calculate_interactions
+        return calculate_interactions(protein_pdb, ligand_pdb, ligand_smiles)
 
+    # Compatibility path for legacy callers without a source SMILES. New docking
+    # jobs always supply SMILES and use the RDKit chemical-feature engine above.
     prot_atoms = _parse_atom_coords(protein_pdb)
     lig_atoms = _parse_atom_coords(ligand_pdb)
     if not prot_atoms or not lig_atoms:
@@ -946,7 +951,7 @@ def _compute_interactions(protein_pdb: str, ligand_pdb: str) -> dict:
     }
 
 
-def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[dict]:
+def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str, ligand_smiles: str | None = None) -> list[dict]:
     """Per-pose interaction summary."""
     if not output_pdbqt:
         return []
@@ -987,7 +992,7 @@ def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[di
             # A missing pose is unavailable, not a valid zero-contact result.
             continue
         lig_pdb = "\n".join(ligand_records) + "\nEND"
-        inter = _compute_interactions(protein_pdb, lig_pdb)
+        inter = _compute_interactions(protein_pdb, lig_pdb, ligand_smiles)
         summaries.append({
             "model": mid,
             "hbonds": len(inter.get("hbonds", [])),

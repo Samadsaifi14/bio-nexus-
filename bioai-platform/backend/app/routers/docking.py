@@ -340,7 +340,16 @@ def _run_docking_sync(job_id: str, payload: dict):
             interaction_analysis["method"] = interactions.get("method")
             interaction_analysis["limitations"] = "; ".join(interactions.get("limitations", [])) if isinstance(interactions.get("limitations"), list) else interactions.get("limitations", interaction_analysis["limitations"])
             interaction_analysis["hydrogen_coordinate_provenance"] = interactions.get("hydrogen_coordinate_provenance")
-            interaction_analysis["protein_parse"] = interactions.get("protein_parse")\n            interaction_analysis["scientific_limitations"] = interactions.get("limitations", [])
+            interaction_analysis["protein_parse"] = interactions.get("protein_parse")
+            interaction_analysis["scientific_limitations"] = interactions.get("limitations", [])
+            if (receptor_prep_evidence.get("input_other_hetero_records_excluded", 0)
+                    or receptor_prep_evidence.get("input_water_records_excluded", 0)):
+                interaction_analysis["status"] = "DEGRADED"
+                interaction_analysis["receptor_coverage"] = {
+                    "input_other_hetero_records_excluded": receptor_prep_evidence.get("input_other_hetero_records_excluded", 0),
+                    "input_water_records_excluded": receptor_prep_evidence.get("input_water_records_excluded", 0),
+                    "note": "Interactions are calculated against the prepared protein ATOM records; excluded HETATM groups and waters are not included.",
+                }
         except Exception as e:
             interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
             interaction_analysis = {

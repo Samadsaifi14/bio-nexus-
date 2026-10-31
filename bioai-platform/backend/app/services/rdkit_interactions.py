@@ -174,6 +174,8 @@ def _ligand_pose_from_pdbqt(block: str, template):
             xyz = tuple(float(fields[i]) for i in (5, 6, 7))
         except (ValueError, IndexError):
             continue
+        if element == "H":
+            continue
         records.append((element, xyz))
     expected = [atom.GetSymbol() for atom in template.GetAtoms()]
     observed = [element for element, _ in records]
@@ -196,13 +198,13 @@ def _ligand_with_template(ligand_pdb: str, smiles: str):
     template = Chem.MolFromSmiles(smiles)
     if template is None:
         raise ValueError("Ligand SMILES could not be parsed by RDKit")
+    # Prefer direct coordinate assignment from PDB/PDBQT records when the
+    # atom sequence exactly matches the submitted SMILES. This avoids relying
+    # on proximity bond perception for ligand coordinates.
     try:
-        pose = Chem.RemoveHs(_pdb_mol(ligand_pdb, "ligand"))
-    except ValueError:
-        # Legacy stored ligand_pdb serialization can be malformed. Recover
-        # coordinates from the original Vina PDBQT only after exact atom-order
-        # and element-sequence matching against the submitted SMILES.
         pose = _ligand_pose_from_pdbqt(ligand_pdb, template)
+    except ValueError:
+        pose = Chem.RemoveHs(_pdb_mol(ligand_pdb, "ligand"))
     if pose.GetNumHeavyAtoms() != template.GetNumHeavyAtoms():
         raise ValueError(
             "Ligand pose atom count does not match the submitted SMILES "

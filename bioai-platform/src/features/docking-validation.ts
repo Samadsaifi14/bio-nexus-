@@ -32,7 +32,7 @@
  * heuristic code-pattern analyses, not experimental structural data.
  */
 
-import { execSync } from 'child_process';
+import { execFileSync } from 'child_process';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -41,9 +41,15 @@ import * as path from 'path';
  * Runs `rea <command> <positional_args> ...` and returns parsed JSON result
  */
 function runReaCommand(command: string, args: string[]): any {
-  const fullCmd = 'rea ' + command + ' ' + args.join(' ');
+  const allowedCommands = new Set([
+    'inspect-android-package', 'search-android-classes', 'inspect-android-method',
+    'trace-android-references', 'project-android-application-graph'
+  ]);
+  if (!allowedCommands.has(command)) {
+    return { code: 'INVALID_COMMAND', message: 'REA command is not allowlisted' };
+  }
   try {
-    const output = execSync(fullCmd, { 
+    const output = execFileSync('rea', [command, ...args], { 
       encoding: 'utf8',
       timeout: 120000,
       maxBuffer: 10 * 1024 * 1024

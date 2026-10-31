@@ -78,7 +78,7 @@ def _pdb_mol(block: str, label: str):
 def _protein_mol(block: str):
     """Parse protein residues independently to prevent false inter-residue proximity bonds.
 
-    Reconnects sequential peptide C-N bonds after residue-level chemical perception.
+    Residues remain disconnected to avoid false bonds across close spatial neighbors.
     Any residue that cannot be perceived is explicitly recorded as excluded.
     """
     from collections import OrderedDict
@@ -120,23 +120,8 @@ def _protein_mol(block: str):
             if info:
                 names[info.GetName().strip()] = atom.GetIdx() + offset
         residue_atom_indices.append((key, names))
-    editable = Chem.RWMol(combined)
+    protein = combined
     peptide_bonds_added = 0
-    for (left_key, left_atoms), (right_key, right_atoms) in zip(residue_atom_indices, residue_atom_indices[1:]):
-        same_chain = left_key[0] == right_key[0]
-        try:
-            sequential = int(right_key[1]) == int(left_key[1]) + 1
-        except ValueError:
-            sequential = False
-        if same_chain and sequential and "C" in left_atoms and "N" in right_atoms:
-            c_idx, n_idx = left_atoms["C"], right_atoms["N"]
-            p1 = combined.GetConformer().GetAtomPosition(c_idx)
-            p2 = combined.GetConformer().GetAtomPosition(n_idx)
-            distance = p1.Distance(p2)
-            if 1.1 <= distance <= 1.8:
-                editable.AddBond(c_idx, n_idx, Chem.BondType.SINGLE)
-                peptide_bonds_added += 1
-    protein = editable.GetMol()
     Chem.SanitizeMol(protein)
     protein.SetProp("_omvetra_skipped_residues", json.dumps(skipped))
     protein.SetProp("_omvetra_peptide_bonds_added", str(peptide_bonds_added))
@@ -317,7 +302,7 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
 def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str) -> dict[str, Any]:
     """Return RDKit feature-based interaction evidence for one docked pose."""
     factory = _feature_factory()
-    protein_raw = _protein_mol(protein_pdb)\n    protein_parse = {\n        "parser": "RDKit residue-wise perception with sequential peptide-bond reconstruction",\n        "residues_skipped": json.loads(protein_raw.GetProp("_omvetra_skipped_residues")),\n        "peptide_bonds_reconstructed": int(protein_raw.GetProp("_omvetra_peptide_bonds_added")),\n    }\n    protein = _with_hydrogens(protein_raw)
+    protein_raw = _protein_mol(protein_pdb)\n    protein_parse = {\n        "parser": "RDKit residue-wise chemical perception; residues kept disconnected",\n        "residues_skipped": json.loads(protein_raw.GetProp("_omvetra_skipped_residues")),\n        "peptide_bonds_reconstructed": 0,\n    }\n    protein = _with_hydrogens(protein_raw)
     ligand = _with_hydrogens(_ligand_with_template(ligand_pdb, ligand_smiles))
     pf = _atom_features(protein, factory)
     lf = _atom_features(ligand, factory)

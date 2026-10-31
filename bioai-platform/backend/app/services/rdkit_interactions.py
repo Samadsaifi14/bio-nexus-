@@ -138,7 +138,7 @@ def _protein_mol(block: str):
                 peptide_bonds_added += 1
     protein = editable.GetMol()
     Chem.SanitizeMol(protein)
-    protein.SetProp("_omvetra_skipped_residues", str(skipped))
+    protein.SetProp("_omvetra_skipped_residues", json.dumps(skipped))
     protein.SetProp("_omvetra_peptide_bonds_added", str(peptide_bonds_added))
     return protein
 
@@ -275,7 +275,7 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
 def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str) -> dict[str, Any]:
     """Return RDKit feature-based interaction evidence for one docked pose."""
     factory = _feature_factory()
-    protein_raw = _protein_mol(protein_pdb)\n    protein_parse = {\n        "parser": "RDKit residue-wise perception with sequential peptide-bond reconstruction",\n        "residues_skipped": eval(protein_raw.GetProp("_omvetra_skipped_residues")),\n        "peptide_bonds_reconstructed": int(protein_raw.GetProp("_omvetra_peptide_bonds_added")),\n    }\n    protein = _with_hydrogens(protein_raw)
+    protein_raw = _protein_mol(protein_pdb)\n    protein_parse = {\n        "parser": "RDKit residue-wise perception with sequential peptide-bond reconstruction",\n        "residues_skipped": json.loads(protein_raw.GetProp("_omvetra_skipped_residues")),\n        "peptide_bonds_reconstructed": int(protein_raw.GetProp("_omvetra_peptide_bonds_added")),\n    }\n    protein = _with_hydrogens(protein_raw)
     ligand = _with_hydrogens(_ligand_with_template(ligand_pdb, ligand_smiles))
     pf = _atom_features(protein, factory)
     lf = _atom_features(ligand, factory)

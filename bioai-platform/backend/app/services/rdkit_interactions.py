@@ -433,14 +433,20 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
         "status": "COMPUTED",
         "engine": "RDKit",
         "engine_version": Chem.rdBase.rdkitVersion,
-        "method": "RDKit BaseFeatures chemical perception with explicit-coordinate geometry",
+        "method": "RDKit BaseFeatures chemical perception with coordinate geometry",
+        "hydrogen_coordinate_provenance": {
+            "source": "RDKit AddHs(addCoords=True) from prepared heavy-atom coordinates",
+            "experimental_hydrogen_coordinates": False,
+            "interpretation": "Hydrogen-bond angles involving generated hydrogens are model-dependent geometric candidates, not directly observed geometry.",
+        },
         "thresholds": dict(_THRESHOLDS),
         "counts": {key: len(value) for key, value in categories.items()},
         "limitations": [
             "Interaction classifications depend on the supplied protonation/tautomer state and prepared coordinates.",
             "RDKit feature perception is a computational model, not experimental evidence of binding.",
             "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",
-            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",\n            "Protein backbone amide N donors are excluded because the residue-wise parser does not reconstruct peptide connectivity; this can omit valid backbone hydrogen bonds.",
+            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
+            "Protein backbone amide N donors are excluded because the residue-wise parser does not reconstruct peptide connectivity; this can omit valid backbone hydrogen bonds.",
             "Distances and angles are geometric screens, not interaction energies or binding-affinity measurements.",
         ],
     }

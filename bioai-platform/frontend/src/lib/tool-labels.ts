@@ -15,6 +15,7 @@ export const TOOL_META: Record<string, { label: string; href?: string }> = {
   function_predict: { label: 'Protein function prediction', href: '/analyze/function' },
   structure_predict: { label: 'Structure prediction', href: '/analyze/predict-structure' },
   structure_prep: { label: 'Structure preparation', href: '/analyze/structure-prep' },
+  structure_compare: { label: 'Structure comparison', href: '/analyze/compare' },
   castp: { label: 'Pocket & cavity analysis', href: '/analyze/castp' },
   admet: { label: 'ADMET descriptors', href: '/analyze/admet' },
   protox: { label: 'ProTox toxicity prediction', href: '/analyze/admet' },

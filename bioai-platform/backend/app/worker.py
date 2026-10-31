@@ -48,6 +48,15 @@ STUCK_JOB_TIMEOUT_BY_TABLE = {
     "sequencing_jobs": 90,
     "ngs_jobs": 90,
 }
+# Rows in `jobs` that are not pipeline runs are mirrors written by
+# app.services.job_registry for tool routers (docking, MSA, phylo, ...). Those
+# rows never carry a worker claim, so their "running" age is the only liveness
+# signal available. Give them a wide window before closing them out.
+TOOL_MIRROR_STUCK_TIMEOUT_MIN = 6 * 60
+# A non-terminal row older than this cannot be recovered meaningfully. Retrying
+# a months-old analysis would silently re-run external provider work and rewrite
+# the owner's history, so close it as interrupted instead.
+STALE_RECLAIM_MAX_AGE_MIN = 6 * 60
 SWEEP_EVERY = 20  # sweep every N poll ticks (~60s)
 
 # Per-type concurrency caps
@@ -113,7 +122,15 @@ def _claim_direct(table: str, worker_id: str) -> dict | None:
     import httpx
     # Compare each row's own retry budget; a fixed attempts<3 filter can
     # strand jobs configured for more attempts or claim exhausted jobs.
-    url = f"{_base()}/rest/v1/{table}?status=eq.queued&order=id.asc&limit=5&select=*"
+    #
+    # `jobs` also holds tool-registry rows (docking, MSA, ...) written by
+    # app.services.job_registry. Only the pipeline worker executes that table,
+    # so a queued tool row must never be claimed and run as a pipeline job.
+    tool_filter = "&tool=eq.pipeline" if table == "jobs" else ""
+    url = (
+        f"{_base()}/rest/v1/{table}?status=eq.queued"
+        f"{tool_filter}&order=id.asc&limit=5&select=*"
+    )
     resp = httpx.get(url, headers=_headers(), timeout=15)
     if resp.status_code != 200:
         logger.warning("Direct claim query failed for %s: %s %s", table, resp.status_code, resp.text[:200])
@@ -168,12 +185,52 @@ def _patch(table: str, job_id: str, payload: dict) -> None:
         pass
 
 
-def _stale_recovery_payload(table: str, row: dict) -> dict:
+def _row_age_minutes(row: dict) -> float | None:
+    """Minutes since the row's liveness timestamp (claim time, else creation)."""
+    stamp = row.get("claimed_at") or row.get("created_at")
+    if not stamp:
+        return None
+    try:
+        parsed = datetime.fromisoformat(str(stamp).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return (datetime.now(timezone.utc) - parsed).total_seconds() / 60
+
+
+def _interrupted_payload(table: str, row: dict, reason: str) -> dict:
+    """Terminal payload for a row whose owner is gone and cannot be retried."""
+    now = datetime.now(timezone.utc).isoformat()
+    payload = {
+        "status": "failed",
+        "claimed_at": None,
+        "claimed_by": None,
+        "error": reason,
+    }
+    if table == "jobs":
+        payload["completed_at"] = now
+    else:
+        payload["done_at"] = now
+    return payload
+
+
+def _stale_recovery_payload(table: str, row: dict, *, interrupted: bool = False) -> dict:
     """Return a bounded recovery action for a stale worker claim.
 
     A stale claim is infrastructure failure, not scientific failure.  Requeue
     while retry budget remains; only become terminal after max_attempts.
     """
+    if interrupted:
+        previous = row.get("status", "unknown")
+        return _interrupted_payload(
+            table,
+            row,
+            "Interrupted before completion: the worker that owned this job is "
+            f"gone (last state: {previous}). Start the analysis again to get a "
+            "fresh run.",
+        )
+
     attempts = int(row.get("attempts") or 0)
     max_attempts = int(row.get("max_attempts") or 3)
     previous = row.get("status", "unknown")
@@ -185,18 +242,11 @@ def _stale_recovery_payload(table: str, row: dict) -> dict:
             "error": f"Recovered stale worker claim (was {previous}); retrying with a fresh worker",
         }
 
-    now = datetime.now(timezone.utc).isoformat()
-    payload = {
-        "status": "failed",
-        "claimed_at": None,
-        "claimed_by": None,
-        "error": f"Worker recovery exhausted after {attempts} attempt(s) (was {previous})",
-    }
-    if table == "jobs":
-        payload["completed_at"] = now
-    else:
-        payload["done_at"] = now
-    return payload
+    return _interrupted_payload(
+        table,
+        row,
+        f"Worker recovery exhausted after {attempts} attempt(s) (was {previous})",
+    )
 
 
 # Table -> (claim RPC name) mirroring _DISPATCH below. The pipeline table is
@@ -214,11 +264,15 @@ def _claim_rcp_sql(table: str) -> str:
     """Build a claim RPC definition for a queued-job table (mirrors migrations)."""
     rpc_name = _TABLE_TO_RPC[table]
     updated_at = ", updated_at=now()" if table in _TABLES_WITH_UPDATED_AT else ""
+    # `jobs` also stores tool-registry mirror rows. Only pipeline runs are
+    # executed by the worker, so the atomic claim must not hand a tool mirror to
+    # the pipeline runner.
+    tool_filter = " AND tool = 'pipeline'" if table == "jobs" else ""
     return f"""CREATE OR REPLACE FUNCTION {rpc_name}(worker_id text)
 RETURNS {table} LANGUAGE plpgsql SECURITY DEFINER AS $do$
 DECLARE job {table};
 BEGIN
-  SELECT * INTO job FROM {table} WHERE status = 'queued' AND attempts < max_attempts
+  SELECT * INTO job FROM {table} WHERE status = 'queued' AND attempts < max_attempts{tool_filter}
   ORDER BY created_at ASC LIMIT 1 FOR UPDATE SKIP LOCKED;
   IF job.id IS NOT NULL THEN
     UPDATE {table} SET status='running', claimed_at=now(), claimed_by=worker_id,
@@ -286,29 +340,74 @@ def _ensure_claim_rpcs() -> None:
 def _sweep_stuck(table: str) -> int:
     """Recover jobs whose worker claim has stopped receiving heartbeats.
 
-    The timeout is deliberately longer than normal provider budgets. A stale
-    row is requeued while retry budget remains and is failed only after bounded
-    attempts are exhausted. This prevents a healthy long BLAST/MD/NGS run from
-    being declared dead after a few minutes and prevents infinite retry loops.
+    Two classes of rows are swept:
+
+    * claimed rows whose ``claimed_at`` is older than the timeout (the worker
+      died mid-run), and
+    * non-terminal rows with ``claimed_at IS NULL`` older than the timeout.
+      The previous sweep only matched ``claimed_at < cutoff``, so rows left by a
+      process that died before/without claiming were never reconciled and sat
+      on Jobs/History as "running" forever (live evidence: docking mirror
+      ``500a381e-...`` and many June/July pipeline rows).
+
+    The timeout is deliberately longer than normal provider budgets. A recent
+    stale row is requeued while retry budget remains and failed only after
+    bounded attempts. A row older than ``STALE_RECLAIM_MAX_AGE_MIN`` is closed
+    as interrupted instead of silently re-running an old analysis.
     """
     import httpx
     from datetime import timedelta
 
     timeout_min = STUCK_JOB_TIMEOUT_BY_TABLE.get(table, DEFAULT_STUCK_JOB_TIMEOUT_MIN)
     cutoff = (datetime.now(timezone.utc) - timedelta(minutes=timeout_min)).isoformat()
-    url = (
-        f"{_base()}/rest/v1/{table}"
-        f"?status=not.in.(complete,failed)"
-        f"&claimed_at=lt.{cutoff}"
-        f"&select=id,status,attempts,max_attempts"
-    )
-    resp = httpx.get(url, headers=_headers(), timeout=15)
-    if resp.status_code != 200:
-        return 0
-    stuck = resp.json()
+    select = "id,status,attempts,max_attempts,claimed_at,created_at"
+    if table == "jobs":
+        select += ",tool"
+
+    queries = [
+        (
+            f"{_base()}/rest/v1/{table}"
+            f"?status=not.in.(complete,failed,queued)"
+            f"&claimed_at=lt.{cutoff}"
+            f"&select={select}"
+        ),
+        (
+            f"{_base()}/rest/v1/{table}"
+            f"?status=not.in.(complete,failed,queued)"
+            f"&claimed_at=is.null&created_at=lt.{cutoff}"
+            f"&select={select}"
+        ),
+    ]
+
+    rows: dict[str, dict] = {}
+    for url in queries:
+        resp = httpx.get(url, headers=_headers(), timeout=15)
+        if resp.status_code != 200:
+            logger.warning(
+                "Stuck sweep query failed for %s: %s %s",
+                table, resp.status_code, resp.text[:200],
+            )
+            continue
+        for row in resp.json() or []:
+            if isinstance(row, dict) and row.get("id"):
+                rows[row["id"]] = row
+
     count = 0
-    for row in stuck:
-        _patch(table, row["id"], _stale_recovery_payload(table, row))
+    for row in rows.values():
+        age = _row_age_minutes(row)
+        is_tool_mirror = table == "jobs" and (row.get("tool") or "") not in ("", "pipeline")
+        effective_timeout = (
+            max(timeout_min, TOOL_MIRROR_STUCK_TIMEOUT_MIN) if is_tool_mirror else timeout_min
+        )
+        if age is not None and age < effective_timeout:
+            continue
+        # Tool mirrors have no worker claim and therefore no retry loop: close
+        # them when their window expires. Old pipeline claims are not re-run;
+        # recent ones keep the bounded requeue behaviour.
+        interrupted = is_tool_mirror or (
+            age is not None and age > STALE_RECLAIM_MAX_AGE_MIN
+        )
+        _patch(table, row["id"], _stale_recovery_payload(table, row, interrupted=interrupted))
         count += 1
     if count:
         logger.warning("Recovered %d stale job(s) from %s", count, table)

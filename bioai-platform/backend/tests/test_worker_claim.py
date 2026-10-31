@@ -87,7 +87,9 @@ class TestClaimDirect:
 
         worker._claim_direct("jobs", WORKER_ID)
 
-        assert request_log["gets"][0].endswith("status=eq.queued&order=id.asc&limit=5&select=*")
+        assert request_log["gets"][0].endswith(
+            "status=eq.queued&tool=eq.pipeline&order=id.asc&limit=5&select=*"
+        )
 
     def test_skips_exhausted_attempts_client_side(self, monkeypatch):
         _patch_settings(monkeypatch)

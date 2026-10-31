@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import datetime
 import logging
+import re
 
 import httpx
 
@@ -38,19 +39,46 @@ def _get_client() -> httpx.AsyncClient:
     return _client
 
 
+def _sanitize_detail(exc: Exception, limit: int = 360) -> str:
+    """Bounded, redacted diagnostic text safe to show the job's owner.
+
+    Provider exceptions are the only evidence of *why* a background run failed.
+    The previous fixed sentences threw that away, so a live failure could not be
+    diagnosed or even distinguished from a transient outage. Keep the message,
+    but strip credentials, URLs, and sequence dumps.
+    """
+    text = " ".join(str(exc).split())
+    text = re.sub(
+        r"(?i)((?:api[_-]?key|apikey|token|secret|password|authorization)\s*[=:]\s*)\S+",
+        r"\1[redacted]",
+        text,
+    )
+    text = re.sub(r"(?i)https?://\S+", "[url]", text)
+    text = re.sub(r"\b[ACDEFGHIKLMNPQRSTVWYBXZJUO]{24,}\b", "[sequence]", text)
+    text = text.replace("Traceback (most recent call last):", "")
+    return text[:limit]
+
+
 def _public_error(exc: Exception) -> str:
     text = str(exc).lower()
+    detail = _sanitize_detail(exc)
     if "blast" in text or "ncbi" in text or "ebi" in text:
         # Preserve bounded provider/status details so users can distinguish a
         # temporary outage from a rejected request or a response-format error.
-        detail = " ".join(str(exc).split())[:360]
         if detail:
             return f"BLAST search failed: {detail}"
         return "BLAST search failed at an external provider. Retry the search in a moment."
     if "timeout" in text or "timed out" in text:
         return "The analysis took longer than expected. Please retry in a few minutes."
     if "uniprot" in text or "mapping" in text:
+        # Keep the provider detail. A fixed sentence ("Protein annotation could
+        # not be completed") erased the reason a live wizard job failed
+        # (50ee96cf-...) and made the failure impossible to act on.
+        if detail:
+            return f"Protein annotation failed: {detail}"
         return "Protein annotation could not be completed for this result. Please retry the analysis."
+    if detail:
+        return f"The analysis could not be completed: {detail}"
     return "The analysis could not be completed. Please retry."
 
 

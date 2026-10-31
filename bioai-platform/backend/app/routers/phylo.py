@@ -237,15 +237,76 @@ async def _ebi_submit(url: str, data: dict) -> str:
         return r.text.strip()
 
 
-async def _ebi_poll(url: str, ebi_job: str, interval: float = 2.0, max_polls: int = 150) -> str:
-    async with httpx.AsyncClient(timeout=10) as client:
-        for _ in range(max_polls):
-            await asyncio.sleep(interval)
-            r = await client.get(f"{url}/status/{ebi_job}")
-            status = r.text.strip()
-            if status in ("FINISHED", "FAILED", "ERROR", "NOT_FOUND"):
+# EBI Job Dispatcher budget. Clustal Omega on a real set of sequences can run
+# well past five minutes, so the old 2s x 150 (300s) budget reported TIMEOUT on
+# work that was still progressing and failed an otherwise valid run. The budget
+# is now a total wall-clock window with a growing interval, and EBI's own
+# Retry-After hint is honoured when present.
+_EBI_POLL_BUDGET_S = 20 * 60
+_EBI_POLL_MIN_INTERVAL_S = 2.0
+_EBI_POLL_MAX_INTERVAL_S = 15.0
+_EBI_TERMINAL_STATUSES = ("FINISHED", "FAILED", "ERROR", "NOT_FOUND")
+
+
+def _retry_after_seconds(response: "httpx.Response", default: float) -> float:
+    raw = response.headers.get("Retry-After") or response.headers.get("X-Retry-After")
+    if not raw:
+        return default
+    try:
+        return max(_EBI_POLL_MIN_INTERVAL_S, float(str(raw).strip()))
+    except ValueError:
+        return default
+
+
+async def _ebi_poll(
+    url: str,
+    ebi_job: str,
+    *,
+    budget_s: float = _EBI_POLL_BUDGET_S,
+) -> str:
+    """Poll an EBI job until terminal or the time budget is exhausted.
+
+    Returns ``FINISHED``, ``FAILED``, ``ERROR``, ``NOT_FOUND`` or ``TIMEOUT``.
+    A transport error or HTTP 429 is retried with backoff: the remote job keeps
+    running even when one poll request fails, so treating it as terminal would
+    discard work that will still finish.
+    """
+    loop = asyncio.get_running_loop()
+    deadline = loop.time() + budget_s
+    interval = _EBI_POLL_MIN_INTERVAL_S
+    consecutive_errors = 0
+
+    async with httpx.AsyncClient(timeout=15) as client:
+        while True:
+            remaining = deadline - loop.time()
+            if remaining <= 0:
+                return "TIMEOUT"
+            await asyncio.sleep(min(interval, remaining))
+
+            try:
+                response = await client.get(f"{url}/status/{ebi_job}")
+                if response.status_code == 429:
+                    consecutive_errors = 0  # throttling, not a failure
+                    interval = min(interval * 1.5, _EBI_POLL_MAX_INTERVAL_S)
+                    continue
+                response.raise_for_status()
+                status = response.text.strip()
+            except httpx.HTTPError as exc:
+                consecutive_errors += 1
+                if consecutive_errors >= 5:
+                    raise RuntimeError(
+                        f"EBI status polling failed repeatedly for job {ebi_job}: {exc}"
+                    ) from exc
+                interval = min(interval * 1.5, _EBI_POLL_MAX_INTERVAL_S)
+                continue
+
+            consecutive_errors = 0
+            if status in _EBI_TERMINAL_STATUSES:
                 return status
-    return "TIMEOUT"
+            interval = min(
+                max(_retry_after_seconds(response, interval), _EBI_POLL_MIN_INTERVAL_S),
+                _EBI_POLL_MAX_INTERVAL_S,
+            )
 
 
 async def _ebi_result(url: str, ebi_job: str, result_type: str, retries: int = 3) -> str:
@@ -283,9 +344,25 @@ async def _run_clustalo(job_id: str, sequences: list[dict], stype: str) -> tuple
         _patch(job_id, phase="error", error=f"Clustal Omega submission failed: {e}")
         return None
 
-    status = await _ebi_poll(_EBI_CLUSTALO, ebi_job)
+    try:
+        status = await _ebi_poll(_EBI_CLUSTALO, ebi_job)
+    except Exception as exc:
+        _patch(job_id, phase="error",
+               error=f"Clustal Omega status polling failed for job {ebi_job}: {exc}")
+        return None
+
+    if status == "TIMEOUT":
+        minutes = int(_EBI_POLL_BUDGET_S / 60)
+        _patch(job_id, phase="error",
+               error=(
+                   f"Clustal Omega did not finish within {minutes} minutes "
+                   f"(EBI job {ebi_job}). The remote job may still be running; "
+                   "retry with fewer or shorter sequences."
+               ))
+        return None
     if status != "FINISHED":
-        _patch(job_id, phase="error", error=f"Clustal Omega ended with status: {status}")
+        _patch(job_id, phase="error",
+               error=f"Clustal Omega reported status {status} (EBI job {ebi_job})")
         return None
 
     try:

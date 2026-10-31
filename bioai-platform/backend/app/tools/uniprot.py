@@ -1,3 +1,4 @@
+import asyncio
 import re
 from typing import Any
 
@@ -9,6 +10,12 @@ from app.tools.base import BaseTool
 
 
 _ACCESSION_TOKEN = re.compile(r"^[A-Z0-9]+(?:-\d+)?$")
+
+# UniProt produces occasional 5xx/429 responses that succeed on retry. A single
+# transient 500 for one hit used to fail an entire wizard run (live evidence:
+# job 50ee96cf-..., "UniProt returned 500 for P61260").
+_TRANSIENT_STATUS = frozenset({429, 500, 502, 503, 504})
+_FETCH_ATTEMPTS = 3
 
 
 class UniprotTool(BaseTool):
@@ -66,22 +73,33 @@ class UniprotTool(BaseTool):
         if len(accession) > 24 or not _ACCESSION_TOKEN.fullmatch(accession):
             return {"error": "Invalid UniProt accession format"}
         url = f"{settings.UNIPROT_BASE_URL}/{accession}"
-        try:
-            async with httpx.AsyncClient(timeout=15) as client:
-                resp = await client.get(url, params={"format": "json"})
-        except httpx.HTTPError as exc:
-            return {"error": f"UniProt request failed for {accession}: {exc.__class__.__name__}"}
-        if resp.status_code == 404:
-            return {"error": f"Accession {accession} not found"}
-        if resp.status_code >= 400:
-            return {"error": f"UniProt returned {resp.status_code} for {accession}"}
-        try:
-            payload = resp.json()
-        except ValueError:
-            return {"error": f"UniProt returned malformed JSON for {accession}"}
-        if not isinstance(payload, dict):
-            return {"error": f"UniProt returned an unexpected payload for {accession}"}
-        return payload
+        last_error = f"UniProt request failed for {accession}"
+        for attempt in range(_FETCH_ATTEMPTS):
+            try:
+                async with httpx.AsyncClient(timeout=15) as client:
+                    resp = await client.get(url, params={"format": "json"})
+            except httpx.HTTPError as exc:
+                last_error = f"UniProt request failed for {accession}: {exc.__class__.__name__}"
+                if attempt + 1 < _FETCH_ATTEMPTS:
+                    await asyncio.sleep(0.5 * (2 ** attempt))
+                    continue
+                return {"error": last_error}
+            if resp.status_code == 404:
+                return {"error": f"Accession {accession} not found"}
+            if resp.status_code in _TRANSIENT_STATUS and attempt + 1 < _FETCH_ATTEMPTS:
+                last_error = f"UniProt returned {resp.status_code} for {accession}"
+                await asyncio.sleep(0.5 * (2 ** attempt))
+                continue
+            if resp.status_code >= 400:
+                return {"error": f"UniProt returned {resp.status_code} for {accession}"}
+            try:
+                payload = resp.json()
+            except ValueError:
+                return {"error": f"UniProt returned malformed JSON for {accession}"}
+            if not isinstance(payload, dict):
+                return {"error": f"UniProt returned an unexpected payload for {accession}"}
+            return payload
+        return {"error": last_error}
 
     def _is_reviewed(self, data: dict) -> bool:
         entry_type = str(data.get("entryType", "") or "").lower()

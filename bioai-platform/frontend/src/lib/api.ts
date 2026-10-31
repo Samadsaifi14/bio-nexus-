@@ -58,6 +58,33 @@ longApi.interceptors.request.use(async (config) => {
   return config;
 });
 
+/**
+ * Poll a background tool job until it reaches a terminal state.
+ *
+ * These endpoints used to be blocking calls, so a slow EBI/fpocket/CASTp run
+ * outlived the HTTP proxy and surfaced as 502/504 with no way to recover. Now
+ * the submit call returns a job id, the work continues server-side even if the
+ * user leaves the page, and each poll is a small request.
+ */
+export async function waitForToolJob(
+  fetchStatus: () => Promise<Record<string, unknown>>,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+): Promise<Record<string, any>> {
+  const deadline = Date.now() + 30 * 60 * 1000;
+  let delay = 700;
+  for (;;) {
+    const state = await fetchStatus();
+    const status = String(state.status ?? '');
+    if (status === 'complete' || status === 'completed') return state;
+    if (['failed', 'error', 'interrupted', 'cancelled'].includes(status)) {
+      throw new Error(String(state.error ?? 'Job failed'));
+    }
+    if (Date.now() > deadline) throw new Error('Job is still running; open it from Jobs to see progress');
+    await new Promise((resolve) => setTimeout(resolve, delay));
+    delay = Math.min(delay * 1.4, 5000);
+  }
+}
+
 export async function runPipeline(
   sequence: string,
   pipelineType: string = 'protein_analysis',
@@ -315,6 +342,7 @@ export async function analyzePrimer(payload: {
 
 export type AlignmentResult = {
   job_id: string;
+  ebi_job_id?: string;
   aln_fasta: string;
   aln_clustal: string;
   phylotree: string;
@@ -340,8 +368,14 @@ export async function getPipelineStatusV2(jobId: string): Promise<any> {
 export type AlignmentMethod = 'clustalo' | 'muscle' | 'kalign' | 'mafft' | 'tcoffee';
 
 export async function runAlignment(sequence: string, stype: string = 'protein', method: AlignmentMethod = 'clustalo'): Promise<AlignmentResult> {
-  const res = await api.post('/api/alignment/run', { sequence, stype, method });
-  return res.data;
+  // Submit a durable background job, then poll its state. The alignment keeps
+  // running server-side even if the browser tab is closed.
+  const submitted = await api.post('/api/alignment/jobs', { sequence, stype, method });
+  const jobId = String(submitted.data.job_id);
+  const state = await waitForToolJob(() =>
+    api.get(`/api/alignment/jobs/${encodeURIComponent(jobId)}`).then((res) => res.data),
+  );
+  return { ...(state as object), job_id: jobId } as AlignmentResult;
 }
 
 export type PairwiseAlignOptions = {
@@ -453,6 +487,51 @@ export async function getStructureInventory(pdbId: string): Promise<StructureInv
 export async function searchStructures(query: string): Promise<{ results: { pdb_id: string; score: number }[]; count: number }> {
   const res = await api.post('/api/structures/search', { query });
   return res.data;
+}
+
+export type StructureComparisonMatch = {
+  pdb_id: string;
+  chain: string;
+  description: string;
+  tm_score: number | null;
+  qTM?: number | null;
+  tTM?: number | null;
+  rmsd: number | null;
+  seq_identity: number | null;
+  aligned_length: number | null;
+  method?: string;
+};
+
+export type StructureComparisonResult = {
+  pdb_id: string;
+  chain: string;
+  matches: StructureComparisonMatch[];
+  method?: string;
+  database?: string;
+};
+
+/**
+ * Foldseek comparisons regularly outlive the HTTP proxy, so they run as a
+ * background job: submit, then poll the job id until it settles.
+ */
+export async function compareStructures(
+  pdbId: string,
+  chain: string = 'A',
+  maxResults: number = 10,
+): Promise<StructureComparisonResult> {
+  const submit = await api.post('/api/structure_analysis/compare/jobs', {
+    pdb_id: pdbId,
+    chain,
+    max_results: maxResults,
+  });
+  const jobId = submit.data?.job_id as string;
+  if (!jobId) throw new Error('Structure comparison did not return a job id');
+
+  const state = await waitForToolJob(async () => {
+    const res = await api.get(`/api/structure_analysis/compare/jobs/${jobId}`);
+    return res.data;
+  });
+  return state.result as StructureComparisonResult;
 }
 
 export type PathwayResult = {
@@ -775,9 +854,15 @@ export type ScientificPlot = {
 
 export type ScientificArtifact = {
   name: string;
-  kind: string;
-  format: string;
+  kind?: string;
+  format?: string;
+  media_type?: string;
   content?: string | null;
+  url?: string | null;
+  available?: boolean;
+  reason?: string | null;
+  sha256?: string;
+  size_bytes?: number;
 };
 
 export type ScientificResultModel = {
@@ -1775,13 +1860,23 @@ function unwrapPocketResult(data: Record<string, unknown>): CastpResult {
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {
-  const res = await longApi.post('/api/castp/analyze', { pdb_id: pdbId, probe_radius: probeRadius, method });
-  return unwrapPocketResult(res.data);
+  return submitPocketJob({ pdb_id: pdbId, probe_radius: probeRadius, method });
 }
 
 export async function runCastpSequence(sequence: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {
-  const res = await longApi.post('/api/castp/analyze', { sequence, probe_radius: probeRadius, method });
-  return unwrapPocketResult(res.data);
+  return submitPocketJob({ sequence, probe_radius: probeRadius, method });
+}
+
+async function submitPocketJob(payload: Record<string, unknown>): Promise<CastpResult> {
+  // Background + poll: structure resolution and fpocket/CASTp can exceed the
+  // platform proxy budget, which previously surfaced as 502/504.
+  const submitted = await api.post('/api/castp/jobs', payload);
+  const jobId = String(submitted.data.job_id);
+  const state = await waitForToolJob(() =>
+    api.get(`/api/castp/jobs/${encodeURIComponent(jobId)}`).then((res) => res.data),
+  );
+  const result = (state.result as Record<string, unknown> | undefined) ?? state;
+  return unwrapPocketResult(result);
 }
 
 // ─── SWISS-MODEL ────────────────────────────────────────────────────────────

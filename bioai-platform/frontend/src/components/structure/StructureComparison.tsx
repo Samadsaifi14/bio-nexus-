@@ -2,7 +2,7 @@
 import { useEffect, useState, useRef } from "react";
 import { downloadTsv, exportSvgPng } from "@/lib/export-utils";
 import { useAuditTrail } from "@/hooks/useAuditTrail";
-import { apiUrl } from "@/lib/api";
+import { compareStructures } from "@/lib/api";
 
 type StructureMatch = {
   pdb_id: string; chain: string; description: string;
@@ -26,34 +26,34 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
 
   useEffect(() => {
     if (!pdbId) return;
+    let cancelled = false;
     auditedRef.current = false;
     setLoading(true);
     setError(null);
     setMatches([]);
 
-    const controller = new AbortController();
-
-    fetch(apiUrl(`/api/structure_analysis/compare/${pdbId}?chain=${chain}`), { signal: controller.signal })
-      .then(r => r.ok ? r.json() : r.json().then(d => { throw new Error(d.detail); }))
+    // The comparison is a background job now (Foldseek can outlive the HTTP
+    // proxy). Submitting returns a job id and each poll is a small request, so a
+    // slow run no longer surfaces as 502/504.
+    compareStructures(pdbId, chain)
       .then(d => {
-        if (!controller.signal.aborted) {
-          setMatches(d.matches);
-          setMeta({ method: d.method, database: d.database });
-          if (!auditedRef.current) {
-            auditedRef.current = true;
-            audit.emitSuccess('struct_compare', 'Foldseek TM-align', pdbId, `${d.matches?.length || 0} matches`);
-          }
+        if (cancelled) return;
+        setMatches(d.matches ?? []);
+        setMeta({ method: d.method, database: d.database });
+        if (!auditedRef.current) {
+          auditedRef.current = true;
+          audit.emitSuccess('struct_compare', 'Foldseek TM-align', pdbId, `${d.matches?.length || 0} matches`);
         }
       })
       .catch(e => {
-        if (!controller.signal.aborted) {
+        if (!cancelled) {
           setError(e.message);
           audit.emitFailed('struct_compare', 'Foldseek TM-align', pdbId, e.message);
         }
       })
-      .finally(() => { if (!controller.signal.aborted) setLoading(false); });
+      .finally(() => { if (!cancelled) setLoading(false); });
 
-    return () => controller.abort();
+    return () => { cancelled = true; };
   }, [pdbId, chain]);
 
   if (loading) return <div className="text-text-muted text-sm animate-pulse">Searching structural homologs (Foldseek TM-align)&hellip;</div>;

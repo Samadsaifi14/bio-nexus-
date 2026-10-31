@@ -4,15 +4,50 @@ import logging
 import math
 import re
 import secrets
+import threading
+import uuid
 import httpx
 import numpy as np
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from typing import Optional, Annotated
+from typing import Any, Optional, Annotated
 from Bio.PDB import PDBParser, PPBuilder
+from app.services import job_registry, job_state
+from app.services.auth import get_user_id
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/structure_analysis", tags=["structure_analysis"])
+
+# Foldseek comparison can take minutes on the remote service. Running it on the
+# request path held the HTTP connection open until the platform proxy gave up
+# (502/504) with no way to recover. Comparisons are now submitted with a job id,
+# executed in the background, mirrored to transient_jobs, and polled.
+_JOB_KIND = "structure_compare"
+_jobs: dict[str, dict] = {}
+_jobs_lock = threading.Lock()
+
+
+def _patch(job_id: str, **kw) -> None:
+    with _jobs_lock:
+        job = _jobs.setdefault(job_id, {"status": "queued"})
+        job.update(kw)
+        snapshot = dict(job)
+    job_state.mirror(job_id, _JOB_KIND, snapshot)
+    job_registry.propagate_patch("structure_compare", job_id, kw)
+
+
+def _reconcile() -> int:
+    """Restore finished comparisons and fail the ones a restart interrupted."""
+
+    def hydrate(job_id: str, state: dict) -> None:
+        with _jobs_lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+        if isinstance(state, dict) and state.get("interrupted"):
+            job_registry.finish(job_id, status="failed", error=state.get("error"))
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
+
 
 # ── Ramachandran ──────────────────────────────────────────
 
@@ -182,6 +217,16 @@ class StructureMatch(BaseModel):
     unavailable_metrics: list[str] = []
     method: str = "Foldseek TM-align"
 
+
+class StructureCompareJobRequest(BaseModel):
+    pdb_id: str
+    chain: str = "A"
+    max_results: int = 10
+
+
+class StructureCompareJobResponse(BaseModel):
+    job_id: str
+
 def _extract_chain(pdb_text: str, chain_id: str) -> str:
     """Extract a single chain from a PDB file as a valid minimal PDB."""
     lines: list[str] = []
@@ -200,6 +245,76 @@ def _extract_chain(pdb_text: str, chain_id: str) -> str:
     if lines and not lines[-1].startswith("END"):
         lines.append("END")
     return "\n".join(lines)
+
+@router.post("/compare/jobs", response_model=StructureCompareJobResponse)
+async def submit_compare_job(
+    req: StructureCompareJobRequest,
+    user_id: str | None = Depends(get_user_id),
+):
+    """Submit a Foldseek comparison and return a job id immediately."""
+    pdb_id = req.pdb_id.strip().upper()
+    if not pdb_id:
+        raise HTTPException(422, "pdb_id is required")
+    chain = (req.chain or "A").strip()[:4] or "A"
+    max_results = max(1, min(int(req.max_results or 10), 50))
+
+    job_id = str(uuid.uuid4())
+    _patch(
+        job_id,
+        status="queued",
+        pdb_id=pdb_id,
+        chain=chain,
+        max_results=max_results,
+        result=None,
+        error=None,
+    )
+    job_registry.start(
+        "structure_compare",
+        user_id,
+        job_id=job_id,
+        query_preview=f"Foldseek {pdb_id}:{chain}",
+        context={"pdb_id": pdb_id, "chain": chain, "max_results": max_results},
+    )
+    asyncio.create_task(_run_compare_job(job_id, pdb_id, chain, max_results))
+    return StructureCompareJobResponse(job_id=job_id)
+
+
+async def _run_compare_job(job_id: str, pdb_id: str, chain: str, max_results: int) -> None:
+    _patch(job_id, status="running")
+    try:
+        result = await _foldseek_search(pdb_id, chain, max_results)
+    except HTTPException as exc:
+        _patch(job_id, status="failed", error=str(exc.detail))
+        job_registry.finish(job_id, status="failed", error=str(exc.detail))
+        return
+    except Exception as exc:
+        logger.exception("Foldseek job %s failed", job_id)
+        message = f"Structure comparison failed: {type(exc).__name__}"
+        _patch(job_id, status="failed", error=message)
+        job_registry.finish(job_id, status="failed", error=message)
+        return
+
+    _patch(job_id, status="complete", result=result)
+    job_registry.finish(
+        job_id,
+        status="complete",
+        context={
+            "match_count": len(result.get("matches") or []),
+            "method": result.get("method"),
+            "database": result.get("database"),
+        },
+    )
+
+
+@router.get("/compare/jobs/{job_id}")
+async def get_compare_job(job_id: str):
+    with _jobs_lock:
+        job = _jobs.get(job_id)
+        job = dict(job) if job else None
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"job_id": job_id, **job}
+
 
 @router.get("/compare/{pdb_id}")
 async def compare_structures(pdb_id: str, chain: Annotated[str, Query()] = "A",

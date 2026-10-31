@@ -3,6 +3,7 @@ uvicorn
 slowapi
 redis
 httpx[socks]  # Supports managed environments whose HTTPS egress uses a SOCKS proxy.
+filelock>=4.2.1  # pip-audit remediation for known vulnerable transitive version
 requests>=2.31  # official BLAST database provisioning
 aiohttp
 biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)

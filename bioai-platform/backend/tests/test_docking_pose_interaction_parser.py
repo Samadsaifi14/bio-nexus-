@@ -111,6 +111,7 @@ def test_exact_job_reproduction_returns_all_poses_without_mutating_artifact(monk
             "MODEL 2\nREMARK VINA RESULT: -4.981 0.0 0.0\n" + _atom("ATOM", 2) + "\nENDMDL\n"
         ),
         "interaction_analysis": {"status": "UNAVAILABLE", "reason": "ValueError"},
+        "receptor_prep_evidence": {"input_other_hetero_records_excluded": 174, "input_water_records_excluded": 221},
     }
     monkeypatch.setattr(module, "_load_docking_result", lambda job_id, user_id: original)
     monkeypatch.setattr(
@@ -123,7 +124,9 @@ def test_exact_job_reproduction_returns_all_poses_without_mutating_artifact(monk
         },
     )
     result = asyncio.run(module.recalculate_stored_docking_interactions("job-1", "user-1"))
-    assert result["status"] == "COMPUTED"
+    assert result["status"] == "DEGRADED"
+    assert result["receptor_coverage"]["upstream_hetero_records_excluded"] == 174
+    assert result["receptor_coverage"]["upstream_water_records_excluded"] == 221
     assert result["pose_count"] == 2
     assert [p["affinity_kcal_mol"] for p in result["pose_results"]] == [-5.132, -4.981]
     assert result["reproduction"]["original_artifact_mutated"] is False

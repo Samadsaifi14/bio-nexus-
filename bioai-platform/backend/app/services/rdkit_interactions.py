@@ -442,6 +442,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
             "interpretation": "Hydrogen-bond angles involving generated hydrogens are model-dependent geometric candidates, not directly observed geometry.",
         },
         "thresholds": dict(_THRESHOLDS),
+        "protein_parse": protein_parse,
         "counts": {key: len(value) for key, value in categories.items()},
         "limitations": [
             "Interaction classifications depend on the supplied protonation/tautomer state and prepared coordinates.",

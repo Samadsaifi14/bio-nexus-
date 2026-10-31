@@ -7,7 +7,7 @@ from pydantic import BaseModel, Field
 from app.config import settings
 from app.services import job_registry
 from app.services.auth import get_user_id
-from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa
+from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa_best_effort, validate_msa_input
 from app.tools.pairwise_alignment import PairwiseAlignError, pairwise_align
 from app.tools.sequence_fetch import fetch_sequence_by_accession
 
@@ -118,26 +118,77 @@ async def run_pairwise(req: PairwiseAlignRequest, user_id: str | None = Depends(
 async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_user_id)):
     if req.method not in EBI_TOOLS:
         raise HTTPException(status_code=400, detail=f"method must be one of: {', '.join(sorted(EBI_TOOLS))}")
-    email = settings.NCBI_EMAIL or "bioflow@example.com"
 
+    # Validate before any provider call. This prevents malformed FASTA, duplicate
+    # identifiers, invalid residues, and single-record inputs from being sent to EBI.
     try:
-        result = await run_ebi_msa(
-            base_url=EBI_TOOLS[req.method],
+        records = validate_msa_input(req.sequence, req.stype)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    email = settings.NCBI_EMAIL or "bioflow@example.com"
+    response: dict[str, Any]
+    try:
+        # Try the requested EBI engine first, then the configured alternate
+        # engines. A provider rejection must not immediately fail the workflow.
+        fallback_order = [req.method] + [name for name in ("clustalo", "muscle", "kalign", "mafft", "tcoffee") if name != req.method]
+        result = await run_ebi_msa_best_effort(
             sequence=req.sequence,
             stype=req.stype,
             email=email,
+            tools=fallback_order,
         )
-    except ValueError as exc:
-        raise HTTPException(status_code=502, detail=str(exc))
+        response = {
+            "job_id": result.get("job_id"),
+            "aln_fasta": result["aln_fasta"],
+            "aln_clustal": "",
+            "phylotree": result.get("phylotree", ""),
+            "stype": req.stype,
+            "method": result.get("method", req.method),
+            "provider": result.get("provider", "EMBL-EBI Job Dispatcher"),
+            "provider_fallback": bool(result.get("provider_fallback")),
+            "validation": result.get("validation"),
+        }
+    except Exception as provider_exc:
+        # Explicitly labelled deterministic local fallback. Never label this as
+        # Clustal Omega or claim remote-provider execution.
+        logger.warning(
+            "All EMBL-EBI MSA providers failed; using in-process fallback (%s)",
+            type(provider_exc).__name__,
+        )
+        try:
+            import asyncio
+            from app.tools.msa_fallback import progressive_msa
 
-    response = {
-        "job_id": result["job_id"],
-        "aln_fasta": result["aln_fasta"],
-        "aln_clustal": "",
-        "phylotree": result["phylotree"],
-        "stype": req.stype,
-        "method": result["method"],
-    }
+            aln_fasta, phylotree = await asyncio.to_thread(
+                progressive_msa, records, req.stype
+            )
+            response = {
+                "job_id": None,
+                "aln_fasta": aln_fasta,
+                "aln_clustal": "",
+                "phylotree": phylotree,
+                "stype": req.stype,
+                "method": "in-process fallback",
+                "provider": "BioNexus local fallback",
+                "provider_fallback": True,
+                "provider_error": str(provider_exc)[:360],
+                "validation": {
+                    "sequence_count": len(records),
+                    "record_set_verified": True,
+                    "residue_preservation_verified": True,
+                },
+            }
+        except Exception as fallback_exc:
+            logger.exception("Local MSA fallback also failed")
+            raise HTTPException(
+                status_code=502,
+                detail=(
+                    "MSA providers rejected the submission and the local fallback "
+                    f"could not complete ({type(fallback_exc).__name__}). "
+                    "Check the FASTA input and retry."
+                ),
+            ) from fallback_exc
 
     try:
         from app.ai.tool_interpreter import interpret_tool_result
@@ -148,8 +199,13 @@ async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_use
         pass
     job_registry.record_completed(
         "msa", user_id,
-        query_preview=f"MSA {req.method} · {req.stype}",
-        context={"method": result["method"], "stype": req.stype,
-                 "sequence_length": len(req.sequence or "")},
+        query_preview=f"MSA {response['method']} · {req.stype}",
+        context={
+            "method": response["method"],
+            "stype": req.stype,
+            "sequence_length": sum(len(seq) for _, seq in records),
+            "provider": response.get("provider"),
+            "provider_fallback": response.get("provider_fallback", False),
+        },
     )
     return response

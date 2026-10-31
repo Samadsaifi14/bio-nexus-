@@ -74,3 +74,19 @@ def test_empty_models_are_not_reported_as_zero_contact_poses(monkeypatch):
     pdbqt = "MODEL 1\nENDMDL\nMODEL 2\n" + _atom("ATOM") + "\nENDMDL\n"
     result = module._summarize_pose_interactions("protein", pdbqt)
     assert [row["model"] for row in result] == [2]
+
+
+
+def test_stored_job_pose_extractor_preserves_model_ids_affinities_and_atom_records():
+    pdbqt = (
+        "MODEL 1\n"
+        "REMARK VINA RESULT:    -5.132      0.000      0.000\n"
+        + _atom("ATOM", 1) + "\nENDMDL\n"
+        "MODEL 2\n"
+        "REMARK VINA RESULT:    -4.981      1.234      2.345\n"
+        + _atom("ATOM", 2) + "\nENDMDL\n"
+    )
+    models = module._extract_vina_pose_models(pdbqt)
+    assert [m["model"] for m in models] == [1, 2]
+    assert [m["affinity_kcal_mol"] for m in models] == [-5.132, -4.981]
+    assert all(len(m["records"]) == 1 for m in models)

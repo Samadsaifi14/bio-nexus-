@@ -169,7 +169,8 @@ def _ligand_pose_from_pdbqt(block: str, template):
         if len(fields) < 9:
             continue
         try:
-            element = "".join(ch for ch in fields[-1] if ch.isalpha()).title()
+            atom_type = fields[-1].strip().upper()
+            element = {"A": "C", "C": "C", "N": "N", "NA": "N", "OA": "O", "O": "O", "SA": "S", "S": "S", "HD": "H", "H": "H"}.get(atom_type, "")
             xyz = tuple(float(fields[i]) for i in (5, 6, 7))
         except (ValueError, IndexError):
             continue

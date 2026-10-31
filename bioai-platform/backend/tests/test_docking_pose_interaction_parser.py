@@ -4,7 +4,7 @@ These tests exercise the PDBQT record/model parser independently of chemistry.
 They deliberately mock the chemistry routine: they validate parser behavior,
 not the scientific validity of interaction classifications.
 """
-from app.routers import docking as module
+import asyncio\n\nfrom app.routers import docking as module
 
 
 def _atom(record="ATOM", serial=1, atom="C1"):
@@ -90,3 +90,39 @@ def test_stored_job_pose_extractor_preserves_model_ids_affinities_and_atom_recor
     assert [m["model"] for m in models] == [1, 2]
     assert [m["affinity_kcal_mol"] for m in models] == [-5.132, -4.981]
     assert all(len(m["records"]) == 1 for m in models)
+
+
+
+def test_exact_job_reproduction_returns_all_poses_without_mutating_artifact(monkeypatch):
+    original = {
+        "pdb_id": "4HHB",
+        "smiles": "CCO",
+        "vina_version": "1.2.7",
+        "vina_exhaustiveness": 32,
+        "vina_num_modes": 2,
+        "vina_seed": 42,
+        "box_center": [0.0, 0.0, 0.0],
+        "box_size": [20.0, 20.0, 20.0],
+        "receptor_pdb": "ATOM\n",
+        "result_pdbqt": (
+            "MODEL 1\nREMARK VINA RESULT: -5.132 0.0 0.0\n" + _atom("ATOM", 1) + "\nENDMDL\n"
+            "MODEL 2\nREMARK VINA RESULT: -4.981 0.0 0.0\n" + _atom("ATOM", 2) + "\nENDMDL\n"
+        ),
+        "interaction_analysis": {"status": "UNAVAILABLE", "reason": "ValueError"},
+    }
+    monkeypatch.setattr(module, "_load_docking_result", lambda job_id, user_id: original)
+    monkeypatch.setattr(
+        module, "_compute_interactions",
+        lambda protein, ligand, smiles: {
+            "status": "COMPUTED", "engine": "RDKit", "engine_version": "test",
+            "counts": {"hbonds": 1, "hydrophobic": 0, "pi_stacking": 0, "salt_bridges": 0},
+            "hbonds": [{"type": "hbond"}], "hydrophobic": [], "pi_stacking": [], "salt_bridges": [],
+            "protein_parse": {"residues_skipped": []}, "limitations": [],
+        },
+    )
+    result = asyncio.run(module.recalculate_stored_docking_interactions("job-1", "user-1"))
+    assert result["status"] == "COMPUTED"
+    assert result["pose_count"] == 2
+    assert [p["affinity_kcal_mol"] for p in result["pose_results"]] == [-5.132, -4.981]
+    assert result["reproduction"]["original_artifact_mutated"] is False
+    assert original["interaction_analysis"]["status"] == "UNAVAILABLE"

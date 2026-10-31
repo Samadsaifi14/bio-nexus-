@@ -337,9 +337,9 @@ def _run_docking_sync(job_id: str, payload: dict):
             interaction_analysis["engine"] = interactions.get("engine", "RDKit")
             interaction_analysis["engine_version"] = interactions.get("engine_version")
             interaction_analysis["method"] = interactions.get("method")
-            interaction_analysis["limitations"] = interactions.get("limitations", interaction_analysis["limitations"])
+            interaction_analysis["limitations"] = "; ".join(interactions.get("limitations", [])) if isinstance(interactions.get("limitations"), list) else interactions.get("limitations", interaction_analysis["limitations"])
             interaction_analysis["hydrogen_coordinate_provenance"] = interactions.get("hydrogen_coordinate_provenance")
-            interaction_analysis["protein_parse"] = interactions.get("protein_parse")
+            interaction_analysis["protein_parse"] = interactions.get("protein_parse")\n            interaction_analysis["scientific_limitations"] = interactions.get("limitations", [])
         except Exception as e:
             interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
             interaction_analysis = {

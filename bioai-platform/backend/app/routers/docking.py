@@ -332,7 +332,7 @@ def _run_docking_sync(job_id: str, payload: dict):
         # Keep best-pose contacts independent from the optional per-pose summary:
         # a malformed MODEL block must never erase valid primary contact evidence.
         try:
-            interactions = _compute_interactions(protein_pdb, vina_result.get("ligand_pdb", ""), smiles)
+            interactions = _compute_interactions(protein_pdb, _first_pose_pdbqt(vina_result.get("result_pdbqt", "")), smiles)
         except Exception as e:
             interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
             interaction_analysis = {
@@ -643,6 +643,30 @@ def _build_residue_map(atoms: list[tuple]) -> dict[tuple[str, str, int], list[tu
 def _find_hydrogens(atoms: list[tuple]) -> list[tuple]:
     """Return only hydrogen atoms from parsed PDB."""
     return [a for a in atoms if a[1].startswith("H") or a[1] in ("1H", "2H", "3H")]
+
+
+def _first_pose_pdbqt(pdbqt: str) -> str:
+    """Extract model 1 from Vina output without changing atom order or coordinates."""
+    in_first = False
+    saw_model = False
+    records = []
+    for line in pdbqt.splitlines():
+        record = line[:6].strip()
+        if record == "MODEL":
+            if saw_model:
+                break
+            saw_model = True
+            in_first = True
+            continue
+        if record == "ENDMDL" and in_first:
+            break
+        if in_first and record in ("ATOM", "HETATM"):
+            records.append(line)
+    if not saw_model:
+        records = [line for line in pdbqt.splitlines() if line[:6].strip() in ("ATOM", "HETATM")]
+    if not records:
+        raise ValueError("Vina output does not contain a recoverable first pose")
+    return "\\n".join(records) + "\\nEND\\n"
 
 
 def _compute_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str | None = None) -> dict:

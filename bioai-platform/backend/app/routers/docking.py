@@ -710,7 +710,7 @@ def _first_pose_pdbqt(pdbqt: str) -> str:
         records = [line for line in pdbqt.splitlines() if line[:6].strip() in ("ATOM", "HETATM")]
     if not records:
         raise ValueError("Vina output does not contain a recoverable first pose")
-    return "\\n".join(records) + "\\nEND\\n"
+    return "\n".join(records) + "\nEND\n"
 
 
 def _compute_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str | None = None) -> dict:
@@ -1151,7 +1151,7 @@ async def recalculate_stored_docking_interactions(job_id: str, user_id: str = De
         raise HTTPException(status_code=422, detail="Stored Vina artifact contains no recoverable pose models.")
     pose_results = []
     for model in models:
-        pose_pdbqt = "\\n".join(model["records"]) + "\\nEND\\n"
+        pose_pdbqt = "\n".join(model["records"]) + "\nEND\n"
         try:
             interactions = _compute_interactions(receptor_pdb, pose_pdbqt, smiles)
             pose_results.append({

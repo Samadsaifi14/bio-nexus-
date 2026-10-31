@@ -105,6 +105,31 @@ def _nearby_protein_pdb(block: str, ligand, radius: float = 10.0) -> str:
     return "\n".join(lines) + "\nEND\n"
 
 
+def _nearby_hetero_summary(block: str, ligand, radius: float = 10.0) -> list[dict]:
+    """Record nearby HETATM groups omitted from protein-only RDKit perception."""
+    ligand_points = [_coords(ligand, atom.GetIdx()) for atom in ligand.GetAtoms()
+                     if atom.GetAtomicNum() > 1]
+    groups = {}
+    for line in block.splitlines():
+        if not line.startswith("HETATM") or len(line) < 54:
+            continue
+        key = (line[17:20].strip(), line[21:22].strip(),
+               line[22:26].strip(), line[26:27].strip())
+        try:
+            xyz = (float(line[30:38]), float(line[38:46]), float(line[46:54]))
+        except ValueError:
+            continue
+        distance = min(_distance(xyz, point) for point in ligand_points)
+        if distance <= radius:
+            entry = groups.setdefault(key, {"residue_name": key[0], "chain": key[1],
+                "residue_number": key[2], "insertion_code": key[3],
+                "atom_count": 0, "minimum_distance_angstrom": distance})
+            entry["atom_count"] += 1
+            entry["minimum_distance_angstrom"] = min(entry["minimum_distance_angstrom"], distance)
+    return [{**row, "minimum_distance_angstrom": round(row["minimum_distance_angstrom"], 3)}
+            for row in groups.values()]
+
+
 def _protein_mol(block: str):
     """Parse protein residues independently to prevent false inter-residue proximity bonds.
 
@@ -345,11 +370,13 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
     factory = _feature_factory()
     ligand_raw = _ligand_with_template(ligand_pdb, ligand_smiles)
     nearby_protein = _nearby_protein_pdb(protein_pdb, ligand_raw, radius=10.0)
+    nearby_hetero_excluded = _nearby_hetero_summary(protein_pdb, ligand_raw, radius=10.0)
     protein_raw = _protein_mol(nearby_protein)
     protein_parse = {
-        "parser": "RDKit residue-wise perception on ligand-local receptor; residues kept disconnected",
+        "parser": "RDKit residue-wise perception on ligand-local ATOM records; residues kept disconnected",
         "analysis_radius_angstrom": 10.0,
         "residues_skipped": json.loads(protein_raw.GetProp("_omvetra_skipped_residues")),
+        "nearby_hetero_excluded": nearby_hetero_excluded,
         "peptide_bonds_reconstructed": 0,
     }
     protein = _with_hydrogens(protein_raw)
@@ -443,7 +470,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
     }
     return {
         **categories,
-        "status": "DEGRADED" if protein_parse["residues_skipped"] else "COMPUTED",
+        "status": "DEGRADED" if (protein_parse["residues_skipped"] or protein_parse["nearby_hetero_excluded"]) else "COMPUTED",
         "engine": "RDKit",
         "engine_version": Chem.rdBase.rdkitVersion,
         "method": "RDKit BaseFeatures chemical perception with coordinate geometry",
@@ -458,7 +485,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
         "limitations": [
             "Interaction classifications depend on the supplied protonation/tautomer state and prepared coordinates.",
             "RDKit feature perception is a computational model, not experimental evidence of binding.",
-            "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",
+            "Only ligand-local ATOM records are chemically perceived. Nearby HETATM groups (waters, ions, hemes, cofactors, and other heterogens) are listed in protein_parse.nearby_hetero_excluded and are not included in contact counts.",
             "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
             "Protein backbone amide N donors are excluded because the residue-wise parser does not reconstruct peptide connectivity; this can omit valid backbone hydrogen bonds.",
             "RDKit Hydrophobe features are a narrow chemical classification; absence of a ligand Hydrophobe feature is not evidence that no nonpolar contacts exist.",

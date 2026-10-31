@@ -58,7 +58,7 @@ def _normalize_pose_pdb(block: str) -> str:
         )
     if not rows:
         raise ValueError("Could not recover ligand atom coordinates from PDB/PDBQT records")
-    return "\\n".join(rows) + "\\nEND\\n"
+    return "\n".join(rows) + "\nEND\n"
 
 
 def _pdb_mol(block: str, label: str):
@@ -119,7 +119,7 @@ def _protein_mol(block: str):
     parsed = []
     skipped = []
     for key, lines in residues.items():
-        residue_block = "\\n".join(lines) + "\\nEND\\n"
+        residue_block = "\n".join(lines) + "\nEND\n"
         try:
             residue_mol = Chem.MolFromPDBBlock(
                 residue_block, sanitize=True, removeHs=False, proximityBonding=True

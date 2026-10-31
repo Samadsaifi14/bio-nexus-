@@ -73,8 +73,12 @@ class TestRunAlignment:
         async def fake_run_ebi_msa(**kwargs):
             raise ValueError("EBI submission failed (HTTP 400): invalid parameters")
 
-        monkeypatch.setattr(alignment_router, "run_ebi_msa", fake_run_ebi_msa)
-        req = AlignRequest(sequence=">a\nMEEPQSDPSV")
+        monkeypatch.setattr(alignment_router, "run_ebi_msa_best_effort", fake_run_ebi_msa)
+        import app.tools.msa_fallback as fallback_module
+        def fail_local(*args, **kwargs):
+            raise RuntimeError("local engine unavailable")
+        monkeypatch.setattr(fallback_module, "progressive_msa", fail_local)
+        req = AlignRequest(sequence=">a\nMEEPQSDPSV\n>b\nMEEPQSDPSA")
         with pytest.raises(HTTPException) as exc:
             await run_alignment(req)
         assert exc.value.status_code == 502

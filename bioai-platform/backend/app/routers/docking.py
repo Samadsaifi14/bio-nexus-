@@ -1183,9 +1183,22 @@ async def recalculate_stored_docking_interactions(job_id: str, user_id: str = De
             })
     unavailable = sum(row["status"] == "UNAVAILABLE" for row in pose_results)
     degraded = sum(row["status"] == "DEGRADED" for row in pose_results)
+    receptor_prep_evidence = data.get("receptor_prep_evidence") or {}
+    upstream_hetero_excluded = int(receptor_prep_evidence.get("input_other_hetero_records_excluded", 0) or 0)
+    upstream_waters_excluded = int(receptor_prep_evidence.get("input_water_records_excluded", 0) or 0)
+    coverage_degraded = bool(upstream_hetero_excluded or upstream_waters_excluded)
+    overall_status = "UNAVAILABLE" if unavailable == len(pose_results) else (
+        "DEGRADED" if unavailable or degraded or coverage_degraded else "COMPUTED"
+    )
     return {
         "job_id": job_id,
-        "status": "UNAVAILABLE" if unavailable == len(pose_results) else ("DEGRADED" if unavailable or degraded else "COMPUTED"),
+        "status": overall_status,
+        "receptor_coverage": {
+            "input_preparation_evidence": receptor_prep_evidence,
+            "upstream_hetero_records_excluded": upstream_hetero_excluded,
+            "upstream_water_records_excluded": upstream_waters_excluded,
+            "coverage_note": "The original receptor preparation excluded HETATM groups and waters; this recalculation reproduces contacts against the stored prepared receptor, not the complete biological assembly.",
+        },
         "reproduction": {
             "source": "original stored docking artifact; native Vina PDBQT coordinates",
             "original_interaction_analysis": data.get("interaction_analysis"),
@@ -1199,6 +1212,7 @@ async def recalculate_stored_docking_interactions(job_id: str, user_id: str = De
             "box_size": data.get("box_size"),
             "selected_pocket_rank": data.get("selected_pocket_rank"),
             "cnn_rescoring": data.get("cnn_rescoring"),
+            "receptor_prep_evidence": receptor_prep_evidence,
             "receptor_pdb_sha256": hashlib.sha256(receptor_pdb.encode("utf-8")).hexdigest(),
             "native_result_pdbqt_sha256": hashlib.sha256(pdbqt.encode("utf-8")).hexdigest(),
             "original_artifact_mutated": False,

@@ -22,6 +22,9 @@ _THRESHOLDS = {
     "salt_bridge_distance_angstrom": 4.0,
     "pi_centroid_distance_angstrom": 5.5,
     "pi_parallel_angle_degrees": 30.0,
+    "pi_parallel_plane_separation_min_angstrom": 3.0,
+    "pi_parallel_plane_separation_max_angstrom": 4.5,
+    "pi_parallel_lateral_offset_max_angstrom": 2.5,
     "pi_t_shaped_angle_min_degrees": 60.0,
     "pi_t_shaped_angle_max_degrees": 90.0,
 }
@@ -311,8 +314,16 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
             cosine = abs(sum(x*y for x, y in zip(pn, ln)))
             plane_angle = math.degrees(math.acos(max(-1.0, min(1.0, cosine))))
             # 0° normals = parallel planes; 90° normals = perpendicular planes.
+            delta = tuple(lc[i] - pc[i] for i in range(3))
+            plane_separation = abs(sum(delta[i] * pn[i] for i in range(3)))
+            lateral_offset = math.sqrt(max(0.0, d * d - plane_separation * plane_separation))
             if plane_angle <= _THRESHOLDS["pi_parallel_angle_degrees"]:
-                kind = "parallel"
+                if not (_THRESHOLDS["pi_parallel_plane_separation_min_angstrom"]
+                        <= plane_separation
+                        <= _THRESHOLDS["pi_parallel_plane_separation_max_angstrom"]
+                        and lateral_offset <= _THRESHOLDS["pi_parallel_lateral_offset_max_angstrom"]):
+                    continue
+                kind = "parallel_offset"
             elif (_THRESHOLDS["pi_t_shaped_angle_min_degrees"] <= plane_angle
                   <= _THRESHOLDS["pi_t_shaped_angle_max_degrees"]):
                 kind = "t_shaped"
@@ -323,7 +334,7 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
                 "protein_residue_seq": pres["number"], "protein_chain": pres["chain"],
                 "protein_ring_atom_indices": list(pids), "ligand_ring_atom_indices": list(lids),
                 "protein_centroid": list(pc), "ligand_centroid": list(lc),
-                "centroid_distance": round(d, 3), "ring_plane_angle": round(plane_angle, 2),
+                "centroid_distance": round(d, 3), "ring_plane_angle": round(plane_angle, 2),\n                "plane_separation": round(plane_separation, 3),\n                "lateral_offset": round(lateral_offset, 3),
                 "geometry": kind, "method": "RDKit aromatic ring features + least-squares plane geometry",
             })
     return rows

@@ -31,13 +31,116 @@ def _feature_factory():
     return ChemicalFeatures.BuildFeatureFactory(path)
 
 
+def _normalize_pose_pdb(block: str) -> str:
+    """Rebuild fixed-column PDB records from PDBQT while preserving atom order/coordinates."""
+    rows = []
+    for line in block.splitlines():
+        if line[:6].strip() not in ("ATOM", "HETATM"):
+            continue
+        fields = line.split()
+        if len(fields) < 9:
+            continue
+        try:
+            serial = int(fields[1])
+            atom_name = fields[2]
+            x, y, z = (float(fields[i]) for i in (5, 6, 7))
+            element = fields[-1].strip().upper()
+        except (ValueError, IndexError):
+            continue
+        element = "".join(ch for ch in element if ch.isalpha())[:2].title()
+        if not element:
+            element = "".join(ch for ch in atom_name if ch.isalpha())[:1].title()
+        atom_field = f" {atom_name:<3s}"[:4] if len(atom_name) < 4 else atom_name[:4]
+        rows.append(
+            f"ATOM  {serial:5d} {atom_field:4s} UNL A   1    "
+            f"{x:8.3f}{y:8.3f}{z:8.3f}{1.0:6.2f}{0.0:6.2f}          {element:>2s}  "
+        )
+    if not rows:
+        raise ValueError("Could not recover ligand atom coordinates from PDB/PDBQT records")
+    return "\\n".join(rows) + "\\nEND\\n"
+
+
 def _pdb_mol(block: str, label: str):
     if not block or not any(line.startswith(("ATOM  ", "HETATM")) for line in block.splitlines()):
         raise ValueError(f"{label} structure contains no PDB atom records")
-    mol = Chem.MolFromPDBBlock(block, sanitize=True, removeHs=False, proximityBonding=True)
+    try:
+        mol = Chem.MolFromPDBBlock(block, sanitize=True, removeHs=False, proximityBonding=True)
+    except Exception:
+        mol = None
+    if mol is None and label == "ligand":
+        normalized = _normalize_pose_pdb(block)
+        mol = Chem.MolFromPDBBlock(normalized, sanitize=True, removeHs=False, proximityBonding=True)
     if mol is None or mol.GetNumHeavyAtoms() == 0:
         raise ValueError(f"RDKit could not construct a chemically usable {label} molecule")
     return mol
+
+
+def _protein_mol(block: str):
+    """Parse protein residues independently to prevent false inter-residue proximity bonds.
+
+    Reconnects sequential peptide C-N bonds after residue-level chemical perception.
+    Any residue that cannot be perceived is explicitly recorded as excluded.
+    """
+    from collections import OrderedDict
+    residues = OrderedDict()
+    for line in block.splitlines():
+        if line.startswith("ATOM  "):
+            if len(line) > 16 and line[16] not in (" ", "A"):
+                continue
+            key = (line[21:22], line[22:26], line[26:27], line[17:20])
+            residues.setdefault(key, []).append(line)
+    parsed = []
+    skipped = []
+    for key, lines in residues.items():
+        residue_block = "\\n".join(lines) + "\\nEND\\n"
+        try:
+            residue_mol = Chem.MolFromPDBBlock(
+                residue_block, sanitize=True, removeHs=False, proximityBonding=True
+            )
+        except Exception:
+            residue_mol = None
+        if residue_mol is None or residue_mol.GetNumHeavyAtoms() == 0:
+            skipped.append({"chain": key[0].strip(), "residue_number": key[1].strip(),
+                            "residue_name": key[3].strip(), "reason": "RDKit residue sanitization failed"})
+            continue
+        parsed.append((key, residue_mol))
+    if not parsed:
+        raise ValueError("RDKit could not chemically perceive any protein residues")
+    combined = parsed[0][1]
+    residue_atom_indices = []
+    for key, mol in parsed:
+        if mol is not parsed[0][1]:
+            offset = combined.GetNumAtoms()
+            combined = Chem.CombineMols(combined, mol)
+        else:
+            offset = 0
+        names = {}
+        for atom in mol.GetAtoms():
+            info = atom.GetPDBResidueInfo()
+            if info:
+                names[info.GetName().strip()] = atom.GetIdx() + offset
+        residue_atom_indices.append((key, names))
+    editable = Chem.RWMol(combined)
+    peptide_bonds_added = 0
+    for (left_key, left_atoms), (right_key, right_atoms) in zip(residue_atom_indices, residue_atom_indices[1:]):
+        same_chain = left_key[0] == right_key[0]
+        try:
+            sequential = int(right_key[1]) == int(left_key[1]) + 1
+        except ValueError:
+            sequential = False
+        if same_chain and sequential and "C" in left_atoms and "N" in right_atoms:
+            c_idx, n_idx = left_atoms["C"], right_atoms["N"]
+            p1 = combined.GetConformer().GetAtomPosition(c_idx)
+            p2 = combined.GetConformer().GetAtomPosition(n_idx)
+            distance = p1.Distance(p2)
+            if 1.1 <= distance <= 1.8:
+                editable.AddBond(c_idx, n_idx, Chem.BondType.SINGLE)
+                peptide_bonds_added += 1
+    protein = editable.GetMol()
+    Chem.SanitizeMol(protein)
+    protein.SetProp("_omvetra_skipped_residues", str(skipped))
+    protein.SetProp("_omvetra_peptide_bonds_added", str(peptide_bonds_added))
+    return protein
 
 
 def _ligand_with_template(ligand_pdb: str, smiles: str):
@@ -172,7 +275,7 @@ def _ring_interactions(protein, ligand, protein_features, ligand_features):
 def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str) -> dict[str, Any]:
     """Return RDKit feature-based interaction evidence for one docked pose."""
     factory = _feature_factory()
-    protein = _with_hydrogens(_pdb_mol(protein_pdb, "protein"))
+    protein_raw = _protein_mol(protein_pdb)\n    protein_parse = {\n        "parser": "RDKit residue-wise perception with sequential peptide-bond reconstruction",\n        "residues_skipped": eval(protein_raw.GetProp("_omvetra_skipped_residues")),\n        "peptide_bonds_reconstructed": int(protein_raw.GetProp("_omvetra_peptide_bonds_added")),\n    }\n    protein = _with_hydrogens(protein_raw)
     ligand = _with_hydrogens(_ligand_with_template(ligand_pdb, ligand_smiles))
     pf = _atom_features(protein, factory)
     lf = _atom_features(ligand, factory)
@@ -252,7 +355,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
         "limitations": [
             "Interaction classifications depend on the supplied protonation/tautomer state and prepared coordinates.",
             "RDKit feature perception is a computational model, not experimental evidence of binding.",
-            "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",
+            "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",\n            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
             "Distances and angles are geometric screens, not interaction energies or binding-affinity measurements.",
         ],
     }

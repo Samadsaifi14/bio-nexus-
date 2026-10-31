@@ -461,6 +461,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
             "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",
             "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
             "Protein backbone amide N donors are excluded because the residue-wise parser does not reconstruct peptide connectivity; this can omit valid backbone hydrogen bonds.",
+            "RDKit Hydrophobe features are a narrow chemical classification; absence of a ligand Hydrophobe feature is not evidence that no nonpolar contacts exist.",
             "Distances and angles are geometric screens, not interaction energies or binding-affinity measurements.",
         ],
     }

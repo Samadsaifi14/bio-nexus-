@@ -324,16 +324,37 @@ def _run_docking_sync(job_id: str, payload: dict):
         )
 
         # 7. Compute interaction summary for best pose
-        interaction_analysis = {"status": "COMPUTED", "method": "distance and geometry thresholds; per-contact evidence is listed by interaction type", "limitations": "Geometric contact screening is not an energy calculation or experimental validation."}
+        interaction_analysis = {
+            "status": "COMPUTED",
+            "method": "distance and geometry thresholds; per-contact evidence is listed by interaction type",
+            "limitations": "Geometric contact screening is not an energy calculation or experimental validation.",
+        }
+        # Keep best-pose contacts independent from the optional per-pose summary:
+        # a malformed MODEL block must never erase valid primary contact evidence.
         try:
-            interactions = _compute_interactions(protein_pdb, vina_result["ligand_pdb"])
+            interactions = _compute_interactions(protein_pdb, vina_result.get("ligand_pdb", ""))
+        except Exception as e:
+            interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
+            interaction_analysis = {
+                "status": "UNAVAILABLE",
+                "stage": "best_pose_contacts",
+                "reason": type(e).__name__,
+                "message": str(e)[:300],
+                "limitations": "Interaction calculation failed; empty lists are not evidence of no contacts.",
+            }
+        try:
             pose_interactions = _summarize_pose_interactions(
                 protein_pdb, vina_result.get("result_pdbqt", "")
             )
+            interaction_analysis["pose_summary_status"] = "COMPUTED"
         except Exception as e:
-            interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
             pose_interactions = []
-            interaction_analysis = {"status": "UNAVAILABLE", "reason": type(e).__name__, "limitations": "Interaction calculation failed; empty lists are not evidence of no contacts."}
+            interaction_analysis["pose_summary_status"] = "UNAVAILABLE"
+            interaction_analysis["pose_summary_reason"] = type(e).__name__
+            interaction_analysis["pose_summary_message"] = str(e)[:300]
+            if interaction_analysis["status"] == "COMPUTED":
+                interaction_analysis["status"] = "PARTIAL"
+            logger.warning("Per-pose interaction summary failed for docking job %s: %s", job_id, e)
 
         try:
             from app.services.docking_pose_analytics import cluster_poses, water_mediated_interactions
@@ -931,20 +952,41 @@ def _summarize_pose_interactions(protein_pdb: str, output_pdbqt: str) -> list[di
         return []
     models: dict[int, list[str]] = {}
     current: int | None = None
+    saw_model_records = False
+    implicit_model_lines: list[str] = []
     for line in output_pdbqt.splitlines():
-        if line.startswith("MODEL"):
+        record = line[:6].strip()
+        if record == "MODEL":
+            saw_model_records = True
             parts = line.split()
-            if len(parts) >= 2:
-                current = int(parts[1])
-                models[current] = []
-        elif line.startswith("ENDMDL"):
+            # Ignore malformed MODEL labels without crashing the entire analysis.
+            try:
+                current = int(parts[1]) if len(parts) >= 2 else (max(models, default=0) + 1)
+            except (ValueError, IndexError):
+                current = max(models, default=0) + 1
+            models[current] = []
+        elif record == "ENDMDL":
             current = None
-        elif current is not None:
-            models.setdefault(current, []).append(line)
+        elif record in ("ATOM", "HETATM"):
+            if current is not None:
+                models.setdefault(current, []).append(line)
+            elif not saw_model_records:
+                implicit_model_lines.append(line)
+
+    # Some Vina builds emit a single pose without MODEL/ENDMDL delimiters.
+    if not models and implicit_model_lines:
+        models[1] = implicit_model_lines
 
     summaries = []
     for mid in sorted(models.keys()):
-        lig_pdb = "\n".join(l for l in models[mid] if l.startswith("HETATM")) + "\nEND"
+        ligand_records = [
+            line for line in models[mid]
+            if line[:6].strip() in ("ATOM", "HETATM")
+        ]
+        if not ligand_records:
+            # A missing pose is unavailable, not a valid zero-contact result.
+            continue
+        lig_pdb = "\n".join(ligand_records) + "\nEND"
         inter = _compute_interactions(protein_pdb, lig_pdb)
         summaries.append({
             "model": mid,

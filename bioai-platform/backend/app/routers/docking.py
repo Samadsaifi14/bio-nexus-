@@ -333,6 +333,13 @@ def _run_docking_sync(job_id: str, payload: dict):
         # a malformed MODEL block must never erase valid primary contact evidence.
         try:
             interactions = _compute_interactions(protein_pdb, _first_pose_pdbqt(vina_result.get("result_pdbqt", "")), smiles)
+            interaction_analysis["status"] = interactions.get("status", "COMPUTED")
+            interaction_analysis["engine"] = interactions.get("engine", "RDKit")
+            interaction_analysis["engine_version"] = interactions.get("engine_version")
+            interaction_analysis["method"] = interactions.get("method")
+            interaction_analysis["limitations"] = interactions.get("limitations", interaction_analysis["limitations"])
+            interaction_analysis["hydrogen_coordinate_provenance"] = interactions.get("hydrogen_coordinate_provenance")
+            interaction_analysis["protein_parse"] = interactions.get("protein_parse")
         except Exception as e:
             interactions = {"hbonds": [], "hydrophobic": [], "pi_stacking": [], "salt_bridges": []}
             interaction_analysis = {

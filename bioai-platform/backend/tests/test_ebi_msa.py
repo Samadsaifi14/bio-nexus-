@@ -93,7 +93,7 @@ class TestAlignmentFallback:
 
         monkeypatch.setattr(alignment_router, "run_ebi_msa_best_effort", fail_all)
         req = AlignRequest(
-            sequence=">query\\nMEEPQSDPSV\\n>subject\\nMEEPQSDPSA",
+            sequence=">query\nMEEPQSDPSV\n>subject\nMEEPQSDPSA",
             method="clustalo",
         )
         result = await run_alignment(req)

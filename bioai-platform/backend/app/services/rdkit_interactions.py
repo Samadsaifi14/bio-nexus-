@@ -341,6 +341,13 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
     ligand = _with_hydrogens(ligand_raw)
     pf = _atom_features(protein, factory)
     lf = _atom_features(ligand, factory)
+    # Residue-wise receptor fragments intentionally omit peptide connectivity.
+    # Exclude backbone amide N donors because their peptide valence/protonation
+    # cannot be reconstructed reliably from isolated residue fragments.
+    pf["Donor"] = {
+        idx for idx in pf["Donor"]
+        if _residue(protein.GetAtomWithIdx(idx))["atom"] != "N"
+    }
 
     hbonds, hydrophobic, salt_bridges = [], [], []
     # Donor/acceptor features are chemical SMARTS classifications, not element-only rules.
@@ -429,7 +436,7 @@ def calculate_interactions(protein_pdb: str, ligand_pdb: str, ligand_smiles: str
             "Interaction classifications depend on the supplied protonation/tautomer state and prepared coordinates.",
             "RDKit feature perception is a computational model, not experimental evidence of binding.",
             "Only the provided receptor atoms and docked pose are evaluated; omitted waters, ions, cofactors, and alternate conformations are not inferred.",
-            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",
+            "Residues listed in protein_parse.residues_skipped were excluded from chemical feature perception; a DEGRADED status must not be interpreted as complete receptor coverage.",\n            "Protein backbone amide N donors are excluded because the residue-wise parser does not reconstruct peptide connectivity; this can omit valid backbone hydrogen bonds.",
             "Distances and angles are geometric screens, not interaction energies or binding-affinity measurements.",
         ],
     }

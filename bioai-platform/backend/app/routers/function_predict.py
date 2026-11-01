@@ -30,6 +30,27 @@ class FunctionPredictResponse(BaseModel):
     error: str | None = None
 
 
+def _row_exists(supabase, job_id: str, user_id: str) -> bool:
+    """Confirm a submitted row really failed to insert (not just that its
+    response was lost). Live evidence: a worker ran a function job whose
+    ``POST /api/function/predict`` had returned 502 because httpx lost the
+    Supabase response after the row was committed.
+    """
+    try:
+        res = (
+            supabase.table(_TABLE)
+            .select("id")
+            .eq("id", job_id)
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+    except Exception as exc:
+        logger.warning("Could not confirm function job %s after insert error: %s", job_id, exc)
+        return False
+    return bool(res.data)
+
+
 @router.post("/predict", response_model=FunctionPredictResponse)
 async def predict_function_endpoint(request: Request, body: FunctionPredictRequest, user_id: str = Depends(require_user_id)):
     """Submit a function prediction job (queued through the durable worker)."""
@@ -47,15 +68,21 @@ async def predict_function_endpoint(request: Request, body: FunctionPredictReque
         },
     }
     try:
-        supabase.table(_TABLE).insert(insert_row).execute()
-    except Exception as e:
-        if "ligand_smiles" in str(e):
+        try:
+            supabase.table(_TABLE).insert(insert_row).execute()
+        except Exception as e:
+            if "ligand_smiles" not in str(e):
+                raise
             supabase.table(_TABLE).insert({
                 "id": job_id, "status": "queued", "user_id": user_id,
                 "payload": insert_row["payload"],
             }).execute()
-        else:
+    except Exception:
+        # A dropped response is not a failed insert. If the row exists, the job
+        # is already queued/running; returning 502 would hide a live job id.
+        if not _row_exists(supabase, job_id, user_id):
             raise
+        logger.warning("Function insert response lost for %s; row exists, continuing", job_id)
 
     job_registry.start(
         "function_predict", user_id, job_id=job_id,

@@ -17,7 +17,9 @@ import logging
 import os
 import socket
 import signal
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
+
+from urllib.parse import quote
 
 # Load OpenMM's native libraries BEFORE any rdkit import. The OpenMM and
 # RDKit wheels bundle conflicting copies of MSVC runtime DLLs
@@ -337,6 +339,18 @@ def _ensure_claim_rpcs() -> None:
         logger.warning("Failed to ensure claim RPCs (exec_sql may be disabled): %s", exc)
 
 
+def _stuck_cutoff(timeout_min: int) -> str:
+    """Return a PostgREST-ready cutoff for the stuck-job sweep.
+
+    The timestamp travels in a query string, where ``+`` means a space. An
+    unencoded UTC offset (``...+00:00``) was decoded as ``... 00:00`` and every
+    sweep query failed with Postgres 22007, so stale rows never reached a
+    terminal state.
+    """
+    cutoff = datetime.now(timezone.utc) - timedelta(minutes=timeout_min)
+    return quote(cutoff.isoformat(), safe="")
+
+
 def _sweep_stuck(table: str) -> int:
     """Recover jobs whose worker claim has stopped receiving heartbeats.
 
@@ -356,10 +370,9 @@ def _sweep_stuck(table: str) -> int:
     as interrupted instead of silently re-running an old analysis.
     """
     import httpx
-    from datetime import timedelta
 
     timeout_min = STUCK_JOB_TIMEOUT_BY_TABLE.get(table, DEFAULT_STUCK_JOB_TIMEOUT_MIN)
-    cutoff = (datetime.now(timezone.utc) - timedelta(minutes=timeout_min)).isoformat()
+    cutoff = _stuck_cutoff(timeout_min)
     select = "id,status,attempts,max_attempts,claimed_at,created_at"
     if table == "jobs":
         select += ",tool"

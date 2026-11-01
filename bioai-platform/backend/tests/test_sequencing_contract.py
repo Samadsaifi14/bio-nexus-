@@ -233,3 +233,85 @@ class TestValidContractOutput:
         pileup = _pileup_reads(sam, REF)
         consensus = _build_consensus(REF, pileup)
         assert consensus == "N" * len(REF)
+
+
+class TestArtifactPersistence:
+    """Artifacts must be URLs for durable jobs, never inline alignment content."""
+
+    def _files(self, tmp_path):
+        sam = tmp_path / "aln.sam"
+        sam.write_text(
+            "@HD\tVN:1.6\n" + _sam_read("R0", "38M", REF) + "\n", encoding="utf-8"
+        )
+        ref = tmp_path / "ref.fa"
+        ref.write_text(f">chr1\n{REF}\n", encoding="utf-8")
+        return str(sam), str(ref)
+
+    def _persist(self, sam, ref, job_id):
+        from app.tools.sequencing import _persist_artifacts
+
+        return _persist_artifacts(
+            job_id,
+            fastq_qc={"total_reads": 1},
+            sam_path=sam,
+            ref_path=ref,
+            reference="sars-cov-2",
+            vcf_text="##fileformat=VCFv4.2\n",
+            depth_text="position\tdepth\n1\t1\n",
+            consensus_fasta=">sars-cov-2 consensus\nACGT\n",
+            provenance={"engine": "minimap2"},
+        )
+
+    def test_durable_job_returns_urls_and_no_inline_content(self, tmp_path, monkeypatch):
+        from app.services import artifact_storage
+
+        sam, ref = self._files(tmp_path)
+        monkeypatch.setattr(
+            artifact_storage, "upload_artifact",
+            lambda job_id, name, data, ct: f"https://storage.test/{job_id}/{name}",
+        )
+        monkeypatch.setattr(
+            artifact_storage, "upload_bytes_artifact",
+            lambda job_id, name, data, ct: f"https://storage.test/{job_id}/{name}",
+        )
+
+        artifacts = self._persist(sam, ref, "job-1")
+        by_name = {a["name"]: a for a in artifacts}
+
+        assert by_name["alignment.sam"]["url"].endswith("/job-1/alignment.sam")
+        assert by_name["alignment.sam"]["size_bytes"] > 0
+        assert by_name["alignment.sam"]["sha256"]
+        # The whole point of the fix: no artifact payload is duplicated in JSON.
+        assert all("content" not in a for a in artifacts)
+        assert by_name["consensus.fasta"]["available"] is True
+
+    def test_oversized_sam_is_not_inlined_without_a_job(self, tmp_path, monkeypatch):
+        from app.tools import sequencing
+
+        sam, ref = self._files(tmp_path)
+        monkeypatch.setattr(sequencing, "_MAX_INLINE_ARTIFACT_BYTES", 8)
+
+        artifacts = self._persist(sam, ref, None)
+        sam_entry = next(a for a in artifacts if a["kind"] == "sam")
+
+        assert sam_entry["available"] is False
+        assert "content" not in sam_entry
+        assert "too large" in sam_entry["reason"].lower()
+
+    def test_upload_failure_inlines_only_small_content(self, tmp_path, monkeypatch):
+        from app.services import artifact_storage
+        from app.tools import sequencing
+
+        sam, ref = self._files(tmp_path)
+        monkeypatch.setattr(sequencing, "_MAX_INLINE_ARTIFACT_BYTES", 8)
+
+        def boom(*_a, **_k):
+            raise RuntimeError("storage down")
+
+        monkeypatch.setattr(artifact_storage, "upload_artifact", boom)
+        monkeypatch.setattr(artifact_storage, "upload_bytes_artifact", boom)
+
+        artifacts = self._persist(sam, ref, "job-2")
+
+        assert all(a["available"] is False for a in artifacts)
+        assert all("content" not in a for a in artifacts)

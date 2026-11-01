@@ -133,6 +133,9 @@ def _insert_row(
     client.table("jobs").insert(payload).execute()
 
 
+_TERMINAL_STATUSES = frozenset({"complete", "failed"})
+
+
 def _finish_row(
     job_id: str,
     *,
@@ -143,13 +146,25 @@ def _finish_row(
     client = _client()
     if client is None or not job_id:
         return
-    payload: dict[str, Any] = {
-        "status": status,
-        "progress_pct": 100 if status == "complete" else None,
-        "completed_at": _now(),
-    }
+    terminal = status in _TERMINAL_STATUSES
+    payload: dict[str, Any] = {"status": status}
+    if terminal:
+        # Only a terminal status may carry a completion timestamp. Writing it on
+        # an intermediate "running" patch made live rows look finished (and
+        # ordered wrongly in Jobs/History) while the work was still executing.
+        payload["progress_pct"] = 100 if status == "complete" else None
+        payload["completed_at"] = _now()
+    elif status == "running":
+        # A row that resumes (retry / worker restart) must not keep a stale
+        # completion stamp from an earlier intermediate write.
+        payload["completed_at"] = None
     if error is not None:
         payload["error"] = str(error)[:500]
+    elif status == "complete":
+        # A successful completion must clear an error persisted by an earlier
+        # intermediate/reconciled write; otherwise a finished job shows a stale
+        # "interrupted" message in Jobs/History.
+        payload["error"] = None
     if context:
         # Merge onto the existing summary instead of clobbering the submit-side
         # context the tool router already wrote.

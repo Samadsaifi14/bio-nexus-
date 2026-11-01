@@ -50,6 +50,60 @@ _CASTP_FAILURE_NOTE = {
     "timed_out": "no CASTp result after 90s of polling",
 }
 
+# Status values written to structure_prep_jobs. Kept in sync with migrations
+# 008/013; the live table originally lacked "unavailable" (see _ensure_schema).
+
+_schema_attempted = False
+
+
+def _ensure_schema() -> None:
+    """Best-effort: widen the castp_status CHECK constraint on the live table.
+
+    Deployments that applied migration 008 before this fix reject
+    ``castp_status='unavailable'`` with Postgres 23514, which used to fail an
+    otherwise successful prep run. The worker already self-heals its claim RPCs
+    through ``exec_sql``; do the same here so a missed migration cannot break the
+    pipeline. Silently skipped when exec_sql is disabled.
+    """
+    global _schema_attempted
+    if _schema_attempted:
+        return
+    _schema_attempted = True
+    try:
+        import httpx
+
+        from app.config import settings
+
+        base = settings.SUPABASE_URL.rstrip("/")
+        key = settings.SUPABASE_SERVICE_ROLE_KEY
+        if not base or not key:
+            return
+        headers = {"apikey": key, "Authorization": f"Bearer {key}"}
+        statements = (
+            "ALTER TABLE IF EXISTS structure_prep_jobs "
+            "DROP CONSTRAINT IF EXISTS structure_prep_jobs_castp_status_check",
+            "ALTER TABLE IF EXISTS structure_prep_jobs "
+            "ADD CONSTRAINT structure_prep_jobs_castp_status_check "
+            "CHECK (castp_status IN "
+            "('pending','skipped','running','complete','timed_out','error','unavailable'))",
+        )
+        for sql in statements:
+            try:
+                resp = httpx.post(
+                    f"{base}/rest/v1/rpc/exec_sql",
+                    headers=headers,
+                    json={"query": sql},
+                    timeout=15,
+                )
+                if resp.status_code >= 400:
+                    logger.debug("structure_prep schema self-heal returned %s: %s",
+                                 resp.status_code, resp.text[:200])
+            except Exception as exc:
+                logger.debug("structure_prep schema self-heal skipped: %s", exc)
+    except Exception as exc:  # pragma: no cover - config/import failure
+        logger.debug("structure_prep schema self-heal unavailable: %s", exc)
+
+
 
 class PipelineRequest(BaseModel):
     pdb_id: str = Field(default="", description="4-char PDB ID (mutually exclusive with sequence)")
@@ -142,6 +196,7 @@ def _validate_request(body: PipelineRequest) -> PipelineRequest:
 @router.post("/run")
 async def run_pipeline(body: PipelineRequest, user_id: str = Depends(require_user_id)):
     body = _validate_request(body)
+    await asyncio.to_thread(_ensure_schema)
 
     supabase = get_supabase()
     job_id = str(uuid.uuid4())
@@ -253,7 +308,24 @@ def _update_job(supabase, job_id: str, **fields) -> None:
     # executing immediately. (It was once `async def` called without `await`,
     # so no write ever ran and jobs sat in "running" forever.)
     fields["updated_at"] = datetime.now(timezone.utc).isoformat()
-    supabase.table(_TABLE).update(fields).eq("id", job_id).execute()
+    try:
+        supabase.table(_TABLE).update(fields).eq("id", job_id).execute()
+    except Exception as exc:
+        # A CHECK constraint applied to the live table may lag this build. A
+        # rejected status label must never fail an analysis that already ran:
+        # retry with the closest supported label, and only then drop the enum
+        # field so the rest of the progress/result still persists.
+        retry = dict(fields)
+        if retry.get("castp_status") == "unavailable":
+            retry["castp_status"] = "error"
+        logger.warning("structure_prep update rejected for %s (%s); retrying with "
+                       "castp_status=%s", job_id, exc, retry.get("castp_status"))
+        try:
+            supabase.table(_TABLE).update(retry).eq("id", job_id).execute()
+        except Exception:
+            minimal = {k: v for k, v in fields.items()
+                       if k not in ("castp_status", "fpocket_status")}
+            supabase.table(_TABLE).update(minimal).eq("id", job_id).execute()
     # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
     from app.services import job_registry
     job_registry.propagate_patch("structure_prep", job_id, fields)

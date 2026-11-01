@@ -601,14 +601,51 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
                 continue
 
             if name == "uniprot":
-                s = "complete" if "error" not in res else "failed"
-                _mark("uniprot", s, progress=100, data=res)
-                context["uniprot"] = res
-                if res.get("confidence"):
-                    context["query"]["confidence"] = res["confidence"]
                 if "error" in res:
-                    _failed_step = "uniprot"
-                    _failed_error = res["error"]
+                    # UniProt annotation is degradable: domains, structure and
+                    # interpretation all have sequence-only fallbacks. A single
+                    # provider error used to fail the whole run (live evidence:
+                    # "UniProt returned 500 for P61260"). Record the step as
+                    # failed, keep the pipeline moving, and expose the reason on
+                    # the result instead of discarding a valid BLAST search.
+                    detail = str(res.get("error") or "UniProt annotation unavailable")
+                    fallback_hit = top_hit or (hits[0] if hits else {}) or {}
+                    degraded = {
+                        "accession": fallback_hit.get("accession", ""),
+                        "full_name": fallback_hit.get("description", ""),
+                        "organism": fallback_hit.get("organism", ""),
+                        "gene_names": [],
+                        "functions": [],
+                        "keywords": [],
+                        "subcellular_locations": [],
+                        "pdb_ids": [],
+                        "go_terms": [],
+                        "sequence": "",
+                        "sequence_length": 0,
+                        "features": [],
+                        "resolution": {
+                            "uniprot_accession": None,
+                            "method": "unavailable",
+                            "original_accession": fallback_hit.get("accession", ""),
+                        },
+                        "resolved_uniprot": False,
+                        "confidence": "homolog",
+                        "error": detail,
+                        "_note": (
+                            "UniProt annotation was unavailable; continuing with "
+                            "sequence-based domain and structure fallbacks"
+                        ),
+                    }
+                    _mark("uniprot", "failed", progress=100, data=degraded, error=detail)
+                    context["uniprot"] = degraded
+                    context.setdefault("degraded_steps", []).append(
+                        {"step": "uniprot", "reason": detail}
+                    )
+                else:
+                    _mark("uniprot", "complete", progress=100, data=res)
+                    context["uniprot"] = res
+                    if res.get("confidence"):
+                        context["query"]["confidence"] = res["confidence"]
 
             elif name == "msa":
                 s = "complete" if res.get("aln_fasta") else "failed"
@@ -688,7 +725,10 @@ async def _execute(job_id: str, sequence: str, steps: list[str], status_callback
         context["interpret"] = result
 
     # ---- Final status ----
-    if _failed_step and _failed_step in ("blast", "uniprot"):
+    # Only BLAST is fatal: without hits there is nothing downstream to analyse.
+    # UniProt annotation is recorded as a degraded step (see the uniprot branch
+    # above) so a transient provider error cannot discard an otherwise valid run.
+    if _failed_step == "blast":
         with _jobs_lock:
             if job_id in _jobs:
                 _jobs[job_id]["status"] = "failed"

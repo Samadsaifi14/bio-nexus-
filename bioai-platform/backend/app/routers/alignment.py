@@ -1,11 +1,14 @@
+import asyncio
 import logging
+import threading
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.config import settings
-from app.services import job_registry
+from app.services import job_registry, job_state
 from app.services.auth import get_user_id
 from app.tools.ebi_msa import EBI_TOOLS, run_ebi_msa_best_effort, validate_msa_input
 from app.tools.pairwise_alignment import PairwiseAlignError, pairwise_align
@@ -14,11 +17,49 @@ from app.tools.sequence_fetch import fetch_sequence_by_accession
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
+# MSA is an asynchronous remote job (EBI can take minutes). Running it on the
+# request path meant the client held an HTTP connection open until the platform
+# proxy timed out (502/504), with no way to recover the alignment. Runs are now
+# submitted, given a job id, executed in a background task, and polled; state is
+# mirrored to transient_jobs so a redeploy does not silently erase it.
+_JOB_KIND = "alignment"
+_jobs: dict[str, dict] = {}
+_lock = threading.Lock()
+
+
+def _patch(job_id: str, **kw) -> None:
+    with _lock:
+        job = _jobs.setdefault(job_id, {"status": "queued"})
+        job.update(kw)
+        snapshot = dict(job)
+    job_state.mirror(job_id, _JOB_KIND, snapshot)
+    # Keep the shared jobs table (Jobs/History pages) in step with this tool row.
+    job_registry.propagate_patch("msa", job_id, kw)
+
+
+def _reconcile() -> int:
+    """Restore finished MSA jobs and fail the ones a restart interrupted."""
+
+    def hydrate(job_id: str, state: dict) -> None:
+        with _lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+        if isinstance(state, dict) and state.get("interrupted"):
+            job_registry.finish(job_id, status="failed", error=state.get("error"))
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
+
 
 class AlignRequest(BaseModel):
     sequence: str = Field(..., min_length=1, description="Two or more sequences in FASTA format")
     stype: str = Field("protein", description="Sequence type: protein or dna")
     method: str = Field("clustalo", description="MSA method: clustalo, muscle, kalign, mafft, or tcoffee")
+
+
+class MsaJobResponse(BaseModel):
+    job_id: str
+    status: str = "queued"
+
 
 
 class PairwiseAlignRequest(BaseModel):
@@ -114,8 +155,14 @@ async def run_pairwise(req: PairwiseAlignRequest, user_id: str | None = Depends(
     return result
 
 
-@router.post("/run")
-async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_user_id)):
+async def _execute_alignment(req: AlignRequest) -> tuple[dict[str, Any], list[tuple[str, str]]]:
+    """Run one MSA with validated input, provider fallback and an honest local fallback.
+
+    Shared by the blocking route and the background job route so both paths apply
+    the same validation, provider order and provenance rules. Raises
+    ``HTTPException(400)`` for invalid input and ``HTTPException(502)`` only when
+    every provider *and* the local fallback failed.
+    """
     if req.method not in EBI_TOOLS:
         raise HTTPException(status_code=400, detail=f"method must be one of: {', '.join(sorted(EBI_TOOLS))}")
 
@@ -127,7 +174,6 @@ async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_use
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
     email = settings.NCBI_EMAIL or "bioflow@example.com"
-    response: dict[str, Any]
     try:
         # Try the requested EBI engine first, then the configured alternate
         # engines. A provider rejection must not immediately fail the workflow.
@@ -138,7 +184,7 @@ async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_use
             email=email,
             tools=fallback_order,
         )
-        response = {
+        response: dict[str, Any] = {
             "job_id": result.get("job_id"),
             "aln_fasta": result["aln_fasta"],
             "aln_clustal": "",
@@ -157,7 +203,6 @@ async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_use
             type(provider_exc).__name__,
         )
         try:
-            import asyncio
             from app.tools.msa_fallback import progressive_msa
 
             aln_fasta, phylotree = await asyncio.to_thread(
@@ -189,6 +234,13 @@ async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_use
                     "Check the FASTA input and retry."
                 ),
             ) from fallback_exc
+    return response, records
+
+
+@router.post("/run")
+async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_user_id)):
+    """Blocking MSA used by scripts/tests. Prefer POST /jobs from the UI."""
+    response, records = await _execute_alignment(req)
 
     try:
         from app.ai.tool_interpreter import interpret_tool_result
@@ -209,3 +261,58 @@ async def run_alignment(req: AlignRequest, user_id: str | None = Depends(get_use
         },
     )
     return response
+
+
+@router.post("/jobs", response_model=MsaJobResponse)
+async def submit_alignment_job(req: AlignRequest, user_id: str | None = Depends(get_user_id)):
+    """Submit a background MSA run and return a durable job id immediately."""
+    if req.method not in EBI_TOOLS:
+        raise HTTPException(status_code=400, detail=f"method must be one of: {', '.join(sorted(EBI_TOOLS))}")
+
+    job_id = str(uuid.uuid4())
+    _patch(job_id, status="queued", method=req.method, stype=req.stype)
+    job_registry.start(
+        "msa", user_id, job_id=job_id,
+        query_preview=f"MSA {req.method} · {req.stype}",
+        context={"method": req.method, "stype": req.stype,
+                 "sequence_length": len(req.sequence or "")},
+    )
+    asyncio.create_task(_run_msa_job(job_id, req))
+    return MsaJobResponse(job_id=job_id)
+
+
+async def _run_msa_job(job_id: str, req: AlignRequest) -> None:
+    _patch(job_id, status="running")
+    try:
+        response, _records = await _execute_alignment(req)
+    except HTTPException as exc:
+        _patch(job_id, status="failed", error=str(exc.detail))
+        return
+    except Exception as exc:  # pragma: no cover - unexpected failure
+        logger.exception("MSA job %s failed", job_id)
+        _patch(job_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+        return
+
+    try:
+        from app.ai.tool_interpreter import interpret_tool_result
+        ai_interp = await interpret_tool_result("alignment", response)
+        if ai_interp:
+            response["ai_interpretation"] = ai_interp
+    except Exception:
+        pass
+
+    # The stored job payload must not contain the local job id twice.
+    payload = {key: value for key, value in response.items() if key != "job_id"}
+    payload["ebi_job_id"] = response.get("job_id")
+    _patch(job_id, status="complete", **payload)
+
+
+@router.get("/jobs/{job_id}")
+async def get_alignment_job(job_id: str):
+    with _lock:
+        job = _jobs.get(job_id)
+        job = dict(job) if job else None
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"job_id": job_id, **job}
+

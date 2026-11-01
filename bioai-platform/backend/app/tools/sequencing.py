@@ -46,6 +46,12 @@ REFERENCE_URLS = {
 
 SMALL_REFERENCE = "sars-cov-2"
 MAX_FASTQ_SIZE = 50 * 1024 * 1024
+# Artifact handling limits. Results uploaded to Supabase must stay small: a real
+# FASTQ can produce a >100 MB SAM, and inlining it (plus a JSON copy) caused the
+# worker to exhaust memory and the Space to answer 502. Uploads are capped and
+# content is only inlined as a small fallback.
+_MAX_UPLOAD_ARTIFACT_BYTES = 128 * 1024 * 1024
+_MAX_INLINE_ARTIFACT_BYTES = 256 * 1024
 REF_CACHE_DIR = os.path.join(os.path.dirname(__file__), "..", "data", "references")
 
 DEFAULT_MIN_DEPTH = 3
@@ -683,39 +689,112 @@ def _persist_artifacts(
     consensus_fasta: str,
     provenance: dict,
 ) -> list[dict[str, Any]]:
+    """Upload run artifacts and return small, URL-bearing result entries.
+
+    Artifact *content* must never be embedded in the scientific result for a
+    durable job. Embedding a full alignment SAM (tens to hundreds of MB for a
+    real FASTQ) made the JSON result enormous, so the worker allocated several
+    copies while serialising/uploading it and the Space returned 502. Content is
+    only inlined as a bounded fallback when Storage is unavailable or when the
+    caller supplied no job id (legacy/test path).
+    """
+    inline_limit = _MAX_INLINE_ARTIFACT_BYTES
     payloads: list[tuple[str, str, str, str]] = [
         ("fastq_qc.json", "fastq_qc", json.dumps(fastq_qc, sort_keys=True, indent=2), "application/json"),
-        ("alignment.sam", "sam", Path(sam_path).read_text(encoding="utf-8", errors="replace"), "text/plain"),
         ("variants.vcf", "vcf", vcf_text, "text/plain"),
         ("depth.tsv", "depth_table", depth_text, "text/tab-separated-values"),
         ("consensus.fasta", "consensus_fasta", consensus_fasta, "text/x-fasta"),
         ("provenance.json", "provenance", json.dumps(provenance, sort_keys=True, indent=2), "application/json"),
     ]
     artifacts: list[dict[str, Any]] = []
-    if not job_id:
-        for name, kind, content, media_type in payloads:
-            artifacts.append({"name": name, "kind": kind, "content": content, "media_type": media_type, "available": False, "reason": "No durable job id supplied", "sha256": hashlib.sha256(content.encode()).hexdigest()})
-        return artifacts
 
     from app.services.artifact_storage import upload_artifact, upload_bytes_artifact
 
+    def _entry(name: str, kind: str, media_type: str, encoded: bytes) -> dict[str, Any]:
+        return {
+            "name": name,
+            "kind": kind,
+            "format": name.rsplit(".", 1)[-1],
+            "media_type": media_type,
+            "sha256": hashlib.sha256(encoded).hexdigest(),
+            "size_bytes": len(encoded),
+        }
+
     for name, kind, content, media_type in payloads:
-        digest = hashlib.sha256(content.encode()).hexdigest()
+        encoded = content.encode("utf-8")
+        entry = _entry(name, kind, media_type, encoded)
+        if not job_id:
+            entry["available"] = False
+            entry["reason"] = (
+                "No durable job id supplied"
+                if len(encoded) <= inline_limit
+                else "No durable job id supplied; artifact too large to inline"
+            )
+            if len(encoded) <= inline_limit:
+                entry["content"] = content
+            artifacts.append(entry)
+            continue
         try:
-            url = upload_artifact(job_id, name, content, media_type)
-            artifacts.append({"name": name, "kind": kind, "content": content, "media_type": media_type, "url": url, "sha256": digest, "available": True})
+            entry["url"] = upload_artifact(job_id, name, content, media_type)
+            entry["available"] = True
         except Exception as exc:
             logger.warning("Could not persist sequencing artifact %s: %s", name, type(exc).__name__)
-            artifacts.append({"name": name, "kind": kind, "content": content, "media_type": media_type, "sha256": digest, "available": False, "reason": "Artifact storage unavailable"})
+            entry["available"] = False
+            entry["reason"] = "Artifact storage unavailable"
+            if len(encoded) <= inline_limit:
+                entry["content"] = content
+        artifacts.append(entry)
+
+    # The alignment is handled separately: it is by far the largest artifact and
+    # is read from disk instead of being materialised in the result payload.
+    sam_size = os.path.getsize(sam_path)
+    sam_entry = {
+        "name": "alignment.sam",
+        "kind": "sam",
+        "format": "sam",
+        "media_type": "text/plain",
+        "sha256": _sha256_file(sam_path),
+        "size_bytes": sam_size,
+    }
+    if not job_id:
+        sam_entry["available"] = False
+        if sam_size <= inline_limit:
+            sam_entry["reason"] = "No durable job id supplied"
+            sam_entry["content"] = Path(sam_path).read_text(encoding="utf-8", errors="replace")
+        else:
+            sam_entry["reason"] = "No durable job id supplied; alignment SAM too large to inline"
+    elif sam_size > _MAX_UPLOAD_ARTIFACT_BYTES:
+        sam_entry["available"] = False
+        sam_entry["reason"] = (
+            f"alignment SAM exceeds the {_MAX_UPLOAD_ARTIFACT_BYTES // (1024 * 1024)} MB "
+            "artifact upload limit; it was not embedded in the result"
+        )
+    else:
+        try:
+            sam_bytes = Path(sam_path).read_bytes()
+            sam_entry["url"] = upload_bytes_artifact(job_id, "alignment.sam", sam_bytes, "text/plain")
+            sam_entry["available"] = True
+        except Exception as exc:
+            logger.warning("Could not persist sequencing artifact alignment.sam: %s", type(exc).__name__)
+            sam_entry["available"] = False
+            sam_entry["reason"] = "Artifact storage unavailable"
+    artifacts.append(sam_entry)
 
     samtools = shutil.which("samtools")
-    if samtools:
+    if samtools and job_id:
         bam_path = str(Path(sam_path).with_suffix(".bam"))
         bai_path = bam_path + ".bai"
         try:
             subprocess.run([samtools, "sort", "-o", bam_path, sam_path], check=True, capture_output=True, timeout=120)
             subprocess.run([samtools, "index", bam_path], check=True, capture_output=True, timeout=120)
             for path, media_type in ((bam_path, "application/octet-stream"), (bai_path, "application/octet-stream")):
+                if os.path.getsize(path) > _MAX_UPLOAD_ARTIFACT_BYTES:
+                    artifacts.append({
+                        "name": Path(path).name, "media_type": media_type,
+                        "available": False,
+                        "reason": "Binary alignment exceeds the artifact upload limit",
+                    })
+                    continue
                 data = Path(path).read_bytes()
                 url = upload_bytes_artifact(job_id, Path(path).name, data, media_type)
                 artifacts.append({"name": Path(path).name, "media_type": media_type, "url": url, "sha256": hashlib.sha256(data).hexdigest(), "available": True})
@@ -724,11 +803,13 @@ def _persist_artifacts(
 
     try:
         ref_bytes = Path(ref_path).read_bytes()
-        url = upload_bytes_artifact(job_id, f"{reference}.fa", ref_bytes, "text/x-fasta")
-        artifacts.append({"name": f"{reference}.fa", "media_type": "text/x-fasta", "url": url, "sha256": hashlib.sha256(ref_bytes).hexdigest(), "available": True, "role": "reference"})
+        if job_id:
+            url = upload_bytes_artifact(job_id, f"{reference}.fa", ref_bytes, "text/x-fasta")
+            artifacts.append({"name": f"{reference}.fa", "media_type": "text/x-fasta", "url": url, "sha256": hashlib.sha256(ref_bytes).hexdigest(), "available": True, "role": "reference"})
     except Exception:
         pass
     return artifacts
+
 
 
 class SequencingPipeline(BaseTool):
@@ -801,7 +882,7 @@ class SequencingPipeline(BaseTool):
                     )
                 fastq_source = "remote-fastq"
 
-            qc = _parse_fastq_quality(fastq_path)
+            qc = await asyncio.to_thread(_parse_fastq_quality, fastq_path)
             if qc.get("error"):
                 return failed_scientific_result(
                     method="reference-guided consensus sequencing", engine="minimap2", engine_version="unavailable",
@@ -857,7 +938,8 @@ class SequencingPipeline(BaseTool):
                     validation={"alignment_completed": False, "variant_calling_executed": False, "consensus_constructed": False},
                 )
 
-            parsed = _parse_sam_evidence(
+            parsed = await asyncio.to_thread(
+                _parse_sam_evidence,
                 sam_path, ref_content,
                 min_depth=params["min_depth"], min_base_quality=params["min_base_quality"],
                 min_mapping_quality=params["min_mapping_quality"], min_alt_freq=params["allele_frequency"],
@@ -889,7 +971,8 @@ class SequencingPipeline(BaseTool):
                 "parameters": params,
                 "synthetic_demo": synthetic,
             }
-            artifacts = _persist_artifacts(
+            artifacts = await asyncio.to_thread(
+                _persist_artifacts,
                 job_id,
                 fastq_qc=qc, sam_path=sam_path, ref_path=ref_path, reference=reference,
                 vcf_text=vcf, depth_text=depth_tsv, consensus_fasta=consensus_fasta, provenance=provenance,

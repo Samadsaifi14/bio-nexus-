@@ -146,6 +146,71 @@ def test_retrieval_failure_is_reported_as_failure_not_as_absent_evidence(monkeyp
     assert "does not substitute" in result["note"]
 
 
+def test_retrieval_failure_reports_provider_response_body():
+    """EBI explains rejections in the body; that explanation must survive."""
+    class ProviderError(Exception):
+        def read(self):
+            return b"<error><description>temporarily blocked from submitting jobs</description></error>"
+
+    message = fp._provider_error(ProviderError("HTTP Error 400: Bad Request"))
+
+    assert "400" in message
+    assert "temporarily blocked" in message
+
+
+def test_uniprot_interpro_fallback_is_used_only_after_scan_failure(monkeypatch):
+    """When InterProScan is blocked, curated UniProt InterPro entries are real evidence."""
+    monkeypatch.setattr(fp, "_fetch_pdb_sequence", lambda _pdb: "ACDEFGHIKLMNPQRSTVWY")
+
+    def blocked(_sequence):
+        fp._record_retrieval_failure(
+            "InterProScan submission failed: HTTP Error 400 — fair-use block"
+        )
+        return []
+
+    monkeypatch.setattr(fp, "_run_interproscan", blocked)
+    monkeypatch.setattr(fp, "_uniprot_accession_for_pdb", lambda _pdb: "P00940")
+    monkeypatch.setattr(
+        fp,
+        "_uniprot_interpro_hits",
+        lambda _acc: [{
+            "accession": "IPR000652", "name": "Triosephosphate isomerase",
+            "database": "UniProt (InterPro cross-reference)",
+            "start": 0, "end": 0, "score": None,
+        }],
+    )
+    monkeypatch.setattr(
+        fp, "_fetch_interpro_go_terms",
+        lambda _acc: [{"id": "GO:0004807", "name": "triose-phosphate isomerase activity",
+                       "category": "MF"}],
+    )
+
+    result = fp.predict_function("1tim")
+
+    assert result["status"] == "inferred"
+    assert result["go_terms"][0]["go_id"] == "GO:0004807"
+    assert result["provenance"]["domain_source"] == (
+        "UniProt InterPro cross-references (P00940)"
+    )
+    # The blocking failure stays visible: the scan itself never ran.
+    assert "fair-use block" in result["provenance"]["retrieval_failures"][0]
+    assert "could not be completed" in result["note"]
+
+
+def test_uniprot_fallback_is_not_used_when_scan_simply_matched_nothing(monkeypatch):
+    monkeypatch.setattr(fp, "_fetch_pdb_sequence", lambda _pdb: "ACDEFGHIKLMNPQRSTVWY")
+    monkeypatch.setattr(fp, "_run_interproscan", lambda _sequence: [])
+    monkeypatch.setattr(
+        fp, "_uniprot_accession_for_pdb",
+        lambda _pdb: pytest.fail("a completed scan with no hits must not query UniProt"),
+    )
+
+    result = fp.predict_function("1abc")
+
+    assert result["status"] == "insufficient_evidence"
+    assert result["provenance"]["domain_source"] == "InterProScan"
+
+
 def test_successful_lookup_with_no_mapping_stays_insufficient_evidence(monkeypatch):
     """A completed scan that simply matched nothing is genuine insufficient evidence."""
     monkeypatch.setattr(fp, "_fetch_pdb_sequence", lambda _pdb: "ACDEFGHIKLMNPQRSTVWY")

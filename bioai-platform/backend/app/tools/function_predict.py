@@ -76,6 +76,87 @@ def _fetch_pdb_sequence(pdb_id: str) -> str:
 # InterProScan sequence search
 # ---------------------------------------------------------------------------
 
+_UNIPROT_ENTRY_API = "https://rest.uniprot.org/uniprotkb/{accession}.json"
+
+
+def _uniprot_accession_for_pdb(pdb_id: str) -> str | None:
+    """Return the UniProt accession mapped to the first polymer entity of a PDB entry."""
+    url = _RCSB_SEQUENCE_API.format(pdb_id=pdb_id.upper())
+    try:
+        data = json.loads(urllib.request.urlopen(url, timeout=15).read())  # nosemgrep
+    except Exception as exc:
+        logger.warning("UniProt mapping lookup failed for %s: %s", pdb_id, exc)
+        return None
+    identifiers = data.get("rcsb_polymer_entity_container_identifiers") or {}
+    accessions = identifiers.get("uniprot_ids") or []
+    return str(accessions[0]) if accessions else None
+
+
+def _uniprot_interpro_hits(uniprot_accession: str) -> list[dict]:
+    """Read InterPro entry annotations from a reviewed UniProt entry.
+
+    Used only when InterProScan itself is unreachable (for example an EBI
+    fair-use block). These are InterPro cross-references curated on the UniProt
+    entry for the same protein, not a scan of the submitted PDB sequence, so the
+    provenance records the different source rather than presenting it as an
+    InterProScan result.
+    """
+    url = _UNIPROT_ENTRY_API.format(accession=uniprot_accession)
+    try:
+        data = json.loads(urllib.request.urlopen(url, timeout=20).read())  # nosemgrep
+    except Exception as exc:
+        logger.warning("UniProt InterPro lookup failed for %s: %s", uniprot_accession, exc)
+        _record_retrieval_failure(
+            f"UniProt InterPro cross-reference lookup failed for {uniprot_accession}: "
+            f"{_provider_error(exc)}"
+        )
+        return []
+
+    hits: list[dict] = []
+    seen: set[str] = set()
+    for reference in data.get("uniProtKBCrossReferences", []) or []:
+        if reference.get("database") != "InterPro":
+            continue
+        accession = reference.get("id", "")
+        if not accession or accession in seen:
+            continue
+        seen.add(accession)
+        name = ""
+        for prop in reference.get("properties", []) or []:
+            if prop.get("key") == "EntryName":
+                name = prop.get("value", "")
+                break
+        hits.append({
+            "accession": accession,
+            "name": name,
+            "database": "UniProt (InterPro cross-reference)",
+            "start": 0,
+            "end": 0,
+            "score": None,
+        })
+    return hits
+
+def _provider_error(exc: Exception) -> str:
+    """Return ``type: message`` plus the provider's own response body, if any.
+
+    EBI explains rejections in the response body (for example a fair-use block).
+    ``urllib`` only exposes the status line on the exception, so the body has to
+    be read explicitly; without it every failure looked like a bare
+    "HTTP Error 400: Bad Request" with no actionable cause.
+    """
+    detail = f"{type(exc).__name__}: {exc}"
+    body = getattr(exc, "read", None)
+    if callable(body):
+        try:
+            text = body().decode("utf-8", errors="replace")
+        except Exception:
+            text = ""
+        text = " ".join(text.split())
+        if text:
+            detail = f"{detail} — {text[:400]}"
+    return detail
+
+
 def _run_interproscan(sequence: str, timeout: int = 90) -> list[dict]:
     """Submit a protein sequence to the InterProScan REST service and return hits.
 
@@ -128,8 +209,9 @@ def _run_interproscan(sequence: str, timeout: int = 90) -> list[dict]:
             _record_retrieval_failure("InterProScan submission returned no job id")
             return []
     except Exception as exc:
-        logger.warning("InterProScan submit failed: %s", exc)
-        _record_retrieval_failure(f"InterProScan submission failed: {type(exc).__name__}: {exc}")
+        reason = _provider_error(exc)
+        logger.warning("InterProScan submit failed: %s", reason)
+        _record_retrieval_failure(f"InterProScan submission failed: {reason}")
         return []
 
     status_url = f"{base}/status/{job_id}"
@@ -163,8 +245,9 @@ def _run_interproscan(sequence: str, timeout: int = 90) -> list[dict]:
         result_resp = urllib.request.urlopen(result_url, timeout=30)  # nosemgrep
         results = json.loads(result_resp.read())
     except Exception as exc:
-        logger.warning("InterProScan result fetch failed: %s", exc)
-        _record_retrieval_failure(f"InterProScan result fetch failed: {type(exc).__name__}: {exc}")
+        reason = _provider_error(exc)
+        logger.warning("InterProScan result fetch failed: %s", reason)
+        _record_retrieval_failure(f"InterProScan result fetch failed: {reason}")
         return []
 
     # v6 keeps the v5 results -> matches -> locations shape.
@@ -219,11 +302,15 @@ def _fetch_interpro_go_terms(accession: str) -> list[dict]:
 
     terms: list[dict] = []
     namespace_map = {"F": "MF", "P": "BP", "C": "CC"}
-    for go in data.get("metadata", {}).get("go_terms", []):
-        go_id = go.get("id", "")
+    for go in (data.get("metadata") or {}).get("go_terms") or []:
+        # The InterPro API returns {"identifier", "name", "category": {"code"}};
+        # older payloads used {"id", ..., "category": "F"}. Accept both.
+        go_id = go.get("id") or go.get("identifier", "")
         if not go_id:
             continue
         category = go.get("category", "")
+        if isinstance(category, dict):
+            category = category.get("code") or category.get("name", "")
         terms.append({
             "id": go_id,
             "name": go.get("name", ""),
@@ -370,7 +457,8 @@ def _hits_from_scan(scan: dict) -> list[dict]:
 
 
 def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
-                retrieval_failures: list[str]) -> dict:
+                retrieval_failures: list[str], *,
+                domain_source: str = "InterProScan") -> dict:
     """Build the research-grade prediction payload from sequence and InterPro hits."""
     retrieval_failures = list(retrieval_failures or [])
     retrieval_failures += [f for f in _RETRIEVAL_FAILURES if f not in retrieval_failures]
@@ -386,6 +474,11 @@ def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
             "GO terms are inferred from InterPro entry-to-GO mappings. They are not direct "
             "experimental annotations for this protein and no calibrated probability is reported."
         )
+        if domain_source != "InterProScan":
+            note += (
+                f" Domain annotations came from {domain_source} because an InterProScan "
+                "sequence search could not be completed."
+            )
     elif retrieval_failures:
         status = "evidence_unavailable"
         method = "interpro2go_retrieval_failed"
@@ -439,13 +532,13 @@ def _prediction(sequence: str, pdb_id: str, domain_hits: list[dict],
             "sequence_source": (
                 "RCSB PDB" if pdb_id.lower() != "de_novo" else "user-submitted sequence"
             ),
-            "domain_source": "InterProScan",
+            "domain_source": domain_source,
             "go_mapping_source": (
                 "InterPro2GO via InterProScan result and InterPro API fallback"
                 if any(hit.get("go_terms") for hit in domain_hits)
                 else "InterPro2GO via InterPro API"
             ),
-            "retrieval_is_live": not retrieval_failures,
+            "retrieval_is_live": bool(go_terms) or not retrieval_failures,
             "retrieval_failures": retrieval_failures,
         },
         "note": note,
@@ -543,4 +636,21 @@ def predict_function(pdb_id: str) -> dict:
         raise RuntimeError(f"No sequence available for PDB {pdb_id}")
 
     domain_hits = _run_interproscan(sequence)
-    return _prediction(sequence, pdb_id, domain_hits, _RETRIEVAL_FAILURES)
+    domain_source = "InterProScan"
+    if not domain_hits and _RETRIEVAL_FAILURES and pdb_id.lower() != "de_novo":
+        # InterProScan is unavailable (EBI fair-use block, timeout, ...). InterPro
+        # annotations curated on the mapped UniProt entry are real evidence for
+        # the same protein, so use them instead of reporting a dead end — while
+        # keeping the failed scan in the provenance.
+        accession = _uniprot_accession_for_pdb(pdb_id)
+        if accession:
+            domain_hits = _uniprot_interpro_hits(accession)
+            if domain_hits:
+                domain_source = f"UniProt InterPro cross-references ({accession})"
+                logger.info(
+                    "InterProScan unavailable for %s; using %d InterPro annotations from UniProt %s",
+                    pdb_id, len(domain_hits), accession,
+                )
+    return _prediction(
+        sequence, pdb_id, domain_hits, _RETRIEVAL_FAILURES, domain_source=domain_source
+    )

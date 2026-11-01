@@ -124,6 +124,43 @@ def test_propagate_patch_records_failure(registry):
     assert row["error"] == "boom"
 
 
+def test_running_patch_does_not_stamp_completion(registry):
+    """An intermediate patch must leave the row unfinished in Jobs/History."""
+    job_id = job_registry.start("md_v2", "user-1")
+    job_registry.propagate_patch("md_v2", job_id, {"status": "running"})
+    job_registry._pool.submit(lambda: None).result(timeout=5)
+
+    row = registry.rows[job_id]
+    assert row["status"] == "running"
+    assert row["completed_at"] is None
+    assert row["progress_pct"] != 100
+
+
+def test_running_patch_clears_stale_completion(registry):
+    job_id = job_registry.start("md_v2", "user-1")
+    job_registry._pool.submit(
+        job_registry._finish_row, job_id, status="complete"
+    ).result(timeout=5)
+    job_registry.propagate_patch("md_v2", job_id, {"status": "running"})
+    job_registry._pool.submit(lambda: None).result(timeout=5)
+
+    row = registry.rows[job_id]
+    assert row["status"] == "running"
+    assert row["completed_at"] is None
+
+
+def test_complete_clears_stale_interrupted_error(registry):
+    """Reconcile-then-finish must not leave a completed row with an error."""
+    job_id = job_registry.start("md_v2", "user-1")
+    job_registry.finish(job_id, status="failed", error="interrupted by restart")
+    job_registry.finish(job_id, status="complete")
+    job_registry._pool.submit(lambda: None).result(timeout=5)
+
+    row = registry.rows[job_id]
+    assert row["status"] == "complete"
+    assert row["error"] is None
+
+
 def test_anonymous_runs_are_not_recorded(registry):
     assert job_registry.start("docking", None) is None
     job_registry.record_completed("admet", None)

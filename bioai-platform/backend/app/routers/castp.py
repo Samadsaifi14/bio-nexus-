@@ -10,6 +10,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import re
+import threading
+import uuid
 from typing import Any
 
 import httpx
@@ -17,7 +19,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel, Field
 
 from app.science.result import build_scientific_result, failed_scientific_result
-from app.services import job_registry
+from app.services import job_registry, job_state
 from app.services.auth import get_user_id
 from app.services.identifier_resolution import is_uniprot_accession, resolve_to_uniprot
 from app.tools.castp import PocketAnalysisError, analyze_pockets_pdb_text
@@ -28,6 +30,33 @@ router = APIRouter(prefix="/api/castp", tags=["Pocket & Cavity Analysis"])
 
 _PDB_ID_RE = re.compile(r"^[A-Za-z0-9]{4}$")
 _AA_ALPHABET = set("ACDEFGHIKLMNPQRSTVWY")
+
+# Pocket analysis resolves a structure (RCSB/UniProt/ESMFold) and can run fpocket
+# or remote CASTp for minutes. The blocking route exceeded the platform proxy
+# budget and returned 502/504 with no job id. Runs are now submitted and polled.
+_JOB_KIND = "castp"
+_jobs: dict[str, dict] = {}
+_lock = threading.Lock()
+
+
+def _patch(job_id: str, **kw) -> None:
+    with _lock:
+        job = _jobs.setdefault(job_id, {"status": "queued"})
+        job.update(kw)
+        snapshot = dict(job)
+    job_state.mirror(job_id, _JOB_KIND, snapshot)
+    job_registry.propagate_patch("castp", job_id, kw)
+
+
+def _reconcile() -> int:
+    def hydrate(job_id: str, state: dict) -> None:
+        with _lock:
+            if job_id not in _jobs:
+                _jobs[job_id] = state
+        if isinstance(state, dict) and state.get("interrupted"):
+            job_registry.finish(job_id, status="failed", error=state.get("error"))
+
+    return job_state.reconcile_on_startup(_JOB_KIND, hydrate)
 
 
 class CastpRequest(BaseModel):
@@ -186,8 +215,7 @@ def _method_label(method: str) -> str:
     raise HTTPException(status_code=400, detail="method must be one of CASTp, fpocket, or sasa_heuristic")
 
 
-@router.post("/analyze")
-async def analyze_pockets(body: CastpRequest, user_id: str | None = Depends(get_user_id)):
+async def _analyze_pockets(body: CastpRequest) -> dict:
     requested_method = _method_label(body.method)
     resolved = await _resolve_structure(body)
     pdb_text = resolved["pdb_text"]
@@ -268,12 +296,6 @@ async def analyze_pockets(body: CastpRequest, user_id: str | None = Depends(get_
             validation=validation,
         )
         failed["results"] = results
-        job_registry.record_completed(
-            "castp", user_id, error=str(validation.get("reason") or f"{requested_method} failed"),
-            query_preview=f"Pockets · {resolved['pdb_id'] or 'sequence'}",
-            context={"pdb_id": resolved["pdb_id"], "method": requested_method,
-                     "outcome": str(failed.get("status") or "FAILED")},
-        )
         return failed
 
     scientific = build_scientific_result(
@@ -294,11 +316,79 @@ async def analyze_pockets(body: CastpRequest, user_id: str | None = Depends(get_
             else {"label": "Biopython", "url": "https://biopython.org/"}
         ],
     )
+    return scientific
+
+
+def _summarize(result: dict[str, Any]) -> dict[str, Any]:
+    results = result.get("results") or {}
+    return {
+        "pdb_id": results.get("pdb_id"),
+        "method": result.get("method"),
+        "scientific_status": result.get("status"),
+        "pocket_count": len(results.get("pockets") or []),
+    }
+
+
+@router.post("/analyze")
+async def analyze_pockets(body: CastpRequest, user_id: str | None = Depends(get_user_id)):
+    """Blocking pocket analysis used by scripts/tests. Prefer POST /jobs."""
+    result = await _analyze_pockets(body)
+    summary = _summarize(result)
+    failed = result.get("status") == "FAILED"
     job_registry.record_completed(
         "castp", user_id,
-        query_preview=f"Pockets · {resolved['pdb_id'] or 'sequence'}",
-        context={"pdb_id": resolved["pdb_id"], "method": requested_method,
-                 "pocket_count": len(results.get("pockets") or []),
-                 "scientific_status": method_status},
+        error=f"{result.get('method') or 'Pocket analysis'} failed" if failed else None,
+        query_preview=f"Pockets · {summary.get('pdb_id') or 'sequence'}",
+        context={**summary, "outcome": result.get("status")},
     )
-    return scientific
+    return result
+
+
+@router.post("/jobs")
+async def submit_pocket_job(body: CastpRequest, user_id: str | None = Depends(get_user_id)):
+    """Submit a background pocket analysis and return a durable job id."""
+    requested_method = _method_label(body.method)  # validates method up front
+    job_id = str(uuid.uuid4())
+    _patch(job_id, status="queued", method=requested_method)
+    job_registry.start(
+        "castp", user_id, job_id=job_id,
+        query_preview=f"Pockets · {body.pdb_id or ('sequence' if body.sequence else 'input')}",
+        context={"method": requested_method, "probe_radius": body.probe_radius},
+    )
+    asyncio.create_task(_run_castp_job(job_id, body))
+    return {"job_id": job_id, "status": "queued"}
+
+
+async def _run_castp_job(job_id: str, body: CastpRequest) -> None:
+    _patch(job_id, status="running")
+    try:
+        result = await _analyze_pockets(body)
+    except HTTPException as exc:
+        _patch(job_id, status="failed", error=str(exc.detail))
+        return
+    except PocketAnalysisError as exc:
+        _patch(job_id, status="failed", error=str(exc))
+        return
+    except Exception as exc:  # pragma: no cover - provider/structure failure
+        logger.exception("Pocket analysis job %s failed", job_id)
+        _patch(job_id, status="failed", error=f"{type(exc).__name__}: {exc}")
+        return
+
+    summary = _summarize(result)
+    if result.get("status") == "FAILED":
+        validation = result.get("validation") or {}
+        reason = validation.get("reason") or "Pocket analysis failed"
+        _patch(job_id, status="failed", error=str(reason), **summary)
+        return
+    _patch(job_id, status="complete", result=result, **summary)
+
+
+@router.get("/jobs/{job_id}")
+async def get_pocket_job(job_id: str):
+    with _lock:
+        job = _jobs.get(job_id)
+        job = dict(job) if job else None
+    if not job:
+        raise HTTPException(status_code=404, detail="Job not found")
+    return {"job_id": job_id, **job}
+

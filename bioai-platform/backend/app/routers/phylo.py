@@ -233,7 +233,12 @@ def _reconcile() -> int:
 async def _ebi_submit(url: str, data: dict) -> str:
     async with httpx.AsyncClient(timeout=30) as client:
         r = await client.post(url + "/run", data=data)
-        r.raise_for_status()
+        if r.status_code >= 400:
+            # Keep the provider's own explanation. EBI reports fair-use blocks
+            # and rejected parameters in the body; discarding it made every
+            # failure look like an unexplained "400 Bad Request".
+            detail = " ".join((r.text or "").split())[:400] or "no response body"
+            raise RuntimeError(f"HTTP {r.status_code}: {detail}")
         return r.text.strip()
 
 
@@ -329,8 +334,18 @@ def _to_fasta(sequences: list[dict]) -> str:
 
 
 async def _run_clustalo(job_id: str, sequences: list[dict], stype: str) -> tuple[str, str] | None:
+    """Align the input with Clustal Omega, falling back to the local MSA.
+
+    EBI can reject a submission (fair-use block, rejected parameters) or fail a
+    remote job. The tree must never be built from an unusable alignment, so a
+    failure is retried with the shared local progressive aligner and the actual
+    engine is recorded on the job. The fallback's guide tree is UPGMA, not a
+    Clustal Omega Neighbor-Joining tree, and is labelled as such.
+    """
     _patch(job_id, phase="msa_running")
     fasta = _to_fasta(sequences)
+    provider_error: str | None = None
+    ebi_job: str | None = None
 
     try:
         ebi_job = await _ebi_submit(_EBI_CLUSTALO, {
@@ -341,39 +356,74 @@ async def _run_clustalo(job_id: str, sequences: list[dict], stype: str) -> tuple
         })
         logger.info(f"[{job_id}] Clustal Omega job: {ebi_job}")
     except Exception as e:
-        _patch(job_id, phase="error", error=f"Clustal Omega submission failed: {e}")
-        return None
+        provider_error = f"Clustal Omega submission failed: {e}"
+        logger.warning("[%s] %s; trying local fallback", job_id, provider_error)
 
+    if ebi_job:
+        status: str | None
+        try:
+            status = await _ebi_poll(_EBI_CLUSTALO, ebi_job)
+        except Exception as exc:
+            status = None
+            provider_error = (
+                f"Clustal Omega status polling failed for job {ebi_job}: {exc}"
+            )
+
+        if status == "TIMEOUT":
+            minutes = int(_EBI_POLL_BUDGET_S / 60)
+            provider_error = (
+                f"Clustal Omega did not finish within {minutes} minutes "
+                f"(EBI job {ebi_job})"
+            )
+        elif status is not None and status != "FINISHED":
+            provider_error = (
+                f"Clustal Omega reported status {status} (EBI job {ebi_job})"
+            )
+        elif status == "FINISHED":
+            try:
+                aln_fasta = await _ebi_result(_EBI_CLUSTALO, ebi_job, "fa")
+                nj_newick = await _ebi_result(_EBI_CLUSTALO, ebi_job, "phylotree")
+            except Exception as e:
+                provider_error = f"Clustal Omega result fetch failed: {e}"
+            else:
+                _patch(
+                    job_id, phase="msa_done", aln_fasta=aln_fasta,
+                    msa_done_at=time.time(),
+                    msa_engine="Clustal Omega (EMBL-EBI Job Dispatcher)",
+                    msa_provider="EMBL-EBI Job Dispatcher",
+                    msa_provider_error=None,
+                    msa_guide_tree="Clustal Omega guide tree",
+                )
+                return aln_fasta, nj_newick
+
+    # ── Local progressive alignment fallback ──────────────────────────────
     try:
-        status = await _ebi_poll(_EBI_CLUSTALO, ebi_job)
+        from app.tools.msa_fallback import progressive_msa
+
+        records = [(str(seq["id"]), str(seq["sequence"])) for seq in sequences]
+        aln_fasta, guide_tree = await asyncio.to_thread(progressive_msa, records, stype)
     except Exception as exc:
-        _patch(job_id, phase="error",
-               error=f"Clustal Omega status polling failed for job {ebi_job}: {exc}")
+        _patch(
+            job_id, phase="error",
+            error=(
+                f"{provider_error or 'Clustal Omega unavailable'}; local progressive "
+                f"alignment fallback also failed: {exc}"
+            ),
+        )
         return None
 
-    if status == "TIMEOUT":
-        minutes = int(_EBI_POLL_BUDGET_S / 60)
-        _patch(job_id, phase="error",
-               error=(
-                   f"Clustal Omega did not finish within {minutes} minutes "
-                   f"(EBI job {ebi_job}). The remote job may still be running; "
-                   "retry with fewer or shorter sequences."
-               ))
-        return None
-    if status != "FINISHED":
-        _patch(job_id, phase="error",
-               error=f"Clustal Omega reported status {status} (EBI job {ebi_job})")
-        return None
-
-    try:
-        aln_fasta = await _ebi_result(_EBI_CLUSTALO, ebi_job, "fa")
-        nj_newick = await _ebi_result(_EBI_CLUSTALO, ebi_job, "phylotree")
-    except Exception as e:
-        _patch(job_id, phase="error", error=f"Clustal Omega result fetch failed: {e}")
-        return None
-
-    _patch(job_id, phase="msa_done", aln_fasta=aln_fasta, msa_done_at=time.time())
-    return aln_fasta, nj_newick
+    _patch(
+        job_id, phase="msa_done", aln_fasta=aln_fasta, msa_done_at=time.time(),
+        msa_engine="BioNexus local progressive alignment (fallback)",
+        msa_provider="BioNexus local fallback",
+        msa_provider_error=(provider_error or "")[:400] or None,
+        msa_guide_tree="UPGMA guide tree (fallback)",
+    )
+    logger.warning(
+        "[%s] using local progressive alignment fallback (reason: %s)",
+        job_id, (provider_error or "unknown")[:200],
+    )
+    return aln_fasta, guide_tree
 
 
 # ─── UPGMA (pure Python) ──────────────────────────────────────────────────────
@@ -675,6 +725,7 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             _patch(job_id, phase="error", error=f"{engine} produced no output tree")
             return
 
+        aligned = _read(job_id) or {}
         meta = {
             "engine": engine,
             "engine_version": engine_version,
@@ -693,6 +744,10 @@ async def _run_phyml_local(job_id: str, aln_fasta: str, req: PhyloRequest) -> No
             "likelihood": likelihood,
             "bootstrap_effective": bs_effective if bs_effective > 0 else None,
             "bootstrap_requested": bs_requested,
+            "alignment_engine": aligned.get("msa_engine"),
+            "alignment_provider": aligned.get("msa_provider"),
+            "alignment_guide_tree": aligned.get("msa_guide_tree"),
+            "alignment_provider_error": aligned.get("msa_provider_error"),
         }
         _patch(job_id, phase="complete", newick=newick, stats=stats, meta=meta, done_at=time.time())
 
@@ -733,19 +788,40 @@ async def _worker(job_id: str) -> None:
         return
 
     aln_fasta, nj_newick = result
+    aligned = _read(job_id) or {}
+    local_msa = aligned.get("msa_provider") == "BioNexus local fallback"
+    alignment_provenance = {
+        "alignment_engine": aligned.get("msa_engine"),
+        "alignment_provider": aligned.get("msa_provider"),
+        "alignment_guide_tree": aligned.get("msa_guide_tree"),
+        "alignment_provider_error": aligned.get("msa_provider_error"),
+    }
 
     if req.method == "nj":
         result_data = {"newick": nj_newick.strip(), "method": "nj"}
         _patch(job_id, phase="complete",
                newick=nj_newick.strip(), done_at=time.time(),
                meta={
-                   "engine": "Clustal Omega guide tree (Neighbor-Joining)",
-                   "engine_version": "remote (service-managed)",
+                   "engine": (
+                       "BioNexus local progressive alignment (UPGMA guide tree)"
+                       if local_msa
+                       else "Clustal Omega guide tree (Neighbor-Joining)"
+                   ),
+                   "engine_version": (
+                       "1.0 (local fallback)" if local_msa else "remote (service-managed)"
+                   ),
                    "model": "guide-tree distances",
                    "support": "none",
-                   "support_detail": "Guide tree used for alignment; no bootstrap or likelihood support computed.",
+                   "support_detail": (
+                       "Local fallback alignment was used because Clustal Omega was "
+                       "unavailable; the tree is its UPGMA guide tree, not a "
+                       "Clustal Omega Neighbor-Joining tree. No bootstrap support."
+                       if local_msa
+                       else "Guide tree used for alignment; no bootstrap or likelihood support computed."
+                   ),
                    "likelihood": None,
                    "bootstrap_effective": None,
+                   **alignment_provenance,
                })
         # AI interpretation (best-effort, never blocks)
         try:
@@ -771,6 +847,7 @@ async def _worker(job_id: str) -> None:
                        "support_detail": "UPGMA produces no bootstrap or likelihood support; clusters are ultrametric under a molecular-clock assumption.",
                        "likelihood": None,
                        "bootstrap_effective": None,
+                       **alignment_provenance,
                    })
             # AI interpretation (best-effort, never blocks)
             try:

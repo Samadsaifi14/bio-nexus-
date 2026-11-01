@@ -70,6 +70,16 @@ function PlotView({ plot }: { plot: ScientificPlot }) {
 
 function ArtifactDownloads({ artifacts }: { artifacts: ScientificArtifact[] }) {
   const download = (a: ScientificArtifact) => {
+    // Durable jobs return a Storage URL; only legacy/inline results carry content.
+    if (a.url) {
+      const link = document.createElement('a');
+      link.href = a.url;
+      link.target = '_blank';
+      link.rel = 'noreferrer';
+      link.download = a.name;
+      link.click();
+      return;
+    }
     if (a.content == null) return;
     const mime = a.format === 'fasta' ? 'text/fasta' : a.format === 'vcf' ? 'text/vcf+x-vcf' : a.format === 'json' ? 'application/json' : a.format === 'tsv' ? 'text/tab-separated-values' : 'text/plain';
     const el = document.createElement('a');
@@ -79,22 +89,26 @@ function ArtifactDownloads({ artifacts }: { artifacts: ScientificArtifact[] }) {
   };
   return (
     <div className="flex flex-wrap gap-2">
-      {artifacts.map((a) => (
-        <button
-          key={a.name}
-          onClick={() => download(a)}
-          disabled={a.content == null}
-          title={a.content == null ? 'Artifact too large to inline; see server job workspace' : `Download ${a.name}`}
-          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
-            a.content == null
-              ? 'bg-surface-1 text-text-muted opacity-60 cursor-not-allowed'
-              : 'bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 border-accent-cyan/20'
-          }`}
-        >
-          <FileText className="w-3.5 h-3.5" />
-          {a.name}
-        </button>
-      ))}
+      {artifacts.map((a) => {
+        const href = a.url ?? null;
+        const disabled = !href && a.content == null;
+        return (
+          <button
+            key={a.name}
+            onClick={() => download(a)}
+            disabled={disabled}
+            title={disabled ? (a.reason ?? 'Artifact unavailable') : `Download ${a.name}`}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition border ${
+              disabled
+                ? 'bg-surface-1 text-text-muted opacity-60 cursor-not-allowed'
+                : 'bg-accent-cyan/10 text-accent-cyan hover:bg-accent-cyan/20 border-accent-cyan/20'
+            }`}
+          >
+            <FileText className="w-3.5 h-3.5" />
+            {a.name}
+          </button>
+        );
+      })}
     </div>
   );
 }

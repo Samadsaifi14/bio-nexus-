@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import uuid
 from datetime import datetime, timezone, timedelta
 
@@ -15,6 +16,7 @@ from app.services import job_registry
 
 router = APIRouter(prefix="/api/function", tags=["Function Prediction"])
 _TABLE = "docking_jobs"  # reuse table with tool_type="function_predict"
+logger = logging.getLogger(__name__)
 
 
 class FunctionPredictRequest(BaseModel):
@@ -88,18 +90,36 @@ async def get_function_status(job_id: str, user_id: str = Depends(require_user_i
             pass
 
     result = None
+    retrieval_error: str | None = None
     if data.get("storage_url"):
         from app.services.artifact_storage import download_json
-        result = download_json(data["storage_url"])
+        try:
+            result = download_json(data["storage_url"])
+        except Exception as exc:
+            logger.warning(
+                "Function result download failed for %s: %s", job_id, exc
+            )
+            retrieval_error = (
+                "The job completed, but its stored result could not be retrieved "
+                f"from artifact storage ({type(exc).__name__})."
+            )
     elif data.get("result_sdf"):
         try:
             result = json.loads(data["result_sdf"])
         except Exception:
-            pass
+            retrieval_error = "The stored result payload is not valid JSON."
+
+    error = data.get("error")
+    if result is None and data.get("status") == "complete":
+        # Never report a silent success: a completed row without a payload is a
+        # retrieval failure the client must be able to show and act on.
+        error = error or retrieval_error or (
+            "The job completed but no result payload was stored. Re-run the analysis."
+        )
 
     return FunctionPredictResponse(
         job_id=data["id"],
         status=data["status"],
         result=result,
-        error=data.get("error"),
+        error=error,
     )

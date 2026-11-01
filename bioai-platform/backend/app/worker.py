@@ -551,6 +551,8 @@ def _run_function_predict(job: dict) -> None:
             "status": "complete",
             "storage_url": storage_url,
             "result_sdf": None,
+            "error": None,
+            "done_at": datetime.now(timezone.utc).isoformat(),
         }).eq("id", job["id"]).execute()
         from app.services import job_registry
         job_registry.finish(job["id"], status="complete",

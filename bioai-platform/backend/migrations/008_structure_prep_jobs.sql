@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS structure_prep_jobs (
     chain_integrity text NOT NULL DEFAULT 'unknown'
       CHECK (chain_integrity IN ('unknown', 'intact', 'repaired', 'broken_unrepaired')),
     castp_status text NOT NULL DEFAULT 'pending'
-      CHECK (castp_status IN ('pending', 'skipped', 'running', 'complete', 'timed_out', 'error')),
+      CHECK (castp_status IN ('pending', 'skipped', 'running', 'complete', 'timed_out', 'error', 'unavailable')),
     fpocket_status text NOT NULL DEFAULT 'pending'
       CHECK (fpocket_status IN ('pending', 'running', 'complete', 'unavailable', 'error')),
     error text,

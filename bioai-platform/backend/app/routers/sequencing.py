@@ -102,6 +102,33 @@ def _read(job_id: str, user_id: str | None = None) -> dict | None:
     return job
 
 
+def _read_minimal(job_id: str, user_id: str | None = None) -> dict | None:
+    """Return the stored job state without hydrating a large result artifact."""
+    query = (
+        get_supabase()
+        .table(_TABLE)
+        .select("id,fastq_url,reference,status,error,created_at,done_at,storage_url")
+        .eq("id", job_id)
+    )
+    if user_id:
+        query = query.eq("user_id", user_id)
+    rows = query.execute().data
+    if not rows:
+        return None
+    row = dict(rows[0])
+    return {
+        "job_id": row.get("id"),
+        "fastq_url": row.get("fastq_url"),
+        "reference": row.get("reference"),
+        "status": row.get("status") or "unknown",
+        "result": None,
+        "error": row.get("error"),
+        "created_at": row.get("created_at") or "",
+        "done_at": row.get("done_at"),
+        "result_available": bool(row.get("storage_url")),
+    }
+
+
 async def _worker(job_id: str) -> None:
     job = _read(job_id)
     if not job:
@@ -116,6 +143,9 @@ async def _worker(job_id: str) -> None:
             tool.run({
                 "fastq_url": job["fastq_url"],
                 "reference": job["reference"],
+                # Durable job id: artifacts are uploaded and returned as URLs
+                # instead of being embedded in the (potentially huge) result.
+                "job_id": job_id,
             }),
             timeout=PIPELINE_TIMEOUT,
         )
@@ -162,9 +192,34 @@ async def run_sequencing(request: Request, req: SequencingRequest, user_id: str 
 @router.get("/status/{job_id}")
 @limiter.exempt
 async def get_status(job_id: str, user_id: str = Depends(require_user_id)):
-    job = _read(job_id, user_id)
+    """Report a submitted job's state from the durable job row.
+
+    Status retrieval must not depend on a live worker, and a failed result
+    hydration must not surface as an opaque 502: the stored row is still
+    returned with ``result_available`` telling the client whether the payload
+    could be fetched.
+    """
+    try:
+        job = await asyncio.to_thread(_read, job_id, user_id)
+    except Exception:
+        logger.exception("Sequencing status read failed for %s", job_id)
+        try:
+            job = await asyncio.to_thread(_read_minimal, job_id, user_id)
+        except Exception:
+            logger.exception("Sequencing minimal status read failed for %s", job_id)
+            raise HTTPException(
+                status_code=503,
+                detail="Job status storage is temporarily unavailable; retry shortly.",
+            )
+        if job is not None:
+            job["status_detail"] = (
+                "The stored job state is shown; the result payload could not be "
+                "retrieved from artifact storage."
+            )
     if not job:
         raise HTTPException(404, detail=f"Job {job_id} not found")
+    if "result_available" not in job:
+        job["result_available"] = bool(job.get("result"))
     return job
 
 

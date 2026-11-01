@@ -42,9 +42,15 @@ export default function FunctionPage() {
     try {
       const res = await getFunctionEvidenceStatus(id);
       setStatus(res.status);
-      if (res.status === "complete" && res.result) {
-        setResult(res.result);
+      if (res.status === "complete") {
         setLoading(false);
+        if (res.result) {
+          setResult(res.result);
+        } else {
+          // A completed row without a payload is a retrieval failure; show it
+          // instead of polling forever.
+          setError(res.error || "The job completed but no result payload was returned.");
+        }
       } else if (res.status === "failed") {
         setError(res.error || "Function inference failed");
         setLoading(false);
@@ -180,6 +186,29 @@ export default function FunctionPage() {
               <div className="flex items-start gap-2"><Info className="mt-0.5 h-4 w-4 text-warn" /><div><h3 className="text-sm font-semibold text-text-primary">No supported GO mapping returned</h3><p className="mt-1 text-xs text-text-secondary">{result.note}</p></div></div>
             </div>
           )}
+
+          {result.status === "evidence_unavailable" && (
+            <div className="data-card border border-error/30 p-5">
+              <div className="flex items-start gap-2"><Info className="mt-0.5 h-4 w-4 text-error" /><div><h3 className="text-sm font-semibold text-text-primary">Evidence retrieval failed</h3><p className="mt-1 text-xs text-text-secondary">{result.note}</p></div></div>
+            </div>
+          )}
+
+          <div className="data-card p-5">
+            <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-text-muted">Provenance</h3>
+            <dl className="grid gap-2 text-xs text-text-secondary sm:grid-cols-2">
+              <div><dt className="text-text-muted">Domain source</dt><dd>{result.provenance.domain_source}</dd></div>
+              <div><dt className="text-text-muted">GO mapping source</dt><dd>{result.provenance.go_mapping_source}</dd></div>
+              <div><dt className="text-text-muted">Sequence source</dt><dd>{result.provenance.sequence_source}</dd></div>
+              <div><dt className="text-text-muted">Retrieval live</dt><dd>{result.provenance.retrieval_is_live ? "yes" : "no"}</dd></div>
+            </dl>
+            {(result.provenance.retrieval_failures?.length ?? 0) > 0 && (
+              <ul className="mt-2 list-disc space-y-1 pl-5 text-[11px] text-text-muted">
+                {result.provenance.retrieval_failures?.map((failure) => (
+                  <li key={failure}>{failure}</li>
+                ))}
+              </ul>
+            )}
+          </div>
 
           {Object.entries(grouped).map(([ns, terms]) => terms.length > 0 && (
             <div key={ns} className="data-card p-5">

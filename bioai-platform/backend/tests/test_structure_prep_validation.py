@@ -115,3 +115,82 @@ class TestRegexes:
     def test_template_regex_shape(self):
         assert TEMPLATE_RE.match("AF-P04637-F1-model_v4")
         assert not TEMPLATE_RE.match("-leading-hyphen")
+
+
+class _ConstraintError(Exception):
+    """Stand-in for the Postgres 23514 raised by an out-of-date CHECK."""
+
+
+class _FakeQuery:
+    def __init__(self, writes: list[dict], allowed: set[str]):
+        self.writes = writes
+        self.allowed = allowed
+        self.fields: dict = {}
+
+    def update(self, fields: dict):
+        self.fields = fields
+        return self
+
+    def eq(self, *_args):
+        return self
+
+    def execute(self):
+        castp = self.fields.get("castp_status")
+        if castp is not None and castp not in self.allowed:
+            raise _ConstraintError("violates check constraint")
+        self.writes.append(dict(self.fields))
+        return None
+
+
+class _FakeSupabase:
+    def __init__(self, allowed: set[str]):
+        self.allowed = allowed
+        self.writes: list[dict] = []
+
+    def table(self, _name: str):
+        return _FakeQuery(self.writes, self.allowed)
+
+
+class TestUpdateJobConstraintFallback:
+    """A stale castp_status CHECK must not fail an otherwise finished pipeline."""
+
+    def test_unavailable_downgrades_to_error(self, monkeypatch):
+        from app.routers import structure_prep
+
+        monkeypatch.setattr(
+            "app.services.job_registry.propagate_patch", lambda *_a, **_k: None
+        )
+        fake = _FakeSupabase(allowed={"pending", "running", "complete",
+                                      "timed_out", "error", "skipped"})
+
+        structure_prep._update_job(
+            fake, "job-1", step="complete", status="complete",
+            castp_status="unavailable", result={"castp_pockets": []},
+        )
+
+        # The retry persisted the real payload with the closest supported label.
+        assert len(fake.writes) == 1
+        assert fake.writes[0]["castp_status"] == "error"
+        assert fake.writes[0]["status"] == "complete"
+        assert fake.writes[0]["result"] == {"castp_pockets": []}
+
+    def test_unknown_enum_is_dropped_but_payload_persists(self, monkeypatch):
+        from app.routers import structure_prep
+
+        monkeypatch.setattr(
+            "app.services.job_registry.propagate_patch", lambda *_a, **_k: None
+        )
+        fake = _FakeSupabase(allowed={"pending", "running", "complete"})
+
+        structure_prep._update_job(
+            fake, "job-2", step="complete", status="complete",
+            castp_status="unavailable", fpocket_status="unavailable",
+            result={"ok": True},
+        )
+
+        assert len(fake.writes) == 1
+        assert "castp_status" not in fake.writes[0]
+        assert "fpocket_status" not in fake.writes[0]
+        assert fake.writes[0]["step"] == "complete"
+        assert fake.writes[0]["result"] == {"ok": True}
+

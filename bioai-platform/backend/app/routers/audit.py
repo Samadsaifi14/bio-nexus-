@@ -81,5 +81,9 @@ async def get_insights(session: str):
     if not session:
         raise HTTPException(400, detail="session query parameter is required")
     sb = get_supabase()
-    resp = sb.table("audit_insights").select("*").eq("session_id", session).order("created_at", desc=True).limit(1).execute()
+    try:
+        resp = sb.table("audit_insights").select("*").eq("session_id", session).order("created_at", desc=True).limit(1).execute()
+    except Exception as exc:
+        logger.warning("Audit insights lookup failed for %s: %s", session, exc)
+        return {"latest": None}
     return {"latest": resp.data[0] if resp.data else None}

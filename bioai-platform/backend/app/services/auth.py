@@ -108,8 +108,18 @@ async def get_user_id(
     if not _looks_like_jwt(token):
         return None
 
-    if _jwt_secret():
-        return _verify_locally(token)
+    # Supabase projects can use asymmetric signing keys (ES256) even when a
+    # legacy JWT secret remains configured in the deployment. The presence of
+    # SUPABASE_JWT_SECRET must not force every live asymmetric session through
+    # an HS256-only verifier. Inspect only the untrusted header to choose the
+    # verification route; identity is returned exclusively by a signature
+    # check or Supabase Auth's authoritative /user endpoint.
+    local_identity = _verify_locally(token) if _jwt_secret() else None
+    if local_identity:
+        return local_identity
+    # If local HS256 verification fails, ask Supabase Auth to validate the
+    # bearer token. This also handles rotated legacy secrets and asymmetric
+    # signing keys without ever trusting the decoded JWT payload.
     return await _verify_via_supabase(token)
 
 

@@ -137,7 +137,11 @@ def test_empty_R_preflight_output_is_not_missing_package(monkeypatch):
 
 
 def test_full_queue_execution_does_not_require_manual_QC_checkpoint(tmp_path, monkeypatch):
-    monkeypatch.setenv('BIONEXUS_EXPRESSION_ROOT', str(tmp_path / 'jobs'))
+    # The production queue deliberately rejects ephemeral /tmp storage. Keep
+    # this local-queue unit test on a dedicated persistent-looking sandbox path.
+    queue_root = Path.cwd() / '.test-expression-queue'
+    monkeypatch.setenv('BIONEXUS_EXPRESSION_BACKEND', 'local')
+    monkeypatch.setenv('BIONEXUS_EXPRESSION_ROOT', str(queue_root))
     monkeypatch.setattr(durable, 'readiness', lambda *a: {'available': True})
     counts = tmp_path / 'counts.tsv'; counts.write_text('gene\ts1\ng1\t1\n')
     meta = tmp_path / 'metadata.tsv'; meta.write_text('sample\tcondition\ns1\ta\n')
@@ -149,3 +153,5 @@ def test_full_queue_execution_does_not_require_manual_QC_checkpoint(tmp_path, mo
     assert captured['stage'] == 'full' and captured['checkpoint_path'] is None
     with durable.db() as db:
         assert db.execute('SELECT state FROM jobs WHERE id=?', (job_id,)).fetchone()['state'] == 'SUCCEEDED'
+    import shutil
+    shutil.rmtree(queue_root, ignore_errors=True)

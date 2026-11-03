@@ -116,7 +116,26 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     base = {"acc": accession, "form": "text", "view": "quick"}
     series_text = (await _get_limited(client, GEO_URL, params={**base, "targ": "self"})).decode("utf-8-sig")
     if f"^SERIES = {accession}" not in series_text:
-        raise GeoCountsError("GEO did not return the requested Series record.")
+        # GEO returns an HTML landing page for unknown accessions (and can
+        # return a challenge page during anti-bot throttling). Confirm the
+        # accession through E-utilities before classifying it as not found.
+        if "<html" in series_text[:1000].lower() or "<!doctype" in series_text[:1000].lower():
+            import xml.etree.ElementTree as ET
+            try:
+                async with httpx.AsyncClient(timeout=15) as verify_client:
+                    response = await verify_client.get(
+                        "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/esearch.fcgi",
+                        params={"db": "gds", "term": f"{accession}[Accession]", "retmode": "xml", "retmax": 1},
+                    )
+                    response.raise_for_status()
+                    count = ET.fromstring(response.text).findtext("Count", default="0")
+                if count == "0":
+                    raise GeoCountsError(f"GEO Series {accession} was not found in NCBI GEO. Check the accession or use the reviewed count-matrix upload workflow.")
+            except GeoCountsError:
+                raise
+            except Exception as exc:
+                raise GeoCountsError("NCBI GEO returned an HTML challenge instead of a Series record; retry later or use the reviewed count-matrix upload workflow.") from exc
+        raise GeoCountsError("NCBI GEO did not return a valid SOFT Series record for this accession.")
     sample_text = (await _get_limited(client, GEO_URL, params={**base, "targ": "gsm"}, limit=5 * 1024 * 1024)).decode("utf-8-sig")
     organisms = sorted(set(_soft_lines(sample_text, "Sample_organism_ch1")))
     samples: list[GeoSample] = []

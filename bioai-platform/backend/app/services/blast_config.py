@@ -54,6 +54,7 @@ def resolve_blast_params(
     program: str | None = None,
     database: str | None = None,
     fast_mode: bool = False,
+    sequence_type: str | None = None,
 ) -> tuple[str, str, str]:
     """Return ``(program, database, seq_type)`` with safe normalization.
 
@@ -62,9 +63,20 @@ def resolve_blast_params(
     Missing or incompatible databases fall back to a program-specific default,
     preventing combinations such as ``blastx + nt`` or ``tblastn + nr``.
     """
-    seq_type = detect_sequence_type(sequence)
+    detected_type = detect_sequence_type(sequence)
+    seq_type = (sequence_type or detected_type or "").lower().strip()
     if seq_type not in ("protein", "dna", "rna"):
-        raise ValueError(f"Could not determine sequence type for BLAST (detected: {seq_type})")
+        raise ValueError(f"Could not determine sequence type for BLAST (detected: {detected_type})")
+    # An explicit UI molecule selection resolves genuinely ambiguous sequences,
+    # but never bypasses alphabet validation or permits incompatible programs.
+    clean = "".join(str(sequence).upper().split()).replace("-", "").replace(".", "")
+    protein_alphabet = set("ACDEFGHIKLMNPQRSTVWYUBZXOJ")
+    nucleotide_alphabet = set("ACGTRYSWKMBDHVN")
+    allowed = protein_alphabet if seq_type == "protein" else nucleotide_alphabet
+    if not clean or set(clean) - allowed:
+        raise ValueError(f"Sequence contains characters incompatible with declared {seq_type} molecule type")
+    if sequence_type and detected_type not in (seq_type, "unknown"):
+        raise ValueError(f"Declared molecule type {seq_type} conflicts with detected {detected_type}")
 
     if not program:
         program = DEFAULT_PROGRAM[seq_type]

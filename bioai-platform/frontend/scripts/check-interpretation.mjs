@@ -66,7 +66,7 @@ assert.match(report.statements.find(x => x.title === 'Functional enrichment').te
 assert.match(report.caveats[0], /identifiability is not confirmed/);
 assert.equal(explainRnaSeqResult({ ...fixture, state: 'QC_READY' }).statements.length, 0);
 const dockingPrototype = await load('../../../src/features/docking-validation.ts');
-await assert.rejects(dockingPrototype.runDockingValidation('/not-a-molecule.apk'), /cannot validate molecular docking/);
+await assert.rejects(dockingPrototype.runDockingValidation('/not-a-molecule.apk'), /APK file not found/);
 const dockingPage = readFileSync(new URL('../src/app/(dashboard)/analyze/docking/page.tsx', import.meta.url), 'utf8');
 assert(!dockingPage.includes('runDockingValidation') && !dockingPage.includes('APK Path'));
 console.log('Interpretation streaming, RNA-seq evidence and APK/molecular boundary checks passed');

@@ -144,18 +144,35 @@ export function PrimerDesigner() {
   }
 
   async function applySequence(hit: PrimerSearchHit) {
-    setUsingSeq(hit.accession); setFetchError(null);
+    setUsingSeq(hit.accession);
+    setFetchError(null);
+    // Clear the previous template before retrieval so a failed accession lookup
+    // cannot leave an unrelated old sequence available for accidental design.
+    setSequence("");
     try {
       const res = await fetchSequence(hit.accession);
       if (res.error) {
         setFetchError(res.error);
-      } else {
-        setSequence(res.sequence);
-        audit.emitSuccess('primer_ncbi_retrieval', 'NCBI', hit.accession, `${res.length}bp`);
+        return;
       }
-    } catch (e: any) {
+      const fetched = typeof res.sequence === "string"
+        ? res.sequence.replace(/^>[^\\n]*\\n/, "").replace(/\\s+/g, "").toUpperCase()
+        : "";
+      if (!fetched) {
+        setFetchError(`NCBI returned no nucleotide sequence for ${hit.accession}. Choose another record or paste a verified template.`);
+        return;
+      }
+      if (fetched.length < 100) {
+        setFetchError(`The retrieved sequence is only ${fetched.length} bases; Primer3 requires at least 100 bases. Choose a longer transcript or genomic record.`);
+        return;
+      }
+      setSequence(fetched);
+      audit.emitSuccess('primer_ncbi_retrieval', 'NCBI', hit.accession, `${fetched.length} bp`);
+    } catch (e: unknown) {
       setFetchError(extractErrorMessage(e));
-    } finally { setUsingSeq(null); }
+    } finally {
+      setUsingSeq(null);
+    }
   }
 
   async function design() {

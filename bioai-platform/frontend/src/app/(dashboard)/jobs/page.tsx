@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useCallback } from 'react';
 import Link from 'next/link';
 import { motion } from 'framer-motion';
 import { fadeUp, stagger, cardHover } from '@/lib/animations';
 import { CircleNotch as LoaderCircle, Dna, FileText, Clock, CheckCircle, XCircle, Plus, CaretRight as ChevronRight } from '@phosphor-icons/react';
 import { getJobs } from '@/lib/api';
+import { useAuth } from '@/contexts/auth';
 import type { JobStatus } from '@/types/pipeline';
 import { STEP_LABELS } from '@/types/pipeline';
 import { PageHeader } from '@/components/ui';
@@ -29,12 +30,13 @@ function timeAgo(iso: string | undefined): string {
 }
 
 export default function JobsPage() {
+  const { loading: authLoading } = useAuth();
   const [jobs, setJobs]     = useState<JobStatus[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter]   = useState<FilterTab>('all');
 
-  const loadJobs = () => {
+  const loadJobs = useCallback(() => {
     setLoading(true);
     setLoadError(null);
     getJobs()
@@ -42,13 +44,19 @@ export default function JobsPage() {
       .catch((error: unknown) => {
         const status = (error as { response?: { status?: number } })?.response?.status;
         setLoadError(status === 401 || status === 403
-          ? 'Sign in to view your saved jobs. Your job history is private to your account.'
+          ? 'Your session could not be verified. Refresh the page or sign in again; saved jobs remain private to your account.'
           : 'Job history could not be retrieved. Your jobs have not been assumed to be missing; retry when the service is available.');
       })
       .finally(() => setLoading(false));
-  };
+  }, []);
 
-  useEffect(() => { loadJobs(); }, []);
+  // AuthProvider restores an existing session or creates a guest session
+  // asynchronously. Fetching jobs on the first paint races that process and
+  // sends an unauthenticated request, producing a false 401. Wait until the
+  // provider has completed session initialization before the first request.
+  useEffect(() => {
+    if (!authLoading) void Promise.resolve().then(loadJobs);
+  }, [authLoading, loadJobs]);
 
   const counts = useMemo(() => ({
     all:      jobs.length,

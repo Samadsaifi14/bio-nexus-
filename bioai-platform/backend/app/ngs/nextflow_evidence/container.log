@@ -1,0 +1,17 @@
+Nextflow 26.10.5 is available - Please consider updating your version to it
+N E X T F L O W  ~  version 24.10.5
+Launching `/opt/workflow/main.nf` [naughty_wing] DSL2 - revision: 6947b8ad28
+BioNexus NGS variant-calling workflow
+  reference : /work/inputs/reference.fa
+  sam       : /work/inputs/reads.sam
+  truth     : /work/inputs/truth.tsv
+  filter    : QUAL>=20 && FORMAT/DP>=10
+  outdir    : /work/results
+
+[36/9a2916] Submitted process > INDEX_REFERENCE (reference.fa)
+[77/6b7b03] Submitted process > SORT_BAM (reads.sam)
+[43/c10cda] Submitted process > INDEX_BAM
+[51/0aa364] Submitted process > CALL_VARIANTS
+[f3/4cda9b] Submitted process > FILTER_VARIANTS
+[a2/dc0e33] Submitted process > EVALUATE_TRUTH
+[66/f0bb8d] Submitted process > VARIANT_METRICS

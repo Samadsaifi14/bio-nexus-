@@ -1,0 +1,13 @@
+{
+  "benchmark": "bionexus-tiny-target-v1",
+  "truth_design": "deterministic synthetic positive control",
+  "sample": "TINY001",
+  "reference": "chrTiny:1-200",
+  "reads": 20,
+  "read_length": 100,
+  "expected_variants": 1,
+  "expected_snp": "chrTiny:50:C>G:0/1",
+  "truth_file": "truth.tsv",
+  "reference_file": "reference.fa",
+  "reads_file": "reads.sam"
+}

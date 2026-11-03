@@ -1,0 +1,19 @@
+{
+  "benchmark": "bionexus-tiny-target-v1",
+  "classification": "SYNTHETIC_POSITIVE_CONTROL",
+  "biological_scope": "one heterozygous SNP in a 200 bp synthetic target",
+  "truth_rows": 1,
+  "observed_rows": 1,
+  "tp": 1,
+  "fp": 0,
+  "fn": 0,
+  "precision": 1.0,
+  "recall": 1.0,
+  "f1": 1.0,
+  "normalized_calls_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+  "limitations": [
+    "Tests deterministic workflow execution, not real-sample accuracy.",
+    "Does not validate indels, difficult regions, structural variants, CNVs or annotation.",
+    "Cannot support claims of parity with nf-core/sarek as a whole or a public Galaxy server."
+  ]
+}

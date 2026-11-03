@@ -1,0 +1,193 @@
+{
+  "claim": "This evidence records an actual Nextflow run that exited successfully and produced a trace. It is a synthetic positive control; it does not establish real-sample accuracy, clinical validity, or parity with nf-core/sarek as a whole.",
+  "execution": {
+    "command": [
+      "nextflow",
+      "run",
+      "/opt/workflow/main.nf",
+      "-c",
+      "/opt/workflow/nextflow.config",
+      "--reference",
+      "/work/inputs/reference.fa",
+      "--sam",
+      "/work/inputs/reads.sam",
+      "--truth",
+      "/work/inputs/truth.tsv",
+      "--outdir",
+      "/work/results",
+      "--min_qual",
+      "20",
+      "--min_dp",
+      "10",
+      "--threads",
+      "1",
+      "-ansi-log",
+      "false"
+    ],
+    "command_sha256": "feba77fc26892b1311c85403dd384b9e4d4a9ebf31b8b213e610d213710d4d1f",
+    "container_digest": "bionexus/ngs-tools@sha256:c5bf64e81c118bb7ae5fdd679c5cdaed3011a13df2b5ff56eae3eb5fccbcef6a",
+    "container_image": "bionexus/ngs-tools:1.0",
+    "engine": "Nextflow",
+    "engine_version": "24.10.5",
+    "evidence_note": "Executed on the development workstation; the hosted backend reports the runner as unavailable and serves this committed evidence.",
+    "executor": "local Docker (Nextflow local executor inside the tool image)",
+    "exit_code": 0,
+    "nextflow_executed": true,
+    "state": "SUCCEEDED"
+  },
+  "files": {
+    "benchmark.json": {
+      "bytes": 676,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/benchmark.json",
+      "label": "Truth concordance",
+      "media_type": "application/json",
+      "sha256": "ba2e2d91999b4194a54e6fe73961360825e613410f6bfd547c16994aefb05c51"
+    },
+    "calls.tsv": {
+      "bytes": 55,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/calls.tsv",
+      "label": "Call table (TSV)",
+      "media_type": "text/tab-separated-values",
+      "sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1"
+    },
+    "calls.vcf": {
+      "bytes": 2922,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/calls.vcf",
+      "label": "Filtered calls (VCF)",
+      "media_type": "text/vcf",
+      "sha256": "4d23cad89906c86a2d0a901e87e9fa2e7c06c1fa6d842ea1480fd137e23d440d"
+    },
+    "container.log": {
+      "bytes": 757,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/container.log",
+      "label": "nextflow run log (stdout/stderr)",
+      "media_type": "text/plain",
+      "sha256": "405672a01154e0c241c222e6bd68c4ed6e9b8250322d2edea4ccfb1c9462f73e"
+    },
+    "dag.html": {
+      "bytes": 1615,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/dag.html",
+      "label": "Nextflow DAG",
+      "media_type": "text/html",
+      "sha256": "dbfe595d83a39455f907880f3e84f5644541435b7a057d8fbf47ed8bd4e435de"
+    },
+    "metrics.json": {
+      "bytes": 360,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/metrics.json",
+      "label": "Run metrics",
+      "media_type": "application/json",
+      "sha256": "7470114f04fe2989cd49a659f9403961c69889fe74311cf094f0ba3c6acc6932"
+    },
+    "nextflow.log": {
+      "bytes": 12725,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/nextflow.log",
+      "label": "Nextflow internal log",
+      "media_type": "text/plain",
+      "sha256": "3d87702aba76c5f78bf311bee1082920c47078d9c18411b42aa05f7f1c06ecdd"
+    },
+    "report.html": {
+      "bytes": 2945742,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/report.html",
+      "label": "Nextflow report",
+      "media_type": "text/html",
+      "sha256": "3c669d5388d08bbb8e2d9dda44aa25b625ad21cb63e99ce9eb187044cd8a4fb3"
+    },
+    "timeline.html": {
+      "bytes": 253728,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/timeline.html",
+      "label": "Nextflow timeline",
+      "media_type": "text/html",
+      "sha256": "4f0a97d80d96fedb2fca626ce2231888738b7d6a8ca0f3d4b9e279ad0dbb7b95"
+    },
+    "trace.txt": {
+      "bytes": 1050,
+      "download_url": "/api/ngs/v2/nextflow/evidence/files/trace.txt",
+      "label": "Nextflow trace",
+      "media_type": "text/plain",
+      "sha256": "2666b4f0d72073fa0372edd5171010d09d0ecdd1557bc137c7e35cd3790d0b69"
+    }
+  },
+  "fixture": {
+    "classification": "SYNTHETIC_POSITIVE_CONTROL",
+    "expected_snp": "chrTiny:50 C>G (0/1)",
+    "id": "tiny-positive-control",
+    "label": "Tiny synthetic positive control"
+  },
+  "generated_at": "2026-11-03T08:25:48.193542+00:00",
+  "parameters": {
+    "min_dp": 10,
+    "min_qual": 20.0,
+    "threads": 1
+  },
+  "processes": [
+    {
+      "exit": "0",
+      "name": "INDEX_REFERENCE (reference.fa)",
+      "realtime": "40ms",
+      "status": "COMPLETED",
+      "task_id": "2"
+    },
+    {
+      "exit": "0",
+      "name": "SORT_BAM (reads.sam)",
+      "realtime": "78ms",
+      "status": "COMPLETED",
+      "task_id": "1"
+    },
+    {
+      "exit": "0",
+      "name": "INDEX_BAM",
+      "realtime": "40ms",
+      "status": "COMPLETED",
+      "task_id": "3"
+    },
+    {
+      "exit": "0",
+      "name": "CALL_VARIANTS",
+      "realtime": "209ms",
+      "status": "COMPLETED",
+      "task_id": "4"
+    },
+    {
+      "exit": "0",
+      "name": "FILTER_VARIANTS",
+      "realtime": "68ms",
+      "status": "COMPLETED",
+      "task_id": "5"
+    },
+    {
+      "exit": "0",
+      "name": "EVALUATE_TRUTH",
+      "realtime": "197ms",
+      "status": "COMPLETED",
+      "task_id": "7"
+    },
+    {
+      "exit": "0",
+      "name": "VARIANT_METRICS",
+      "realtime": "244ms",
+      "status": "COMPLETED",
+      "task_id": "6"
+    }
+  ],
+  "result": {
+    "called_variants": 1,
+    "f1": 1.0,
+    "fn": 0,
+    "fp": 0,
+    "mapped_reads": 20,
+    "mean_depth": 10.0,
+    "normalized_calls_sha256": "cefef322e336202da82549c1d5c09cf546a70b4aacfe9d1cc7e090a8aa23bbb1",
+    "precision": 1.0,
+    "recall": 1.0,
+    "reference_length": 200,
+    "tp": 1
+  },
+  "revision": "db955089ee98",
+  "tool_versions": {
+    "bcftools": "1.19",
+    "samtools": "1.19.2"
+  },
+  "workflow": "bionexus/ngs-variant-calling",
+  "workflow_id": "bionexus-ngs-variant-calling"
+}

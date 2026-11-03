@@ -1,0 +1,17 @@
+{
+  "workflow": "bionexus/ngs-variant-calling",
+  "called_variants": 1,
+  "mapped_reads": 20,
+  "reference_length": 200,
+  "mean_depth": 10.0,
+  "filter": "QUAL>=20.0 && FORMAT/DP>=10.0",
+  "tool_versions": {
+    "samtools": "1.19.2",
+    "bcftools": "1.19"
+  },
+  "source_files": {
+    "vcf": "calls.vcf",
+    "tsv": "calls.tsv",
+    "bam": "reads.bam"
+  }
+}

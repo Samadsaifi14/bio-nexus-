@@ -1,0 +1,8 @@
+task_id	hash	name	status	exit	realtime	%cpu	%mem	rss	vmem	peak_rss	peak_vmem	read_bytes	write_bytes	workdir
+2	36/9a2916	INDEX_REFERENCE (reference.fa)	COMPLETED	0	40ms	39.0%	0.0%	3 MB	4.2 MB	3 MB	4.2 MB	0	0	/work/work/36/9a2916dae22dc4ec57bfaa5649cc20
+1	77/6b7b03	SORT_BAM (reads.sam)	COMPLETED	0	78ms	43.5%	0.0%	10.1 MB	1015.2 MB	10.1 MB	1.1 GB	0	0	/work/work/77/6b7b030cba5803a5579f8e3c105e8f
+3	43/c10cda	INDEX_BAM	COMPLETED	0	40ms	36.8%	0.0%	2.9 MB	4.2 MB	2.9 MB	4.2 MB	0	0	/work/work/43/c10cda8a9c3b57d3596b41cd7cd021
+4	51/0aa364	CALL_VARIANTS	COMPLETED	0	209ms	76.2%	0.0%	3 MB	4.2 MB	3 MB	4.2 MB	0	0	/work/work/51/0aa364cc507342a17fc33269b1e7b6
+5	f3/4cda9b	FILTER_VARIANTS	COMPLETED	0	68ms	24.2%	0.0%	3.1 MB	4.2 MB	3.1 MB	4.2 MB	0	0	/work/work/f3/4cda9ba0e06827f15a04b982d54f25
+7	a2/dc0e33	EVALUATE_TRUTH	COMPLETED	0	197ms	42.5%	0.1%	11.9 MB	19 MB	11.9 MB	19 MB	0	0	/work/work/a2/dc0e338f8421507a34f3e8593cd5b4
+6	66/f0bb8d	VARIANT_METRICS	COMPLETED	0	244ms	42.9%	0.0%	3.2 MB	4.2 MB	3.2 MB	4.2 MB	0	0	/work/work/66/f0bb8d0f6a99735c5cc063b50c3c6b

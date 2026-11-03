@@ -21,13 +21,15 @@ from pathlib import Path
 from typing import Optional
 
 from fastapi import APIRouter, Depends, HTTPException
-from pydantic import BaseModel
+from fastapi.responses import FileResponse
+from pydantic import BaseModel, Field
 
 from app.config import settings
 from app.ngs.assays import AssayRouter, SMALL_RNA_PATTERN, SMALL_RNA_GUIDANCE
 from app.ngs.orchestrator import build_dag, wgs_wes_germline_stages
 from app.ngs.production import build_production_plan, evaluate_clinical_evidence
 from app.ngs.execution import artifact_manifest, executor_capabilities, get_run, submit_run
+from app.ngs import nextflow_runner
 from app.services.auth import get_user_id, require_user_id
 from app.ngs.visualization import build_visualization
 from app.models.responses import (
@@ -124,6 +126,14 @@ class DetectRequest(BaseModel):
     reference: Optional[str] = None
     assay: Optional[str] = None
     metadata: dict = {}
+
+
+class NextflowRunRequest(BaseModel):
+    fixture: str = "tiny-positive-control"
+    min_qual: float = Field(20.0, ge=0, le=1000)
+    min_dp: int = Field(10, ge=0, le=10000)
+    threads: int = Field(1, ge=1, le=8)
+    sample_name: Optional[str] = Field(None, max_length=80)
 
 
 def _safe_local_fastq(path: str) -> str:
@@ -315,6 +325,83 @@ def production_plan(payload: NgsProductionPlanRequest):
 @router.get("/production/capabilities")
 def production_capabilities():
     return executor_capabilities()
+
+
+@router.get("/nextflow/capabilities")
+def nextflow_capabilities():
+    """Honest capability report for the in-app Nextflow Docker runner."""
+    return nextflow_runner.capabilities()
+
+
+@router.get("/nextflow/evidence")
+def nextflow_evidence():
+    """Committed evidence from a real executed Nextflow run.
+
+    Served without authentication so the hosted UI can show the executed run
+    even though the hosted backend cannot run Docker itself.
+    """
+    return nextflow_runner.evidence_report()
+
+
+@router.get("/nextflow/evidence/files/{name}")
+def nextflow_evidence_file(name: str):
+    try:
+        path, media_type = nextflow_runner.evidence_file(name)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="evidence file not found") from exc
+    return FileResponse(path, media_type=media_type, filename=name)
+
+
+@router.post("/nextflow/runs")
+def nextflow_submit(payload: NextflowRunRequest, user_id: str = Depends(require_user_id)):
+    try:
+        run = nextflow_runner.submit_run(
+            user_id=user_id,
+            fixture=payload.fixture,
+            min_qual=payload.min_qual,
+            min_dp=payload.min_dp,
+            threads=payload.threads,
+            sample_name=payload.sample_name,
+        )
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except RuntimeError as exc:
+        raise HTTPException(status_code=503, detail=str(exc)) from exc
+    except Exception as exc:
+        logger.exception("Nextflow run submission failed")
+        raise HTTPException(status_code=502, detail=f"nextflow submission failed: {type(exc).__name__}") from exc
+    return {
+        "run_id": run["run_id"],
+        "state": run["state"],
+        "workflow": run["workflow"],
+        "engine": run["engine"],
+        "message": "Real Nextflow DSL2 run submitted to the local Docker executor; no exploratory fallback was used.",
+    }
+
+
+@router.get("/nextflow/runs/{run_id}")
+def nextflow_run_status(run_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        return nextflow_runner.get_run(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Nextflow run not found") from exc
+
+
+@router.get("/nextflow/runs/{run_id}/artifacts")
+def nextflow_run_artifacts(run_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        return nextflow_runner.artifact_manifest(run_id, user_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Nextflow run not found") from exc
+
+
+@router.get("/nextflow/runs/{run_id}/artifacts/{artifact_id}")
+def nextflow_run_artifact(run_id: str, artifact_id: str, user_id: str = Depends(require_user_id)):
+    try:
+        path, spec = nextflow_runner.artifact_path(run_id, user_id, artifact_id)
+    except FileNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="artifact not found") from exc
+    return FileResponse(path, media_type=spec["media_type"], filename=path.name)
 
 
 @router.post("/production/submit", response_model=NgsProductionSubmitResponse)

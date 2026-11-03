@@ -174,6 +174,7 @@ export default function BlastWizardPage() {
         sequence: seq,
         database: effectiveDatabase,
         program: effectiveProgram,
+        sequenceType: detectedType === 'protein' ? 'protein' : detectedType === 'rna' ? 'rna' : 'dna',
         maxHits: 100,
         queryAccession,
         fastMode,

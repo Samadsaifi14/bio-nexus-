@@ -62,7 +62,7 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
     last_error: httpx.HTTPError | None = None
     for attempt in range(3):
         try:
-            async with client.stream("GET", url, params=params, follow_redirects=True) as response:
+            async with client.stream("GET", url, params=params, follow_redirects=False) as response:
                 if response.status_code == 429 or response.status_code >= 500:
                     response.raise_for_status()
                 response.raise_for_status()

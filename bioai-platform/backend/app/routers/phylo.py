@@ -15,6 +15,7 @@ Job lifecycle (thread-safe, mirrored to Supabase so a restart does not lose it):
 from __future__ import annotations
 
 import asyncio
+import io
 import logging
 import re
 import threading
@@ -798,27 +799,32 @@ async def _worker(job_id: str) -> None:
     }
 
     if req.method == "nj":
-        result_data = {"newick": nj_newick.strip(), "method": "nj"}
+        # Clustal Omega's guide tree is an alignment aid, not a guaranteed
+        # Neighbor-Joining inference result. Infer NJ explicitly from the final
+        # alignment so the requested method is the method actually executed.
+        try:
+            from Bio import AlignIO, Phylo
+            from Bio.Phylo.TreeConstruction import DistanceCalculator, DistanceTreeConstructor
+            alignment = AlignIO.read(io.StringIO(aln_fasta), "fasta")
+            if len(alignment) < 3:
+                raise ValueError("Neighbor-Joining requires at least three aligned sequences")
+            distance_matrix = DistanceCalculator("identity").get_distance(alignment)
+            tree = DistanceTreeConstructor().nj(distance_matrix)
+            output = io.StringIO()
+            Phylo.write(tree, output, "newick")
+            nj_newick = output.getvalue().strip()
+        except Exception as exc:
+            _patch(job_id, phase="error", error=f"Neighbor-Joining inference failed: {type(exc).__name__}: {exc}")
+            return
+        result_data = {"newick": nj_newick, "method": "nj"}
         _patch(job_id, phase="complete",
-               newick=nj_newick.strip(), done_at=time.time(),
+               newick=nj_newick, done_at=time.time(),
                meta={
-                   "engine": (
-                       "BioNexus local progressive alignment (UPGMA guide tree)"
-                       if local_msa
-                       else "Clustal Omega guide tree (Neighbor-Joining)"
-                   ),
-                   "engine_version": (
-                       "1.0 (local fallback)" if local_msa else "remote (service-managed)"
-                   ),
-                   "model": "guide-tree distances",
+                   "engine": "Biopython Neighbor-Joining",
+                   "engine_version": getattr(__import__("Bio"), "__version__", "unknown"),
+                   "model": "uncorrected identity distance (p-distance)",
                    "support": "none",
-                   "support_detail": (
-                       "Local fallback alignment was used because Clustal Omega was "
-                       "unavailable; the tree is its UPGMA guide tree, not a "
-                       "Clustal Omega Neighbor-Joining tree. No bootstrap support."
-                       if local_msa
-                       else "Guide tree used for alignment; no bootstrap or likelihood support computed."
-                   ),
+                   "support_detail": "Neighbor-Joining was inferred from the final multiple-sequence alignment using uncorrected identity distances. No bootstrap support was computed.",
                    "likelihood": None,
                    "bootstrap_effective": None,
                    **alignment_provenance,

@@ -6,7 +6,7 @@ export async function runBlastPipeline(payload: {
   sequence: string;
   database: string;
   program: BlastProgram;
-  sequenceType: 'protein' | 'dna' | 'rna';
+  sequenceType?: 'protein' | 'dna' | 'rna';
   maxHits?: number;
   queryAccession?: string;
   fastMode?: boolean;
@@ -16,7 +16,7 @@ export async function runBlastPipeline(payload: {
     pipeline_type: 'blast',
     database: payload.database,
     program: payload.program,
-    sequence_type: payload.sequenceType,
+    ...(payload.sequenceType ? { sequence_type: payload.sequenceType } : {}),
     max_hits: payload.maxHits ?? 100,
     query_accession: payload.queryAccession ?? '',
     fast_mode: payload.fastMode ?? false,

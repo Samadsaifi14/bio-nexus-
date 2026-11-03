@@ -66,10 +66,7 @@ async def _save_upload(upload: UploadFile, target: Path, max_bytes: int) -> None
 
 @router.get("/capabilities")
 def expression_capabilities():
-    # Report production readiness, not merely whether R happens to be installed.
-    # The real upload route requires durable private storage and a live worker.
-    from app.rnaseq import durable
-    readiness = durable.readiness()
+    readiness = expression_readiness()
     rscript = readiness["rscript_available"]
     return {
         **readiness,

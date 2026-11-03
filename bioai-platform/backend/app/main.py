@@ -253,22 +253,10 @@ async def _startup_services():
         logger.info("In-process durable worker started")
     else:
         logger.info("In-process durable worker disabled")
-    expression_worker_setting = os.environ.get('RUN_EXPRESSION_WORKER')
-    # The expression queue is durable in Supabase when credentials are present.
-    # Start its lease-based worker by default in that deployment; an explicit
-    # false remains available for split API/worker deployments. Multiple API
-    # replicas are safe because the Postgres claim RPC provides exclusive leases.
-    run_expression_worker = (
-        expression_worker_setting.strip().lower() in ('1', 'true', 'yes')
-        if expression_worker_setting is not None
-        else bool(settings.SUPABASE_URL and settings.SUPABASE_SERVICE_ROLE_KEY)
-    )
-    if run_expression_worker:
+    if os.environ.get('RUN_EXPRESSION_WORKER', 'false').strip().lower() in ('1','true','yes'):
         from app.rnaseq.durable import start_expression_worker
         app.state.expression_worker = start_expression_worker()
-        logger.info('Durable RNA-seq expression worker started')
-    else:
-        logger.info('RNA-seq expression worker disabled: durable Supabase configuration absent or explicitly disabled')
+        logger.info('Expression queue worker explicitly enabled')
 
 
 @app.get("/health")

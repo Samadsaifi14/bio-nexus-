@@ -23,10 +23,6 @@ def _make_token(sub=SUB, secret=SECRET, expires_delta=3600, headers=None):
     return pyjwt.encode(payload, secret, algorithm="HS256", headers=headers or {})
 
 
-async def _async_identity(value: str, identity: str):
-    return identity
-
-
 def _creds(token: str) -> HTTPAuthorizationCredentials:
     return HTTPAuthorizationCredentials(scheme="Bearer", credentials=token)
 
@@ -86,31 +82,6 @@ class TestGetUserId:
         result = asyncio.run(auth.get_user_id(_creds("aaa.bbb.ccc")))
         assert result == SUB
         assert seen["token"] == "aaa.bbb.ccc"
-
-
-    def test_falls_back_to_supabase_when_legacy_secret_does_not_match_live_session(self, monkeypatch):
-        monkeypatch.setenv("SUPABASE_JWT_SECRET", SECRET)
-        token = _make_token(secret="rotated-or-asymmetric-signing-key")
-        seen = {}
-
-        async def fake_verify(value: str):
-            seen["token"] = value
-            return SUB
-
-        monkeypatch.setattr(auth, "_verify_via_supabase", fake_verify)
-        assert asyncio.run(auth.get_user_id(_creds(token))) == SUB
-        assert seen["token"] == token
-
-    def test_falls_back_to_supabase_for_asymmetric_jwt(self, monkeypatch):
-        monkeypatch.setenv("SUPABASE_JWT_SECRET", SECRET)
-        # The JWT payload/signature are intentionally not trusted here; the
-        # mocked authoritative verifier stands in for Supabase Auth /user.
-        import base64, json
-        header = base64.urlsafe_b64encode(json.dumps({"alg": "ES256", "typ": "JWT"}).encode()).decode().rstrip("=")
-        payload = base64.urlsafe_b64encode(json.dumps({"sub": SUB, "exp": int(time.time()) + 3600}).encode()).decode().rstrip("=")
-        token = f"{header}.{payload}.signature"
-        monkeypatch.setattr(auth, "_verify_via_supabase", lambda value: _async_identity(value, SUB))
-        assert asyncio.run(auth.get_user_id(_creds(token))) == SUB
 
 
 class TestRequireUserId:

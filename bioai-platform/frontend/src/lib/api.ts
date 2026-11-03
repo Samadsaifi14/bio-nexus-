@@ -1854,9 +1854,27 @@ export interface CastpResult {
 export type PocketMethod = 'fpocket' | 'sasa_heuristic';
 
 function unwrapPocketResult(data: Record<string, unknown>): CastpResult {
-  return { ...(data.results as object ?? data), method: data.method as string,
-    status: data.status as string, fallback_used: data.fallback_used as boolean,
-    error: ((data.validation as Record<string, unknown>)?.reason as string) } as CastpResult;
+  const nested = data.results;
+  const source = nested && typeof nested === 'object'
+    ? nested as Record<string, unknown>
+    : data;
+  const pockets = Array.isArray(source.pockets) ? source.pockets as CastpPocket[] : [];
+  const activeSites = Array.isArray(source.active_sites)
+    ? source.active_sites as CastpActiveSiteResidue[]
+    : [];
+  return {
+    ...source,
+    pdb_id: typeof source.pdb_id === 'string' ? source.pdb_id : 'unknown',
+    total_residues: Number.isFinite(Number(source.total_residues)) ? Number(source.total_residues) : 0,
+    pockets,
+    active_sites: activeSites,
+    method: (source.method ?? data.method) as string | undefined,
+    status: (source.status ?? data.status) as string | undefined,
+    fallback_used: (source.fallback_used ?? data.fallback_used) as boolean | undefined,
+    error: ((source.validation as Record<string, unknown> | undefined)?.reason
+      ?? source.error
+      ?? data.error) as string | undefined,
+  } as CastpResult;
 }
 
 export async function runCastp(pdbId: string, probeRadius = 1.4, method: PocketMethod = 'fpocket'): Promise<CastpResult> {

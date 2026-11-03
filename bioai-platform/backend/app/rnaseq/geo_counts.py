@@ -1,6 +1,7 @@
 """Bounded, source-linked import of GEO Series raw gene-count matrices."""
 from __future__ import annotations
 
+import asyncio
 import csv
 import gzip
 import hashlib
@@ -55,17 +56,36 @@ def _soft_lines(text: str, prefix: str) -> list[str]:
 
 
 async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | None = None, limit: int = MAX_SOURCE_BYTES) -> bytes:
-    try:
-        async with client.stream("GET", url, params=params, follow_redirects=False) as response:
-            response.raise_for_status()
-            body = bytearray()
-            async for chunk in response.aiter_bytes():
-                body.extend(chunk)
-                if len(body) > limit:
-                    raise GeoCountsError("GEO file exceeds the supported download size.")
-            return bytes(body)
-    except httpx.HTTPError as exc:
-        raise GeoCountsError("Could not retrieve this GEO record or its supplementary file.") from exc
+    # NCBI GEO occasionally returns transient gateway errors or drops a stream.
+    # Retry only transient transport/server failures; never retry an invalid
+    # accession, rejected source, or an oversized payload.
+    last_error: httpx.HTTPError | None = None
+    for attempt in range(3):
+        try:
+            async with client.stream("GET", url, params=params, follow_redirects=True) as response:
+                if response.status_code == 429 or response.status_code >= 500:
+                    response.raise_for_status()
+                response.raise_for_status()
+                body = bytearray()
+                async for chunk in response.aiter_bytes():
+                    body.extend(chunk)
+                    if len(body) > limit:
+                        raise GeoCountsError("GEO file exceeds the supported download size.")
+                return bytes(body)
+        except GeoCountsError:
+            raise
+        except httpx.HTTPStatusError as exc:
+            last_error = exc
+            status = exc.response.status_code
+            if status < 500 and status != 429:
+                break
+        except (httpx.TimeoutException, httpx.NetworkError) as exc:
+            last_error = exc
+        except httpx.HTTPError as exc:
+            last_error = exc
+        if attempt < 2:
+            await asyncio.sleep(0.5 * (2 ** attempt))
+    raise GeoCountsError("Could not retrieve this GEO record or its supplementary file after three attempts.") from last_error
 
 
 def _source_url(raw: str) -> str | None:

@@ -251,6 +251,7 @@ class PipelineV2RunRequest(BaseModel):
     fast_mode: bool = Field(default=False, description="Use Swiss-Prot instead of nr for faster results")
     database: str = Field("", description="BLAST database override")
     program: str = Field("", description="BLAST program override")
+    sequence_type: str = Field("", description="Explicit query molecule type: protein, dna, or rna")
     max_hits: int = Field(100, description="Max BLAST hits to return")
     query_accession: str = Field("", description="Optional query accession for display")
     alignment_mode: str = Field("global", description="Alignment mode for the MSA step: 'global' (full-length) or 'local' (Smith-Waterman refinement of query vs top hit)")
@@ -282,6 +283,7 @@ async def run_pipeline_v2(request: Request, req: PipelineV2RunRequest, user_id: 
     blast_params = {
         "database": req.database,
         "program": req.program,
+        "sequence_type": req.sequence_type,
         "max_hits": req.max_hits,
         "query_accession": req.query_accession,
     }
@@ -999,6 +1001,7 @@ async def _run_blast(
             program=blast_params.get("program"),
             database=blast_params.get("database"),
             fast_mode=fast_mode,
+            sequence_type=blast_params.get("sequence_type"),
         )
     except ValueError as e:
         logger.warning("BLAST param resolution failed: %s", e)

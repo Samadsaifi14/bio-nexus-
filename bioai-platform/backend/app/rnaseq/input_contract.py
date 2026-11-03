@@ -8,7 +8,7 @@ from app.rnaseq.expression import RnaSeqExpressionError
 
 class CountOrigin(BaseModel):
     kind: Literal["raw_counts", "salmon"] = "raw_counts"
-    classification: Literal["deposited_raw_counts", "verified_count_estimates", "normalized_expression", "unknown_origin"] = "unknown_origin"
+    classification: Literal["deposited_raw_counts", "course_provided_raw_counts", "verified_count_estimates", "normalized_expression", "unknown_origin"] = "unknown_origin"
     source_uri: str = Field(default="", max_length=2000)
     verification_evidence: str = Field(default="", max_length=2000)
     normalization: Literal["none", "normalized", "unknown"] = "unknown"
@@ -22,8 +22,8 @@ class CountOrigin(BaseModel):
             raise RnaSeqExpressionError("Supporting count-origin methods and reference annotation must be specified, not blank or unknown.")
         if not self.reviewed or self.normalization != "none" or re.search(r"\b(FPKM|RPKM|TPM|CPM)\b", self.method, re.I):
             raise RnaSeqExpressionError("Review count origin and confirm unnormalized counts. Integer values alone do not establish raw counts.")
-        expected = "verified_count_estimates" if self.kind == "salmon" else "deposited_raw_counts"
-        if self.classification != expected or len(self.source_uri.strip()) < 4 or self.source_uri.strip().casefold() in {"unknown", "unspecified", "not_declared", "none"}:
+        allowed = {"verified_count_estimates"} if self.kind == "salmon" else {"deposited_raw_counts", "course_provided_raw_counts"}
+        if self.classification not in allowed or len(self.source_uri.strip()) < 4 or self.source_uri.strip().casefold() in {"unknown", "unspecified", "not_declared", "none"}:
             raise RnaSeqExpressionError("Explicit input-provenance classification and a supporting source URI or document identifier are required; normalized and unknown-origin matrices cannot enter DESeq2.")
         if self.kind == "salmon" and len(self.verification_evidence.strip()) < 10:
             raise RnaSeqExpressionError("Count estimates require verification evidence linking original quantifier files to their reference and transcript annotation.")

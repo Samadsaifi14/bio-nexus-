@@ -9,6 +9,7 @@ type StructureMatch = {
   tm_score: number | null; qTM?: number | null; tTM?: number | null;
   rmsd: number | null; seq_identity: number | null; aligned_length: number | null;
   method?: string;
+  unavailable_metrics?: string[];
 };
 
 function metric(value: number | null | undefined, digits: number): string {
@@ -74,6 +75,12 @@ export function StructureComparison({ pdbId, chain = "A" }: { pdbId: string; cha
           <span className="text-text-muted text-xs">{matches.length} hits &middot; {meta.method || "Foldseek TM-align"} &middot; {meta.database || "PDB100"}</span>
         </div>
       </div>
+
+      {matches.length > 0 && matches.every((match) => match.tm_score == null) && (
+        <p role="status" className="rounded-lg border border-status-warning/30 bg-status-warning/5 p-3 text-xs text-text-secondary">
+          Foldseek returned structural candidates, but no qTM/tTM score was present in the provider response. TM-score is unavailable for these matches; RMSD and sequence identity are separate metrics and are not substituted.
+        </p>
+      )}
 
       <div className="space-y-1" ref={svgRef as any}>
         <div className="flex justify-between text-xs text-text-muted mb-2">

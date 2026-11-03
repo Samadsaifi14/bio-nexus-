@@ -31,11 +31,24 @@ function timeAgo(iso: string | undefined): string {
 export default function JobsPage() {
   const [jobs, setJobs]     = useState<JobStatus[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState<string | null>(null);
   const [filter, setFilter]   = useState<FilterTab>('all');
 
-  useEffect(() => {
-    getJobs().then(setJobs).catch(console.error).finally(() => setLoading(false));
-  }, []);
+  const loadJobs = () => {
+    setLoading(true);
+    setLoadError(null);
+    getJobs()
+      .then((items) => setJobs(items))
+      .catch((error: unknown) => {
+        const status = (error as { response?: { status?: number } })?.response?.status;
+        setLoadError(status === 401 || status === 403
+          ? 'Sign in to view your saved jobs. Your job history is private to your account.'
+          : 'Job history could not be retrieved. Your jobs have not been assumed to be missing; retry when the service is available.');
+      })
+      .finally(() => setLoading(false));
+  };
+
+  useEffect(() => { loadJobs(); }, []);
 
   const counts = useMemo(() => ({
     all:      jobs.length,
@@ -53,6 +66,24 @@ export default function JobsPage() {
   if (loading) return (
     <div className="flex items-center justify-center py-20">
       <LoaderCircle className="w-8 h-8 text-accent-cyan animate-spin" />
+    </div>
+  );
+
+  if (loadError) return (
+    <div className="space-y-6">
+      <PageHeader
+        title="Jobs"
+        actions={
+          <button type="button" onClick={loadJobs} className="btn-critical text-sm">
+            Retry
+          </button>
+        }
+      />
+      <div role="alert" className="glass-card p-10 text-center">
+        <XCircle className="w-12 h-12 text-error mx-auto mb-4" />
+        <h3 className="text-lg font-semibold text-text-primary mb-2">Unable to load job history</h3>
+        <p className="text-sm text-text-secondary">{loadError}</p>
+      </div>
     </div>
   );
 

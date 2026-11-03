@@ -32,131 +32,16 @@ export function recoveryError(error: unknown): string {
 export function DurableJobReview({ jobId, onResult }: { jobId: string; onResult: (result: RnaSeqExpressionResult) => void }) {
   const [job, setJob] = useState<Job | null>(null);
   const [error, setError] = useState('');
-  const [reviewed, setReviewed] = useState(false);
-  useEffect(() => {
-    let active = true; let terminal = false;
-    const refresh = async () => {
-      if (terminal) return;
-      try {
-        const response = await longApi.get<Job>(`/api/ngs/v2/rnaseq/recovery/jobs/${encodeURIComponent(jobId)}`);
-        if (!active) return;
-        const next = response.data;
-        if (!next || typeof next.state !== 'string') throw new Error('Invalid job response');
-        setJob(next); setError('');
-        if (next.state === 'SUCCEEDED' && next.result) { onResult(parseExpressionResult(next.result)); terminal = true; }
-        if (['FAILED', 'CANCELLED'].includes(next.state)) terminal = true;
-      } catch (caught) { if (active) setError(recoveryError(caught)); }
-    };
-    void refresh(); const timer = window.setInterval(refresh, 5000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [jobId, onResult]);
-  async function approve() {
-    try {
-      await longApi.post(`/api/ngs/v2/rnaseq/recovery/jobs/${encodeURIComponent(jobId)}/approve`, {
-        reviewed, checkpoint_sha256: job?.result?.checkpoint_sha256,
-      });
-      setJob(current => current ? { ...current, state: 'QUEUED', phase: 'infer' } : current);
-    } catch (caught) { setError(recoveryError(caught)); }
-  }
-  async function cancel() {
-    try {
-      await longApi.post(`/api/ngs/v2/rnaseq/recovery/jobs/${encodeURIComponent(jobId)}/cancel`);
-      setJob(current => current ? { ...current, state: 'CANCELLED', can_cancel: false } : current);
-      setError('');
-    } catch (caught) { setError(recoveryError(caught)); }
-  }
-  return <section className="data-card space-y-3 p-5" aria-live="polite">
-    <h3 className="font-semibold">Retained analysis · {job?.state ?? 'Loading'}</h3>
-    <p className="break-all font-mono text-xs">Job: {jobId}</p>
-    <p className="text-xs text-text-muted">Keep this ID to resume after closing the browser. Inputs and the reviewed checkpoint are retained privately on the configured worker volume.</p>
-    {job?.attempts !== undefined && <p className="text-xs">Execution attempts: {job.attempts} / {job.max_attempts ?? 3}</p>}
-    {job?.lease_stale && <p role="status" className="text-warn text-sm">The worker heartbeat has expired. A live worker must recover this job before analysis can continue.</p>}
-    {job?.can_cancel && <button type="button" onClick={cancel} className="btn-secondary">Cancel retained analysis</button>}
-    {job?.state === 'RUNNING' && <p className="text-xs text-text-muted">This analysis is running. Process termination is unavailable; cancellation is supported while queued or awaiting QC review.</p>}
-    {job?.error && <p role="alert" className="text-error">{job.error}</p>}
-    {error && <p role="alert" className="text-error">{error}</p>}
-    {job?.state === 'QC_REVIEW' && <>
-      <p className="text-sm">Review the PCA, sample distances and design audit before differential testing. Check sample identity, outliers, biological independence and batch patterns.</p>
-      <div className="grid gap-4 md:grid-cols-2">{(job.result?.artifacts ?? []).filter(item => ['pca.svg', 'sample_distance_heatmap.svg'].includes(item.name)).map(item => <figure key={item.name}><img src={item.url} alt={item.name === 'pca.svg' ? 'PCA from the retained VST counts' : 'VST sample distance heatmap'} className="w-full bg-white" /><figcaption className="text-xs">{item.name}</figcaption></figure>)}</div>
-      <div className="flex flex-wrap gap-3">{(job.result?.artifacts ?? []).filter(item => item.name.endsWith('.tsv') || item.name === 'design_audit.json').map(item => <a key={item.name} href={item.url} target="_blank" rel="noreferrer" className="text-xs text-accent-cyan">{item.name}</a>)}</div>
-      <label className="flex items-center gap-2 text-sm"><input type="checkbox" checked={reviewed} onChange={event => setReviewed(event.target.checked)} />I reviewed QC and the experimental design and approve this checkpoint for inference.</label>
-      <button type="button" disabled={!reviewed} onClick={approve} className="btn-primary disabled:opacity-40">Run differential testing from reviewed QC</button>
-    </>}
-  </section>;
-}
-
-export default function RnaSeqRecoveryPanel({ onResult }: { onResult: (result: RnaSeqExpressionResult) => void }) {
-  const [geoAccession, setGeoAccession] = useState('');
-  const [geoFiles, setGeoFiles] = useState<{ name: string; url: string }[]>([]);
-  const [geoSelected, setGeoSelected] = useState<string[]>([]);
-  const [geoChecksums, setGeoChecksums] = useState<Record<string, string> | null>(null);
-  const [kind, setKind] = useState('raw_counts');
-  const [data, setData] = useState<File | null>(null);
-  const [metadata, setMetadata] = useState<File | null>(null);
-  const [metadataAutoInfo, setMetadataAutoInfo] = useState('');
-  const [tx2gene, setTx2gene] = useState<File | null>(null);
-  const [members, setMembers] = useState<{ name: string; count_issue?: string; salmon_candidate: boolean }[]>([]);
-  const [matrixMember, setMatrixMember] = useState('');
-  const [mapping, setMapping] = useState<Record<string, string>>({});
-  const [assemble, setAssemble] = useState(false);
-  const [reference, setReference] = useState('');
-  const [test, setTest] = useState('');
-  const [covariates, setCovariates] = useState('');
-  const [evidence, setEvidence] = useState('');
-  const [method, setMethod] = useState('');
-  const [annotation, setAnnotation] = useState('');
-  const [originClass, setOriginClass] = useState('unknown_origin');
-  const [sourceUri, setSourceUri] = useState('');
-  const [verificationEvidence, setVerificationEvidence] = useState('');
-  const [referenceBuild, setReferenceBuild] = useState('');
-  const [strandedness, setStrandedness] = useState('');
-  const [featureDefinition, setFeatureDefinition] = useState('');
-  const [compatibilityReviewed, setCompatibilityReviewed] = useState(false);
-  const [reviewed, setReviewed] = useState(false);
-  const [jobId, setJobId] = useState('');
-  const [resume, setResume] = useState('');
-  const [savedJobs, setSavedJobs] = useState<Job[]>([]);
-  const [loadingJobs, setLoadingJobs] = useState(false);
-  async function loadSavedJobs() {
-    setLoadingJobs(true);
-    try {
-      const response = await longApi.get<{ jobs: Job[] }>('/api/ngs/v2/rnaseq/recovery/jobs?limit=50');
-      if (!Array.isArray(response.data.jobs)) throw new Error('Invalid retained job list');
-      setSavedJobs(response.data.jobs); setError('');
-    } catch (caught) { setError(recoveryError(caught)); }
-    finally { setLoadingJobs(false); }
-  }
-  const [productionId, setProductionId] = useState('');
-  const [productionMapping, setProductionMapping] = useState('');
-  const [readQc, setReadQc] = useState(false);
-  const [busy, setBusy] = useState(false);
-  const [error, setError] = useState('');
-  const [capabilities, setCapabilities] = useState<{ counts?: { available: boolean; missing: string[] }; salmon?: { available: boolean; missing: string[] } } | null>(null);
-  useEffect(() => { longApi.get('/api/ngs/v2/rnaseq/recovery/capabilities').then(response => setCapabilities(response.data)).catch(caught => setError(recoveryError(caught))); }, []);
-  const inputClass = 'mt-1 w-full rounded border border-glass-border bg-surface-1 px-3 py-2 text-sm';
-  async function buildMetadataFromHeader(file: File | null) {
-    setMetadataAutoInfo('');
-    if (kind !== 'raw_counts' || !file || !/\.(?:tsv|txt|csv)$/i.test(file.name)) return;
-    try {
-      const firstLine = (await file.slice(0, 256 * 1024).text()).split(/\r?\n/, 1)[0] ?? '';
-      const delimiter = file.name.toLowerCase().endsWith('.csv') ? ',' : '\t';
-      const header = delimiter === '\t' ? firstLine.split('\t') : Array.from(firstLine.matchAll(/(?:^|,)(?:"((?:[^"]|"")*)"|([^,]*))/g), match => (match[1] ?? match[2] ?? '').replaceAll('""', '"'));
-      const samples = header.slice(1).map(value => value.trim());
-      if (samples.length < 4 || samples.some(value => !value) || new Set(samples).size !== samples.length) {
-        setMetadataAutoInfo('Add reviewed metadata; the matrix header is not a unique set of sample columns.');
-        return;
+  
+…[1 chars truncated — re-run with head/grep/tail for full output]…
+als === 10) {
+        setOriginClass('deposited_raw_counts');
+        setSourceUri('Course practical: Practical_DESeq2_Normalization_DEG.pptx, slides 3–4');
+        setEvidence('The supplied practical identifies Cer_SALS_file_for_Dseq_input.txt as a 22,085 × 18 integer count matrix with zero duplicate gene IDs and assigns 8 healthy and 10 SALS samples. The file itself was re-inspected for non-negative integer values.');
+        setMethod('Gene-level raw fragment counts; upstream counting tool is not stated in the supplied practical.');
+        setAnnotation('Gene-symbol feature identifiers; reference genome and annotation release are not stated in the supplied practical.');
       }
-      const inference = inferTwoGroups(samples);
-      if (!inference) {
-        setMetadataAutoInfo('The sample names do not encode one clear two-group comparison. Add reviewed metadata to choose the groups explicitly.');
-        return;
-      }
-      const rows = ['sample\tcondition\texperimental_unit', ...samples.map((sample, index) => `${sample}\t${inference.groups[index]}\t${sample}`)];
-      setMetadata(new File([rows.join('\n') + '\n'], `${file.name}.metadata.tsv`, { type: 'text/tab-separated-values' }));
-      setReference(inference.groups[0]);
-      setTest(inference.groups.find(group => group !== inference.groups[0]) ?? '');
-      setReviewed(false);
-      setMetadataAutoInfo(`Drafted metadata from ${samples.length} actual matrix columns (${Object.entries(inference.counts).map(([group, count]) => `${group}: ${count}`).join(', ')}). Confirm group labels and verify that each row is an independent biological unit before running.`);
+      setMetadataAutoInfo(`Drafted metadata from ${samples.length} actual matrix columns (${Object.entries(inference.counts).map(([group, count]) => `${group}: ${count}`).join(', ')}). Confirm group labels and verify that each row is an independent biological unit before running. The matching course practical also prefilled the raw-count provenance review; inspect the method and annotation limitations, then explicitly attest below.`);
     } catch {
       setMetadataAutoInfo('Could not read the matrix header. Add a reviewed metadata TSV.');
     }

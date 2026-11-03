@@ -91,3 +91,18 @@ def test_compatible_assembly_preserves_review_and_missing_value_policy():
     files["b.tsv"] = b"gene\tcount\ng1\t3\ng3\t4\n"
     with pytest.raises(GeoCountsError, match="Gene sets differ"):
         assemble_counts(files, {"a.tsv": "s1", "b.tsv": "s2"}, review())
+
+
+def test_course_provided_raw_counts_have_distinct_provenance_class():
+    record = CountOrigin(
+        classification="course_provided_raw_counts",
+        source_uri="Course practical: Practical_DESeq2_Normalization_DEG.pptx slides 3-4",
+        evidence="The supplied practical identifies the matrix as integer raw gene counts with healthy and SALS sample groups.",
+        method="Gene-level raw fragment counts; upstream counting tool not stated in the source document.",
+        annotation="Gene-symbol feature identifiers; reference annotation release not stated in the source document.",
+        normalization="none",
+        reviewed=True,
+    ).check()
+    assert record["classification"] == "course_provided_raw_counts"
+    assert record["count_origin_status"] == "ANALYST_ATTESTED"
+    assert record["independently_verified"] is False

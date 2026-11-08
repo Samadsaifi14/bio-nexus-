@@ -80,7 +80,11 @@ jobs:
           assert prepared.get("samples") == 10, f"Expected 10 prepared samples, got {prepared.get('samples')}"
           assert prepared.get("genes", 0) > 0, "The prepared count matrix contains no genes"
           assert len(prepared.get("groups", [])) == 2 and sorted(group.get("samples", 0) for group in prepared["groups"]) == [5, 5], f"Expected a 5-versus-5 comparison: {prepared.get('groups')}"
-          print(f"Live GEO verification passed: {series['accession']}, 10 samples, {prepared['genes']} genes, 5 vs 5 groups.")
+
+          capabilities = request("/api/ngs/v2/rnaseq/recovery/capabilities")
+          counts_runtime = capabilities.get("counts", {})
+          assert counts_runtime.get("available") is True, f"DESeq2 durable worker is not ready for the live example: {counts_runtime.get('missing', [])}"
+          print(f"Live GEO verification passed: {series['accession']}, 10 samples, {prepared['genes']} genes, 5 vs 5 groups; DESeq2 worker ready.")
           PY
 
   deploy-frontend:

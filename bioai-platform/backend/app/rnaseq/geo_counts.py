@@ -185,7 +185,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
             sample_payload = await _get_limited(
                 client,
                 "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi",
-                params={"acc": accession, "targ": "samples", "form": "text", "view": "full"},
+                params={"acc": accession, "targ": "gsm", "form": "text", "view": "full"},
                 limit=MAX_SOURCE_BYTES,
             )
             sample_text = sample_payload.decode("utf-8-sig", errors="replace")

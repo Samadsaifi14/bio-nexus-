@@ -37,6 +37,25 @@ def run_fetch(handler):
     return asyncio.run(run())
 
 
+def test_valid_acc_cgi_uses_documented_gsm_scope():
+    series_text, sample_tail = FAMILY_SOFT.split("^SAMPLE = ", 1)
+    sample_text = "^SAMPLE = " + sample_tail
+
+    def respond(request):
+        if request.url.host != "www.ncbi.nlm.nih.gov":
+            pytest.fail(f"Unexpected fallback request: {request.url}")
+        scope = request.url.params.get("targ")
+        if scope == "self":
+            return httpx.Response(200, text=series_text)
+        if scope == "gsm":
+            return httpx.Response(200, text=sample_text)
+        pytest.fail(f"Unexpected GEO scope: {scope}")
+
+    result = run_fetch(respond)
+    assert result["accession"] == ACCESSION
+    assert [sample["accession"] for sample in result["samples"]] == ["GSM900001", "GSM900002"]
+
+
 def test_html_200_from_acc_cgi_falls_back_to_family_soft():
     archive = gzip.compress(FAMILY_SOFT.encode())
 

@@ -81,6 +81,28 @@ def test_explicitly_normalized_file_cannot_bypass_preview():
         asyncio.run(run())
 
 
+def test_family_soft_url_uses_ncbi_series_bucket():
+    from app.rnaseq.geo_counts import _series_family_soft_url
+
+    assert _series_family_soft_url("GSE336901") == (
+        "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE336nnn/GSE336901/soft/GSE336901_family.soft.gz"
+    )
+    assert _series_family_soft_url("GSE1") == (
+        "https://ftp.ncbi.nlm.nih.gov/geo/series/GSEnnn/GSE1/soft/GSE1_family.soft.gz"
+    )
+
+
+def test_geo_html_challenge_is_not_misreported_as_missing_series():
+    async def run():
+        async with httpx.AsyncClient(
+            transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"<html>challenge</html>"))
+        ) as client:
+            await fetch_series(client, "GSE336901")
+
+    with pytest.raises(GeoCountsError, match="HTML page"):
+        asyncio.run(run())
+
+
 def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
     def respond(request):
         assert request.url.path.endswith("/GSE336901/soft/GSE336901_family.soft.gz")

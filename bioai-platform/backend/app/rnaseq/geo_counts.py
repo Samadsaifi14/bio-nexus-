@@ -9,7 +9,7 @@ import io
 import json
 import re
 from dataclasses import dataclass
-from urllib.parse import urljoin, urlencode, urlparse, parse_qs
+from urllib.parse import urljoin, urlencode, urlparse, parse_qs, quote
 import shlex
 
 import httpx
@@ -63,7 +63,9 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
     # Retry only transient transport/server failures; never retry an invalid
     # accession, rejected source, or an oversized payload.
     last_error: httpx.HTTPError | None = None
+    attempts = 0
     for attempt in range(3):
+        attempts = attempt + 1
         try:
             async with client.stream(
                 "GET", url, params=params, follow_redirects=True,
@@ -106,7 +108,7 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
     source_host = urlparse(url).hostname or "unknown host"
     reason = f"{type(last_error).__name__}: {last_error}" if last_error else "no response"
     raise GeoCountsError(
-        f"Could not retrieve the GEO source from {source_host} after three attempts ({reason})."
+        f"Could not retrieve the GEO source from {source_host} after {attempts} attempt(s) ({reason})."
     ) from last_error
 
 
@@ -198,6 +200,14 @@ async def _fetch_family_soft(client: httpx.AsyncClient, accession: str) -> str:
 def _series_matrix_url(accession: str) -> str:
     base = _series_family_soft_url(accession).rsplit("/soft/", 1)[0]
     return f"{base}/matrix/{accession}_series_matrix.txt.gz"
+
+
+def _series_supplement_url(accession: str, filename: str) -> str:
+    """Build the canonical HTTPS GEO Series supplementary-file URL."""
+    if not re.fullmatch(r"[A-Za-z0-9_.-]+", filename) or filename in {".", ".."}:
+        raise GeoCountsError("The GEO supplementary filename is invalid.")
+    base = _series_family_soft_url(accession).rsplit("/soft/", 1)[0]
+    return f"{base}/suppl/{quote(filename, safe='')}"
 
 
 def _decode_series_matrix(payload: bytes) -> str:
@@ -821,10 +831,32 @@ async def fetch_matrix(client: httpx.AsyncClient, series: dict, filename: str) -
     matched = [item for item in series["files"] if item["name"] == filename]
     if len(matched) != 1:
         raise GeoCountsError("Select a supplementary matrix listed by this GEO Series.")
-    issue = matched[0].get("analysis_issue") or count_file_issue(filename)
+    selected = matched[0]
+    issue = selected.get("analysis_issue") or count_file_issue(filename)
     if issue:
         raise GeoCountsError(issue)
-    source = matched[0]["url"]
-    payload = await _get_limited(client, source)
-    return parse_matrix(payload, filename, series["samples"]), source
+
+    source = selected["url"]
+    candidates = [source]
+    # NCBI's GEO download redirect can return 404 for a listed supplement even
+    # while the canonical Series /suppl/ object is available. Try the documented
+    # HTTPS FTP object directly before reporting the matrix as unavailable.
+    if selected.get("scope") == "series":
+        direct = _series_supplement_url(series["accession"], filename)
+        if direct not in candidates:
+            candidates.append(direct)
+
+    failures: list[str] = []
+    for candidate in candidates:
+        try:
+            payload = await _get_limited(client, candidate)
+            matrix = parse_matrix(payload, filename, series["samples"])
+            return matrix, candidate
+        except GeoCountsError as exc:
+            failures.append(f"{candidate}: {exc}")
+    raise GeoCountsError(
+        "The GEO Series lists this count matrix, but it could not be downloaded from either "
+        "the NCBI GEO file endpoint or the canonical Series supplementary path. "
+        + " | ".join(failures)
+    )
 

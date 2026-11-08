@@ -14,7 +14,7 @@ export default function ResearchCanvas({ controller, progressRef, forceMotion = 
     if (!element) return;
     let stopped = false;
     let dispose: (() => void) | undefined;
-    const viewport = window.matchMedia('(min-width: 768px)');
+    const viewport = window.matchMedia('(min-width: 320px)');
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let generation = 0;
     const start = async () => {

@@ -250,3 +250,51 @@ def test_verified_gse336901_snapshot_is_used_only_after_live_routes_fail():
     assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
     assert result["files"][0]["analysis_eligible"] is True
     assert result["files"][0]["url"].startswith("https://www.ncbi.nlm.nih.gov/geo/download/")
+
+
+def test_gse336901_count_download_falls_back_to_canonical_series_supplement_path():
+    import gzip
+    from app.rnaseq.geo_counts import fetch_matrix
+
+    filename = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+    download_endpoint = "https://www.ncbi.nlm.nih.gov/geo/download/"
+    ftp_url = (
+        "https://ftp.ncbi.nlm.nih.gov/geo/series/GSE336nnn/GSE336901/"
+        f"suppl/{filename}"
+    )
+    count_text = (
+        "gene_id,gene_symbol,GSM9844290,GSM9844291,GSM9844295,GSM9844296\n"
+        "ENSG000001,GENE1,10,12,30,31\n"
+        "ENSG000002,GENE2,5,8,17,19\n"
+    )
+    payload = gzip.compress(count_text.encode())
+
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov" and request.url.path == "/geo/download/":
+            return httpx.Response(404, text="download redirect unavailable")
+        if str(request.url) == ftp_url:
+            return httpx.Response(200, content=payload)
+        pytest.fail(f"Unexpected GEO supplement request: {request.url}")
+
+    series = {
+        "accession": "GSE336901",
+        "samples": [
+            {"accession": "GSM9844290", "title": "sensitive sample"},
+            {"accession": "GSM9844291", "title": "sensitive sample"},
+            {"accession": "GSM9844295", "title": "resistant sample"},
+            {"accession": "GSM9844296", "title": "resistant sample"},
+        ],
+        "files": [{
+            "name": filename, "url": download_endpoint + "?acc=GSE336901&format=file&file=" + filename,
+            "scope": "series", "analysis_eligible": True,
+        }],
+    }
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            return await fetch_matrix(client, series, filename)
+
+    matrix, source = asyncio.run(run())
+    assert source == ftp_url
+    assert matrix["genes"] == 2
+    assert matrix["columns"] == ["GSM9844290", "GSM9844291", "GSM9844295", "GSM9844296"]

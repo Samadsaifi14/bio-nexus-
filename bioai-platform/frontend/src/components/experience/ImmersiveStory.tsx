@@ -4,7 +4,9 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ArrowUpRight, Pause, Play } from '@phosphor-icons/react';
-const DNAHelix = dynamic(() => import('@/components/three/DNAHelix'), { ssr: false });
+import type { SceneControl } from './ResearchCanvas';
+
+const ResearchCanvas = dynamic(() => import('./ResearchCanvas'), { ssr: false });
 
 const chapters = [
   { id: 'biological-input', label: 'Biological input', title: 'Begin with a better question.', description: 'Bring sequences, structures or sequencing data. Choose a method that fits the question and the available evidence.', link: '/wizard', action: 'Find your workflow' },
@@ -14,14 +16,13 @@ const chapters = [
 
 export function ImmersiveStory() {
   const root = useRef<HTMLElement>(null);
+  const controller = useRef<SceneControl | null>(null);
+  const progressRef = useRef(0);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [motionOverride, setMotionOverride] = useState(false);
   const motionActive = !paused && (!reducedMotion || motionOverride);
-  const toggleMotion = () => {
-    if (motionActive) setPaused(true);
-    else { if (reducedMotion) setMotionOverride(true); setPaused(false); }
-  };
+
   useEffect(() => {
     const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
     const update = () => setReducedMotion(preference.matches);
@@ -29,6 +30,16 @@ export function ImmersiveStory() {
     preference.addEventListener('change', update);
     return () => preference.removeEventListener('change', update);
   }, []);
+
+  const toggleMotion = () => {
+    if (motionActive) {
+      setPaused(true);
+      return;
+    }
+    if (reducedMotion) setMotionOverride(true);
+    setPaused(false);
+  };
+
   useEffect(() => {
     if (!motionActive) return;
     const element = root.current;
@@ -45,10 +56,26 @@ export function ImmersiveStory() {
         element.querySelectorAll('[data-story-copy]').forEach(copy => {
           gsap.from(copy, { y: 30, opacity: .25, duration: .75, ease: 'power2.out', scrollTrigger: { trigger: copy, start: 'top 88%', once: true } });
         });
+        const progress = { value: progressRef.current };
+        gsap.to(progress, {
+          value: 1,
+          ease: 'none',
+          scrollTrigger: {
+            trigger: element.querySelector('.bn-story-chapters'),
+            start: 'top 65%',
+            end: 'bottom 85%',
+            scrub: .65,
+            invalidateOnRefresh: true,
+          },
+          onUpdate: () => {
+            progressRef.current = progress.value;
+            controller.current?.setProgress(progress.value);
+          },
+        });
       }, element);
       cleanup = () => media.revert();
     };
-    void start().catch(() => { /* Content is visible before animation initializes. */ });
+    void start().catch(() => { /* Keep the static poster if optional animation chunks fail. */ });
     return () => { cancelled = true; cleanup?.(); };
   }, [motionActive, motionOverride]);
 
@@ -74,10 +101,10 @@ export function ImmersiveStory() {
       </div>
       <figure className="bn-story-visual">
         <div className="bn-story-stage">
-          {/* A real raster poster keeps the first paint and non-WebGL experience useful. */}
+          {/* The bundled Three.js scene morphs from DNA to molecular analysis to atomic evidence as the page scrolls. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img className="bn-scene-poster" src="/scenes/research-poster.png" width="900" height="1050" alt="Illustrative sage-green double helix. The interactive scene transitions into molecular and evidence forms." fetchPriority="high" />
-          <DNAHelix className="bn-dna-helix" paused={!motionActive} forceMotion={motionOverride} />
+          <img className="bn-scene-poster" src="/scenes/research-poster.png" width="900" height="1050" alt="Illustrative DNA double helix transitioning into molecular and atomic forms." fetchPriority="high" />
+          {motionActive && <ResearchCanvas controller={controller} progressRef={progressRef} forceMotion={motionOverride} />}
         </div>
         <figcaption>Conceptual molecular forms · Illustration, not analysis data</figcaption>
         <button type="button" className="bn-motion-toggle" onClick={toggleMotion} aria-pressed={motionActive}>

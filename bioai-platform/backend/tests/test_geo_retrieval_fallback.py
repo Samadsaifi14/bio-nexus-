@@ -211,7 +211,7 @@ def test_entrez_metadata_fallback_and_filelist_manifest():
             if request.url.path.endswith("/suppl/filelist.txt"):
                 return httpx.Response(
                     200,
-                    text="Archive/File\\tName\\tTime\\tSize\\tType\\n\\tGSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz\\t2026-07-13\\t709.1 Kb\\tCSV\\n",
+                    text="Archive/File\tName\tTime\tSize\tType\n\tGSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz\t2026-07-13\t709.1 Kb\tCSV\n",
                 )
         if request.url.host == "eutils.ncbi.nlm.nih.gov":
             if request.url.path.endswith("/esearch.fcgi"):

@@ -152,7 +152,7 @@ def test_missing_api_and_family_records_return_actionable_error():
             return httpx.Response(200, text="<html>challenge</html>")
         return httpx.Response(404, text="Not found")
 
-    with pytest.raises(GeoCountsError, match="both NCBI routes"):
+    with pytest.raises(GeoCountsError, match="accession API, family SOFT, and Series Matrix routes"):
         run_fetch(respond)
 
 

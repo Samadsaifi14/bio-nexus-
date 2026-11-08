@@ -37,20 +37,34 @@ export default function ResearchCanvas({ controller, progressRef }: {
       let progress = progressRef.current;
       let visible = true;
       let raf = 0;
-      const render = () => {
+      let lastFrame = 0;
+      let elapsed = 0;
+      // Keep the hero scene gently alive even when the visitor is not scrolling.
+      // Scroll progress still controls the Input → Analysis → Evidence transition.
+      const render = (timestamp: number) => {
         raf = 0;
-        if (!visible || document.hidden || stopped) return;
+        if (!visible || document.hidden || stopped) {
+          lastFrame = 0;
+          return;
+        }
+        const delta = lastFrame ? Math.min((timestamp - lastFrame) / 1000, .05) : 0;
+        lastFrame = timestamp;
+        elapsed += delta;
         const chapter = progress * 2;
         chapters.forEach((group, index) => {
           const weight = Math.max(0, 1 - Math.abs(chapter - index));
           group.visible = weight > .001;
           group.scale.setScalar(Math.max(.001, weight));
-          group.rotation.y = progress * Math.PI * 1.6 + index * .3;
+          group.rotation.y = progress * Math.PI * 1.6 + index * .3 + elapsed * .12;
         });
-        root.rotation.x = Math.sin(progress * Math.PI) * .15;
+        root.rotation.x = Math.sin(progress * Math.PI) * .15 + Math.sin(elapsed * .28) * .035;
+        root.rotation.y = elapsed * .045;
         renderer.render(scene, camera);
+        raf = requestAnimationFrame(render);
       };
-      const requestRender = () => { if (!raf) raf = requestAnimationFrame(render); };
+      const requestRender = () => {
+        if (!raf && visible && !document.hidden) raf = requestAnimationFrame(render);
+      };
       controller.current = { setProgress(value) { progress = Math.max(0, Math.min(1, value)); requestRender(); } };
       const resize = () => {
         const w = element.clientWidth, h = element.clientHeight;
@@ -60,7 +74,11 @@ export default function ResearchCanvas({ controller, progressRef }: {
       element.appendChild(renderer.domElement);
       renderer.domElement.setAttribute('aria-hidden', 'true');
       const observer = new ResizeObserver(resize); observer.observe(element);
-      const visibility = new IntersectionObserver(([entry]) => { visible = entry.isIntersecting; if (visible) requestRender(); });
+      const visibility = new IntersectionObserver(([entry]) => {
+        visible = entry.isIntersecting;
+        if (visible) requestRender();
+        else { cancelAnimationFrame(raf); raf = 0; lastFrame = 0; }
+      });
       visibility.observe(element);
       const lost = (event: Event) => { event.preventDefault(); element.dataset.ready = 'false'; };
       const restored = () => { element.dataset.ready = 'true'; requestRender(); };

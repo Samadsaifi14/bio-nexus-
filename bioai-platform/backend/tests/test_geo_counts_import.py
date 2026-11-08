@@ -105,6 +105,10 @@ def test_geo_html_challenge_is_not_misreported_as_missing_series():
 
 def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
     def respond(request):
+        # The accession API can return an HTML challenge; the importer must
+        # reject it and retrieve the matching family SOFT archive instead.
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>NCBI request challenge</html>")
         assert request.url.path.endswith("/GSE336901/soft/GSE336901_family.soft.gz")
         return httpx.Response(200, content=family_payload())
 

@@ -57,6 +57,41 @@ def test_valid_acc_cgi_uses_documented_gsm_scope():
     assert [sample["accession"] for sample in result["samples"]] == ["GSM900001", "GSM900002"]
 
 
+def test_ncbi_https_redirects_are_followed_within_allowlist():
+    from app.rnaseq.geo_counts import _get_limited
+
+    calls = []
+
+    def respond(request):
+        calls.append(str(request.url))
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"Location": "https://ftp.ncbi.nlm.nih.gov/geo/series/test.txt"})
+        return httpx.Response(200, content=b"machine-readable GEO text")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            return await _get_limited(client, "https://www.ncbi.nlm.nih.gov/start")
+
+    assert asyncio.run(run()) == b"machine-readable GEO text"
+    assert len(calls) == 2
+
+
+def test_ncbi_redirect_to_untrusted_host_is_rejected():
+    from app.rnaseq.geo_counts import _get_limited
+
+    def respond(request):
+        if request.url.path == "/start":
+            return httpx.Response(302, headers={"Location": "https://example.com/outside"})
+        return httpx.Response(200, content=b"not trusted")
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            await _get_limited(client, "https://www.ncbi.nlm.nih.gov/start")
+
+    with pytest.raises(GeoCountsError, match="outside the trusted NCBI HTTPS hosts"):
+        asyncio.run(run())
+
+
 def test_html_200_from_acc_cgi_falls_back_to_family_soft():
     archive = gzip.compress(FAMILY_SOFT.encode())
 

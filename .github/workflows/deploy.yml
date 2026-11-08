@@ -47,6 +47,42 @@ jobs:
               raise SystemExit("Expected backend revision did not become healthy")
           PY
 
+      - name: Verify live GEO metadata and count-matrix preparation
+        run: |
+          python - <<'PY'
+          import json
+          import urllib.error
+          import urllib.request
+
+          base = "https://samad14-bio-nexus-api.hf.space"
+
+          def request(path, payload=None):
+              data = json.dumps(payload).encode() if payload is not None else None
+              headers = {"Cache-Control": "no-cache"}
+              if data is not None:
+                  headers["Content-Type"] = "application/json"
+              req = urllib.request.Request(base + path, data=data, headers=headers, method="POST" if data is not None else "GET")
+              try:
+                  with urllib.request.urlopen(req, timeout=120) as response:
+                      return json.load(response)
+              except urllib.error.HTTPError as exc:
+                  detail = exc.read().decode("utf-8", errors="replace")
+                  raise SystemExit(f"Live GEO smoke failed ({exc.code}) {path}: {detail}") from exc
+
+          series = request("/api/ngs/v2/geo/series/GSE336901")
+          assert series.get("accession") == "GSE336901", "GEO returned the wrong Series accession"
+          assert len(series.get("samples", [])) == 10, f"Expected 10 GEO samples, got {len(series.get('samples', []))}"
+          count_file = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+          assert any(file.get("name") == count_file and file.get("analysis_eligible") for file in series.get("files", [])), "The deposited raw-count supplement was not discovered as analysis-eligible"
+
+          prepared = request("/api/ngs/v2/geo/prepare", {"accession": "GSE336901"})
+          assert prepared.get("status") == "ready", f"GEO count-matrix preparation did not reach ready: {prepared}"
+          assert prepared.get("samples") == 10, f"Expected 10 prepared samples, got {prepared.get('samples')}"
+          assert prepared.get("genes", 0) > 0, "The prepared count matrix contains no genes"
+          assert len(prepared.get("groups", [])) == 2 and sorted(group.get("samples", 0) for group in prepared["groups"]) == [5, 5], f"Expected a 5-versus-5 comparison: {prepared.get('groups')}"
+          print(f"Live GEO verification passed: {series['accession']}, 10 samples, {prepared['genes']} genes, 5 vs 5 groups.")
+          PY
+
   deploy-frontend:
     name: Verify production frontend deployment
     runs-on: ubuntu-latest

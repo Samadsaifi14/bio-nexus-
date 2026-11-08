@@ -63,7 +63,16 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
     last_error: httpx.HTTPError | None = None
     for attempt in range(3):
         try:
-            async with client.stream("GET", url, params=params, follow_redirects=False) as response:
+            async with client.stream("GET", url, params=params, follow_redirects=True) as response:
+                # GEO's accession and FTP endpoints may redirect between their
+                # documented HTTPS hosts. Follow only a short HTTPS redirect
+                # chain that stays on NCBI; never let a source URL escape the
+                # allow-listed GEO hosts during retrieval.
+                if len(response.history) > 5:
+                    raise GeoCountsError("GEO source exceeded the supported redirect limit.")
+                for hop in [*response.history, response]:
+                    if hop.url.scheme != "https" or hop.url.host not in {"www.ncbi.nlm.nih.gov", "ftp.ncbi.nlm.nih.gov"}:
+                        raise GeoCountsError("GEO source redirected outside the trusted NCBI HTTPS hosts.")
                 if response.status_code == 429 or response.status_code >= 500:
                     response.raise_for_status()
                 response.raise_for_status()

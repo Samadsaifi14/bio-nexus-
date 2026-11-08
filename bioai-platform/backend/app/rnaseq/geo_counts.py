@@ -344,18 +344,22 @@ def _entrez_sample_rows(raw_samples: object) -> list[tuple[str, str]]:
 async def _fetch_entrez_series(client: httpx.AsyncClient, accession: str) -> str:
     base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
     common = {"tool": "BioNexus", "email": "helixengine0@gmail.com"}
-    search_payload = await _get_limited(
-        client, base + "esearch.fcgi",
-        params={**common, "db": "gds", "term": f"{accession}[ACCN] AND gse[ETYP]", "retmode": "json", "retmax": "10"},
-        limit=MAX_SOURCE_BYTES,
-    )
-    try:
-        search_data = json.loads(search_payload)
-        ids = search_data.get("esearchresult", {}).get("idlist", [])
-    except (json.JSONDecodeError, AttributeError) as exc:
-        raise GeoCountsError("NCBI Entrez returned malformed GEO search metadata.") from exc
+    ids: list[str] = []
+    for term in (f"{accession}[ACCN] AND gse[ETYP]", f"{accession}[ACCN]", accession):
+        search_payload = await _get_limited(
+            client, base + "esearch.fcgi",
+            params={**common, "db": "gds", "term": term, "retmode": "json", "retmax": "20"},
+            limit=MAX_SOURCE_BYTES,
+        )
+        try:
+            search_data = json.loads(search_payload)
+            ids = search_data.get("esearchresult", {}).get("idlist", [])
+        except (json.JSONDecodeError, AttributeError) as exc:
+            raise GeoCountsError("NCBI Entrez returned malformed GEO search metadata.") from exc
+        if ids:
+            break
     if not ids:
-        raise GeoCountsError("NCBI Entrez did not index the requested GEO Series accession.")
+        raise GeoCountsError("NCBI Entrez did not index the requested GEO Series accession after exact and unqualified searches.")
 
     summary_payload = await _get_limited(
         client, base + "esummary.fcgi",

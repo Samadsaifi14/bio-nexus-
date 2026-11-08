@@ -215,6 +215,8 @@ def test_entrez_metadata_fallback_and_filelist_manifest():
                 )
         if request.url.host == "eutils.ncbi.nlm.nih.gov":
             if request.url.path.endswith("/esearch.fcgi"):
+                if "[ACCN]" in request.url.params.get("term", ""):
+                    return httpx.Response(200, json={"esearchresult": {"idlist": []}})
                 return httpx.Response(200, json=search_result)
             if request.url.path.endswith("/esummary.fcgi"):
                 return httpx.Response(200, json=summary_result)

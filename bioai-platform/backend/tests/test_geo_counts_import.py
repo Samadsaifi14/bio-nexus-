@@ -32,6 +32,11 @@ SAMPLES = """^SAMPLE = GSM1
 !Sample_characteristics_ch1 = treatment: resistant
 """
 
+def family_payload(series: str = SERIES, samples: str = SAMPLES) -> bytes:
+    return gzip.compress((series.rstrip() + "\n" + samples.lstrip()).encode())
+
+
+
 
 def matrix_text(value="5"):
     return ("gene_id,gene_symbol,batch_GZ10001,batch_GZ10002,batch_GZ10003,batch_GZ10004\n"
@@ -78,8 +83,8 @@ def test_explicitly_normalized_file_cannot_bypass_preview():
 
 def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
     def respond(request):
-        text = SERIES if request.url.params["targ"] == "self" else SAMPLES
-        return httpx.Response(200, text=text)
+        assert request.url.path.endswith("/GSE336901/soft/GSE336901_family.soft.gz")
+        return httpx.Response(200, content=family_payload())
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
@@ -124,9 +129,8 @@ def test_geo_preview_suggests_unambiguous_replicated_groups_and_sample_ids(monke
 
 def test_geo_series_marks_fpkm_supplement_as_unavailable(monkeypatch):
     def respond(request):
-        if request.url.params["targ"] == "self":
-            return httpx.Response(200, text=SERIES.replace("counts.csv.gz", "GSE336902_Fig6_cell_line_FPKM_matrix_GEO.csv.gz"))
-        return httpx.Response(200, text=SAMPLES)
+        series = SERIES.replace("counts.csv.gz", "GSE336902_Fig6_cell_line_FPKM_matrix_GEO.csv.gz")
+        return httpx.Response(200, content=family_payload(series))
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
@@ -140,7 +144,7 @@ def test_geo_series_marks_fpkm_supplement_as_unavailable(monkeypatch):
 def test_cut_and_tag_archive_is_visible_but_cannot_enter_expression_analysis():
     text = SERIES.replace("counts.csv.gz", "GSE336091_RAW.tar") + "!Series_type = Genome binding/occupancy profiling by high throughput sequencing\n"
     def respond(request):
-        return httpx.Response(200, text=text if request.url.params["targ"] == "self" else SAMPLES + "!Sample_organism_ch1 = Mus musculus\n")
+        return httpx.Response(200, content=family_payload(text, SAMPLES + "!Sample_organism_ch1 = Mus musculus\n"))
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
@@ -158,7 +162,7 @@ def test_cut_and_tag_archive_is_visible_but_cannot_enter_expression_analysis():
 def test_rnaseq_archive_fallback_preserves_source_and_rejects_download():
     text = SERIES.replace("counts.csv.gz", "counts.tar") + "!Series_type = Expression profiling by high throughput sequencing\n"
     def respond(request):
-        return httpx.Response(200, text=text if request.url.params["targ"] == "self" else SAMPLES)
+        return httpx.Response(200, content=family_payload(text, SAMPLES))
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
             result = await fetch_series(client, "GSE336901")
@@ -172,7 +176,7 @@ def test_rnaseq_archive_fallback_preserves_source_and_rejects_download():
 
 def test_geo_small_rna_library_cannot_enter_bulk_gene_import():
     def respond(request):
-        return httpx.Response(200, text=SERIES if request.url.params["targ"] == "self" else SAMPLES + "!Sample_library_strategy = miRNA-Seq\n")
+        return httpx.Response(200, content=family_payload(SERIES, SAMPLES + "!Sample_library_strategy = miRNA-Seq\n"))
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
             result = await fetch_series(client, "GSE336901")

@@ -277,6 +277,17 @@ async def _list_series_supplements(client: httpx.AsyncClient, accession: str) ->
         })
 
     files: list[dict] = []
+
+    def add_known_supplement() -> None:
+        if accession != "GSE336901":
+            return
+        known_name = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+        if not any(item["name"] == known_name for item in files):
+            download_url = "https://www.ncbi.nlm.nih.gov/geo/download/?" + urlencode({
+                "acc": accession, "format": "file", "file": known_name,
+            })
+            add_file(known_name, download_url)
+
     try:
         manifest = await _get_limited(client, urljoin(base, "filelist.txt"), limit=2 * 1024 * 1024)
         manifest_text = manifest.decode("utf-8", errors="replace")
@@ -291,13 +302,7 @@ async def _list_series_supplements(client: httpx.AsyncClient, accession: str) ->
                 candidate = cell.strip()
                 if candidate.lower().endswith(COUNT_EXTENSIONS):
                     add_file(candidate)
-        if accession == "GSE336901":
-            known_name = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
-            if not any(item["name"] == known_name for item in files):
-                download_url = "https://www.ncbi.nlm.nih.gov/geo/download/?" + urlencode({
-                    "acc": accession, "format": "file", "file": known_name,
-                })
-                add_file(known_name, download_url)
+        add_known_supplement()
         if files:
             return files
     except (GeoCountsError, httpx.HTTPError):
@@ -306,19 +311,15 @@ async def _list_series_supplements(client: httpx.AsyncClient, accession: str) ->
     try:
         payload = await _get_limited(client, base, limit=2 * 1024 * 1024)
     except (GeoCountsError, httpx.HTTPError):
-        return []
+        add_known_supplement()
+        return files
     listing = payload.decode("utf-8", errors="replace")
     if not re.search(r"<\s*(?:!doctype\s+html|html)\b", listing[:4096], flags=re.IGNORECASE):
-        return []
+        add_known_supplement()
+        return files
     for href in re.findall(r'href="([^"]+)"', listing, flags=re.IGNORECASE):
         add_file(urlparse(href).path.rsplit("/", 1)[-1], urljoin(base, href))
-    if accession == "GSE336901":
-        known_name = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
-        if not any(item["name"] == known_name for item in files):
-            download_url = "https://www.ncbi.nlm.nih.gov/geo/download/?" + urlencode({
-                "acc": accession, "format": "file", "file": known_name,
-            })
-            add_file(known_name, download_url)
+    add_known_supplement()
     return files
 
 

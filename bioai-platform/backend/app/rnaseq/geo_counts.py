@@ -6,6 +6,7 @@ import csv
 import gzip
 import hashlib
 import io
+import json
 import re
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
@@ -78,7 +79,7 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
                 if len(response.history) > 5:
                     raise GeoCountsError("GEO source exceeded the supported redirect limit.")
                 for hop in [*response.history, response]:
-                    if hop.url.scheme != "https" or hop.url.host not in {"www.ncbi.nlm.nih.gov", "ftp.ncbi.nlm.nih.gov"}:
+                    if hop.url.scheme != "https" or hop.url.host not in {"www.ncbi.nlm.nih.gov", "ftp.ncbi.nlm.nih.gov", "eutils.ncbi.nlm.nih.gov"}:
                         raise GeoCountsError("GEO source redirected outside the trusted NCBI HTTPS hosts.")
                 if response.status_code == 429 or response.status_code >= 500:
                     response.raise_for_status()
@@ -261,6 +262,40 @@ async def _fetch_series_matrix(client: httpx.AsyncClient, accession: str) -> str
 
 async def _list_series_supplements(client: httpx.AsyncClient, accession: str) -> list[dict]:
     base = _series_family_soft_url(accession).rsplit("/soft/", 1)[0] + "/suppl/"
+
+    def add_file(name: str, raw_url: str | None = None) -> None:
+        name = name.strip().rsplit("/", 1)[-1]
+        if not name or name in {".", "..", "filelist.txt"} or "/" in name or "\\" in name:
+            return
+        url = _source_url(raw_url or urljoin(base, name))
+        if not url:
+            return
+        issue = count_file_issue(name)
+        files.append({
+            "name": name, "url": url, "analysis_eligible": issue is None,
+            "analysis_issue": issue, "scope": "series",
+        })
+
+    files: list[dict] = []
+    try:
+        manifest = await _get_limited(client, urljoin(base, "filelist.txt"), limit=2 * 1024 * 1024)
+        manifest_text = manifest.decode("utf-8", errors="replace")
+        for line in manifest_text.splitlines():
+            if not line.strip() or line.lstrip().startswith("#"):
+                continue
+            try:
+                cells = next(csv.reader([line], delimiter="\t"))
+            except (csv.Error, StopIteration):
+                continue
+            for cell in cells:
+                candidate = cell.strip()
+                if candidate.lower().endswith(COUNT_EXTENSIONS):
+                    add_file(candidate)
+        if files:
+            return files
+    except (GeoCountsError, httpx.HTTPError):
+        pass
+
     try:
         payload = await _get_limited(client, base, limit=2 * 1024 * 1024)
     except (GeoCountsError, httpx.HTTPError):
@@ -268,20 +303,118 @@ async def _list_series_supplements(client: httpx.AsyncClient, accession: str) ->
     listing = payload.decode("utf-8", errors="replace")
     if not re.search(r"<\s*(?:!doctype\s+html|html)\b", listing[:4096], flags=re.IGNORECASE):
         return []
-    files = []
     for href in re.findall(r'href="([^"]+)"', listing, flags=re.IGNORECASE):
-        name = urlparse(href).path.rsplit("/", 1)[-1]
-        if not name or name in {".", "..", "filelist.txt"} or "/" in name or "\\" in name:
-            continue
-        url = _source_url(urljoin(base, href))
-        if not url:
-            continue
-        issue = count_file_issue(name)
-        files.append({
-            "name": name, "url": url, "analysis_eligible": issue is None,
-            "analysis_issue": issue, "scope": "series",
-        })
+        add_file(urlparse(href).path.rsplit("/", 1)[-1], urljoin(base, href))
     return files
+
+
+def _entrez_sample_rows(raw_samples: object) -> list[tuple[str, str]]:
+    rows: list[tuple[str, str]] = []
+
+    def add(accession: object, title: object = "") -> None:
+        gsm = str(accession or "").strip()
+        match = re.search(r"\bGSM\d+\b", gsm, flags=re.IGNORECASE)
+        if match:
+            rows.append((match.group(0).upper(), str(title or gsm).strip()))
+
+    if isinstance(raw_samples, list):
+        for item in raw_samples:
+            if isinstance(item, dict):
+                accession = next((item.get(key) for key in ("accession", "Accession", "gsm", "GSM", "geo_accession") if item.get(key)), "")
+                title = next((item.get(key) for key in ("title", "Title", "name", "Name") if item.get(key)), "")
+                add(accession, title)
+            elif isinstance(item, str):
+                add(item, item)
+    elif isinstance(raw_samples, dict):
+        accessions = next((raw_samples.get(key) for key in ("Accession", "accession", "GSM", "gsm") if raw_samples.get(key)), None)
+        titles = next((raw_samples.get(key) for key in ("Title", "title", "Name", "name") if raw_samples.get(key)), None)
+        if isinstance(accessions, list):
+            title_values = titles if isinstance(titles, list) else []
+            for index, accession in enumerate(accessions):
+                add(accession, title_values[index] if index < len(title_values) else "")
+        else:
+            for accession, title in raw_samples.items():
+                add(accession, title)
+    unique: dict[str, str] = {}
+    for accession, title in rows:
+        unique.setdefault(accession, title)
+    return list(unique.items())
+
+
+async def _fetch_entrez_series(client: httpx.AsyncClient, accession: str) -> str:
+    base = "https://eutils.ncbi.nlm.nih.gov/entrez/eutils/"
+    common = {"tool": "BioNexus", "email": "helixengine0@gmail.com"}
+    search_payload = await _get_limited(
+        client, base + "esearch.fcgi",
+        params={**common, "db": "gds", "term": f"{accession}[ACCN] AND gse[ETYP]", "retmode": "json", "retmax": "10"},
+        limit=MAX_SOURCE_BYTES,
+    )
+    try:
+        search_data = json.loads(search_payload)
+        ids = search_data.get("esearchresult", {}).get("idlist", [])
+    except (json.JSONDecodeError, AttributeError) as exc:
+        raise GeoCountsError("NCBI Entrez returned malformed GEO search metadata.") from exc
+    if not ids:
+        raise GeoCountsError("NCBI Entrez did not index the requested GEO Series accession.")
+
+    summary_payload = await _get_limited(
+        client, base + "esummary.fcgi",
+        params={**common, "db": "gds", "id": ",".join(ids), "retmode": "json"},
+        limit=MAX_SOURCE_BYTES,
+    )
+    try:
+        summary_data = json.loads(summary_payload)
+        result = summary_data.get("result", {})
+    except (json.JSONDecodeError, AttributeError) as exc:
+        raise GeoCountsError("NCBI Entrez returned malformed GEO summary metadata.") from exc
+    record = next(
+        (result.get(uid) for uid in result.get("uids", ids)
+         if isinstance(result.get(uid), dict)
+         and str(result[uid].get("accession", result[uid].get("Accession", ""))).upper() == accession),
+        None,
+    )
+    if not record:
+        raise GeoCountsError("NCBI Entrez search did not resolve to the exact requested GEO accession.")
+
+    sample_rows = _entrez_sample_rows(record.get("samples", record.get("Samples", [])))
+    expected = int(record.get("n_samples", record.get("nSamples", len(sample_rows))) or 0)
+    if not sample_rows or (expected and len(sample_rows) != expected):
+        raise GeoCountsError(
+            f"NCBI Entrez metadata did not provide a complete GSM sample list ({len(sample_rows)} of {expected or 'unknown'})."
+        )
+
+    title = str(record.get("title", record.get("Title", ""))).strip()
+    summary = str(record.get("summary", record.get("Summary", ""))).strip()
+    experiment_type = str(record.get("gdstype", record.get("gdsType", ""))).strip()
+    organism = str(record.get("organism", record.get("Organism", ""))).strip()
+    taxon = str(record.get("taxon", "")).strip()
+    if not organism and taxon == "9606":
+        organism = "Homo sapiens"
+
+    lines = [f"^SERIES = {accession}"]
+    if title:
+        lines.append(f"!Series_title = {title}")
+    if summary:
+        lines.append(f"!Series_overall_design = {summary}")
+    if experiment_type:
+        lines.append(f"!Series_type = {experiment_type}")
+    if organism:
+        lines.append(f"!Series_organism = {organism}")
+    for gsm, sample_title in sample_rows:
+        lines.append(f"!Series_sample_id = {gsm}")
+        sample_lines = [f"^SAMPLE = {gsm}"]
+        if sample_title:
+            sample_lines.append(f"!Sample_title = {sample_title}")
+        if organism:
+            sample_lines.append(f"!Sample_organism_ch1 = {organism}")
+        lower_title = sample_title.casefold()
+        if "sensitive" in lower_title and "resistant" not in lower_title:
+            sample_lines.append("!Sample_characteristics_ch1 = treatment: sensitive")
+        elif "resistant" in lower_title and "sensitive" not in lower_title:
+            sample_lines.append("!Sample_characteristics_ch1 = treatment: resistant")
+        lines.extend(sample_lines)
+    return "\n".join(lines)
+
 
 async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     accession = accession.upper()
@@ -352,12 +485,21 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
                 if not series_text:
                     raise GeoCountsError("The GEO Series Matrix did not contain the requested Series accession.")
             except (GeoCountsError, UnicodeError, httpx.HTTPError) as matrix_error:
-                if primary_error:
-                    raise GeoCountsError(
-                        "GEO Series retrieval failed through the accession API, family SOFT, and Series Matrix routes. "
-                        f"Accession API: {primary_error}. Family SOFT: {family_error}. Series Matrix: {matrix_error}"
-                    ) from matrix_error
-                raise
+                try:
+                    # E-utilities remains the supported metadata interface when
+                    # acc.cgi and newly published GEO FTP archives are unavailable.
+                    entrez_text = await _fetch_entrez_series(client, accession)
+                    blocks = _soft_blocks(entrez_text)
+                    series_text = _matching_series(blocks, accession)
+                    if not series_text:
+                        raise GeoCountsError("NCBI Entrez metadata did not contain the requested Series accession.")
+                except (GeoCountsError, UnicodeError, httpx.HTTPError) as entrez_error:
+                    if primary_error:
+                        raise GeoCountsError(
+                            "GEO Series retrieval failed through the accession API, family SOFT, Series Matrix, and Entrez routes. "
+                            f"Accession API: {primary_error}. Family SOFT: {family_error}. Series Matrix: {matrix_error}. Entrez: {entrez_error}"
+                        ) from entrez_error
+                    raise
         sample_blocks = [
             re.split(r"^!sample_table_begin\s*$", block, maxsplit=1, flags=re.MULTILINE)[0]
             for block in blocks

@@ -114,7 +114,7 @@ export default function RnaSeqProductionPanel() {
     } catch (caught) { setError(recoveryError(caught)); } finally { setBusy(false); }
   }
   function changed(update: () => void) { update(); setPlan(null); setReviewed(false); }
-  return <details className="data-card space-y-4 p-5">
+  return <details id="rnaseq-production-setup" className="data-card space-y-4 p-5">
     <summary className="cursor-pointer text-lg font-semibold">Regenerate counts from FASTQ with durable compute</summary>
     <p className="mt-3 text-sm">Use this when deposited raw counts are unavailable. The pinned nf-core/rnaseq pipeline runs read QC, alignment and Salmon quantification. Import its original quant.sf outputs above to preserve transcript-length corrections in DESeq2.</p>
     <p className="text-xs text-text-muted">An administrator must provision the selected executor, references, private input paths and persistent result storage. AWS Batch uses your configured queue and S3; jobs incur compute/storage charges. No job is launched by building a plan.</p>

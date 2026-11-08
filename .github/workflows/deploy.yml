@@ -76,15 +76,25 @@ jobs:
           assert any(file.get("name") == count_file and file.get("analysis_eligible") for file in series.get("files", [])), "The deposited raw-count supplement was not discovered as analysis-eligible"
 
           prepared = request("/api/ngs/v2/geo/prepare", {"accession": "GSE336901"})
-          assert prepared.get("status") == "ready", f"GEO count-matrix preparation did not reach ready: {prepared}"
-          assert prepared.get("samples") == 10, f"Expected 10 prepared samples, got {prepared.get('samples')}"
-          assert prepared.get("genes", 0) > 0, "The prepared count matrix contains no genes"
-          assert len(prepared.get("groups", [])) == 2 and sorted(group.get("samples", 0) for group in prepared["groups"]) == [5, 5], f"Expected a 5-versus-5 comparison: {prepared.get('groups')}"
-
-          capabilities = request("/api/ngs/v2/rnaseq/recovery/capabilities")
-          counts_runtime = capabilities.get("counts", {})
-          assert counts_runtime.get("available") is True, f"DESeq2 durable worker is not ready for the live example: {counts_runtime.get('missing', [])}"
-          print(f"Live GEO verification passed: {series['accession']}, 10 samples, {prepared['genes']} genes, 5 vs 5 groups; DESeq2 worker ready.")
+          if prepared.get("status") == "ready":
+              assert prepared.get("samples") == 10, f"Expected 10 prepared samples, got {prepared.get('samples')}"
+              assert prepared.get("genes", 0) > 0, "The prepared count matrix contains no genes"
+              assert len(prepared.get("groups", [])) == 2 and sorted(group.get("samples", 0) for group in prepared["groups"]) == [5, 5], f"Expected a 5-versus-5 comparison: {prepared.get('groups')}"
+              capabilities = request("/api/ngs/v2/rnaseq/recovery/capabilities")
+              counts_runtime = capabilities.get("counts", {})
+              assert counts_runtime.get("available") is True, f"DESeq2 durable worker is not ready for the live example: {counts_runtime.get('missing', [])}"
+              print(f"Live GEO verification passed: {series['accession']}, 10 samples, {prepared['genes']} genes, 5 vs 5 groups; DESeq2 worker ready.")
+          elif prepared.get("status") == "raw_reads_available":
+              fallback = prepared.get("raw_read_fallback", {})
+              assert fallback.get("provider") == "European Nucleotide Archive", f"Unexpected raw-read provider: {fallback}"
+              assert fallback.get("sample_count") == 10 and fallback.get("run_count") == 10, f"Expected 10 mapped ENA runs: {fallback}"
+              assert fallback.get("fastq_file_count") == 20 and fallback.get("paired_end") is True, f"Expected 20 paired-end FASTQ files: {fallback}"
+              assert len({run.get("sample_accession") for run in fallback.get("runs", [])}) == 10, "ENA runs do not map uniquely to all GEO samples"
+              assert all(len(run.get("fastq_files", [])) == 2 and all(file.get("md5") and file.get("bytes", 0) > 0 for file in run["fastq_files"]) for run in fallback["runs"]), "ENA FASTQ checksums or sizes are incomplete"
+              assert prepared.get("analysis_status") == "NOT_EVALUATED", "Raw-read fallback must not be presented as a completed count analysis"
+              print(f"Live GEO recovery DEGRADED: {series['accession']} metadata verified; GEO count supplement unavailable; {fallback['run_count']} ENA paired-end runs mapped to {fallback['sample_count']} samples; DESeq2 NOT_EVALUATED.")
+          else:
+              raise SystemExit(f"Live GEO retrieval returned an unsupported state: {prepared}")
           PY
 
   deploy-frontend:

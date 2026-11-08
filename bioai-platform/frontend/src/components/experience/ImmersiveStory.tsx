@@ -9,6 +9,7 @@ import type { SceneControl } from './ResearchCanvas';
 const ResearchCanvas = dynamic(() => import('./ResearchCanvas'), { ssr: false });
 const SplineCanvas = dynamic(() => import('./SplineCanvas'), { ssr: false });
 const sceneUrl = process.env.NEXT_PUBLIC_SPLINE_SCENE_URL;
+// If the optional hosted Spline scene fails, fall back to the bundled animated scene.
 
 const chapters = [
   { id: 'biological-input', label: 'Biological input', title: 'Begin with a better question.', description: 'Bring sequences, structures or sequencing data. Choose a method that fits the question and the available evidence.', link: '/wizard', action: 'Find your workflow' },
@@ -21,6 +22,7 @@ export function ImmersiveStory() {
   const controller = useRef<SceneControl | null>(null);
   const progressRef = useRef(0);
   const [paused, setPaused] = useState(false);
+  const [splineFailed, setSplineFailed] = useState(false);
   useEffect(() => {
     const element = root.current;
     if (!element) return;
@@ -73,7 +75,7 @@ export function ImmersiveStory() {
           {/* A real raster poster keeps the first paint and non-WebGL experience useful. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="bn-scene-poster" src="/scenes/research-poster.png" width="900" height="1050" alt="Illustrative sage-green double helix. The interactive scene transitions into molecular and evidence forms." fetchPriority="high" />
-          {!paused && (sceneUrl ? <SplineCanvas url={sceneUrl} controller={controller} progressRef={progressRef} /> : <ResearchCanvas controller={controller} progressRef={progressRef} />)}
+          {!paused && (sceneUrl && !splineFailed ? <SplineCanvas url={sceneUrl} controller={controller} progressRef={progressRef} onError={() => setSplineFailed(true)} /> : <ResearchCanvas controller={controller} progressRef={progressRef} />)}
         </div>
         <figcaption>Conceptual molecular forms · Illustration, not analysis data</figcaption>
         <button type="button" className="bn-motion-toggle" onClick={() => setPaused(value => !value)} aria-pressed={paused}>

@@ -63,7 +63,13 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
     last_error: httpx.HTTPError | None = None
     for attempt in range(3):
         try:
-            async with client.stream("GET", url, params=params, follow_redirects=True) as response:
+            async with client.stream(
+                "GET", url, params=params, follow_redirects=True,
+                headers={
+                    "User-Agent": "BioNexus/1.0 (mailto:helixengine0@gmail.com)",
+                    "Accept": "text/plain, application/octet-stream, */*",
+                },
+            ) as response:
                 # GEO's accession and FTP endpoints may redirect between their
                 # documented HTTPS hosts. Follow only a short HTTPS redirect
                 # chain that stays on NCBI; never let a source URL escape the
@@ -95,7 +101,11 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
             last_error = exc
         if attempt < 2:
             await asyncio.sleep(0.5 * (2 ** attempt))
-    raise GeoCountsError("Could not retrieve this GEO record or its supplementary file after three attempts.") from last_error
+    source_host = urlparse(url).host or "unknown host"
+    reason = f"{type(last_error).__name__}: {last_error}" if last_error else "no response"
+    raise GeoCountsError(
+        f"Could not retrieve the GEO source from {source_host} after three attempts ({reason})."
+    ) from last_error
 
 
 def _source_url(raw: str) -> str | None:

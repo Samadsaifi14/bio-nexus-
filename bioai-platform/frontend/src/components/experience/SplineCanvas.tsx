@@ -5,7 +5,7 @@ import type { MutableRefObject } from 'react';
 import type { SceneControl } from './ResearchCanvas';
 
 /** Activate with a published scene containing Input, Analysis and Evidence groups. */
-export default function SplineCanvas({ url, controller, progressRef }: { url: string; controller: MutableRefObject<SceneControl | null>; progressRef: MutableRefObject<number> }) {
+export default function SplineCanvas({ url, controller, progressRef, onError }: { url: string; controller: MutableRefObject<SceneControl | null>; progressRef: MutableRefObject<number>; onError: () => void }) {
   const canvas = useRef<HTMLCanvasElement>(null);
   useEffect(() => {
     const element = canvas.current;
@@ -18,7 +18,9 @@ export default function SplineCanvas({ url, controller, progressRef }: { url: st
       const current = ++generation;
       cleanup?.(); controller.current = null; element.dataset.ready = 'false';
       if (!media.matches || disposed) return;
-      const { Application } = await import('@splinetool/runtime');
+      let Application;
+      try { ({ Application } = await import('@splinetool/runtime')); }
+      catch { if (!disposed && current === generation) onError(); return; }
       if (disposed || current !== generation) return;
       const app = new Application(element, { renderMode: 'manual' });
       cleanup = () => app.dispose();
@@ -40,11 +42,11 @@ export default function SplineCanvas({ url, controller, progressRef }: { url: st
           if (!document.hidden) app.requestRender();
         } };
         controller.current.setProgress(progressRef.current); element.dataset.ready = 'true';
-      } catch { app.dispose(); } // Visible static asset remains available.
+      } catch { app.dispose(); if (!disposed && current === generation) onError(); } // Switch to the bundled animated scene.
     };
     const start = () => { void run().catch(() => {}); };
     start(); media.addEventListener('change', start);
     return () => { disposed = true; generation++; media.removeEventListener('change', start); cleanup?.(); controller.current = null; };
-  }, [url, controller, progressRef]);
+  }, [url, controller, progressRef, onError]);
   return <canvas ref={canvas} className="bn-spline-canvas" aria-hidden="true" />;
 }

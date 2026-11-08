@@ -97,7 +97,7 @@ def test_geo_html_challenge_is_not_misreported_as_missing_series():
         async with httpx.AsyncClient(
             transport=httpx.MockTransport(lambda request: httpx.Response(200, content=b"<html>challenge</html>"))
         ) as client:
-            await fetch_series(client, "GSE336901")
+            await fetch_series(client, "GSE999999")
 
     with pytest.raises(GeoCountsError, match="HTML page"):
         asyncio.run(run())

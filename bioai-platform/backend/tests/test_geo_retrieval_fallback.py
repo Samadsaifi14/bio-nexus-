@@ -208,11 +208,8 @@ def test_entrez_metadata_fallback_and_filelist_manifest():
         if request.url.host == "ftp.ncbi.nlm.nih.gov":
             if request.url.path.endswith("_family.soft.gz") or request.url.path.endswith("_series_matrix.txt.gz"):
                 return httpx.Response(404, text="Not found")
-            if request.url.path.endswith("/suppl/filelist.txt"):
-                return httpx.Response(
-                    200,
-                    text="Archive/File\tName\tTime\tSize\tType\n\tGSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz\t2026-07-13\t709.1 Kb\tCSV\n",
-                )
+            if request.url.path.endswith("/suppl/filelist.txt") or request.url.path.endswith("/suppl/"):
+                return httpx.Response(404, text="FTP manifest unavailable")
         if request.url.host == "eutils.ncbi.nlm.nih.gov":
             if request.url.path.endswith("/esearch.fcgi"):
                 if "[ACCN]" in request.url.params.get("term", ""):
@@ -230,3 +227,4 @@ def test_entrez_metadata_fallback_and_filelist_manifest():
     assert result["organisms"] == ["Homo sapiens"]
     assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
     assert result["files"][0]["analysis_eligible"] is True
+    assert result["files"][0]["url"].startswith("https://www.ncbi.nlm.nih.gov/geo/download/")

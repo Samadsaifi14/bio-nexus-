@@ -5,8 +5,8 @@ import type { MutableRefObject } from 'react';
 
 export type SceneControl = { setProgress: (progress: number) => void };
 
-export default function ResearchCanvas({ controller, progressRef }: {
-  controller: MutableRefObject<SceneControl | null>; progressRef: MutableRefObject<number>;
+export default function ResearchCanvas({ controller, progressRef, forceMotion = false }: {
+  controller: MutableRefObject<SceneControl | null>; progressRef: MutableRefObject<number>; forceMotion?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -14,12 +14,13 @@ export default function ResearchCanvas({ controller, progressRef }: {
     if (!element) return;
     let stopped = false;
     let dispose: (() => void) | undefined;
-    const media = window.matchMedia('(min-width: 768px) and (prefers-reduced-motion: no-preference)');
+    const viewport = window.matchMedia('(min-width: 768px)');
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
     let generation = 0;
     const start = async () => {
       const current = ++generation;
       dispose?.(); dispose = undefined; controller.current = null;
-      if (!media.matches || stopped) return;
+      if (!viewport.matches || (reduced.matches && !forceMotion) || stopped) return;
       const [THREE, factory] = await Promise.all([import('three'), import('@/lib/experience/scene')]);
       if (stopped || current !== generation) return;
       let renderer;
@@ -96,8 +97,8 @@ export default function ResearchCanvas({ controller, progressRef }: {
       };
     };
     const run = () => { void start().catch(() => { /* Retain the poster if an optional chunk fails. */ }); };
-    run(); media.addEventListener('change', run);
-    return () => { stopped = true; generation++; media.removeEventListener('change', run); dispose?.(); controller.current = null; };
-  }, [controller, progressRef]);
+    run(); viewport.addEventListener('change', run); reduced.addEventListener('change', run);
+    return () => { stopped = true; generation++; viewport.removeEventListener('change', run); reduced.removeEventListener('change', run); dispose?.(); controller.current = null; };
+  }, [controller, progressRef, forceMotion]);
   return <div ref={host} className="bn-research-canvas" aria-hidden="true" />;
 }

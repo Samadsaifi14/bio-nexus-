@@ -22,8 +22,23 @@ export function ImmersiveStory() {
   const controller = useRef<SceneControl | null>(null);
   const progressRef = useRef(0);
   const [paused, setPaused] = useState(false);
+  const [reducedMotion, setReducedMotion] = useState(false);
+  const [motionOverride, setMotionOverride] = useState(false);
   const [splineFailed, setSplineFailed] = useState(false);
+  const motionActive = !paused && (!reducedMotion || motionOverride);
+  const toggleMotion = () => {
+    if (motionActive) setPaused(true);
+    else { if (reducedMotion) setMotionOverride(true); setPaused(false); }
+  };
   useEffect(() => {
+    const preference = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const update = () => setReducedMotion(preference.matches);
+    update();
+    preference.addEventListener('change', update);
+    return () => preference.removeEventListener('change', update);
+  }, []);
+  useEffect(() => {
+    if (!motionActive) return;
     const element = root.current;
     if (!element) return;
     let cancelled = false;
@@ -33,8 +48,7 @@ export function ImmersiveStory() {
       if (cancelled) return;
       gsap.registerPlugin(ScrollTrigger);
       const media = gsap.matchMedia();
-      media.add('(prefers-reduced-motion: no-preference)', () => {
-        if (paused) return;
+      media.add(motionOverride ? 'all' : '(prefers-reduced-motion: no-preference)', () => {
         gsap.from(element.querySelectorAll('[data-hero-word]'), { yPercent: 105, opacity: 0, stagger: .065, duration: .85, ease: 'power3.out' });
         element.querySelectorAll('[data-story-copy]').forEach(copy => {
           gsap.from(copy, { y: 30, opacity: .25, duration: .75, ease: 'power2.out', scrollTrigger: { trigger: copy, start: 'top 88%', once: true } });
@@ -48,7 +62,7 @@ export function ImmersiveStory() {
     };
     void start().catch(() => { /* Content is visible before animation initializes. */ });
     return () => { cancelled = true; cleanup?.(); };
-  }, [paused]);
+  }, [motionActive, motionOverride]);
 
   return <section ref={root} className="bn-immersive" data-motion={paused ? 'paused' : 'active'} aria-label="The BioNexus research journey">
     <div className="bn-story-layout">
@@ -75,11 +89,11 @@ export function ImmersiveStory() {
           {/* A real raster poster keeps the first paint and non-WebGL experience useful. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="bn-scene-poster" src="/scenes/research-poster.png" width="900" height="1050" alt="Illustrative sage-green double helix. The interactive scene transitions into molecular and evidence forms." fetchPriority="high" />
-          {!paused && (sceneUrl && !splineFailed ? <SplineCanvas url={sceneUrl} controller={controller} progressRef={progressRef} onError={() => setSplineFailed(true)} /> : <ResearchCanvas controller={controller} progressRef={progressRef} />)}
+          {motionActive && (sceneUrl && !splineFailed ? <SplineCanvas url={sceneUrl} controller={controller} progressRef={progressRef} onError={() => setSplineFailed(true)} /> : <ResearchCanvas controller={controller} progressRef={progressRef} forceMotion={motionOverride} />)}
         </div>
         <figcaption>Conceptual molecular forms · Illustration, not analysis data</figcaption>
-        <button type="button" className="bn-motion-toggle" onClick={() => setPaused(value => !value)} aria-pressed={paused}>
-          {paused ? <Play size={15} aria-hidden="true" /> : <Pause size={15} aria-hidden="true" />}{paused ? 'Enable motion' : 'Pause motion'}
+        <button type="button" className="bn-motion-toggle" onClick={toggleMotion} aria-pressed={motionActive}>
+          {motionActive ? <Pause size={15} aria-hidden="true" /> : <Play size={15} aria-hidden="true" />}{motionActive ? 'Pause motion' : 'Enable motion'}
         </button>
       </figure>
     </div>

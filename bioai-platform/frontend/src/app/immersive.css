@@ -84,7 +84,10 @@
 @media (prefers-reduced-motion: reduce) {
   .bn-story-chapter { min-height: auto; padding-block: 56px; }
   .bn-story-visual { position: relative; }
-  .bn-research-canvas, .bn-spline-canvas, .bn-webgl-cursor, .bn-motion-toggle { display: none; }
+  .bn-research-canvas, .bn-spline-canvas, .bn-webgl-cursor { display: none; }
+  .bn-motion-toggle { display: inline-flex; }
+  .bn-immersive[data-motion="active"] .bn-story-visual { position: sticky; top: 24px; }
+  .bn-immersive[data-motion="active"] .bn-research-canvas { display: block; }
   .bn-immersive-landing *, .bn-workspace-experience * { animation: none !important; transition: none !important; scroll-behavior: auto !important; }
   .bn-story-stage .bn-scene-poster { visibility: visible; }
 }

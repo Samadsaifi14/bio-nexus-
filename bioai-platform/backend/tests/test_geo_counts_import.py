@@ -104,13 +104,18 @@ def test_geo_html_challenge_is_not_misreported_as_missing_series():
 
 
 def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
+    # Exercise the current bounded accession API. The separate fallback test
+    # covers the family-SOFT path when acc.cgi returns an HTML challenge.
     def respond(request):
-        # The accession API can return an HTML challenge; the importer must
-        # reject it and retrieve the matching family SOFT archive instead.
-        if request.url.host == "www.ncbi.nlm.nih.gov":
-            return httpx.Response(200, text="<html>NCBI request challenge</html>")
-        assert request.url.path.endswith("/GSE336901/soft/GSE336901_family.soft.gz")
-        return httpx.Response(200, content=family_payload())
+        assert request.url.host == "www.ncbi.nlm.nih.gov"
+        assert request.url.path == "/geo/query/acc.cgi"
+        assert request.url.params.get("view") == "quick"
+        assert request.url.params.get("form") == "text"
+        if request.url.params.get("targ") == "self":
+            return httpx.Response(200, text=SERIES)
+        if request.url.params.get("targ") == "gsm":
+            return httpx.Response(200, text=SAMPLES)
+        pytest.fail(f"Unexpected GEO request scope: {request.url}")
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:

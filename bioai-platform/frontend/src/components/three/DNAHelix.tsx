@@ -12,7 +12,7 @@ import { useTheme } from '@/contexts/theme';
  * (apple-design §14). Colors follow the Bio Nexus signal palette in globals.css:
  * mint primary strand + cool blue secondary strand.
  */
-export default function DNAHelix({ className }: { className?: string }) {
+export default function DNAHelix({ className, paused = false, forceMotion = false }: { className?: string; paused?: boolean; forceMotion?: boolean }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme();
 
@@ -20,7 +20,7 @@ export default function DNAHelix({ className }: { className?: string }) {
     const container = containerRef.current;
     if (!container) return;
 
-    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches && !forceMotion;
     const isLight = theme === 'light';
 
     const digitA   = isLight ? '#15803D' : '#4ADE80';
@@ -34,7 +34,13 @@ export default function DNAHelix({ className }: { className?: string }) {
     const W = container.clientWidth || 1;
     const H = container.clientHeight || 1;
 
-    const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+    let renderer: THREE.WebGLRenderer;
+    try {
+      renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'low-power' });
+    } catch {
+      container.dataset.ready = 'false';
+      return;
+    }
     renderer.setSize(W, H);
     renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     renderer.setClearColor(0x000000, 0);
@@ -223,10 +229,7 @@ export default function DNAHelix({ className }: { className?: string }) {
     let elapsed = 0;
     const clock = new THREE.Clock();
 
-    const render = () => {
-      renderer.render(scene, camera);
-      if (!reducedMotion) raf = requestAnimationFrame(tick);
-    };
+    const render = () => renderer.render(scene, camera);
 
     const tick = () => {
       const dt = Math.min(clock.getDelta(), 0.05);
@@ -250,20 +253,24 @@ export default function DNAHelix({ className }: { className?: string }) {
       (particleGeom.attributes.position as THREE.BufferAttribute).needsUpdate = true;
 
       render();
+      if (!paused && !reducedMotion) raf = requestAnimationFrame(tick);
     };
 
-    if (reducedMotion) {
+    if (paused || reducedMotion) {
       for (const g of glyphs) placeGlyph(g, g.base, g.index % 2);
       group.rotation.y = 0.5;
       render();
     } else {
+      render();
       raf = requestAnimationFrame(tick);
     }
+    container.dataset.ready = 'true';
 
     return () => {
       cancelAnimationFrame(raf);
       window.removeEventListener('pointermove', onPointerMove);
       ro.disconnect();
+      container.dataset.ready = 'false';
       renderer.dispose();
       particleGeom.dispose();
       particleMat.dispose();
@@ -276,7 +283,7 @@ export default function DNAHelix({ className }: { className?: string }) {
         container.removeChild(renderer.domElement);
       }
     };
-  }, [theme]);
+  }, [theme, paused, forceMotion]);
 
   return (
     <div ref={containerRef} className={className} aria-hidden aria-label="Animated double helix made of binary digits" />

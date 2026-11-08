@@ -4,12 +4,7 @@ import { useEffect, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Link from 'next/link';
 import { ArrowUpRight, Pause, Play } from '@phosphor-icons/react';
-import type { SceneControl } from './ResearchCanvas';
-
-const ResearchCanvas = dynamic(() => import('./ResearchCanvas'), { ssr: false });
-const SplineCanvas = dynamic(() => import('./SplineCanvas'), { ssr: false });
-const sceneUrl = process.env.NEXT_PUBLIC_SPLINE_SCENE_URL;
-// If the optional hosted Spline scene fails, fall back to the bundled animated scene.
+const DNAHelix = dynamic(() => import('@/components/three/DNAHelix'), { ssr: false });
 
 const chapters = [
   { id: 'biological-input', label: 'Biological input', title: 'Begin with a better question.', description: 'Bring sequences, structures or sequencing data. Choose a method that fits the question and the available evidence.', link: '/wizard', action: 'Find your workflow' },
@@ -19,12 +14,9 @@ const chapters = [
 
 export function ImmersiveStory() {
   const root = useRef<HTMLElement>(null);
-  const controller = useRef<SceneControl | null>(null);
-  const progressRef = useRef(0);
   const [paused, setPaused] = useState(false);
   const [reducedMotion, setReducedMotion] = useState(false);
   const [motionOverride, setMotionOverride] = useState(false);
-  const [splineFailed, setSplineFailed] = useState(false);
   const motionActive = !paused && (!reducedMotion || motionOverride);
   const toggleMotion = () => {
     if (motionActive) setPaused(true);
@@ -53,10 +45,6 @@ export function ImmersiveStory() {
         element.querySelectorAll('[data-story-copy]').forEach(copy => {
           gsap.from(copy, { y: 30, opacity: .25, duration: .75, ease: 'power2.out', scrollTrigger: { trigger: copy, start: 'top 88%', once: true } });
         });
-        const progress = { value: 0 };
-        gsap.to(progress, { value: 1, ease: 'none', scrollTrigger: {
-          trigger: element.querySelector('.bn-story-chapters'), start: 'top 65%', end: 'bottom 85%', scrub: .65,
-        }, onUpdate: () => { progressRef.current = progress.value; controller.current?.setProgress(progress.value); } });
       }, element);
       cleanup = () => media.revert();
     };
@@ -89,7 +77,7 @@ export function ImmersiveStory() {
           {/* A real raster poster keeps the first paint and non-WebGL experience useful. */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img className="bn-scene-poster" src="/scenes/research-poster.png" width="900" height="1050" alt="Illustrative sage-green double helix. The interactive scene transitions into molecular and evidence forms." fetchPriority="high" />
-          {motionActive && (sceneUrl && !splineFailed ? <SplineCanvas url={sceneUrl} controller={controller} progressRef={progressRef} onError={() => setSplineFailed(true)} /> : <ResearchCanvas controller={controller} progressRef={progressRef} forceMotion={motionOverride} />)}
+          <DNAHelix className="bn-dna-helix" paused={!motionActive} forceMotion={motionOverride} />
         </div>
         <figcaption>Conceptual molecular forms · Illustration, not analysis data</figcaption>
         <button type="button" className="bn-motion-toggle" onClick={toggleMotion} aria-pressed={motionActive}>

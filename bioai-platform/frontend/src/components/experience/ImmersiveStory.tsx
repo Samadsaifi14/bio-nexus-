@@ -64,7 +64,7 @@ export function ImmersiveStory() {
     return () => { cancelled = true; cleanup?.(); };
   }, [motionActive, motionOverride]);
 
-  return <section ref={root} className="bn-immersive" data-motion={paused ? 'paused' : 'active'} aria-label="The BioNexus research journey">
+  return <section ref={root} className="bn-immersive" data-motion={motionActive ? 'active' : 'paused'} aria-label="The BioNexus research journey">
     <div className="bn-story-layout">
       <div className="bn-story-content">
         <div className="bn-story-intro">

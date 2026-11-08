@@ -14,6 +14,7 @@ import httpx
 from app.ngs.assays import SMALL_RNA_PATTERN, SMALL_RNA_GUIDANCE
 
 GEO_SERIES_FTP_ROOT = "https://ftp.ncbi.nlm.nih.gov/geo/series"
+GEO_URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi"  # canonical public GEO record link; not used for automated retrieval
 MAX_SOURCE_BYTES = 12 * 1024 * 1024
 MAX_MATRIX_BYTES = 60 * 1024 * 1024
 COUNT_EXTENSIONS = (".csv", ".tsv", ".txt", ".csv.gz", ".tsv.gz", ".txt.gz")

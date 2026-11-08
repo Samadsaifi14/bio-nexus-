@@ -198,7 +198,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
             returned_ids = {
                 match.group(1)
                 for block in sample_blocks
-                if (match := re.match(r"^\\^SAMPLE = (GSM\\d+)", block))
+                if (match := re.match(r"^\^SAMPLE = (GSM\d+)", block))
             }
             if not sample_blocks or not declared_ids or returned_ids != declared_ids:
                 raise GeoCountsError(

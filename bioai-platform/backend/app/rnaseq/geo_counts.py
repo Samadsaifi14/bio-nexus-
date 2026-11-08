@@ -194,8 +194,16 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
                 for block in _soft_blocks(sample_text)
                 if re.match(r"^\^SAMPLE = GSM\d+\s*$", block, flags=re.MULTILINE)
             ]
-            if not sample_blocks:
-                raise GeoCountsError("NCBI GEO accession API returned no parseable GSM sample records.")
+            declared_ids = set(_soft_lines(series_text, "Series_sample_id"))
+            returned_ids = {
+                match.group(1)
+                for block in sample_blocks
+                if (match := re.match(r"^\\^SAMPLE = (GSM\\d+)", block))
+            }
+            if not sample_blocks or not declared_ids or returned_ids != declared_ids:
+                raise GeoCountsError(
+                    "NCBI GEO accession API returned incomplete or mismatched GSM sample records."
+                )
         else:
             raise GeoCountsError("NCBI GEO accession API did not return the requested Series record.")
     except (GeoCountsError, UnicodeError, httpx.HTTPError) as exc:

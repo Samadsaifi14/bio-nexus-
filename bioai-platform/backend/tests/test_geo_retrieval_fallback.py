@@ -157,7 +157,7 @@ def test_missing_api_and_family_records_return_actionable_error():
 
 
 def test_series_matrix_metadata_fallback_and_supplement_listing():
-    matrix_text = "!Series_title\t\"RNA-seq FFPE response study\"\n!Series_type\t\"Expression profiling by high throughput sequencing\"\n!Series_overall_design\t\"Five sensitive and five resistant FFPE samples\"\n!Series_contact_email\t\"research@example.org\"\n!Sample_geo_accession\t\"GSM900001\"\t\"GSM900002\"\n!Sample_title\t\"FFPE sensitive sample GZ23094742\"\t\"FFPE resistant sample GZ23094732\"\n!Sample_organism_ch1\t\"Homo sapiens\"\t\"Homo sapiens\"\n!Sample_library_strategy\t\"RNA-Seq\"\t\"RNA-Seq\"\n!Sample_characteristics_ch1\t\"treatment: sensitive\"\t\"treatment: resistant\"\n!Sample_characteristics_ch1\t\"batch: FFPE\"\t\"batch: FFPE\"\n!series_matrix_table_begin\n\"ID_REF\"\t\"GSM900001\"\t\"GSM900002\"\n"
+    matrix_text = "!Series_title \"RNA-seq FFPE response study\"\n!Series_type \"Expression profiling by high throughput sequencing\"\n!Series_overall_design \"Five sensitive and five resistant FFPE samples\"\n!Series_contact_email \"research@example.org\"\n!Sample_geo_accession \"GSM900001\" \"GSM900002\"\n!Sample_title \"FFPE sensitive sample GZ23094742\" \"FFPE resistant sample GZ23094732\"\n!Sample_organism_ch1 \"Homo sapiens\" \"Homo sapiens\"\n!Sample_library_strategy \"RNA-Seq\" \"RNA-Seq\"\n!Sample_characteristics_ch1 \"treatment: sensitive\" \"treatment: resistant\"\n!Sample_characteristics_ch1 \"batch: FFPE\" \"batch: FFPE\"\n!series_matrix_table_begin\n\"ID_REF\"\t\"GSM900001\"\t\"GSM900002\"\n"
     matrix_archive = gzip.compress(matrix_text.encode())
 
     def respond(request):

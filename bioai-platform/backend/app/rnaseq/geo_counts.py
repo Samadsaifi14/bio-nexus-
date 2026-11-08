@@ -7,6 +7,7 @@ import gzip
 import hashlib
 import io
 import re
+import shlex
 from dataclasses import dataclass
 from urllib.parse import urljoin, urlparse
 
@@ -182,8 +183,11 @@ def _series_matrix_to_soft(text: str, accession: str) -> str:
         if not line.startswith("!"):
             continue
         try:
-            cells = next(csv.reader([line], delimiter="\t", quotechar='"'))
-        except (csv.Error, StopIteration) as exc:
+            cells = (
+                next(csv.reader([line], delimiter="\t", quotechar='"'))
+                if "\t" in line else shlex.split(line)
+            )
+        except (csv.Error, ValueError, StopIteration) as exc:
             raise GeoCountsError("GEO Series Matrix contains malformed metadata rows.") from exc
         key = cells[0].strip()
         values = [value.strip() for value in cells[1:]]

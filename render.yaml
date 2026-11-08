@@ -16,7 +16,7 @@ services:
         sync: false
       - key: DEMO_MODE
         value: "true"
-      - key: CORS_ORIGIN
+      - key: CORS_ORIGINS
         value: "https://bio-nexus-ebon.vercel.app"
       # Ensure the in-process durable worker starts so queued jobs (BLAST,
       # docking, NGS, MD) are always claimed. Without this the worker can be

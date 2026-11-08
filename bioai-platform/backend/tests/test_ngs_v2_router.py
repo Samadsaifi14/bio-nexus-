@@ -1,3 +1,4 @@
+import base64
 import gzip
 import hashlib
 import hmac
@@ -220,12 +221,17 @@ def test_clinical_gate_passes_only_complete_signed_external_evidence(client, mon
         "reviewer_id": "reviewer-17",
         "release_signature_id": "sig-2026-09-01-001",
     }
-    signing_key = "test-only-clinical-attestation-key"
-    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_HMAC_KEY", signing_key)
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    private_key = Ed25519PrivateKey.generate()
+    public_bytes = private_key.public_key().public_bytes_raw()
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_ED25519_PUBLIC_KEY",
+                        base64.b64encode(public_bytes).decode("ascii"))
+    # HMAC key left unset so Ed25519 is the active verification path.
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_HMAC_KEY", "")
     evidence = NgsClinicalEvidenceRequest(**payload)
-    payload["evidence_signature"] = hmac.new(
-        signing_key.encode("utf-8"), clinical_signature_payload(evidence), hashlib.sha256,
-    ).hexdigest()
+    payload["evidence_signature"] = base64.b64encode(
+        private_key.sign(clinical_signature_payload(evidence)),
+    ).decode("ascii")
     response = client.post("/api/ngs/v2/clinical/evaluate", json=payload)
     assert response.status_code == 200
     result = response.json()
@@ -236,6 +242,92 @@ def test_clinical_gate_passes_only_complete_signed_external_evidence(client, mon
     payload["truthset_name"] = "synthetic positive control"
     rejected = client.post("/api/ngs/v2/clinical/evaluate", json=payload).json()
     assert rejected["status"] == "NOT_CLINICALLY_RELEASABLE"
+
+
+def test_ed25519_tampered_signature_is_rejected(client, monkeypatch):
+    from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
+    sha = "a" * 64
+    payload = {
+        "evidence_bundle_sha256": sha,
+        "evidence_signature": "",
+        "assay_validation_id": "val-1",
+        "workflow_status": "COMPLETED",
+        "sarek_revision": "3.10.0",
+        "reference_build": "GRCh38",
+        "reference_manifest_sha256": sha,
+        "samplesheet_sha256": "b" * 64,
+        "container_digests_complete": True,
+        "complete_input_processed": True,
+        "required_artifacts_present": True,
+        "qc_pass": True,
+        "sample_identity_pass": True,
+        "contamination_pass": True,
+        "sex_ploidy_reviewed": True,
+        "truthset_name": "GIAB HG002 v4.2.1",
+        "benchmark_protocol_id": "SOP-BENCH-07",
+        "benchmark_acceptance_pass": True,
+        "confident_regions_sha256": "c" * 64,
+        "same_sample_reference_regions": True,
+        "snv_precision": 0.999,
+        "snv_recall": 0.998,
+        "indel_precision": 0.995,
+        "indel_recall": 0.994,
+        "human_reviewed": True,
+        "reviewer_id": "reviewer-17",
+        "release_signature_id": "sig-2026-09-01-001",
+    }
+    private_key = Ed25519PrivateKey.generate()
+    public_bytes = private_key.public_key().public_bytes_raw()
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_ED25519_PUBLIC_KEY",
+                        base64.b64encode(public_bytes).decode("ascii"))
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_HMAC_KEY", "")
+    evidence = NgsClinicalEvidenceRequest(**payload)
+    payload["evidence_signature"] = base64.b64encode(
+        private_key.sign(clinical_signature_payload(evidence)),
+    ).decode("ascii")
+
+    # Tamper with the signed payload by changing an unsigned field after signing.
+    payload["snv_precision"] = 0.5
+    result = client.post("/api/ngs/v2/clinical/evaluate", json=payload).json()
+    assert result["status"] == "NOT_CLINICALLY_RELEASABLE"
+    assert "Trusted evidence bundle signature verified" in str(result["gates"])
+
+
+def test_ed25519_missing_public_key_fails_closed(client, monkeypatch):
+    sha = "a" * 64
+    payload = {
+        "evidence_bundle_sha256": sha,
+        "evidence_signature": base64.b64encode(b"\x00" * 64).decode("ascii"),
+        "assay_validation_id": "val-1",
+        "workflow_status": "COMPLETED",
+        "sarek_revision": "3.10.0",
+        "reference_build": "GRCh38",
+        "reference_manifest_sha256": sha,
+        "samplesheet_sha256": "b" * 64,
+        "container_digests_complete": True,
+        "complete_input_processed": True,
+        "required_artifacts_present": True,
+        "qc_pass": True,
+        "sample_identity_pass": True,
+        "contamination_pass": True,
+        "sex_ploidy_reviewed": True,
+        "truthset_name": "GIAB HG002 v4.2.1",
+        "benchmark_protocol_id": "SOP-BENCH-07",
+        "benchmark_acceptance_pass": True,
+        "confident_regions_sha256": "c" * 64,
+        "same_sample_reference_regions": True,
+        "snv_precision": 0.999,
+        "snv_recall": 0.998,
+        "indel_precision": 0.995,
+        "indel_recall": 0.994,
+        "human_reviewed": True,
+        "reviewer_id": "reviewer-17",
+        "release_signature_id": "sig-2026-09-01-001",
+    }
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_ED25519_PUBLIC_KEY", "")
+    monkeypatch.setattr(settings, "NGS_CLINICAL_EVIDENCE_HMAC_KEY", "")
+    result = client.post("/api/ngs/v2/clinical/evaluate", json=payload).json()
+    assert result["status"] == "NOT_CLINICALLY_RELEASABLE"
 
 
 def test_detect_returns_evidence(client, tmp_path):

@@ -16,7 +16,7 @@ services:
         sync: false
       - key: DEMO_MODE
         value: "false"
-      - key: CORS_ORIGIN
+      - key: CORS_ORIGINS
         value: "https://bio-nexus-samadsaifi14s-projects.vercel.app,https://bio-nexus.vercel.app,https://bioai-platform.vercel.app"
       - key: NCBI_API_KEY
         sync: false

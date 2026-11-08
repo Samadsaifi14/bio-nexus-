@@ -23,6 +23,9 @@ openbabel-wheel  # obabel CLI — PDBQT prep for docking (SMILES→PDBQT, PDB→
 pymol-open-source-whl>=3.2  # unofficial wheel of open-source PyMOL; provides the `pymol2` module (headless cleanup + .pse export); 3.2 line supports numpy>=2
 primer3-py==2.3.1
 
+# Ed25519 asymmetric signing for NGS clinical evidence signatures.
+cryptography>=42.0
+
 # dev / testing
 PyJWT>=2.10,<3  # signed-token authentication regression fixtures
 pytest>=7.0

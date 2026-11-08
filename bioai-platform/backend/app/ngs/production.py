@@ -6,15 +6,15 @@ pinned launch contract for a durable compute worker and evaluates imported run e
 
 from __future__ import annotations
 
+import base64
 import hashlib
-import hmac
 import json
 import re
 import shlex
 from typing import Any
 
-from app.models.responses import NgsClinicalEvidenceRequest, NgsProductionPlanRequest
 from app.config import settings
+from app.models.responses import NgsClinicalEvidenceRequest, NgsProductionPlanRequest
 
 SAREK_RELEASE = "3.10.0"
 SCHEMA_VERSION = "1.0"
@@ -130,12 +130,36 @@ def clinical_signature_payload(evidence: NgsClinicalEvidenceRequest) -> bytes:
     return json.dumps(payload, sort_keys=True, separators=(",", ":")).encode("utf-8")
 
 
+def _ed25519_public_key():
+    """Load the configured Ed25519 public key, or return None if unconfigured."""
+    raw = settings.NGS_CLINICAL_EVIDENCE_ED25519_PUBLIC_KEY
+    if not raw:
+        return None
+    try:
+        from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PublicKey
+        return Ed25519PublicKey.from_public_bytes(base64.b64decode(raw))
+    except Exception:
+        return None
+
+
 def _signature_verified(evidence: NgsClinicalEvidenceRequest) -> bool:
-    key = settings.NGS_CLINICAL_EVIDENCE_HMAC_KEY
-    if not key or not evidence.evidence_signature or not _sha256(evidence.evidence_bundle_sha256):
+    """Verify the evidence bundle signature.
+
+    Ed25519 asymmetric signing is used when the public key is configured, so a
+    researcher can independently verify that the evidence bundle was signed by
+    the trusted evidence-import service without possessing the signing key.
+    SHA-256 remains the integrity/hash algorithm for the bundle and artifact
+    checksums; it is not used as a signature algorithm.
+    """
+    public_key = _ed25519_public_key()
+    if public_key is None or not evidence.evidence_signature or not _sha256(evidence.evidence_bundle_sha256):
         return False
-    expected = hmac.new(key.encode("utf-8"), clinical_signature_payload(evidence), hashlib.sha256).hexdigest()
-    return hmac.compare_digest(expected, evidence.evidence_signature)
+    try:
+        signature = base64.b64decode(evidence.evidence_signature)
+        public_key.verify(signature, clinical_signature_payload(evidence))
+        return True
+    except Exception:
+        return False
 
 
 def evaluate_clinical_evidence(evidence: NgsClinicalEvidenceRequest) -> dict[str, Any]:

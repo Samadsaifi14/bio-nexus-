@@ -40,19 +40,33 @@ class Settings:
 
     # Exact origins only. CORS_ORIGIN remains for backwards compatibility; the
     # comma-separated CORS_ORIGINS variable is preferred for deployments with
-    # more than one trusted frontend.
-    CORS_ORIGIN: str = os.getenv("CORS_ORIGIN", "https://bio-nexus-ebon.vercel.app").rstrip("/")
-    CORS_ORIGINS: tuple[str, ...] = _csv_env(
-        "CORS_ORIGINS",
-        "http://localhost:3000,http://localhost:3001,https://bio-nexus-ebon.vercel.app,https://bioai-platform.vercel.app",
-    )
+    # more than one trusted frontend. When CORS_ORIGINS is not set, CORS_ORIGIN
+    # (the single-origin deployment setting) controls the middleware so the
+    # deployed origin is not silently shadowed by the local default list.
+    _cors_origin = os.getenv("CORS_ORIGIN", "https://bio-nexus-ebon.vercel.app").rstrip("/")
+    CORS_ORIGIN: str = _cors_origin
+    _cors_origins_raw = os.getenv("CORS_ORIGINS")
+    if _cors_origins_raw:
+        CORS_ORIGINS: tuple[str, ...] = _csv_env("CORS_ORIGINS", "")
+    else:
+        CORS_ORIGINS: tuple[str, ...] = (_cors_origin,)
 
     SENTRY_DSN: str = os.getenv("SENTRY_DSN", "")
     NGS_CLINICAL_EVIDENCE_HMAC_KEY: str = os.getenv("NGS_CLINICAL_EVIDENCE_HMAC_KEY", "")
+    # Ed25519 asymmetric signing keys for independently verifiable NGS clinical
+    # evidence signatures. Base64-encoded raw 32-byte Ed25519 seed (private) and
+    # 32-byte public key. When both are configured, evidence signatures are
+    # verified with Ed25519 instead of HMAC-SHA256.
+    NGS_CLINICAL_EVIDENCE_ED25519_PRIVATE_KEY: str = os.getenv("NGS_CLINICAL_EVIDENCE_ED25519_PRIVATE_KEY", "")
+    NGS_CLINICAL_EVIDENCE_ED25519_PUBLIC_KEY: str = os.getenv("NGS_CLINICAL_EVIDENCE_ED25519_PUBLIC_KEY", "")
     NGS_LOCAL_EXECUTION_ENABLED: bool = os.getenv("NGS_LOCAL_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
     NGS_SLURM_EXECUTION_ENABLED: bool = os.getenv("NGS_SLURM_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
     NGS_AWS_BATCH_EXECUTION_ENABLED: bool = os.getenv("NGS_AWS_BATCH_EXECUTION_ENABLED", "false").lower() in ("true", "1", "yes")
     NGS_RUN_ROOT: str = os.getenv("NGS_RUN_ROOT", "/tmp/bionexus-ngs-runs")
+    # Hard deadline for a single in-app Nextflow execution. The worker stops the
+    # container when it is exceeded and the status endpoint reconciles any run
+    # whose worker disappeared, so a stuck workflow can never stay RUNNING forever.
+    NGS_NEXTFLOW_TIMEOUT_SECONDS: int = max(1, int(os.getenv("NGS_NEXTFLOW_TIMEOUT_SECONDS", "1800")))
 
     # Server-local exploratory FASTQ import is intentionally sandboxed. A user
     # supplied path must resolve below this root; arbitrary filesystem reads are

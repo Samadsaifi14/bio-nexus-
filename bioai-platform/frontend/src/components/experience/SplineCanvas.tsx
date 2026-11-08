@@ -44,7 +44,7 @@ export default function SplineCanvas({ url, controller, progressRef, onError }: 
         controller.current.setProgress(progressRef.current); element.dataset.ready = 'true';
       } catch { app.dispose(); if (!disposed && current === generation) onError(); } // Switch to the bundled animated scene.
     };
-    const start = () => { void run().catch(() => {}); };
+    const start = () => { void run().catch(() => { if (!disposed) onError(); }); };
     start(); media.addEventListener('change', start);
     return () => { disposed = true; generation++; media.removeEventListener('change', start); cleanup?.(); controller.current = null; };
   }, [url, controller, progressRef, onError]);

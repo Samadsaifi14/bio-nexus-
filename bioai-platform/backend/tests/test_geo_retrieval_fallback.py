@@ -45,6 +45,7 @@ def test_valid_acc_cgi_uses_documented_gsm_scope():
         if request.url.host != "www.ncbi.nlm.nih.gov":
             pytest.fail(f"Unexpected fallback request: {request.url}")
         assert request.url.params.get("view") == "quick"
+        assert request.headers.get("user-agent", "").startswith("BioNexus/1.0")
         scope = request.url.params.get("targ")
         if scope == "self":
             return httpx.Response(200, text=series_text)

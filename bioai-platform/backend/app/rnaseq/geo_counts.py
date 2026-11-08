@@ -101,7 +101,7 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
             last_error = exc
         if attempt < 2:
             await asyncio.sleep(0.5 * (2 ** attempt))
-    source_host = urlparse(url).host or "unknown host"
+    source_host = urlparse(url).hostname or "unknown host"
     reason = f"{type(last_error).__name__}: {last_error}" if last_error else "no response"
     raise GeoCountsError(
         f"Could not retrieve the GEO source from {source_host} after three attempts ({reason})."

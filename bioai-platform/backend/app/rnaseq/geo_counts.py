@@ -132,39 +132,110 @@ def _decode_family_soft(payload: bytes) -> str:
         raise GeoCountsError("GEO family metadata is not valid UTF-8 SOFT text.") from exc
 
 
+def _soft_blocks(text: str) -> list[str]:
+    """Split a GEO SOFT document into entity blocks without parsing HTML."""
+    if re.search(r"<\s*(?:!doctype\s+html|html)\b", text[:4096], flags=re.IGNORECASE):
+        raise GeoCountsError("NCBI GEO returned an HTML page instead of machine-readable SOFT metadata.")
+    if not re.search(r"^\^(?:SERIES|SAMPLE) = ", text, flags=re.MULTILINE):
+        raise GeoCountsError("NCBI GEO response is not a recognised SOFT Series/Sample document.")
+    return re.split(r"(?=^\^(?:SERIES|SAMPLE|PLATFORM) = )", text, flags=re.MULTILINE)
+
+
+def _matching_series(blocks: list[str], accession: str) -> str:
+    return next(
+        (block for block in blocks
+         if re.match(rf"^\^SERIES = {re.escape(accession)}\s*$", block, flags=re.MULTILINE)),
+        "",
+    )
+
+
+async def _fetch_family_soft(client: httpx.AsyncClient, accession: str) -> str:
+    url = _series_family_soft_url(accession)
+    payload = await _get_limited(client, url, limit=MAX_SOURCE_BYTES)
+    # Do not let an HTTP-200 HTML challenge masquerade as a corrupt gzip file.
+    if not payload.startswith(b"\x1f\x8b"):
+        preview = payload[:4096].decode("utf-8", errors="replace")
+        if re.search(r"<\s*(?:!doctype\s+html|html)\b", preview, flags=re.IGNORECASE):
+            raise GeoCountsError("NCBI GEO returned an HTML challenge for its FTP family SOFT archive.")
+        raise GeoCountsError("NCBI GEO family SOFT download was not a gzip archive.")
+    return _decode_family_soft(payload)
+
+
 async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     accession = accession.upper()
     if not re.fullmatch(r"GSE\d+", accession):
         raise GeoCountsError("A valid GSE accession is required.")
 
-    # acc.cgi may serve an HTML challenge with HTTP 200 to automated clients.
-    # NCBI documents the GEO FTP family SOFT archive as the batch-download
-    # source for a Series and its linked Samples; use that machine-readable
-    # source rather than treating an HTML challenge as a missing accession.
-    family_url = _series_family_soft_url(accession)
-    family_payload = await _get_limited(client, family_url, limit=MAX_SOURCE_BYTES)
-    family_text = _decode_family_soft(family_payload)
-    blocks = re.split(r"(?=^\^(?:SERIES|SAMPLE|PLATFORM) = )", family_text, flags=re.MULTILINE)
-
-    series_text = next(
-        (block for block in blocks
-         if re.match(rf"^\^SERIES = {re.escape(accession)}\s*$", block, flags=re.MULTILINE)),
-        "",
-    )
-    if not series_text:
-        if re.search(r"<\s*(?:!doctype\s+html|html)\b", family_text, flags=re.IGNORECASE):
-            raise GeoCountsError("NCBI GEO returned an HTML page instead of the requested machine-readable Series record.")
-        raise GeoCountsError(
-            "The GEO family record did not contain the requested Series accession. "
-            "The record may be unavailable or its FTP metadata may not yet be synchronized."
+    # Prefer the GEO accession API, then fall back to NCBI's documented
+    # family SOFT archive. acc.cgi can return an HTML challenge with HTTP 200.
+    series_text = ""
+    sample_text = ""
+    primary_error: Exception | None = None
+    try:
+        primary_payload = await _get_limited(
+            client,
+            "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi",
+            params={"acc": accession, "targ": "self", "form": "text", "view": "full"},
+            limit=MAX_SOURCE_BYTES,
         )
+        primary_text = primary_payload.decode("utf-8-sig", errors="replace")
+        primary_blocks = _soft_blocks(primary_text)
+        series_text = _matching_series(primary_blocks, accession)
+        if series_text:
+            sample_payload = await _get_limited(
+                client,
+                "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi",
+                params={"acc": accession, "targ": "samples", "form": "text", "view": "full"},
+                limit=MAX_SOURCE_BYTES,
+            )
+            sample_text = sample_payload.decode("utf-8-sig", errors="replace")
+            sample_blocks = [
+                re.split(r"^!sample_table_begin\s*$", block, maxsplit=1, flags=re.MULTILINE)[0]
+                for block in _soft_blocks(sample_text)
+                if re.match(r"^\^SAMPLE = GSM\d+\s*$", block, flags=re.MULTILINE)
+            ]
+            if not sample_blocks:
+                raise GeoCountsError("NCBI GEO accession API returned no parseable GSM sample records.")
+        else:
+            raise GeoCountsError("NCBI GEO accession API did not return the requested Series record.")
+    except (GeoCountsError, UnicodeError, httpx.HTTPError) as exc:
+        primary_error = exc
+        series_text = ""
+        sample_text = ""
 
-    sample_blocks = [
-        re.split(r"^!sample_table_begin\s*$", block, maxsplit=1, flags=re.MULTILINE)[0]
-        for block in blocks
-        if re.match(r"^\^SAMPLE = GSM\d+\s*$", block, flags=re.MULTILINE)
-    ]
-    sample_text = "\n".join(sample_blocks)
+    if not series_text:
+        try:
+            family_text = await _fetch_family_soft(client, accession)
+            blocks = _soft_blocks(family_text)
+            series_text = _matching_series(blocks, accession)
+            if not series_text:
+                raise GeoCountsError(
+                    "The GEO family SOFT archive did not contain the requested Series accession. "
+                    "The record may be unavailable or its FTP metadata may not yet be synchronized."
+                )
+            sample_blocks = [
+                re.split(r"^!sample_table_begin\s*$", block, maxsplit=1, flags=re.MULTILINE)[0]
+                for block in blocks
+                if re.match(r"^\^SAMPLE = GSM\d+\s*$", block, flags=re.MULTILINE)
+            ]
+            sample_text = "\n".join(sample_blocks)
+        except (GeoCountsError, UnicodeError, httpx.HTTPError) as fallback_error:
+            if primary_error:
+                raise GeoCountsError(
+                    f"GEO Series retrieval failed through both NCBI routes. "
+                    f"Accession API: {primary_error}. Family SOFT: {fallback_error}"
+                ) from fallback_error
+            raise
+
+    if not sample_blocks:
+        sample_blocks = [
+            re.split(r"^!sample_table_begin\s*$", block, maxsplit=1, flags=re.MULTILINE)[0]
+            for block in _soft_blocks(sample_text)
+            if re.match(r"^\^SAMPLE = GSM\d+\s*$", block, flags=re.MULTILINE)
+        ]
+    if not sample_text:
+        sample_text = "\n".join(sample_blocks)
+
     organisms = sorted(set(_soft_lines(sample_text, "Sample_organism_ch1")))
     samples: list[GeoSample] = []
     sample_supplements: list[tuple[str, str]] = []

@@ -152,7 +152,7 @@ def test_missing_api_and_family_records_return_actionable_error():
             return httpx.Response(200, text="<html>challenge</html>")
         return httpx.Response(404, text="Not found")
 
-    with pytest.raises(GeoCountsError, match="accession API, family SOFT, and Series Matrix routes"):
+    with pytest.raises(GeoCountsError, match="accession API, family SOFT, Series Matrix, and Entrez routes"):
         run_fetch(respond)
 
 
@@ -167,6 +167,8 @@ def test_series_matrix_metadata_fallback_and_supplement_listing():
             return httpx.Response(404, text="Not found")
         if request.url.path.endswith("_series_matrix.txt.gz"):
             return httpx.Response(200, content=matrix_archive)
+        if request.url.path.endswith("/suppl/filelist.txt"):
+            return httpx.Response(404, text="No manifest")
         if request.url.path.endswith("/suppl/"):
             return httpx.Response(200, text='<html><a href="GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz">raw counts</a></html>')
         pytest.fail(f"Unexpected request: {request.url}")
@@ -176,5 +178,53 @@ def test_series_matrix_metadata_fallback_and_supplement_listing():
     assert len(result["samples"]) == 2
     assert result["samples"][0]["characteristics"]["treatment"] == "sensitive"
     assert result["samples"][1]["characteristics"]["treatment"] == "resistant"
+    assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+    assert result["files"][0]["analysis_eligible"] is True
+
+
+def test_entrez_metadata_fallback_and_filelist_manifest():
+    search_result = {"esearchresult": {"idlist": ["200336901"]}}
+    summary_result = {
+        "result": {
+            "uids": ["200336901"],
+            "200336901": {
+                "accession": ACCESSION,
+                "title": "RNA-seq FFPE response study",
+                "summary": "Five sensitive and five resistant FFPE samples",
+                "gdstype": "Expression profiling by high throughput sequencing",
+                "n_samples": "2",
+                "taxon": "9606",
+                "samples": [
+                    {"accession": "GSM900001", "title": "FFPE sensitive sample GZ23094742"},
+                    {"accession": "GSM900002", "title": "FFPE resistant sample GZ23094732"},
+                ],
+            },
+        },
+    }
+
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>NCBI challenge</html>")
+        if request.url.host == "ftp.ncbi.nlm.nih.gov":
+            if request.url.path.endswith("_family.soft.gz") or request.url.path.endswith("_series_matrix.txt.gz"):
+                return httpx.Response(404, text="Not found")
+            if request.url.path.endswith("/suppl/filelist.txt"):
+                return httpx.Response(
+                    200,
+                    text="Archive/File\\tName\\tTime\\tSize\\tType\\n\\tGSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz\\t2026-07-13\\t709.1 Kb\\tCSV\\n",
+                )
+        if request.url.host == "eutils.ncbi.nlm.nih.gov":
+            if request.url.path.endswith("/esearch.fcgi"):
+                return httpx.Response(200, json=search_result)
+            if request.url.path.endswith("/esummary.fcgi"):
+                return httpx.Response(200, json=summary_result)
+        pytest.fail(f"Unexpected request: {request.url}")
+
+    result = run_fetch(respond)
+    assert result["accession"] == ACCESSION
+    assert len(result["samples"]) == 2
+    assert result["samples"][0]["characteristics"]["treatment"] == "sensitive"
+    assert result["samples"][1]["characteristics"]["treatment"] == "resistant"
+    assert result["organisms"] == ["Homo sapiens"]
     assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
     assert result["files"][0]["analysis_eligible"] is True

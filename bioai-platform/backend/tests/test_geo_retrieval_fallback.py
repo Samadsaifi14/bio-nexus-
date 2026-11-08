@@ -154,3 +154,27 @@ def test_missing_api_and_family_records_return_actionable_error():
 
     with pytest.raises(GeoCountsError, match="both NCBI routes"):
         run_fetch(respond)
+
+
+def test_series_matrix_metadata_fallback_and_supplement_listing():
+    matrix_text = "!Series_title\t\"RNA-seq FFPE response study\"\n!Series_type\t\"Expression profiling by high throughput sequencing\"\n!Series_overall_design\t\"Five sensitive and five resistant FFPE samples\"\n!Series_contact_email\t\"research@example.org\"\n!Sample_geo_accession\t\"GSM900001\"\t\"GSM900002\"\n!Sample_title\t\"FFPE sensitive sample GZ23094742\"\t\"FFPE resistant sample GZ23094732\"\n!Sample_organism_ch1\t\"Homo sapiens\"\t\"Homo sapiens\"\n!Sample_library_strategy\t\"RNA-Seq\"\t\"RNA-Seq\"\n!Sample_characteristics_ch1\t\"treatment: sensitive\"\t\"treatment: resistant\"\n!Sample_characteristics_ch1\t\"batch: FFPE\"\t\"batch: FFPE\"\n!series_matrix_table_begin\n\"ID_REF\"\t\"GSM900001\"\t\"GSM900002\"\n"
+    matrix_archive = gzip.compress(matrix_text.encode())
+
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>NCBI challenge</html>")
+        if request.url.path.endswith("_family.soft.gz"):
+            return httpx.Response(404, text="Not found")
+        if request.url.path.endswith("_series_matrix.txt.gz"):
+            return httpx.Response(200, content=matrix_archive)
+        if request.url.path.endswith("/suppl/"):
+            return httpx.Response(200, text='<html><a href="GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz">raw counts</a></html>')
+        pytest.fail(f"Unexpected request: {request.url}")
+
+    result = run_fetch(respond)
+    assert result["accession"] == ACCESSION
+    assert len(result["samples"]) == 2
+    assert result["samples"][0]["characteristics"]["treatment"] == "sensitive"
+    assert result["samples"][1]["characteristics"]["treatment"] == "resistant"
+    assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+    assert result["files"][0]["analysis_eligible"] is True

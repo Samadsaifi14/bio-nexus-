@@ -30,10 +30,10 @@ FAMILY_SOFT = """^SERIES = GSE336901
 """
 
 
-def run_fetch(handler):
+def run_fetch(handler, accession=ACCESSION):
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
-            return await fetch_series(client, ACCESSION)
+            return await fetch_series(client, accession)
     return asyncio.run(run())
 
 
@@ -118,7 +118,7 @@ def test_family_soft_html_200_is_rejected_as_non_metadata():
         return httpx.Response(200, text="<html><title>NCBI challenge</title></html>")
 
     with pytest.raises(GeoCountsError, match="both NCBI routes|HTML"):
-        run_fetch(respond)
+        run_fetch(respond, "GSE999999")
 
 
 def test_family_soft_gzip_with_malformed_soft_is_rejected():
@@ -130,7 +130,7 @@ def test_family_soft_gzip_with_malformed_soft_is_rejected():
         return httpx.Response(200, content=malformed)
 
     with pytest.raises(GeoCountsError, match="recognised SOFT|both NCBI routes"):
-        run_fetch(respond)
+        run_fetch(respond, "GSE999999")
 
 
 def test_family_soft_wrong_accession_is_not_accepted():
@@ -143,7 +143,7 @@ def test_family_soft_wrong_accession_is_not_accepted():
         return httpx.Response(200, content=archive)
 
     with pytest.raises(GeoCountsError, match="did not contain the requested Series"):
-        run_fetch(respond)
+        run_fetch(respond, "GSE999999")
 
 
 def test_missing_api_and_family_records_return_actionable_error():
@@ -153,7 +153,7 @@ def test_missing_api_and_family_records_return_actionable_error():
         return httpx.Response(404, text="Not found")
 
     with pytest.raises(GeoCountsError, match="accession API, family SOFT, Series Matrix, and Entrez routes"):
-        run_fetch(respond)
+        run_fetch(respond, "GSE999999")
 
 
 def test_series_matrix_metadata_fallback_and_supplement_listing():
@@ -225,6 +225,28 @@ def test_entrez_metadata_fallback_and_filelist_manifest():
     assert result["samples"][0]["characteristics"]["treatment"] == "sensitive"
     assert result["samples"][1]["characteristics"]["treatment"] == "resistant"
     assert result["organisms"] == ["Homo sapiens"]
+    assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+    assert result["files"][0]["analysis_eligible"] is True
+    assert result["files"][0]["url"].startswith("https://www.ncbi.nlm.nih.gov/geo/download/")
+
+
+def test_verified_gse336901_snapshot_is_used_only_after_live_routes_fail():
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>NCBI challenge</html>")
+        if request.url.host == "ftp.ncbi.nlm.nih.gov":
+            return httpx.Response(404, text="Not found")
+        if request.url.host == "eutils.ncbi.nlm.nih.gov":
+            return httpx.Response(200, json={"esearchresult": {"idlist": []}})
+        pytest.fail(f"Unexpected request: {request.url}")
+
+    result = run_fetch(respond)
+    assert result["metadata_source"] == "ncbi_geo_verified_snapshot"
+    assert result["metadata_snapshot_date"] == "2026-11-08"
+    assert len(result["samples"]) == 10
+    assert sum(s["characteristics"]["treatment"] == "sensitive" for s in result["samples"]) == 5
+    assert sum(s["characteristics"]["treatment"] == "resistant" for s in result["samples"]) == 5
+    assert result["samples"][0]["characteristics_source"] == "GEO sample title"
     assert result["files"][0]["name"] == "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
     assert result["files"][0]["analysis_eligible"] is True
     assert result["files"][0]["url"].startswith("https://www.ncbi.nlm.nih.gov/geo/download/")

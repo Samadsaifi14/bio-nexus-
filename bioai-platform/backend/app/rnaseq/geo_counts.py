@@ -117,6 +117,8 @@ def _series_family_soft_url(accession: str) -> str:
 
 
 def _decode_family_soft(payload: bytes) -> str:
+    if payload.lstrip().lower().startswith((b"<!doctype html", b"<html")):
+        raise GeoCountsError("NCBI GEO returned an HTML page instead of a machine-readable family SOFT archive.")
     try:
         with gzip.GzipFile(fileobj=io.BytesIO(payload)) as handle:
             raw = handle.read(MAX_SOURCE_BYTES + 1)

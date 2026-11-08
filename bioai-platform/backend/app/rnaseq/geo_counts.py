@@ -13,7 +13,7 @@ from urllib.parse import urlparse
 import httpx
 from app.ngs.assays import SMALL_RNA_PATTERN, SMALL_RNA_GUIDANCE
 
-GEO_URL = "https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi"
+GEO_SERIES_FTP_ROOT = "https://ftp.ncbi.nlm.nih.gov/geo/series"
 MAX_SOURCE_BYTES = 12 * 1024 * 1024
 MAX_MATRIX_BYTES = 60 * 1024 * 1024
 COUNT_EXTENSIONS = (".csv", ".tsv", ".txt", ".csv.gz", ".tsv.gz", ".txt.gz")
@@ -109,20 +109,64 @@ def assay_issue(experiment_types: list[str]) -> str | None:
     return None
 
 
+def _series_family_soft_url(accession: str) -> str:
+    digits = accession[3:]
+    bucket = "GSE" + (digits[:-3] + "nnn" if len(digits) > 3 else "nnn")
+    return f"{GEO_SERIES_FTP_ROOT}/{bucket}/{accession}/soft/{accession}_family.soft.gz"
+
+
+def _decode_family_soft(payload: bytes) -> str:
+    try:
+        with gzip.GzipFile(fileobj=io.BytesIO(payload)) as handle:
+            raw = handle.read(MAX_SOURCE_BYTES + 1)
+    except (OSError, EOFError) as exc:
+        raise GeoCountsError("The GEO family SOFT archive is invalid or incomplete.") from exc
+    if len(raw) > MAX_SOURCE_BYTES:
+        raise GeoCountsError("GEO family metadata exceeds the supported 12 MB decompressed limit.")
+    try:
+        return raw.decode("utf-8-sig")
+    except UnicodeDecodeError as exc:
+        raise GeoCountsError("GEO family metadata is not valid UTF-8 SOFT text.") from exc
+
+
 async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
     accession = accession.upper()
     if not re.fullmatch(r"GSE\d+", accession):
         raise GeoCountsError("A valid GSE accession is required.")
-    base = {"acc": accession, "form": "text", "view": "quick"}
-    series_text = (await _get_limited(client, GEO_URL, params={**base, "targ": "self"})).decode("utf-8-sig")
-    if f"^SERIES = {accession}" not in series_text:
-        raise GeoCountsError("GEO did not return the requested Series record.")
-    sample_text = (await _get_limited(client, GEO_URL, params={**base, "targ": "gsm"}, limit=5 * 1024 * 1024)).decode("utf-8-sig")
+
+    # acc.cgi may serve an HTML challenge with HTTP 200 to automated clients.
+    # NCBI documents the GEO FTP family SOFT archive as the batch-download
+    # source for a Series and its linked Samples; use that machine-readable
+    # source rather than treating an HTML challenge as a missing accession.
+    family_url = _series_family_soft_url(accession)
+    family_payload = await _get_limited(client, family_url, limit=MAX_SOURCE_BYTES)
+    family_text = _decode_family_soft(family_payload)
+    blocks = re.split(r"(?=^\^(?:SERIES|SAMPLE|PLATFORM) = )", family_text, flags=re.MULTILINE)
+
+    series_text = next(
+        (block for block in blocks
+         if re.match(rf"^\^SERIES = {re.escape(accession)}\s*$", block, flags=re.MULTILINE)),
+        "",
+    )
+    if not series_text:
+        if re.search(r"<\s*(?:!doctype\s+html|html)\b", family_text, flags=re.IGNORECASE):
+            raise GeoCountsError("NCBI GEO returned an HTML page instead of the requested machine-readable Series record.")
+        raise GeoCountsError(
+            "The GEO family record did not contain the requested Series accession. "
+            "The record may be unavailable or its FTP metadata may not yet be synchronized."
+        )
+
+    sample_blocks = [
+        re.split(r"^!sample_table_begin\s*$", block, maxsplit=1, flags=re.MULTILINE)[0]
+        for block in blocks
+        if re.match(r"^\^SAMPLE = GSM\d+\s*$", block, flags=re.MULTILINE)
+    ]
+    sample_text = "\n".join(sample_blocks)
     organisms = sorted(set(_soft_lines(sample_text, "Sample_organism_ch1")))
     samples: list[GeoSample] = []
     sample_supplements: list[tuple[str, str]] = []
-    for block in re.split(r"(?=\^SAMPLE = )", sample_text):
-        match = re.match(r"\^SAMPLE = (GSM\d+)", block)
+    for block in sample_blocks:
+        match = re.match(r"^\^SAMPLE = (GSM\d+)", block)
         if not match:
             continue
         characteristics: dict[str, str] = {}
@@ -134,6 +178,7 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
         for line in block.splitlines():
             if re.match(r"!Sample_supplementary_file(?:_\d+)? = ", line):
                 sample_supplements.append((match.group(1), line.split(" = ", 1)[1].strip()))
+
     declared = _soft_lines(series_text, "Series_sample_id")
     if not samples or set(declared) != {sample.accession for sample in samples}:
         raise GeoCountsError("GEO sample metadata is incomplete for this Series.")
@@ -175,7 +220,6 @@ async def fetch_series(client: httpx.AsyncClient, accession: str) -> dict:
         "samples": [{"accession": sample.accession, "title": sample.title, "characteristics": sample.characteristics} for sample in samples],
         "files": files,
     }
-
 
 def _decode_counts(payload: bytes, filename: str) -> str:
     if filename.lower().endswith(".gz"):

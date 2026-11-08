@@ -400,8 +400,9 @@ async def _fetch_entrez_series(client: httpx.AsyncClient, accession: str) -> str
         lines.append(f"!Series_type = {experiment_type}")
     if organism:
         lines.append(f"!Series_organism = {organism}")
-    for gsm, sample_title in sample_rows:
+    for gsm, _ in sample_rows:
         lines.append(f"!Series_sample_id = {gsm}")
+    for gsm, sample_title in sample_rows:
         sample_lines = [f"^SAMPLE = {gsm}"]
         if sample_title:
             sample_lines.append(f"!Sample_title = {sample_title}")

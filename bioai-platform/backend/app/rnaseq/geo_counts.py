@@ -112,6 +112,18 @@ async def _get_limited(client: httpx.AsyncClient, url: str, *, params: dict | No
 
 def _source_url(raw: str) -> str | None:
     parsed = urlparse(raw)
+    if (
+        parsed.scheme == "https" and parsed.netloc == "www.ncbi.nlm.nih.gov"
+        and parsed.path == "/geo/download/" and not parsed.fragment
+    ):
+        query = dict(part.split("=", 1) for part in parsed.query.split("&") if "=" in part)
+        if (
+            re.fullmatch(r"(?:GSE|GSM)\d+", query.get("acc", ""))
+            and query.get("format") == "file"
+            and re.fullmatch(r"[A-Za-z0-9_.-]+", query.get("file", ""))
+        ):
+            return raw
+        return None
     if parsed.scheme not in {"ftp", "https"} or parsed.netloc != "ftp.ncbi.nlm.nih.gov":
         return None
     if not parsed.path.startswith(("/geo/series/", "/geo/samples/")) or ".." in parsed.path or parsed.query or parsed.fragment:

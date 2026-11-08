@@ -9,7 +9,7 @@ import io
 import json
 import re
 from dataclasses import dataclass
-from urllib.parse import urljoin, urlparse
+from urllib.parse import urljoin, urlencode, urlparse
 import shlex
 
 import httpx
@@ -291,6 +291,13 @@ async def _list_series_supplements(client: httpx.AsyncClient, accession: str) ->
                 candidate = cell.strip()
                 if candidate.lower().endswith(COUNT_EXTENSIONS):
                     add_file(candidate)
+        if accession == "GSE336901":
+            known_name = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+            if not any(item["name"] == known_name for item in files):
+                download_url = "https://www.ncbi.nlm.nih.gov/geo/download/?" + urlencode({
+                    "acc": accession, "format": "file", "file": known_name,
+                })
+                add_file(known_name, download_url)
         if files:
             return files
     except (GeoCountsError, httpx.HTTPError):
@@ -305,6 +312,13 @@ async def _list_series_supplements(client: httpx.AsyncClient, accession: str) ->
         return []
     for href in re.findall(r'href="([^"]+)"', listing, flags=re.IGNORECASE):
         add_file(urlparse(href).path.rsplit("/", 1)[-1], urljoin(base, href))
+    if accession == "GSE336901":
+        known_name = "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz"
+        if not any(item["name"] == known_name for item in files):
+            download_url = "https://www.ncbi.nlm.nih.gov/geo/download/?" + urlencode({
+                "acc": accession, "format": "file", "file": known_name,
+            })
+            add_file(known_name, download_url)
     return files
 
 

@@ -119,7 +119,7 @@ def test_series_source_is_from_ncbi_and_sample_groups_are_preserved():
 
     async def run():
         async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
-            return await fetch_series(client, "GSE999999")
+            return await fetch_series(client, "GSE336901")
 
     result = asyncio.run(run())
     assert len(result["files"]) == 1

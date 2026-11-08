@@ -860,3 +860,117 @@ async def fetch_matrix(client: httpx.AsyncClient, series: dict, filename: str) -
         + " | ".join(failures)
     )
 
+
+async def fetch_ena_read_runs(
+    client: httpx.AsyncClient,
+    study_accession: str,
+    expected_samples: list[str],
+) -> dict:
+    """Resolve a GEO Series to its ENA FASTQ files with checksums and sample mapping."""
+    if not re.fullmatch(r"PRJ(?:NA|EB|DB)\d+", study_accession):
+        raise GeoCountsError("The linked ENA study accession is invalid.")
+    expected = {sample.upper() for sample in expected_samples}
+    if not expected or any(not re.fullmatch(r"GSM\d+", sample) for sample in expected):
+        raise GeoCountsError("GEO sample accessions are incomplete for ENA read recovery.")
+
+    fields = ",".join([
+        "study_accession", "run_accession", "experiment_accession", "experiment_alias",
+        "experiment_title", "sample_accession", "sample_alias", "sample_title",
+        "fastq_ftp", "fastq_md5", "fastq_bytes", "library_layout",
+        "library_strategy", "scientific_name",
+    ])
+    try:
+        response = await client.get(
+            "https://www.ebi.ac.uk/ena/portal/api/filereport",
+            params={"accession": study_accession, "result": "read_run", "fields": fields, "format": "tsv"},
+            headers={"User-Agent": "BioNexus/1.0 (mailto:helixengine0@gmail.com)", "Accept": "text/tab-separated-values"},
+            follow_redirects=False,
+            timeout=45,
+        )
+        if response.url.scheme != "https" or response.url.host != "www.ebi.ac.uk":
+            raise GeoCountsError("ENA read metadata resolved outside the trusted ENA API host.")
+        response.raise_for_status()
+        if len(response.content) > 5 * 1024 * 1024:
+            raise GeoCountsError("ENA run metadata exceeds the supported 5 MB limit.")
+        payload = response.content.decode("utf-8-sig")
+    except GeoCountsError:
+        raise
+    except (httpx.HTTPError, UnicodeError) as exc:
+        raise GeoCountsError(f"ENA could not provide run metadata for {study_accession}: {exc}") from exc
+
+    rows = list(csv.DictReader(io.StringIO(payload), delimiter="\t"))
+    if not rows:
+        raise GeoCountsError(f"ENA returned no read runs for {study_accession}.")
+
+    runs = []
+    seen_runs: set[str] = set()
+    seen_samples: set[str] = set()
+    total_bytes = 0
+    for row in rows:
+        run = str(row.get("run_accession", "")).strip().upper()
+        sample = str(row.get("sample_alias", "")).strip().upper()
+        if not re.fullmatch(r"(?:SRR|ERR|DRR)\d+", run) or run in seen_runs:
+            raise GeoCountsError("ENA returned an invalid or duplicate run accession.")
+        if sample not in expected:
+            raise GeoCountsError("ENA returned a run that cannot be mapped to a GEO GSM sample.")
+        if row.get("study_accession") and row["study_accession"].upper() != study_accession.upper():
+            raise GeoCountsError("ENA returned a run linked to a different study accession.")
+
+        raw_urls = [value.strip() for value in row.get("fastq_ftp", "").split(";") if value.strip()]
+        raw_md5 = [value.strip().lower() for value in row.get("fastq_md5", "").split(";") if value.strip()]
+        raw_sizes = [value.strip() for value in row.get("fastq_bytes", "").split(";") if value.strip()]
+        if not raw_urls or len(raw_urls) not in {1, 2} or len(raw_urls) != len(raw_md5) or len(raw_urls) != len(raw_sizes):
+            raise GeoCountsError(f"ENA did not provide complete FASTQ URLs, sizes and MD5 values for {run}.")
+        fastq_files = []
+        run_bytes = 0
+        for raw_url, md5, size_text in zip(raw_urls, raw_md5, raw_sizes):
+            parsed = urlparse(raw_url if "://" in raw_url else "https://" + raw_url)
+            if parsed.scheme not in {"https", "ftp"} or parsed.hostname != "ftp.sra.ebi.ac.uk" or not parsed.path.startswith("/vol1/fastq/") or run not in parsed.path or not parsed.path.endswith(".fastq.gz"):
+                raise GeoCountsError(f"ENA returned an untrusted or unexpected FASTQ URL for {run}.")
+            if not re.fullmatch(r"[0-9a-f]{32}", md5):
+                raise GeoCountsError(f"ENA returned an invalid FASTQ MD5 checksum for {run}.")
+            try:
+                size = int(size_text)
+            except ValueError as exc:
+                raise GeoCountsError(f"ENA returned an invalid FASTQ size for {run}.") from exc
+            if size <= 0:
+                raise GeoCountsError(f"ENA returned a non-positive FASTQ size for {run}.")
+            run_bytes += size
+            fastq_files.append({"url": "https://" + parsed.netloc + parsed.path, "md5": md5, "bytes": size})
+        if str(row.get("library_layout", "")).upper() == "PAIRED" and len(fastq_files) != 2:
+            raise GeoCountsError(f"ENA marked {run} as paired-end but did not provide both FASTQ mates.")
+
+        seen_runs.add(run)
+        seen_samples.add(sample)
+        total_bytes += run_bytes
+        runs.append({
+            "sample_accession": sample,
+            "sample_title": str(row.get("sample_title", "")).strip(),
+            "sample_biosample_accession": str(row.get("sample_accession", "")).strip(),
+            "run_accession": run,
+            "experiment_accession": str(row.get("experiment_accession", "")).strip(),
+            "library_layout": str(row.get("library_layout", "")).strip().upper(),
+            "library_strategy": str(row.get("library_strategy", "")).strip(),
+            "fastq_files": fastq_files,
+            "total_fastq_bytes": run_bytes,
+        })
+
+    if seen_samples != expected:
+        missing = sorted(expected - seen_samples)
+        extra = sorted(seen_samples - expected)
+        raise GeoCountsError(f"ENA run-to-GEO sample mapping is incomplete (missing={missing}, extra={extra}).")
+    runs.sort(key=lambda item: (item["sample_accession"], item["run_accession"]))
+    return {
+        "status": "available",
+        "provider": "European Nucleotide Archive",
+        "study_accession": study_accession,
+        "study_url": f"https://www.ebi.ac.uk/ena/browser/view/{study_accession}",
+        "source_url": "https://www.ebi.ac.uk/ena/portal/api/filereport",
+        "run_count": len(runs),
+        "sample_count": len(seen_samples),
+        "fastq_file_count": sum(len(item["fastq_files"]) for item in runs),
+        "paired_end": all(len(item["fastq_files"]) == 2 for item in runs),
+        "total_fastq_bytes": total_bytes,
+        "total_fastq_gib": round(total_bytes / (1024 ** 3), 2),
+        "runs": runs,
+    }

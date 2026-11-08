@@ -298,3 +298,102 @@ def test_gse336901_count_download_falls_back_to_canonical_series_supplement_path
     assert source == ftp_url
     assert matrix["genes"] == 2
     assert matrix["columns"] == ["GSM9844290", "GSM9844291", "GSM9844295", "GSM9844296"]
+
+
+
+def test_ena_run_fallback_maps_fastq_mates_to_every_geo_sample():
+    from app.rnaseq.geo_counts import fetch_ena_read_runs
+
+    rows = [
+        "study_accession\trun_accession\texperiment_accession\texperiment_alias\texperiment_title\tsample_accession\tsample_alias\tsample_title\tfastq_ftp\tfastq_md5\tfastq_bytes\tlibrary_layout\tlibrary_strategy\tscientific_name",
+        "PRJNA1483549\tSRR100001\tSRX100001\tGSM900001_r1\tRNA-seq GSM900001\tSAMN100001\tGSM900001\tSensitive sample 1\tftp.sra.ebi.ac.uk/vol1/fastq/SRR100/001/SRR100001/SRR100001_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR100/001/SRR100001/SRR100001_2.fastq.gz\t" + "a" * 32 + ";" + "b" * 32 + "\t100;200\tPAIRED\tRNA-Seq\tHomo sapiens",
+        "PRJNA1483549\tSRR100002\tSRX100002\tGSM900002_r1\tRNA-seq GSM900002\tSAMN100002\tGSM900002\tResistant sample 2\tftp.sra.ebi.ac.uk/vol1/fastq/SRR100/002/SRR100002/SRR100002_1.fastq.gz;ftp.sra.ebi.ac.uk/vol1/fastq/SRR100/002/SRR100002/SRR100002_2.fastq.gz\t" + "c" * 32 + ";" + "d" * 32 + "\t300;400\tPAIRED\tRNA-Seq\tHomo sapiens",
+    ]
+    payload = ("\n".join(rows) + "\n").encode()
+
+    def respond(request):
+        assert request.url.host == "www.ebi.ac.uk"
+        assert request.url.path == "/ena/portal/api/filereport"
+        assert request.url.params.get("accession") == "PRJNA1483549"
+        assert request.url.params.get("result") == "read_run"
+        return httpx.Response(200, content=payload)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            return await fetch_ena_read_runs(client, "PRJNA1483549", ["GSM900001", "GSM900002"])
+
+    result = asyncio.run(run())
+    assert result["status"] == "available"
+    assert result["sample_count"] == 2
+    assert result["run_count"] == 2
+    assert result["fastq_file_count"] == 4
+    assert result["paired_end"] is True
+    assert result["total_fastq_bytes"] == 1000
+    assert result["runs"][0]["sample_accession"] == "GSM900001"
+    assert result["runs"][0]["fastq_files"][0]["md5"] == "a" * 32
+
+
+def test_ena_run_fallback_rejects_untrusted_fastq_urls():
+    from app.rnaseq.geo_counts import fetch_ena_read_runs
+
+    payload = (
+        "study_accession\trun_accession\texperiment_accession\texperiment_alias\texperiment_title\tsample_accession\tsample_alias\tsample_title\tfastq_ftp\tfastq_md5\tfastq_bytes\tlibrary_layout\tlibrary_strategy\tscientific_name\n"
+        "PRJNA1483549\tSRR100001\tSRX100001\tGSM900001_r1\tRNA-seq\tSAMN100001\tGSM900001\tSensitive\tftp.sra.ebi.ac.uk/vol1/fastq/SRR100/001/SRR100001/SRR100001_1.fastq.gz;https://evil.example/SRR100001_2.fastq.gz\t" + "a" * 32 + ";" + "b" * 32 + "\t100;200\tPAIRED\tRNA-Seq\tHomo sapiens\n"
+    ).encode()
+
+    def respond(request):
+        return httpx.Response(200, content=payload)
+
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(respond)) as client:
+            return await fetch_ena_read_runs(client, "PRJNA1483549", ["GSM900001"])
+
+    with pytest.raises(GeoCountsError, match="untrusted or unexpected FASTQ URL"):
+        asyncio.run(run())
+
+
+def test_automatic_geo_prepare_returns_ena_fallback_instead_of_404_error(monkeypatch):
+    from app.routers import geo_search
+    from app.rnaseq.geo_counts import GeoCountsError
+
+    series = {
+        "accession": "GSE336901",
+        "title": "RNA-seq FFPE response study",
+        "read_projects": ["PRJNA1483549"],
+        "samples": [{"accession": "GSM900001"}, {"accession": "GSM900002"}],
+        "files": [{
+            "name": "GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz",
+            "url": "https://www.ncbi.nlm.nih.gov/geo/download/?acc=GSE336901&format=file&file=GSE336901_Fig3_FFPE_raw_counts_matrix_GEO.csv.gz",
+            "analysis_eligible": True,
+            "scope": "series",
+        }],
+    }
+    fallback = {
+        "status": "available", "provider": "European Nucleotide Archive",
+        "study_accession": "PRJNA1483549", "run_count": 2, "sample_count": 2,
+        "fastq_file_count": 4, "paired_end": True, "total_fastq_bytes": 1000,
+        "total_fastq_gib": 0.0, "runs": [],
+    }
+
+    async def fake_series(client, accession):
+        return series
+
+    async def unavailable_matrix(client, source_series, filename):
+        raise GeoCountsError("NCBI returned 404 for GEO supplement")
+
+    async def fake_ena(client, study_accession, expected_samples):
+        assert expected_samples == ["GSM900001", "GSM900002"]
+        return fallback
+
+    monkeypatch.setattr(geo_search, "fetch_series", fake_series)
+    monkeypatch.setattr(geo_search, "fetch_matrix", unavailable_matrix)
+    monkeypatch.setattr(geo_search, "fetch_ena_read_runs", fake_ena)
+
+    async def run():
+        return await geo_search._prepare_automatic(geo_search.AutomaticSelection(accession="GSE336901"))
+
+    prepared, matrix = asyncio.run(run())
+    assert prepared["status"] == "raw_reads_available"
+    assert prepared["analysis_status"] == "NOT_EVALUATED"
+    assert prepared["raw_read_fallback"]["run_count"] == 2
+    assert matrix is None

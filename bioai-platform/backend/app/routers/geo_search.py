@@ -15,7 +15,7 @@ from starlette.responses import Response
 from app.rnaseq.expression import ExpressionParameters, RnaSeqExpressionError, execute_expression_analysis, expression_readiness
 from app.rnaseq.input_contract import CountOrigin
 from app.rnaseq import durable
-from app.rnaseq.geo_counts import GeoCountsError, fetch_matrix, fetch_series
+from app.rnaseq.geo_counts import GeoCountsError, fetch_ena_read_runs, fetch_matrix, fetch_series
 from app.rnaseq.geo_automatic import prepare
 from app.rnaseq.geo_recovery import recovery_bundle
 from app.rnaseq.study_scope import classify_rnaseq_study_scope
@@ -80,7 +80,49 @@ async def _prepare_automatic(selection: AutomaticSelection):
             filename = selection.filename
             if filename not in {f['name'] for f in candidates}:
                 raise GeoCountsError('Choose a deposited Series count matrix from this study.')
-        matrix, source = await fetch_matrix(client, series, filename)
+        try:
+            matrix, source = await fetch_matrix(client, series, filename)
+        except GeoCountsError as matrix_error:
+            # GEO metadata may be public while the processed-file directory is
+            # absent from FTP. Discover the linked ENA reads; never invent counts.
+            fallback_errors = []
+            for study_accession in series.get('read_projects', []):
+                if not study_accession.startswith(('PRJNA', 'PRJEB', 'PRJDB')):
+                    continue
+                try:
+                    raw_reads = await fetch_ena_read_runs(
+                        client, study_accession, [sample['accession'] for sample in series['samples']]
+                    )
+                    return {
+                        'status': 'raw_reads_available',
+                        'accession': series['accession'],
+                        'title': series['title'],
+                        'filename': filename,
+                        'analysis_status': 'NOT_EVALUATED',
+                        'message': (
+                            'GEO lists a processed raw-count supplement, but NCBI returned 404 for both its file-download '
+                            'endpoint and the canonical Series supplementary path. The count matrix was not retrieved. '
+                            'ENA provides the original paired-end reads for every GEO sample. No count matrix was created '
+                            'and no DESeq2 analysis was run. Stage the FASTQ files in the private RNA-seq input store and '
+                            'use the configured nf-core/rnaseq executor to regenerate counts.'
+                        ),
+                        'count_matrix_issue': str(matrix_error),
+                        'raw_read_fallback': raw_reads,
+                        'production_workflow': {
+                            'name': 'nf-core/rnaseq',
+                            'revision': '3.26.0',
+                            'reference_evidence': 'GEO sample records report GRCh38',
+                            'execution_status': 'NOT_SUBMITTED',
+                            'reason': 'FASTQ staging, persistent storage and a provisioned executor are required before launch.',
+                        },
+                    }, None
+                except GeoCountsError as fallback_error:
+                    fallback_errors.append(f'{study_accession}: {fallback_error}')
+            if fallback_errors:
+                raise GeoCountsError(
+                    f'{matrix_error} ENA raw-read recovery also failed: ' + ' | '.join(fallback_errors)
+                ) from matrix_error
+            raise
     result = prepare(series, matrix, filename, source, selection.group_key)
     return {**result, 'filename': filename, 'title': series['title']}, matrix
 

@@ -1,0 +1,100 @@
+import asyncio
+import gzip
+
+import httpx
+import pytest
+
+from app.rnaseq.geo_counts import GeoCountsError, fetch_series
+
+
+ACCESSION = "GSE336901"
+FAMILY_SOFT = """^SERIES = GSE336901
+!Series_title = ALS expression study
+!Series_overall_design = Healthy versus SALS
+!Series_type = Expression profiling by high throughput sequencing
+!Series_sample_id = GSM900001
+!Series_sample_id = GSM900002
+!Series_supplementary_file = ftp://ftp.ncbi.nlm.nih.gov/geo/series/GSE336nnn/GSE336901/suppl/raw_counts.tsv.gz
+^SAMPLE = GSM900001
+!Sample_title = Healthy replicate 1
+!Sample_organism_ch1 = Homo sapiens
+!Sample_library_strategy = RNA-Seq
+!Sample_characteristics_ch1 = condition: healthy
+!Sample_supplementary_file_1 = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM900nnn/GSM900001/suppl/raw_counts.tsv.gz
+^SAMPLE = GSM900002
+!Sample_title = SALS replicate 1
+!Sample_organism_ch1 = Homo sapiens
+!Sample_library_strategy = RNA-Seq
+!Sample_characteristics_ch1 = condition: SALS
+!Sample_supplementary_file_1 = ftp://ftp.ncbi.nlm.nih.gov/geo/samples/GSM900nnn/GSM900002/suppl/raw_counts.tsv.gz
+"""
+
+
+def run_fetch(handler):
+    async def run():
+        async with httpx.AsyncClient(transport=httpx.MockTransport(handler)) as client:
+            return await fetch_series(client, ACCESSION)
+    return asyncio.run(run())
+
+
+def test_html_200_from_acc_cgi_falls_back_to_family_soft():
+    archive = gzip.compress(FAMILY_SOFT.encode())
+
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<!doctype html><html><title>Request rejected</title></html>")
+        if request.url.path.endswith("_family.soft.gz"):
+            return httpx.Response(200, content=archive)
+        pytest.fail(f"Unexpected GEO request: {request.url}")
+
+    result = run_fetch(respond)
+    assert result["accession"] == ACCESSION
+    assert result["title"] == "ALS expression study"
+    assert [sample["accession"] for sample in result["samples"]] == ["GSM900001", "GSM900002"]
+    assert [sample["characteristics"]["condition"] for sample in result["samples"]] == ["healthy", "SALS"]
+    assert result["organisms"] == ["Homo sapiens"]
+    assert result["files"][0]["name"] == "raw_counts.tsv.gz"
+    assert result["files"][0]["analysis_eligible"] is True
+
+
+def test_family_soft_html_200_is_rejected_as_non_metadata():
+    def respond(request):
+        return httpx.Response(200, text="<html><title>NCBI challenge</title></html>")
+
+    with pytest.raises(GeoCountsError, match="both NCBI routes|HTML"):
+        run_fetch(respond)
+
+
+def test_family_soft_gzip_with_malformed_soft_is_rejected():
+    malformed = gzip.compress(b"this is not a GEO SOFT record")
+
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>challenge</html>")
+        return httpx.Response(200, content=malformed)
+
+    with pytest.raises(GeoCountsError, match="recognised SOFT|both NCBI routes"):
+        run_fetch(respond)
+
+
+def test_family_soft_wrong_accession_is_not_accepted():
+    wrong = FAMILY_SOFT.replace("GSE336901", "GSE336902")
+    archive = gzip.compress(wrong.encode())
+
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>challenge</html>")
+        return httpx.Response(200, content=archive)
+
+    with pytest.raises(GeoCountsError, match="did not contain the requested Series"):
+        run_fetch(respond)
+
+
+def test_missing_api_and_family_records_return_actionable_error():
+    def respond(request):
+        if request.url.host == "www.ncbi.nlm.nih.gov":
+            return httpx.Response(200, text="<html>challenge</html>")
+        return httpx.Response(404, text="Not found")
+
+    with pytest.raises(GeoCountsError, match="both NCBI routes"):
+        run_fetch(respond)

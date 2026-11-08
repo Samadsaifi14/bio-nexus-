@@ -16,7 +16,7 @@ type Prepared = {
   genes?: number; samples?: number; source_sha256?: string; source_record_sha256?: string;
   group_key?: string; reference_level?: string; test_level?: string;
   groups?: { name: string; samples: number }[]; covariates?: string[];
-  message?: string; analysis_status?: string; count_matrix_issue?: string;
+  analysis_status?: string; count_matrix_issue?: string;
   raw_read_fallback?: {
     status: string; provider: string; study_accession: string; study_url: string;
     run_count: number; sample_count: number; fastq_file_count: number;
@@ -50,6 +50,7 @@ export default function RnaSeqWorkflow() {
   const [error, setError] = useState('');
   const [pollError, setPollError] = useState('');
   const [resume, setResume] = useState('');
+  const rawReadFallback = prepared?.raw_read_fallback;
 
   useEffect(() => {
     if (!jobId) return;
@@ -117,7 +118,7 @@ export default function RnaSeqWorkflow() {
     <section className="data-card p-5 space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div><h2 className="text-sm font-semibold">GEO example · {DEMO.accession}</h2><p className="text-xs text-text-secondary">Ten FFPE samples with five sensitive and five resistant cases. The GEO record lists processed counts, but its Series download directory is currently unavailable; BioNexus checks ENA for the original reads instead.</p></div>
-        <button type="button" disabled={running} onClick={() => { setQuery(DEMO.accession); setResults([]); void run(DEMO.accession); }} className="btn-primary disabled:opacity-40">Inspect live data availability</button>
+        <button type="button" disabled={running} onClick={() => { setQuery(DEMO.accession); setResults([]); void run(DEMO.accession, undefined, undefined, true); }} className="btn-primary disabled:opacity-40">Inspect live data availability</button>
       </div>
       <form onSubmit={submit} className="flex flex-wrap gap-3">
         <input aria-label="GEO accession or search terms" value={query} onChange={event => setQuery(event.target.value)} placeholder="GSE accession or RNA-seq study" className="min-w-0 flex-1 rounded-lg border border-glass-border bg-surface-1 px-3 py-3 text-sm" />
@@ -128,18 +129,18 @@ export default function RnaSeqWorkflow() {
       {prepared?.status === 'choose_matrix' && <fieldset className="space-y-3"><legend className="text-sm font-semibold">Which count matrix would you like to analyze?</legend>{prepared.files?.map(file => <button key={file.name} disabled={running} onClick={() => run(selectedAccession, file.name)} className="block text-left text-sm text-accent-cyan disabled:opacity-40">{file.name}</button>)}</fieldset>}
       {prepared?.status === 'choose_comparison' && <fieldset className="space-y-3"><legend className="text-sm font-semibold">What would you like to compare?</legend>{prepared.comparisons?.map(choice => <button key={choice.key} disabled={running} onClick={() => run(selectedAccession, prepared.filename, choice.key)} className="block text-left text-sm text-accent-cyan disabled:opacity-40">{choice.key}: {choice.levels.join(' versus ')}</button>)}</fieldset>}
       {prepared?.status === 'no_counts' && <p role="status" className="text-sm text-warn">{prepared.message}</p>}
-      {prepared?.status === 'raw_reads_available' && prepared.raw_read_fallback && <section className="space-y-3 rounded-lg border border-glass-border bg-surface-1 p-4" aria-live="polite">
+      {prepared?.status === 'raw_reads_available' && rawReadFallback && <section className="space-y-3 rounded-lg border border-glass-border bg-surface-1 p-4" aria-live="polite">
         <div><p className="text-sm font-semibold text-warn">Processed count matrix unavailable · raw-read recovery found</p><p className="mt-1 text-sm">{prepared.message}</p></div>
         <div className="grid gap-2 text-sm sm:grid-cols-3">
-          <p><strong>{prepared.raw_read_fallback.sample_count}</strong> GEO samples</p>
-          <p><strong>{prepared.raw_read_fallback.run_count}</strong> ENA runs</p>
-          <p><strong>{prepared.raw_read_fallback.fastq_file_count}</strong> FASTQ files</p>
+          <p><strong>{rawReadFallback.sample_count}</strong> GEO samples</p>
+          <p><strong>{rawReadFallback.run_count}</strong> ENA runs</p>
+          <p><strong>{rawReadFallback.fastq_file_count}</strong> FASTQ files</p>
         </div>
-        <p className="text-sm">Approximately <strong>{prepared.raw_read_fallback.total_fastq_gib.toFixed(2)} GiB</strong> of paired-end FASTQ data, before intermediate files and reference indexes.</p>
-        <a href={prepared.raw_read_fallback.study_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-accent-cyan">Open ENA study {prepared.raw_read_fallback.study_accession} <ArrowSquareOut /></a>
+        <p className="text-sm">Approximately <strong>{rawReadFallback.total_fastq_gib.toFixed(2)} GiB</strong> of paired-end FASTQ data, before intermediate files and reference indexes.</p>
+        <a href={rawReadFallback.study_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-sm text-accent-cyan">Open ENA study {rawReadFallback.study_accession} <ArrowSquareOut /></a>
         <details className="space-y-2">
           <summary className="cursor-pointer text-sm font-semibold">View sample-to-run mapping and FASTQ downloads</summary>
-          <div className="space-y-3 pt-2">{prepared.raw_read_fallback.runs.map(run => <div key={run.run_accession} className="border-t border-glass-border pt-2 text-xs">
+          <div className="space-y-3 pt-2">{rawReadFallback.runs.map(run => <div key={run.run_accession} className="border-t border-glass-border pt-2 text-xs">
             <p className="font-semibold">{run.sample_accession} · {run.sample_title}</p>
             <p className="text-text-muted">{run.run_accession} · {run.experiment_accession} · {(run.total_fastq_bytes / (1024 ** 3)).toFixed(2)} GiB</p>
             <div className="flex flex-wrap gap-3">{run.fastq_files.map((file, index) => <a key={file.url} href={file.url} target="_blank" rel="noreferrer" className="text-accent-cyan">FASTQ mate {index + 1} ({(file.bytes / (1024 ** 3)).toFixed(2)} GiB) <ArrowSquareOut /></a>)}</div>

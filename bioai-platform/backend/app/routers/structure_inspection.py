@@ -3,7 +3,7 @@ import asyncio
 import logging
 import httpx
 from fastapi import APIRouter, Depends, HTTPException
-from app.services.auth import require_user_id
+from app.services.auth import get_user_id
 from app.services.ssrf import validate_url
 from app.tools.structure_prep import detect_chain_health, validate_pdb_id
 
@@ -29,7 +29,7 @@ def _extract_chain_uniprot(payload: dict) -> list[dict]:
             for chain, accessions in sorted(by_chain.items())]
 
 @router.get("/{pdb_id}")
-async def inspect_pdb_chain_integrity(pdb_id: str, user_id: str = Depends(require_user_id)):
+async def inspect_pdb_chain_integrity(pdb_id: str, user_id: str | None = Depends(get_user_id)):
     try:
         pdb_id = validate_pdb_id(pdb_id)
     except ValueError as exc:
@@ -70,6 +70,40 @@ async def inspect_pdb_chain_integrity(pdb_id: str, user_id: str = Depends(requir
         except (httpx.HTTPError, ValueError, TypeError):
             logger.info("PDBe SIFTS mapping unavailable for %s", pdb_id)
 
+        # Resolve other experimental PDB entries for each mapped UniProt accession.
+        # Keep this bounded: a multimer can map several chains to many accessions.
+        alternative_structures: dict[str, list[dict]] = {}
+        accessions = sorted({
+            accession
+            for mapping in chain_uniprot
+            for accession in mapping.get("accessions", [])
+        })[:8]
+        for accession in accessions:
+            uniprot_url = f"https://rest.uniprot.org/uniprotkb/{accession}.json"
+            validate_url(uniprot_url)
+            try:
+                uniprot_response = await client.get(uniprot_url, timeout=15)
+                if uniprot_response.status_code != 200:
+                    alternative_structures[accession] = []
+                    continue
+                uniprot_record = uniprot_response.json()
+                pdb_refs = []
+                seen_pdbs: set[str] = set()
+                for cross_ref in uniprot_record.get("uniProtKBCrossReferences", []) or []:
+                    if cross_ref.get("database") != "PDB":
+                        continue
+                    alternative_id = str(cross_ref.get("id") or "").upper()
+                    if len(alternative_id) == 4 and alternative_id not in seen_pdbs:
+                        seen_pdbs.add(alternative_id)
+                        pdb_refs.append({
+                            "pdb_id": alternative_id,
+                            "url": f"https://www.rcsb.org/structure/{alternative_id}",
+                        })
+                alternative_structures[accession] = pdb_refs[:30]
+            except (httpx.HTTPError, ValueError, TypeError):
+                logger.info("UniProt cross-reference lookup unavailable for %s", accession)
+                alternative_structures[accession] = []
+
     health = await asyncio.to_thread(detect_chain_health, pdb_text)
     entry_info = metadata.get("rcsb_entry_info", {}) if isinstance(metadata, dict) else {}
     struct = metadata.get("struct", {}) if isinstance(metadata.get("struct"), dict) else {}
@@ -93,6 +127,7 @@ async def inspect_pdb_chain_integrity(pdb_id: str, user_id: str = Depends(requir
             "total_residues": health.total_residues,
         },
         "chain_uniprot": chain_uniprot,
+        "alternative_structures": alternative_structures,
         "mapping_status": mapping_status,
         "mapping_source": "PDBe SIFTS",
         "sources": {

@@ -18,7 +18,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.logging_config import setup_logging
 from app.middleware import RequestIDMiddleware
-from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, ngs_demo, rnaseq_production, rnaseq_expression, rnaseq_recovery, geo_search, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
+from app.routers import pipelines, pipeline_v2, ai, jobs, share, profile, sequences, uniprot, alignment, structures, structure_inspection, pathways, domains, interactions, primers, structure_analysis, structure_insights, phylo, phylo_insights, export, api_keys, cache_stats, docking, docking_analytics, sequencing, ngs, ngs_v2, ngs_demo, rnaseq_production, rnaseq_expression, rnaseq_recovery, geo_search, audit, admet, md, md_v2, function_predict, seq_tools, castp, swissmodel, structure_predict, structure_prep, structure_export, history, templates, tool_cards, experiments, benchmarks, engines, figure, evidence, publication, datasets, dashboard, reproducibility, paper_artifacts, plugins
 from app.services.cache import init_redis
 
 setup_logging()
@@ -78,6 +78,7 @@ app.include_router(sequences.router, prefix="/api/sequences", tags=["sequences"]
 app.include_router(uniprot.router, prefix="/api/uniprot", tags=["uniprot"])
 app.include_router(alignment.router, prefix="/api/alignment", tags=["alignment"])
 app.include_router(structures.router, prefix="/api/structures", tags=["structures"])
+app.include_router(structure_inspection.router)
 app.include_router(pathways.router, prefix="/api/pathways", tags=["pathways"])
 app.include_router(domains.router)
 app.include_router(interactions.router)

@@ -2224,3 +2224,33 @@ export async function trimAlignmentColumns(fasta: string, molecule: 'dna' | 'rna
   const { data } = await longApi.post<{ results: AlignmentTrimResult }>('/api/seq-tools/alignment-trim', { fasta, molecule, mode, gap_percent });
   return data;
 }
+
+
+// ─── PDB chain integrity inspection ─────────────────────────────────────────
+export type StructureChainInspection = {
+  pdb_id: string;
+  title?: string | null;
+  experimental_method?: string | null;
+  resolution_angstrom?: number | null;
+  chain_health: {
+    has_missing_residues: boolean;
+    missing_residue_count: number;
+    missing_ranges: string[];
+    has_chain_breaks: boolean;
+    chain_break_count: number;
+    chain_breaks: Array<{ chain: string; from_resnum: number; to_resnum: number; distance: number }>;
+    is_broken: boolean;
+    chains: string[];
+    total_residues: number;
+  };
+  chain_uniprot: Array<{ chain: string; accessions: string[] }>;
+  alternative_structures: Record<string, Array<{ pdb_id: string; url: string }>>;
+  mapping_status: 'available' | 'unavailable';
+  mapping_source: string;
+  sources: { rcsb: string; pdbe: string };
+};
+
+export async function inspectPdbChainIntegrity(pdbId: string): Promise<StructureChainInspection> {
+  const res = await api.get(`/api/structure-inspection/${encodeURIComponent(pdbId)}`);
+  return res.data;
+}

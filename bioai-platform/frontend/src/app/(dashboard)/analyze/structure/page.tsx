@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation';
 import { motion } from 'framer-motion';
 import { CircleNotch as LoaderCircle, ArrowSquareOut as ExternalLink, Dna, TestTube as FlaskConical, Brain, Pulse as Activity } from '@phosphor-icons/react';
 import { fadeUp } from '@/lib/animations';
-import { fetchStructure, getStructureInventory } from '@/lib/api';
+import { fetchStructure, getStructureInventory, inspectPdbChainIntegrity } from '@/lib/api';
 import { extractErrorMessage } from '@/lib/errors';
 import { useAuditTrail } from '@/hooks/useAuditTrail';
-import type { StructureResult } from '@/lib/api';
+import type { StructureResult, StructureChainInspection } from '@/lib/api';
 import { DockingViewer } from '@/components/DockingViewer';
 import { AIResultSummary } from '@/components/results/AIResultSummary';
 import { BackButton, PageHeader, CriticalButton, FlatInput } from '@/components/ui';
@@ -32,6 +32,9 @@ export default function StructurePage() {
   const [error, setError] = useState<string | null>(null);
   const [inventory, setInventory] = useState<{ chains: Array<{ id: string; residue_count: number }>; ligands: Array<{ id: string; chain: string; residue_count: number }> } | null>(null);
   const [linkHighlight, setLinkHighlight] = useState<{ acc: string; range: { start: number; end: number } } | null>(null);
+  const [inspection, setInspection] = useState<StructureChainInspection | null>(null);
+  const [inspectionLoading, setInspectionLoading] = useState(false);
+  const [inspectionError, setInspectionError] = useState<string | null>(null);
   const audit = useAuditTrail();
 
   const runSearch = async (input: string) => {
@@ -42,6 +45,8 @@ export default function StructurePage() {
     setError(null);
     setResult(null);
     setInventory(null);
+    setInspection(null);
+    setInspectionError(null);
     try {
       const res = await fetchStructure(input.trim());
       setResult(res);
@@ -59,6 +64,20 @@ export default function StructurePage() {
   };
 
   const handleSearch = () => runSearch(query);
+
+  const handleInspectChain = async () => {
+    if (!pdbId) return;
+    setInspectionLoading(true);
+    setInspectionError(null);
+    try {
+      const report = await inspectPdbChainIntegrity(pdbId);
+      setInspection(report);
+    } catch (err: unknown) {
+      setInspectionError(extractErrorMessage(err, 'Could not inspect this PDB entry'));
+    } finally {
+      setInspectionLoading(false);
+    }
+  };
 
   useEffect(() => {
     const handoff = getAnalysisHandoff();
@@ -107,7 +126,7 @@ export default function StructurePage() {
           <FlatInput
             type="text"
             value={query}
-            onChange={(e) => { setQuery(e.target.value); setResult(null); setError(null); setInventory(null); setLinkHighlight(null); }}
+            onChange={(e) => { setQuery(e.target.value); setResult(null); setError(null); setInventory(null); setLinkHighlight(null); setInspection(null); setInspectionError(null); }}
             onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
             placeholder="e.g. 1TIM, P04637, 4HHB"
             className="flex-1"
@@ -180,6 +199,94 @@ export default function StructurePage() {
               </div>
             )}
           </div>
+
+          {pdbId && (
+            <section className="data-card p-5 space-y-3" aria-label="Chain integrity inspection">
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div>
+                  <h3 className="font-semibold text-text-primary">Chain integrity check</h3>
+                  <p className="text-xs text-text-muted mt-1">Checks deposited missing-residue records and Cα–Cα discontinuities.</p>
+                </div>
+                <CriticalButton onClick={handleInspectChain} disabled={inspectionLoading}>
+                  {inspectionLoading ? <LoaderCircle className="w-4 h-4 animate-spin" /> : <Activity className="w-4 h-4" />}
+                  {inspectionLoading ? 'Checking…' : 'Check chain gaps'}
+                </CriticalButton>
+              </div>
+              {inspectionError && <p className="text-sm text-error">{inspectionError}</p>}
+              {inspection && (
+                <div className="space-y-4">
+                  <div className={inspection.chain_health.is_broken
+                    ? "rounded-lg border border-error/30 bg-error/5 p-3"
+                    : "rounded-lg border border-accent-cyan/20 bg-accent-cyan/5 p-3"}>
+                    <p className="text-sm font-medium text-text-primary">
+                      {inspection.chain_health.is_broken ? 'Potential chain discontinuity detected' : 'No chain gaps detected by these checks'}
+                    </p>
+                    <p className="text-xs text-text-muted mt-1">
+                      {inspection.chain_health.total_residues.toLocaleString()} observed protein residues across {inspection.chain_health.chains.length} chains ·
+                      {' '}{inspection.chain_health.missing_residue_count} REMARK 465 missing residues ·
+                      {' '}{inspection.chain_health.chain_break_count} Cα distance breaks
+                    </p>
+                  </div>
+                  {inspection.chain_health.missing_ranges.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-text-primary mb-1">Deposited missing-residue records</p>
+                      <p className="text-xs text-text-muted break-words">{inspection.chain_health.missing_ranges.join(', ')}</p>
+                    </div>
+                  )}
+                  {inspection.chain_health.chain_breaks.length > 0 && (
+                    <div>
+                      <p className="text-xs font-semibold text-text-primary mb-1">Cα–Cα discontinuities (threshold: 4.2 Å)</p>
+                      <div className="overflow-x-auto">
+                        <table className="w-full text-xs text-left">
+                          <thead><tr className="text-text-muted"><th className="py-1 pr-3">Chain</th><th className="py-1 pr-3">From residue</th><th className="py-1 pr-3">To residue</th><th className="py-1">Distance</th></tr></thead>
+                          <tbody>{inspection.chain_health.chain_breaks.map((gap, index) => (
+                            <tr key={`${gap.chain}-${gap.from_resnum}-${gap.to_resnum}-${index}`} className="border-t border-glass-border text-text-secondary">
+                              <td className="py-1 pr-3">{gap.chain}</td><td className="py-1 pr-3">{gap.from_resnum}</td><td className="py-1 pr-3">{gap.to_resnum}</td><td className="py-1">{gap.distance.toFixed(2)} Å</td>
+                            </tr>
+                          ))}</tbody>
+                        </table>
+                      </div>
+                    </div>
+                  )}
+                  <div>
+                    <p className="text-xs font-semibold text-text-primary mb-2">Chain → UniProt mapping</p>
+                    {inspection.chain_uniprot.length === 0 ? (
+                      <p className="text-xs text-text-muted">No UniProt mapping was returned by PDBe SIFTS for this entry. This does not mean the protein has no UniProt record.</p>
+                    ) : inspection.chain_uniprot.map((mapping) => (
+                      <div key={mapping.chain} className="mb-3 rounded-lg border border-glass-border p-3">
+                        <p className="text-xs text-text-secondary mb-2">Chain {mapping.chain}</p>
+                        <div className="flex flex-wrap gap-2">
+                          {mapping.accessions.map((accession) => (
+                            <div key={accession} className="w-full space-y-2">
+                              <p className="text-sm font-mono text-text-primary">{accession}</p>
+                              <div className="flex flex-wrap gap-3 text-xs">
+                                <a className="text-accent-cyan hover:underline" href={`https://www.uniprot.org/uniprotkb/${accession}`} target="_blank" rel="noopener noreferrer">UniProt record ↗</a>
+                                <a className="text-accent-cyan hover:underline" href={`https://alphafold.ebi.ac.uk/entry/${accession}`} target="_blank" rel="noopener noreferrer">AlphaFold DB ↗</a>
+                                <a className="text-accent-cyan hover:underline" href={`https://swissmodel.expasy.org/repository/uniprot/${accession}`} target="_blank" rel="noopener noreferrer">SWISS-MODEL ↗</a>
+                                <button className="text-accent-cyan hover:underline" onClick={() => { setQuery(accession); void runSearch(accession); }}>Fetch by UniProt ID</button>
+                              </div>
+                              {(inspection.alternative_structures[accession] || []).length > 0 && (
+                                <div className="text-xs text-text-muted">
+                                  Alternative experimental PDB entries: {(inspection.alternative_structures[accession] || []).map((entry) => (
+                                    <a key={entry.pdb_id} className="ml-2 text-accent-cyan hover:underline" href={entry.url} target="_blank" rel="noopener noreferrer">{entry.pdb_id}</a>
+                                  ))}
+                                </div>
+                              )}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                  <p className="text-[11px] text-text-muted">Method note: this report uses PDB REMARK 465 annotations and observed Cα–Cα distances greater than 4.2 Å. It is a chain-continuity screen, not a complete wwPDB validation or proof that the biological protein is complete.</p>
+                  <div className="flex flex-wrap gap-3 text-xs">
+                    <a className="text-accent-cyan hover:underline" href={inspection.sources.rcsb} target="_blank" rel="noopener noreferrer">RCSB entry ↗</a>
+                    <a className="text-accent-cyan hover:underline" href={inspection.sources.pdbe} target="_blank" rel="noopener noreferrer">PDBe entry ↗</a>
+                  </div>
+                </div>
+              )}
+            </section>
+          )}
 
           <div className="glass-card p-4 flex flex-wrap gap-2">
             <span className="text-xs text-text-muted self-center mr-2">Open in:</span>

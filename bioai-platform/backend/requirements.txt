@@ -8,7 +8,7 @@ requests>=2.31  # official BLAST database provisioning
 aiohttp
 biopython>=1.80  # PairwiseAligner + substitution_matrices (Bio.Align)
 litellm
-sentry-sdk
+sentry-sdk>=2.70,<3  # SDK 3.0 removed send_default_pii used by app startup
 python-dotenv
 supabase
 python-multipart>=0.0.20

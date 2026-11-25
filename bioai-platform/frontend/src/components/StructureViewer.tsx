@@ -34,8 +34,26 @@ export default function StructureViewer({ pdbId, height = 'h-96' }: Props) {
         el.setAttribute('loading-overlay', '');
         el.setAttribute('background-color', theme === 'light' ? '#FFFFFF' : '#06060B');
         el.id = viewerId;
+        const onLoaded = () => {
+          if (!cancelled && el.querySelector('canvas')) setStatus('ready');
+        };
+        el.addEventListener('molstar-models-loaded', onLoaded);
         container.appendChild(el);
-        setStatus('ready');
+
+        let attempts = 0;
+        const poll = window.setInterval(() => {
+          if (cancelled) {
+            window.clearInterval(poll);
+            return;
+          }
+          if (el.querySelector('canvas') && (el as HTMLElement & { viewerInstance?: unknown }).viewerInstance) {
+            window.clearInterval(poll);
+            setStatus('ready');
+          } else if (++attempts >= 120) {
+            window.clearInterval(poll);
+            setStatus('error');
+          }
+        }, 250);
       } catch {
         if (!cancelled) setStatus('error');
       }

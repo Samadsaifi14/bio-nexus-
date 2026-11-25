@@ -46,12 +46,18 @@ export default function StructurePage() {
     setResult(null);
     setInventory(null);
     setInspection(null);
+    setInspectionLoading(false);
     setInspectionError(null);
     try {
       const res = await fetchStructure(input.trim());
       setResult(res);
       if (res.pdb_id) {
         getStructureInventory(res.pdb_id).then(setInventory).catch(() => setInventory(null));
+        setInspectionLoading(true);
+        inspectPdbChainIntegrity(res.pdb_id)
+          .then((report) => { setInspection(report); setInspectionError(null); })
+          .catch((inspectionErr: unknown) => setInspectionError(extractErrorMessage(inspectionErr, 'PDB identifiers could not be resolved')))
+          .finally(() => setInspectionLoading(false));
       }
       audit.emitSuccess('structure_fetch', 'AlphaFold/PDB', inputSummary, `pdb:${res?.pdb_id ?? ''}`);
     } catch (err: unknown) {
@@ -143,6 +149,16 @@ export default function StructurePage() {
         </div>
       </motion.div>
 
+      {loading && (
+        <div className="data-card p-4 mb-4" role="status" aria-live="polite">
+          <p className="text-sm font-medium text-text-primary">Resolving structure identifier</p>
+          <p className="text-xs text-text-muted mt-1">
+            Query: <span className="font-mono text-text-secondary">{query.trim().toUpperCase()}</span>
+            {' '}· Checking RCSB PDB and AlphaFold sources
+          </p>
+        </div>
+      )}
+
       {error && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="glass-card p-4 border border-error/20">
           <p className="text-sm text-error">{error}</p>
@@ -160,6 +176,39 @@ export default function StructurePage() {
       {result && (
         <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="space-y-4">
           <AIResultSummary toolName="structure" result={result as unknown as Record<string, unknown>} />
+          <section className="data-card p-4" aria-label="Resolved structure identifiers">
+            <h3 className="text-sm font-semibold text-text-primary mb-3">Resolved identifiers</h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-text-muted">RCSB PDB ID</p>
+                {pdbId ? (
+                  <a className="font-mono text-sm text-accent-cyan hover:underline" href={`https://www.rcsb.org/structure/${pdbId}`} target="_blank" rel="noopener noreferrer">{pdbId} ↗</a>
+                ) : <p className="text-sm text-text-secondary">Not applicable to this AlphaFold model</p>}
+              </div>
+              <div>
+                <p className="text-[11px] uppercase tracking-wide text-text-muted">UniProt accession(s)</p>
+                {inspectionLoading ? (
+                  <p className="text-sm text-text-secondary">Resolving UniProt mappings…</p>
+                ) : inspection?.chain_uniprot?.length ? (
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {inspection.chain_uniprot.flatMap((mapping) => mapping.accessions.map((accession) => (
+                      <a key={`${mapping.chain}-${accession}`} className="font-mono text-sm text-accent-cyan hover:underline" href={`https://www.uniprot.org/uniprotkb/${accession}`} target="_blank" rel="noopener noreferrer">
+                        {accession} <span className="text-text-muted text-xs">(chain {mapping.chain})</span>
+                      </a>
+                    )))}
+                  </div>
+                ) : result.uniprot_accession ? (
+                  <a className="font-mono text-sm text-accent-cyan hover:underline" href={`https://www.uniprot.org/uniprotkb/${result.uniprot_accession}`} target="_blank" rel="noopener noreferrer">{result.uniprot_accession} ↗</a>
+                ) : <p className="text-sm text-text-secondary">{inspectionError || 'No UniProt mapping reported for this entry'}</p>}
+              </div>
+            </div>
+            {pdbId && (
+              <div className="flex flex-wrap gap-3 mt-3 text-xs">
+                <a className="text-accent-cyan hover:underline" href={`https://www.rcsb.org/structure/${pdbId}`} target="_blank" rel="noopener noreferrer">Open RCSB entry ↗</a>
+                <a className="text-accent-cyan hover:underline" href={`https://www.ebi.ac.uk/pdbe/entry/pdb/${pdbId.toLowerCase()}`} target="_blank" rel="noopener noreferrer">Open PDBe entry ↗</a>
+              </div>
+            )}
+          </section>
           <div className="data-card p-5">
             <div className="flex items-center justify-between mb-4">
               <div>
@@ -288,8 +337,22 @@ export default function StructurePage() {
             </section>
           )}
 
+          {pdbId && inspection?.chain_health.is_broken && (
+            <p className="text-xs text-text-muted">
+              Whole-entry preparation keeps the PDB ID as one job and inspects all deposited chains. The current SWISS-MODEL integration does not yet perform validated multichain reconstruction, so this action must not be interpreted as a completed whole-complex model.
+            </p>
+          )}
           <div className="glass-card p-4 flex flex-wrap gap-2">
             <span className="text-xs text-text-muted self-center mr-2">Open in:</span>
+            {pdbId && inspection?.chain_health.is_broken && (
+              <button
+                onClick={() => setPrefill(router, 'structure_prep_pdb_id', pdbId, '/analyze/structure-prep')}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-lg border border-accent-amber/30 bg-accent-amber/5 hover:bg-accent-amber/10 transition"
+                title="Run one preparation job against the complete deposited PDB entry"
+              >
+                <Activity className="w-3 h-3" /> Prepare whole PDB entry
+              </button>
+            )}
             {pdbId && (
               <>
                 <button onClick={() => setPrefill(router, 'docking_pdb_id', pdbId, '/analyze/docking')}

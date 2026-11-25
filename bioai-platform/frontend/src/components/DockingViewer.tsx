@@ -98,7 +98,6 @@ export function DockingViewer({
   const sceneBg = backgroundColor ?? (theme === 'light' ? '#FFFFFF' : '#0B0C14');
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<PDBeElement | null>(null);
-  const initRef = useRef(false);
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading');
   const [error, setError] = useState<string | null>(null);
   const [representation, setRepresentation] = useState<RepresentationType>('cartoon');
@@ -295,7 +294,8 @@ export function DockingViewer({
     setTimeout(() => cam.spin(false), 1500);
   }, []);
 
-  // Initialize viewer ONCE per pdbId / pdbUrl
+  // Mount only after the PDBe web component has registered. Appending the
+  // custom element before its script is ready can leave a blank canvas.
   useEffect(() => {
     if (!pdbId && !pdbUrl) {
       setStatus('error');
@@ -305,83 +305,97 @@ export function DockingViewer({
 
     const container = containerRef.current;
     if (!container) return;
-    if (initRef.current) return;
-    initRef.current = true;
 
     let cancelled = false;
     let checkInterval: ReturnType<typeof setInterval> | null = null;
+    let loadTimeout: ReturnType<typeof setTimeout> | null = null;
+    let loaded = false;
+    let el: PDBeElement | null = null;
 
+    setStatus('loading');
+    setError(null);
     container.innerHTML = '';
+    viewerRef.current = null;
 
-    void ensurePdbeMolstar().catch(() => {
-      if (!cancelled) {
-        setStatus('error');
-        setError('The 3D viewer failed to load. Docking scores and interaction data are still available.');
-      }
-    });
-
-    const el = document.createElement('pdbe-molstar') as PDBeElement;
-    if (pdbUrl) {
-      el.setAttribute('custom-data-url', pdbUrl);
-      el.setAttribute('custom-data-format', pdbUrlFormat || 'pdb');
-    } else {
-      el.setAttribute('molecule-id', pdbId.toLowerCase());
-    }
-    el.setAttribute('hide-controls', '');
-    el.setAttribute('background-color', sceneBg);
-    el.id = `pdbe-docking-${(pdbId || pdbUrl || 'structure').toLowerCase().replace(/[^a-z0-9]/gi, '')}`;
-    container.appendChild(el);
-    viewerRef.current = el;
-
-    let cancelled_after_event = false;
-
-    const onModelsLoaded = async () => {
-      if (cancelled || cancelled_after_event) return;
-      cancelled_after_event = true;
+    const finishLoad = async () => {
+      if (cancelled || loaded || !el) return;
+      if (!el.viewerInstance || !el.querySelector('canvas')) return;
+      loaded = true;
       if (checkInterval) clearInterval(checkInterval);
-
-      const viewer = el.viewerInstance;
-      if (!viewer) {
+      if (loadTimeout) clearTimeout(loadTimeout);
+      try {
+        await loadLigand();
         if (!cancelled) setStatus('ready');
-        return;
+      } catch {
+        if (!cancelled) setStatus('ready');
       }
-
-      // Load ligand as separate structure
-      await loadLigand();
-
-      // Draw interaction lines
-      if (interactions) drawInteractions(interactions, visibleInteractions);
-
-      if (!cancelled) setStatus('ready');
     };
 
-    el.addEventListener('molstar-models-loaded', onModelsLoaded);
+    const onModelsLoaded = () => { void finishLoad(); };
 
-    let attempts = 0;
-    checkInterval = setInterval(() => {
-      if (cancelled || cancelled_after_event) {
-        if (checkInterval) clearInterval(checkInterval);
-        return;
+    const mount = async () => {
+      try {
+        await ensurePdbeMolstar();
+        if (cancelled || !containerRef.current) return;
+
+        el = document.createElement('pdbe-molstar') as PDBeElement;
+        if (pdbUrl) {
+          el.setAttribute('custom-data-url', pdbUrl);
+          el.setAttribute('custom-data-format', pdbUrlFormat || 'pdb');
+        } else {
+          el.setAttribute('molecule-id', pdbId.toLowerCase());
+        }
+        el.setAttribute('hide-controls', '');
+        el.setAttribute('background-color', sceneBg);
+        el.id = `pdbe-docking-${(pdbId || pdbUrl || 'structure').toLowerCase().replace(/[^a-z0-9]/gi, '')}`;
+        el.addEventListener('molstar-models-loaded', onModelsLoaded);
+        viewerRef.current = el;
+        container.appendChild(el);
+
+        let attempts = 0;
+        checkInterval = setInterval(() => {
+          if (cancelled || loaded) {
+            if (checkInterval) clearInterval(checkInterval);
+            return;
+          }
+          void finishLoad();
+          attempts += 1;
+          if (attempts >= 120 && !loaded) {
+            if (checkInterval) clearInterval(checkInterval);
+            if (!cancelled) {
+              setStatus('error');
+              setError('The structure service did not finish loading this entry. Try again or open the RCSB record.');
+            }
+          }
+        }, 250);
+        loadTimeout = setTimeout(() => {
+          if (!cancelled && !loaded) {
+            if (checkInterval) clearInterval(checkInterval);
+            setStatus('error');
+            setError('The structure viewer timed out while loading coordinates.');
+          }
+        }, 32000);
+      } catch (err) {
+        if (!cancelled) {
+          setStatus('error');
+          setError(err instanceof Error ? err.message : 'The 3D viewer failed to load.');
+        }
       }
-      const hasCanvas = el.querySelector('canvas');
-      if (hasCanvas) {
-        onModelsLoaded();
-        return;
-      }
-      attempts++;
-      if (attempts > 100) {
-        if (checkInterval) clearInterval(checkInterval);
-        if (!cancelled) setStatus('ready');
-      }
-    }, 300);
+    };
+
+    void mount();
 
     return () => {
       cancelled = true;
-      cancelled_after_event = true;
       if (checkInterval) clearInterval(checkInterval);
-      el.removeEventListener('molstar-models-loaded', onModelsLoaded);
+      if (loadTimeout) clearTimeout(loadTimeout);
+      if (el) {
+        el.removeEventListener('molstar-models-loaded', onModelsLoaded);
+        el.remove();
+      }
+      if (viewerRef.current === el) viewerRef.current = null;
     };
-  }, [pdbId, pdbUrl, ligandPdb, sceneBg]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [pdbId, pdbUrl, pdbUrlFormat, sceneBg, ligandPdb, loadLigand]);
 
   // Highlight a residue range (deep-linked from motif scan on the structure page).
   // Uses PDBe Molstar's visual.select range format so the residues actually get

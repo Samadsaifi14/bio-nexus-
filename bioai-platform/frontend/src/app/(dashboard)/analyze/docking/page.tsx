@@ -666,6 +666,20 @@ export default function DockingPage() {
             </div>
           )}
 
+          {(result.status === 'complete' || result.status === 'completed') && result.result?.pdb_id && (
+            <section className="data-card p-5">
+              <h3 className="text-sm font-semibold text-text-primary mb-1">Continue with this molecular structure</h3>
+              <p className="text-xs text-text-muted mb-3">Choose a downstream operation. These links carry the receptor PDB identifier; the docked complex and ligand files remain available through Structure Export.</p>
+              <div className="flex flex-wrap gap-2">
+                <a className="btn-secondary text-xs" href={`/analyze/structure?pdb_id=${encodeURIComponent(result.result.pdb_id)}`}>Inspect receptor structure</a>
+                <a className="btn-secondary text-xs" href={`/analyze/castp?pdb_id=${encodeURIComponent(result.result.pdb_id)}`}>Analyse pockets</a>
+                <a className="btn-secondary text-xs" href={`/analyze/md-v2?pdb_id=${encodeURIComponent(result.result.pdb_id)}`}>Molecular dynamics (MD)</a>
+                {jobId && <a className="btn-secondary text-xs" href={`/api/backend/api/docking/result/${encodeURIComponent(jobId)}/complex.pdb`} target="_blank" rel="noopener noreferrer">Open docked complex PDB</a>}
+              </div>
+              <p className="mt-3 text-[10px] text-text-muted">MD uses the prepared receptor workflow and must be run as a separate simulation. A docking pose is not automatically a validated MD starting system.</p>
+            </section>
+          )}
+
           {result.result?.vina_log && (
             <VinaLog log={result.result.vina_log} />
           )}

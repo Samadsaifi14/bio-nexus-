@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { CircleNotch as LoaderCircle, MagnifyingGlass as Search, Globe as Globe } from '@phosphor-icons/react';
 import { fadeUp, stagger } from '@/lib/animations';
@@ -18,6 +18,14 @@ export default function SwissModelPage() {
   const [error, setError] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'models' | 'experimental'>('models');
   const audit = useAuditTrail();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const initialAccession = params.get('accession');
+    if (initialAccession && /^[A-Z0-9-]{4,15}$/i.test(initialAccession)) {
+      setAccession(initialAccession.toUpperCase());
+    }
+  }, []);
 
   const handleSearch = async () => {
     if (!accession.trim()) return;
@@ -48,6 +56,9 @@ export default function SwissModelPage() {
         title="SWISS-MODEL Repository"
         subtitle="Query the SWISS-MODEL repository for homology models and experimental structures of a UniProt accession."
       />
+      {typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('chain') && (
+        <p className="mb-3 text-xs text-text-muted">Accession supplied from structural analysis · chain {new URLSearchParams(window.location.search).get('chain')} · PDB {new URLSearchParams(window.location.search).get('pdb_id') || 'not specified'}</p>
+      )}
 
       <motion.div variants={fadeUp} initial={{ y: 24 }} animate="show" className="data-card p-5 mb-6">
         <div className="flex gap-3">

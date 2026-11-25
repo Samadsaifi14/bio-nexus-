@@ -597,6 +597,25 @@ export default function CastpPage() {
                         {open && (
                           <div className="mt-4 pt-3 border-t border-glass-border">
                             <PocketLining pocket={pocket} activeSites={result.active_sites || []} />
+                            <div className="mt-4 overflow-x-auto">
+                              <p className="text-[11px] text-text-muted mb-2">Pocket sequence addresses · PDB chain numbering (author residue IDs; not UniProt positions)</p>
+                              <table className="w-full text-xs text-left">
+                                <thead><tr className="border-b border-glass-border text-text-muted">
+                                  <th className="py-1.5 pr-3">Chain</th><th className="py-1.5 pr-3">PDB residue ID</th><th className="py-1.5 pr-3">Residue</th><th className="py-1.5">Sequence address</th>
+                                </tr></thead>
+                                <tbody className="divide-y divide-glass-border/50">
+                                  {[...pocket.residue_details].sort((a, b) => a.chain.localeCompare(b.chain) || a.residue_number - b.residue_number).map((residue, index) => (
+                                    <tr key={`${residue.chain}-${residue.residue_number}-${index}`} className="text-text-secondary">
+                                      <td className="py-1.5 pr-3 font-mono">{residue.chain}</td>
+                                      <td className="py-1.5 pr-3 font-mono">{residue.residue_number}</td>
+                                      <td className="py-1.5 pr-3">{residue.residue_name} ({residue.one})</td>
+                                      <td className="py-1.5 font-mono">Chain {residue.chain}:{residue.one}{residue.residue_number}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                              <p className="mt-2 text-[10px] text-text-muted">These are the exact residue identifiers in the analysed PDB coordinates. A UniProt sequence position is only shown when a residue-level SIFTS mapping is available; no offset is guessed here.</p>
+                            </div>
                             {pocket.gap_ranges.length > 0 && (
                               <div className="mt-3 text-[11px] text-warn">
                                 {pocket.gap_ranges.flatMap((pg) => pg.gaps).length} gaps in the lining sequence across{' '}

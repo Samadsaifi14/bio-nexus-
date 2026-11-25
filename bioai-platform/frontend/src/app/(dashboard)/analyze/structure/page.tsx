@@ -192,9 +192,14 @@ export default function StructurePage() {
                 ) : inspection?.chain_uniprot?.length ? (
                   <div className="flex flex-wrap gap-2 mt-1">
                     {inspection.chain_uniprot.flatMap((mapping) => mapping.accessions.map((accession) => (
-                      <a key={`${mapping.chain}-${accession}`} className="font-mono text-sm text-accent-cyan hover:underline" href={`https://www.uniprot.org/uniprotkb/${accession}`} target="_blank" rel="noopener noreferrer">
-                        {accession} <span className="text-text-muted text-xs">(chain {mapping.chain})</span>
-                      </a>
+                      <div key={`${mapping.chain}-${accession}`} className="flex items-center gap-2 flex-wrap">
+                        <a className="font-mono text-sm text-accent-cyan hover:underline" href={`https://www.uniprot.org/uniprotkb/${accession}`} target="_blank" rel="noopener noreferrer">
+                          {accession} <span className="text-text-muted text-xs">(chain {mapping.chain})</span>
+                        </a>
+                        <button type="button" onClick={() => router.push(`/analyze/swissmodel?accession=${encodeURIComponent(accession)}&chain=${encodeURIComponent(mapping.chain)}&pdb_id=${encodeURIComponent(pdbId)}`)} className="text-[11px] rounded-md border border-accent-cyan/30 px-2 py-1 text-accent-cyan hover:bg-accent-cyan/10">
+                          Open in SWISS-MODEL
+                        </button>
+                      </div>
                     )))}
                   </div>
                 ) : result.uniprot_accession ? (
